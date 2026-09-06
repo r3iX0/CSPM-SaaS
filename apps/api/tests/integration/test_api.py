@@ -1788,14 +1788,14 @@ class TestExposureMap:
                 [
                     ResourceRelationship(
                         organization_id=org_id,
-                        source_id=vm.id,
-                        target_id=identity.id,
+                        source_resource_id=vm.id,
+                        target_resource_id=identity.id,
                         relationship_type=RelationshipType.HAS_IDENTITY,
                     ),
                     ResourceRelationship(
                         organization_id=org_id,
-                        source_id=identity.id,
-                        target_id=sub.id,
+                        source_resource_id=identity.id,
+                        target_resource_id=sub.id,
                         relationship_type=RelationshipType.GRANTS_ROLE,
                     ),
                 ]

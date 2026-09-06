@@ -4598,6 +4598,22 @@ nobody reads:
 `StackedBar` and `Bars` survive by being used, not by being spared:
 Distribution draws with the first and `ComplianceSummary` with the second.
 
+### The endpoint's own logic is unit-tested, not only integration-tested
+
+The first CI run failed on the exposure-map fixture: it wrote
+`ResourceRelationship(source_id=..., target_id=...)` where the columns are
+`source_resource_id` and `target_resource_id`. The bug was in the test and the
+endpoint was fine, but it took a PostgreSQL-backed run to find out — and
+everything interesting about this endpoint is decided before the database is
+involved.
+
+`tests/unit/test_exposure_map.py` now calls the route function over a graph
+built by hand, with `load_graph` patched: which nodes it keeps, that both ends
+of every edge are nodes it kept, that the budget is reported rather than
+silently applied, and that an estate the internet cannot touch draws nothing.
+The integration tests keep the half only a real request can prove — that the
+query works and the answer is scoped to the caller.
+
 ## Settings: the evidence a person supplies
 
 `PATCH /organizations` takes no id in the path. Deleting a *different*
