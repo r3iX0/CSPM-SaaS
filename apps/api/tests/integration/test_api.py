@@ -1401,6 +1401,109 @@ class TestFindingSearchAndSort:
         assert response.status_code == 422
 
 
+class TestUnevaluatedChecks:
+    """The checks with no verdict, listed beside the ones that reached one.
+
+    They are not findings and are not stored as any -- a finding is something a
+    rule concluded. A findings page that omits them answers a narrower question
+    than it appears to, and the omission always reads in the flattering
+    direction: nine checks that could not run look exactly like nine checks
+    that passed.
+    """
+
+    async def _scan_with_a_gap(self, org_id: uuid.UUID) -> None:
+        from datetime import UTC, datetime
+
+        from app.core.db import service_session
+        from app.core.enums import ScanStatus
+        from app.models.scan import Scan, ScanEvaluationGap
+
+        now = datetime.now(UTC)
+        async with service_session() as session:
+            older = Scan(
+                organization_id=org_id,
+                status=ScanStatus.COMPLETED,
+                completed_at=now - timedelta(days=7),
+            )
+            latest = Scan(
+                organization_id=org_id,
+                status=ScanStatus.PARTIAL,
+                completed_at=now,
+            )
+            session.add_all([older, latest])
+            await session.flush()
+            session.add_all(
+                [
+                    ScanEvaluationGap(
+                        organization_id=org_id,
+                        scan_id=latest.id,
+                        rule_id="AZ-IDN-004",
+                        reason="Directory read was refused, so no verdict was reached",
+                    ),
+                    # The same rule, from a reading a week old. A gap is a fact
+                    # about a reading, and last week's says nothing about the
+                    # estate today.
+                    ScanEvaluationGap(
+                        organization_id=org_id,
+                        scan_id=older.id,
+                        rule_id="AZ-STO-009",
+                        reason="Storage API timed out",
+                    ),
+                ]
+            )
+            await session.commit()
+
+    async def test_lists_the_latest_scans_gaps_and_says_why(
+        self, client, cleanup_orgs
+    ) -> None:
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "No Verdict Ltd"))
+        cleanup_orgs.append(org_id)
+        await self._scan_with_a_gap(org_id)
+
+        body = (
+            await client.get(
+                "/api/v1/findings/unevaluated", headers=auth_header(user)
+            )
+        ).json()
+
+        assert [row["rule_id"] for row in body["data"]] == ["AZ-IDN-004"]
+        assert "refused" in body["data"][0]["reason"]
+        assert body["meta"]["total"] == 1
+
+    async def test_an_org_that_has_never_scanned_has_no_gaps(
+        self, client, cleanup_orgs
+    ) -> None:
+        """Not an error and not a claim of coverage: nothing has been read."""
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Unscanned Ltd"))
+        cleanup_orgs.append(org_id)
+
+        body = (
+            await client.get(
+                "/api/v1/findings/unevaluated", headers=auth_header(user)
+            )
+        ).json()
+
+        assert body["data"] == []
+        assert body["meta"]["scan_id"] is None
+
+    async def test_the_path_is_not_read_as_a_finding_id(
+        self, client, cleanup_orgs
+    ) -> None:
+        """`/findings/unevaluated` sits above `/findings/{id}` in the router.
+        Declared the other way round it would be parsed as a UUID and 422."""
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Routing Ltd"))
+        cleanup_orgs.append(org_id)
+
+        response = await client.get(
+            "/api/v1/findings/unevaluated", headers=auth_header(user)
+        )
+
+        assert response.status_code == 200
+
+
 class TestLiveRisks:
     """Which risks the list is willing to call current.
 
@@ -1592,6 +1695,179 @@ class TestFindingAttackPaths:
         # The finding itself does not exist in this tenant, which is a 404 --
         # the route resolves the finding before it builds any graph.
         assert response.status_code == 404, response.text
+
+
+class TestExposureMap:
+    """What the internet touches, and what that touches.
+
+    The overview drew an attack-path panel that is empty for most tenants: a
+    route needs something classified as sensitive at the far end, and a new
+    customer has classified nothing. This answers a question that always has an
+    answer, from the same graph -- and it must not imply the other one, so an
+    edge here says one asset can act on another and never that a route was
+    traced.
+    """
+
+    async def _wired_estate(self, org_id: uuid.UUID) -> None:
+        """An exposed VM, the identity it runs as, and the scope that identity
+        holds a role over. The smallest estate with a real edge in it."""
+        from datetime import UTC, datetime
+
+        from app.core.db import service_session
+        from app.core.enums import (
+            CloudAccountStatus,
+            ConnectionScope,
+            ConsentStatus,
+            Level,
+            Provider,
+            RelationshipType,
+            ResourceType,
+        )
+        from app.models.cloud_account import CloudAccount
+        from app.models.cloud_connection import CloudConnection
+        from app.models.resource import ResourceRecord, ResourceRelationship
+
+        tenant_id = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+        now = datetime.now(UTC)
+        async with service_session() as session:
+            connection = CloudConnection(
+                organization_id=org_id,
+                provider=Provider.AZURE,
+                name="prod",
+                scope_type=ConnectionScope.TENANT_ROOT,
+                role_version="v2",
+                tenant_id=tenant_id,
+                consent_status=ConsentStatus.GRANTED,
+                rbac_verified_at=now,
+                status=CloudAccountStatus.ACTIVE,
+            )
+            session.add(connection)
+            await session.flush()
+
+            account = CloudAccount(
+                organization_id=org_id,
+                connection_id=connection.id,
+                provider=Provider.AZURE,
+                account_name="Production",
+                tenant_id=tenant_id,
+                subscription_id="00000000-0000-0000-0000-000000000001",
+                consent_status=ConsentStatus.GRANTED,
+                rbac_verified_at=now,
+                status=CloudAccountStatus.ACTIVE,
+            )
+            session.add(account)
+            await session.flush()
+
+            def record(arm_id, name, kind, exposure=Level.UNKNOWN):
+                return ResourceRecord(
+                    organization_id=org_id,
+                    cloud_account_id=account.id,
+                    connection_id=connection.id,
+                    provider=Provider.AZURE,
+                    provider_resource_id=arm_id,
+                    resource_type=kind,
+                    name=name,
+                    public_exposure=exposure,
+                    first_seen_at=now,
+                    last_seen_at=now,
+                )
+
+            vm = record("/vm/jump-01", "jump-01", ResourceType.VIRTUAL_MACHINE, Level.CRITICAL)
+            identity = record(
+                "/principals/mi-1", "mi-jump-01", ResourceType.SERVICE_PRINCIPAL
+            )
+            sub = record(
+                "/subscriptions/00000000-0000-0000-0000-000000000001",
+                "Production",
+                ResourceType.SUBSCRIPTION,
+            )
+            session.add_all([vm, identity, sub])
+            await session.flush()
+
+            session.add_all(
+                [
+                    ResourceRelationship(
+                        organization_id=org_id,
+                        source_id=vm.id,
+                        target_id=identity.id,
+                        relationship_type=RelationshipType.HAS_IDENTITY,
+                    ),
+                    ResourceRelationship(
+                        organization_id=org_id,
+                        source_id=identity.id,
+                        target_id=sub.id,
+                        relationship_type=RelationshipType.GRANTS_ROLE,
+                    ),
+                ]
+            )
+            await session.commit()
+
+    async def test_draws_what_the_exposed_asset_can_reach(
+        self, client, cleanup_orgs
+    ) -> None:
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Wired Ltd"))
+        cleanup_orgs.append(org_id)
+        await self._wired_estate(org_id)
+
+        body = (
+            await client.get(
+                "/api/v1/attack-paths/exposure-map", headers=auth_header(user)
+            )
+        ).json()
+
+        names = {node["name"] for node in body["data"]["nodes"]}
+        assert names == {"jump-01", "mi-jump-01", "Production"}
+        # The entry is marked as one: the map is drawn outward from it.
+        entry = next(n for n in body["data"]["nodes"] if n["name"] == "jump-01")
+        assert entry["is_entry"] is True
+        assert body["meta"]["entry_points"] == 1
+
+        # Both ends of every edge are nodes the map is drawing, or the line
+        # would arrive from nowhere.
+        drawn = {node["id"] for node in body["data"]["nodes"]}
+        for edge in body["data"]["edges"]:
+            assert edge["source"] in drawn
+            assert edge["target"] in drawn
+
+    async def test_says_how_much_of_the_estate_it_left_out(
+        self, client, cleanup_orgs
+    ) -> None:
+        """A diagram that quietly truncates is a diagram of a smaller, tidier
+        estate than the customer has."""
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Truncated Ltd"))
+        cleanup_orgs.append(org_id)
+        await self._wired_estate(org_id)
+
+        body = (
+            await client.get(
+                "/api/v1/attack-paths/exposure-map?limit=1",
+                headers=auth_header(user),
+            )
+        ).json()
+
+        assert len(body["data"]["nodes"]) == 1
+        assert body["meta"]["nodes"] == 3
+        assert body["meta"]["omitted"] == 2
+
+    async def test_an_estate_with_nothing_exposed_draws_nothing(
+        self, client, cleanup_orgs
+    ) -> None:
+        """Not an error: an estate the internet cannot touch has no map, and
+        that is the answer rather than a failure to produce one."""
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Closed Ltd"))
+        cleanup_orgs.append(org_id)
+
+        body = (
+            await client.get(
+                "/api/v1/attack-paths/exposure-map", headers=auth_header(user)
+            )
+        ).json()
+
+        assert body["data"]["nodes"] == []
+        assert body["meta"]["entry_points"] == 0
 
 
 class TestReports:

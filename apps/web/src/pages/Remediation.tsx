@@ -9,21 +9,19 @@ import { WrenchIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { api } from "@/lib/api";
-import type { FindingDetail, RemediationTask } from "@/lib/types";
+import type { Dashboard, FindingDetail, RemediationTask } from "@/lib/types";
 import { useT } from "@/i18n";
-import { StatusPill } from "@/components/security/StatusPill";
-import { SeverityBadge } from "@/components/security/SeverityBadge";
+import { HelpPopover } from "@/components/common/HelpPopover";
+import { AgeingStrip } from "@/components/remediation/AgeingStrip";
+import { RemediationBoard, type Lane } from "@/components/remediation/Board";
+import { RemediationTiles } from "@/components/remediation/StatTiles";
 import {
   CardsSkeleton,
   EmptyState,
   ErrorState,
   PageHeader,
 } from "@/components/common/states";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Spinner } from "@/components/ui/spinner";
-import { formatDate, formatEffort, resourceTypeLabel } from "@/lib/format";
+import { buttonVariants } from "@/components/ui/button";
 
 /**
  * The work queue.
@@ -94,11 +92,85 @@ export function RemediationPage() {
       }),
   });
 
+  /**
+   * The estate's own numbers, for the two tiles that are not about this board.
+   *
+   * Under the key the overview already uses, so a reader arriving from it pays
+   * nothing: a queue reporting only on its own cards can sit empty and serene
+   * over an environment with eleven open risks in it.
+   */
+  const posture = useQuery({
+    queryKey: ["dashboard"],
+    queryFn: () => api.get<Dashboard>("/api/v1/dashboard").then((r) => r.data),
+    staleTime: 30_000,
+    retry: false,
+  });
+
+  const tasks = data ?? [];
+  const findingOf = (task: RemediationTask) =>
+    findings.find((q) => q.data?.id === task.finding_id)?.data;
+
+  /**
+   * Which column each task is in.
+   *
+   * `DONE` is not "fixed": it is a claim that the work was deployed, and it
+   * waits in "Awaiting a scan" until a scan stops finding the problem. Only
+   * the finding's own status can move a card into "Verified fixed", which is
+   * what makes that column impossible to reach by hand.
+   */
+  const lanes: Record<Lane, RemediationTask[]> = {
+    TO_FIX: [],
+    IN_PROGRESS: [],
+    AWAITING_SCAN: [],
+    VERIFIED: [],
+  };
+  for (const task of tasks) {
+    if (task.status === "CANCELLED") continue;
+    const finding = findingOf(task);
+    if (finding?.status === "RESOLVED") lanes.VERIFIED.push(task);
+    else if (task.status === "DONE") lanes.AWAITING_SCAN.push(task);
+    else if (task.status === "IN_PROGRESS") lanes.IN_PROGRESS.push(task);
+    else lanes.TO_FIX.push(task);
+  }
+
+  const onBoard = lanes.TO_FIX.length + lanes.IN_PROGRESS.length;
+  const openRisks = posture.data?.open_finding_count ?? null;
+  const cameBack =
+    posture.data?.remediation_activity?.reduce(
+      (total, week) => total + week.reopened,
+      0,
+    ) ?? null;
+
+  /** Measured from the problem, not from the paperwork. */
+  const raisedAt = [...lanes.TO_FIX, ...lanes.IN_PROGRESS, ...lanes.AWAITING_SCAN].map(
+    (task) => {
+      const at = findingOf(task)?.first_detected_at;
+      return at ? new Date(at).getTime() : null;
+    },
+  );
+
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        title={t.remediation.title}
-        description="Ordered by impact against effort. Marking work done does not close a finding — a scan does."
+        title={
+          <>
+            {t.remediation.title}
+            <HelpPopover label="What closes a finding">
+              The queue is ordered by impact against effort. Marking work done
+              records that somebody did it — only a later scan that stops
+              finding the problem closes the finding.
+            </HelpPopover>
+          </>
+        }
+        description={
+          data ? (
+            <>
+              <span className="font-mono">{onBoard}</span> of{" "}
+              <span className="font-mono">{openRisks ?? "—"}</span> open risk
+              {openRisks === 1 ? "" : "s"} are on the board
+            </>
+          ) : undefined
+        }
       />
 
       {isLoading && <CardsSkeleton />}
@@ -112,7 +184,7 @@ export function RemediationPage() {
         />
       )}
 
-      {data && data.length === 0 && (
+      {data && tasks.length === 0 && (
         <EmptyState
           icon={WrenchIcon}
           title={t.remediation.empty}
@@ -128,92 +200,27 @@ export function RemediationPage() {
         />
       )}
 
-      <div className="flex flex-col gap-3">
-        {data?.map((task) => (
-          <TaskCard
-            key={task.id}
-            task={task}
-            finding={findings.find((q) => q.data?.id === task.finding_id)?.data}
-            marking={update.isPending && update.variables?.id === task.id}
-            onDone={() => update.mutate({ id: task.id, status: "DONE" })}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/**
- * One job, said as a job.
- *
- * The card this replaces led with two badges and a link reading "View finding",
- * which named the queue's own vocabulary and none of the reader's. What decides
- * whether a task is worked next is what is wrong, on what, and how long it
- * takes -- so the title of the finding is the card, and the badges qualify it.
- */
-function TaskCard({
-  task,
-  finding,
-  marking,
-  onDone,
-}: {
-  task: RemediationTask;
-  finding: FindingDetail | undefined;
-  marking: boolean;
-  onDone: () => void;
-}) {
-  return (
-    <Card>
-      <CardContent className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <SeverityBadge level={task.priority} />
-            <StatusPill status={task.status} />
-          </div>
-
-          {finding ? (
-            <Link
-              to={`/findings/${task.finding_id}`}
-              className="mt-2 block text-sm font-medium text-foreground hover:underline"
-            >
-              {finding.title}
-            </Link>
-          ) : (
-            // The row keeps its height while the finding arrives, so a queue
-            // does not reflow under the reader's cursor.
-            <Skeleton className="mt-2.5 h-4 w-72 max-w-full" />
-          )}
-
-          <p className="mt-1 truncate text-xs text-muted-foreground">
-            {finding?.resource
-              ? `${finding.resource.name} · ${resourceTypeLabel(finding.resource.resource_type)}`
-              : finding
-                ? "Tenant-wide — no single asset carries this"
-                : " "}
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-          <span>{formatEffort(task.estimated_effort_minutes)}</span>
-          {task.due_date && <span>Due {formatDate(task.due_date)}</span>}
-          {task.status !== "DONE" && (
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={marking}
-              onClick={onDone}
-            >
-              {marking && <Spinner data-icon="inline-start" />}
-              Mark done
-            </Button>
-          )}
-        </div>
-      </CardContent>
-      {task.notes && (
-        <CardFooter className="border-t pt-4 text-sm text-muted-foreground">
-          {task.notes}
-        </CardFooter>
+      {data && (
+        <RemediationTiles
+          verified={posture.data?.verified_resolved_last_30_days ?? null}
+          open={openRisks}
+          inProgress={lanes.IN_PROGRESS.length}
+          cameBack={cameBack}
+        />
       )}
-    </Card>
+
+      {data && tasks.length > 0 && (
+        <>
+          <RemediationBoard
+            lanes={lanes}
+            findingOf={findingOf}
+            busyId={update.isPending ? update.variables?.id : undefined}
+            onMove={(task, status) => update.mutate({ id: task.id, status })}
+          />
+
+          <AgeingStrip raisedAt={raisedAt} />
+        </>
+      )}
+    </div>
   );
 }

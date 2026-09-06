@@ -325,7 +325,7 @@ function Stat({ label: text, value }: { label: string; value: number | string })
   return (
     <div>
       <p className="text-xs text-muted-foreground">{text}</p>
-      <p className="font-medium tabular-nums text-foreground">{value}</p>
+      <p className="font-mono font-medium text-foreground">{value}</p>
     </div>
   );
 }

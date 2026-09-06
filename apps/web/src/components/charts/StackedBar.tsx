@@ -70,8 +70,12 @@ export function StackedBar({
                 }
               />
               <TooltipContent>
-                {segment.label}: {segment.value} of {total} (
-                {Math.round((segment.value / total) * 100)}%)
+                {segment.label}: <span className="font-mono">{segment.value}</span>{" "}
+                of <span className="font-mono">{total}</span> (
+                <span className="font-mono">
+                  {Math.round((segment.value / total) * 100)}%
+                </span>
+                )
               </TooltipContent>
             </Tooltip>
           ))}
@@ -86,7 +90,7 @@ export function StackedBar({
               aria-hidden
             />
             <span className="text-muted-foreground">{segment.label}</span>
-            <span className="font-medium tabular-nums">{segment.value}</span>
+            <span className="font-mono font-medium">{segment.value}</span>
           </li>
         ))}
       </ul>

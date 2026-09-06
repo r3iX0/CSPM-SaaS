@@ -16,6 +16,7 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AssetsPage } from "@/pages/Assets";
+import { wholeText } from "@/test/text";
 
 const HIERARCHY = [
   {
@@ -69,17 +70,26 @@ const UNCHECKED = {
 
 let requested: string[] = [];
 
+/** The latest scan, which is where the table reads its collection gaps from. */
+let scans: object[] = [];
+
 function mount(
   assets: object[] = [ASSET],
   meta: Record<string, number> = { total: 40 },
+  latestScan: object | null = null,
 ) {
+  scans = latestScan ? [latestScan] : [];
   requested = [];
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       requested.push(url);
-      const data = url.includes("/assets/hierarchy") ? HIERARCHY : assets;
+      const data = url.includes("/assets/hierarchy")
+        ? HIERARCHY
+        : url.includes("/scans")
+          ? scans
+          : assets;
       return {
         ok: true,
         status: 200,
@@ -116,10 +126,10 @@ describe("the assets page", () => {
 
     expect(await screen.findByText("Production")).toBeInTheDocument();
     // Counted over the estate, not over a page of it.
-    expect(screen.getByText("60 assets")).toBeInTheDocument();
+    expect(screen.getByText(wholeText("60 assets"))).toBeInTheDocument();
     // Twice: the subscription's nine, and the group inside it they all come
     // from — which is the point of the level.
-    expect(screen.getAllByText("9 open findings")).toHaveLength(2);
+    expect(screen.getAllByText(wholeText("9 open findings"))).toHaveLength(2);
     // A subscription with something wrong opens itself, so the reader does not
     // click to discover what the page already knew.
     expect(await screen.findByText("prod-rg")).toBeInTheDocument();
@@ -218,7 +228,44 @@ describe("the assets page", () => {
      * storage and virtual machines -- an absence that read as coverage. */
     mount([UNCHECKED], { total: 47, unchecked: 35 });
 
-    expect(await screen.findByText(/35 with no checks yet/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(wholeText("35 with no checks yet")),
+    ).toBeInTheDocument();
+  });
+
+  it("says an environment it was never told rather than a dash", async () => {
+    // A blank cell reads as "no environment". The estate has one; nobody has
+    // said what it is, and those are different facts.
+    mount([{ ...ASSET, environment: null }]);
+
+    expect(await screen.findByText("payroll")).toBeInTheDocument();
+    expect(screen.getAllByText("Unknown").length).toBeGreaterThan(0);
+  });
+
+  it("writes an unexamined asset in words, so it never looks clean", async () => {
+    // `0` beside an examined asset's `0` says the two are the same, and one of
+    // them was never looked at.
+    mount([UNCHECKED], { total: 1, unchecked: 1 });
+
+    expect(await screen.findByText("no checks yet")).toBeInTheDocument();
+  });
+
+  it("says under the table what the inventory could not read", async () => {
+    // A listing that is short because a collector was refused looks exactly
+    // like a small estate.
+    mount([ASSET], { total: 1 }, {
+      id: "scan-1",
+      status: "PARTIAL",
+      collection_errors: { identity: "Directory.Read.All was not granted" },
+    });
+
+    expect(
+      await screen.findByText(/Directory listing is incomplete/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Fix access/ })).toHaveAttribute(
+      "href",
+      "/connections",
+    );
   });
 
   it("says nothing when every resource is covered", async () => {

@@ -320,6 +320,108 @@ class TestGraphFromRecordedAzure:
         assert not any("managementGroups" in t for t in targets)
 
 
+class TestAnUnresolvedPrincipalIsStillIdentifiable:
+    """A principal seen only in a role assignment, and how it is named.
+
+    ARM hands back ``principalId`` and ``principalType``; the display name
+    lives in the directory, behind a Graph read a tenant without admin consent
+    refuses. Naming the node after its type made every unresolved principal
+    identical -- three people holding Owner became three rows all reading
+    "User" -- which is a label that identifies nobody.
+    """
+
+    @staticmethod
+    def _state(assignments):
+        snapshot = load_snapshot("snapshot_mixed")
+        snapshot.data["role_assignments"] = assignments
+        return AzureNormalizer().normalize(snapshot)
+
+    def test_two_principals_of_one_type_are_two_different_names(self) -> None:
+        scope = "/subscriptions/00000000-0000-0000-0000-000000000000"
+        state = self._state(
+            [
+                {
+                    "id": "/x/1",
+                    "properties": {
+                        "principalId": "11111111-1111-1111-1111-111111111111",
+                        "principalType": "User",
+                        "scope": scope,
+                        "roleDefinitionId": "unknown",
+                    },
+                },
+                {
+                    "id": "/x/2",
+                    "properties": {
+                        "principalId": "22222222-2222-2222-2222-222222222222",
+                        "principalType": "User",
+                        "scope": scope,
+                        "roleDefinitionId": "unknown",
+                    },
+                },
+            ]
+        )
+
+        # The snapshot also runs a VM as a managed identity, which mints a
+        # principal of its own; these two are the ones under test.
+        minted = [
+            r
+            for r in state.resources
+            if r.metadata.get("principal_type") == "User"
+        ]
+        names = {r.name for r in minted}
+        assert names == {
+            "11111111-1111-1111-1111-111111111111",
+            "22222222-2222-2222-2222-222222222222",
+        }
+
+    def test_a_machine_identity_is_named_after_its_machine(self) -> None:
+        """The other minted principal, and the one case where a better name is
+        already to hand: a managed identity with no directory entry is still
+        the identity of a machine CloudGuard can name."""
+        state = self._state([])
+
+        machine = [
+            r
+            for r in state.resources
+            if r.metadata.get("principal_type") == "ManagedIdentity"
+        ]
+        assert machine
+        assert all(r.name.startswith("Managed identity of ") for r in machine)
+
+    def test_a_directory_user_keeps_the_name_the_directory_gave(self) -> None:
+        """The fallback is for principals the directory could not name. One it
+        could still reads as a person."""
+        snapshot = load_snapshot("snapshot_mixed")
+        snapshot.data["users"] = [
+            {
+                "id": "33333333-3333-3333-3333-333333333333",
+                "displayName": "Ada Lovelace",
+                "userPrincipalName": "ada@contoso.onmicrosoft.com",
+                "accountEnabled": True,
+            }
+        ]
+        snapshot.data["role_assignments"] = [
+            {
+                "id": "/x/3",
+                "properties": {
+                    "principalId": "33333333-3333-3333-3333-333333333333",
+                    "principalType": "User",
+                    "scope": "/subscriptions/00000000-0000-0000-0000-000000000000",
+                    "roleDefinitionId": "unknown",
+                },
+            }
+        ]
+        state = AzureNormalizer().normalize(snapshot)
+
+        named = [r for r in state.resources if r.name == "Ada Lovelace"]
+        assert len(named) == 1
+        assert not any(
+            r.provider_resource_id
+            == "/principals/33333333-3333-3333-3333-333333333333"
+            for r in state.resources
+        )
+
+
 class TestWhatTheNewRulesRead:
     """Fields added for the rules that judge a tenant rather than a resource.
 

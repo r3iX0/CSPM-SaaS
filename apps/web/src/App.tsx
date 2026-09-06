@@ -68,9 +68,6 @@ const FindingDetailPage = lazy(() =>
 const RisksPage = lazy(() =>
   import("@/pages/Risks").then((m) => ({ default: m.RisksPage })),
 );
-const RiskDetailPage = lazy(() =>
-  import("@/pages/RiskDetail").then((m) => ({ default: m.RiskDetailPage })),
-);
 const AttackPathsPage = lazy(() =>
   import("@/pages/AttackPaths").then((m) => ({ default: m.AttackPathsPage })),
 );
@@ -157,7 +154,10 @@ export function App() {
           <Route path="/findings" element={<FindingsPage />} />
           <Route path="/findings/:findingId" element={<FindingDetailPage />} />
           <Route path="/risks" element={<RisksPage />} />
-          <Route path="/risks/:riskId" element={<RiskDetailPage />} />
+          {/* The ranking, with that risk open beside it. A risk read on a
+              page of its own loses the half of its meaning that is what it
+              outranks (docs/UI_REDESIGN.md §4.2). */}
+          <Route path="/risks/:riskId" element={<RisksPage />} />
           <Route path="/attack-paths" element={<AttackPathsPage />} />
           <Route path="/remediation" element={<RemediationPage />} />
           <Route path="/scans" element={<ScansPage />} />

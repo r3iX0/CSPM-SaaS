@@ -4,9 +4,10 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { BoxesIcon, ListIcon, NetworkIcon, SearchIcon, XIcon } from "lucide-react";
 
 import { api } from "@/lib/api";
-import type { Asset } from "@/lib/types";
+import type { Asset, Scan } from "@/lib/types";
 import { useT } from "@/i18n";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
+import { HelpPopover } from "@/components/common/HelpPopover";
 import { AssetTree } from "@/components/assets/AssetTree";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState, ErrorState, PageHeader, TableSkeleton } from "@/components/common/states";
@@ -116,6 +117,24 @@ export function AssetsPage() {
     placeholderData: keepPreviousData,
   });
 
+  /**
+   * What the inventory itself could not read.
+   *
+   * An estate listing that is short because a collector was refused looks
+   * exactly like a small estate. The latest scan records which categories
+   * failed, so the table can say so under itself rather than leaving the
+   * reader to infer completeness from a page that looks complete.
+   */
+  const lastScan = useQuery({
+    queryKey: ["scans", "latest"],
+    queryFn: () =>
+      api.get<Scan[]>("/api/v1/scans?limit=1").then((r) => r.data[0] ?? null),
+    staleTime: 60_000,
+    retry: false,
+  });
+
+  const collectionGaps = Object.keys(lastScan.data?.collection_errors ?? {});
+
   // Memoised rather than `data?.assets ?? []`, which minted a new array every
   // render and so defeated both memos below -- they re-sorted and re-grouped
   // the whole page on every keystroke.
@@ -175,8 +194,29 @@ export function AssetsPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        title={t.assets.title}
-        description="Everything CloudGuard has discovered, with what it is worth and how exposed it is."
+        title={
+          <>
+            {t.assets.title}
+            <HelpPopover label="What this inventory holds">
+              Everything CloudGuard has seen in your environment, and what it
+              knows about each — its type, what it holds, and how exposed it is.
+              An asset nothing has been checked against says so rather than
+              showing a clean count.
+            </HelpPopover>
+          </>
+        }
+        description={
+          <>
+            <span className="font-mono">{total}</span> asset
+            {total === 1 ? "" : "s"} discovered
+            {unchecked > 0 && (
+              <>
+                {" · "}
+                <span className="font-mono">{unchecked}</span> with no checks yet
+              </>
+            )}
+          </>
+        }
         actions={
           // Two readings of one inventory: the queue, and the shape. The list
           // ranks by what is wrong; the tree says which part of the estate --
@@ -369,13 +409,14 @@ export function AssetsPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="w-[30%]">Resource</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Environment</TableHead>
-                    <TableHead>Criticality</TableHead>
-                    <TableHead>Exposure</TableHead>
-                    <TableHead className="text-right">{t.assets.openFindings}</TableHead>
-                    <TableHead className="text-right">Last seen</TableHead>
+                    <TableHead>Asset</TableHead>
+                    <TableHead className="w-[168px]">Type</TableHead>
+                    <TableHead className="w-[132px]">Environment</TableHead>
+                    <TableHead className="w-[116px]">Exposure</TableHead>
+                    <TableHead className="w-[120px] text-right">
+                      {t.assets.openFindings}
+                    </TableHead>
+                    <TableHead className="w-[92px] text-right">Last seen</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -391,11 +432,11 @@ export function AssetsPage() {
                       {groupName && (
                         <TableRow className="hover:bg-transparent">
                           <TableCell
-                            colSpan={7}
+                            colSpan={6}
                             className="bg-muted/50 py-1.5 text-xs font-medium text-muted-foreground"
                           >
                             {groupName}
-                            <span className="ml-2 tabular-nums opacity-70">{rows.length}</span>
+                            <span className="ml-2 font-mono opacity-70">{rows.length}</span>
                           </TableCell>
                         </TableRow>
                       )}
@@ -404,7 +445,7 @@ export function AssetsPage() {
                           <TableCell className="max-w-0">
                             <Link
                               to={`/assets/${asset.id}`}
-                              className="block truncate font-medium text-foreground hover:underline"
+                              className="block truncate font-mono font-medium text-foreground hover:underline"
                             >
                               {asset.name}
                             </Link>
@@ -412,24 +453,42 @@ export function AssetsPage() {
                           <TableCell className="text-muted-foreground">
                             {asset.azure_type ?? resourceTypeLabel(asset.resource_type)}
                           </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {asset.environment ?? "—"}
-                          </TableCell>
+                          {/* A dashed chip, not a dash. An asset nobody
+                              declared an environment for is not an asset with
+                              no environment, and a blank cell reads as the
+                              second — which is how a missing declaration
+                              becomes an all-clear. */}
                           <TableCell>
-                            <SeverityBadge level={asset.criticality} size="sm" />
+                            {asset.environment ? (
+                              <span className="text-muted-foreground">
+                                {asset.environment}
+                              </span>
+                            ) : (
+                              <SeverityBadge level="UNKNOWN" size="sm" />
+                            )}
                           </TableCell>
                           <TableCell>
                             <SeverityBadge level={asset.public_exposure} size="sm" />
                           </TableCell>
+                          {/* In words rather than as `0`: a type CloudGuard has
+                              no rule for has not been examined, and a zero
+                              beside an examined asset's zero would make the two
+                              read alike. */}
                           <TableCell className="text-right">
-                            <span
-                              className={cn(
-                                "font-medium tabular-nums",
-                                asset.open_findings === 0 && "text-muted-foreground",
-                              )}
-                            >
-                              {asset.open_findings}
-                            </span>
+                            {asset.resource_type === "unknown" ? (
+                              <span className="text-xs text-meta-foreground">
+                                {t.assets.noChecksYet}
+                              </span>
+                            ) : (
+                              <span
+                                className={cn(
+                                  "font-mono font-medium",
+                                  asset.open_findings === 0 && "text-muted-foreground",
+                                )}
+                              >
+                                {asset.open_findings}
+                              </span>
+                            )}
                           </TableCell>
                           <TableCell className="text-right text-muted-foreground">
                             {formatDate(asset.last_seen_at)}
@@ -443,10 +502,30 @@ export function AssetsPage() {
             </CardContent>
           </Card>
 
+          {collectionGaps.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed border-medium-border bg-medium-bg/30 px-4 py-2.5">
+              <p className="text-xs text-medium">
+                {t.assets.collectorsRefused} —{" "}
+                <span className="font-mono">{collectionGaps.length}</span>{" "}
+                {collectionGaps.length === 1 ? "collector was" : "collectors were"}{" "}
+                refused: {collectionGaps.join(", ")}
+              </p>
+              <Link
+                to="/connections"
+                className="shrink-0 text-xs font-medium text-foreground underline underline-offset-2"
+              >
+                {t.assets.fixAccess} →
+              </Link>
+            </div>
+          )}
+
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground">
-              {page * PAGE_SIZE + 1}–{page * PAGE_SIZE + assets.length} of {total} asset
-              {total === 1 ? "" : "s"}
+              <span className="font-mono">
+                {page * PAGE_SIZE + 1}–{page * PAGE_SIZE + assets.length} of{" "}
+                {total}
+              </span>{" "}
+              asset{total === 1 ? "" : "s"}
               {/* Said here rather than left to be inferred from the table. This
                   list used to show only the types the connector models and
                   silently omit the rest, so a subscription full of App Services
@@ -458,7 +537,8 @@ export function AssetsPage() {
                 <>
                   {" · "}
                   <span className="text-medium">
-                    {t.assets.unchecked.replace("{count}", String(unchecked))}
+                    <span className="font-mono">{unchecked}</span>{" "}
+                    {t.assets.unchecked.replace("{count} ", "")}
                   </span>
                 </>
               )}
@@ -473,7 +553,7 @@ export function AssetsPage() {
                 >
                   Previous
                 </Button>
-                <span className="text-xs tabular-nums text-muted-foreground">
+                <span className="font-mono text-xs text-muted-foreground">
                   {page + 1} / {pages}
                 </span>
                 <Button

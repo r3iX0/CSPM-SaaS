@@ -7,6 +7,7 @@ import type { ComplianceFramework } from "@/lib/types";
 import { useT } from "@/i18n";
 import { formatPercent } from "@/lib/format";
 import { CoverageBar, EvidenceNotice } from "@/components/compliance";
+import { HelpPopover } from "@/components/common/HelpPopover";
 import {
   CardsSkeleton,
   EmptyState,
@@ -42,7 +43,24 @@ export function CompliancePage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader title={t.compliance.title} description={t.compliance.intro} />
+      <PageHeader
+        title={
+          <>
+            {t.compliance.title}
+            <HelpPopover label="What coverage means here">
+              {t.compliance.notALegalClaim}
+            </HelpPopover>
+          </>
+        }
+        description={
+          data ? (
+            <>
+              <span className="font-mono">{data.length}</span> framework
+              {data.length === 1 ? "" : "s"} assessed against this estate
+            </>
+          ) : undefined
+        }
+      />
 
       <EvidenceNotice />
 
@@ -85,7 +103,7 @@ function FrameworkCard({ framework }: { framework: ComplianceFramework }) {
             </CardDescription>
           </div>
           <div className="shrink-0 text-right">
-            <p className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">
+            <p className="font-mono text-2xl font-semibold tracking-tight text-foreground">
               {formatPercent(framework.coverage_ratio)}
             </p>
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
@@ -103,12 +121,16 @@ function FrameworkCard({ framework }: { framework: ComplianceFramework }) {
         <div className="mt-4">
           <CoverageBar counts={counts} total={framework.control_count} />
           <p className="mt-2 text-xs text-muted-foreground">
-            {framework.control_count} {t.compliance.controls}
+            <span className="font-mono">{framework.control_count}</span>{" "}
+            {t.compliance.controls}
             {framework.open_finding_count > 0 && (
               <>
                 {" · "}
                 <span className="font-medium text-critical">
-                  {framework.open_finding_count} {t.compliance.openFindings}
+                  <span className="font-mono">
+                    {framework.open_finding_count}
+                  </span>{" "}
+                  {t.compliance.openFindings}
                 </span>
               </>
             )}

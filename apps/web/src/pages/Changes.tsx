@@ -16,6 +16,7 @@ import { useT } from "@/i18n";
 import { cn, formatDate, formatDateTime, resourceTypeLabel } from "@/lib/format";
 import { changeDirection, type Direction } from "@/lib/changes";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
+import { HelpPopover } from "@/components/common/HelpPopover";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -76,7 +77,25 @@ export function ChangesPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader title={t.changes.title} description={t.changes.intro} />
+      <PageHeader
+        title={
+          <>
+            {t.changes.title}
+            <HelpPopover label="What is recorded here">
+              {t.changes.intro}
+            </HelpPopover>
+          </>
+        }
+        description={
+          data ? (
+            <>
+              <span className="font-mono">{events.length}</span>{" "}
+              {events.length === 1 ? t.changes.count : t.changes.countPlural} in
+              this window
+            </>
+          ) : undefined
+        }
+      />
 
       <div className="flex flex-wrap items-center gap-2">
         <SelectField
@@ -218,7 +237,7 @@ function ChangeRow({ event }: { event: ChangeEvent }) {
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <Link
             to={`/assets/${event.asset.id}`}
-            className="truncate text-sm font-medium text-foreground underline-offset-4 hover:underline"
+            className="truncate font-mono text-sm font-medium text-foreground underline-offset-4 hover:underline"
           >
             {event.asset.name}
           </Link>

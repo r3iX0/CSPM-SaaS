@@ -560,10 +560,23 @@ class AzureNormalizer:
             principal_node = _principal_node(principal_id, known)
 
             if principal_node not in known and principal_node not in nodes:
+                # Named by its object id, not by its class.
+                #
+                # A role assignment carries ``principalId`` and
+                # ``principalType`` and nothing else -- the display name lives
+                # in the directory, behind the Graph read that a tenant without
+                # admin consent refuses. Naming the node "User" made every
+                # unresolved principal identical on screen: three separate
+                # people holding Owner rendered as three rows reading
+                # "Role assignment permits every action -- User", which
+                # identifies nobody and cannot be told apart. The object id is
+                # ugly and is the thing a customer can paste into their own
+                # portal to find out who this is. The type stays in metadata,
+                # where the asset table reads it for its own column.
                 nodes[principal_node] = CloudResource(
                     provider_resource_id=principal_node,
                     resource_type=ResourceType.SERVICE_PRINCIPAL,
-                    name=props.get("principalType") or "Principal",
+                    name=principal_id,
                     provider=Provider.AZURE,
                     metadata={
                         "principal_id": principal_id,
@@ -612,10 +625,19 @@ class AzureNormalizer:
                 continue
             principal_node = _principal_node(principal_id, known)
             if principal_node not in known and principal_node not in nodes:
+                # The same rule as above, and here there *is* a better name to
+                # hand: a managed identity with no directory entry is still the
+                # identity of a machine CloudGuard can name, and "Managed
+                # identity of vm-bastion-01" is what a route reads as.
+                vm_name = vm.get("name")
                 nodes[principal_node] = CloudResource(
                     provider_resource_id=principal_node,
                     resource_type=ResourceType.SERVICE_PRINCIPAL,
-                    name="Managed identity",
+                    name=(
+                        f"Managed identity of {vm_name}"
+                        if vm_name
+                        else principal_id
+                    ),
                     provider=Provider.AZURE,
                     metadata={
                         "principal_id": principal_id,

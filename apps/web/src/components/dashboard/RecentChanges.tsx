@@ -16,7 +16,6 @@ import {
   Card,
   CardAction,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -60,10 +59,10 @@ export function RecentChanges({
       <CardHeader className="py-4">
         <CardTitle id="recent-changes" className="text-sm font-semibold">
           Recent changes
+          <span className="ml-2 text-xs font-normal text-meta-foreground">
+            last 7 days
+          </span>
         </CardTitle>
-        <CardDescription className="text-xs">
-          What moved in the last seven days, newest first
-        </CardDescription>
         <CardAction>
           <Link
             to="/changes"
@@ -166,7 +165,7 @@ function ChangeLine({
         <p className="truncate text-sm">
           <Link
             to={`/assets/${event.asset.id}`}
-            className="font-medium hover:underline"
+            className="font-mono font-medium hover:underline"
           >
             {event.asset.name}
           </Link>

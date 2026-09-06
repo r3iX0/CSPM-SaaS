@@ -10,8 +10,9 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
-import { CoveragePanel } from "@/components/dashboard/CoveragePanel";
+import { BlindSpots } from "@/components/dashboard/BlindSpots";
 import { groupCauses } from "@/lib/collectionErrors";
+import { containingText } from "@/test/text";
 
 const CONSENT_FAILURE =
   "Access denied. Admin consent for CloudGuard's directory permissions is " +
@@ -41,25 +42,41 @@ describe("collection failures", () => {
     expect(causes[0].message).toContain("did not grant Directory.Read.All");
   });
 
-  it("clips a long message rather than filling the page with it", () => {
+  it("clips a long message rather than filling the banner with it", () => {
     render(
       <MemoryRouter>
-        <CoveragePanel
+        <BlindSpots
           ratio={0.75}
-          unknown={1}
-          conclusive={3}
           gaps={[["identity", `users: ${CONSENT_FAILURE}`]]}
-          freshness={null}
+          unclassified={0}
+          classified={12}
         />
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("1 category could not be collected")).toBeInTheDocument();
-    // The provider's own words are kept, not paraphrased — just not all at once.
-    expect(
-      screen.getByRole("button", { name: "Show the whole message" }),
-    ).toBeInTheDocument();
+    // The provider's own words, in the provider's own order — just not all
+    // nine hundred of them.
     expect(screen.getByText(/Access denied/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Grant admin consent" }),
+    ).toHaveAttribute("href", "/connections");
+  });
+
+  it("says what share of the estate the score is charged for", () => {
+    render(
+      <MemoryRouter>
+        <BlindSpots
+          ratio={0.68}
+          gaps={[["identity", `users: ${CONSENT_FAILURE}`]]}
+          unclassified={0}
+          classified={12}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByText("The score is charged for 68% of your estate"),
+    ).toBeInTheDocument();
   });
 });
 
@@ -71,37 +88,30 @@ describe("assets CloudGuard could not classify", () => {
     // missing label. That caution belongs to the ordering, not the posture.
     render(
       <MemoryRouter>
-        <CoveragePanel
-          ratio={1}
-          unknown={0}
-          conclusive={12}
-          context={{ unclassified: 9, classified: 3, ratio: 0.25 }}
-          freshness={null}
-        />
+        <BlindSpots ratio={1} gaps={[]} unclassified={9} classified={3} />
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("9 of 12 open risks")).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: /Tell CloudGuard what these subscriptions hold/ }),
+      screen.getByText(containingText(/9 of 12 open risks/)),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Classify subscriptions" }),
     ).toHaveAttribute("href", "/settings");
   });
 
   it("says nothing when every open risk sits on a classified asset", () => {
     // A panel that reported "0 unclassified" would be a line of noise on the
     // estates that did the work.
-    render(
+    // A banner that reported "0 unclassified" would be a permanent caveat on
+    // the estates that did the work, and a caveat always on screen is one
+    // nobody reads.
+    const { container } = render(
       <MemoryRouter>
-        <CoveragePanel
-          ratio={1}
-          unknown={0}
-          conclusive={12}
-          context={{ unclassified: 0, classified: 12, ratio: 1 }}
-          freshness={null}
-        />
+        <BlindSpots ratio={1} gaps={[]} unclassified={0} classified={12} />
       </MemoryRouter>,
     );
 
-    expect(screen.queryByText(/could not classify/)).not.toBeInTheDocument();
+    expect(container).toBeEmptyDOMElement();
   });
 });

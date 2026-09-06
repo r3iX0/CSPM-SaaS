@@ -77,7 +77,7 @@ export function ComplianceFrameworkPage() {
         />
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-xl font-semibold tracking-tight">{data.name}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">{data.name}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               {data.version} · {data.authority}
             </p>
@@ -110,7 +110,7 @@ export function ComplianceFrameworkPage() {
               />
             </div>
             <div className="text-right">
-              <p className="text-3xl font-semibold tabular-nums tracking-tight text-foreground">
+              <p className="font-mono text-3xl font-semibold tracking-tight text-foreground">
                 {formatPercent(data.coverage_ratio)}
               </p>
               <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
@@ -231,12 +231,14 @@ function ControlRow({ control }: { control: ComplianceControl }) {
                       to={`/findings?rule_id=${encodeURIComponent(rule.rule_id)}`}
                       className="font-medium text-critical underline underline-offset-2"
                     >
-                      {rule.open_finding_count} open
+                      <span className="font-mono">{rule.open_finding_count}</span>{" "}
+                      open
                     </Link>
                   )}
                   {rule.open_finding_count === 0 && rule.unknown_count > 0 && (
                     <span className="text-unknown">
-                      {rule.unknown_count} could not be evaluated
+                      <span className="font-mono">{rule.unknown_count}</span>{" "}
+                      could not be evaluated
                     </span>
                   )}
                   {!rule.evaluated && (

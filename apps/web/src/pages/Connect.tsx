@@ -7,6 +7,7 @@ import { useT } from "@/i18n";
 import { ConnectEmpty } from "@/components/connections/ConnectEmpty";
 import { ConnectionRow } from "@/components/connections/ConnectionRow";
 import { CardsSkeleton, PageHeader } from "@/components/common/states";
+import { HelpPopover } from "@/components/common/HelpPopover";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/format";
@@ -49,8 +50,22 @@ export function ConnectPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title={t.connection.title}
-        description={t.connection.intro}
+        title={
+          <>
+            {t.connection.title}
+            <HelpPopover label="How connections are scoped">
+              {t.connection.intro}
+            </HelpPopover>
+          </>
+        }
+        description={
+          connections.data ? (
+            <>
+              <span className="font-mono">{rows.length}</span> connection
+              {rows.length === 1 ? "" : "s"}
+            </>
+          ) : undefined
+        }
         actions={
           rows.length > 0 ? (
             <Link to="/connections/new" className={cn(buttonVariants())}>

@@ -16,13 +16,13 @@ export function RiskScore({
   className?: string;
 }) {
   if (score === null) {
-    return <span className={cn("text-muted-foreground tabular-nums", className)}>—</span>;
+    return <span className={cn("font-mono text-muted-foreground", className)}>—</span>;
   }
   const value = Math.round(score);
   return (
     <span
       className={cn(
-        "font-semibold tabular-nums",
+        "font-mono font-semibold",
         size === "lg" ? "text-3xl" : "text-sm",
         scoreColor(100 - value),
         className,

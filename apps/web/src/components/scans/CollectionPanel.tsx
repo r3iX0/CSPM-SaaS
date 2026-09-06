@@ -40,7 +40,7 @@ export function CollectionPanel({ scanId }: { scanId: string }) {
       </p>
 
       <p className="mt-1.5 text-xs text-muted-foreground">
-        <span className="font-medium tabular-nums text-foreground">
+        <span className="font-mono font-medium text-foreground">
           {complete}/{total}
         </span>{" "}
         {t.scans.collectionSummary}
@@ -97,7 +97,7 @@ export function CollectionPanel({ scanId }: { scanId: string }) {
                     {reading.task}
                   </span>
                   {reading.outcome === "COMPLETE" && (
-                    <span className="text-xs tabular-nums text-muted-foreground">
+                    <span className="font-mono text-xs text-muted-foreground">
                       {reading.item_count}
                     </span>
                   )}

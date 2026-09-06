@@ -1,20 +1,15 @@
 import { useEffect, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
-import { RadarIcon, SearchIcon } from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
+import { LayersIcon, RadarIcon, SearchIcon } from "lucide-react";
 
 import { api } from "@/lib/api";
 import type { Risk } from "@/lib/types";
 import { useT } from "@/i18n";
-import { StatusPill } from "@/components/security/StatusPill";
-import { SeverityBadge } from "@/components/security/SeverityBadge";
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-} from "@/components/ui/card";
+import { HelpPopover } from "@/components/common/HelpPopover";
+import { RiskDetailBody } from "@/components/risks/RiskDetailBody";
+import { RiskTable } from "@/components/risks/RiskTable";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   CardsSkeleton,
   EmptyState,
@@ -24,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SelectField } from "@/components/common/SelectField";
+import { cn } from "@/lib/format";
 
 const PAGE_SIZE = 25;
 const SEARCH_DEBOUNCE_MS = 250;
@@ -43,12 +39,20 @@ const SEARCH_DEBOUNCE_MS = 250;
  */
 export function RisksPage() {
   const t = useT();
+  const navigate = useNavigate();
+  // The deep link still works, and now opens the ranking with that risk read
+  // beside it rather than a page with no ranking on it: what a risk outranks
+  // is half of what the score means.
+  const { riskId } = useParams();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [level, setLevel] = useState("all");
   const [status, setStatus] = useState("all");
   const [kind, setKind] = useState("all");
   const [page, setPage] = useState(0);
+  // On by default: three rows reading the same sentence is the state this page
+  // was actually in, and the reader has one mistake to fix, not three.
+  const [grouped, setGrouped] = useState(true);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -102,8 +106,24 @@ export function RisksPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        title={t.risks.title}
-        description="A finding is what we observed. A risk is what it means for this asset, with this data, at this level of exposure."
+        title={
+          <>
+            {t.risks.title}
+            <HelpPopover label="What a risk is">
+              A finding is what CloudGuard observed. A risk is what that finding
+              means on this asset — with this data on it, at this level of
+              exposure, at this business criticality. The score is the product
+              of those, not a count of alerts.
+            </HelpPopover>
+          </>
+        }
+        description={
+          <>
+            <span className="font-mono">{total}</span> open risk
+            {total === 1 ? "" : "s"}
+            {filtering && " matching these filters"}
+          </>
+        }
       />
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
@@ -166,6 +186,18 @@ export function RisksPage() {
               { value: "ESCALATION", label: "Escalations" },
             ]}
           />
+
+          {/* Not a filter: nothing is hidden either way. It decides whether
+              one mistake on three assets reads as one row or as three. */}
+          <Button
+            variant={grouped ? "secondary" : "outline"}
+            size="sm"
+            aria-pressed={grouped}
+            onClick={() => setGrouped((on) => !on)}
+          >
+            <LayersIcon data-icon="inline-start" />
+            {t.risks.groupDuplicates}
+          </Button>
         </div>
       </div>
 
@@ -200,214 +232,85 @@ export function RisksPage() {
       )}
 
       {data && risks.length > 0 && (
-        <>
-          <div className="flex flex-col gap-3">
-            {/* Both kinds in one list, deliberately. A route outranking the
-                findings inside it is only visible where they are ranked
-                together — on a page of its own it would be a second opinion
-                nobody compares. The kind filter can separate them; the default
-                does not. */}
-            {risks.map((risk) =>
-              risk.kind === "FINDING" ? (
-                <FindingRiskCard key={risk.id} risk={risk} />
-              ) : (
-                <ScenarioCard key={risk.id} risk={risk} />
-              ),
+        <div className="flex gap-4">
+          {/* Below `lg` there is no room for two columns, so the drawer is the
+              page: the same component, so the narrow reading cannot drift from
+              the wide one. */}
+          <div
+            className={cn(
+              "flex min-w-0 flex-1 flex-col gap-3",
+              riskId && "hidden lg:flex",
             )}
+          >
+            <Card>
+              <CardContent className="px-0">
+                {/* Both kinds in one table, deliberately. A route outranking
+                    the findings inside it is only visible where they are
+                    ranked together — on a page of its own it would be a second
+                    opinion nobody compares. The kind filter can separate them;
+                    the default does not. */}
+                <RiskTable
+                  risks={risks}
+                  grouped={grouped}
+                  selectedId={riskId}
+                  onSelect={(risk) => navigate(`/risks/${risk.id}`)}
+                />
+              </CardContent>
+            </Card>
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs text-muted-foreground">
+                <span className="font-mono">
+                  {page * PAGE_SIZE + 1}–{page * PAGE_SIZE + risks.length} of{" "}
+                  {total}
+                </span>{" "}
+                risk{total === 1 ? "" : "s"}
+                {filtering ? " matching these filters" : ""}
+              </p>
+              {pages > 1 && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page === 0}
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  >
+                    Previous
+                  </Button>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {page + 1} / {pages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page + 1 >= pages}
+                    onClick={() => setPage((p) => p + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs text-muted-foreground">
-              {page * PAGE_SIZE + 1}–{page * PAGE_SIZE + risks.length} of{" "}
-              {total} risk
-              {total === 1 ? "" : "s"}
-              {filtering ? " matching these filters" : ""}
-            </p>
-            {pages > 1 && (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page === 0}
-                  onClick={() => setPage((p) => Math.max(0, p - 1))}
-                >
-                  Previous
-                </Button>
-                <span className="text-xs tabular-nums text-muted-foreground">
-                  {page + 1} / {pages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page + 1 >= pages}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Next
-                </Button>
-              </div>
-            )}
-          </div>
-        </>
+          {riskId && (
+            <aside
+              aria-label="Risk detail"
+              className="min-w-0 flex-1 lg:w-[372px] lg:shrink-0 lg:flex-none"
+            >
+              <Card className="lg:sticky lg:top-[74px]">
+                <CardContent>
+                  <RiskDetailBody
+                    key={riskId}
+                    riskId={riskId}
+                    onClose={() => navigate("/risks")}
+                  />
+                </CardContent>
+              </Card>
+            </aside>
+          )}
+        </div>
       )}
     </div>
-  );
-}
-
-/**
- * A route, scored as one thing.
- *
- * Rendered differently from a finding risk rather than as one with extra
- * fields, because the six weighted components do not apply: a scenario is
- * floored at its worst member and amplified for being short, and showing it
- * under "asset criticality / data sensitivity / exploitability" would invite
- * the reader to check numbers that were never used.
- *
- * Both scenario kinds render here, and the default is deliberately this way
- * round: anything that is not a finding risk was scored by the scenario
- * formula, so a new template added later shows honest arithmetic rather than
- * falling through to a card that would display components nobody computed.
- */
-function ScenarioCard({ risk }: { risk: Risk }) {
-  const t = useT();
-  const breakdown = risk.score_breakdown;
-  const capped = (breakdown.uncapped ?? 0) > 100;
-  const escalation = risk.kind === "ESCALATION";
-
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <SeverityBadge level={risk.risk_level} />
-              <StatusPill status={risk.status} />
-              {/* Says which formula scored this, so the arithmetic below is
-                  read against the right one. */}
-              <Badge variant="outline">
-                {escalation ? t.risks.escalationBadge : t.risks.scenarioBadge}
-              </Badge>
-            </div>
-            <Link
-              to={`/risks/${risk.id}`}
-              className="mt-2 block text-sm font-medium text-foreground underline-offset-4 hover:underline"
-            >
-              {risk.title}
-            </Link>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {escalation ? t.risks.escalationIntro : t.risks.scenarioIntro}
-            </p>
-          </div>
-          <div className="shrink-0 text-right">
-            <p className="text-3xl font-semibold tabular-nums text-foreground">
-              {Number(risk.risk_score).toFixed(0)}
-            </p>
-            <p className="text-xs text-muted-foreground">risk score</p>
-          </div>
-        </div>
-      </CardHeader>
-
-      {risk.path.length > 0 && (
-        <CardContent className="border-t pt-3">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            {t.risks.routeLabel}
-          </p>
-          <ol className="mt-2 flex flex-col gap-1.5">
-            {risk.path.map((step, index) => (
-              <li
-                key={`${step.source_id}-${step.relationship}-${step.target_id}`}
-                className="flex items-start gap-2.5 text-sm text-muted-foreground"
-              >
-                <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border bg-background text-[10px] font-medium text-muted-foreground">
-                  {index + 1}
-                </span>
-                {step.description}
-              </li>
-            ))}
-          </ol>
-        </CardContent>
-      )}
-
-      {/* The arithmetic, in the terms the score was actually built from. A
-          customer asking why this outranks the finding inside it gets the
-          answer rather than a number. */}
-      <CardFooter className="flex flex-wrap gap-x-6 gap-y-2 border-t pt-4 text-xs">
-        <span className="text-muted-foreground">
-          {t.risks.worstMember}{" "}
-          <strong className="text-foreground">
-            {breakdown.worst_member ?? "—"}
-          </strong>
-        </span>
-        <span className="text-muted-foreground">
-          {t.risks.amplifier}{" "}
-          <strong className="text-foreground">
-            +{breakdown.amplifier ?? 0}
-          </strong>
-        </span>
-        <span className="text-muted-foreground">
-          Hops{" "}
-          <strong className="text-foreground">
-            {breakdown.hops ?? risk.path.length}
-          </strong>
-        </span>
-        {capped && (
-          <span className="text-muted-foreground">{t.risks.cappedNote}</span>
-        )}
-      </CardFooter>
-    </Card>
-  );
-}
-
-function FindingRiskCard({ risk }: { risk: Risk }) {
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <SeverityBadge level={risk.risk_level} />
-              <StatusPill status={risk.status} />
-            </div>
-            <Link
-              to={`/risks/${risk.id}`}
-              className="mt-2 block text-sm font-medium text-foreground underline-offset-4 hover:underline"
-            >
-              {risk.title}
-            </Link>
-            <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-              {risk.description}
-            </p>
-          </div>
-          <div className="shrink-0 text-right">
-            <p className="text-3xl font-semibold tabular-nums text-foreground">
-              {Number(risk.risk_score).toFixed(0)}
-            </p>
-            <p className="text-xs text-muted-foreground">risk score</p>
-          </div>
-        </div>
-      </CardHeader>
-
-      <CardFooter className="flex flex-wrap gap-x-6 gap-y-2 border-t pt-4 text-xs">
-        <Factor label="Asset criticality" level={risk.asset_criticality} />
-        <Factor label="Data sensitivity" level={risk.data_sensitivity} />
-        <Factor label="Internet exposure" level={risk.internet_exposure} />
-        <span className="text-muted-foreground">
-          Exploitability{" "}
-          <strong className="text-foreground">{risk.exploitability}/5</strong>
-        </span>
-        <span className="text-muted-foreground">
-          Business impact{" "}
-          <strong className="text-foreground">{risk.business_impact}</strong>
-        </span>
-      </CardFooter>
-    </Card>
-  );
-}
-
-function Factor({ label, level }: { label: string; level: string }) {
-  return (
-    <span className="flex items-center gap-1.5 text-muted-foreground">
-      {label}
-      <SeverityBadge level={level} size="sm" />
-    </span>
   );
 }

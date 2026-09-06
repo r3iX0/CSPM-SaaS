@@ -4053,6 +4053,551 @@ colour and its shape (`TrendingUp` for a regression, `Plus` for an arrival,
 attribute that moved into UNKNOWN is a loss of knowledge, renders neutral, and
 is still distinguishable from an improvement without relying on hue.
 
+## 84. The chrome is chosen; the severity scale is untouched
+
+`docs/UI_REDESIGN.md` §5 step 1: the neutral half of the theme, and the two
+faces, and nothing else.
+
+The dark theme's neutral tokens were shadcn's defaults — `--background:
+oklch(0.145 0 0)` and a column of pure greys below it — carried unchanged since
+the primitives were vendored. They are now the cool near-black the redesign
+specifies: the same darkness, rotated onto a hue around 266 and given a little
+chroma, so the surface reads as a decision rather than as an absence of one.
+`--primary` and `--ring` become the teal `oklch(0.778 0.138 178.1)`, and the
+rail (`--sidebar`) sits *darker* than the page rather than lighter, so the
+reading surface is the brightest plane on screen.
+
+The accent means exactly one thing: **you can act here**. Buttons, links, the
+active nav item, focus rings, an enabled toggle. It never means "good" and never
+means "bad", because the severity scale owns that vocabulary entirely. A teal
+element that is not interactive is a bug.
+
+**The `--sev-*` layer is byte-identical.** That is the load-bearing half of the
+two-layer split this file has argued for since §12: the neutral tokens are the
+product's chrome and may be re-themed at will; the severity scale is what a
+colour *means* to somebody reading a security finding, and re-theming the chrome
+must not move it. `git diff` over `index.css` touching no line containing `sev-`
+is the check, and it passes.
+
+`--destructive` and the neutral `--chart-*` ramp also stay: the first for the
+same reason as ever (it means "this button deletes something", not "an attacker
+can reach your data"), the second because hue in a chart would be a claim the
+rules never made.
+
+**Light mode is deliberately not converted.** The redesign has not designed it,
+and a half-converted light theme — new dark surfaces, stock light ones — is
+worse than an unfashionable one. The light block keeps its measured greys.
+
+### Two greys below `--muted-foreground`, and what they may not carry
+
+The previews use two greys constantly that had no token: `#6b7793` for the dim
+line under a value, `#5b6680` for the faintest text there is — placeholder,
+footnote, "nothing here". They are now `--meta-foreground` and
+`--faint-foreground`.
+
+Measured against the card they are **4.11:1 and 3.20:1**, so neither clears AA
+for body text. They are kept at the designed values and constrained instead: the
+11–12.5px meta register only, never a sentence a reader has to read. Raising
+them to clear 4.5:1 puts both at roughly `#727e9b` — the same colour — which
+collapses the two-step distinction the design is using them for. The honest
+options are the constraint above or a design change, not a quiet nudge.
+
+### Space Grotesk and JetBrains Mono, imported through the bundler
+
+Two faces replace the single Geist: proportional for prose and chrome, mono and
+tabular for anything a reader compares down a column — a score, a count, a date,
+a GUID, a rule id. Only the tokens land in this step; the sweep that puts
+numerals onto `--font-mono` is step 2.
+
+The imports moved from `index.css` into `main.tsx`, and that is not cosmetic.
+Tailwind v4 inlines an `@import` of a node_modules stylesheet **without rebasing
+the `url()`s inside it**, so the `@font-face` rules survived the build still
+pointing at `./files/*.woff2`, no font file was emitted into `dist/`, and the
+browser fell back to system-ui without an error anywhere. This was already true
+of Geist: a clean build of the previous commit emits **zero** `.woff2` files.
+The webfont this app has been specifying for months has never actually loaded in
+production. Importing the face packages from `main.tsx` routes them through
+Vite, which rebases the urls and emits the files — 21 of them now appear under
+`dist/assets/`.
+
+## 85. A number is mono; a date is a word
+
+`docs/UI_REDESIGN.md` §5 step 2, and the reason it is called the highest-leverage
+change in the redesign: proportional digits are what makes a console look like a
+brochure. A column of scores in Space Grotesk does not line up, and a GUID in a
+proportional face stops being an identifier and becomes a shape.
+
+**Tabular figures ride on the face, not on the call site.** `index.css` sets
+`font-variant-numeric: tabular-nums` on `.font-mono` (and on `code`, `kbd`,
+`samp`, `pre`), so `font-mono` alone is the whole instruction and no call site
+has to remember to pair the two. Every `tabular-nums` in the app that marked a
+number has become `font-mono`.
+
+### What is mono, and what is not
+
+Mono means **a value the reader compares against another value**: scores,
+counts, percentages, deltas, durations, GUIDs, resource names, rule ids, the
+CLI, an avatar initial, a keyboard hint.
+
+Not mono: **dates, and relative-time phrases inside a sentence** — "2 Sept",
+"3 days ago", "evidence 67 hours old". This contradicts one sentence of
+UI_REDESIGN.md §2.1, which lists dates among the mono things, and follows the
+six previews instead, which are unanimous the other way: every date in
+`docs/design/direction-b/preview/` is proportional while every count beside it
+is mono. The previews are named in that document as the source of truth for
+exact values, and the distinction they draw is the coherent one — a date is
+read as a word, a count is read against the count above it. Dates that sit in a
+column keep `tabular-nums` so they still align. UI_REDESIGN.md now records the
+contradiction rather than leaving the next reader to rediscover it.
+
+### Numerals inside a sentence are wrapped, and the tests had to learn that
+
+The previews mono the numeral inside a sentence too — "28 checks · 19 with a
+verdict" is mono on the digits and proportional on the words — so a count in
+running text is now `<span className="font-mono">{n}</span>` and the sentence
+around it is not.
+
+That splits a text node, and Testing Library's default text matcher reads only
+an element's *own* text nodes: `getByText("60 assets")` stops matching the
+moment the "60" moves into a child. Nine assertions across five test files were
+asserting the product's words and failing on its markup. `src/test/text.ts`
+adds `wholeText` and `containingText`, which match on an element's full
+`textContent` and reject the ancestors that merely contain it, so an assertion
+survives a presentational split. The assertions kept their strings; only the
+matcher changed.
+
+## 86. The shell, and the line under a title
+
+`docs/UI_REDESIGN.md` §5 step 3. Its §3 opens by saying the sidebar is a
+hamburger that opens an overlay drawer; that has not been true since the shell
+was rebuilt, and the persistent rail already existed. What was missing was the
+rest of the anatomy, so this is what actually changed.
+
+**The rail is 236px, and it is quieter than the data.** The active item was a
+filled pill in `--sidebar-accent`, which at this width is the heaviest object on
+the screen and is competing with the reader's own findings. It is now a 2px
+accent rail (`inset 2px 0 0`) plus a left-to-right wash of the accent at 14%
+fading to nothing, with `--foreground` text. Group labels take the 11px
+uppercase section-label style at `0.12em`, and nav items are 8px/12px on an 8px
+radius with a 16px stroked icon.
+
+**One destination carries a number.** The Risks item shows the count of open
+risks, right-aligned, in the mono face. It asks for `/api/v1/risks?limit=1` and
+reads `meta.total` — deliberately the same unfiltered request the risks page
+makes, so the rail and the page cannot disagree about what "open" means: the
+API's own definition of a live risk decides, rather than the sidebar inventing a
+second one. It is cached for a minute, because navigation is not a dashboard.
+
+**The account row moved to the foot of the rail**, under the connection badge,
+pinned with `margin-top: auto`. Those two facts — who you are, and whether
+CloudGuard can see anything at all — qualify every screen above them and are not
+things a reader goes hunting for in the corner of a toolbar. `AccountMenu` grew
+a `placement` prop for it: at the bottom of the window a menu that drops
+downwards opens off the screen, so it opens upward there. Below `lg` the rail is
+a drawer and is not on screen, so the menu stays in the top bar at that width.
+
+**The top bar is 58px and leads with search.** The palette used to be a small
+button at the far end, beside the theme toggle; it is the fastest route to any
+of twelve screens and it now reads as a 360px search field on the left, naming
+what it searches over and the key that opens it. Notifications, the scan
+indicator and the theme toggle keep the right.
+
+### The line under a title is a fact, not an epigram
+
+`PageHeader` is now the shape §3 specifies: a 28px/700 title at `-0.028em`, one
+13px muted line under it, actions on the right. The line takes an optional
+coloured dot for when its facts are not reassuring.
+
+The Overview is the one page whose status line changed in this step, because its
+line already existed as a pill beside the title: "Assessed 4 Sept, 00:39" and
+"Evidence 67 hours old" are exactly the factual line the pattern asks for, and
+rendering them as a pill made this page the exception to a rhythm every other
+screen follows. The epigram they replace — "Your cloud security posture, and
+what CloudGuard could see while forming it" — is the kind of sentence step 4
+removes everywhere else.
+
+Every one of the twelve nav routes now renders `PageHeader`, including the
+Overview's own no-scan branch, which had grown a private copy of the title
+block. Detail pages keep their breadcrumb-and-heading shape at 24px;
+`ComplianceFramework` was the odd one at 20px and joins them.
+
+## 87. The reasoning moves to a `?`, and the line under a title states a fact
+
+`docs/UI_REDESIGN.md` §5 step 4, and the symptom §0 opens with: ten sections,
+ten aphorisms, rendered as permanent body copy. "What the rules judged, in the
+abstract." "Accepted risk is counted, never absorbed." The writing was never the
+problem — printing it under every heading, forever, was. A reader who has been
+in the product twice reads past it to reach the numbers, and it is between them
+and the numbers on every visit.
+
+`components/common/HelpPopover.tsx` is where it goes: a `?` beside a panel title
+that opens the sentence for the reader who wants it and costs nothing to the
+reader who does not. On a page header it can take a visible label instead — the
+attack-paths page carries "How it works", which is what the mockup shows.
+
+**What was deleted, and what was kept.** A subtitle that restated its own
+heading is gone (`Severity mix — what the rules judged, in the abstract`; the
+attack-path panel's `what is wrong together`). A subtitle stating something a
+reader could otherwise get wrong became a `?`: that an accepted risk is still
+counted in the chart, that only a scan closes a finding, that coverage counts
+conclusions rather than compliance, that an unclassified asset is still ranked
+as though it matters. A subtitle stating a **fact about this data** — "Claimed
+fixed 4 Sept, 00:39", "CIS Azure · 3.0", "Estimated effort: 30 min" — is not an
+epigram and stays where it is. So does the help text under a settings form,
+which tells you what happens when you press Save.
+
+Two dashboard panels keep a short qualifier inline with the title rather than
+under it — "Priority risks · ranked by cost to this business", "Recent changes ·
+last 7 days" — which is how the mockup renders them. Three words on the title's
+own line is not a subtitle.
+
+### One factual line per page, and the definitions behind the `?`
+
+Every page header line is now something the page knows: counts, a window, a
+scan time. `11 open risks`, `5 assets discovered · 1 with no checks yet`,
+`28 checks with a verdict`, `3 in the queue · 1 marked done`. Where a page had
+no fact to state, it has no line at all.
+
+The definitional sentences those lines replaced were good sentences, and each
+is now one click away on the title's `?` rather than deleted: what a risk is as
+against a finding, how a route is built, what a report is for.
+
+This is a deliberate departure from the mockups, which render a definitional
+sentence as the page subtitle on four of the six screens ("Every check the rules
+ran, and what each concluded"). UI_REDESIGN.md §3 states the opposite rule in
+its own words — the status line is facts only, and "never an epigram, a
+definition, or a sentence explaining what the page is for" — and §6 repeats it.
+Where the previews and the prose disagreed about dates there was no third
+option and the previews won (§85); here there is one that satisfies the stated
+rule and keeps the sentence, so the rule wins.
+
+## 88. The ranking is a table, and one risk is read beside it
+
+`docs/UI_REDESIGN.md` §5 step 5, the largest single piece of the redesign.
+
+The risks page was a card feed: eleven full-width cards, each with a five-line
+paragraph, and three of them byte-identical because three identities failed one
+check. A ranking is a comparison, and a comparison wants one line per row with
+the compared value in the same column every time. It is now a table — Risk,
+Exposure, Score, Status — where every text cell is one line and clips, because
+a row that wraps breaks the scan down the score column that the reader came
+for.
+
+### Where the prose went
+
+Into a 372px drawer beside the table, shown for one risk instead of eleven at
+once: the score and the two numbers it was built from, why it matters, what
+raises it, the command that fixes it, and the findings it was built from.
+
+`/risks/:riskId` still works and now renders the **ranking with that risk open
+beside it**, rather than a page of its own. That is the point rather than a
+routing convenience: half of what a score means is what it outranks, and a
+detail page shows a number with nothing to compare it against. Below `lg` there
+is no room for two columns, so the drawer is the page — the same component, so
+the narrow reading cannot drift from the wide one. `pages/RiskDetail.tsx` is
+deleted; `components/risks/RiskDetailBody.tsx` is the one implementation.
+
+**What raises it** is deliberately not the six weighted components. Those are
+arithmetic and they sit in the score block. This is the three statements about
+the estate the arithmetic was computed from, each either established or
+admittedly not: an input nobody declared renders as a hollow mark and the words
+"not declared", never as a "no". An unclassified asset is not an asset holding
+nothing.
+
+**The actions are the finding's, not the risk's.** "Add to queue" is the
+existing `TrackFix`, which posts a remediation task against the member finding
+— a task attached to a route would be work nobody can close, since a route is
+severed by fixing one of its members. Accepting a risk writes an audit record
+with the reason it was accepted, and the field for that reason is on the
+finding page; a two-word button in a 372px column would either write an empty
+justification or need a dialog of its own, so the drawer links to the finding.
+
+**No checkbox column.** The mockups draw one on this table and on the findings
+table, and neither draws anything for a selection to do. A column of checkboxes
+that selects rows nothing can act on is decoration; it arrives with the bulk
+action that needs it.
+
+### Grouping is not filtering
+
+"Group duplicates" collapses rows failing the same check into one parent marked
+`×3`, expandable to the individual assets, and it is **on by default** — three
+rows reading the same sentence is the state the page was in, and the reader has
+one mistake to fix, not three. Nothing is hidden either way, which is why it is
+a toggle rather than a filter.
+
+Two constraints in the implementation are worth naming. It groups on the
+*check* rather than the whole title, because the title carries the asset. And
+it groups over the page the reader is looking at rather than over the estate:
+the API pages the ranking, so a count claiming to be estate-wide would be a
+number the component cannot know.
+
+A scenario is never grouped with another scenario. Two routes that read alike
+still start and end somewhere different, and collapsing them would claim one
+problem where there are two.
+
+### Why three rows said "User", and what they say now
+
+§4.2 asks whether the collector was failing to resolve display names before
+anything is built around it. It was not, and the answer changes the fix.
+
+A directory user is normalized from Graph and keeps its `displayName`. A
+principal seen only in an **ARM role assignment** is a different thing: that
+payload carries `principalId` and `principalType` and nothing else, and the
+display name lives behind a Graph read that a tenant without admin consent
+refuses — which is exactly the state the demo tenant is in, and which the
+assets page already reports as "4 identity collectors were refused".
+
+The node was named after its type. So three separate people holding Owner
+rendered as three rows reading "Role assignment permits every action — User": a
+label that identifies nobody, cannot be told apart, and is the reason the page
+looked like it was repeating itself. It is now named by its **object id** —
+ugly, and the thing a customer can paste into their own portal to find out who
+this is — with the type kept in metadata where the assets table reads it for
+its own column. A managed identity gets the better name that was always
+available: "Managed identity of vm-bastion-01".
+
+Existing rows keep their old names until the next scan rewrites them, as with
+any normalizer change.
+
+## 89. The checks with no verdict are rows, and a missing declaration is a chip
+
+`docs/UI_REDESIGN.md` §5 step 6 — Findings and Assets, where the work was
+presentation and one thing was missing outright.
+
+### A findings page that lists only failures answers a narrower question
+
+§4.3 calls the UNKNOWN rows "the point of this page", and they were not on it.
+They could not be: a finding is something a rule *concluded*, and a check that
+reached no verdict concludes nothing, so it is stored as a `ScanEvaluationGap`
+rather than as a finding. The page therefore answered "everything wrong" while
+its own title claims "every check the rules ran, and what each concluded" — and
+the omission always reads in the flattering direction. Nine checks that could
+not run look exactly like nine that passed.
+
+`GET /api/v1/findings/unevaluated` serves the latest completed scan's gaps,
+each with the rule's own name and the resource it was about. Scoped to the
+latest scan on purpose: a gap is a fact about a reading, and one from three
+weeks ago says nothing about the estate today. It is declared **above**
+`/findings/{finding_id}` in the router, or the path would be parsed as a UUID
+and 422 — there is a test for exactly that.
+
+The rows sit in the same table, greyed, with a dashed `No verdict` severity
+chip and a dashed `Unevaluated` status, and with an em dash where a score and a
+date would be: a check that did not run has neither, and inventing either is
+the flattering guess the row exists to refuse. One amber strip above the table
+states the count once.
+
+Two rules about where they appear. **A filter hides the rows and never the
+count** — a reader who asked for CRITICAL findings did not ask for the checks
+that reached none, but the strip is a fact about the scan and holds either way.
+And they are **not paginated with the findings**: they appear under every
+unfiltered page, because the alternative is a set of rows a reader only meets
+by paging to the end of an estate, which is close enough to sorted away. The
+footer counts them apart from the findings so the two numbers cannot be read as
+one.
+
+**The risk score column stays**, against §4.3's column list. It is this table's
+default ordering, and a list sorted by a number it does not show cannot be
+read. The rule id gets the mono column the spec asks for, so a finding is
+traceable to the check that raised it without opening it.
+
+### On the assets table, a blank cell is a claim
+
+`environment` renders as a dashed `Unknown` chip rather than an em dash. An
+asset nobody declared an environment for is not an asset with no environment,
+and the blank reads as the second — which is how a missing declaration becomes
+an all-clear. Exposure already read this way; the two now match.
+
+Open findings reads **"no checks yet"** in words, not `0`, for a resource type
+CloudGuard has no rule for. A zero beside an examined asset's zero makes the
+two look alike, and one of them was never looked at.
+
+This is as far as the data goes, and it is worth naming the limit: the mockup
+shows a *subscription* reading "no checks yet", and nothing in the payload can
+distinguish a modelled asset that was evaluated and passed from one no rule
+happened to apply to. `scan_rule_results` counts per rule, not per resource.
+Saying so beats guessing.
+
+The criticality column comes off, as §4.4 specifies — unlike the findings
+score, it is not this table's ordering and it is on the asset's own page and in
+the classification flow.
+
+Under the table, what the inventory could not read: the latest scan's
+`collection_errors`, named, with a link to fix access. A listing that is short
+because a collector was refused looks exactly like a small estate.
+
+## 90. A column nobody can reach, and an empty page that says which half is missing
+
+`docs/UI_REDESIGN.md` §5 step 7 — the two screens where the layout is the
+argument.
+
+### The board makes the rule structural
+
+The remediation page carried a subtitle reading "Fixes a later scan observed —
+never work somebody marked done", which is a sentence asking to be believed on
+a screen whose only control was a button labelled "Mark done". It is now four
+columns, and the rule is the shape rather than the caption:
+
+    To fix        In progress      Awaiting a scan      Verified fixed  (locked)
+
+**"Verified fixed" has no control that reaches it.** A card arrives there when
+the *finding* resolved — which only a scan does — and the column carries a
+padlock and one dashed sentence saying so. There is no button in it, which is
+the difference between a rule and a claim; a test asserts the column contains
+no buttons at all.
+
+**"Awaiting a scan" is the column the locked one implies.** Marking work done
+already opened a verification server-side; what was missing was a place for
+that state to live, so a deployed fix sat under a status that read like
+completion. `DONE` now means "deployed, not yet confirmed" and says so.
+
+The two right-hand columns carry one sentence each. They are the only two
+explanatory sentences left on the page.
+
+**No drag and drop.** The mockup's language ("not a drop target") implies it,
+and this board is moved with buttons — the app has no drag library and adding
+one is a dependency decision, not a presentation one. Nothing is lost:
+"Verified fixed" is unreachable by button exactly as it would be undroppable,
+and that is the property the design is actually about.
+
+### Four tiles, two of which are about the estate
+
+Verified fixed · Still open · In progress · Came back. Two of them deliberately
+report on the environment rather than on the board, under the key the overview
+already uses: a queue reporting only on its own cards can sit empty and serene
+over an estate with eleven open risks in it. **"Came back" is never netted off
+against the fixes** — a fix that regressed happened, and averaging it away
+hides the one pattern this page exists to surface.
+
+An unknown number renders as an em dash, never as a zero.
+
+### The ageing strip, and the chart that is somewhere else
+
+Under a week / 1–4 weeks / over a month, plus the oldest open, measured from
+when the finding was **first raised** rather than from when somebody added it
+to the board: the age a customer is exposed for starts at the problem, not at
+the paperwork. It is the one thing about this queue the four tiles do not
+already say — a board says what is where, and cannot say that everything on it
+has been there a month.
+
+§4.6 also says to remove "the existing raised/fixed/came-back chart" from this
+page. That chart is not on this page and never was: it is `ActivityBars` inside
+the overview's `RemediationProgress` panel, which §4.1 separately turns into a
+single stat tile. It is left alone here, because removing half of an overview
+panel from inside a step about two other screens would leave the overview in a
+state no step owns. Which is the larger gap: **§4.1's overview restructure has
+no step in §5's build order at all.**
+
+### The attack-paths empty state is the page
+
+Most new tenants have no route, and for two of the three reasons that is not
+good news. The reader is now shown which precondition is missing rather than
+told in a paragraph: a strip of three — a reading, somewhere to start,
+something worth reaching — each ticked or crossed with the fact behind it.
+
+Whether a scan has run is read from the **latest scan**, not inferred from two
+zeroes. An estate nothing has looked at and an estate with nothing in it
+produce the same graph and are opposite news; the old code guessed "no scan"
+from `entry_points === 0 && sensitive_targets === 0`, which called a scanned,
+unclassified estate unscanned.
+
+Below the strip, a three-node diagram with the missing end amber and dashed —
+the same treatment UNKNOWN carries everywhere else, so it reads as "not
+established" rather than "broken" — the matching `empty*Detail` sentence as the
+body, and one primary action. Below that, one example route, labelled
+`example - not your estate`. That label is load-bearing: an example drawn in
+the product's own style, on a page about the reader's environment, is a claim
+about their environment unless it says otherwise.
+
+## 91. The overview is one argument again, and it draws what the score is about
+
+`docs/UI_REDESIGN.md` §4.1 — the page §0 opens by criticising, and the one piece
+of the redesign §5's build order never gave a step to.
+
+Eight sections become five, and the reduction is not tidying. Severity mix, a
+one-segment donut and risk bands were three drawings of the same eleven
+findings; an assessment-coverage card and a "1 category could not be collected"
+box were one caveat in two places; a score card and a posture-trend card
+answered halves of one question.
+
+    hero (score arc · exposure map · one line about routes)
+    four tiles
+    blind-spot banner
+    priority risks
+    distribution · control coverage · recent changes
+
+### The exposure map, and the panel it replaces
+
+The overview drew an attack-path panel that is empty for most tenants and could
+not help being: a route needs something classified as sensitive at the far end,
+and a new customer has classified nothing. A panel whose usual state is "no
+data" teaches a reader to skip the place routes live.
+
+`GET /api/v1/attack-paths/exposure-map` answers a question that always has an
+answer, from the same graph: **what does the internet touch, and what does that
+touch.** It walks out from the internet-facing assets, three hops, bounded — and
+reports what it left out, because a diagram that quietly truncates is a diagram
+of a smaller, tidier estate than the customer has.
+
+**It is not an attack path and must not imply one.** An edge says one asset can
+act on another. Whether that reaches anything worth taking is the attack-paths
+page's question, so nothing here is scored, and the nodes carry only exposure
+and sensitivity — the two facts the graph actually knows. An asset nobody
+classified is drawn dashed, the same treatment UNKNOWN carries everywhere else.
+
+The layout is columns by distance from the internet, not a force simulation:
+the reader's question is "how far in does this go", and a force layout places
+the same graph differently on every render, which makes a diagram somebody is
+comparing against last week's useless.
+
+The attack-path panel's remaining job — how many routes, and why there are none
+— is one line under the map. Why there are none is the load-bearing half:
+nothing classified as sensitive is a gap in what CloudGuard was told, and a
+clean "no attack paths" would read as reassurance.
+
+### The blind-spot banner sits above the ranking
+
+Position is the argument. A reader who acts on a ranked list without knowing a
+third of the estate was unreadable is acting on a ranking of the readable
+third. One amber strip, the share the score is charged for, the provider's own
+words clipped, and two actions — each the fix for one half of the sentence. It
+renders nothing when there is nothing to say: a caveat that is always on screen
+is a caveat nobody reads.
+
+### The distribution toggle names the reading
+
+**As judged** is what the rule concluded in the abstract; **on the asset** is
+what that means here, once exposure, data sensitivity and business criticality
+are weighed. That distinction is the product's whole argument, and the page used
+to render both at once as two charts that disagreed, leaving the reader to work
+out which was which.
+
+### What left the product, and where it went
+
+Nine components are deleted, and this is the honest list rather than a diff
+nobody reads:
+
+- **`ScorePanel`** → the hero. The trend it carried is *kept*, small, under the
+  arc: §4.1 leaves the hero's third column undecided and the mockup draws no
+  line at all, so dropping it outright would have taken the only view of
+  movement out of the product for a layout note.
+- **`SeverityStrip`** → the Distribution panel. Its per-severity sparklines are
+  gone; the mockup has no sparkline on the overview.
+- **`PostureBreakdown`** → the Distribution panel, which keeps two of its three
+  readings. `Donut` and `DonutLegend` go with it — a one-segment donut is a
+  circle.
+- **`CoveragePanel`** → the blind-spot banner and the "Assessed" tile. Its
+  per-category chips are gone from the overview; the same evidence is on the
+  scan, per reading, in `CollectionPanel`.
+- **`AttackPathPanel`** → one line in the hero. `Sparkline` survives via the
+  score trend.
+- **`RemediationProgress`** → the "Verified fixed" tile. `ActivityBars` goes
+  with it, which is where §4.6's "remove the raised/fixed/came-back chart"
+  actually lands (§90 recorded that it was never on the remediation page).
+
+`StackedBar` and `Bars` survive by being used, not by being spared:
+Distribution draws with the first and `ComplianceSummary` with the second.
+
 ## Settings: the evidence a person supplies
 
 `PATCH /organizations` takes no id in the path. Deleting a *different*

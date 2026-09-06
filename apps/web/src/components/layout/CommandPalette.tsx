@@ -186,14 +186,15 @@ export function CommandPalette() {
           control that names the key it stands for. */}
       <Button
         variant="outline"
-        size="sm"
         onClick={() => setOpen(true)}
-        className="gap-2 text-muted-foreground"
+        className="h-[34px] w-full max-w-[360px] justify-start gap-2.5 px-3 text-muted-foreground sm:w-[360px]"
         aria-label="Search CloudGuard"
       >
         <SearchIcon data-icon="inline-start" />
-        <span className="hidden sm:inline">Search</span>
-        <kbd className="hidden rounded border bg-muted px-1.5 py-0.5 text-[10px] font-medium sm:inline">
+        <span className="hidden text-[13px] font-normal sm:inline">
+          Search assets, risks, rules
+        </span>
+        <kbd className="ml-auto hidden rounded border bg-muted px-1.5 py-0.5 text-[10px] font-medium sm:inline">
           {shortcutLabel()}
         </kbd>
       </Button>
@@ -259,7 +260,7 @@ export function CommandPalette() {
                     onSelect={() => go(`/assets/${asset.id}`)}
                   >
                     <BoxesIcon />
-                    <span className="min-w-0 flex-1 truncate">
+                    <span className="min-w-0 flex-1 truncate font-mono">
                       {asset.name}
                     </span>
                     <span className="shrink-0 text-xs text-muted-foreground">

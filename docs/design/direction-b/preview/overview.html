@@ -1,0 +1,316 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+</head>
+<body>
+
+
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+  <style>
+    body { margin: 0; }
+    .b { font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    .b a { color: #22d3b7; text-decoration: none; }
+    .b a:hover { color: #6bf0dc; }
+    .jm { font-family: 'JetBrains Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+    .bl { font-size: 11px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #6b7793; }
+    .bn { display: flex; align-items: center; gap: 11px; padding: 8px 12px; border-radius: 8px; font-size: 14px; color: #97a2ba; }
+    .bn.on { background: linear-gradient(90deg, rgba(34,211,183,0.14), rgba(34,211,183,0)); color: #e9edf7; box-shadow: inset 2px 0 0 #22d3b7; }
+    .tile { background: #0f1420; border: 1px solid #1c2436; border-radius: 14px; }
+  </style>
+
+
+<div class="b" style="display: flex; width: 1440px; min-height: 1400px; background: #090c14; color: #e9edf7;">
+
+  <aside style="width: 236px; flex-shrink: 0; background: #070911; border-right: 1px solid #161d2c; display: flex; flex-direction: column; gap: 24px; padding: 20px 15px;">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 0 6px;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22d3b7" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.4-3 8-7 9-4-1-7-4.6-7-9V6z"/></svg>
+      <span style="font-size: 16px; font-weight: 700; letter-spacing: -0.02em;">CloudGuard</span>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <div class="bl" style="padding: 0 12px 6px;">Posture</div>
+      <div class="bn on"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 12l4-3"/></svg>Overview</div>
+      <div class="bn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 17l5-5 4 3 7-8"/></svg>Changes</div>
+      <div class="bn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 3h8l4 4v14H6z"/></svg>Reports</div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <div class="bl" style="padding: 0 12px 6px;">Exposure</div>
+      <div class="bn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l7 3v6c0 4.4-3 8-7 9-4-1-7-4.6-7-9V6z"/></svg>Findings</div>
+      <div class="bn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>Risks<span class="jm" style="margin-left: auto; font-size: 11px; color: #ff8ea3; background: rgba(255,77,109,0.14); padding: 2px 7px; border-radius: 5px;">11</span></div>
+      <div class="bn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="5" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><circle cx="19" cy="6" r="2"/><path d="M6.5 7.5L11 16M17.5 7.5L13 16"/></svg>Attack paths</div>
+      <div class="bn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/></svg>Assets</div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <div class="bl" style="padding: 0 12px 6px;">Response</div>
+      <div class="bn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M14 6a4 4 0 10-4 4l7 7 3-3z"/></svg>Remediation</div>
+      <div class="bn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 12l4 4 10-10"/></svg>Compliance</div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <div class="bl" style="padding: 0 12px 6px;">Evidence</div>
+      <div class="bn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 12h4l3 7 4-14 3 7h4"/></svg>Scans</div>
+      <div class="bn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 7h10M4 12h16M4 17h7"/></svg>Rules</div>
+      <div class="bn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7 18a4 4 0 010-8 5 5 0 019.6-1A3.5 3.5 0 0118 18z"/></svg>Cloud</div>
+    </div>
+    <div style="margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 11px 8px; border-top: 1px solid #161d2c;">
+      <div class="jm" style="width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, #22d3b7, #1a8f9e); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 500; color: #061014;">IT</div>
+      <div style="font-size: 13px; color: #97a2ba;">IT Albania</div>
+    </div>
+  </aside>
+
+  <main style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
+
+    <div style="display: flex; align-items: center; gap: 16px; height: 58px; padding: 0 36px; border-bottom: 1px solid #161d2c;">
+      <div style="display: flex; align-items: center; gap: 10px; width: 360px; height: 34px; padding: 0 13px; background: #0f1420; border: 1px solid #1c2436; border-radius: 9px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#5b6680" stroke-width="1.9"><circle cx="11" cy="11" r="6"/><path d="M16 16l4 4"/></svg>
+        <span style="font-size: 13.5px; color: #5b6680;">Search assets, risks, rules</span>
+        <span class="jm" style="margin-left: auto; font-size: 11px; color: #4a5468; border: 1px solid #232c40; border-radius: 5px; padding: 1px 6px;">⌘K</span>
+      </div>
+      <div style="margin-left: auto; display: flex; align-items: center; gap: 10px;">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#7b86a0" stroke-width="1.7"><path d="M6 9a6 6 0 1112 0c0 4 2 5 2 5H4s2-1 2-5z"/><path d="M10 19h4"/></svg>
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#7b86a0" stroke-width="1.7"><path d="M20 13a8 8 0 01-9-9 8 8 0 109 9z"/></svg>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 20px; padding: 26px 36px 44px;">
+
+      <div style="display: flex; align-items: flex-end; gap: 16px;">
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.028em;">Overview</h1>
+          <div style="display: flex; align-items: center; gap: 9px; font-size: 13px; color: #7b86a0;">
+            <span style="width: 6px; height: 6px; border-radius: 50%; background: #ff9838;"></span>
+            <span>Last scan 4 Sept, 00:39</span><span style="color: #333c52;">·</span><span style="color: #ff9838;">evidence 67 h old</span>
+          </div>
+        </div>
+        <div style="margin-left: auto; display: flex; align-items: center; gap: 9px;">
+          <div style="height: 36px; display: flex; align-items: center; padding: 0 15px; border: 1px solid #232c40; border-radius: 9px; font-size: 13.5px; color: #b7c0d3;">Reports</div>
+          <div style="height: 36px; display: flex; align-items: center; gap: 8px; padding: 0 15px; background: #22d3b7; border-radius: 9px; font-size: 13.5px; font-weight: 500; color: #04120f;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><path d="M20 12a8 8 0 11-2.3-5.6"/><path d="M20 4v5h-5"/></svg>Scan now
+          </div>
+        </div>
+      </div>
+
+      <!-- hero -->
+      <div class="tile" style="display: flex; align-items: stretch; overflow: hidden; background: radial-gradient(900px 320px at 12% 0%, rgba(255,77,109,0.10), transparent 62%), radial-gradient(760px 300px at 78% 100%, rgba(34,211,183,0.09), transparent 60%), #0f1420;">
+
+        <div style="width: 340px; flex-shrink: 0; padding: 26px 28px; display: flex; flex-direction: column; align-items: center; gap: 14px;">
+          <div class="bl" style="align-self: flex-start;">Security score</div>
+          <div style="position: relative; width: 180px; height: 180px;">
+            <svg width="180" height="180" viewBox="0 0 180 180">
+              <circle cx="90" cy="90" r="70" fill="none" stroke="#1c2436" stroke-width="13" stroke-linecap="round" stroke-dasharray="329.9 439.8" transform="rotate(135 90 90)"/>
+              <circle cx="90" cy="90" r="70" fill="none" stroke="#ff4d6d" stroke-width="13" stroke-linecap="round" stroke-dasharray="191.3 439.8" transform="rotate(135 90 90)"/>
+            </svg>
+            <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;">
+              <span class="jm" style="font-size: 52px; font-weight: 500; line-height: 1; letter-spacing: -0.04em;">58</span>
+              <span style="font-size: 12px; color: #6b7793;">of 100</span>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 13px; font-weight: 500; color: #ff8ea3; background: rgba(255,77,109,0.13); border-radius: 999px; padding: 4px 13px;">Poor</span>
+            <span class="jm" style="font-size: 13px; color: #ff8ea3;">−24</span>
+            <span style="font-size: 13px; color: #6b7793;">in 48 h</span>
+          </div>
+        </div>
+
+        <div style="width: 1px; background: #1c2436;"></div>
+
+        <div style="flex: 1; min-width: 0; padding: 26px 30px; display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <span class="bl">Exposure map</span>
+            <span style="font-size: 12px; color: #6b7793;">5 assets · 1 reachable from the internet</span>
+            <a style="margin-left: auto; font-size: 13px;">Open graph →</a>
+          </div>
+
+          <svg width="100%" height="216" viewBox="0 0 760 216">
+            <line x1="72" y1="72" x2="212" y2="72" stroke="#ff4d6d" stroke-width="1.6" stroke-dasharray="4 4"/>
+            <line x1="268" y1="90" x2="372" y2="132" stroke="#2b3549" stroke-width="1.6"/>
+            <line x1="418" y1="146" x2="490" y2="146" stroke="#2b3549" stroke-width="1.6"/>
+            <line x1="548" y1="132" x2="632" y2="76" stroke="#2b3549" stroke-width="1.6"/>
+            <line x1="549" y1="146" x2="631" y2="146" stroke="#2b3549" stroke-width="1.6"/>
+            <line x1="548" y1="160" x2="632" y2="198" stroke="#2b3549" stroke-width="1.6"/>
+
+            <circle cx="48" cy="72" r="21" fill="#131a29" stroke="#2b3549" stroke-width="1.4"/>
+            <path d="M38 72h20M48 62a26 26 0 010 20M48 62a26 26 0 000 20" fill="none" stroke="#7b86a0" stroke-width="1.4"/>
+            <text x="48" y="110" text-anchor="middle" fill="#7b86a0" font-family="'Space Grotesk',sans-serif" font-size="12">Internet</text>
+
+            <circle cx="242" cy="72" r="30" fill="rgba(255,77,109,0.13)" stroke="#ff4d6d" stroke-width="2"/>
+            <rect x="230" y="64" width="24" height="16" rx="2" fill="none" stroke="#ff8ea3" stroke-width="1.5"/>
+            <path d="M230 70h24" stroke="#ff8ea3" stroke-width="1.5"/>
+            <text x="242" y="122" text-anchor="middle" fill="#e9edf7" font-family="'JetBrains Mono',monospace" font-size="11.5">sacspmtstne01</text>
+            <text x="242" y="138" text-anchor="middle" fill="#ff8ea3" font-family="'Space Grotesk',sans-serif" font-size="11">public · sensitive</text>
+
+            <circle cx="394" cy="146" r="25" fill="#131a29" stroke="#2b3549" stroke-width="1.4"/>
+            <rect x="385" y="139" width="18" height="14" rx="2" fill="none" stroke="#7b86a0" stroke-width="1.4"/>
+            <text x="394" y="190" text-anchor="middle" fill="#97a2ba" font-family="'JetBrains Mono',monospace" font-size="11">cspm-test-ne-rg</text>
+
+            <circle cx="519" cy="146" r="29" fill="#131a29" stroke="#ff9838" stroke-width="1.6" stroke-dasharray="4 4"/>
+            <rect x="509" y="139" width="20" height="14" rx="2" fill="none" stroke="#ff9838" stroke-width="1.4"/>
+            <text x="519" y="192" text-anchor="middle" fill="#ff9838" font-family="'Space Grotesk',sans-serif" font-size="11">unclassified subscription</text>
+
+            <circle cx="651" cy="66" r="19" fill="rgba(255,77,109,0.13)" stroke="#ff4d6d" stroke-width="1.8"/>
+            <circle cx="651" cy="146" r="19" fill="rgba(255,77,109,0.13)" stroke="#ff4d6d" stroke-width="1.8"/>
+            <circle cx="651" cy="206" r="19" fill="rgba(255,152,56,0.12)" stroke="#ff9838" stroke-width="1.8"/>
+            <circle cx="651" cy="66" r="6" fill="#ff8ea3"/>
+            <circle cx="651" cy="146" r="6" fill="#ff8ea3"/>
+            <circle cx="651" cy="206" r="6" fill="#ffb877"/>
+            <text x="678" y="70" fill="#97a2ba" font-family="'Space Grotesk',sans-serif" font-size="11.5">×3 role</text>
+            <text x="678" y="150" fill="#97a2ba" font-family="'Space Grotesk',sans-serif" font-size="11.5">writer</text>
+            <text x="678" y="210" fill="#97a2ba" font-family="'Space Grotesk',sans-serif" font-size="11.5">owner</text>
+          </svg>
+
+          <div style="display: flex; align-items: center; gap: 9px; padding: 9px 13px; background: rgba(255,152,56,0.07); border: 1px solid rgba(255,152,56,0.22); border-radius: 9px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ff9838" stroke-width="1.8"><path d="M12 4l9 16H3z"/></svg>
+            <span style="font-size: 12.5px; color: #d9b78a;">No attack path traced — path analysis starts once a subscription is declared sensitive.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI row -->
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px;">
+        <div class="tile" style="padding: 18px 20px; display: flex; flex-direction: column; gap: 7px;">
+          <span class="bl">Open risks</span>
+          <span class="jm" style="font-size: 34px; font-weight: 500; line-height: 1;">11</span>
+          <span style="font-size: 12.5px; color: #6b7793;">none accepted or waived</span>
+        </div>
+        <div class="tile" style="padding: 18px 20px; display: flex; flex-direction: column; gap: 7px;">
+          <span class="bl">Critical on asset</span>
+          <span class="jm" style="font-size: 34px; font-weight: 500; line-height: 1; color: #ff8ea3;">4</span>
+          <span style="font-size: 12.5px; color: #6b7793;">plus 7 high</span>
+        </div>
+        <div class="tile" style="padding: 18px 20px; display: flex; flex-direction: column; gap: 7px;">
+          <span class="bl">Assessed</span>
+          <span class="jm" style="font-size: 34px; font-weight: 500; line-height: 1; color: #ff9838;">68%</span>
+          <span style="font-size: 12.5px; color: #6b7793;">19 of 28 checks</span>
+        </div>
+        <div class="tile" style="padding: 18px 20px; display: flex; flex-direction: column; gap: 7px;">
+          <span class="bl">Verified fixed</span>
+          <span class="jm" style="font-size: 34px; font-weight: 500; line-height: 1; color: #6b7793;">0</span>
+          <span style="font-size: 12.5px; color: #6b7793;">last 30 days</span>
+        </div>
+      </div>
+
+      <!-- blind spot -->
+      <div style="display: flex; align-items: center; gap: 18px; padding: 17px 22px; background: linear-gradient(90deg, rgba(255,152,56,0.10), rgba(255,152,56,0.02)); border: 1px solid rgba(255,152,56,0.26); border-radius: 14px;">
+        <svg style="flex-shrink: 0;" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#ff9838" stroke-width="1.8" stroke-linecap="round"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17.2v.1"/></svg>
+        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+          <div style="font-size: 14.5px; font-weight: 500; color: #ffd0a3;">The score is charged for 68% of your estate</div>
+          <div style="font-size: 13px; color: #a8916f;">Identity checks were refused for want of admin consent, and 11 of 11 open risks sit on assets CloudGuard could not classify.</div>
+        </div>
+        <div style="display: flex; gap: 9px; flex-shrink: 0;">
+          <div style="height: 34px; display: flex; align-items: center; padding: 0 14px; background: #ff9838; border-radius: 9px; font-size: 13px; font-weight: 500; color: #1a0f03;">Grant admin consent</div>
+          <div style="height: 34px; display: flex; align-items: center; padding: 0 14px; border: 1px solid rgba(255,152,56,0.34); border-radius: 9px; font-size: 13px; color: #d9b78a;">Classify subscriptions</div>
+        </div>
+      </div>
+
+      <!-- risks -->
+      <div class="tile" style="overflow: hidden;">
+        <div style="display: flex; align-items: center; gap: 14px; padding: 17px 22px;">
+          <span style="font-size: 16px; font-weight: 600; letter-spacing: -0.015em;">Priority risks</span>
+          <span style="font-size: 12.5px; color: #6b7793;">ranked by cost to this business</span>
+          <a style="margin-left: auto; font-size: 13px;">All risks →</a>
+        </div>
+        <div class="bl" style="display: flex; gap: 16px; padding: 0 22px 10px; border-bottom: 1px solid #1c2436;">
+          <span style="flex: 1;">Risk</span><span style="width: 210px;">Exposure</span><span style="width: 70px; text-align: right;">Score</span><span style="width: 96px;"></span>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 16px; padding: 15px 22px; border-bottom: 1px solid #151c2b;">
+          <span style="width: 4px; height: 34px; border-radius: 2px; background: #ff4d6d; flex-shrink: 0;"></span>
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-size: 14.5px; font-weight: 500;">Identity can grant itself any role</span>
+            <span style="font-size: 12.5px; color: #6b7793;">3 identities · unclassified subscription</span>
+          </div>
+          <div style="width: 210px;"><span style="font-size: 11.5px; color: #6b7793; border: 1px dashed #2b3549; border-radius: 5px; padding: 2px 8px;">exposure unknown</span></div>
+          <span class="jm" style="width: 70px; text-align: right; font-size: 20px; font-weight: 500; color: #ff8ea3;">77</span>
+          <div style="width: 96px; display: flex; justify-content: flex-end;"><span style="height: 28px; display: flex; align-items: center; padding: 0 12px; border: 1px solid #232c40; border-radius: 7px; font-size: 12.5px; color: #b7c0d3;">Fix</span></div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 16px; padding: 15px 22px; border-bottom: 1px solid #151c2b;">
+          <span style="width: 4px; height: 34px; border-radius: 2px; background: #ff4d6d; flex-shrink: 0;"></span>
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-size: 14.5px; font-weight: 500;">Storage account allows public access</span>
+            <span class="jm" style="font-size: 12.5px; color: #6b7793;">sacspmtstne01</span>
+          </div>
+          <div style="width: 210px; display: flex; gap: 6px; flex-wrap: wrap;">
+            <span style="font-size: 11.5px; color: #ff8ea3; background: rgba(255,77,109,0.13); border-radius: 5px; padding: 2px 8px;">internet-facing</span>
+            <span style="font-size: 11.5px; color: #ff8ea3; background: rgba(255,77,109,0.13); border-radius: 5px; padding: 2px 8px;">sensitive data</span>
+          </div>
+          <span class="jm" style="width: 70px; text-align: right; font-size: 20px; font-weight: 500; color: #ff8ea3;">76</span>
+          <div style="width: 96px; display: flex; justify-content: flex-end;"><span style="height: 28px; display: flex; align-items: center; padding: 0 12px; background: #22d3b7; border-radius: 7px; font-size: 12.5px; font-weight: 500; color: #04120f;">Fix</span></div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 16px; padding: 15px 22px;">
+          <span style="width: 4px; height: 34px; border-radius: 2px; background: #ff9838; flex-shrink: 0;"></span>
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-size: 14.5px; font-weight: 500;">Person holds full control of a subscription</span>
+            <span style="font-size: 12.5px; color: #6b7793;">1 identity · unclassified subscription</span>
+          </div>
+          <div style="width: 210px;"><span style="font-size: 11.5px; color: #6b7793; border: 1px dashed #2b3549; border-radius: 5px; padding: 2px 8px;">exposure unknown</span></div>
+          <span class="jm" style="width: 70px; text-align: right; font-size: 20px; font-weight: 500; color: #ffb877;">72</span>
+          <div style="width: 96px; display: flex; justify-content: flex-end;"><span style="height: 28px; display: flex; align-items: center; padding: 0 12px; border: 1px solid #232c40; border-radius: 7px; font-size: 12.5px; color: #b7c0d3;">Fix</span></div>
+        </div>
+
+        <div style="display: flex; align-items: center; padding: 13px 22px; border-top: 1px solid #151c2b; background: #0c1119;">
+          <span style="font-size: 13px; color: #6b7793;">7 more open risks scored 41–68</span>
+          <a style="margin-left: auto; font-size: 13px;">Show all →</a>
+        </div>
+      </div>
+
+      <!-- bottom row -->
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px;">
+
+        <div class="tile" style="padding: 18px 20px; display: flex; flex-direction: column; gap: 14px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 15px; font-weight: 600;">Distribution</span>
+            <div style="margin-left: auto; display: flex; gap: 3px; padding: 3px; background: #131a29; border-radius: 8px;">
+              <span style="font-size: 11.5px; padding: 3px 9px; border-radius: 6px; background: #212b40; color: #e9edf7;">On the asset</span>
+              <span style="font-size: 11.5px; padding: 3px 9px; border-radius: 6px; color: #7b86a0;">As judged</span>
+            </div>
+          </div>
+          <div style="display: flex; gap: 4px; height: 9px;">
+            <span style="flex: 4; background: #ff4d6d; border-radius: 4px;"></span>
+            <span style="flex: 7; background: #ff9838; border-radius: 4px;"></span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 11px;">
+            <div style="display: flex; align-items: center; gap: 10px;"><span style="width: 9px; height: 9px; border-radius: 3px; background: #ff4d6d;"></span><span style="font-size: 13.5px; color: #b7c0d3;">Critical</span><span class="jm" style="margin-left: auto; font-size: 14px;">4</span></div>
+            <div style="display: flex; align-items: center; gap: 10px;"><span style="width: 9px; height: 9px; border-radius: 3px; background: #ff9838;"></span><span style="font-size: 13.5px; color: #b7c0d3;">High</span><span class="jm" style="margin-left: auto; font-size: 14px;">7</span></div>
+            <div style="display: flex; align-items: center; gap: 10px;"><span style="width: 9px; height: 9px; border-radius: 3px; background: #2b3549;"></span><span style="font-size: 13.5px; color: #5b6680;">Medium</span><span class="jm" style="margin-left: auto; font-size: 14px; color: #5b6680;">0</span></div>
+            <div style="display: flex; align-items: center; gap: 10px;"><span style="width: 9px; height: 9px; border-radius: 3px; background: #2b3549;"></span><span style="font-size: 13.5px; color: #5b6680;">Low</span><span class="jm" style="margin-left: auto; font-size: 14px; color: #5b6680;">0</span></div>
+          </div>
+        </div>
+
+        <div class="tile" style="padding: 18px 20px; display: flex; flex-direction: column; gap: 14px;">
+          <div style="display: flex; align-items: center;">
+            <span style="font-size: 15px; font-weight: 600;">Control coverage</span>
+            <a style="margin-left: auto; font-size: 13px;">All →</a>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 11px;">
+            <div style="display: flex; align-items: center; gap: 12px;"><span style="width: 82px; font-size: 13px; color: #b7c0d3;">CIS Azure</span><span style="flex: 1; height: 5px; border-radius: 3px; background: #1c2436; display: block; position: relative; overflow: hidden;"><span style="position: absolute; inset: 0 16% 0 0; background: #22d3b7; border-radius: 3px;"></span></span><span class="jm" style="width: 24px; text-align: right; font-size: 12.5px;">84</span></div>
+            <div style="display: flex; align-items: center; gap: 12px;"><span style="width: 82px; font-size: 13px; color: #b7c0d3;">GDPR</span><span style="flex: 1; height: 5px; border-radius: 3px; background: #1c2436; display: block; position: relative; overflow: hidden;"><span style="position: absolute; inset: 0 27% 0 0; background: #22d3b7; border-radius: 3px;"></span></span><span class="jm" style="width: 24px; text-align: right; font-size: 12.5px;">73</span></div>
+            <div style="display: flex; align-items: center; gap: 12px;"><span style="width: 82px; font-size: 13px; color: #b7c0d3;">ISO 27001</span><span style="flex: 1; height: 5px; border-radius: 3px; background: #1c2436; display: block; position: relative; overflow: hidden;"><span style="position: absolute; inset: 0 53% 0 0; background: #ff9838; border-radius: 3px;"></span></span><span class="jm" style="width: 24px; text-align: right; font-size: 12.5px;">47</span></div>
+            <div style="display: flex; align-items: center; gap: 12px;"><span style="width: 82px; font-size: 13px; color: #b7c0d3;">NIST CSF</span><span style="flex: 1; height: 5px; border-radius: 3px; background: #1c2436; display: block; position: relative; overflow: hidden;"><span style="position: absolute; inset: 0 56% 0 0; background: #ff9838; border-radius: 3px;"></span></span><span class="jm" style="width: 24px; text-align: right; font-size: 12.5px;">44</span></div>
+            <div style="display: flex; align-items: center; gap: 12px;"><span style="width: 82px; font-size: 13px; color: #b7c0d3;">PCI DSS</span><span style="flex: 1; height: 5px; border-radius: 3px; background: #1c2436; display: block; position: relative; overflow: hidden;"><span style="position: absolute; inset: 0 61% 0 0; background: #ff9838; border-radius: 3px;"></span></span><span class="jm" style="width: 24px; text-align: right; font-size: 12.5px;">39</span></div>
+            <div style="display: flex; align-items: center; gap: 12px;"><span style="width: 82px; font-size: 13px; color: #b7c0d3;">NIST 800-53</span><span style="flex: 1; height: 5px; border-radius: 3px; background: #1c2436; display: block; position: relative; overflow: hidden;"><span style="position: absolute; inset: 0 62% 0 0; background: #ff9838; border-radius: 3px;"></span></span><span class="jm" style="width: 24px; text-align: right; font-size: 12.5px;">38</span></div>
+            <div style="display: flex; align-items: center; gap: 12px;"><span style="width: 82px; font-size: 13px; color: #b7c0d3;">SOC 2</span><span style="flex: 1; height: 5px; border-radius: 3px; background: #1c2436; display: block; position: relative; overflow: hidden;"><span style="position: absolute; inset: 0 70% 0 0; background: #ff4d6d; border-radius: 3px;"></span></span><span class="jm" style="width: 24px; text-align: right; font-size: 12.5px;">30</span></div>
+          </div>
+        </div>
+
+        <div class="tile" style="padding: 18px 20px; display: flex; flex-direction: column; gap: 14px;">
+          <div style="display: flex; align-items: center;">
+            <span style="font-size: 15px; font-weight: 600;">Recent changes</span>
+            <a style="margin-left: auto; font-size: 13px;">Feed →</a>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 13px;">
+            <div style="display: flex; align-items: center; gap: 11px;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #22d3b7;"></span><span class="jm" style="flex: 1; min-width: 0; font-size: 13px; color: #b7c0d3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">sacspmtstne01</span><span style="font-size: 12px; color: #5b6680;">2 Sept</span></div>
+            <div style="display: flex; align-items: center; gap: 11px;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #22d3b7;"></span><span class="jm" style="flex: 1; min-width: 0; font-size: 13px; color: #b7c0d3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">cspm-test-ne-rg</span><span style="font-size: 12px; color: #5b6680;">2 Sept</span></div>
+            <div style="display: flex; align-items: center; gap: 11px;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #22d3b7;"></span><span class="jm" style="flex: 1; min-width: 0; font-size: 13px; color: #b7c0d3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">34a5438c-e5d8…</span><span style="font-size: 12px; color: #5b6680;">2 Sept</span></div>
+            <div style="display: flex; align-items: center; gap: 11px;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #22d3b7;"></span><span style="flex: 1; min-width: 0; font-size: 13px; color: #b7c0d3;">2 identities</span><span style="font-size: 12px; color: #5b6680;">2 Sept</span></div>
+          </div>
+          <span style="font-size: 12px; color: #5b6680; margin-top: auto;">5 assets appeared · none removed</span>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+</body>
+</html>

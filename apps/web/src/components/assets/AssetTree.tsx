@@ -110,7 +110,9 @@ function ScopeRow({ scope }: { scope: AssetScopeNode }) {
           aria-hidden
         />
         <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-        <span className="min-w-0 flex-1 truncate text-sm font-medium">{scope.name}</span>
+        <span className="min-w-0 flex-1 truncate font-mono text-sm font-medium">
+          {scope.name}
+        </span>
         <Counts assets={scope.asset_count} findings={scope.open_findings} />
       </button>
 
@@ -189,7 +191,7 @@ function GroupRow({
                 <li key={asset.id} className="flex items-center gap-3 py-1.5">
                   <Link
                     to={`/assets/${asset.id}`}
-                    className="min-w-0 flex-1 truncate text-sm hover:underline"
+                    className="min-w-0 flex-1 truncate font-mono text-sm hover:underline"
                   >
                     {asset.name}
                   </Link>
@@ -199,7 +201,7 @@ function GroupRow({
                   <SeverityBadge level={asset.public_exposure} size="sm" />
                   <span
                     className={cn(
-                      "w-8 shrink-0 text-right text-xs tabular-nums",
+                      "w-8 shrink-0 text-right font-mono text-xs",
                       asset.open_findings === 0
                         ? "text-muted-foreground"
                         : "font-medium text-foreground",
@@ -216,7 +218,11 @@ function GroupRow({
                       60 with nothing on screen saying so is the same bug the
                       list had before it started reporting its true total. */}
                   <span className="text-xs text-muted-foreground">
-                    Showing {assets.data.rows.length} of {assets.data.total}.{" "}
+                    Showing{" "}
+                    <span className="font-mono">
+                      {assets.data.rows.length} of {assets.data.total}
+                    </span>
+                    .{" "}
                   </span>
                   <Link
                     to={`/assets?subscription_id=${encodeURIComponent(scopeId)}${
@@ -241,9 +247,10 @@ function GroupRow({
 /** Assets and what is wrong in them, in that order and always both. */
 function Counts({ assets, findings }: { assets: number; findings: number }) {
   return (
-    <span className="flex shrink-0 items-center gap-4 text-xs tabular-nums">
+    <span className="flex shrink-0 items-center gap-4 text-xs">
       <span className="text-muted-foreground">
-        {assets} asset{assets === 1 ? "" : "s"}
+        <span className="font-mono">{assets}</span> asset
+        {assets === 1 ? "" : "s"}
       </span>
       <span
         className={cn(
@@ -251,7 +258,8 @@ function Counts({ assets, findings }: { assets: number; findings: number }) {
           findings === 0 ? "text-muted-foreground" : "font-medium text-critical",
         )}
       >
-        {findings} open finding{findings === 1 ? "" : "s"}
+        <span className="font-mono">{findings}</span> open finding
+        {findings === 1 ? "" : "s"}
       </span>
     </span>
   );

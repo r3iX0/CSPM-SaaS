@@ -6,6 +6,7 @@ import { api, ApiError } from "@/lib/api";
 import { openBlob, saveBlob } from "@/lib/download";
 import { useT } from "@/i18n";
 import { ErrorState, PageHeader } from "@/components/common/states";
+import { HelpPopover } from "@/components/common/HelpPopover";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -153,7 +154,14 @@ export function ReportsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader title={t.reports.title} description={t.reports.intro} />
+      <PageHeader
+        title={
+          <>
+            {t.reports.title}
+            <HelpPopover label="What a report is">{t.reports.intro}</HelpPopover>
+          </>
+        }
+      />
 
       {failure && (
         <ErrorState
@@ -165,12 +173,14 @@ export function ReportsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">What to include</CardTitle>
-          <CardDescription>
-            Both documents always carry the posture, how old the evidence is and
-            what could not be read. Those are the terms the numbers are read on,
-            so they are not optional.
-          </CardDescription>
+          <CardTitle className="flex items-center gap-1 text-sm">
+            What to include
+            <HelpPopover label="What every report carries">
+              Both documents always carry the posture, how old the evidence is
+              and what could not be read. Those are the terms the numbers are
+              read on, so they are not optional.
+            </HelpPopover>
+          </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-5">
           <div className="flex flex-wrap items-start gap-x-6 gap-y-2">

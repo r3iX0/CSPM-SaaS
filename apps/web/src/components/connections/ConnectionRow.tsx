@@ -156,7 +156,7 @@ export function ConnectionRow({
         </div>
 
         <div>
-          <span className="block text-sm text-foreground">
+          <span className="block font-mono text-sm text-foreground">
             {scoped.length} of {subscriptions.length}
           </span>
           <span className="block text-xs text-muted-foreground">

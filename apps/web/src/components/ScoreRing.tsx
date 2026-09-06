@@ -48,7 +48,7 @@ export function ScoreRing({ score }: { score: number }) {
 
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span
-          className={`text-4xl font-semibold tabular-nums leading-none ${scoreColor(clamped)}`}
+          className={`text-4xl font-mono font-semibold leading-none ${scoreColor(clamped)}`}
         >
           {Math.round(clamped)}
         </span>

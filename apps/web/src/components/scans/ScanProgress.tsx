@@ -76,10 +76,14 @@ export function ScanProgress({ stages }: { stages: ScanStage[] }) {
             <div className="flex flex-wrap items-baseline gap-x-2">
               <p className="text-xs font-medium">{STAGE_LABELS[stage]}</p>
               {stage === "COLLECT" && collect.length > 1 && (
-                <p className="text-xs tabular-nums text-muted-foreground">
-                  {done} of {collect.length} scopes read
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-mono">{done}</span> of{" "}
+                  <span className="font-mono">{collect.length}</span> scopes read
                   {failed > 0 && (
-                    <span className="text-critical"> · {failed} failed</span>
+                    <span className="text-critical">
+                      {" · "}
+                      <span className="font-mono">{failed}</span> failed
+                    </span>
                   )}
                 </p>
               )}
@@ -120,12 +124,15 @@ function StepChip({ step }: { step: ScanStage }) {
         />
         <span className="truncate">{name}</span>
         {step.duration_seconds !== null && step.status !== "PENDING" && (
-          <span className="tabular-nums opacity-70">{formatSeconds(step.duration_seconds)}</span>
+          <span className="font-mono opacity-70">{formatSeconds(step.duration_seconds)}</span>
         )}
         {/* A retry is the single most useful thing to surface about a slow
             scan, and it is invisible in a duration. */}
         {step.attempt > 1 && (
-          <Badge variant="secondary" className="gap-0.5 px-1 py-0 text-[10px]">
+          <Badge
+            variant="secondary"
+            className="gap-0.5 px-1 py-0 font-mono text-[10px]"
+          >
             <RotateCwIcon className="size-2.5" aria-hidden />
             {step.attempt}
           </Badge>

@@ -18,6 +18,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ComplianceFrameworkPage } from "@/pages/ComplianceFramework";
+import { containingText } from "@/test/text";
 
 const ROLE_REASON =
   "The server's auditing settings could not be read. If this persists, the " +
@@ -130,7 +131,7 @@ describe("one compliance framework", () => {
       }),
     ]);
 
-    expect(await screen.findByText(/4 could not be evaluated/)).toBeInTheDocument();
+    expect(await screen.findByText(containingText(/4 could not be evaluated/))).toBeInTheDocument();
     expect(screen.getByText(/deployed scanner role may predate/)).toBeInTheDocument();
   });
 
@@ -159,7 +160,7 @@ describe("one compliance framework", () => {
     mount([control({ status: "PASSING" })]);
 
     expect(await screen.findByText("Passing")).toBeInTheDocument();
-    expect(screen.queryByText(/could not be evaluated/)).not.toBeInTheDocument();
+    expect(screen.queryByText(containingText(/could not be evaluated/))).not.toBeInTheDocument();
   });
 
   it("distinguishes a control nothing checks from one that could not tell", async () => {

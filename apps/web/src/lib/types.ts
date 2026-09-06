@@ -247,6 +247,21 @@ export interface RemediationSpec {
   notes: string;
 }
 
+/**
+ * A check that reached no verdict, from the latest scan.
+ *
+ * Deliberately not a `Finding`: a finding is something a rule concluded, and
+ * this is the absence of one. It carries no severity, no score and no status,
+ * because inventing any of the three would be exactly the flattering guess the
+ * UNKNOWN state exists to refuse.
+ */
+export interface Unevaluated {
+  rule_id: string;
+  title: string;
+  reason: string;
+  resource: { id: string; name: string; resource_type: string } | null;
+}
+
 export interface FindingDetail extends Finding {
   rule_name?: string;
   rationale?: string;
@@ -756,6 +771,28 @@ export interface AttackPathStep {
  * nothing is exposed is a different thing from no paths because nothing was
  * classified as sensitive.
  */
+/**
+ * The estate's exposure, as a small graph.
+ *
+ * Not an attack path and deliberately not scored: an edge says one asset can
+ * act on another, which is a fact about how the estate is wired. Whether that
+ * reaches anything worth taking is the attack-paths page's question.
+ */
+export interface ExposureNode {
+  id: string;
+  name: string;
+  resource_type: string;
+  public_exposure: Level;
+  data_sensitivity: Level;
+  criticality: Level;
+  is_entry: boolean;
+}
+
+export interface ExposureMapData {
+  nodes: ExposureNode[];
+  edges: { source: string; relationship: string; target: string }[];
+}
+
 export interface AttackPathMeta {
   total: number;
   entry_points: number;

@@ -35,20 +35,44 @@ import { cn } from "@/lib/format";
 export function PageHeader({
   title,
   description,
+  dot,
   actions,
   className,
 }: {
   title: ReactNode;
+  /**
+   * One line of fact under the title -- what was read and when, how many of a
+   * thing are open. Never an epigram and never a definition of the page: a
+   * sentence explaining what a screen is for belongs in a `?` popover
+   * (docs/UI_REDESIGN.md §3).
+   */
   description?: ReactNode;
+  /** A coloured mark before the line, when the facts in it are not reassuring. */
+  dot?: "stale" | "running" | "ok";
   actions?: ReactNode;
   className?: string;
 }) {
   return (
     <div className={cn("flex flex-wrap items-start justify-between gap-4", className)}>
       <div className="min-w-0">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">{title}</h1>
+        <h1 className="flex items-center gap-1.5 text-[28px] font-bold leading-tight tracking-[-0.028em] text-foreground">
+          {title}
+        </h1>
         {description && (
-          <p className="mt-1 max-w-3xl text-sm text-muted-foreground">{description}</p>
+          <p className="mt-1 flex max-w-3xl items-center gap-2 text-[13px] text-muted-foreground">
+            {dot && (
+              <span
+                aria-hidden
+                className={cn(
+                  "size-1.5 shrink-0 rounded-full",
+                  dot === "stale" && "bg-medium",
+                  dot === "running" && "bg-primary",
+                  dot === "ok" && "bg-ok",
+                )}
+              />
+            )}
+            <span className="min-w-0">{description}</span>
+          </p>
         )}
       </div>
       {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}

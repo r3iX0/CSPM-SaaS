@@ -1,17 +1,21 @@
 /**
  * One risk, and the findings it was built from.
  *
- * The list can rank a route above the findings inside it; only this page can
+ * The list can rank a route above the findings inside it; only the drawer can
  * say which findings those are. It also has to keep the two scoring formulas
  * apart — a scenario is floored at its worst member and amplified for being
  * short, so showing it the six weighted components would be working nobody did.
+ *
+ * The drawer is tested on its own rather than through the ranking: it is the
+ * whole page below `lg` and a column beside the table above it, and what it
+ * says must not depend on which of the two it is being read in.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { RiskDetailPage } from "../RiskDetail";
+import { RiskDetailBody } from "@/components/risks/RiskDetailBody";
 import { api, ApiError } from "@/lib/api";
 import type { RiskDetail } from "@/lib/types";
 
@@ -76,15 +80,13 @@ function mount(risk: RiskDetail) {
   return render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[`/risks/${risk.id}`]}>
-        <Routes>
-          <Route path="/risks/:riskId" element={<RiskDetailPage />} />
-        </Routes>
+        <RiskDetailBody riskId={risk.id} />
       </MemoryRouter>
     </QueryClientProvider>,
   );
 }
 
-describe("RiskDetailPage", () => {
+describe("the risk drawer", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
@@ -112,13 +114,32 @@ describe("RiskDetailPage", () => {
     expect(screen.queryByText("Asset criticality")).not.toBeInTheDocument();
   });
 
-  it("shows a finding risk its weighted components and its factors", async () => {
+  it("shows a finding risk its weighted components, not the route formula", async () => {
     mount(findingRisk());
 
-    await waitFor(() => expect(screen.getByText("Asset criticality")).toBeInTheDocument());
-    expect(screen.getByText(/data sensitivity/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/data sensitivity/)).toBeInTheDocument());
     expect(screen.getByText("25.2")).toBeInTheDocument();
     expect(screen.queryByText("Worst finding on the route")).not.toBeInTheDocument();
+  });
+
+  it("says which of the three raisers were established and which were not", async () => {
+    // The arithmetic is one thing; what it was computed *from* is another, and
+    // an input nobody declared has to read as a gap rather than as a no.
+    mount(
+      findingRisk({
+        internet_exposure: "HIGH",
+        data_sensitivity: "HIGH",
+        asset_criticality: "UNKNOWN",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText("Reachable from the internet")).toBeInTheDocument(),
+    );
+    expect(screen.getByText("Holds data you marked sensitive")).toBeInTheDocument();
+    expect(
+      screen.getByText("Business criticality not declared"),
+    ).toBeInTheDocument();
   });
 
   it("draws a scenario's route", async () => {
@@ -159,9 +180,7 @@ describe("RiskDetailPage", () => {
     render(
       <QueryClientProvider client={client}>
         <MemoryRouter initialEntries={["/risks/gone"]}>
-          <Routes>
-            <Route path="/risks/:riskId" element={<RiskDetailPage />} />
-          </Routes>
+          <RiskDetailBody riskId="gone" />
         </MemoryRouter>
       </QueryClientProvider>,
     );

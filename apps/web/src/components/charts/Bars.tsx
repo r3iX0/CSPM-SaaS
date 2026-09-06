@@ -58,7 +58,7 @@ export function Bars({
             </span>
             <span
               className={cn(
-                "w-10 shrink-0 text-right text-xs tabular-nums",
+                "w-10 shrink-0 text-right font-mono text-xs",
                 bar.value === 0 ? "text-muted-foreground" : "font-medium",
               )}
             >

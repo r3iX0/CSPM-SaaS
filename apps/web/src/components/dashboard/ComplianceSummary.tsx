@@ -3,6 +3,7 @@ import { ArrowRightIcon } from "lucide-react";
 
 import type { ComplianceFramework } from "@/lib/types";
 import { Bars } from "@/components/charts/Bars";
+import { HelpPopover } from "@/components/common/HelpPopover";
 import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/format";
@@ -37,12 +38,18 @@ export function ComplianceSummary({
     >
       <header className="flex items-start justify-between gap-4 px-5 py-4">
         <div>
-          <h2 id="compliance-summary" className="text-sm font-semibold">
+          <h2
+            id="compliance-summary"
+            className="flex items-center gap-1 text-sm font-semibold"
+          >
             Compliance coverage
+            <HelpPopover label="What compliance coverage counts">
+              The share of a framework's controls CloudGuard reached a
+              conclusion on — passing or failing. A control it could not
+              evaluate is not counted as covered, so this number is about
+              evidence rather than about compliance.
+            </HelpPopover>
           </h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            The share of controls CloudGuard reached a conclusion on
-          </p>
         </div>
         <Link
           to="/compliance"

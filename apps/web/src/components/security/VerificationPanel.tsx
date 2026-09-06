@@ -101,7 +101,9 @@ export function VerificationPanel({ verification }: { verification: Verification
         <dl className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
           <div>
             <dt className="inline">Attempts: </dt>
-            <dd className="inline font-medium text-foreground">{verification.attempts}</dd>
+            <dd className="inline font-mono font-medium text-foreground">
+              {verification.attempts}
+            </dd>
           </div>
           {verification.next_attempt_at && (
             <div>

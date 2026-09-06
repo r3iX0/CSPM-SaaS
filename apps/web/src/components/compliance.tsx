@@ -56,7 +56,8 @@ export function CoverageBar({
               title={t.compliance.statusHelp[status]}
             >
               <span className={cn("h-2 w-2 rounded-full", className)} aria-hidden="true" />
-              {count} {label(status).toLowerCase()}
+              <span className="font-mono">{count}</span>{" "}
+              {label(status).toLowerCase()}
             </span>
           );
         })}

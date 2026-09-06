@@ -15,11 +15,13 @@
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AttackPathsPage } from "../AttackPaths";
 import { api } from "@/lib/api";
 import type { AttackPath, ChokePoint } from "@/lib/types";
+import { wholeText } from "@/test/text";
 
 const PATH: AttackPath = {
   entry: {
@@ -77,22 +79,42 @@ const PATH: AttackPath = {
   },
 };
 
+/**
+ * A scan, for the one precondition the graph cannot report on.
+ *
+ * An estate with no scan and an estate whose scan found nothing both arrive as
+ * zero routes, and they are opposite news — so the page asks for the latest
+ * scan separately, and a test that answers that request with attack paths is
+ * testing the wrong empty state.
+ */
+const SCAN = {
+  id: "scan-1",
+  status: "COMPLETED",
+  completed_at: "2026-09-04T00:39:00Z",
+  resource_count: 5,
+};
+
 function mount(
   paths: AttackPath[],
   meta: Record<string, number>,
   chokes: ChokePoint[] = [],
+  scans: object[] = [SCAN],
 ) {
   vi.spyOn(api, "get").mockImplementation((url: string) =>
     Promise.resolve(
       url.includes("/choke-points")
         ? { data: chokes, meta: { total_routes: meta.total } }
-        : { data: paths, meta },
+        : url.includes("/scans")
+          ? { data: scans, meta: {} }
+          : { data: paths, meta },
     ) as never,
   );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <AttackPathsPage />
+      <MemoryRouter>
+        <AttackPathsPage />
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 }
@@ -129,11 +151,49 @@ describe("AttackPathsPage", () => {
   });
 
   it("distinguishes a clean environment from an unscanned one", async () => {
-    mount([], { total: 0, entry_points: 0, sensitive_targets: 0 });
+    // Read from the scan itself rather than inferred from two zeroes: an
+    // estate nothing has looked at and an estate with nothing in it produce
+    // the same graph, and they are opposite news.
+    mount([], { total: 0, entry_points: 0, sensitive_targets: 0 }, [], []);
 
     await waitFor(() =>
       expect(screen.getByText("No scan has run yet")).toBeInTheDocument(),
     );
+  });
+
+  it("does not claim a scan is missing when one has run and found nothing", async () => {
+    mount([], { total: 0, entry_points: 0, sensitive_targets: 0 });
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("Nothing has been classified as sensitive"),
+      ).toBeInTheDocument(),
+    );
+    expect(screen.queryByText("No scan has run yet")).not.toBeInTheDocument();
+  });
+
+  it("says which of the three preconditions the estate is missing", async () => {
+    // The paragraph this replaces made the reader work out which of the three
+    // things a route needs was absent.
+    mount([], { total: 0, entry_points: 1, sensitive_targets: 0 });
+
+    await waitFor(() =>
+      expect(screen.getByText("Entry points found")).toBeInTheDocument(),
+    );
+    expect(screen.getByText("A scan has run")).toBeInTheDocument();
+    expect(screen.getByText("Sensitive targets")).toBeInTheDocument();
+    expect(screen.getByText(/5 assets read/)).toBeInTheDocument();
+  });
+
+  it("labels the example route as not being this estate", async () => {
+    // An example drawn in the product's own style, on a page about the
+    // reader's environment, is a claim about their environment unless it says
+    // otherwise.
+    mount([], { total: 0, entry_points: 1, sensitive_targets: 0 });
+
+    expect(
+      await screen.findByText("example - not your estate"),
+    ).toBeInTheDocument();
   });
 
   it("does not call an unclassified environment safe", async () => {
@@ -196,8 +256,9 @@ describe("AttackPathsPage", () => {
     // Scoped: the route list below repeats the same link, deliberately, so the
     // reader can see which hop it is.
     expect(within(panel).getByText("mi-jump-01 can act over sub-1")).toBeInTheDocument();
-    expect(within(panel).getByText("4")).toBeInTheDocument();
-    expect(within(panel).getByText(/of 4 routes close/)).toBeInTheDocument();
+    expect(
+      within(panel).getByText(wholeText("4 of 4 routes close")),
+    ).toBeInTheDocument();
     // Named, not just counted: the count is a claim and these are its working.
     expect(within(panel).getByText("jump-01 → customerdata")).toBeInTheDocument();
   });

@@ -444,6 +444,54 @@ export const en = {
   },
 
   dashboard: {
+    nothingOpen: "Nothing is open in this estate.",
+    blindSpots: "What the score is not charging for",
+    blindSpotUnscored: "Nothing has been assessed yet",
+    blindSpotCollectors: "Some evidence could not be collected",
+    blindSpotUnclassified: "open risks sit on assets CloudGuard could not classify",
+    blindSpotHelp:
+      "The score is charged only for what was established. Evidence CloudGuard could not read never becomes a finding, and an asset nobody classified is still ranked as though it matters -- so nothing important hides behind a missing label, and the number stays a statement about your estate rather than about CloudGuard.",
+    securityScore: "Security score",
+    routesTraced: "routes traced from the internet to something sensitive.",
+    seeRoutes: "See them",
+    noRoutesUnclassified:
+      "No attack path traced — path analysis starts once a subscription is declared sensitive.",
+    noRoutesNothingExposed:
+      "No attack path traced — nothing in this estate is reachable from the internet.",
+    noRoutesTraced:
+      "No attack path traced — nothing exposed reaches anything marked sensitive.",
+    // The exposure map, which replaces an attack-path panel that was empty for
+    // most tenants. "Nothing is exposed" is itself an answer and reads as one.
+    exposureMap: "Exposure map",
+    nothingExposed:
+      "Nothing in this estate is reachable from the internet, so there is no map to draw.",
+    mapReachable: "reachable",
+    mapSensitive: "sensitive",
+    mapUnclassified: "unclassified",
+    mapOmitted: "{count} more assets not drawn",
+    openGraph: "Open graph",
+    // The blind-spot banner. One amber strip, promoted above the ranking.
+    blindSpotTitle: "The score is charged for {percent} of your estate",
+    grantConsent: "Grant admin consent",
+    classifySubscriptions: "Classify subscriptions",
+    // The distribution panel, and the toggle that says which reading it is.
+    distribution: "Distribution",
+    onTheAsset: "On the asset",
+    asJudged: "As judged",
+    onTheAssetHelp:
+      "Risk bands: what each finding means on the asset it was found on, once exposure, data sensitivity and business criticality are weighed.",
+    asJudgedHelp:
+      "Severity: what the rule concluded in the abstract, before anything about this estate was weighed.",
+    controlCoverage: "Control coverage",
+    // The four tiles.
+    tileOpenRisks: "Open risks",
+    tileOpenRisksDetail: "none accepted or waived",
+    tileCriticalOnAsset: "Critical on asset",
+    tileCriticalDetail: "plus {count} high",
+    tileAssessed: "Assessed",
+    tileAssessedDetail: "{conclusive} of {evaluated} checks",
+    tileVerified: "Verified fixed",
+    tileVerifiedDetail: "last 30 days",
     title: "Security posture",
     score: "Security score",
     outOf: "out of 100",
@@ -475,6 +523,12 @@ export const en = {
     lastScan: "Last scan",
   },
   findings: {
+    // Said once, above the table. A count of checks that could not run is a
+    // fact about the scan; which checks they were is what the rows say.
+    noVerdictStrip: "checks reached no verdict. They are listed, never counted as passes.",
+    noVerdictWhy: "Why",
+    noVerdict: "No verdict",
+    unevaluated: "Unevaluated",
     title: "Findings",
     empty: "No findings match these filters.",
     whyItMatters: "Why this matters",
@@ -532,6 +586,13 @@ export const en = {
     // reader to feel good about a high one, and the useful question is
     // which resources are unexamined, not what share of them are.
     unchecked: "{count} with no checks yet",
+    // Per row, in words. `0` beside an examined asset's `0` says the two are
+    // the same, and one of them was never looked at.
+    noChecksYet: "no checks yet",
+    // What the inventory itself could not read. Stated under the table rather
+    // than left to be inferred from a short list.
+    collectorsRefused: "Directory listing is incomplete",
+    fixAccess: "Fix access",
   },
   risks: {
     title: "Risks",
@@ -574,8 +635,57 @@ export const en = {
     notFound: "That risk no longer exists",
     notFoundDetail:
       "It may have been deleted with the scan that raised it. The risks list shows everything CloudGuard currently ranks.",
+
+    // The drawer. The prose that used to sit in eleven cards at once, now
+    // shown for one risk at a time beside the row it explains.
+    riskScore: "Risk score",
+    whyThisMatters: "Why this matters",
+    // The three statements about the estate the arithmetic was built on, as
+    // opposed to the arithmetic itself. Each is established or admittedly not.
+    whatRaisesIt: "What raises it",
+    severingIt: "Severing it",
+    builtFromFindingLabel: "The finding this scores",
+    onlyAScanCloses:
+      "Marking this fixed does nothing. The next scan decides.",
+    openTheFinding: "Open the finding",
+    // The row a duplicate group collapses into, and the count on it.
+    groupDuplicates: "Group duplicates",
+    sameCheck: "assets failing this same check",
+    exposureUnknown: "exposure unknown",
+    internetFacing: "internet-facing",
+    sensitiveData: "sensitive data",
+    businessCritical: "business-critical",
+    selectRisk: "Select a risk to see why it is ranked here.",
   },
   attackPaths: {
+    // The empty page. A route needs three things -- a reading, somewhere to
+    // start, and something worth reaching -- and the strip says which of the
+    // three this estate has.
+    preScan: "A scan has run",
+    preScanMissing: "nothing has been read yet",
+    preEntry: "Entry points found",
+    preTargets: "Sensitive targets",
+    assetsRead: "assets read",
+    reachableFromInternet: "reachable from the internet",
+    carryAClassification: "assets carry a classification",
+    entryPoint: "entry point",
+    theRoute: "the route",
+    target: "target",
+    targets: "targets",
+    found: "found",
+    noneFound: "none found",
+    nothingToTrace: "nothing to trace",
+    nothingSensitive: "nothing declared sensitive",
+    classifyAssets: "Classify assets",
+    seeAssets: "See your assets",
+    howPathsAreBuilt: "How paths are built",
+    // Labelled, and the label is load-bearing: an example route drawn in the
+    // product's own style on a page about the reader's estate is a claim about
+    // their estate unless it says otherwise.
+    whatYouWouldSee: "What you would see",
+    exampleNotYours: "example - not your estate",
+    exampleNote:
+      "Three findings, one route, one cheapest cut - usually the middle hop, not the loudest finding.",
     title: "Attack paths",
     intro:
       "The findings list says what is wrong. This says what is wrong \u2014 together. A jump box, an over-privileged identity and a storage account are three findings; the route between them is one problem, and it has one cheapest fix.",
@@ -901,7 +1011,38 @@ export const en = {
     deleteFailed: "Could not delete the organization",
     dangerOwnerOnly: "Only an owner can delete an organization.",
   },
-  remediation: { title: "Remediation", empty: "No remediation tasks yet." },
+  remediation: {
+    // The board. Four columns, and the two on the right each carry one
+    // sentence explaining themselves -- the only two on the page.
+    laneToFix: "To fix",
+    laneInProgress: "In progress",
+    laneAwaiting: "Awaiting a scan",
+    laneVerified: "Verified fixed",
+    laneEmpty: "Nothing here",
+    awaitingNote:
+      "Move a fix here when the change is deployed. The next scan decides whether it worked.",
+    verifiedNote:
+      "Only a scan puts a fix here. Nobody can mark their own work done.",
+    lockedLabel: "Only a scan moves a card into this column",
+    start: "Start",
+    deployed: "Deployed",
+    // The four numbers the page is answerable for. Two are about the estate
+    // rather than about the board.
+    tileVerified: "Verified fixed",
+    tileVerifiedDetail: "confirmed by a later scan",
+    tileOpen: "Still open",
+    tileOpenDetail: "none accepted or waived",
+    tileInProgress: "In progress",
+    tileInProgressDetail: "someone has picked it up",
+    tileCameBack: "Came back",
+    tileCameBackDetail: "fixed, then found again",
+    // Ageing. The one thing the tiles do not already say.
+    ageingTitle: "How long they have sat",
+    ageingSince: "since first raised",
+    underAWeek: "Under a week",
+    oneToFourWeeks: "1-4 weeks",
+    overAMonth: "Over a month",
+    oldestOpen: "Oldest open", title: "Remediation", empty: "No remediation tasks yet." },
   common: {
     loading: "Loading…",
     error: "Something went wrong",

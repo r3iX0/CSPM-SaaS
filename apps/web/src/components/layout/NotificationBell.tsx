@@ -128,7 +128,7 @@ export function NotificationBell() {
         {unread > 0 && (
           // A dot with a count, not a count alone: the number is only useful
           // once somebody has noticed the bell changed at all.
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-critical px-1 text-[10px] font-medium tabular-nums text-background">
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-critical px-1 font-mono text-[10px] font-medium text-background">
             {unread > 9 ? "9+" : unread}
           </span>
         )}

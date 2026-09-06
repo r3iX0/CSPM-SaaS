@@ -51,6 +51,14 @@ function mount(data: Dashboard, accounts: CloudAccount[] = []) {
     // The panels the page asks for after its own payload. Answered as the
     // lists they really are, so a test about the dashboard is not quietly
     // testing what happens when an endpoint returns the wrong shape.
+    // The exposure map is a graph, not a list: answered as one, so a test
+    // about the dashboard is not quietly testing a malformed payload.
+    if (path.includes("exposure-map")) {
+      return Promise.resolve({
+        data: { nodes: [], edges: [] },
+        meta: { entry_points: 0, nodes: 0, omitted: 0 },
+      }) as never;
+    }
     if (
       path.includes("attack-paths") ||
       path.includes("changes") ||
@@ -131,40 +139,56 @@ describe("DashboardPage", () => {
     );
   });
 
-  it("reads the estate's coverage per category, not just as one number", async () => {
-    // A ratio says how much of the picture is missing and never which part, and
-    // those call for different actions: an unreadable directory is a consent
-    // problem, an unreadable storage listing is usually a role assignment.
+  it("says what the score was not charged for, above the ranking", async () => {
+    // A reader who acts on a ranked list without knowing part of the estate
+    // was unreadable is acting on a ranking of the readable part — so the
+    // caveat sits above the list rather than under it.
     mount(
       dashboard({
         coverage: {
-          ratio: 0.75,
-          unknown: 1,
-          conclusive: 3,
-          categories: [
-            { name: "identity", readings: 4, incomplete: 3 },
-            { name: "network", readings: 6, incomplete: 0 },
-          ],
+          ratio: 0.68,
+          unknown: 9,
+          conclusive: 19,
+          context: { unclassified: 11, classified: 0, ratio: 0 },
+        },
+        last_scan: {
+          id: "s-1",
+          status: "PARTIAL",
+          completed_at: "2026-08-31T09:00:00Z",
+          resource_count: 42,
+          rule_count: 30,
+          finding_count: 10,
+          collection_errors: { identity: "users: Directory.Read.All was refused" },
+        },
+      }),
+    );
+
+    expect(
+      await screen.findByText("The score is charged for 68% of your estate"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Grant admin consent" }),
+    ).toHaveAttribute("href", "/connections");
+  });
+
+  it("counts what could not be answered, never as a pass", async () => {
+    // UNKNOWN is not a fifth severity and is not a pass. The tile says how
+    // many checks concluded out of how many ran, so a reader tallying what is
+    // wrong sees what could not be answered in the same glance.
+    mount(
+      dashboard({
+        coverage: {
+          ratio: 0.5,
+          unknown: 7,
+          conclusive: 7,
           context: { unclassified: 0, classified: 0, ratio: 1 },
         },
       }),
     );
 
-    expect(await screen.findByText("Identity")).toBeInTheDocument();
-    expect(screen.getByText("Network")).toBeInTheDocument();
-    // Never phrased as a security percentage: 75% coverage is not 75% secure.
-    expect(screen.getByText(/not a security percentage/)).toBeInTheDocument();
-  });
-
-  it("counts checks that reached no verdict beside the severities", async () => {
-    // UNKNOWN is not a fifth severity and is not a pass. It belongs in the same
-    // glance as the problem counts, because a reader tallying what is wrong has
-    // to see what could not be answered.
-    mount(dashboard({ coverage: { ratio: 0.5, unknown: 7, conclusive: 7, context: { unclassified: 0, classified: 0, ratio: 1 } } }));
-
-    const unknown = await screen.findByRole("link", { name: /No verdict/ });
-    expect(unknown).toHaveAttribute("href", "/scans");
-    expect(unknown).toHaveTextContent("7");
+    const assessed = await screen.findByRole("link", { name: /Assessed/ });
+    expect(assessed).toHaveAttribute("href", "/scans");
+    expect(assessed).toHaveTextContent("7 of 14 checks");
   });
 
   it("says why a risk outranks the one beneath it", async () => {

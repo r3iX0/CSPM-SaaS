@@ -73,7 +73,10 @@ export function SubscriptionScopeList({
   return (
     <div>
       <p className="text-xs text-muted-foreground">
-        {scoped.length} of {subscriptions.length} {vocabulary.accounts}{" "}
+        <span className="font-mono">
+          {scoped.length} of {subscriptions.length}
+        </span>{" "}
+        {vocabulary.accounts}{" "}
         {t.connection.inScopeCount}
         {connection.last_discovery_at && (
           <> · {t.connection.lastDiscovery} {formatDateTime(connection.last_discovery_at)}</>
@@ -118,7 +121,8 @@ export function SubscriptionScopeList({
           className="mt-1 w-full justify-center text-muted-foreground"
           onClick={() => setExpanded(true)}
         >
-          {hidden} {t.connection.moreSubscriptions} {vocabulary.accounts}
+          <span className="font-mono">{hidden}</span>{" "}
+          {t.connection.moreSubscriptions} {vocabulary.accounts}
           <ChevronDownIcon data-icon="inline-end" />
         </Button>
       )}

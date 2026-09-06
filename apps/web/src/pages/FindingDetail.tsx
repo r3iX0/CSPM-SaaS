@@ -193,7 +193,7 @@ export function FindingDetailPage() {
         <div className="flex flex-wrap items-center gap-3">
           <SeverityBadge level={data.severity} />
           <StatusPill status={data.status} />
-          <span className="text-xs text-muted-foreground">
+          <span className="font-mono text-xs text-muted-foreground">
             {data.rule_id} · v{data.rule_version}
           </span>
         </div>
@@ -369,7 +369,7 @@ export function FindingDetailPage() {
               </CardHeader>
               <CardContent>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-semibold tabular-nums text-foreground">
+                  <span className="font-mono text-4xl font-semibold text-foreground">
                     {Number(data.risk.risk_score).toFixed(0)}
                   </span>
                   <SeverityBadge level={data.risk.risk_level} />
@@ -390,7 +390,7 @@ export function FindingDetailPage() {
                           ({component.value} × {component.weight})
                         </span>
                       </span>
-                      <span className="font-medium tabular-nums text-foreground">
+                      <span className="font-mono font-medium text-foreground">
                         {component.contribution.toFixed(1)}
                       </span>
                     </li>
@@ -408,7 +408,7 @@ export function FindingDetailPage() {
               <CardContent>
                 <Link
                   to={`/assets/${data.resource.id}`}
-                  className="text-sm font-medium text-foreground hover:underline"
+                  className="font-mono text-sm font-medium text-foreground hover:underline"
                 >
                   {data.resource.name}
                 </Link>
@@ -875,9 +875,9 @@ function AttackPathContext({
           routes.slice(0, 2).map((path) => (
             <div key={`${path.entry.id}->${path.target.id}`}>
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-medium">
+                <p className="font-mono text-sm font-medium">
                   {path.entry.name}
-                  <span className="mx-1.5 text-muted-foreground">→</span>
+                  <span className="mx-1.5 font-sans text-muted-foreground">→</span>
                   {path.target.name}
                 </p>
                 <Badge variant="secondary" className="font-normal">

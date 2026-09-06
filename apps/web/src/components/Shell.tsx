@@ -113,7 +113,7 @@ export function Shell() {
         >
           <div
             className={cn(
-              "flex h-14 shrink-0 items-center border-b",
+              "flex h-[58px] shrink-0 items-center border-b border-sidebar-border",
               collapsed ? "justify-center px-2" : "gap-2.5 px-4",
             )}
           >
@@ -127,35 +127,52 @@ export function Shell() {
           <div className="min-h-0 flex-1 overflow-y-auto">
             <SidebarNav collapsed={collapsed} />
           </div>
+          {/* Pinned to the foot: who you are and whether CloudGuard can see
+              anything are the two facts that qualify every screen above them,
+              and neither is something a reader goes looking for. */}
           <div
             className={cn(
-              "flex shrink-0 items-center gap-1 border-t",
-              collapsed ? "flex-col p-2" : "p-3",
+              "mt-auto flex shrink-0 flex-col gap-1 border-t border-sidebar-border",
+              collapsed ? "items-center p-2" : "p-3",
             )}
           >
             <ConnectionBadge collapsed={collapsed} />
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className={collapsed ? "" : "ml-auto"}
-              onClick={() => setCollapsed((v) => !v)}
-              aria-label={
-                collapsed ? "Expand navigation" : "Collapse navigation"
-              }
-              aria-expanded={!collapsed}
+            <div
+              className={cn(
+                "flex items-center gap-1",
+                collapsed ? "flex-col" : "w-full",
+              )}
             >
-              {collapsed ? <PanelLeftOpenIcon /> : <PanelLeftCloseIcon />}
-            </Button>
+              {!collapsed && (
+                <AccountMenu
+                  organizations={orgs ?? []}
+                  current={current}
+                  placement="above"
+                />
+              )}
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className={collapsed ? "" : "ml-auto shrink-0"}
+                onClick={() => setCollapsed((v) => !v)}
+                aria-label={
+                  collapsed ? "Expand navigation" : "Collapse navigation"
+                }
+                aria-expanded={!collapsed}
+              >
+                {collapsed ? <PanelLeftOpenIcon /> : <PanelLeftCloseIcon />}
+              </Button>
+            </div>
           </div>
         </aside>
 
         <div
           className={cn(
             "transition-[padding] duration-200",
-            collapsed ? "lg:pl-14" : "lg:pl-60",
+            collapsed ? "lg:pl-14" : "lg:pl-[236px]",
           )}
         >
-          <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:px-6">
+          <header className="sticky top-0 z-20 flex h-[58px] items-center gap-3 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:px-6">
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
               <SheetTrigger
                 render={
@@ -170,7 +187,7 @@ export function Shell() {
                 <MenuIcon />
               </SheetTrigger>
               <SheetContent side="left" className="w-64 p-0">
-                <SheetTitle className="flex h-14 items-center gap-2.5 border-b px-4 text-sm font-semibold">
+                <SheetTitle className="flex h-[58px] items-center gap-2.5 border-b px-4 text-sm font-semibold">
                   <ShieldMark className="size-5" />
                   {t.app.name}
                 </SheetTitle>
@@ -184,14 +201,22 @@ export function Shell() {
               </span>
             </div>
 
+            {/* Search leads the bar, at the width it searches over: the
+                palette is the fastest way to any of twelve screens and it used
+                to be a small button at the far end, beside the settings. */}
+            <CommandPalette />
+
             <div className="ml-auto flex items-center gap-3">
-              <CommandPalette />
               <ScanIndicator />
-              {/* After the scan indicator and before the settings: what is
+              {/* After the scan indicator and before the theme: what is
                   happening now, then what happened, then how the app looks. */}
               <NotificationBell />
               <ThemeToggle />
-              <AccountMenu organizations={orgs ?? []} current={current} />
+              {/* Below `lg` the sidebar is a drawer, so the account row at its
+                  foot is not on screen and the menu stays in the bar. */}
+              <span className="lg:hidden">
+                <AccountMenu organizations={orgs ?? []} current={current} />
+              </span>
             </div>
           </header>
 

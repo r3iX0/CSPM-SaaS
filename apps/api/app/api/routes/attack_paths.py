@@ -12,6 +12,8 @@ from fastapi import APIRouter, Query
 
 from app.core.deps import DbSession, Tenant
 from app.core.errors import NotFound, envelope
+from app.domain.resource import CloudResource
+from app.graph.model import ENTRY_EXPOSURE
 from app.services import graph as graph_service
 from app.services.graph import serialize_path
 
@@ -43,6 +45,102 @@ async def list_attack_paths(
             # reading "0" deserves to know which.
             "entry_points": len(graph.entry_points()),
             "sensitive_targets": len(graph.sensitive_targets()),
+        },
+    )
+
+
+@router.get("/exposure-map")
+async def exposure_map(
+    session: DbSession,
+    tenant: Tenant,
+    limit: int = Query(default=14, le=40),
+) -> dict:
+    """The shape of the estate's exposure: what is reachable, and through what.
+
+    The overview used to carry an attack-path panel that is empty for most
+    tenants, because a route needs something classified as sensitive at the far
+    end and a new customer has classified nothing. This answers a question that
+    always has an answer -- *what does the internet touch, and what does that
+    touch* -- from the same graph, and it is what the overview draws instead
+    (docs/UI_REDESIGN.md §4.1).
+
+    Not an attack path and deliberately not scored: an edge here says one asset
+    can act on another, which is a fact about how the estate is wired. Whether
+    that reaches anything worth taking is the attack-paths page's question, and
+    conflating the two would let a diagram imply a route CloudGuard never
+    traced.
+
+    Bounded on purpose. A tenant with four hundred assets has a graph nothing
+    can usefully draw, so this walks out from the internet-facing assets and
+    stops -- and says how many nodes it left out rather than silently drawing a
+    fraction of the estate as though it were all of it.
+    """
+    graph = await graph_service.load_graph(session, tenant.organization_id)
+    entries = graph.entry_points()
+
+    kept: dict[str, CloudResource] = {}
+    edges: list[tuple[str, str, str]] = []
+    seen_edges: set[tuple[str, str, str]] = set()
+
+    def keep(node_id: str) -> bool:
+        node = graph.nodes.get(node_id)
+        if node is None:
+            return False
+        kept.setdefault(node_id, node)
+        return True
+
+    for entry in entries:
+        if not keep(entry.provider_resource_id):
+            continue
+        for target, path in graph.reachable_from(
+            entry.provider_resource_id, max_depth=3
+        ).items():
+            if not keep(target):
+                continue
+            for step in path.steps:
+                edge = (
+                    step.source.provider_resource_id,
+                    step.relationship.value,
+                    step.target.provider_resource_id,
+                )
+                if edge in seen_edges:
+                    continue
+                # Both ends have to be nodes the map is drawing, or the line
+                # would arrive from nowhere.
+                if keep(edge[0]) and keep(edge[2]):
+                    seen_edges.add(edge)
+                    edges.append(edge)
+
+    total = len(kept)
+    drawn = dict(list(kept.items())[:limit])
+    drawable = set(drawn)
+
+    return envelope(
+        {
+            "nodes": [
+                {
+                    "id": node_id,
+                    "name": node.name,
+                    "resource_type": node.resource_type,
+                    "public_exposure": node.public_exposure,
+                    "data_sensitivity": node.data_sensitivity,
+                    "criticality": node.criticality,
+                    "is_entry": node.public_exposure in ENTRY_EXPOSURE,
+                }
+                for node_id, node in drawn.items()
+            ],
+            "edges": [
+                {"source": source, "relationship": relationship, "target": target}
+                for source, relationship, target in edges
+                if source in drawable and target in drawable
+            ],
+        },
+        {
+            "entry_points": len(entries),
+            "nodes": total,
+            # What the map is not showing. A diagram that quietly truncates is
+            # a diagram of a smaller, tidier estate than the customer has.
+            "omitted": max(total - len(drawn), 0),
         },
     )
 

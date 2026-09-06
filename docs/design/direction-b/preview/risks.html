@@ -1,0 +1,138 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+</head>
+<body>
+
+
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+  <style>
+    body { margin: 0; }
+    .b { font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    .b a { color: #22d3b7; text-decoration: none; }
+    .b a:hover { color: #6bf0dc; }
+    .jm { font-family: 'JetBrains Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+    .bl { font-size: 11px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #6b7793; }
+    .bn { display: flex; align-items: center; gap: 11px; padding: 8px 12px; border-radius: 8px; font-size: 14px; color: #97a2ba; }
+    .bn.on { background: linear-gradient(90deg, rgba(34,211,183,0.14), rgba(34,211,183,0)); color: #e9edf7; box-shadow: inset 2px 0 0 #22d3b7; }
+    .tile { background: #0f1420; border: 1px solid #1c2436; border-radius: 14px; }
+    .th { font-size: 11px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #6b7793; }
+    .tr { display: flex; align-items: center; gap: 16px; padding: 14px 22px; border-bottom: 1px solid #151c2b; }
+    .sel { display: flex; align-items: center; gap: 9px; height: 34px; padding: 0 12px; background: #0f1420; border: 1px solid #1c2436; border-radius: 9px; font-size: 13px; color: #b7c0d3; }
+    .cbx { width: 15px; height: 15px; border-radius: 4px; border: 1.5px solid #2b3549; flex-shrink: 0; }
+    .chip { font-size: 11.5px; border-radius: 5px; padding: 2px 8px; }
+    .unk { font-size: 11.5px; color: #6b7793; border: 1px dashed #2b3549; border-radius: 5px; padding: 2px 8px; }
+  </style>
+
+
+<div class="b" style="display: flex; width: 1440px; min-height: 990px; background: #090c14; color: #e9edf7;">
+  <aside style="width: 236px; flex-shrink: 0; background: #070911; border-right: 1px solid #161d2c; display: flex; flex-direction: column; gap: 24px; padding: 20px 15px;">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 0 6px;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22d3b7" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.4-3 8-7 9-4-1-7-4.6-7-9V6z"/></svg>
+      <span style="font-size: 16px; font-weight: 700; letter-spacing: -0.02em;">CloudGuard</span>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;"><div class="bl" style="padding: 0 12px 6px;">Posture</div><div class="bn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 12l4-3"/></svg>Overview</div><div class="bn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 17l5-5 4 3 7-8"/></svg>Changes</div><div class="bn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 3h8l4 4v14H6z"/></svg>Reports</div></div><div style="display: flex; flex-direction: column; gap: 4px;"><div class="bl" style="padding: 0 12px 6px;">Exposure</div><div class="bn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l7 3v6c0 4.4-3 8-7 9-4-1-7-4.6-7-9V6z"/></svg>Findings</div><div class="bn on"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>Risks<span class="jm" style="margin-left: auto; font-size: 11px; color: #ff8ea3; background: rgba(255,77,109,0.14); padding: 2px 7px; border-radius: 5px;">11</span></div><div class="bn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="5" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><circle cx="19" cy="6" r="2"/><path d="M6.5 7.5L11 16M17.5 7.5L13 16"/></svg>Attack paths</div><div class="bn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/></svg>Assets</div></div><div style="display: flex; flex-direction: column; gap: 4px;"><div class="bl" style="padding: 0 12px 6px;">Response</div><div class="bn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M14 6a4 4 0 10-4 4l7 7 3-3z"/></svg>Remediation</div><div class="bn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 12l4 4 10-10"/></svg>Compliance</div></div><div style="display: flex; flex-direction: column; gap: 4px;"><div class="bl" style="padding: 0 12px 6px;">Evidence</div><div class="bn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 12h4l3 7 4-14 3 7h4"/></svg>Scans</div><div class="bn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 7h10M4 12h16M4 17h7"/></svg>Rules</div><div class="bn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7 18a4 4 0 010-8 5 5 0 019.6-1A3.5 3.5 0 0118 18z"/></svg>Cloud</div></div>
+    <div style="margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 11px 8px; border-top: 1px solid #161d2c;">
+      <div class="jm" style="width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, #22d3b7, #1a8f9e); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 500; color: #061014;">IT</div>
+      <div style="font-size: 13px; color: #97a2ba;">IT Albania</div>
+    </div>
+  </aside>
+
+  <main style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
+    <div style="display: flex; align-items: center; gap: 16px; height: 58px; padding: 0 36px; border-bottom: 1px solid #161d2c;">
+      <div style="display: flex; align-items: center; gap: 10px; width: 360px; height: 34px; padding: 0 13px; background: #0f1420; border: 1px solid #1c2436; border-radius: 9px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#5b6680" stroke-width="1.9"><circle cx="11" cy="11" r="6"/><path d="M16 16l4 4"/></svg>
+        <span style="font-size: 13.5px; color: #5b6680;">Search assets, risks, rules</span>
+        <span class="jm" style="margin-left: auto; font-size: 11px; color: #4a5468; border: 1px solid #232c40; border-radius: 5px; padding: 1px 6px;">&#8984;K</span>
+      </div>
+      <div style="margin-left: auto; display: flex; align-items: center; gap: 10px;">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#7b86a0" stroke-width="1.7"><path d="M6 9a6 6 0 1112 0c0 4 2 5 2 5H4s2-1 2-5z"/><path d="M10 19h4"/></svg>
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#7b86a0" stroke-width="1.7"><path d="M20 13a8 8 0 01-9-9 8 8 0 109 9z"/></svg>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 20px; padding: 26px 36px 44px;">
+      <div style="display: flex; align-items: flex-end; gap: 16px;">
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.028em;">Risks</h1>
+          <div style="display: flex; align-items: center; gap: 9px; font-size: 13px; color: #7b86a0;"><span>A finding is what CloudGuard observed. A risk is what it means on this asset.</span></div>
+        </div>
+        <div style="margin-left: auto; display: flex; align-items: center; gap: 9px;"><div style="height: 36px; display: flex; align-items: center; padding: 0 15px; border: 1px solid #232c40; border-radius: 9px; font-size: 13.5px; color: #b7c0d3;">Export</div><div style="height: 36px; display: flex; align-items: center; gap: 8px; padding: 0 15px; background: #22d3b7; border-radius: 9px; font-size: 13.5px; font-weight: 500; color: #04120f;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><path d="M20 12a8 8 0 11-2.3-5.6"/><path d="M20 4v5h-5"/></svg>Scan now</div></div>
+      </div>
+      
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; height: 36px; padding: 0 13px; background: #0f1420; border: 1px solid #1c2436; border-radius: 9px;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#5b6680" stroke-width="1.9"><circle cx="11" cy="11" r="6"/><path d="M16 16l4 4"/></svg>
+          <span style="font-size: 13.5px; color: #5b6680;">Search risks</span>
+        </div>
+        <div class="sel">All levels<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6b7793" stroke-width="2"><path d="M7 10l5 5 5-5"/></svg></div>
+        <div class="sel">All statuses<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6b7793" stroke-width="2"><path d="M7 10l5 5 5-5"/></svg></div>
+        <div class="sel">Findings and routes<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6b7793" stroke-width="2"><path d="M7 10l5 5 5-5"/></svg></div>
+        <div class="sel" style="border-color: rgba(34,211,183,0.32); color: #22d3b7;">Group duplicates<span style="width: 26px; height: 15px; border-radius: 8px; background: #22d3b7; position: relative; display: block;"><span style="position: absolute; top: 2px; right: 2px; width: 11px; height: 11px; border-radius: 50%; background: #04120f; display: block;"></span></span></div>
+      </div>
+      <div style="display: flex; gap: 18px; align-items: flex-start;">
+        <div class="tile" style="flex: 1; min-width: 0; overflow: hidden;">
+          <div style="display: flex; align-items: center; gap: 12px; padding: 15px 22px;">
+            <span style="font-size: 13.5px; color: #b7c0d3;"><span class="jm" style="color: #e9edf7;">11</span> open risks</span>
+            <span style="font-size: 13px; color: #5b6680;">&#183; none accepted or waived</span>
+            <div style="margin-left: auto; display: flex; align-items: center; gap: 9px;">
+              <span style="font-size: 13px; color: #6b7793;">Sort</span>
+              <div class="sel" style="height: 30px;">Risk score<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6b7793" stroke-width="2"><path d="M7 10l5 5 5-5"/></svg></div>
+            </div>
+          </div>
+          <div class="th" style="display: flex; align-items: center; gap: 14px; padding: 0 22px 10px; border-bottom: 1px solid #1c2436;"><span class="cbx" style="border-color: #232c40;"></span><span style="flex: 1; min-width: 0;">Risk</span><span style="width: 150px;">Exposure</span><span style="width: 56px; text-align: right;">Score</span><span style="width: 84px;">Status</span></div><div style="display: flex; align-items: center; gap: 14px; padding: 14px 22px; background: rgba(34,211,183,0.05); box-shadow: inset 2px 0 0 #22d3b7; border-bottom: 1px solid #151c2b;"><span class="cbx"></span><svg style="flex-shrink: 0;" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22d3b7" stroke-width="2"><path d="M7 10l5 5 5-5"/></svg><div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px;"><div style="display: flex; align-items: center; gap: 9px; min-width: 0;"><span style="font-size: 14.5px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Identity can grant itself any role</span><span class="jm" style="flex-shrink: 0; font-size: 11.5px; color: #6b7793; background: #131a29; border-radius: 5px; padding: 2px 8px;">&#215;3</span></div><div style="display: flex; align-items: center; gap: 8px; min-width: 0;"><span class="chip" style="flex-shrink: 0; color: #ffb877; background: rgba(255,152,56,0.13);">Privilege escalation</span><span style="font-size: 12.5px; color: #6b7793; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">actions: [&#34;*&#34;] on 3 identities</span></div></div><div style="width: 150px; display: flex; gap: 6px; flex-wrap: wrap;"><span class="unk">exposure unknown</span></div><span class="jm" style="width: 56px; text-align: right; font-size: 20px; font-weight: 500; color: #ff8ea3;">77</span><div style="width: 84px;"><span class="chip" style="color: #ff8ea3; background: rgba(255,77,109,0.13);">Critical</span></div></div><div style="display: flex; align-items: center; gap: 14px; padding: 12px 22px 12px 55px; background: rgba(34,211,183,0.02); box-shadow: inset 2px 0 0 rgba(34,211,183,0.35); border-bottom: 1px solid #151c2b;"><span class="cbx"></span><div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;"><span class="jm" style="font-size: 12.5px; color: #b7c0d3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">34a5438c-e5d8-4681-bcfe-be8fd94962ac</span><span style="font-size: 12px; color: #5b6680; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Entra ID user &#183; unclassified subscription</span></div><div style="width: 150px; display: flex; gap: 6px; flex-wrap: wrap;"><span class="unk">exposure unknown</span></div><span class="jm" style="width: 56px; text-align: right; font-size: 15px; font-weight: 500; color: #97a2ba;">77</span><div style="width: 84px;"><span style="font-size: 12px; color: #6b7793;">Open</span></div></div><div style="display: flex; align-items: center; gap: 14px; padding: 12px 22px 12px 55px; background: rgba(34,211,183,0.02); box-shadow: inset 2px 0 0 rgba(34,211,183,0.35); border-bottom: 1px solid #151c2b;"><span class="cbx"></span><div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;"><span class="jm" style="font-size: 12.5px; color: #b7c0d3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">b21f7d90-4c1e-4a77-9de2-0f5aa1c3e884</span><span style="font-size: 12px; color: #5b6680; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Entra ID user &#183; unclassified subscription</span></div><div style="width: 150px; display: flex; gap: 6px; flex-wrap: wrap;"><span class="unk">exposure unknown</span></div><span class="jm" style="width: 56px; text-align: right; font-size: 15px; font-weight: 500; color: #97a2ba;">77</span><div style="width: 84px;"><span style="font-size: 12px; color: #6b7793;">Open</span></div></div><div style="display: flex; align-items: center; gap: 14px; padding: 12px 22px 12px 55px; background: rgba(34,211,183,0.02); box-shadow: inset 2px 0 0 rgba(34,211,183,0.35);"><span class="cbx"></span><div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;"><span class="jm" style="font-size: 12.5px; color: #b7c0d3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">e07c9b14-2a63-4f0d-8bb1-77c40de95a12</span><span style="font-size: 12px; color: #5b6680; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Entra ID user &#183; unclassified subscription</span></div><div style="width: 150px; display: flex; gap: 6px; flex-wrap: wrap;"><span class="unk">exposure unknown</span></div><span class="jm" style="width: 56px; text-align: right; font-size: 15px; font-weight: 500; color: #97a2ba;">77</span><div style="width: 84px;"><span style="font-size: 12px; color: #6b7793;">Open</span></div></div><div style="display: flex; align-items: center; gap: 14px; padding: 14px 22px; border-bottom: 1px solid #151c2b; background: rgba(34,211,183,0.06); box-shadow: inset 2px 0 0 #22d3b7;"><span class="cbx"></span><div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 14.5px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Storage account allows public access</span><span class="jm" style="font-size: 12.5px; color: #6b7793; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">sacspmtstne01</span></div><div style="width: 150px; display: flex; gap: 6px; flex-wrap: wrap;"><span class="chip" style="color: #ff8ea3; background: rgba(255,77,109,0.13);">internet-facing</span><span class="chip" style="color: #ff8ea3; background: rgba(255,77,109,0.13);">sensitive data</span></div><span class="jm" style="width: 56px; text-align: right; font-size: 20px; font-weight: 500; color: #ff8ea3;">76</span><div style="width: 84px;"><span class="chip" style="color: #ff8ea3; background: rgba(255,77,109,0.13);">Critical</span></div></div><div style="display: flex; align-items: center; gap: 14px; padding: 14px 22px; border-bottom: 1px solid #151c2b; "><span class="cbx"></span><div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 14.5px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Person holds full control of a subscription</span><span style="font-size: 12.5px; color: #6b7793; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Entra ID user &#183; unclassified subscription</span></div><div style="width: 150px; display: flex; gap: 6px; flex-wrap: wrap;"><span class="unk">exposure unknown</span></div><span class="jm" style="width: 56px; text-align: right; font-size: 20px; font-weight: 500; color: #ffb877;">72</span><div style="width: 84px;"><span class="chip" style="color: #ffb877; background: rgba(255,152,56,0.13);">High</span></div></div>
+          <div style="display: flex; align-items: center; padding: 13px 22px; background: #0c1119;">
+            <span style="font-size: 13px; color: #6b7793;">Showing 5 of 11 &#183; 6 more scored 41&#8211;68</span>
+            <a style="margin-left: auto; font-size: 13px;">Load more &#8594;</a>
+          </div>
+        </div>
+        <div class="tile" style="width: 372px; flex-shrink: 0; align-self: flex-start; overflow: hidden;">
+          <div style="display: flex; align-items: flex-start; gap: 12px; padding: 18px 20px; border-bottom: 1px solid #1c2436;">
+            <span style="width: 4px; height: 38px; border-radius: 2px; background: #ff4d6d; flex-shrink: 0;"></span>
+            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px;">
+              <span style="font-size: 15px; font-weight: 600; letter-spacing: -0.012em; line-height: 1.3;">Storage account allows public access</span>
+              <span class="jm" style="font-size: 12.5px; color: #6b7793;">sacspmtstne01</span>
+            </div>
+            <svg style="flex-shrink: 0;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7793" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </div>
+          <div style="display: flex; align-items: center; gap: 18px; padding: 16px 20px; border-bottom: 1px solid #1c2436;">
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <span class="jm" style="font-size: 30px; font-weight: 500; line-height: 1; color: #ff8ea3;">76</span>
+              <span class="bl">Risk score</span>
+            </div>
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+              <div style="display: flex; align-items: center; gap: 8px;"><span style="font-size: 12px; color: #6b7793; flex: 1;">Worst finding on the route</span><span class="jm" style="font-size: 12.5px; color: #b7c0d3;">68</span></div>
+              <div style="display: flex; align-items: center; gap: 8px;"><span style="font-size: 12px; color: #6b7793; flex: 1;">Added for the route itself</span><span class="jm" style="font-size: 12.5px; color: #b7c0d3;">+8</span></div>
+            </div>
+          </div>
+          <div style="padding: 16px 20px; border-bottom: 1px solid #1c2436; display: flex; flex-direction: column; gap: 10px;">
+            <span class="bl">Why this matters</span>
+            <span style="font-size: 13px; color: #97a2ba; line-height: 1.55;">Anonymous read is enabled at container level. Anyone who knows or guesses the container name can list and download every blob in it, with no credential and no log of who they were.</span>
+          </div>
+          <div style="padding: 16px 20px; border-bottom: 1px solid #1c2436; display: flex; flex-direction: column; gap: 11px;">
+            <span class="bl">What raises it</span>
+            <div style="display: flex; align-items: center; gap: 10px;"><svg style="flex-shrink: 0;" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ff8ea3" stroke-width="2.2"><path d="M5 12l4 4 10-10"/></svg><span style="font-size: 13px; color: #b7c0d3;">Reachable from the internet</span></div>
+            <div style="display: flex; align-items: center; gap: 10px;"><svg style="flex-shrink: 0;" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ff8ea3" stroke-width="2.2"><path d="M5 12l4 4 10-10"/></svg><span style="font-size: 13px; color: #b7c0d3;">Holds data you marked sensitive</span></div>
+            <div style="display: flex; align-items: center; gap: 10px;"><svg style="flex-shrink: 0;" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5b6680" stroke-width="1.8" stroke-dasharray="3 2"><circle cx="12" cy="12" r="8"/></svg><span style="font-size: 13px; color: #6b7793;">Business criticality not declared</span></div>
+          </div>
+          <div style="padding: 16px 20px; border-bottom: 1px solid #1c2436; display: flex; flex-direction: column; gap: 10px;">
+            <span class="bl">Severing it</span>
+            <div style="background: #0a0e17; border: 1px solid #1c2436; border-radius: 9px; padding: 12px 13px;">
+              <span class="jm" style="font-size: 11.5px; color: #8fe8d8; line-height: 1.7; display: block;">az storage account update \<br>&#160;&#160;--name sacspmtstne01 \<br>&#160;&#160;--allow-blob-public-access false</span>
+            </div>
+            <span style="font-size: 12px; color: #5b6680; line-height: 1.5;">Marking this fixed does nothing. The next scan decides.</span>
+          </div>
+          <div style="display: flex; gap: 9px; padding: 16px 20px;">
+            <div style="flex: 1; height: 36px; display: flex; align-items: center; justify-content: center; background: #22d3b7; border-radius: 9px; font-size: 13.5px; font-weight: 500; color: #04120f;">Add to queue</div>
+            <div style="height: 36px; display: flex; align-items: center; padding: 0 14px; border: 1px solid #232c40; border-radius: 9px; font-size: 13.5px; color: #b7c0d3;">Accept risk</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+</body>
+</html>

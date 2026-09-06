@@ -16,15 +16,20 @@
 */
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "@fontsource-variable/geist";
 
 /* The theme is a class on <html>, set before React exists (see index.html), not
    a media query -- "system" is a real third choice and the store resolves it. */
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: "Geist Variable", ui-sans-serif, system-ui, -apple-system,
+  /* Two faces, split by what the text is rather than by emphasis. Prose and
+     chrome are proportional; anything the reader compares down a column -- a
+     score, a count, a date, a resource name, a rule id -- is mono and tabular,
+     so digits line up and a GUID stays a GUID rather than becoming a shape. */
+  --font-sans: "Space Grotesk Variable", ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono",
+    Menlo, monospace;
 
   /* --- shadcn semantic surface tokens ------------------------------------ */
   --color-background: var(--background);
@@ -59,6 +64,15 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Two greys below `--muted-foreground` that the design uses constantly:
+     `meta` for the dim line under a value, `faint` for the faintest text there
+     is -- placeholder, footnote, "nothing here". Neither clears 4.5:1 on the
+     card at the designed values (4.11:1 and 3.20:1), so neither may carry body
+     copy: they are for the 11-12.5px meta register only, where the sentence
+     they annotate is already legible in `--foreground` beside them. */
+  --color-meta-foreground: var(--meta-foreground);
+  --color-faint-foreground: var(--faint-foreground);
 
   /* --- CloudGuard's own vocabulary --------------------------------------- */
   /* Kept separate from the tokens above, deliberately. `destructive` means
@@ -134,6 +148,20 @@
   body {
     @apply antialiased bg-background text-foreground font-sans;
   }
+  /*
+    The mono face is never decorative here: it marks a value a reader compares
+    against another one -- a score, a count, an id, a resource name. Tabular
+    figures are what makes that comparison work down a column, so the face
+    carries them rather than every call site remembering `tabular-nums`
+    alongside `font-mono`. `code`/`kbd`/`pre` get it for the same reason.
+  */
+  .font-mono,
+  code,
+  kbd,
+  samp,
+  pre {
+    font-variant-numeric: tabular-nums;
+  }
   :root {
     --background: oklch(1 0 0);
     --foreground: oklch(0.145 0 0);
@@ -181,6 +209,11 @@
     --sidebar-accent-foreground: oklch(0.205 0 0);
     --sidebar-border: oklch(0.922 0 0);
     --sidebar-ring: oklch(0.708 0 0);
+    /* Provisional: light mode is not designed yet (docs/UI_REDESIGN.md §2.2),
+       so these hold the same two steps below `--muted-foreground` that the
+       dark theme has, pointed the other way. 3.95:1 and 3.23:1 on the page. */
+    --meta-foreground: oklch(0.60 0 0);
+    --faint-foreground: oklch(0.65 0 0);
 
     /* CloudGuard severity scale.
        Its own layer, deliberately: the neutral tokens above are the product's
@@ -211,45 +244,59 @@
     --sev-ok-border: oklch(0.907 0.089 164.2);
   }
   .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
+    /* The neutral layer, rotated off shadcn's pure greys onto a cool hue with
+       a little chroma, so the surface reads as chosen rather than as an
+       absence of choice. Depth is carried by the fill step between page, panel
+       and row -- there are no drop shadows anywhere in this theme.
+       Hex equivalents are given because the design previews in
+       `docs/design/direction-b/preview/` are written in hex. */
+    --background: oklch(0.155 0.018 268.3); /* #090c14 page  */
+    --foreground: oklch(0.946 0.014 268.5); /* #e9edf7       */
+    --card: oklch(0.192 0.026 266.6); /* #0f1420 panel */
+    --card-foreground: oklch(0.946 0.014 268.5);
+    --popover: oklch(0.192 0.026 266.6);
+    --popover-foreground: oklch(0.946 0.014 268.5);
+    /* The accent means one thing: you can act here. Buttons, links, the active
+       nav rail, focus rings, an enabled toggle. It never means "good" and
+       never means "bad" -- the severity scale below owns that vocabulary
+       entirely, and a teal element that is not interactive is a bug. */
+    --primary: oklch(0.778 0.138 178.1); /* #22d3b7 teal  */
+    --primary-foreground: oklch(0.192 0.026 266.6);
+    --secondary: oklch(0.219 0.031 264.7); /* #131a29 row   */
+    --secondary-foreground: oklch(0.946 0.014 268.5);
+    --muted: oklch(0.219 0.031 264.7);
+    --muted-foreground: oklch(0.712 0.037 265.9); /* #97a2ba, 7.2:1 on the card */
+    --accent: oklch(0.219 0.031 264.7);
+    --accent-foreground: oklch(0.946 0.014 268.5);
     --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    /* The same ramp re-lit, running from the light end down rather than from
-       the dark end up. Measured against the card as well as the page, because
-       a chart lives inside one. */
+    --border: oklch(0.262 0.036 265.6); /* #1c2436 hairline */
+    --input: oklch(0.294 0.039 265.4); /* #232c40       */
+    /* Focus is the accent, and at 10.3:1 on the page it is the loudest thing
+       the chrome can do -- which is what a focus indicator is for. */
+    --ring: oklch(0.778 0.138 178.1);
+    /* The same neutral ramp re-lit, running from the light end down rather
+       than from the dark end up. Measured against the card as well as the
+       page, because a chart lives inside one. Hue stays out of it: hue in this
+       product means severity, so a chart that coloured its series would be
+       making a claim the rules never made. */
     --chart-1: oklch(0.93 0 0);
     --chart-2: oklch(0.83 0 0);
     --chart-3: oklch(0.73 0 0);
     --chart-4: oklch(0.63 0 0);
     --chart-5: oklch(0.53 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    /* Neutral, matching the light block and `--primary` beside it. This was
-       shadcn's default indigo, and it was the only saturated hue in the chrome
-       of either theme -- an accent that appears in one mode and not the other
-       reads as a bug, and a blue that means nothing sits awkwardly next to a
-       severity scale where every colour means something. */
-    --sidebar-primary: oklch(0.922 0 0);
-    --sidebar-primary-foreground: oklch(0.205 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+    /* The rail sits *darker* than the page rather than lighter, so the reading
+       surface is the brightest plane on screen. Its hairline is a step down
+       from `--border` for the same reason. */
+    --sidebar: oklch(0.142 0.018 271.7); /* #070911       */
+    --sidebar-foreground: oklch(0.946 0.014 268.5);
+    --sidebar-primary: oklch(0.778 0.138 178.1);
+    --sidebar-primary-foreground: oklch(0.192 0.026 266.6);
+    --sidebar-accent: oklch(0.219 0.031 264.7);
+    --sidebar-accent-foreground: oklch(0.946 0.014 268.5);
+    --sidebar-border: oklch(0.231 0.031 264.8); /* #161d2c */
+    --sidebar-ring: oklch(0.778 0.138 178.1);
+    --meta-foreground: oklch(0.570 0.046 266.8); /* #6b7793 */
+    --faint-foreground: oklch(0.511 0.044 266.9); /* #5b6680 */
 
     /* The same meanings, re-lit for a dark surface. Foregrounds move up and
        backgrounds become tints of the surface rather than of white -- a light

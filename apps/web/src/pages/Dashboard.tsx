@@ -6,24 +6,30 @@ import { ApiError, api, auth } from "@/lib/api";
 import { supabaseSignOut } from "@/lib/supabase";
 import type {
   AttackPath,
+  AttackPathMeta,
   ChangeEvent,
   CloudAccount,
   ComplianceFramework,
   Dashboard,
+  ExposureMapData,
+  ExposureNode,
   Scan,
 } from "@/lib/types";
 import { useT } from "@/i18n";
 import { PostureHeader } from "@/components/dashboard/PostureHeader";
-import { ScorePanel } from "@/components/dashboard/ScorePanel";
-import { SeverityStrip } from "@/components/dashboard/SeverityStrip";
-import { PostureBreakdown } from "@/components/dashboard/PostureBreakdown";
+import { DashboardHero } from "@/components/dashboard/Hero";
+import { DashboardTiles } from "@/components/dashboard/Tiles";
+import { Distribution } from "@/components/dashboard/Distribution";
 import { ComplianceSummary } from "@/components/dashboard/ComplianceSummary";
-import { CoveragePanel } from "@/components/dashboard/CoveragePanel";
+import { BlindSpots } from "@/components/dashboard/BlindSpots";
 import { PriorityRisks } from "@/components/dashboard/PriorityRisks";
-import { AttackPathPanel } from "@/components/dashboard/AttackPathPanel";
-import { RemediationProgress } from "@/components/dashboard/RemediationProgress";
 import { RecentChanges } from "@/components/dashboard/RecentChanges";
-import { DashboardSkeleton, EmptyState, ErrorState } from "@/components/common/states";
+import {
+  DashboardSkeleton,
+  EmptyState,
+  ErrorState,
+  PageHeader,
+} from "@/components/common/states";
 import { Button, buttonVariants } from "@/components/ui/button";
 
 /** Scan statuses that mean CloudGuard is reading the cloud right now. */
@@ -82,7 +88,39 @@ export function DashboardPage() {
   const paths = useQuery({
     queryKey: ["dashboard-attack-paths"],
     queryFn: () =>
-      api.get<AttackPath[]>("/api/v1/attack-paths?limit=1").then((r) => r.data),
+      api.get<AttackPath[]>("/api/v1/attack-paths?limit=1").then((r) => ({
+        paths: r.data,
+        // Why there is no route matters more than that there is none, and the
+        // meta is the only thing that can tell the two apart.
+        meta: r.meta as unknown as AttackPathMeta,
+      })),
+    retry: false,
+  });
+
+  /**
+   * What the internet touches, for the hero.
+   *
+   * Its own request rather than a field on the dashboard summary: it is a
+   * graph traversal, the summary is on the hot path of every visit, and a
+   * panel that fails to draw must not take the score down with it.
+   */
+  const exposure = useQuery({
+    queryKey: ["exposure-map"],
+    queryFn: () =>
+      api
+        .get<{ nodes: ExposureNode[]; edges: ExposureMapData["edges"] }>(
+          "/api/v1/attack-paths/exposure-map",
+        )
+        .then((r) => {
+          const meta = r.meta as
+            | { entry_points?: number; omitted?: number }
+            | undefined;
+          return {
+            map: r.data,
+            entryPoints: meta?.entry_points ?? 0,
+            omitted: meta?.omitted ?? 0,
+          };
+        }),
     retry: false,
   });
 
@@ -116,15 +154,15 @@ export function DashboardPage() {
     const hasConnection = (accounts.data?.length ?? 0) > 0;
     return (
       <div className="flex flex-col gap-4">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">
-            {t.dashboard.title}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Your cloud security posture, and what CloudGuard could see while
-            forming it.
-          </p>
-        </div>
+        <PageHeader
+          title={t.dashboard.title}
+          dot="stale"
+          description={
+            hasConnection
+              ? "No scan has run — nothing here is scored yet"
+              : "No cloud connected — CloudGuard has read nothing"
+          }
+        />
         {/* No score is rendered before a scan exists. A number over no evidence
             is a number about nothing, and a reassuring one is worse. */}
         <EmptyState
@@ -165,67 +203,57 @@ export function DashboardPage() {
         scanning={scanning}
       />
 
-      {/* 1 — where we stand, and which way it is going */}
-      <ScorePanel
+      {/* 1 — where the estate stands, and what it is exposed through */}
+      <DashboardHero
         score={data.security_score}
         delta={data.score_delta}
         history={data.history ?? []}
-        scannedAt={data.last_scan.completed_at}
+        map={exposure.data?.map}
+        omitted={exposure.data?.omitted ?? 0}
+        loadingMap={exposure.isLoading}
+        routes={paths.data?.meta?.total}
+        entryPoints={exposure.data?.entryPoints}
+        sensitiveTargets={paths.data?.meta?.sensitive_targets}
       />
 
-      {/* 2 — what that number is made of */}
-      <SeverityStrip
-        counts={data.findings_by_severity}
-        unknown={data.coverage.unknown}
-        history={data.history ?? []}
-      />
-
-      {/* 2b — the shape of what is open: mix, standing, and risk bands */}
-      <PostureBreakdown
-        bySeverity={data.findings_by_severity}
-        byStatus={data.findings_by_status}
-        riskBands={data.risk_bands}
-      />
-
-      {/* 3 — how much of the estate the opinion was formed from */}
-      <CoveragePanel
-        ratio={data.coverage.ratio}
-        unknown={data.coverage.unknown}
+      {/* 2 — the four numbers this page is answerable for */}
+      <DashboardTiles
+        openRisks={data.open_finding_count}
+        critical={data.risk_bands.CRITICAL ?? 0}
+        high={data.risk_bands.HIGH ?? 0}
         conclusive={data.coverage.conclusive}
-        categories={data.coverage.categories}
-        context={data.coverage.context}
-        gaps={gaps}
-        freshness={data.evidence_freshness ?? null}
+        evaluated={data.coverage.conclusive + data.coverage.unknown}
+        verified={data.verified_resolved_last_30_days}
       />
 
-      {/* 4 — what to deal with, and what those faults form together */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <PriorityRisks risks={data.top_risks} />
-        <AttackPathPanel
-          paths={paths.data}
-          loading={paths.isLoading}
-          history={data.history ?? []}
-        />
-      </div>
+      {/* 3 — what the score is not charging for, above the ranking rather
+          than below it: a reader who acts on a ranked list without knowing a
+          third of the estate was unreadable is acting on a ranking of the
+          readable third. */}
+      <BlindSpots
+        ratio={data.coverage.ratio}
+        gaps={gaps}
+        unclassified={data.coverage.context?.unclassified ?? 0}
+        classified={data.coverage.context?.classified ?? 0}
+      />
 
-      {/* 5 — whether any of it is being fixed, and what moved meanwhile */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <RemediationProgress
-          rate={data.remediation_rate}
-          verifiedLast30Days={data.verified_resolved_last_30_days}
-          openFindings={data.open_finding_count}
-          activity={data.remediation_activity ?? []}
+      {/* 4 — what to deal with */}
+      <PriorityRisks risks={data.top_risks} />
+
+      {/* 5 — the shape of it, what the evidence adds up to, and what moved */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Distribution
+          bySeverity={data.findings_by_severity}
+          riskBands={data.risk_bands}
+        />
+        <ComplianceSummary
+          frameworks={
+            Array.isArray(compliance.data) ? compliance.data : undefined
+          }
+          loading={compliance.isLoading}
         />
         <RecentChanges events={changes.data} loading={changes.isLoading} />
       </div>
-
-      {/* 6 — what the evidence adds up to for somebody who reports on it */}
-      <ComplianceSummary
-        frameworks={
-          Array.isArray(compliance.data) ? compliance.data : undefined
-        }
-        loading={compliance.isLoading}
-      />
     </div>
   );
 }

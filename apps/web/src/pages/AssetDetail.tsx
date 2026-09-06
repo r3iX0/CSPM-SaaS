@@ -164,7 +164,7 @@ export function AssetDetailPage() {
                       {finding.title}
                     </Link>
                     <StatusPill status={finding.status} />
-                    <span className="w-10 text-right text-sm font-medium tabular-nums text-muted-foreground">
+                    <span className="w-10 text-right font-mono text-sm font-medium text-muted-foreground">
                       {finding.risk_score === null
                         ? "—"
                         : Number(finding.risk_score).toFixed(0)}

@@ -77,7 +77,7 @@ export function ScanDetailPanel({ scanId }: { scanId: string }) {
           <div className="mt-2 flex flex-wrap gap-2">
             {Object.entries(severities).map(([severity, count]) => (
               <SeverityBadge key={severity} level={severity}>
-                {label(severity)} {count}
+                {label(severity)} <span className="font-mono">{count}</span>
               </SeverityBadge>
             ))}
           </div>

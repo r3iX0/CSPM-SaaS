@@ -40,7 +40,7 @@ export function ScoreDelta({ delta }: { delta: number | null }) {
       }
     >
       <span aria-hidden="true">{improved ? "\u2191" : "\u2193"}</span>{" "}
-      {Math.abs(delta)}{" "}
+      <span className="font-mono">{Math.abs(delta)}</span>{" "}
       {improved ? t.dashboard.sinceLastScan : t.dashboard.scoreWorse}
     </p>
   );

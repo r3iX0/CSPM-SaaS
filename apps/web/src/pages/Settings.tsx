@@ -14,6 +14,7 @@ import {
   ErrorState,
   PageHeader,
 } from "@/components/common/states";
+import { HelpPopover } from "@/components/common/HelpPopover";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -72,7 +73,16 @@ export function SettingsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title={t.settings.title} description={t.settings.intro} />
+      <PageHeader
+        title={
+          <>
+            {t.settings.title}
+            <HelpPopover label="What settings are for">
+              {t.settings.intro}
+            </HelpPopover>
+          </>
+        }
+      />
 
       {/* Keyed, so switching organization remounts the form with the new
           values rather than leaving the previous one's name in the boxes. */}

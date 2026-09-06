@@ -9,6 +9,15 @@ import { configProblems } from "@/lib/config";
 import { ConfigError } from "@/components/ConfigError";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { initTheme } from "@/lib/theme";
+// The face files are imported here rather than `@import`ed from index.css:
+// Tailwind v4 inlines an `@import` of a node_modules stylesheet without
+// rebasing the `url()`s inside it, so the @font-face rules survive the build
+// pointing at `./files/*.woff2`, nothing is emitted, and the browser silently
+// falls back to system-ui. Going through the bundler instead makes the woff2
+// files real build assets. (This is why Geist never actually loaded either.)
+import "@fontsource-variable/space-grotesk";
+import "@fontsource/jetbrains-mono/400.css";
+import "@fontsource/jetbrains-mono/500.css";
 import "./index.css";
 
 const queryClient = createQueryClient();

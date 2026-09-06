@@ -9,6 +9,7 @@ import { ScanCard } from "@/components/scans/ScanCard";
 import { AutomaticScanning } from "@/components/scans/AutomaticScanning";
 import { IN_FLIGHT } from "@/components/scans/status";
 import { CardsSkeleton, EmptyState, PageHeader } from "@/components/common/states";
+import { HelpPopover } from "@/components/common/HelpPopover";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { SelectField } from "@/components/common/SelectField";
@@ -63,8 +64,28 @@ export function ScansPage() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <PageHeader
-          title={t.scans.title}
-          description="Every time CloudGuard has read your environment, and what it could reach."
+          title={
+            <>
+              {t.scans.title}
+              <HelpPopover label="What a scan records">
+                Every time CloudGuard has read your environment, and what it
+                could reach while reading. A scan that was refused part of the
+                estate says so here rather than reporting a smaller, cleaner
+                one.
+              </HelpPopover>
+            </>
+          }
+          description={
+            scans.data ? (
+              <>
+                <span className="font-mono">{scans.data.length}</span> scan
+                {scans.data.length === 1 ? "" : "s"} ·{" "}
+                <span className="font-mono">{scannable.length}</span>{" "}
+                {scannable.length === 1 ? "subscription" : "subscriptions"} ready
+                to scan
+              </>
+            ) : undefined
+          }
         />
         <div className="flex shrink-0 gap-2">
           {/* The subscription's name, not its row id. Closed, the primitive

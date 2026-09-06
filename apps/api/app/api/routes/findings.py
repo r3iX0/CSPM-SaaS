@@ -12,7 +12,8 @@ from app.core.vocabulary import words
 from app.graph import Path
 from app.models.finding import Finding, FindingEvidence
 from app.models.resource import ResourceRecord
-from app.models.scan import Scan
+from app.models.rule import Rule
+from app.models.scan import Scan, ScanEvaluationGap
 from app.schemas.finding import (
     AcceptRiskRequest,
     EvidenceCitationOut,
@@ -141,6 +142,84 @@ async def list_findings(
         payload.append(item)
 
     return envelope(payload, {"total": total, "limit": limit, "offset": offset})
+
+
+@router.get("/unevaluated")
+async def unevaluated_checks(session: DbSession, tenant: Tenant) -> dict:
+    """The checks the latest scan could not reach a verdict on.
+
+    These are not findings and are not stored as any: a finding is something a
+    rule concluded, and these are the ones that concluded nothing. They live in
+    ``scan_evaluation_gaps``, one row per rule that could not read what it
+    needed.
+
+    They are served from here anyway, because the question the findings page
+    answers is "every check the rules ran, and what each concluded" -- and a
+    page that silently omits the checks with no verdict answers a narrower
+    question while looking like it answered the whole one. An unreadable check
+    is never a pass (RULE_ENGINE.md), and the only way a reader can act on that
+    is if it is on the screen beside the ones that did conclude.
+
+    Scoped to the latest completed scan rather than to all history: a gap is a
+    fact about a reading, and one from a scan three weeks ago says nothing
+    about the estate today.
+    """
+    last_scan = (
+        await session.execute(
+            select(Scan)
+            .where(
+                Scan.organization_id == tenant.organization_id,
+                Scan.status.in_([ScanStatus.COMPLETED, ScanStatus.PARTIAL]),
+            )
+            .order_by(Scan.completed_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+    if last_scan is None:
+        return envelope([], {"total": 0, "scan_id": None, "scanned_at": None})
+
+    rows = (
+        await session.execute(
+            select(ScanEvaluationGap, Rule, ResourceRecord)
+            .outerjoin(Rule, Rule.rule_id == ScanEvaluationGap.rule_id)
+            .outerjoin(
+                ResourceRecord, ResourceRecord.id == ScanEvaluationGap.resource_id
+            )
+            .where(
+                ScanEvaluationGap.scan_id == last_scan.id,
+                ScanEvaluationGap.organization_id == tenant.organization_id,
+            )
+            .order_by(ScanEvaluationGap.rule_id)
+            .limit(200)
+        )
+    ).all()
+
+    return envelope(
+        [
+            {
+                "rule_id": gap.rule_id,
+                # The rule's own name where the catalogue has it. A rule id is
+                # what the row is traceable by; it is not what the check is
+                # called.
+                "title": rule.name if rule else gap.rule_id,
+                "reason": gap.reason,
+                "resource": (
+                    ResourceSummary.model_validate(resource).model_dump(mode="json")
+                    if resource
+                    else None
+                ),
+            }
+            for gap, rule, resource in rows
+        ],
+        {
+            "total": len(rows),
+            "scan_id": str(last_scan.id),
+            "scanned_at": (
+                last_scan.completed_at.isoformat() if last_scan.completed_at else None
+            ),
+        },
+    )
 
 
 @router.get("/{finding_id}/attack-paths")

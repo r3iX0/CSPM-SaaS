@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import type { Rule } from "@/lib/types";
 import { useT } from "@/i18n";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
+import { HelpPopover } from "@/components/common/HelpPopover";
 import {
   CardsSkeleton,
   EmptyState,
@@ -76,8 +77,31 @@ export function RulesPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        title={t.rules.title}
-        description="Every check CloudGuard runs. Rules are deterministic — the same environment always produces the same result."
+        title={
+          <>
+            {t.rules.title}
+            <HelpPopover label="How rules behave">
+              Every check CloudGuard runs. Rules are deterministic — no network,
+              no database, no model — so the same environment always produces
+              the same result, and a rule that cannot reach its evidence returns
+              UNKNOWN rather than a pass.
+            </HelpPopover>
+          </>
+        }
+        description={
+          data ? (
+            <>
+              <span className="font-mono">{live}</span> check
+              {live === 1 ? "" : "s"} in the registry
+              {withdrawnCount > 0 && (
+                <>
+                  {" · "}
+                  <span className="font-mono">{withdrawnCount}</span> withdrawn
+                </>
+              )}
+            </>
+          ) : undefined
+        }
       />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -118,7 +142,9 @@ export function RulesPage() {
           >
             <ArchiveIcon className="size-4" aria-hidden />
             {showWithdrawn ? t.rules.hideWithdrawn : t.rules.showWithdrawn}
-            {!showWithdrawn && ` (${withdrawnCount})`}
+            {!showWithdrawn && (
+              <span className="font-mono">{` (${withdrawnCount})`}</span>
+            )}
           </Button>
         )}
       </div>
@@ -167,8 +193,16 @@ export function RulesPage() {
             ))}
           </div>
           <p className="text-xs text-muted-foreground">
-            {rules.length} of {live} rule{live === 1 ? "" : "s"} CloudGuard runs
-            {withdrawnCount > 0 && `, and ${withdrawnCount} ${t.rules.withdrawnCount}`}
+            <span className="font-mono">
+              {rules.length} of {live}
+            </span>{" "}
+            rule{live === 1 ? "" : "s"} CloudGuard runs
+            {withdrawnCount > 0 && (
+              <>
+                , and <span className="font-mono">{withdrawnCount}</span>{" "}
+                {t.rules.withdrawnCount}
+              </>
+            )}
           </p>
         </>
       )}

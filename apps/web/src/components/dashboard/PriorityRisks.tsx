@@ -15,7 +15,6 @@ import {
   Card,
   CardAction,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -51,11 +50,12 @@ export function PriorityRisks({ risks }: { risks: Risk[] }) {
       <CardHeader className="py-4">
         <CardTitle id="priority-risks" className="text-sm font-semibold">
           Priority risks
+          {/* A qualifier, not a subtitle: three words saying what the order
+              means, on the same line as the thing they qualify. */}
+          <span className="ml-2 text-xs font-normal text-meta-foreground">
+            ranked by cost to this business
+          </span>
         </CardTitle>
-        <CardDescription className="text-xs">
-          Ranked by what each would cost this business, not by how many alerts
-          fired
-        </CardDescription>
         <CardAction>
           <Link
             to="/risks"

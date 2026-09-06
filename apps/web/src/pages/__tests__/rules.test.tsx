@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { RulesPage } from "@/pages/Rules";
 import { api } from "@/lib/api";
 import type { Rule } from "@/lib/types";
+import { wholeText } from "@/test/text";
 
 function rule(overrides: Partial<Rule> = {}): Rule {
   return {
@@ -74,7 +75,7 @@ describe("the rule catalogue", () => {
 
     // Counted against what CloudGuard runs, not against every row the API
     // returned -- a withdrawn rule is in that response and is not a check.
-    expect(await screen.findByText("2 of 2 rules CloudGuard runs")).toBeInTheDocument();
+    expect(await screen.findByText(wholeText("2 of 2 rules CloudGuard runs"))).toBeInTheDocument();
   });
 
   it("marks a tenant-wide rule, which belongs to no asset", async () => {
@@ -100,7 +101,7 @@ describe("the rule catalogue", () => {
     // response as the live ones.
     mount([rule(), rule({ rule_id: "AZ-OLD-001", name: "Retired check", enabled: false })]);
 
-    expect(await screen.findByText("1 of 1 rule CloudGuard runs, and 1 withdrawn")).toBeInTheDocument();
+    expect(await screen.findByText(wholeText("1 of 1 rule CloudGuard runs, and 1 withdrawn"))).toBeInTheDocument();
     expect(screen.queryByText("Retired check")).not.toBeInTheDocument();
   });
 

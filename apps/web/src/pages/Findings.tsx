@@ -1,13 +1,20 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { ArrowDownIcon, SearchIcon, ShieldCheckIcon, XIcon } from "lucide-react";
+import {
+  ArrowDownIcon,
+  SearchIcon,
+  ShieldCheckIcon,
+  TriangleAlertIcon,
+  XIcon,
+} from "lucide-react";
 
 import { api } from "@/lib/api";
-import type { Finding } from "@/lib/types";
+import type { Finding, Unevaluated } from "@/lib/types";
 import { useT } from "@/i18n";
 import { StatusPill } from "@/components/security/StatusPill";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
+import { HelpPopover } from "@/components/common/HelpPopover";
 import { RiskScore } from "@/components/security/SecurityScore";
 import {
   EmptyState,
@@ -15,6 +22,7 @@ import {
   PageHeader,
   TableSkeleton,
 } from "@/components/common/states";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -144,6 +152,28 @@ export function FindingsPage() {
     placeholderData: keepPreviousData,
   });
 
+  /**
+   * The checks that reached no verdict.
+   *
+   * Not findings, and not stored as any: a finding is something a rule
+   * concluded. They are fetched separately and listed in the same table
+   * because the alternative is a page that answers "everything wrong" while
+   * looking like it answered "every check" — and the omission always reads in
+   * the flattering direction. Nine checks that could not run look exactly like
+   * nine checks that passed.
+   */
+  const unevaluated = useQuery({
+    queryKey: ["findings", "unevaluated"],
+    queryFn: () =>
+      api
+        .get<Unevaluated[]>("/api/v1/findings/unevaluated")
+        .then((r) => r.data),
+    staleTime: 60_000,
+    retry: false,
+  });
+
+  const gaps = unevaluated.data ?? [];
+
   // Already filtered and ordered by the database; the page renders what it was
   // sent rather than re-deciding it.
   const rows = data?.findings ?? [];
@@ -157,6 +187,21 @@ export function FindingsPage() {
     !!ruleId ||
     !!evidenceId;
 
+  /**
+   * When the no-verdict rows are in the table.
+   *
+   * Whenever nothing is narrowing it. A reader who asked for CRITICAL findings
+   * did not ask for the checks that reached none, so a filter hides the rows —
+   * but never the count, which the strip above the table states either way.
+   *
+   * They are not paginated with the findings and appear under every page,
+   * because the alternative is a set of rows a reader only meets by paging to
+   * the end of an estate. They are a small fixed set from the latest scan, and
+   * the footer counts them apart from the findings so the two numbers cannot
+   * be read as one.
+   */
+  const showGaps = !filtered && gaps.length > 0;
+
   /** Any filter change re-slices the set, so page 4 of the old one is meaningless. */
   function refilter(apply: () => void) {
     apply();
@@ -166,8 +211,22 @@ export function FindingsPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        title={t.findings.title}
-        description="Everything CloudGuard has observed and judged wrong, ranked by what it means on the asset it was found on."
+        title={
+          <>
+            {t.findings.title}
+            <HelpPopover label="What a finding is">
+              A finding is one check against one asset, and what the rule
+              concluded about it. A check that could not reach its evidence is
+              listed too, as UNKNOWN — it is never counted as a pass.
+            </HelpPopover>
+          </>
+        }
+        description={
+          <>
+            <span className="font-mono">{total}</span>{" "}
+            {filtered ? "matching this filter" : "checks with a verdict"}
+          </>
+        }
       />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -248,6 +307,26 @@ export function FindingsPage() {
         </div>
       )}
 
+      {/* Said once, above the table, rather than repeated per row: the count
+          is a fact about the scan, and the rows below say which checks. */}
+      {gaps.length > 0 && (
+        <Alert>
+          <TriangleAlertIcon />
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+            <span>
+              <span className="font-mono">{gaps.length}</span>{" "}
+              {t.findings.noVerdictStrip}
+            </span>
+            <Link
+              to="/scans"
+              className="shrink-0 font-medium text-foreground underline underline-offset-2"
+            >
+              {t.findings.noVerdictWhy}
+            </Link>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {isLoading && <TableSkeleton columns={6} />}
 
       {error && (
@@ -304,29 +383,37 @@ export function FindingsPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="w-[45%]">Finding</TableHead>
+                    <TableHead>Finding</TableHead>
                     <SortableHead
                       label={t.common.severity}
                       sortKey="severity"
                       active={sort}
+                      className="w-[96px]"
                       onSort={(key) => refilter(() => setSort(key))}
                     />
-                    <TableHead>{t.findings.asset}</TableHead>
+                    <TableHead className="w-[176px]">{t.findings.asset}</TableHead>
+                    {/* Its own column, and mono: a finding is traceable to the
+                        check that raised it without opening it. */}
+                    <TableHead className="w-[178px]">{t.rules.title}</TableHead>
+                    {/* Kept, though the mockup drops it: it is the default
+                        ordering of this table, and a list sorted by a number
+                        it does not show cannot be read. */}
                     <SortableHead
                       label={t.findings.riskScore}
                       sortKey="risk"
                       active={sort}
                       align="right"
+                      className="w-[72px]"
                       onSort={(key) => refilter(() => setSort(key))}
                     />
-                    <TableHead>{t.common.status}</TableHead>
                     <SortableHead
-                      label={t.findings.lastSeen}
+                      label={t.findings.firstSeen}
                       sortKey="recent"
                       active={sort}
-                      align="right"
+                      className="w-[84px]"
                       onSort={(key) => refilter(() => setSort(key))}
                     />
+                    <TableHead className="w-[104px]">{t.common.status}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -340,19 +427,19 @@ export function FindingsPage() {
                           {finding.title}
                         </Link>
                         <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                          {finding.rule_id}
+                          {finding.description}
                         </p>
                       </TableCell>
                       <TableCell>
                         <SeverityBadge level={finding.severity} />
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell className="max-w-0 text-muted-foreground">
                         {finding.resource ? (
                           <>
-                            <span className="block max-w-[16rem] truncate text-foreground">
+                            <span className="block truncate font-mono text-foreground">
                               {finding.resource.name}
                             </span>
-                            <span className="text-xs">
+                            <span className="block truncate text-xs">
                               {resourceTypeLabel(
                                 finding.resource.resource_type,
                               )}
@@ -362,17 +449,73 @@ export function FindingsPage() {
                           <span className="italic">Tenant-wide</span>
                         )}
                       </TableCell>
+                      <TableCell className="max-w-0">
+                        <span className="block truncate font-mono text-xs text-meta-foreground">
+                          {finding.rule_id}
+                        </span>
+                      </TableCell>
                       <TableCell className="text-right">
                         <RiskScore score={finding.risk_score} />
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {formatDate(finding.first_detected_at)}
                       </TableCell>
                       <TableCell>
                         <StatusPill status={finding.status} />
                       </TableCell>
-                      <TableCell className="text-right text-muted-foreground">
-                        {formatDate(finding.last_detected_at)}
-                      </TableCell>
                     </TableRow>
                   ))}
+
+                  {/* The checks with no verdict, in the same table as the ones
+                      that reached one. Greyed and dashed, never sorted away,
+                      never counted as passes — and listed on the last page so
+                      the count above the table stays the count below it. */}
+                  {showGaps &&
+                    gaps.map((gap) => (
+                      <TableRow
+                        key={`${gap.rule_id}-${gap.resource?.id ?? "tenant"}`}
+                        className="text-muted-foreground hover:bg-transparent"
+                      >
+                        <TableCell className="max-w-0">
+                          <span className="block truncate font-medium">
+                            {gap.title}
+                          </span>
+                          <p className="mt-0.5 truncate text-xs">{gap.reason}</p>
+                        </TableCell>
+                        <TableCell>
+                          <SeverityBadge level="UNKNOWN" size="sm">
+                            {t.findings.noVerdict}
+                          </SeverityBadge>
+                        </TableCell>
+                        <TableCell className="max-w-0">
+                          {gap.resource ? (
+                            <span className="block truncate font-mono">
+                              {gap.resource.name}
+                            </span>
+                          ) : (
+                            <span className="italic">Directory</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="max-w-0">
+                          <span className="block truncate font-mono text-xs">
+                            {gap.rule_id}
+                          </span>
+                        </TableCell>
+                        {/* No score, no date and no status of its own: a
+                            check that did not run has none of the three, and
+                            inventing any of them would be the flattering guess
+                            this row exists to refuse. */}
+                        <TableCell className="text-right" aria-hidden>
+                          —
+                        </TableCell>
+                        <TableCell aria-hidden>—</TableCell>
+                        <TableCell>
+                          <span className="inline-flex items-center rounded-md border border-dashed border-unknown-border bg-unknown-bg px-2 py-0.5 text-xs text-unknown">
+                            {t.findings.unevaluated}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    ))}
                 </TableBody>
               </Table>
             </CardContent>
@@ -380,10 +523,20 @@ export function FindingsPage() {
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground">
-              {page * PAGE_SIZE + 1}–{page * PAGE_SIZE + rows.length} of {total}{" "}
-              finding
-              {total === 1 ? "" : "s"}
+              <span className="font-mono">
+                {page * PAGE_SIZE + 1}–{page * PAGE_SIZE + rows.length} of{" "}
+                {total}
+              </span>{" "}
+              finding{total === 1 ? "" : "s"}
               {filtered ? " matching these filters" : ""}
+              {showGaps && (
+                <>
+                  {" · "}
+                  <span className="font-mono">{gaps.length}</span> check
+                  {gaps.length === 1 ? "" : "s"} with no verdict, listed under
+                  each page
+                </>
+              )}
             </p>
             {pages > 1 && (
               <div className="flex items-center gap-2">
@@ -395,7 +548,7 @@ export function FindingsPage() {
                 >
                   Previous
                 </Button>
-                <span className="text-xs tabular-nums text-muted-foreground">
+                <span className="font-mono text-xs text-muted-foreground">
                   {page + 1} / {pages}
                 </span>
                 <Button
@@ -432,19 +585,21 @@ function SortableHead({
   sortKey,
   active,
   align = "left",
+  className,
   onSort,
 }: {
   label: string;
   sortKey: SortKey;
   active: SortKey;
   align?: "left" | "right";
+  className?: string;
   onSort: (key: SortKey) => void;
 }) {
   const isActive = active === sortKey;
   return (
     <TableHead
       aria-sort={isActive ? "descending" : "none"}
-      className={align === "right" ? "text-right" : undefined}
+      className={cn(align === "right" && "text-right", className)}
     >
       <button
         type="button"

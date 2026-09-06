@@ -1,14 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
-import { RouteIcon, ScissorsIcon } from "lucide-react";
+import { ScissorsIcon } from "lucide-react";
 
 import { api } from "@/lib/api";
-import type { AttackPath, AttackPathMeta, ChokePoint } from "@/lib/types";
+import type {
+  AttackPath,
+  AttackPathMeta,
+  ChokePoint,
+  Scan,
+} from "@/lib/types";
 import { useT } from "@/i18n";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
+import { HelpPopover } from "@/components/common/HelpPopover";
 import { AttackPathRoute } from "@/components/graph/AttackPathRoute";
+import { AttackPathsEmpty } from "@/components/attackpaths/EmptyPage";
 import {
   CardsSkeleton,
-  EmptyState,
   ErrorState,
   PageHeader,
 } from "@/components/common/states";
@@ -48,11 +54,46 @@ export function AttackPathsPage() {
       api.get<ChokePoint[]>("/api/v1/attack-paths/choke-points").then((r) => r.data),
   });
 
+  /**
+   * Whether anything has been read at all.
+   *
+   * The graph cannot report this: an estate with no scan and an estate with a
+   * scan that found nothing both arrive as zero routes, and they are opposite
+   * news.
+   */
+  const lastScan = useQuery({
+    queryKey: ["scans", "latest"],
+    queryFn: () =>
+      api.get<Scan[]>("/api/v1/scans?limit=1").then((r) => r.data[0] ?? null),
+    staleTime: 60_000,
+    retry: false,
+  });
+
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
         title={t.attackPaths.title}
-        description={t.attackPaths.intro}
+        description={
+          data ? (
+            <>
+              <span className="font-mono">{data.meta.total}</span> route
+              {data.meta.total === 1 ? "" : "s"} from{" "}
+              <span className="font-mono">{data.meta.entry_points}</span>{" "}
+              {t.attackPaths.entryPoints} to{" "}
+              <span className="font-mono">{data.meta.sensitive_targets}</span>{" "}
+              {t.attackPaths.sensitiveTargets}
+            </>
+          ) : undefined
+        }
+        actions={
+          <HelpPopover
+            label="How paths are built"
+            title="How it works"
+            align="end"
+          >
+            {t.attackPaths.intro}
+          </HelpPopover>
+        }
       />
 
       {isLoading && <CardsSkeleton />}
@@ -66,13 +107,17 @@ export function AttackPathsPage() {
         />
       )}
 
-      {data && data.paths.length === 0 && <NothingFound meta={data.meta} />}
+      {data && data.paths.length === 0 && (
+        <AttackPathsEmpty meta={data.meta} scan={lastScan.data} />
+      )}
 
       {data && data.paths.length > 0 && (
         <>
           <p className="text-xs text-muted-foreground">
-            {data.meta.total} · {data.meta.entry_points}{" "}
-            {t.attackPaths.entryPoints} · {data.meta.sensitive_targets}{" "}
+            <span className="font-mono">{data.meta.total}</span> ·{" "}
+            <span className="font-mono">{data.meta.entry_points}</span>{" "}
+            {t.attackPaths.entryPoints} ·{" "}
+            <span className="font-mono">{data.meta.sensitive_targets}</span>{" "}
             {t.attackPaths.sensitiveTargets}
           </p>
 
@@ -133,10 +178,11 @@ function ChokePoints({ chokes }: { chokes?: ChokePoint[] }) {
                 {choke.description}
               </p>
               <p className="text-xs text-muted-foreground">
-                <span className="text-sm font-semibold tabular-nums text-foreground">
+                <span className="font-mono text-sm font-semibold text-foreground">
                   {choke.severs}
                 </span>{" "}
-                {t.attackPaths.chokeOf} {choke.total_routes}{" "}
+                {t.attackPaths.chokeOf}{" "}
+                <span className="font-mono">{choke.total_routes}</span>{" "}
                 {t.attackPaths.chokeSevers}
               </p>
             </div>
@@ -168,53 +214,6 @@ function ChokePoints({ chokes }: { chokes?: ChokePoint[] }) {
   );
 }
 
-/**
- * Three different nothings, and they call for three different actions.
- *
- * A single "no attack paths" would read as reassurance in all three cases, and
- * in two of them it is the opposite: nothing classified as sensitive means
- * CloudGuard does not know what would cost the customer anything, which is a
- * gap in what it was told rather than a clean environment.
- */
-function NothingFound({ meta }: { meta: AttackPathMeta }) {
-  const t = useT();
-
-  if (meta.entry_points === 0 && meta.sensitive_targets === 0) {
-    return (
-      <EmptyState
-        icon={RouteIcon}
-        title={t.attackPaths.emptyNoScan}
-        detail={t.attackPaths.emptyNoScanDetail}
-      />
-    );
-  }
-  if (meta.sensitive_targets === 0) {
-    return (
-      <EmptyState
-        icon={RouteIcon}
-        title={t.attackPaths.emptyNoTargets}
-        detail={t.attackPaths.emptyNoTargetsDetail}
-      />
-    );
-  }
-  if (meta.entry_points === 0) {
-    return (
-      <EmptyState
-        icon={RouteIcon}
-        title={t.attackPaths.emptyNoEntry}
-        detail={t.attackPaths.emptyNoEntryDetail}
-      />
-    );
-  }
-  return (
-    <EmptyState
-      icon={RouteIcon}
-      title={t.attackPaths.emptyNoPaths}
-      detail={t.attackPaths.emptyNoPathsDetail}
-    />
-  );
-}
-
 function PathCard({ path }: { path: AttackPath }) {
   const t = useT();
 
@@ -239,7 +238,7 @@ function PathCard({ path }: { path: AttackPath }) {
             </div>
           </div>
           <div className="shrink-0 text-right">
-            <p className="text-3xl font-semibold tabular-nums text-foreground">
+            <p className="font-mono text-3xl font-semibold text-foreground">
               {path.hops}
             </p>
             <p className="text-xs text-muted-foreground">
