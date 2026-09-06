@@ -137,8 +137,10 @@ against `--background` and `--muted-foreground` against `--card` are the two
 that matter. Measured: **10.3:1** and **7.2:1**. Foreground on the page is
 16.7:1, and `--primary-foreground` on `--primary` is 9.7:1.
 
-**Light mode is not designed yet.** Either derive it, or gate the theme toggle
-until it is — do not ship a half-converted light theme.
+~~**Light mode is not designed yet.**~~ **Derived** (DECISIONS.md §92), on the
+same hue family and with every value measured: foreground 17.3:1 on the page,
+`--muted-foreground` 5.5:1 on the card, `--primary` at `oklch(0.52 0.13 178.1)`
+so white on it is 4.9:1. The toggle is not gated.
 
 ### 2.3 Surfaces
 
@@ -384,8 +386,11 @@ Do these in sequence; each is independently reviewable.
    distribution toggle. It had no step of its own in this list, which is the
    gap §90 named. Nine superseded components deleted; DECISIONS.md §91 lists
    what left the product and where it went.
-9. Remaining routes (Changes, Reports, Compliance, Scans, Rules, Cloud) by
-   applying the same patterns. Not yet designed.
+9. ~~Remaining routes (Changes, Reports, Compliance, Scans, Rules, Cloud) by
+   applying the same patterns.~~ **Done** — Rules becomes a table with a
+   drawer, the last two hand-drawn panels move onto `Card`, and light mode is
+   derived rather than left half-converted. The other five routes already
+   carried the patterns after steps 2-4. DECISIONS.md §92.
 
 ## 6. Do not
 
@@ -400,7 +405,6 @@ Do these in sequence; each is independently reviewable.
 
 ## 7. Known gaps in the mockups
 
-- Light mode is undesigned.
 - Responsive behaviour below `lg` is unspecified beyond "drawer nav, drawer
   becomes a page".
 - The Findings rows other than the two identity ones use **invented rule IDs**

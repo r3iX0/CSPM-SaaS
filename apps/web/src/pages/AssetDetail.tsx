@@ -119,7 +119,12 @@ export function AssetDetailPage() {
                 label="Internet exposure"
                 value={<SeverityBadge level={data.public_exposure} size="sm" />}
               />
-              <Row label="Environment" value={data.environment ?? "—"} />
+              <Row
+                label="Environment"
+                value={
+                  data.environment ?? <SeverityBadge level="UNKNOWN" size="sm" />
+                }
+              />
               <Row
                 label="First seen"
                 value={formatDateTime(data.first_seen_at)}

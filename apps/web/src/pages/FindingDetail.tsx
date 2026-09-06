@@ -419,7 +419,11 @@ export function FindingDetailPage() {
                   />
                   <Row
                     label="Environment"
-                    value={data.resource.environment ?? "—"}
+                    value={
+                      data.resource.environment ?? (
+                        <SeverityBadge level="UNKNOWN" size="sm" />
+                      )
+                    }
                   />
                   <Row label="Region" value={data.resource.region ?? "—"} />
                   <Row

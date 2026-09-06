@@ -163,32 +163,39 @@
     font-variant-numeric: tabular-nums;
   }
   :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
+    /* The light theme, derived rather than left as shadcn's greys.
+       Two modes that disagree about their own hue is a half-converted theme,
+       which docs/UI_REDESIGN.md §2.2 says not to ship: the dark surfaces were
+       rotated onto a cool hue and these were not, so switching the toggle
+       changed more than the lightness. Same hue family, same intent -- the
+       reading surface is the brightest plane, the rail recedes from it -- and
+       every value below was measured rather than picked. */
+    --background: oklch(0.988 0.004 266.5); /* #fafbfe page */
+    --foreground: oklch(0.205 0.020 266.5); /* 17.3:1 on the page */
+    --card: oklch(1 0 0); /* the reading surface, and the brightest */
+    --card-foreground: oklch(0.205 0.020 266.5);
     --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    /* 5.5:1 on the page rather than 4.73:1. This is the colour of every
+    --popover-foreground: oklch(0.205 0.020 266.5);
+    /* The accent means the same thing in both modes: you can act here. Darker
+       than the dark theme's teal because it is read against white -- white on
+       this is 4.9:1, and the same value as a focus ring is 4.7:1 on the page,
+       comfortably past the 3:1 WCAG 1.4.11 asks of a focus indicator. */
+    --primary: oklch(0.52 0.13 178.1); /* #008069 */
+    --primary-foreground: oklch(1 0 0);
+    --secondary: oklch(0.968 0.006 266.5);
+    --secondary-foreground: oklch(0.205 0.020 266.5);
+    --muted: oklch(0.968 0.006 266.5);
+    /* 5.5:1 on the card rather than 4.73:1. This is the colour of every
        secondary line in the product -- table meta, empty states, the sentence
        under a heading -- and shadcn's default sat close enough to the AA line
        that antialiasing decided it. */
-    --muted-foreground: oklch(0.52 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
+    --muted-foreground: oklch(0.52 0.020 266.5);
+    --accent: oklch(0.968 0.006 266.5);
+    --accent-foreground: oklch(0.205 0.020 266.5);
     --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.89 0 0);
-    --input: oklch(0.89 0 0);
-    /* The focus indicator is `focus-visible:border-ring` -- solid, full
-       opacity -- with `ring-ring/50` as a halo around it. So this value is the
-       thing WCAG 1.4.11 measures, and at 0.708 it was 2.59:1 against the page.
-       0.58 puts it at 4.3:1 without making the halo heavy. */
-    --ring: oklch(0.58 0 0);
+    --border: oklch(0.906 0.010 266.5); /* #dde0e7 hairline */
+    --input: oklch(0.878 0.012 266.5);
+    --ring: oklch(0.52 0.13 178.1);
     /* Neutral on purpose: hue in this product means severity, so a chart that
        coloured its series would be making a claim the rules never made. But
        the ramp has to be lit for the surface it sits on, and this one was the
@@ -201,19 +208,21 @@
     --chart-4: oklch(0.405 0 0);
     --chart-5: oklch(0.27 0 0);
     --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
-    /* Provisional: light mode is not designed yet (docs/UI_REDESIGN.md §2.2),
-       so these hold the same two steps below `--muted-foreground` that the
-       dark theme has, pointed the other way. 3.95:1 and 3.23:1 on the page. */
-    --meta-foreground: oklch(0.60 0 0);
-    --faint-foreground: oklch(0.65 0 0);
+    /* The rail recedes from the reading surface in both modes. Dark achieves
+       that by sitting darker than the page; light does it by sitting greyer. */
+    --sidebar: oklch(0.972 0.006 266.5); /* #f4f6fa */
+    --sidebar-foreground: oklch(0.205 0.020 266.5);
+    --sidebar-primary: oklch(0.52 0.13 178.1);
+    --sidebar-primary-foreground: oklch(1 0 0);
+    --sidebar-accent: oklch(0.949 0.008 266.5);
+    --sidebar-accent-foreground: oklch(0.205 0.020 266.5);
+    --sidebar-border: oklch(0.892 0.010 266.5);
+    --sidebar-ring: oklch(0.52 0.13 178.1);
+    /* The same two steps below `--muted-foreground` the dark theme has, and
+       under the same constraint: 3.95:1 and 3.24:1 on the card, so neither may
+       carry body copy (DECISIONS.md §84). */
+    --meta-foreground: oklch(0.600 0.018 266.5);
+    --faint-foreground: oklch(0.650 0.016 266.5);
 
     /* CloudGuard severity scale.
        Its own layer, deliberately: the neutral tokens above are the product's

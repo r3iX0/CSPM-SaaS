@@ -819,6 +819,19 @@ export const en = {
     partial: "Some data could not be collected — affected checks are marked unknown, not passed.",
   },
   rules: {
+    // The catalogue as a table, and the drawer beside it.
+    checkColumn: "Check",
+    appliesToColumn: "Applies to",
+    idColumn: "Rule",
+    effortColumn: "Effort",
+    exploitability: "Exploitability",
+    appliesToDirectory: "The directory",
+    tenantWide: "Tenant-wide",
+    whatItChecks: "What it checks",
+    whatItRunsOn: "What it runs on",
+    evidenceToward: "Evidence toward",
+    seeFindings: "See what this raised here",
+    selectRule: "Select a check to read what it does and how to fix it.",
     title: "Rule library",
     empty: "No rules loaded.",
     // A withdrawn rule is not a check CloudGuard runs, and listing it beside

@@ -4614,6 +4614,67 @@ silently applied, and that an estate the internet cannot touch draws nothing.
 The integration tests keep the half only a real request can prove — that the
 query works and the answer is scoped to the caller.
 
+## 92. Light mode is derived, and the catalogue is a table
+
+The last of `docs/UI_REDESIGN.md` §5, and the item §2.2 said not to ship
+without.
+
+### The theme the redesign left half-converted
+
+§2.2 ends "Light mode is not designed yet. Either derive it, or gate the theme
+toggle until it is — do not ship a half-converted light theme." What shipped
+was the half-converted one: the dark surfaces were rotated onto a cool hue and
+the light block was still shadcn's neutral greys, so the toggle changed more
+than the lightness. Two modes disagreeing about their own hue is the defect
+that sentence names.
+
+Derived rather than gated, because gating a working control to avoid finishing
+a palette is the worse trade. Same hue family (266.5), same intent as dark —
+the reading surface is the brightest plane and the rail recedes from it, which
+in light means greyer rather than darker — and every value measured:
+
+- foreground on the page **17.3:1**, on the card **17.9:1**
+- `--muted-foreground` on the card **5.5:1**, holding the margin §84's
+  predecessor bought when shadcn's default sat on the AA line
+- `--meta-foreground` **3.95:1** and `--faint-foreground` **3.24:1**, matching
+  dark's 4.11 and 3.20 and carrying the same constraint: the 11–12.5px meta
+  register only, never body copy
+- `--primary` at `oklch(0.52 0.13 178.1)` — darker than the dark theme's teal
+  because it is read against white. White on it is **4.9:1**; the same value as
+  a focus ring is **4.7:1** on the page, well past the 3:1 WCAG 1.4.11 asks.
+
+The `--sev-*` layer is untouched in both blocks, as it has been through every
+step of this redesign.
+
+### The rule catalogue was the last card feed
+
+Ninety cards, each with a description, an exploitability, an effort and a
+button that unfolded a rationale and four fix formats. It is the risks page's
+problem exactly: a catalogue is read by *comparing* entries, and a card feed
+makes every comparison a scroll.
+
+It is now a table — Check · Severity · Applies to · Rule · Effort — with the
+document half in a drawer beside it, the shape §4.2 established. A withdrawn
+rule keeps its dashed chip in the row and its explanation in the drawer: it has
+stopped running, and its severity describes what it used to check.
+
+The drawer's selection is **local state, not a route.** Every other drawer in
+the product deep-links because the thing behind it belongs to this estate; a
+rule belongs to CloudGuard's rulebook and says nothing about the customer's
+environment. The one link out is to the findings the rule actually raised here.
+
+### Two follow-ons closed
+
+`ComplianceSummary` and `AutomaticScanning` were the last panels drawing their
+own chrome by hand — §83 called the remaining conversions "a mechanical edit
+with no visual consequence", and this is that edit. `AutomaticScanning`'s
+three-sentence epigram went behind a `?` on the way, as §87 did for the rest.
+
+An undeclared environment on the asset and finding detail pages renders as a
+dashed `Unknown` chip rather than an em dash, matching what §89 did to the
+assets table. A blank cell claims "no environment"; the truth is that nobody
+has said.
+
 ## Settings: the evidence a person supplies
 
 `PATCH /organizations` takes no id in the path. Deleting a *different*

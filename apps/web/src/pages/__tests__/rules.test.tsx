@@ -6,6 +6,7 @@ import { RulesPage } from "@/pages/Rules";
 import { api } from "@/lib/api";
 import type { Rule } from "@/lib/types";
 import { wholeText } from "@/test/text";
+import { MemoryRouter } from "react-router-dom";
 
 function rule(overrides: Partial<Rule> = {}): Rule {
   return {
@@ -32,7 +33,11 @@ function mount(rules: Rule[]) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <RulesPage />
+      {/* The drawer links out to the findings a rule raised, so the page needs
+          a router around it. */}
+      <MemoryRouter>
+        <RulesPage />
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 }
@@ -110,10 +115,19 @@ describe("the rule catalogue", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: /Show withdrawn rules/ }));
 
+    // Dashed and named in the row, not greyed away: a rule that has stopped
+    // running is not a quieter rule.
     expect(screen.getByText("Retired check")).toBeInTheDocument();
     expect(screen.getByText("Withdrawn")).toBeInTheDocument();
-    expect(screen.getByText(/no longer runs and compliance coverage no longer counts it/))
-      .toBeInTheDocument();
+
+    // What that means is a sentence, and a sentence belongs where there is
+    // room for one.
+    fireEvent.click(screen.getByRole("button", { name: "Retired check" }));
+    expect(
+      await screen.findByText(
+        /no longer runs and compliance coverage no longer counts it/,
+      ),
+    ).toBeInTheDocument();
   });
 
   it("offers no withdrawn toggle when nothing is withdrawn", async () => {
@@ -124,7 +138,9 @@ describe("the rule catalogue", () => {
     expect(screen.queryByRole("button", { name: /withdrawn/i })).not.toBeInTheDocument();
   });
 
-  it("shows the reasoning and the fix the catalogue was holding back", async () => {
+  it("shows the reasoning and the fix beside the catalogue, one rule at a time", async () => {
+    // Ninety rules each carrying a rationale and four fix formats is a
+    // document, not a list. The table compares them; the drawer reads one.
     mount([
       rule({
         rationale: "Anonymous blob access is the most common cause of cloud data loss.",
@@ -132,11 +148,33 @@ describe("the rule catalogue", () => {
       }),
     ]);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Why and how to fix" }));
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Storage account allows public blob access",
+      }),
+    );
 
     expect(
-      screen.getByText("Anonymous blob access is the most common cause of cloud data loss."),
+      await screen.findByText(
+        "Anonymous blob access is the most common cause of cloud data loss.",
+      ),
     ).toBeInTheDocument();
     expect(screen.getByText("Set allowBlobPublicAccess to false.")).toBeInTheDocument();
+  });
+
+  it("sends a rule to the findings it actually raised here", async () => {
+    // The catalogue is CloudGuard's rulebook and says nothing about this
+    // estate; the one link out of it is to what the check found.
+    mount([rule()]);
+
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Storage account allows public blob access",
+      }),
+    );
+
+    expect(
+      await screen.findByRole("link", { name: /See what this raised here/ }),
+    ).toHaveAttribute("href", "/findings?rule_id=AZ-STO-001&status=all");
   });
 });

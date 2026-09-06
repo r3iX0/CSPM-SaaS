@@ -5,6 +5,7 @@ import type { ComplianceFramework } from "@/lib/types";
 import { Bars } from "@/components/charts/Bars";
 import { HelpPopover } from "@/components/common/HelpPopover";
 import { buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/format";
 
@@ -32,9 +33,10 @@ export function ComplianceSummary({
   const rows = Array.isArray(frameworks) ? frameworks : [];
 
   return (
-    <section
+    <Card
+      role="region"
       aria-labelledby="compliance-summary"
-      className="flex flex-col overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10"
+      className="flex flex-col overflow-hidden py-0"
     >
       <header className="flex items-start justify-between gap-4 px-5 py-4">
         <div>
@@ -102,6 +104,6 @@ export function ComplianceSummary({
           </>
         )}
       </div>
-    </section>
+    </Card>
   );
 }

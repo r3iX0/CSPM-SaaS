@@ -5,6 +5,8 @@ import { api } from "@/lib/api";
 import type { CloudConnection } from "@/lib/types";
 import { ScheduleControl } from "@/components/scans/ScheduleControl";
 import { buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { HelpPopover } from "@/components/common/HelpPopover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/format";
 
@@ -42,22 +44,24 @@ export function AutomaticScanning({
   if (isLoading) return <Skeleton className="h-32 w-full rounded-xl" />;
 
   return (
-    <section
+    <Card
+      role="region"
       aria-labelledby="automatic-scanning"
-      className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10"
+      className="overflow-hidden py-0"
     >
       <header className="flex flex-wrap items-start justify-between gap-3 px-5 py-4">
-        <div>
-          <h2 id="automatic-scanning" className="text-sm font-semibold">
-            Automatic scanning
-          </h2>
-          <p className="mt-0.5 max-w-2xl text-xs leading-relaxed text-muted-foreground">
+        <h2
+          id="automatic-scanning"
+          className="flex items-center gap-1 text-sm font-semibold"
+        >
+          Automatic scanning
+          <HelpPopover label="Why anything is scanned automatically">
             A posture ages the moment it is measured — cloud environments change
             daily, and a scan from last month describes an environment that has
             moved on. This is how often CloudGuard re-reads each one without
             being asked.
-          </p>
-        </div>
+          </HelpPopover>
+        </h2>
       </header>
 
       <div className="border-t px-5 py-4">
@@ -91,6 +95,6 @@ export function AutomaticScanning({
           </div>
         )}
       </div>
-    </section>
+    </Card>
   );
 }
