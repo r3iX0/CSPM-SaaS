@@ -27,10 +27,17 @@ export function StackedBar({
   segments,
   ariaLabel,
   className,
+  legend = true,
 }: {
   segments: Segment[];
   ariaLabel: string;
   className?: string;
+  /**
+   * The swatch row beneath the bar. Off only where the caller already names
+   * every segment underneath it — two lists of the same four counts read as
+   * two different facts.
+   */
+  legend?: boolean;
 }) {
   const total = segments.reduce((sum, segment) => sum + segment.value, 0);
 
@@ -81,19 +88,21 @@ export function StackedBar({
           ))}
       </div>
 
-      <ul className="flex flex-wrap gap-x-4 gap-y-1">
-        {segments.map((segment) => (
-          <li key={segment.key} className="flex items-center gap-1.5 text-xs">
-            <span
-              className="size-2 shrink-0 rounded-[2px]"
-              style={{ background: segment.tone }}
-              aria-hidden
-            />
-            <span className="text-muted-foreground">{segment.label}</span>
-            <span className="font-mono font-medium">{segment.value}</span>
-          </li>
-        ))}
-      </ul>
+      {legend && (
+        <ul className="flex flex-wrap gap-x-4 gap-y-1">
+          {segments.map((segment) => (
+            <li key={segment.key} className="flex items-center gap-1.5 text-xs">
+              <span
+                className="size-2 shrink-0 rounded-[2px]"
+                style={{ background: segment.tone }}
+                aria-hidden
+              />
+              <span className="text-muted-foreground">{segment.label}</span>
+              <span className="font-mono font-medium">{segment.value}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

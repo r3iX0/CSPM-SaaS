@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 import { useT } from "@/i18n";
 import { HelpPopover } from "@/components/common/HelpPopover";
@@ -86,17 +87,80 @@ export function Distribution({
           {t.dashboard.nothingOpen}
         </p>
       ) : (
-        <StackedBar
-          ariaLabel={
-            view === "asset" ? t.dashboard.onTheAsset : t.dashboard.asJudged
-          }
-          segments={LEVELS.map((level) => ({
-            key: level,
-            label: labelOf(level),
-            value: counts[level] ?? 0,
-            tone: TONE[level],
-          }))}
-        />
+        <>
+          <StackedBar
+            ariaLabel={
+              view === "asset" ? t.dashboard.onTheAsset : t.dashboard.asJudged
+            }
+            legend={false}
+            segments={LEVELS.map((level) => ({
+              key: level,
+              label: labelOf(level),
+              value: counts[level] ?? 0,
+              tone: TONE[level],
+            }))}
+          />
+
+          {/* The legend the bar would otherwise carry, given the height the
+              panel had spare. A swatch row repeats four labels; these rows
+              spend the same space saying how large each band is on its own —
+              which is the question a reader has once the bar has shown them
+              the mix, and the one that changes when the toggle moves. */}
+          <ul className="flex flex-1 flex-col justify-center gap-3.5">
+            {LEVELS.map((level) => {
+              const value = counts[level] ?? 0;
+              const share = Math.round((value / total) * 100);
+              return (
+                <li
+                  key={level}
+                  className="grid grid-cols-[5.5rem_1fr_auto] items-center gap-3 text-[13px]"
+                >
+                  <span className="flex items-center gap-2">
+                    <span
+                      className="size-2 shrink-0 rounded-[2px]"
+                      style={{ background: TONE[level] }}
+                      aria-hidden
+                    />
+                    <span className="text-muted-foreground">{labelOf(level)}</span>
+                  </span>
+                  {/* A row of its own, not a second reading of the bar: each
+                      band against the whole, so a 0 is a visible 0 rather than
+                      a segment that simply is not there. */}
+                  <span
+                    className="h-1.5 overflow-hidden rounded-full bg-muted"
+                    aria-hidden
+                  >
+                    <span
+                      className="block h-full rounded-full transition-[width] duration-700 ease-out"
+                      style={{ width: `${share}%`, background: TONE[level] }}
+                    />
+                  </span>
+                  <span className="font-mono tabular-nums text-muted-foreground">
+                    <span className="font-medium text-foreground">{value}</span>{" "}
+                    <span className="sr-only">{t.dashboard.distributionShare}</span>
+                    {share}%
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+
+          {/* Pinned to the bottom: this panel shares a row with two taller
+              ones, and a card that ends halfway up its own border reads as a
+              panel that failed to load. */}
+          <p className="flex flex-wrap items-baseline justify-between gap-2 border-t pt-3 text-xs text-muted-foreground">
+            <span>
+              <span className="font-mono font-medium text-foreground">{total}</span>{" "}
+              {t.dashboard.distributionTotal}
+            </span>
+            <Link
+              to="/risks"
+              className="font-medium text-foreground underline underline-offset-2"
+            >
+              {t.dashboard.distributionSeeAll}
+            </Link>
+          </p>
+        </>
       )}
 
     </section>

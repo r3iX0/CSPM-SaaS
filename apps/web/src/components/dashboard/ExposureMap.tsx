@@ -41,10 +41,20 @@ export function ExposureMap({
   // throws on an unexpected payload takes the score down with it, and the
   // score is the one thing on this page that must render (DECISIONS.md §66).
   if (!map?.nodes?.length) {
+    // A framed placeholder rather than a loose line of text: this panel holds
+    // the larger half of the hero, and a sentence pinned to the top of it left
+    // the rest of the card looking like a drawing that failed.
     return (
-      <p className={cn("text-[13px] text-muted-foreground", className)}>
-        {t.dashboard.nothingExposed}
-      </p>
+      <div
+        className={cn(
+          "flex min-h-40 flex-1 items-center justify-center rounded-lg border border-dashed px-6 py-8",
+          className,
+        )}
+      >
+        <p className="max-w-xs text-center text-[13px] text-muted-foreground">
+          {t.dashboard.nothingExposed}
+        </p>
+      </div>
     );
   }
 

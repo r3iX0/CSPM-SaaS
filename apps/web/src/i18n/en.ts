@@ -482,6 +482,9 @@ export const en = {
       "Risk bands: what each finding means on the asset it was found on, once exposure, data sensitivity and business criticality are weighed.",
     asJudgedHelp:
       "Severity: what the rule concluded in the abstract, before anything about this estate was weighed.",
+    distributionShare: "share of the open set",
+    distributionTotal: "open in this reading",
+    distributionSeeAll: "Open the list",
     controlCoverage: "Control coverage",
     // The four tiles.
     tileOpenRisks: "Open risks",

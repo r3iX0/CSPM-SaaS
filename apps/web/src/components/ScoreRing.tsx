@@ -12,12 +12,15 @@ export function ScoreRing({ score }: { score: number }) {
   const circumference = 2 * Math.PI * radius;
   const clamped = Math.max(0, Math.min(100, score));
   // 270° sweep, leaving a gap at the bottom so the ends read as a gauge.
+  // The rotation is +135°, not -135°: a dasharray starts at 3 o'clock and runs
+  // clockwise, so turning it the other way put the 90° gap in the lower *left*
+  // quadrant. The arc then sat off to one side of the digits it is about.
   const sweep = 0.75;
   const filled = circumference * sweep * (clamped / 100);
 
   return (
     <div className="relative h-[150px] w-[150px]">
-      <svg viewBox="0 0 140 140" className="h-full w-full -rotate-[135deg]">
+      <svg viewBox="0 0 140 140" className="h-full w-full rotate-[135deg]">
         <circle
           cx="70"
           cy="70"
@@ -26,11 +29,13 @@ export function ScoreRing({ score }: { score: number }) {
           stroke="currentColor"
           strokeWidth="10"
           strokeLinecap="round"
-          // The track, not a value: `muted` so it recedes on either
-          // surface. Hard-coded near-white here made the unfilled part of
-          // the gauge the brightest thing on a dark page -- a full ring of
-          // light reads as a full score.
-          className="text-muted"
+          // The track, not a value: the hairline token, which is one step
+          // lighter than `muted` on the dark card and one step darker on the
+          // light one -- `muted` was so close to the card that the gauge lost
+          // its unfilled part and the arc read as a stray mark. Hard-coded
+          // near-white is the other failure: a full ring of light reads as a
+          // full score.
+          className="text-border"
           strokeDasharray={`${circumference * sweep} ${circumference}`}
         />
         <circle

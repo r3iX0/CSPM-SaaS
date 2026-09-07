@@ -4775,6 +4775,42 @@ cannot catch a size inherited across two elements. Better to enforce the half
 that is checkable and name the half that is not than to imply the check is
 complete.
 
+## 96. The gauge turns the other way, and the Distribution panel fills its column
+
+Two overview panels drew a shape and then left the rest of their box empty, and
+in both cases the emptiness was reported as breakage rather than as space.
+
+**The score arc was rotated the wrong way.** `UI_REDESIGN.md` §4.1 specifies a
+270° sweep "rotated 135°" and `ScoreRing` applied `-rotate-[135deg]`. A
+`stroke-dasharray` on an SVG circle starts at 3 o'clock and runs clockwise, so
+the negative turn put the 90° gap in the lower-*left* quadrant instead of at the
+bottom: the arc leaned to one side of the digits it is centred on, which is what
+a reader sees as "the number is off-centre" even though nothing is. The sign is
+now positive and the gap is symmetric under the score.
+
+**Its track is `--border`, not `--muted`.** On the dark card `--muted`
+(`oklch(0.219)`) sits inside a hairline's distance of the surface, so the
+unfilled part of the gauge disappeared and the filled arc read as a stray mark
+rather than as a proportion of something. `--border` is one step lighter there
+and one step darker on the light card, which is exactly the "present but behind
+the data" the track wants. The earlier note stands on the other side: a
+hard-coded near-white track made a full ring of light out of a low score.
+
+**Distribution carries per-band rows instead of the bar's swatch legend.** It
+shares the last row of the overview with compliance coverage and the change
+feed, both of which are lists and both of which are several hundred pixels
+taller. A panel that ends a third of the way up its own border reads as one
+that failed to load. The rows are not a second drawing of the bar: the bar shows
+the mix, each row shows one band against the whole — so a band with zero in it
+is a visible zero rather than a segment that simply is not there, and the
+numbers move when the `On the asset` ↔ `As judged` toggle does. `StackedBar`
+grew a `legend` prop (default on) because a swatch row above four labelled rows
+is the same four counts said twice.
+
+The exposure map's empty state is a framed placeholder for the same reason. It
+holds the larger half of the hero, and "nothing is reachable from the internet"
+pinned to the top-left of that space looked like a drawing that did not arrive.
+
 ## Settings: the evidence a person supplies
 
 `PATCH /organizations` takes no id in the path. Deleting a *different*

@@ -222,7 +222,7 @@ Ten sections become four. Preview: `preview/overview.html`.
 | Was | Becomes |
 |---|---|
 | Security score card + Posture trend card | **One hero panel**, three columns: score arc / exposure map / — |
-| Severity mix + findings donut + risk bands | **One "Distribution" panel** with an `On the asset` ↔ `As judged` toggle |
+| Severity mix + findings donut + risk bands | **One "Distribution" panel** with an `On the asset` ↔ `As judged` toggle, a stacked bar for the mix and one row per band for its size (DECISIONS.md §96) |
 | Assessment coverage + "1 category could not be collected" | **One amber blind-spot banner** with two actions, promoted above the risk list |
 | Priority risks | Table, unchanged in intent |
 | Shortest attack path (empty) | **One line** inside the hero, not a section |

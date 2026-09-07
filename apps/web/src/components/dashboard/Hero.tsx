@@ -91,9 +91,9 @@ export function DashboardHero({
           </div>
 
           {loadingMap ? (
-            <Skeleton className="h-40 w-full" />
+            <Skeleton className="min-h-40 w-full flex-1" />
           ) : (
-            <ExposureMap map={map} omitted={omitted} />
+            <ExposureMap map={map} omitted={omitted} className="flex-1" />
           )}
 
           {/* One line, not a section. The attack-path panel it replaces was
