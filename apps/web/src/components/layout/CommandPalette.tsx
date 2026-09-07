@@ -14,6 +14,7 @@ import { api } from "@/lib/api";
 import type { Asset, Rule } from "@/lib/types";
 import { NAV_GROUPS } from "@/components/layout/nav";
 import { setThemeChoice, type ThemeChoice } from "@/lib/theme";
+import { cn } from "@/lib/format";
 import { resourceTypeLabel } from "@/lib/format";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { Button } from "@/components/ui/button";
@@ -187,7 +188,13 @@ export function CommandPalette() {
       <Button
         variant="outline"
         onClick={() => setOpen(true)}
-        className="h-[34px] w-full max-w-[360px] justify-start gap-2.5 px-3 text-muted-foreground sm:w-[360px]"
+        className={cn(
+          // Below `sm` it is the icon and nothing else: a full-width search bar
+          // on a 375px screen leaves the notifications and the account menu
+          // fighting each other for what is left.
+          "h-[34px] w-9 justify-center px-0 text-muted-foreground",
+          "sm:w-[360px] sm:justify-start sm:gap-2.5 sm:px-3",
+        )}
         aria-label="Search CloudGuard"
       >
         <SearchIcon data-icon="inline-start" />

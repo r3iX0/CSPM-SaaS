@@ -40,7 +40,7 @@ export function RemediationBoard({
   const t = useT();
 
   return (
-    <div className="grid gap-3 lg:grid-cols-4">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <Column
         title={t.remediation.laneToFix}
         tone="var(--sev-critical)"

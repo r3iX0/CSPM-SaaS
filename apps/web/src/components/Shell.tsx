@@ -127,42 +127,30 @@ export function Shell() {
           <div className="min-h-0 flex-1 overflow-y-auto">
             <SidebarNav collapsed={collapsed} />
           </div>
-          {/* Pinned to the foot: who you are and whether CloudGuard can see
-              anything are the two facts that qualify every screen above them,
-              and neither is something a reader goes looking for. */}
+          {/* Pinned to the foot: whether CloudGuard can see anything at all is
+              the precondition for every number on every screen above it, and it
+              is not something a reader goes looking for. The account menu is
+              not here — it is in the top-right corner, where an account menu
+              is. */}
           <div
             className={cn(
-              "mt-auto flex shrink-0 flex-col gap-1 border-t border-sidebar-border",
-              collapsed ? "items-center p-2" : "p-3",
+              "mt-auto flex shrink-0 items-center gap-1 border-t border-sidebar-border",
+              collapsed ? "flex-col p-2" : "p-3",
             )}
           >
             <ConnectionBadge collapsed={collapsed} />
-            <div
-              className={cn(
-                "flex items-center gap-1",
-                collapsed ? "flex-col" : "w-full",
-              )}
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className={collapsed ? "" : "ml-auto shrink-0"}
+              onClick={() => setCollapsed((v) => !v)}
+              aria-label={
+                collapsed ? "Expand navigation" : "Collapse navigation"
+              }
+              aria-expanded={!collapsed}
             >
-              {!collapsed && (
-                <AccountMenu
-                  organizations={orgs ?? []}
-                  current={current}
-                  placement="above"
-                />
-              )}
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className={collapsed ? "" : "ml-auto shrink-0"}
-                onClick={() => setCollapsed((v) => !v)}
-                aria-label={
-                  collapsed ? "Expand navigation" : "Collapse navigation"
-                }
-                aria-expanded={!collapsed}
-              >
-                {collapsed ? <PanelLeftOpenIcon /> : <PanelLeftCloseIcon />}
-              </Button>
-            </div>
+              {collapsed ? <PanelLeftOpenIcon /> : <PanelLeftCloseIcon />}
+            </Button>
           </div>
         </aside>
 
@@ -212,11 +200,7 @@ export function Shell() {
                   happening now, then what happened, then how the app looks. */}
               <NotificationBell />
               <ThemeToggle />
-              {/* Below `lg` the sidebar is a drawer, so the account row at its
-                  foot is not on screen and the menu stays in the bar. */}
-              <span className="lg:hidden">
-                <AccountMenu organizations={orgs ?? []} current={current} />
-              </span>
+              <AccountMenu organizations={orgs ?? []} current={current} />
             </div>
           </header>
 

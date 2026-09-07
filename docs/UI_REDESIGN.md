@@ -166,8 +166,14 @@ drawer kept for narrow widths only. It also keeps its collapse-to-icons state,
 which predates this document and is remembered per browser.
 
 Anatomy, top to bottom: brand row; the four existing nav groups from
-`nav.ts` unchanged (POSTURE / EXPOSURE / RESPONSE / EVIDENCE); account row
-pinned to the bottom with `margin-top: auto`.
+`nav.ts` unchanged (POSTURE / EXPOSURE / RESPONSE / EVIDENCE); the connection
+badge pinned to the bottom with `margin-top: auto`.
+
+**Not the account row.** This section put it at the foot of the rail and the
+shipped shell keeps it in the top-right corner instead: an account menu in the
+top-right is a convention older than this product, and a reader looking to
+switch organization or sign out should not have to be taught where it went
+(DECISIONS.md §86).
 
 - Group labels use the 11px uppercase section-label style.
 - Nav item: 8px/12px padding, 8px radius, 14px label, 16px stroked icon.
@@ -178,8 +184,8 @@ pinned to the bottom with `margin-top: auto`.
   makes, so the two numbers cannot disagree.
 
 Top bar is 58px with a bottom hairline: the `⌘K` search affordance on the
-left at 360px wide, notifications and theme toggle on the right. `AccountMenu`
-moves out of the top bar into the sidebar's bottom row.
+left at 360px wide, then notifications, the theme toggle and `AccountMenu` on
+the right — where it was, and where it stays.
 
 **Page header pattern, identical on all six screens:**
 
@@ -403,15 +409,48 @@ Do these in sequence; each is independently reviewable.
 - Do not hide, collapse or default-filter UNKNOWN rows.
 - Do not let a table row wrap to two lines.
 
+## 6.5 Below `lg`
+
+The mockups are all 1440px wide, so this is written rather than drawn
+(DECISIONS.md §93). Three breakpoints, and each one is a decision about what
+the reader loses first.
+
+**`lg` (1024px) — the two-column layouts collapse.** The sidebar becomes the
+drawer it already was; the account menu is in the top bar at every width, so
+nothing about it changes here. A page
+with a drawer open — risks, rules — shows the drawer *instead of* the list
+rather than beside it: the same component, so the narrow reading cannot drift
+from the wide one. The overview hero stacks, arc above map.
+
+**`sm` (640px) — the horizontal affordances go.** Search is its icon and
+nothing else: a full-width search bar on a 375px screen leaves the
+notifications and the account menu fighting for what is left. The stat tiles go
+two-up, the remediation board goes two columns before it goes one.
+
+**Tables scroll; the page never does.** Every table carries a `min-w-[...]`
+floor — the sum of its fixed columns plus room for the flexible one — inside
+the primitive's own `overflow-x-auto`. Without the floor a table does not
+scroll, it *crushes*: the flexible first column collapses toward nothing and
+the finding title disappears while the empty columns keep their width. Same for
+the attack-path diagram and the exposure map, both of which are fixed-width
+drawings inside a scrolling frame.
+
+What is deliberately **not** responsive: nothing is hidden by width alone. No
+column is dropped on a small screen and no row is summarised, because a
+security table that quietly shows less on a phone is the same failure as one
+that quietly shows less when a collector was refused.
+
 ## 7. Known gaps in the mockups
 
-- Responsive behaviour below `lg` is unspecified beyond "drawer nav, drawer
-  becomes a page".
 - The Findings rows other than the two identity ones use **invented rule IDs**
   (`storage.https_only`, `logging.diagnostics`, `authz.owner_direct`). Replace
   with real IDs from the rule registry.
-- No component sheet yet — buttons, chips, table rows, empty states and the
-  severity swatches are defined only by example inside the six previews.
-- `--meta-foreground` and `--faint-foreground` are below AA for body text (see
-  §2.2). Every use of them needs to stay in the meta register, and there is no
-  lint rule enforcing that.
+- ~~No component sheet yet~~ — there is one at **`/design`**, rendered from the
+  components themselves rather than drawn, so it cannot describe a product that
+  no longer exists. Development only: the route and its chunk do not exist in a
+  production build (DECISIONS.md §94).
+- ~~`--meta-foreground` and `--faint-foreground` are below AA for body text
+  with no lint rule enforcing it~~ — `cloudguard/meta-foreground-is-not-body`
+  fails the build when either is paired with a size in the body register, and
+  CI runs it. It cannot catch a size inherited from a parent, which is stated
+  in the rule rather than left to be discovered (DECISIONS.md §95).

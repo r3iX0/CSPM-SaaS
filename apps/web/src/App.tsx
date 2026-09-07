@@ -74,6 +74,21 @@ const AttackPathsPage = lazy(() =>
 const ScansPage = lazy(() =>
   import("@/pages/Scans").then((m) => ({ default: m.ScansPage })),
 );
+/**
+ * The component sheet, and the reason the condition is up here.
+ *
+ * A `lazy()` inside a conditional route still bundles: the dynamic import sits
+ * at module scope, Rollup cannot prove the `lazy()` call pure, and the chunk is
+ * emitted whether or not anything routes to it. Behind the flag *here*, the
+ * `import()` is inside a branch Vite has already replaced with `false`, so the
+ * chunk is never produced. Verified by grepping `dist/`, which is the only way
+ * to know.
+ */
+const DesignSheetPage = import.meta.env.DEV
+  ? lazy(() =>
+      import("@/pages/DesignSheet").then((m) => ({ default: m.DesignSheetPage })),
+    )
+  : null;
 const RulesPage = lazy(() =>
   import("@/pages/Rules").then((m) => ({ default: m.RulesPage })),
 );
@@ -167,6 +182,15 @@ export function App() {
             path="/compliance/:frameworkId"
             element={<ComplianceFrameworkPage />}
           />
+          {/* Development only, and the condition is the whole point: Vite
+              inlines `import.meta.env.DEV` as `false` in a build, so the route
+              and the page behind it are dropped rather than merely hidden. A
+              customer has no use for CloudGuard's own swatches, and a page
+              enumerating every state of every control enumerates everything
+              the product can say. */}
+          {DesignSheetPage && (
+            <Route path="/design" element={<DesignSheetPage />} />
+          )}
           <Route path="/connections" element={<ConnectPage />} />
           {/* The wizard has its own URLs because setup leaves the browser for
               Microsoft and for Azure Portal and comes back through a full page

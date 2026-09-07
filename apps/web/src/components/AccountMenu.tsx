@@ -27,16 +27,9 @@ import { cn, label } from "@/lib/format";
 export function AccountMenu({
   organizations,
   current,
-  placement = "below",
 }: {
   organizations: Organization[];
   current: Organization | undefined;
-  /**
-   * Which way the menu opens. It lives at the foot of the sidebar now
-   * (docs/UI_REDESIGN.md §3), where a panel dropping downwards would open off
-   * the bottom of the window.
-   */
-  placement?: "below" | "above";
 }) {
   const t = useT();
   const navigate = useNavigate();
@@ -121,10 +114,8 @@ export function AccountMenu({
     navigate("/sign-in", { replace: true });
   }
 
-  const above = placement === "above";
-
   return (
-    <div className={cn("relative", above && "w-full")} ref={container}>
+    <div className="relative" ref={container}>
       <button
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
@@ -132,19 +123,13 @@ export function AccountMenu({
         aria-label={t.account.menu}
         className={cn(
           "flex items-center gap-2 rounded-lg border px-2 py-1.5 text-sm transition",
-          above && "w-full",
           open
             ? "border-input bg-muted/40"
             : "border-transparent hover:border-border hover:bg-muted/40",
         )}
       >
         <Avatar name={current?.name ?? email ?? "?"} />
-        <span
-          className={cn(
-            "min-w-0 flex-1 truncate text-left font-medium text-foreground",
-            above ? "block" : "hidden max-w-[12rem] sm:block",
-          )}
-        >
+        <span className="hidden max-w-[12rem] truncate font-medium text-foreground sm:block">
           {current?.name ?? t.account.unknownUser}
         </span>
         <Chevron open={open} />
@@ -153,10 +138,7 @@ export function AccountMenu({
       {open && (
         <div
           role="menu"
-          className={cn(
-            "absolute z-20 w-72 overflow-hidden rounded-xl border border-border bg-background shadow-lg",
-            above ? "bottom-full left-0 mb-2" : "right-0 mt-2",
-          )}
+          className="absolute right-0 z-20 mt-2 w-72 overflow-hidden rounded-xl border border-border bg-background shadow-lg"
         >
           <Section label={t.account.signedInAs}>
             <p className="truncate px-3 pb-2 text-sm font-medium text-foreground">

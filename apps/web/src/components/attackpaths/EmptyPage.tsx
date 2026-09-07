@@ -184,7 +184,9 @@ function RouteDiagram({
   const t = useT();
 
   return (
-    <div className="flex items-start gap-3" aria-hidden>
+    // Fixed widths, so it scrolls inside itself on a narrow screen rather
+    // than pushing the card wider than the page.
+    <div className="flex max-w-full items-start gap-3 overflow-x-auto" aria-hidden>
       <Node
         met={entry}
         label={`${entryCount} ${entryCount === 1 ? t.attackPaths.entryPoint : t.attackPaths.entryPoints}`}
@@ -219,7 +221,7 @@ function Node({
   tone?: "amber" | "neutral";
 }) {
   return (
-    <div className="flex w-24 flex-col items-center gap-2">
+    <div className="flex w-24 shrink-0 flex-col items-center gap-2">
       <span
         className={cn(
           "flex size-12 items-center justify-center rounded-full border",
@@ -239,7 +241,7 @@ function Node({
 function Connector() {
   return (
     <span
-      className="mt-6 h-px w-10 border-t border-dashed border-border"
+      className="mt-6 h-px w-10 shrink-0 border-t border-dashed border-border"
       aria-hidden
     />
   );
@@ -291,7 +293,9 @@ function ExamplePath() {
             </div>
           ))}
           <span className="ml-auto shrink-0 text-right">
-            <span className="block font-mono text-xl font-medium text-meta-foreground">
+            {/* 20px is the body register, not the meta one, and
+                `--meta-foreground` is 4.11:1 — under AA for text this size. */}
+            <span className="block font-mono text-xl font-medium text-muted-foreground">
               {hops.length}
             </span>
             <span className="block text-[10px] uppercase tracking-[0.12em] text-meta-foreground">

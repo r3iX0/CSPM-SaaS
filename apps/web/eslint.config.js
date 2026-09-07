@@ -4,6 +4,8 @@ import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
+import { metaForegroundIsNotBody } from "./eslint-rules/meta-foreground-is-not-body.js";
+
 /**
  * Flat config, because ESLint 9 removed the `.eslintrc` format and the `--ext`
  * flag along with it.
@@ -30,6 +32,12 @@ export default tseslint.config(
     plugins: {
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh,
+      // The product's own rules, as rules. A contrast constraint that lives
+      // only in a comment is a constraint the next change breaks in good
+      // faith.
+      cloudguard: {
+        rules: { "meta-foreground-is-not-body": metaForegroundIsNotBody },
+      },
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
@@ -48,6 +56,10 @@ export default tseslint.config(
       // `any` is worth arguing about, and it is not worth failing a build over
       // while there are still a handful in code that predates this config.
       "@typescript-eslint/no-explicit-any": "warn",
+
+      // An error rather than a warning: this one is a WCAG failure on a
+      // security product's own text, and the fix is always one class.
+      "cloudguard/meta-foreground-is-not-body": "error",
     },
   },
   {

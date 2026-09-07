@@ -4188,13 +4188,18 @@ makes, so the rail and the page cannot disagree about what "open" means: the
 API's own definition of a live risk decides, rather than the sidebar inventing a
 second one. It is cached for a minute, because navigation is not a dashboard.
 
-**The account row moved to the foot of the rail**, under the connection badge,
-pinned with `margin-top: auto`. Those two facts — who you are, and whether
-CloudGuard can see anything at all — qualify every screen above them and are not
-things a reader goes hunting for in the corner of a toolbar. `AccountMenu` grew
-a `placement` prop for it: at the bottom of the window a menu that drops
-downwards opens off the screen, so it opens upward there. Below `lg` the rail is
-a drawer and is not on screen, so the menu stays in the top bar at that width.
+**The account menu stays in the top-right corner.** §3's anatomy puts an
+account row at the foot of the rail, and it was built that way and then moved
+back on the owner's instruction — which is the right call: an account menu in
+the top-right is a convention older than this product, and a reader who wants
+to switch organization or sign out looks in the corner without being taught.
+The argument for the foot of the rail was that who you are qualifies every
+screen; that is true and it is not worth spending a convention on.
+
+What did stay pinned to the foot is the **connection badge**, which is the
+precondition for every number above it — a product showing a security score of
+100 over an environment it has never connected to is not reassuring, it is
+wrong — and which nobody goes looking for.
 
 **The top bar is 58px and leads with search.** The palette used to be a small
 button at the far end, beside the theme toggle; it is the fastest route to any
@@ -4674,6 +4679,101 @@ An undeclared environment on the asset and finding detail pages renders as a
 dashed `Unknown` chip rather than an em dash, matching what §89 did to the
 assets table. A blank cell claims "no environment"; the truth is that nobody
 has said.
+
+## 93. What a narrow screen loses, in the order it loses it
+
+`docs/UI_REDESIGN.md` §7 listed "responsive behaviour below `lg` is unspecified
+beyond drawer nav, drawer becomes a page" as a known gap, and it stayed a gap
+while this redesign added four two-column layouts, four tables and two
+fixed-width drawings. Every one of those was written with a breakpoint in it
+and none of it was written down, which is the state where the next change
+guesses.
+
+It is specified now, in §6.5 of that document, and the code was corrected to
+match rather than the document written to match the code. Three things were
+actually wrong:
+
+**A table with fixed columns does not scroll — it crushes.** The primitive
+wraps every table in `overflow-x-auto`, which does nothing while the table is
+happy to be narrower: the flexible first column collapses toward zero and the
+finding's title vanishes while six fixed columns keep every pixel. Each table
+now carries a `min-w-[...]` floor, so the container has something to scroll.
+
+**A full-width search bar on a phone is not a search bar.** Below `sm` the
+palette trigger was `w-full`, which left the notification bell, the theme
+toggle and the account menu dividing the remainder. It is the icon alone there.
+
+**The remediation board went from four columns to one** at `lg` with nothing in
+between, so a tablet read a board as a very long list. Two columns at `sm`.
+
+The rule the section ends on is the one worth keeping: **nothing is hidden by
+width alone.** No column is dropped on a small screen, no row summarised. A
+security table that quietly shows less on a phone is the same failure as one
+that quietly shows less because a collector was refused — and this product has
+spent nine decisions refusing that.
+
+None of this is provable in jsdom, which has no layout: the tests here can
+assert that a component renders, not that it fits. It was verified by reading
+the emitted classes and the built stylesheet, and it wants a pass on a real
+narrow viewport before anyone calls it done.
+
+## 94. The component sheet is rendered, not drawn, and never ships
+
+The last of `docs/UI_REDESIGN.md` §7: buttons, chips, table rows, empty states
+and the severity swatches were "defined only by example inside the six
+previews", which made the definitive answer to *what does a MEDIUM chip look
+like on a card* a 1440px PNG of a mockup.
+
+`/design` renders them from the real components. That is the whole point of
+building it in the app rather than as a page in `docs/`: a style guide kept as
+a document describes the product it was written against, and this one changes
+when a chip changes. It shows each severity on both surfaces, because a tint
+that works on the page can glow on a card — and a badge that glows reads as
+more urgent than the one beside it, which is a ranking the rules never made.
+
+**It is development-only, and the mechanism took two tries.** The first version
+put `import.meta.env.DEV` on the route and left `lazy(() => import(...))` at
+module scope. That still bundles: the dynamic import sits at module scope,
+Rollup cannot prove the `lazy()` call pure, and the chunk is emitted whether or
+not anything routes to it — `dist/assets/DesignSheet-*.js` was right there in
+the build. The flag belongs on the *import*, so the `import()` sits inside a
+branch Vite has already replaced with `false`.
+
+Worth recording because the mistake is invisible from the source: both versions
+read as "dev only" and only one of them is. The check is `grep dist/`, and it is
+the only way to know.
+
+## 95. The contrast constraint is a lint rule, not a comment
+
+The last open item in `docs/UI_REDESIGN.md` §7, and the one that was a live
+risk rather than a missing document.
+
+§84 kept `--meta-foreground` and `--faint-foreground` at values that do not
+clear AA for body text — 4.11:1 and 3.20:1 on the card in dark, 3.95:1 and
+3.24:1 in light — because raising both to 4.5:1 lands them on the same colour
+and destroys the two-step distinction the design uses them for. What made that
+acceptable was a constraint: they only ever appear in the 11–12.5px meta
+register. And that constraint lived in a comment and a decision record, which
+is the state where the next change pairs one with `text-lg` in good faith and
+nothing objects.
+
+`eslint-rules/meta-foreground-is-not-body.js` objects. It is an **error**, not
+a warning: this is a WCAG failure on a security product's own text and the fix
+is always one class. CI already runs `npm run lint`.
+
+**It found one violation immediately, and it was ours** — the attack-paths
+example route drew its hop count at `text-xl` in `--meta-foreground`. A 20px
+regular weight is not WCAG "large text", so it needed 4.5:1 and had 3.95. It is
+`--muted-foreground` now.
+
+**The rule is deliberately conservative, and says so.** It reports a meta
+colour paired with an explicitly larger size *in the same class list*, and
+nothing else. It does not demand that a size be stated, because
+`<span className="text-meta-foreground">` inside a `text-xs` parent is correct
+and common, and a rule that flagged those is a rule somebody turns off. So it
+cannot catch a size inherited across two elements. Better to enforce the half
+that is checkable and name the half that is not than to imply the check is
+complete.
 
 ## Settings: the evidence a person supplies
 

@@ -36,7 +36,7 @@ export function RuleTable({
   const t = useT();
 
   return (
-    <Table>
+    <Table className="min-w-[780px]">
       <TableHeader>
         <TableRow>
           <TableHead>{t.rules.checkColumn}</TableHead>

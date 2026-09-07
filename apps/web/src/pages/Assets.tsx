@@ -406,7 +406,7 @@ export function AssetsPage() {
         <>
           <Card className="overflow-hidden py-0">
             <CardContent className="px-0">
-              <Table>
+              <Table className="min-w-[860px]">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
                     <TableHead>Asset</TableHead>

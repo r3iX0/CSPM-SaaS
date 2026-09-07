@@ -46,7 +46,7 @@ export function RiskTable({
   const [open, setOpen] = useState<Record<string, boolean>>({});
 
   return (
-    <Table>
+    <Table className="min-w-[560px]">
       <TableHeader>
         <TableRow>
           <TableHead>Risk</TableHead>

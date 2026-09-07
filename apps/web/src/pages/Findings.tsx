@@ -380,7 +380,7 @@ export function FindingsPage() {
         <>
           <Card className="overflow-hidden py-0">
             <CardContent className="px-0">
-              <Table>
+              <Table className="min-w-[940px]">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
                     <TableHead>Finding</TableHead>
