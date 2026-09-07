@@ -23,6 +23,8 @@ from app.connectors.evidence import EvidenceKey
 from app.core.enums import Provider, ResourceType, RuleScope, RuleState, Severity
 from app.domain.resource import CloudResource
 from app.remediation import RemediationSpec
+from app.risk.grouping import RiskGrouping
+from app.rules.controls import Control
 
 
 @dataclass(frozen=True)
@@ -33,6 +35,18 @@ class RuleResult:
     # Required when an AGGREGATE rule emits several results, so each one can be
     # attributed to the resource it concerns.
     resource_id: str | None = None
+    # How exploitable *this* instance is, where the rule can tell that it is
+    # less than the worst case its class tag describes.
+    #
+    # ``None`` means the rule has nothing instance-specific to say and the class
+    # tag stands. A value is only ever a step down: see
+    # :attr:`SecurityRule.exploitability`.
+    exploitability: int | None = None
+    # Defences observed in this same capture that stand between an attacker and
+    # this finding. They lower what the finding is scored at and never resolve
+    # it -- see ``rules/controls.py`` for why that distinction is the whole
+    # point.
+    controls: tuple[Control, ...] = ()
 
     @classmethod
     def passed(cls, evidence: dict[str, Any] | None = None, **kw: Any) -> "RuleResult":
@@ -64,6 +78,15 @@ class RuleContext:
     resources: list[CloudResource] = field(default_factory=list)
     # (source_id, relationship_type) -> [target_id]
     relationships: dict[tuple[str, str], list[str]] = field(default_factory=dict)
+    # Tenant- and subscription-level state that is not an asset: whether
+    # security defaults are on, which Conditional Access policies are enforced.
+    #
+    # Deliberately not normalized into ``resources``. A Conditional Access
+    # policy is not a thing anybody secures, has no exposure and no data
+    # sensitivity, and putting it in the asset list would inflate every
+    # inventory count with rows a customer never asked to own. Rules read it to
+    # find compensating controls (``rules/controls.py``).
+    controls: dict[str, Any] = field(default_factory=dict)
     # Evidence keys that could not be relied on this scan, e.g.
     # {"storage_accounts": "timeout"}. Rules whose evidence is missing degrade
     # to UNKNOWN instead of guessing.
@@ -154,6 +177,11 @@ class RuleContext:
                 if source in ids
             },
             collection_errors=self.collection_errors,
+            # Not filtered by provider. These are facts about the tenant that
+            # a rule of any provider may read, and the one thing narrowing them
+            # here could do is silently lose a control while keeping the finding
+            # it moderates.
+            controls=self.controls,
         )
 
 
@@ -167,8 +195,32 @@ class SecurityRule(ABC):
     provider: Provider = Provider.AZURE
     severity: Severity
     version: str = "1.0"
-    # Static 0-5 tag feeding the risk formula (RISK_ENGINE.md section 1).
-    exploitability: int = 0
+    # How exploitable the *worst* instance of this misconfiguration is, 0-5,
+    # feeding the risk formula (RISK_ENGINE.md section 1). The scale is what an
+    # attacker must already have:
+    #
+    #   5  nothing -- anonymous, from the internet, today
+    #   4  a credential of the kind routinely phished or sprayed, or a
+    #      guessable identifier
+    #   3  a valid credential, or an existing foothold in the environment
+    #   2  a foothold plus a particular position: a role, a host, a network
+    #   1  no exploitation on its own -- it weakens detection or defence in
+    #      depth, and makes another step easier
+    #   0  not exploitable
+    #
+    # Required, with no default. A default of 0 meant a rule whose author never
+    # thought about this silently asserted "not exploitable" -- the same
+    # overclaim as a PASS nobody earned, and the one this engine refuses
+    # everywhere else. ``severity`` above is declared the same way for the same
+    # reason.
+    #
+    # A ceiling rather than a constant. Where the evidence shows one instance is
+    # less exploitable than the worst case -- an NSG rule attached to nothing, a
+    # storage account open to every network but not to anonymous readers -- the
+    # rule returns a lower value on that ``RuleResult``. Never a higher one: the
+    # class tag is the tuned number (RULE_ENGINE.md section 5), and a rule that
+    # could raise it would be retuning itself one finding at a time.
+    exploitability: int
     scope: RuleScope = RuleScope.PER_RESOURCE
     applies_to: ClassVar[list[ResourceType]] = []
     remediation: str = ""
@@ -194,6 +246,35 @@ class SecurityRule(ABC):
     # administrator has MFA is a directory setting, and no ``policyRule`` can
     # express it.
     remediation_spec: ClassVar[RemediationSpec | None] = None
+    # How this rule's findings read once several of them are open at once.
+    #
+    # ``None`` -- the default -- is one risk per finding. A declaration means
+    # they are one risk with many members: the findings stay per resource,
+    # because each is separately fixed and separately verified, while the risk
+    # layer stops repeating one sentence and stops charging the security score
+    # once per repetition.
+    risk_grouping: ClassVar[RiskGrouping | None] = None
+
+    def effective_exploitability(self, result: RuleResult) -> int:
+        """What the risk formula should use for this finding.
+
+        The rule's own tag unless the result stepped down from it, and never
+        outside 0..tag -- so a mistaken override can only ever understate, which
+        is the direction that costs a customer nothing they were not already
+        told about by the severity.
+
+        Compensating controls apply the same way and afterwards, each as its own
+        ceiling. Taking the minimum means several controls compose to the
+        strongest of them without any one of them knowing the others exist, and
+        that a control can never raise a finding's exploitability -- a defence
+        that made a problem worse would be a contradiction in terms.
+        """
+        value = self.exploitability
+        if result.exploitability is not None:
+            value = min(value, result.exploitability)
+        for control in result.controls:
+            value = min(value, control.exploitability)
+        return max(0, value)
 
     @abstractmethod
     def evaluate(

@@ -70,6 +70,17 @@ export interface Asset extends ResourceSummary {
    * asset sits without a request per row.
    */
   provider_resource_id: string;
+  /**
+   * The provider's own type, for resources CloudGuard has no rule for.
+   *
+   * `resource_type` is the cloud-neutral one the rules match on, and it is
+   * `"unknown"` for anything the connector does not model. A row reading
+   * "Unknown" would be a worse answer than the omission it replaced -- the
+   * point of listing these is that the customer can see *what* is unchecked --
+   * so the real type travels beside it. Null for a modelled asset, whose
+   * neutral type is already the better label.
+   */
+  azure_type: string | null;
   open_findings: number;
   first_seen_at: string;
   last_seen_at: string;
@@ -140,6 +151,14 @@ export interface Risk {
  * findings scored 84 is an assertion until the members are named.
  */
 export interface RiskDetail extends Risk {
+  /**
+   * When the route was last seen, not when it first appeared.
+   *
+   * `null` where the scan that saw it has been pruned, or where the route
+   * predates this being tracked. Both mean "we cannot say when" and must not
+   * render as "just now".
+   */
+  observed_at?: string | null;
   findings: {
     id: string;
     rule_id: string;
@@ -156,7 +175,20 @@ export interface Finding {
   status: FindingStatus;
   title: string;
   description: string;
-  evidence: Record<string, unknown>;
+  /**
+   * What the rule saw. `compensating_controls` is added by the pipeline rather
+   * than by any rule: defences observed in the same capture that make this
+   * finding harder to exploit without making it right, so they lower what it is
+   * scored at and never resolve it.
+   */
+  evidence: Record<string, unknown> & {
+    compensating_controls?: {
+      id: string;
+      name: string;
+      detail: string;
+      exploitability: number;
+    }[];
+  };
   remediation: string;
   rule_version: string;
   risk_score: number | null;
@@ -329,6 +361,17 @@ export interface Dashboard {
      * support "none of them are public".
      */
     categories?: { name: string; readings: number; incomplete: number }[];
+    /**
+     * The other half of coverage. A check that reached no verdict is missing
+     * evidence and never becomes a finding, so it never touched the score. An
+     * asset whose criticality or data sensitivity CloudGuard could not
+     * establish is missing *context*, and the risk formula ranks that just
+     * under High so an unlabelled asset never sorts below a labelled one — a
+     * caution that is right for the ordering and must not reach the posture
+     * number. So the score charges the established band, and what the caution
+     * would have added is reported here: label these assets and the score moves.
+     */
+    context: { unclassified: number; classified: number; ratio: number };
   };
   /**
    * How recently the provider was actually read, which is a different question
@@ -406,7 +449,41 @@ export interface ControlRuleEvidence {
   severity: string;
   open_finding_count: number;
   unknown_count: number;
+  /**
+   * Why the rule could not tell, in its own words.
+   *
+   * INCONCLUSIVE is the one verdict on a control card a reader cannot act on
+   * from the verdict alone: failing points at findings, passing needs nothing,
+   * not-covered is a fact about CloudGuard. "Three could not be evaluated"
+   * points nowhere — and the answer is frequently a scanner role that needs
+   * redeploying, which is a thing they can do today.
+   *
+   * Several because one rule can fail differently on different resources.
+   */
+  unknown_reasons: string[];
   evaluated: boolean;
+}
+
+/**
+ * One provider listing a control's verdict rests on.
+ *
+ * Present for a passing control as much as a failing one, which is the point:
+ * a finding cites the readings behind it, so "how do you know this is wrong"
+ * was answerable and "how do you know this is met" was not.
+ */
+export interface ControlReading {
+  evidence_key: string;
+  /** `null` where the latest scan holds no reading of this key — not the same
+   *  as a failed read, and rendered differently. */
+  outcome: "COMPLETE" | "PARTIAL" | "FAILED" | null;
+  /** How many subscriptions (plus the directory) this listing was taken across. */
+  scopes: number;
+  collected_at: string | null;
+  age_seconds: number | null;
+  permissions: string[];
+  /** Whether every payload behind it is still stored, so it can still be
+   *  followed back to the bytes. */
+  retained: boolean;
 }
 
 export interface ComplianceControl {
@@ -418,6 +495,15 @@ export interface ComplianceControl {
   status: ControlStatus;
   open_finding_count: number;
   rules: ControlRuleEvidence[];
+  readings: ControlReading[];
+}
+
+/** Which reading of the estate an assessment is of. `null` before the first
+ *  scan completes: a framework page is then a catalogue, not an assessment. */
+export interface ComplianceAssessment {
+  scan_id: string;
+  completed_at: string | null;
+  scan_status: string;
 }
 
 export interface ComplianceFramework {
@@ -438,20 +524,71 @@ export interface ComplianceFramework {
 
 export interface ComplianceFrameworkDetail extends ComplianceFramework {
   assessed: boolean;
+  assessment: ComplianceAssessment | null;
   controls: ComplianceControl[];
 }
 
 /** Cloud connections. Mirrors app/models/cloud_connection.py. */
-export type ConnectionScope = "TENANT_ROOT" | "MANAGEMENT_GROUP" | "SUBSCRIPTION";
+
+/** Which cloud a connection reads. */
+export type Provider = "azure" | "aws";
+
+/**
+ * How much of a cloud one connection covers.
+ *
+ * One union across both clouds, because it is one question with a different
+ * vocabulary each time: a trust boundary, a grouping inside it, and the unit a
+ * scan reads. Named in each provider's own words rather than abstracted --
+ * whoever reads a row is usually matching it against a portal that says
+ * "management group" or "organizational unit".
+ */
+export type ConnectionScope =
+  | "TENANT_ROOT"
+  | "MANAGEMENT_GROUP"
+  | "SUBSCRIPTION"
+  | "ORGANIZATION"
+  | "ORGANIZATIONAL_UNIT"
+  | "ACCOUNT";
+
+/** What a deployment can actually connect, and why not. */
+export interface ProviderOption {
+  id: Provider;
+  name: string;
+  available: boolean;
+  /**
+   * Why this cloud cannot be chosen here. Shown rather than hidden: a picker
+   * that silently held an option answers "does this support AWS?" with
+   * nothing.
+   */
+  unavailable_reason: string | null;
+}
 
 export interface CloudConnection {
   id: string;
-  provider: string;
+  provider: Provider;
   name: string;
   scope_type: ConnectionScope;
   scope_id: string | null;
   scope_path: string | null;
   role_version: string;
+  /**
+   * Whether the deployed role is older than the one CloudGuard now needs.
+   *
+   * The version has been stamped on every connection since connections
+   * existed; until the access panel read it back it was a label rather than a
+   * mechanism. Shipping a check that needs a new ARM permission would leave
+   * every existing customer collecting UNKNOWN for it, with the screen still
+   * painting the role green.
+   */
+  role_upgrade_available: boolean;
+  /** The role version CloudGuard needs today, to redeploy toward. */
+  role_required_version: string;
+  /**
+   * Which collection categories the deployed role cannot fully serve. Empty
+   * when it is current. Comes from the same function the scanner uses to
+   * explain its gaps, so this screen and the scan cannot disagree.
+   */
+  degraded_categories: string[];
   tenant_id: string | null;
   service_principal_object_id: string | null;
   consent_status: "PENDING" | "GRANTED" | "REVOKED";
@@ -473,8 +610,22 @@ export interface CloudConnection {
   subscriptions: DiscoveredSubscription[];
   consent_url: string | null;
   template_url: string | null;
+  /**
+   * What only this connection's cloud has a word for, filtered by the API to
+   * what a customer is meant to read.
+   *
+   * On AWS: the scanner role's ARN, and the external id its trust policy must
+   * require. The external id is shown on purpose -- the customer needs it to
+   * check their own trust policy, and it is not a credential: it means nothing
+   * without a role that demands it. Empty for Azure, which keeps nothing per
+   * customer.
+   */
+  provider_ref: { role_arn?: string; external_id?: string };
   /** True once waiting no longer explains why read access has not appeared. */
   deploy_stalled: boolean;
+  /** Whether this environment reports its own changes, and when it last did. */
+  change_events_enabled?: boolean;
+  last_change_event_at?: string | null;
 }
 
 export interface DiscoveredSubscription {
@@ -482,6 +633,11 @@ export interface DiscoveredSubscription {
   subscription_id: string | null;
   display_name: string | null;
   in_scope: boolean;
+  /**
+   * When the scope choice was last changed. Null on a subscription nobody has
+   * ever ticked or unticked, which is every one of them until somebody does.
+   */
+  scope_changed_at?: string | null;
   status: "PENDING" | "ACTIVE" | "ERROR" | "DISABLED";
   discovered_at: string | null;
   last_scan_at: string | null;
@@ -529,6 +685,59 @@ export interface AttackPath {
  * on the route the asset in question sits — which is what decides what a
  * reader should do about it.
  */
+/**
+ * One provider call a reading was made with.
+ *
+ * The api-version is the half that settles arguments: a field absent from a
+ * capture is a setting nobody set, or a contract too old to return it, and only
+ * the second is CloudGuard's own staleness.
+ */
+export interface ProviderEndpoint {
+  path: string;
+  api_version: string;
+}
+
+/**
+ * One reading a finding rests on.
+ *
+ * The citation, not the excerpt. `evidence` on the finding is what the rule
+ * saw; this is where it came from, and it is what turns "CloudGuard says this
+ * is public" into something the customer can check.
+ */
+export interface EvidenceCitation {
+  evidence_key: string;
+  /** `null` is the directory: a tenant-wide read happened in no subscription. */
+  cloud_account_id: string | null;
+  /** `null` once the scan that read it has been pruned. */
+  outcome: CollectionOutcome | null;
+  item_count: number | null;
+  permissions: string[];
+  /** Empty where the scan was pruned, or the reading predates this being recorded. */
+  endpoints: ProviderEndpoint[];
+  content_hash: string | null;
+  collected_at: string;
+  /**
+   * Computed by the API, not here. A carried reading is older than the scan
+   * that raised the finding, and a browser measuring it against its own clock
+   * would show a different age on every machine.
+   */
+  age_seconds: number;
+  source_scan_id: string | null;
+  /** Whether the payload is still stored. A pruned blob does not void the citation. */
+  payload_available: boolean;
+}
+
+/**
+ * `evidence: null` means no citation was recorded — a finding raised before
+ * CloudGuard tracked this. An empty array would mean the rule reads nothing,
+ * and the UI must not say the second when the API said the first.
+ */
+export interface FindingProvenance {
+  rule_id: string;
+  rule_version: string;
+  evidence: EvidenceCitation[] | null;
+}
+
 export interface FindingAttackPath extends AttackPath {
   asset_role: "ENTRY" | "STEP" | "TARGET";
 }
@@ -551,6 +760,30 @@ export interface AttackPathMeta {
   total: number;
   entry_points: number;
   sensitive_targets: number;
+}
+
+/**
+ * One removable link, and the routes that stop existing without it.
+ *
+ * `severs` is verified by removing the link and re-asking the whole question,
+ * so it is what actually closes. `on_routes` is the larger number of routes the
+ * link merely sits on — carried beside it because the gap is the interesting
+ * part: a link on twenty routes that closes three is a link with a way round.
+ */
+export interface ChokePoint {
+  description: string;
+  relationship: string;
+  source: { id: string; name: string; resource_type: string };
+  target: { id: string; name: string; resource_type: string };
+  severs: number;
+  on_routes: number;
+  total_routes: number;
+  closes: {
+    entry: string;
+    target: string;
+    hops: number;
+    data_sensitivity: Level;
+  }[];
 }
 
 export interface RevocationStep {
@@ -576,6 +809,14 @@ export interface RevocationCheck {
 }
 
 export interface ScanScope {
+  /**
+   * Which cloud this scan read.
+   *
+   * The field names around it keep Azure's vocabulary because the columns
+   * behind them do; this is what lets the panel label them with the right
+   * noun (`lib/vocabulary.ts`).
+   */
+  provider: Provider | null;
   subscription_id: string | null;
   subscription_name: string | null;
   tenant_id: string | null;
@@ -639,6 +880,15 @@ export interface CollectionReading {
   outcome: CollectionOutcome;
   detail: string | null;
   item_count: number;
+  /** The reading itself, so its finding count is followable to exactly those findings. */
+  evidence_id: string;
+  /**
+   * How many findings cite this reading. Zero for a failed one, honestly: the
+   * rules that needed it degraded to UNKNOWN and never became findings.
+   */
+  finding_count: number;
+  collected_at: string;
+  endpoints: ProviderEndpoint[];
 }
 
 export interface CollectionStatus {
@@ -706,4 +956,35 @@ export interface ChangeEventSetup {
   quiet_period_minutes: number;
   minimum_interval_minutes: number;
   commands: { subscription_id: string; command: string }[];
+}
+
+/** What CloudGuard asks a customer to grant, shown before they grant it. */
+export interface AzurePermissions {
+  graph_application_permissions: string[];
+  azure_rbac_role: string;
+  access_type: string;
+  writes_performed: string;
+}
+
+export type NotificationKind =
+  | "REACHABLE_FINDING"
+  | "VERIFIED_FIX"
+  | "COVERAGE_DROP";
+
+/**
+ * One thing worth telling somebody, as it was true when it happened.
+ *
+ * `title` and `detail` come from the server already written. Composing them
+ * here from a finding that has since been fixed would describe a state nobody
+ * was ever notified about.
+ */
+export interface AppNotification {
+  id: string;
+  kind: NotificationKind;
+  title: string;
+  detail: string | null;
+  /** A path, so the client routes it. Never an absolute URL. */
+  link: string | null;
+  /** When it happened, which is not when the row was written. */
+  event_at: string;
 }

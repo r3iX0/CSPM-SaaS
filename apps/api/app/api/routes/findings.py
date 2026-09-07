@@ -8,12 +8,14 @@ from sqlalchemy.sql.elements import UnaryExpression
 from app.core.deps import DbSession, Tenant
 from app.core.enums import FindingStatus, ScanStatus, Severity
 from app.core.errors import ConflictError, ValidationFailed, envelope
+from app.core.vocabulary import words
 from app.graph import Path
-from app.models.finding import Finding
+from app.models.finding import Finding, FindingEvidence
 from app.models.resource import ResourceRecord
 from app.models.scan import Scan
 from app.schemas.finding import (
     AcceptRiskRequest,
+    EvidenceCitationOut,
     FindingEventOut,
     FindingOut,
     ResourceSummary,
@@ -58,6 +60,7 @@ async def list_findings(
     finding_status: FindingStatus | None = Query(default=None, alias="status"),
     rule_id: str | None = None,
     resource_id: UUID | None = None,
+    evidence_id: UUID | None = None,
     environment: str | None = None,
     search: str | None = None,
     sort: str = Query(default="risk", pattern="^(risk|severity|recent)$"),
@@ -86,6 +89,23 @@ async def list_findings(
         stmt = stmt.where(Finding.rule_id == rule_id)
     if resource_id:
         stmt = stmt.where(Finding.resource_id == resource_id)
+    if evidence_id:
+        # "What rests on this reading" -- the citation chain walked from the
+        # evidence end, which is what a person looking at a failed or stale
+        # listing on the scans page is actually asking.
+        #
+        # Filtered on the reading rather than on its key, because a key spans
+        # every subscription and every scan that read it: the count offered
+        # beside a reading and the rows this returns have to be the same set,
+        # or the link is a number that does not survive being clicked.
+        stmt = stmt.where(
+            Finding.id.in_(
+                select(FindingEvidence.finding_id).where(
+                    FindingEvidence.organization_id == tenant.organization_id,
+                    FindingEvidence.evidence_id == evidence_id,
+                )
+            )
+        )
     if environment:
         stmt = stmt.where(ResourceRecord.environment == environment)
     if search:
@@ -168,6 +188,50 @@ async def finding_attack_paths(
             for path in paths
         ],
         {"total": len(paths), "asset": resource.provider_resource_id},
+    )
+
+
+@router.get("/{finding_id}/provenance")
+async def finding_provenance(
+    finding_id: UUID, session: DbSession, tenant: Tenant
+) -> dict:
+    """How CloudGuard knows: the readings this finding rests on.
+
+    The finding already carries an *excerpt* of its evidence. This is the
+    citation -- which listing, taken when, under which permissions, and the hash
+    of the bytes -- which is the difference between a claim a customer has to
+    accept and one they can check.
+
+    Its own endpoint rather than a field on the finding, for the same reason
+    ``/attack-paths`` is: the page answering "what is wrong" must not wait on a
+    question most readers never ask.
+
+    ``evidence: null`` means no citation was recorded, which for a finding
+    raised before this existed is a fact about CloudGuard rather than about the
+    finding. An empty list would say the rule reads nothing, and the two must
+    not be answered the same way -- a product that cannot tell them apart is
+    back to asking to be believed.
+    """
+    finding = await service.get_finding(session, tenant, finding_id)
+    citations = await service.load_provenance(session, tenant, finding)
+
+    return envelope(
+        {
+            "rule_id": finding.rule_id,
+            # The rule as it was when this finding was raised, not as it is now.
+            # A citation to evidence read by a rule that has since changed its
+            # mind is a different claim, and the version is what says so.
+            "rule_version": finding.rule_version,
+            "evidence": (
+                [EvidenceCitationOut(**row).model_dump() for row in citations]
+                if citations is not None
+                else None
+            ),
+        },
+        {
+            "total": len(citations) if citations is not None else 0,
+            "recorded": citations is not None,
+        },
     )
 
 
@@ -270,10 +334,11 @@ async def rescan_finding(finding_id: UUID, session: DbSession, tenant: Tenant) -
             session, tenant, resource.connection_id
         )
         if account is None:
+            scope_words = words(resource.provider)
             raise ValidationFailed(
-                "This finding is about the tenant directory, and the connection "
-                "it came from has no subscription ready to scan. Validate the "
-                "connection, then try again."
+                f"This finding is about the {scope_words.directory}, and the "
+                f"connection it came from has no {scope_words.account} ready to "
+                "scan. Validate the connection, then try again."
             )
     else:
         account = await accounts_service.get_cloud_account(

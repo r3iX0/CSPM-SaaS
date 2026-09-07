@@ -40,7 +40,7 @@ export const en = {
     removingOrg: "Removing\u2026",
     removeOrgTitle: "Remove",
     removeOrgDetail:
-      "Its cloud connections, discovered subscriptions, assets, scan history, findings and risks are all deleted with it. This cannot be undone.",
+      "Its cloud connections, discovered accounts, assets, scan history, findings and risks are all deleted with it. This cannot be undone.",
     removeOrgOwnerOnly: "Only an owner can remove an organization.",
     keep: "Keep it",
   },
@@ -111,16 +111,17 @@ export const en = {
   connection: {
     title: "Cloud connections",
     intro:
-      "One connection per tenant or management group. Subscriptions beneath it are discovered, not registered by hand \u2014 so an environment created next month gets scanned instead of quietly missed.",
-    connectAzure: "Connect Azure",
+      "One connection per trust boundary. Everything beneath it is discovered, not registered by hand \u2014 so an environment created next month gets scanned instead of quietly missed.",
+    connectCloud: "Connect a cloud",
     noConnections: "No cloud environment connected yet.",
     noConnectionsHelp:
-      "Connecting takes two grants and about three minutes. You will not be asked for a tenant id, a subscription id, or any credential.",
+      "Connecting takes a few minutes and one deployment you run yourself. You will not be asked for any credential.",
     step: "Step",
     of: "of",
     stepConsent: "Grant admin consent",
     stepDeploy: "Deploy the scanner role",
     scope: "Scope",
+    cloud: "Cloud",
     connectionName: "Connection name",
     managementGroupId: "Management group id",
     subscriptionId: "Subscription id",
@@ -165,28 +166,93 @@ export const en = {
     changeDisable: "Turn off",
     changeSaving: "Saving\u2026",
     changeNotWired:
-      "The webhook is open. Nothing reaches it until you run the command below in each subscription \u2014 CloudGuard cannot create that subscription for you, because it holds no write permission in your tenant and does not ask for one.",
-    changeCommandsLabel: "Run this once per subscription",
+      "The webhook is open. Nothing reaches it until you run the command below in each account \u2014 CloudGuard cannot create that wiring for you, because it holds no write permission in your cloud and does not ask for one.",
+    changeCommandsLabel: "Run this once per account",
+    // AWS needs three commands rather than one, and the reason is worth
+    // stating: there is no single AWS call that points a rule at an HTTPS
+    // endpoint, so the delivery goes through a topic the customer owns.
+    changeCommandsLabelAws: "Run these once per account",
+    changeNotWiredAws:
+      "The webhook is open. Nothing reaches it until you run the commands below \u2014 EventBridge cannot deliver to an HTTPS endpoint on its own, so the change goes through an SNS topic in your account. CloudGuard creates none of it: it holds no write permission in your cloud and does not ask for one.",
     changeCopyCommand: "Copy command",
-    changeCopied: "Copied",
     changeNoEndpoint: "CloudGuard has no public address to receive deliveries",
     changeNoEndpointHelp:
-      "This deployment has no public API base URL configured, so there is no endpoint for Event Grid to deliver to. Change detection cannot be wired up until that is set.",
+      "This deployment has no public API base URL configured, so there is no endpoint for your cloud to deliver to. Change detection cannot be wired up until that is set.",
     changeLastEvent: "Last change heard",
     changeNeverHeard: "Nothing yet",
     changePending: "A change is settling; a scan starts once the environment is quiet",
     changeTiming:
       "A burst of changes becomes one scan, not one per event: CloudGuard waits for {quiet} minutes of quiet, and scans a connection at most once every {interval} minutes for change.",
 
-    noSubscriptionsTitle: "No subscriptions found yet",
+    // The empty state, which is the first meaningful screen in the product.
+    readWhatItDoes: "Read what CloudGuard will do",
+    hideWhatItDoes: "Hide the detail",
+    readOnlyPromise:
+      "The role CloudGuard asks for is read-only. It cannot change your configuration, and it cannot read the data inside your storage accounts, databases or key vaults.",
+    permissionsTitle: "The exact access CloudGuard asks for",
+    graphPermissions: "Directory permissions",
+    rbacRole: "Azure role",
+    writesPerformed: "Writes performed",
+    permissionsUnavailable:
+      "This list comes from the API and could not be loaded. It is the same list Microsoft shows on the consent screen, which is the copy that actually governs.",
+
+    // The connections list: one row per connection, opened for the detail.
+    columnConnection: "Connection",
+    columnStatus: "Status",
+    // Column heading and section headings are rendered from the connection's
+    // own vocabulary (lib/vocabulary.ts) where a provider is in hand. These
+    // remain for the table header, which spans connections to both clouds and
+    // so cannot be either one's word alone.
+    columnSubscriptions: "Accounts",
+    columnLastRead: "Last read",
+    columnActions: "Actions",
+    allInScope: "all in scope",
+    someInScope: "in scope",
+    expandRow: "Show this connection's detail",
+    collapseRow: "Hide this connection's detail",
+    scanNow: "Scan now",
+    scanStarting: "Starting\u2026",
+    scanQueued: "Scan queued",
+    changeSchedule: "Change schedule",
+    cadenceTitle: "How often this is read",
+    cadenceLastRead: "Last read",
+    cadenceNeverRead: "Not yet",
+    cadenceClock: "On a clock",
+    cadenceOnChange: "On change",
+    accessTitle: "Access",
+    scannerRole: "Scanner role",
+    readerRole: "Reader role",
+    verifiedOn: "verified",
+    roleBehind: "behind",
+    roleUpgradeTitle: "Some checks cannot run until the role is redeployed",
+    roleUpgradeBody:
+      "CloudGuard's scanner role gained permissions this connection was not "
+      + "granted. The checks that need them report \u201cnot known\u201d "
+      + "rather than passing \u2014 CloudGuard will not tell you something is "
+      + "fine when it could not look.",
+    roleUpgradeAffects: "Affected checks",
+    roleUpgradeAction: "Redeploy the role",
+    writePermission: "Write permission",
+    noneByDesign: "None, by design",
+    recheckAccess: "Re-check access",
+    firstSeen: "first seen",
+    newSinceLastRead: "new since last read",
+    excludedByYou: "excluded by you",
+    moreSubscriptions: "more",
+    discoveryPromise:
+      "Anything created beneath this connection appears here on the next read.",
+    scopeFootnote:
+      "Unticking one stops CloudGuard reading it. Existing findings for it are kept and marked out of scope, not deleted.",
+
+    noSubscriptionsTitle: "Nothing found yet",
     noSubscriptionsBody:
-      "Both grants are working, but CloudGuard cannot see any subscription to scan. A role assigned moments ago can take a few minutes to show up, and a role deployed to the wrong scope will never show up at all.",
-    lookAgain: "Look for subscriptions again",
+      "The grant is working, but CloudGuard cannot see anything to scan. Access granted moments ago can take a few minutes to show up, and a grant deployed to the wrong scope will never show up at all.",
+    lookAgain: "Look again",
     lookingAgain: "Looking…",
     runFirstScan: "Run a scan",
-    noSubscriptionsYet: "No subscriptions discovered yet",
+    noSubscriptionsYet: "Nothing discovered yet",
     noSubscriptionsYetHelp:
-      "The connection is verified but nothing was found beneath it. If the scanner role was deployed at a narrower scope than this connection covers, no subscription is visible to it.",
+      "The connection is verified but nothing was found beneath it. If the grant was deployed at a narrower scope than this connection covers, nothing beneath it is visible.",
     cannotStartConsent: "CloudGuard cannot start the consent flow",
     cannotDeployYet: "CloudGuard cannot generate the deployment yet",
     whoYouNeed: "Who you will need",
@@ -202,9 +268,9 @@ export const en = {
     copied: "Copied",
     waitingForAccess: "Waiting for the read access grant\u2026",
     verified: "Connection verified",
-    discovered: "subscriptions found",
-    inScopeCount: "subscriptions in scope",
-    inScope: "Scan this subscription",
+    discovered: "found",
+    inScopeCount: "in scope",
+    inScope: "Scan this",
     saveScope: "Save selection",
     done: "Done",
     lastDiscovery: "Last checked",
@@ -235,7 +301,7 @@ export const en = {
     removing: "Removing\u2026",
     removeTitle: "Remove this connection?",
     removeDetail:
-      "Its discovered subscriptions, their assets, scan history and findings are deleted with it. This cannot be undone.",
+      "Its discovered accounts, their assets, scan history and findings are deleted with it. This cannot be undone.",
     revokeTitle: "Revoke access in Azure",
     revokeIntro:
       "Removing the connection here deletes CloudGuard's copy of the data. It does not take away the access you granted \u2014 run these in Azure to do that.",
@@ -250,6 +316,133 @@ export const en = {
     notConfiguredDetail:
       "This is a setup step on CloudGuard's side, not yours \u2014 whoever operates this deployment needs to register its Entra application (docs/AZURE_INTEGRATION.md \u00a72.1).",
   },
+
+  // The setup wizard. Its own block rather than more keys on `connection`,
+  // because these strings are read in one sitting by somebody who has never
+  // seen the product before, and they have to make sense in sequence.
+  setup: {
+    title: "Connect Azure",
+    intro:
+      "Two grants and about three minutes. You will not be asked for a tenant id, a subscription id, or any credential.",
+    backToConnections: "Cloud connections",
+    railTitle: "What the three minutes look like",
+
+    stepScope: "Choose the scope, and name it",
+    stepScopeDetail:
+      "A whole tenant, one management group, or a single subscription. The name is yours \u2014 it is what you will see on every finding.",
+    stepConsent: "A Global Administrator grants admin consent",
+    stepConsentDetail:
+      "One Microsoft prompt, once per tenant. If that is not you, CloudGuard gives you a link to send.",
+    stepDeploy: "Deploy the reader role",
+    stepDeployDetail:
+      "One ARM template in Azure Portal. Needs Owner at the scope you chose \u2014 the form says which, before you start.",
+    stepAccounts: "Then CloudGuard finds the rest",
+    stepAccountsDetail:
+      "Every subscription beneath the scope is discovered and kept in step \u2014 including the ones created after today.",
+
+    // AWS says the same four things in its own words, and one fewer of them.
+    // Held as an override rather than as a second copy of the whole block:
+    // most of setup is identical, and two full sets would drift.
+    aws: {
+      title: "Connect AWS",
+      intro:
+        "One stack and about two minutes. There is no consent screen and no credential to hand over \u2014 you deploy a read-only role, and CloudGuard proves it works by using it.",
+      stepScope: "Choose the scope, and name it",
+      stepScopeDetail:
+        "A whole organization, one organizational unit, or a single account. Either way you name the account CloudGuard starts from.",
+      stepDeploy: "Deploy the scanner stack",
+      stepDeployDetail:
+        "One CloudFormation stack, pre-filled. It creates a read-only role that only CloudGuard can assume, and only with the external id below.",
+      stepAccounts: "Then CloudGuard finds the rest",
+      stepAccountsDetail:
+        "Every account in the organization is discovered and kept in step \u2014 including the ones opened after today.",
+      deployTitle: "Deploy the scanner stack",
+      deployBody:
+        "This creates one IAM role in your account. Every permission on it is a read of configuration \u2014 nothing it grants can read the contents of a bucket, a database or a secret.",
+      launchStack: "Launch stack in AWS",
+      externalIdTitle: "Your external id",
+      externalIdBody:
+        "The stack requires this value before the role can be assumed, and CloudGuard generated it for this connection alone. It is not a password: on its own it grants nothing, and it is useless to anyone without a role that demands it. Check it appears in the trust policy you are about to create.",
+      roleArnTitle: "The role CloudGuard will assume",
+      stackScopeOrganization:
+        "Deployed in the management account you named. Use a StackSet to reach the member accounts, or run the same stack in each.",
+      stackScopeAccount: "Deployed in the one account you named.",
+      organizationId: "Management account id",
+      organizationalUnitId: "Organizational unit id",
+      accountId: "Account id",
+      scopeOrganization: "Entire organization",
+      scopeOrganizationDetail:
+        "Discover and scan every account in the organization.",
+      scopeOrganizationRequires:
+        "Needs permission to create the stack in the management account, and a StackSet or one deployment per member account.",
+      scopeOrganizationalUnit: "Organizational unit",
+      scopeOrganizationalUnitDetail:
+        "Limit to the accounts under one organizational unit.",
+      scopeOrganizationalUnitRequires:
+        "Needs the same stack in each account beneath the unit.",
+      scopeAccount: "Single account",
+      scopeAccountDetail: "Scan one account only.",
+      scopeAccountRequires:
+        "Needs permission to create a stack and an IAM role in that account \u2014 usually the easiest to complete.",
+    },
+
+    // Consent step.
+    consentTitle: "Ask a Global Administrator to consent",
+    consentBody:
+      "This is one Microsoft prompt, granted once for the whole directory. Nothing is scanned by it \u2014 it is what lets CloudGuard ask Azure who exists.",
+    notAdmin: "I am not a Global Administrator",
+    handoffTitle: "Send it to someone who is",
+    handoffBody:
+      "The link works once and expires in 30 minutes, so send it when they are at their desk. This page keeps waiting; you can close it and come back.",
+    handoffMessage:
+      "Please open this link and approve read-only access for CloudGuard, our cloud security tool. It needs a Global Administrator, takes one click, and grants no permission to change anything:",
+    copyMessage: "Copy the message",
+    consentFailed: "Admin consent did not complete",
+    consentRetry: "Start consent again",
+
+    // Deploy step.
+    deployTitle: "Grant read access at the scope you chose",
+    deployBody:
+      "The template is pre-filled. Azure Portal opens on a review screen; there is nothing to type.",
+    deployToAzure: "Deploy to Azure",
+    stalledTitle: "This is taking longer than a deployment should",
+    stalledBody:
+      "The three things that usually explain it, in the order they are worth checking:",
+    stalledPropagation:
+      "A role assigned in the last few minutes has not propagated yet. Waiting a little longer is the fix.",
+    stalledScopeTenant:
+      "The deployment landed on a subscription rather than the tenant root. A connection covering the whole tenant only sees a role assigned at the root management group.",
+    stalledScopeGroup:
+      "The deployment landed on a subscription rather than on the management group this connection covers.",
+    stalledScopeSubscription:
+      "The deployment landed on a different subscription from the one this connection covers.",
+    stalledOwner:
+      "Whoever ran it holds Contributor rather than Owner or User Access Administrator. Contributor can deploy a template but cannot assign a role, and Azure reports that as a failed deployment rather than a missing permission.",
+    checkAgain: "Check again",
+    checking: "Checking\u2026",
+    changeScope: "Choose a different scope",
+
+    // The accounts step.
+    discoverTitle: "Looking for what is beneath it",
+    reviewTitle: "Choose what CloudGuard reads",
+    reviewBody:
+      "Everything beneath the scope is in scope by default. Unticking one stops CloudGuard reading it; existing findings are kept and marked out of scope, not deleted.",
+    nothingInScopeTitle: "Nothing is ticked, so nothing will be read",
+    nothingInScopeBody:
+      "Everything found beneath this scope is out of scope. Tick at least one above, or leave it — the connection stays and picks up whatever is ticked later.",
+    doneTitle: "Connected",
+    doneBody:
+      "Nothing is read until a scan runs. The first one is worth starting now \u2014 after that, the scans page decides how often this environment is re-read.",
+    backToList: "Back to connections",
+
+    // Footer, on every step, and the way back in from the connections list.
+    continueSetup: "Continue setup",
+    finishLater: "Finish later",
+    paused: "Setup is paused",
+    pausedBody:
+      "Nothing has been scanned and nothing was granted. Pick it up whenever the right person is available.",
+  },
+
   dashboard: {
     title: "Security posture",
     score: "Security score",
@@ -273,7 +466,7 @@ export const en = {
       "How much of your environment CloudGuard could conclusively assess. Tracked separately from your score so the score stays easy to explain.",
     assets: "Assets discovered",
     noScans: "No scan has run yet",
-    noScansHelp: "Connect an Azure subscription and run your first scan to see your posture.",
+    noScansHelp: "Connect a cloud environment and run your first scan to see your posture.",
     runFirstScan: "Run your first scan",
     allClear: "No open findings. Nice.",
     couldNotLoad: "Couldn't load your dashboard",
@@ -286,6 +479,28 @@ export const en = {
     empty: "No findings match these filters.",
     whyItMatters: "Why this matters",
     evidence: "Evidence",
+    provenance: "How we know",
+    restingOnReading: "Resting on one reading",
+    provenanceIntro:
+      "Where the evidence above came from \u2014 which listing, when the provider was read, and under which permission.",
+    // `null` from the API: a fact about CloudGuard, not about this finding.
+    provenanceUnrecorded:
+      "This finding was raised before CloudGuard recorded where its evidence came from. The next scan that detects it will.",
+    // `[]`: a fact about the rule, and a different sentence for that reason.
+    provenanceNone: "This check reads no collected evidence.",
+    provenanceRead: "Read",
+    provenanceItems: "{count} items",
+    provenanceUnder: "Read under",
+    provenancePayload: "Capture",
+    provenanceHeld: "Still stored",
+    // The citation outlives the bytes on purpose, so this is a statement about
+    // retention rather than an error.
+    provenancePruned: "No longer stored",
+    provenanceRule: "Evaluated by {rule} v{version}",
+    controlsTitle: "What is standing in the way",
+    controlsHelp:
+      "Defences CloudGuard observed in the same reading. They make this harder to exploit without making it right, so this finding is ranked lower than it otherwise would be \u2014 and it is still open, because every one of them can be switched off, rescoped or have this account excluded in a change nobody reviews.",
+    controlsStillNeeded: "An attacker still needs",
     howToFix: "How to fix it",
     riskScore: "Risk score",
     effort: "Estimated effort",
@@ -308,7 +523,16 @@ export const en = {
     scoreBreakdown: "How this score was calculated",
     compliance: "Related controls",
   },
-  assets: { title: "Assets", empty: "No assets discovered yet.", openFindings: "Open findings" },
+  assets: {
+    title: "Assets",
+    empty: "No assets discovered yet.",
+    openFindings: "Open findings",
+    // CloudGuard reporting its own limits. Phrased as what it does not
+    // check rather than as a coverage percentage: a percentage invites the
+    // reader to feel good about a high one, and the useful question is
+    // which resources are unexamined, not what share of them are.
+    unchecked: "{count} with no checks yet",
+  },
   risks: {
     title: "Risks",
     empty: "No risks recorded yet.",
@@ -318,6 +542,12 @@ export const en = {
     escalationBadge: "Privilege escalation",
     scenarioIntro: "Several findings, seen as one route",
     escalationIntro: "A route to an identity that can grant itself more",
+    lastSeen: "This route was still there {when}.",
+    // Not "never seen": the route exists because a scan found it. What is
+    // missing is which reading, and saying so beats implying staleness we
+    // cannot demonstrate.
+    lastSeenUnknown:
+      "The reading that found this route is no longer stored, so CloudGuard cannot say when it was last confirmed.",
     routeLabel: "The route",
     cutLabel: "Severing it",
     // The scoring, said in the terms the breakdown actually stores. A customer
@@ -335,6 +565,8 @@ export const en = {
       "The findings on this route. Fixing any one of them breaks the route \u2014 the cheapest is usually the identity or the role, never the containment.",
     builtFromFinding:
       "The observation this risk scores. A finding is what CloudGuard saw; the risk is what it means for this asset, with this data, at this level of exposure.",
+    builtFromGroup:
+      "Every asset failing this check. They are one risk because they are one mistake and one fix \u2014 scored as the worst of them, not as the sum, and each still tracked and verified on its own.",
     noMembers: "No findings are linked to this risk.",
     noMembersDetail:
       "The findings it was built from have been deleted, most likely with the scan that raised them. The score is kept as history rather than recomputed from nothing.",
@@ -369,10 +601,30 @@ export const en = {
     cutHere: "Cut it here",
     cutHereDetail:
       "Removing this one link severs the route. Containment cannot be removed \u2014 a storage account has to live somewhere \u2014 so the fix is always an identity or a role.",
+    chokeTitle: "The changes that close the most",
+    chokeHelp:
+      "Every route below is one thing to read. These are the links holding several of them up at once \u2014 and each is usually not the fix any single route would have suggested on its own, because the shared link tends to sit in the middle while each route's own cheapest break is at its start.",
+    chokeSevers: "routes close",
+    chokeOf: "of",
+    chokeSitsOn:
+      "It sits on {on} \u2014 the rest have another way round, so cutting this does not close them.",
     entryPoints: "exposed assets",
     sensitiveTargets: "sensitive assets",
     exposure: "Exposure",
     sensitivity: "Sensitivity",
+  },
+  notifications: {
+    aria: "Notifications",
+    ariaUnread: "Notifications, {count} unread",
+    title: "Notifications",
+    // What one row's dismiss button is called for a screen reader. The button
+    // itself is an icon, so this is the only place it is named.
+    dismiss: "Dismiss",
+    dismissOne: "Dismiss: {title}",
+    clearAll: "Clear all",
+    // Not "no notifications" alone: that is ambiguous between all quiet and
+    // CloudGuard having stopped checking.
+    empty: "Nothing new. CloudGuard tells you about reachable findings, verified fixes, and readings it could not take.",
   },
   scans: {
     title: "Scans",
@@ -422,16 +674,19 @@ export const en = {
       "This capture is no longer CloudGuard's current picture of the environment \u2014 it has been read again since. The counts below say what today's rules would have made of it. No finding was created, resolved or reopened: a capture from before nobody looked at cannot verify a fix.",
     replayCurrentTitle: "Applied to your current picture",
     replayCurrentDetail:
-      "This was still the newest capture for its subscriptions, so the results count: findings were raised, resolved and reopened exactly as a fresh scan would have done, without reading your cloud again.",
+      "This was still the newest capture for everything it covered, so the results count: findings were raised, resolved and reopened exactly as a fresh scan would have done, without reading your cloud again.",
     wouldHaveFound: "Findings (would have)",
     stuckTitle: "Nothing has picked this scan up",
     stuckDetail:
       "A scan is collected by CloudGuard's worker within seconds of being queued. Minutes of silence means no worker is running \u2014 check that the Celery worker service is deployed and can reach Redis.",
-    nothingFound: "No resources were found in this subscription",
+    nothingFound: "No resources were found here",
     nothingFoundHelp:
-      "Every resource category CloudGuard reads returned successfully and was empty, so there is nothing here to assess. If that is unexpected, check in Details which subscription this scan covered \u2014 a connection discovers every subscription it can see, including empty ones.",
+      "Every resource category CloudGuard reads returned successfully and was empty, so there is nothing here to assess. If that is unexpected, check in Details what this scan covered \u2014 a connection discovers everything it can see, including empty environments.",
     nothingFoundPartial:
       "Nothing was assessed, and some categories could not be read at all \u2014 see the gaps below. A category that failed is not the same as a category that was empty.",
+    supportsOne: "1 finding rests on this",
+    supportsMany: "{count} findings rest on this",
+    supportsNone: "no findings rest on this",
     collectionTitle: "What was read",
     collectionSummary: "read completely",
     collectionPartial: "partial",
@@ -445,6 +700,12 @@ export const en = {
     outcomeSkipped: "Not attempted",
     partialHint:
       "An incomplete listing cannot support a pass, so the checks that needed it report unknown rather than clean.",
+    // The same invariant for the readings that produced nothing at all. It
+    // used to be stated only for PARTIAL, so a scan where storage failed
+    // outright showed a badge, a count, and no word about what it cost --
+    // leaving "could not read" to be read as "nothing to report".
+    unreadHint:
+      "A reading that produced nothing supports nothing: the checks that needed it report unknown, never passed.",
     partial: "Some data could not be collected — affected checks are marked unknown, not passed.",
   },
   rules: {
@@ -486,6 +747,25 @@ export const en = {
     notAssessableHelp:
       "This requirement is organizational, procedural or physical. No cloud posture scan can produce evidence for it.",
     evidenceFrom: "Evidence from",
+    // The readings under a control, which is what turns a green row from a
+    // claim into something a reader can check.
+    readFrom: "Read from",
+    readingNever: "not read in the last scan",
+    readingScopes: "scope",
+    readingScopesPlural: "scopes",
+    readingPruned: "payload no longer stored",
+    readingHelp:
+      "The provider listings this control's verdict rests on, as the last scan took them. The oldest read and the worst outcome are shown: a control is only as current and as complete as the least of the things it rests on.",
+    export: "Export",
+    exportCsv: "Spreadsheet (CSV)",
+    exportJson: "Machine-readable (JSON)",
+    exporting: "Preparing\u2026",
+    exportFailed: "Could not prepare the export",
+    exportHelp:
+      "Every control, its verdict, the rules behind it and the readings behind those \u2014 including the controls that passed.",
+    assessedFrom: "Assessed from the scan completed",
+    assessedPartial:
+      "That scan could not read part of the estate, so this assessment has a gap in it.",
     empty: "No frameworks in the catalogue.",
     backToFrameworks: "All frameworks",
     statusHelp: {
@@ -585,12 +865,12 @@ export const en = {
       "Your role can read this but not change it. An owner or an admin can edit the organization.",
 
     // The declarations. This is the part that changes what CloudGuard reports.
-    contextTitle: "What your subscriptions are for",
+    contextTitle: "What your environments are for",
     contextHelp:
       "CloudGuard scores a finding by what it would cost you \u2014 how critical the asset is, how sensitive its data, how exposed it is. It infers those from names and tags where it can, and inference is the weakest evidence it has. Anything you declare here beats it.",
-    contextEmpty: "No subscriptions have been discovered yet",
+    contextEmpty: "Nothing has been discovered yet",
     contextEmptyDetail:
-      "Connect a cloud environment and CloudGuard will discover the subscriptions beneath it. There is nothing to describe until then.",
+      "Connect a cloud environment and CloudGuard will discover what is beneath it. There is nothing to describe until then.",
     environment: "Environment",
     criticality: "Criticality",
     dataSensitivity: "Data sensitivity",
@@ -610,11 +890,11 @@ export const en = {
     contextFailed: "Could not save the declaration",
     // The honest bit: a declaration is not retroactive.
     appliesNext:
-      "Applied by the next evaluation of this subscription \u2014 the next scan, or a replay of its latest capture. Existing scores are left alone: a risk score is what a scan concluded, and rewriting stored numbers from a form would leave findings carrying figures no observation ever produced.",
+      "Applied by the next evaluation of this environment \u2014 the next scan, or a replay of its latest capture. Existing scores are left alone: a risk score is what a scan concluded, and rewriting stored numbers from a form would leave findings carrying figures no observation ever produced.",
 
     dangerTitle: "Delete this organization",
     dangerHelp:
-      "Removes the organization and everything under it: connections, discovered subscriptions, assets, scans, findings, risks and audit history. There is no soft delete and no undo.",
+      "Removes the organization and everything under it: connections, discovered accounts, assets, scans, findings, risks and audit history. There is no soft delete and no undo.",
     dangerConfirmLabel: "Type the organization name to confirm",
     delete: "Delete organization",
     deleting: "Deleting\u2026",

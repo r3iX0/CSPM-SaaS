@@ -20,14 +20,17 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.db import dispose_engines, service_session
+from app.core.db import dispose_engines, scan_session, service_session
 from app.core.enums import ScanStatus, ScanStepKind, ScanTrigger
 from app.core.logging import configure_logging, get_logger, log_context
 from app.models.cloud_account import CloudAccount
 from app.models.cloud_connection import CloudConnection
+from app.models.organization import Organization
 from app.models.scan import Scan
 from app.services import change_events as change_service
+from app.services import notifications as notifications_service
 from app.services import orchestrator
+from app.services import retention as retention_service
 from app.services import scans as scans_service
 from app.services import verification as verification_service
 from app.services.scanner import ScanPipeline
@@ -35,6 +38,8 @@ from app.workers.celery_app import (
     ANALYZE_QUEUE,
     COLLECT_QUEUE,
     DEFAULT_QUEUE,
+    STEP_SOFT_TIME_LIMIT,
+    STEP_TIME_LIMIT,
     celery_app,
 )
 
@@ -109,7 +114,13 @@ def advance_scan(self: object, scan_id: str) -> dict:
     return {"scan_id": scan_id, "claimed": len(claimed)}
 
 
-@celery_app.task(name="cloudguard.run_scan_step", bind=True, max_retries=0)
+@celery_app.task(
+    name="cloudguard.run_scan_step",
+    bind=True,
+    max_retries=0,
+    soft_time_limit=STEP_SOFT_TIME_LIMIT,
+    time_limit=STEP_TIME_LIMIT,
+)
 def run_scan_step(self: object, scan_id: str, step_id: str) -> dict:
     """Perform one claimed step, then ask what is next.
 
@@ -157,14 +168,29 @@ def reap_abandoned_scans(self: object) -> dict:
     a connection with one of those cannot be scanned at all.
     """
     configure_logging()
-    reclaimed, closed = asyncio.run(_reap_and_release())
+    reclaimed, closed, waiting = asyncio.run(_reap_and_release())
     if reclaimed:
         log.warning("scan.reclaimed_steps", count=len(reclaimed))
     if closed:
         log.warning("scan.reaped_abandoned", count=len(closed))
-    for scan_id in reclaimed:
+    # Everything reclaimed, plus every scan with work still outstanding. The
+    # two overlap and are not the same set: a step reclaimed for the last time
+    # is FAILED rather than PENDING, and the scan then has nothing waiting but
+    # still needs one advance to settle its own status.
+    #
+    # The second half is normally a no-op -- a step enqueues its own successor,
+    # and an advance that finds nothing runnable claims nothing -- and it is the
+    # only thing standing between a lost advance message and a scan stranded for
+    # good: a PENDING step holds no lease to expire, and the scan reaper
+    # deliberately leaves a scan with a live step alone, so nothing else would
+    # ever look at it again.
+    for scan_id in dict.fromkeys([*reclaimed, *waiting]):
         advance_scan.delay(str(scan_id))
-    return {"reclaimed": len(reclaimed), "closed": len(closed)}
+    return {
+        "reclaimed": len(reclaimed),
+        "closed": len(closed),
+        "nudged": len(set(reclaimed) | set(waiting)),
+    }
 
 
 @celery_app.task(name="cloudguard.scan_changed_environments", bind=True, max_retries=0)
@@ -205,6 +231,51 @@ def verify_due_remediations(self: object) -> dict:
     for scan_id in started:
         run_scan.delay(str(scan_id))
     return {"started": len(started)}
+
+
+@celery_app.task(name="cloudguard.prune_evidence", bind=True, max_retries=0)
+def prune_evidence(self: object) -> dict:
+    """Let go of captures and payloads nobody can still need.
+
+    The two largest things in the schema and the only two that grew without
+    bound. Kept for real reasons -- a capture is what lets a scan be
+    re-evaluated against improved rules, a payload is what a citation points at
+    -- and neither reason survives indefinitely.
+
+    Never the newest capture of a scope, whatever the window says: that one is
+    what an applied replay reads, and losing it would turn "did the fix work"
+    into an answer nobody can act on, silently.
+    """
+    configure_logging()
+    totals = asyncio.run(_prune_all_evidence())
+    if totals["snapshots"] or totals["blobs"]:
+        log.info(
+            "retention.pruned",
+            snapshots=totals["snapshots"],
+            blobs=totals["blobs"],
+        )
+    return totals
+
+
+@celery_app.task(name="cloudguard.derive_notifications", bind=True, max_retries=0)
+def derive_notifications(self: object) -> dict:
+    """Turn what the scans recorded into what is worth telling somebody.
+
+    A sweep rather than a hook inside the pipeline, and the separation is the
+    point: the scanner stays the one thing that says what happened, and this
+    reads those rows. A notification can then never disagree with the finding it
+    is about, and a replay -- which writes no finding events -- produces none of
+    these without anyone having to remember that it should not.
+
+    Per organization, because the graph is loaded once per sweep and a tenant's
+    reachability is a fact about that tenant. One failing organization is logged
+    and skipped rather than taking the others' notifications with it.
+    """
+    configure_logging()
+    written = asyncio.run(_derive_all_notifications())
+    if written:
+        log.info("notifications.derived", count=written)
+    return {"written": written}
 
 
 @celery_app.task(name="cloudguard.start_due_scans", bind=True, max_retries=0)
@@ -491,14 +562,30 @@ async def _start_due() -> list[UUID]:
         await dispose_engines()
 
 
-async def _reap_and_release() -> tuple[list[UUID], list[UUID]]:
+async def _reap_and_release() -> tuple[list[UUID], list[UUID], list[UUID]]:
+    """Reclaim, close, and report what is still waiting for a worker.
+
+    The third list is the safety net, and it was written and never wired up:
+    ``orchestrator.unfinished_scan_ids`` existed with a docstring explaining
+    that a step enqueues its own successor and that this covers the case where
+    that message was lost -- and nothing called it. A lost advance left a scan
+    holding PENDING steps, which have no lease to expire and which make the scan
+    reaper skip the scan as still alive. It sat there for ever, on screen, at
+    whatever percentage it had reached.
+    """
     try:
         async with service_session() as session:
             reclaimed = await orchestrator.reap_expired_steps(session)
             closed = await scans_service.reap_abandoned_scans(session)
+            waiting = await orchestrator.unfinished_scan_ids(session)
         for scan_id, reason in closed:
             log.warning("scan.abandoned", scan_id=str(scan_id), reason=reason)
-        return reclaimed, [scan_id for scan_id, _ in closed]
+        settled = {scan_id for scan_id, _ in closed}
+        return (
+            reclaimed,
+            sorted(settled),
+            [scan_id for scan_id in waiting if scan_id not in settled],
+        )
     finally:
         await dispose_engines()
 
@@ -508,3 +595,59 @@ async def _replay_and_release(scan_id: UUID) -> None:
         await ScanPipeline(scan_id).replay()
     finally:
         await dispose_engines()
+
+
+async def _derive_all_notifications() -> int:
+    """Every organization, each in its own transaction.
+
+    Committed per organization rather than once at the end: a sweep that failed
+    halfway would otherwise discard the notifications it had correctly derived
+    for everybody before the one that broke.
+    """
+    total = 0
+    async with service_session() as session:
+        org_ids = list(
+            (await session.execute(select(Organization.id))).scalars().all()
+        )
+
+    for org_id in org_ids:
+        try:
+            async with scan_session(org_id) as session:
+                total += await notifications_service.derive(session, org_id)
+                await session.commit()
+        except Exception:  # pragma: no cover - one tenant must not stop the rest
+            log.exception("notifications.derive_failed", organization_id=str(org_id))
+    return total
+
+
+async def _prune_all_evidence() -> dict[str, int]:
+    """Every organization, each in its own transaction.
+
+    Committed per organization rather than once at the end, matching the
+    notification sweep: a run that failed halfway would otherwise give back the
+    space it had correctly reclaimed for everybody before the one that broke.
+    """
+    totals = {"snapshots": 0, "blobs": 0}
+    async with service_session() as session:
+        org_ids = list(
+            (await session.execute(select(Organization.id))).scalars().all()
+        )
+
+    for org_id in org_ids:
+        try:
+            async with scan_session(org_id) as session:
+                result = await retention_service.prune(
+                    session,
+                    org_id,
+                    snapshot_days=settings.snapshot_retention_days,
+                    evidence_days=settings.evidence_retention_days,
+                    snapshot_max_per_scope=(
+                        settings.snapshot_retention_max_per_scope
+                    ),
+                )
+                await session.commit()
+            totals["snapshots"] += result["snapshots"]
+            totals["blobs"] += result["blobs"]
+        except Exception:  # pragma: no cover - one tenant must not stop the rest
+            log.exception("retention.prune_failed", organization_id=str(org_id))
+    return totals

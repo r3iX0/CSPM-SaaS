@@ -1,10 +1,11 @@
+import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
 import type { CollectionOutcome, CollectionReading, CollectionStatus } from "@/lib/types";
 import { useT } from "@/i18n";
 import { Skeleton } from "@/components/ui/skeleton";
-import { outcomeStyle } from "@/lib/format";
+import { formatRelative, outcomeStyle } from "@/lib/format";
 
 /**
  * What the scan could and could not read.
@@ -67,6 +68,19 @@ export function CollectionPanel({ scanId }: { scanId: string }) {
         <p className="mt-1 text-xs leading-relaxed text-medium">{t.scans.partialHint}</p>
       )}
 
+      {/* Stated for these too, and it was not. A scan where storage failed
+          outright showed a badge, a count, and nothing about the consequence --
+          which leaves "could not read" free to be read as "nothing to report",
+          the one inference this product exists to prevent.
+
+          Two sentences rather than one covering both, because the reasons
+          differ: an incomplete listing cannot support a pass, and an absent one
+          supports nothing at all. A single vaguer line would have said less
+          about each. */}
+      {failed + skipped > 0 && (
+        <p className="mt-1 text-xs leading-relaxed text-medium">{t.scans.unreadHint}</p>
+      )}
+
       <div className="mt-2 flex flex-col gap-3">
         {[...bySubscription.entries()].map(([subscription, readings]) => (
           <div key={subscription}>
@@ -93,6 +107,44 @@ export function CollectionPanel({ scanId }: { scanId: string }) {
                       {reading.detail}
                     </p>
                   )}
+                  {reading.endpoints.length > 0 && (
+                    <p className="w-full font-mono text-[11px] text-muted-foreground">
+                      {reading.endpoints
+                        .map((e) => `${e.path.replace(/^https?:\/\/[^/]+/, "")} ${e.api_version}`)
+                        .join(" · ")}
+                    </p>
+                  )}
+                  <p className="w-full text-xs text-muted-foreground">
+                    <span title={reading.collected_at}>
+                      {formatRelative(reading.collected_at)}
+                    </span>
+                    {reading.finding_count > 0 ? (
+                      <>
+                        {" · "}
+                        {/* The chain from the evidence end. The finding page
+                            asks where its evidence came from; this asks what
+                            rested on this reading, and links to exactly the
+                            findings the number counts. */}
+                        <Link
+                          to={`/findings?evidence_id=${reading.evidence_id}&status=all`}
+                          className="underline underline-offset-2 hover:text-foreground"
+                        >
+                          {reading.finding_count === 1
+                            ? t.scans.supportsOne
+                            : t.scans.supportsMany.replace(
+                                "{count}",
+                                String(reading.finding_count),
+                              )}
+                        </Link>
+                      </>
+                    ) : (
+                      // Not a link, because there is nothing to go to. A
+                      // reading that failed supported nothing: the rules that
+                      // needed it degraded to UNKNOWN and never became
+                      // findings, which is the system working.
+                      <>{" · "}{t.scans.supportsNone}</>
+                    )}
+                  </p>
                 </li>
               ))}
             </ul>

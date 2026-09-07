@@ -15,11 +15,12 @@ earn.
 """
 
 from datetime import UTC, datetime, timedelta
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from app.connectors.azure.evidence import BASELINE_EVIDENCE, AzureEvidence
 from app.connectors.evidence import EvidenceCategory, EvidenceKey
 from app.core.enums import Provider, Severity, TaskOutcome
+from app.core.payloads import compress, decompress
 from app.rules.base import RuleContext, RuleResult, SecurityRule
 from app.services.evidence_planner import plan_collection, required_evidence
 
@@ -77,6 +78,8 @@ class Reading:
         age: timedelta = timedelta(hours=1),
         outcome: TaskOutcome = TaskOutcome.COMPLETE,
         content_hash: str | None = "hash-1",
+        scan_id: UUID | None = None,
+        source_scan_id: UUID | None = None,
     ) -> None:
         self.evidence_key = key.value
         self.collected_at = NOW - age
@@ -84,12 +87,27 @@ class Reading:
         self.content_hash = content_hash
         self.item_count = 3
         self.permissions = ["Microsoft.Test/read"]
+        # Which scan holds the row, and which scan made the call. The second is
+        # NULL on a row that is itself the reading, which is most of them.
+        self.scan_id = scan_id or uuid4()
+        self.source_scan_id = source_scan_id
 
 
 class Blob:
+    """A stub of the stored row, compressed the way the real one is.
+
+    ``content`` rather than a plain attribute because the column holds bytes
+    now, and a stub that handed back a dict directly would keep passing if the
+    planner ever started reading the raw column again.
+    """
+
     def __init__(self, content_hash: str, payload: dict) -> None:
         self.content_hash = content_hash
-        self.payload = payload
+        self.payload_compressed = compress(payload)
+
+    @property
+    def content(self) -> dict:
+        return decompress(self.payload_compressed)
 
 
 class FakeResult:
@@ -301,3 +319,45 @@ async def test_a_key_nothing_requires_is_neither_collected_nor_carried() -> None
     )
     assert made.collect == {Keys.DAILY}
     assert Keys.WEEKLY not in made.carried
+
+
+# ------------------------------------------------------- who took the reading
+async def test_a_carried_reading_names_the_scan_that_read_the_provider() -> None:
+    """Otherwise the scan reusing it is recorded as having made the call.
+
+    Every row a scan writes carries its own ``scan_id``, and a carried reading
+    is written as such a row -- so the provenance chain a citation follows
+    landed on a scan that never asked the provider for that key. The age
+    survived, because ``collected_at`` is copied; the authorship did not.
+    """
+    original = uuid4()
+    made = await plan(
+        [Reading(Keys.WEEKLY, age=timedelta(days=2), scan_id=original)],
+        [Blob("hash-1", {"weekly": ["a"]})],
+    )
+
+    assert made.carried[Keys.WEEKLY].source_scan_id == original
+
+
+async def test_carrying_a_carried_reading_still_names_the_original() -> None:
+    """The chain stays one hop long however many scans have reused a reading.
+
+    A row that was itself carried already names its source; taking its
+    ``scan_id`` instead would credit whichever scan last reused it, and the
+    trail would drift one scan further from the truth on every reuse.
+    """
+    original = uuid4()
+    reused_by = uuid4()
+    made = await plan(
+        [
+            Reading(
+                Keys.WEEKLY,
+                age=timedelta(days=2),
+                scan_id=reused_by,
+                source_scan_id=original,
+            )
+        ],
+        [Blob("hash-1", {"weekly": ["a"]})],
+    )
+
+    assert made.carried[Keys.WEEKLY].source_scan_id == original

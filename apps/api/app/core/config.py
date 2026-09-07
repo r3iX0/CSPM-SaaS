@@ -68,6 +68,33 @@ class Settings(BaseSettings):
     database_worker_url: str = ""
     db_echo: bool = False
 
+    # --- retention ---------------------------------------------------------
+    # How long a raw capture is kept. Defaulted rather than required, because a
+    # deployment that has not thought about retention should still keep enough
+    # to replay a month of rules against, and because a missing value here is
+    # not the kind of misconfiguration the rest of this file refuses to boot on:
+    # it costs disk, not correctness.
+    #
+    # The newest capture per subscription is never pruned whatever this says --
+    # it is what an applied replay reads, and losing it would quietly turn every
+    # "did the fix work" into an advisory answer.
+    snapshot_retention_days: int = 30
+    # And a ceiling on how many captures one subscription may keep, whatever the
+    # window says. Days alone is a policy about time, and storage is not spent
+    # in time: a customer scanning on the half hour stores 48 captures a day and
+    # 1,440 inside a 30-day window, while a customer scanning weekly stores 4 --
+    # for the same stated retention, and a table two orders of magnitude apart.
+    #
+    # 90 is a month of daily scanning, which is what the window was written to
+    # mean. Past that the oldest are dropped first, and the newest capture of a
+    # scope is exempt here exactly as it is from the window.
+    snapshot_retention_max_per_scope: int = 90
+    # Payloads are content-addressed and shared, so this is measured from when a
+    # payload was last *seen* rather than first stored: an estate that has not
+    # changed in six months keeps one copy alive by re-reading it, which is the
+    # behaviour that makes deduplication worth having.
+    evidence_retention_days: int = 90
+
     @property
     def worker_is_constrained(self) -> bool:
         """Whether the worker's tenancy is enforced by the database."""
@@ -86,6 +113,33 @@ class Settings(BaseSettings):
     azure_tenant_id: str = ""
     azure_redirect_uri: str = ""
     azure_consent_state_secret: str = ""
+
+    # --- AWS: CloudGuard's own principal, the one a customer's role trusts ---
+    #
+    # A long-lived access key rather than an instance role, because the API runs
+    # on Railway rather than in AWS and there is no instance identity to inherit.
+    # It grants nothing but ``sts:AssumeRole`` against roles that already name
+    # it, so the blast radius of losing it is bounded by what customers have
+    # chosen to trust -- and every one of those roles additionally requires an
+    # external id CloudGuard generated and never published.
+    aws_access_key_id: str = ""
+    aws_secret_access_key: str = ""
+    # What a customer's trust policy names. Read from configuration rather than
+    # derived from the credentials, because the artefact a customer deploys has
+    # to state it exactly and a wrong value fails at the moment they click
+    # deploy rather than at the moment CloudGuard calls.
+    aws_principal_arn: str = ""
+    # Whether AWS is offered in the connection wizard.
+    #
+    # Off by default, and deliberately separate from having credentials. Every
+    # IAM action name, response shape and template string in the AWS connector
+    # is written from AWS's published reference and has been called by nothing;
+    # AWS_INTEGRATION.md section 1 holds the ten-item checklist that turns that
+    # from plausible into verified. Until it has been run against a real
+    # account, AWS is reachable through the API and is not offered in the UI --
+    # because shipping the picker first would be a product claiming to scan a
+    # cloud nobody has scanned.
+    aws_enabled: bool = False
 
     sentry_dsn: str = ""
 
@@ -119,6 +173,29 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"
+
+    @property
+    def aws_configured(self) -> bool:
+        """True when CloudGuard's own AWS identity is present.
+
+        Optional, exactly as ``azure_configured`` is: a deployment that has not
+        reached the AWS setup step is not broken, it simply cannot offer AWS as
+        a provider yet.
+        """
+        return bool(
+            self.aws_access_key_id
+            and self.aws_secret_access_key
+            and self.aws_principal_arn
+        )
+
+    @property
+    def aws_offered(self) -> bool:
+        """Whether a customer may choose AWS in the wizard.
+
+        Both halves: the credentials have to exist, *and* somebody has to have
+        run the live checklist. Either alone is a connection that cannot finish.
+        """
+        return self.aws_configured and self.aws_enabled
 
     @property
     def azure_configured(self) -> bool:

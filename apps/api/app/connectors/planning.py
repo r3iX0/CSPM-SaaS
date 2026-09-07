@@ -32,8 +32,9 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
+from uuid import UUID
 
-from app.connectors.evidence import EvidenceKey
+from app.connectors.evidence import EvidenceKey, ProviderEndpoint
 
 
 @dataclass(frozen=True)
@@ -51,6 +52,16 @@ class CarriedReading:
     collected_at: datetime
     item_count: int = 0
     permissions: tuple[str, ...] = ()
+    # Which scan actually read the provider. Carried alongside the moment,
+    # because "when" and "by which reading" are two different questions and a
+    # citation needs both: the scan reusing this reading records its own id on
+    # every row it writes, so without this the provenance trail says the reuse
+    # took the reading.
+    source_scan_id: UUID | None = None
+    # The calls the *original* read made. A carried reading answers "what was
+    # this a reading of" with the contract it was actually taken under, which
+    # is not necessarily the one the collector would use today.
+    endpoints: tuple[ProviderEndpoint, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -81,6 +92,14 @@ class CollectionPlan:
 
     def carried_for(self, key: EvidenceKey) -> CarriedReading | None:
         return self.carried.get(key)
+
+    # A regional key cannot be carried, and the mapping above is why: it is
+    # keyed by evidence, and a key read in seventeen regions is seventeen
+    # readings that one entry could not hold without silently keeping whichever
+    # region was written last. Reuse is opt-in per key through
+    # :attr:`EvidenceKey.reuse_window`, which defaults to never, so a provider
+    # gets this right by leaving it alone -- and a test pins that no regional
+    # key declares a window.
 
     def restrict(self, keys: Iterable[EvidenceKey]) -> "CollectionPlan":
         """The same plan seen through what one provider plan can produce."""

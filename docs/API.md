@@ -2,50 +2,90 @@
 
 ## 1. Endpoints
 
+Every path below is prefixed `/api/v1`. This list is generated from the routers
+under `app/api/routes/` — if it disagrees with them, they are right.
+
 ```
-POST   /api/v1/organizations              GET  /api/v1/organizations
-GET    /api/v1/organizations/{id}          PATCH /api/v1/organizations
-DELETE /api/v1/organizations/{id}
+POST   /organizations                      GET    /organizations
+GET    /organizations/{id}                 PATCH  /organizations
+DELETE /organizations/{id}
 
-POST   /api/v1/cloud-connections           GET  /api/v1/cloud-connections
-GET    /api/v1/cloud-connections/options   GET  /api/v1/cloud-connections/{id}
-POST   /api/v1/cloud-connections/{id}/consent-url
-GET    /api/v1/cloud-connections/{id}/artifacts
-POST   /api/v1/cloud-connections/{id}/validate
-POST   /api/v1/cloud-connections/{id}/discover
-GET    /api/v1/cloud-connections/{id}/change-events
-PATCH  /api/v1/cloud-connections/{id}/change-events
-GET    /api/v1/cloud-connections/{id}/subscriptions
-PATCH  /api/v1/cloud-connections/{id}/subscriptions
-DELETE /api/v1/cloud-connections/{id}
+POST   /cloud-connections                  GET    /cloud-connections
+GET    /cloud-connections/{id}             DELETE /cloud-connections/{id}
+POST   /cloud-connections/{id}/discover
+POST   /cloud-connections/{id}/recheck
+PATCH  /cloud-connections/{id}/subscriptions
+PATCH  /cloud-connections/{id}/schedule
+GET    /cloud-connections/{id}/change-events
+PATCH  /cloud-connections/{id}/change-events
+POST   /cloud-connections/{id}/cancel      POST   /cloud-connections/{id}/resume
+GET    /cloud-connections/{id}/revocation
+POST   /cloud-connections/{id}/check-revoked
+GET    /cloud-connections/azure/app-registration
+GET    /cloud-connections/{id}/template            (unauthenticated, CORS-open)
+GET    /cloud-connections/azure/consent/callback   (unauthenticated, signed state)
 
-GET    /api/v1/cloud-accounts              GET  /api/v1/cloud-accounts/{id}
-GET    /api/v1/cloud-accounts/{id}/context
-PUT    /api/v1/cloud-accounts/{id}/context
-DELETE /api/v1/cloud-accounts/{id}/context
+POST   /events/azure/{connection_id}               (unauthenticated, signed token)
 
-POST   /api/v1/scans                       GET  /api/v1/scans
-GET    /api/v1/scans/{id}
+GET    /cloud-accounts                     GET    /cloud-accounts/{id}
+GET    /cloud-accounts/azure/permissions
+GET    /cloud-accounts/{id}/context
+PUT    /cloud-accounts/{id}/context
+DELETE /cloud-accounts/{id}/context
 
-GET    /api/v1/assets                      GET  /api/v1/assets/{id}
-GET    /api/v1/assets/hierarchy
-GET    /api/v1/changes
-GET    /api/v1/findings                    GET  /api/v1/findings/{id}
-GET    /api/v1/risks                       GET  /api/v1/risks/{id}
+POST   /scans                              GET    /scans
+GET    /scans/{id}                         DELETE /scans/{id}
+GET    /scans/{id}/detail                  GET    /scans/{id}/coverage
+GET    /scans/{id}/collection
+POST   /scans/{id}/replay                  POST   /scans/{id}/cancel
+GET    /scans/worker-status
 
-POST   /api/v1/remediation                 PATCH /api/v1/remediation/{id}
-POST   /api/v1/findings/{id}/accept-risk
-POST   /api/v1/findings/{id}/rescan
-GET    /api/v1/findings/{id}/attack-paths
+GET    /assets                             GET    /assets/{id}
+GET    /assets/hierarchy
+GET    /changes
+GET    /findings                           GET    /findings/{id}
+GET    /risks                              GET    /risks/{id}
 
-GET    /api/v1/attack-paths                GET  /api/v1/attack-paths/blast-radius/{id}
+POST   /remediation                        GET    /remediation
+PATCH  /remediation/{id}
+POST   /findings/{id}/accept-risk          POST   /findings/{id}/status
+POST   /findings/{id}/rescan
+GET    /findings/{id}/attack-paths         GET    /findings/{id}/provenance
 
-GET    /api/v1/rules                       GET  /api/v1/rules/{rule_id}
-GET    /api/v1/compliance                  GET  /api/v1/compliance/{framework_id}
+GET    /attack-paths                       GET    /attack-paths/choke-points
+GET    /attack-paths/blast-radius/{resource_id}
 
-GET    /api/v1/dashboard
-GET    /api/v1/reports/{kind}?format=pdf|html&days=30&sections=a,b
+GET    /rules                              GET    /rules/{rule_id}
+GET    /compliance                         GET    /compliance/{framework_id}
+GET    /compliance/{framework_id}/export?format=csv|json
+
+GET    /notifications                      POST   /notifications/read
+DELETE /notifications                      DELETE /notifications/{id}
+
+GET    /dashboard
+GET    /reports/{kind}?format=pdf|html&days=30&sections=a,b
 ```
+
+Three of the scan endpoints exist because a scan is resumable work rather than
+one call. `/detail` is the run's steps; `/coverage` is what each rule reached a
+verdict on and what it could not; `/collection` is which evidence key arrived and
+which did not, which is the row that makes an UNKNOWN answerable rather than
+merely reported. `/replay` re-runs today's rules against a capture already
+stored — no Azure call — and `/worker-status` pings the broker, because "scans
+stay queued" is otherwise indistinguishable from "the product is broken".
+
+`POST /findings/{id}/status` is the general transition; `accept-risk` is its own
+endpoint rather than a status value because it takes a reason and an approver.
+
+`/cloud-connections/{id}/recheck` is a POST because it is a probe rather than a
+read. The GET validates a connection only while it is *unverified* — that is
+what the setup wizard polls — so on a working connection it re-read the same row
+and repainted the same answer, including a role version that had not been looked
+at since the connection was created. This asks Azure two questions: whether the
+read still works, and which role it works through, resolved from the actions on
+the definitions the scanner's principal is actually assigned. A failed probe
+leaves the recorded state alone; proving access is *gone* is
+`/check-revoked`'s job, where the customer has asked that question deliberately.
 
 `/cloud-accounts` is **read-only** except for `/context`: an account is a
 subscription discovered beneath a connection, so there is nothing to create,
@@ -71,15 +111,31 @@ capture supported but never lower it, so the worst a mistaken declaration can
 do is over-rank something. `GET /assets/{id}` returns a `context` block giving
 each value's source and confidence alongside it.
 
+`/compliance/{framework_id}/export` answers with a document rather than the
+envelope, for the same reason `/reports/{kind}` does: the caller is saving a
+file, and an envelope would make every consumer unwrap a shape that means
+nothing on disk. CSV is what goes into the spreadsheet an audit is run from and
+JSON is what a GRC platform ingests; both carry every control, its verdict, the
+rules behind that verdict and the provider readings behind those. Every CSV row
+repeats the framework, its version and when the assessment was read, because the
+thing that happens to every export is that fifteen rows are copied into a larger
+sheet — where a row that no longer says which reading it came from is a
+compliance claim with no date on it.
+
 Three endpoints are unauthenticated by necessity, all protected by an
 HMAC-signed token rather than a session: `/cloud-connections/azure/consent/callback`,
 which Entra's redirect reaches from the customer's browser;
-`/cloud-connections/artifact`, which their Cloud Shell or Terraform run fetches;
-and `/events/azure/{connection_id}`, which Azure Event Grid delivers to when
-their environment changes. The last is separated from the template token by the
-`purpose` claim, not by the signature — both are signed with the same secret, so
-the webhook checks the claim rather than treating a valid signature as proof of
-intent.
+`/cloud-connections/{id}/template`, which Azure Portal fetches *from the
+customer's browser* for the Deploy to Azure button — the reason it is also the
+one endpoint answering `Access-Control-Allow-Origin: *`; and
+`/events/azure/{connection_id}`, which Azure Event Grid delivers to when their
+environment changes. All three are `include_in_schema=False`: they are reached
+by Azure and by browsers following a link, never by this product's client, and
+listing them in the OpenAPI document would invite a consumer to call them.
+
+The webhook is separated from the template token by the `purpose` claim, not by
+the signature — both are signed with the same secret, so it checks the claim
+rather than treating a valid signature as proof of intent.
 
 `/cloud-connections/{id}/change-events` returns the commands the customer runs
 to wire their subscriptions up. CloudGuard cannot create the Event Grid
@@ -107,6 +163,39 @@ must not exist, or an entry that satisfies. Two rules report an empty
 the directory, the other a relationship between two assets — rather than
 inventing a per-asset setting to point at.
 
+`/notifications` is deliberately not `/changes`. That answers "what moved in the
+environment" and is a property of the estate; this answers "what happened since
+you last looked" and is a property of a reader — the same scan gives everyone
+the same changes and each person a different unread count. Three kinds only:
+a new finding on an asset that stands on an attack path, a fix a scan verified,
+and a reading that stopped arriving. Severity alone is not a reason: a CRITICAL
+on an isolated sandbox is a rulebook event, and a bell that fired on every
+finding would be a filter rule inside a fortnight.
+
+`meta.unread` and the list come from one read of the same rows, so a badge
+cannot say three above a panel showing two. `POST /notifications/read` moves the
+caller's watermark to *now* rather than to the newest stored row — the sweep
+runs on a timer, and reading to the newest row would mark something seen before
+it was written.
+
+The two `DELETE`s dismiss rather than delete, and the distinction is the whole
+design. A notification belongs to the organization — what happened, happened —
+so removing the row would be one reader deciding what their colleagues get told.
+Both write a per-reader dismissal instead, and the listing excludes them before
+its limit rather than after, so a reader who puts down five still gets a full
+panel. Dismissing is also not marking read: the watermark is a boundary in time
+that moves on its own when the panel opens, while this is somebody saying they
+are done with one row, and it says nothing about what arrives next.
+
+Coverage-drop notifications carry CloudGuard's own sentence and never the
+provider's. The collector's explanation — the remedy, who can apply it, every
+permission a tenant did not grant — is the right paragraph on `/scans`, which is
+where the row links; in a bell it filled the panel with one item and pushed the
+rest out of sight. Rows are derived by a periodic job from `finding_events`,
+`evidence` and the graph, never written by the scanner: one source of truth
+about what happened, and a replay generates nothing because it writes no finding
+events.
+
 `/dashboard` carries two figures that are easy to confuse and answer different
 questions. `coverage` is the share of checks that reached a verdict;
 `evidence_freshness` is how recently the provider was actually read, measured
@@ -122,6 +211,13 @@ own subscription and resource group, so a client can group an inventory by scope
 without a request per row. The row `id` is a CloudGuard identifier and names
 nothing in the customer's cloud — the ARM id is what they can search for in
 their own portal.
+
+`/findings` also takes `evidence_id` — the citation chain walked from the other
+end. `/scans/{id}/collection` reports how many findings rest on each reading, and
+this is what that count links to. Filtered on the reading rather than on its
+evidence key, because a key spans every subscription and every scan that ever
+read it: the number offered and the rows returned have to be the same set, or it
+is a count that does not survive being clicked.
 
 `/findings` takes `search` and `sort` (`risk` by default, or `severity` or
 `recent`), and `/risks` takes `search`. Both are on the server rather than left
@@ -168,6 +264,52 @@ per page its assets straddled, each time with a fraction of its findings.
 can drill in — `subscription_id=directory` is the tenant-scoped set, and
 `resource_group` compares case-insensitively because ARM treats `Prod` and
 `prod` as the same place.
+
+`/attack-paths/choke-points` answers a different question from the list: not
+which routes exist but which single change closes the most of them. `severs` is
+verified by removing the link and re-asking the whole question, so it is what
+actually closes; `on_routes` is the larger count of routes the link merely sits
+on, carried beside it because the gap is the point — a link on twenty routes
+that closes three is a link with a way round, and promising twenty would be a
+number the customer can check and find wrong. `closes` names the routes, because
+a count is a claim and those are its working.
+
+Its own endpoint rather than a field on the list, because it costs a full
+re-traversal per candidate and the list is read far more often than the question
+is asked. Only removable links are candidates — a storage account has to live
+somewhere, so containment is never offered.
+
+`/findings/{id}/provenance` answers "how do you know?" — the readings the
+finding rests on, each with the listing it came from, when the *provider* was
+read, the actions the read was made under, and the hash of the payload. The
+finding's own `evidence` block is an excerpt of what the rule saw; this is the
+citation for it, and the difference is whether a customer has to accept the
+claim or can check it.
+
+`evidence: null` means no citation was recorded — a finding raised before
+CloudGuard tracked this. `[]` would mean the rule reads nothing, and answering
+the first as the second would make a claim about the rule out of a gap in our
+own history; `meta.recorded` says which. `age_seconds` is computed here rather
+than left to the client, because a carried reading is older than the scan that
+raised the finding and a client would measure it against its own clock.
+`payload_available` is asked of the blob store rather than inferred from the
+hash: retention prunes payloads on their own schedule, and a citation whose
+bytes have aged out is still a true statement about what was read. Where the
+scan itself has been deleted the reading's `outcome`, `item_count` and
+`permissions` come back `null`/`[]` — "we no longer hold that", never `0`,
+which would claim the listing came back empty.
+
+Its own endpoint rather than a field on the finding, like `/attack-paths`: the
+page answering "what is wrong" must not wait on a question most readers never
+ask.
+
+Each citation also carries `endpoints` — `[{path, api_version}]`, what the
+reading actually called. The api-version is the half that settles an argument: a
+field absent from a stored capture is a setting nobody set, or a contract too
+old to return it, and a rule reading the second as the first raises a finding
+out of CloudGuard's own staleness. Empty where the scan has been pruned, or
+where the reading predates this being recorded — never a claim the task called
+nothing. `/scans/{id}/collection` carries the same field per reading.
 
 `/findings/{id}/attack-paths` answers whether this finding's asset stands on a
 route from an internet-facing asset to a sensitive one, and where on it —
@@ -237,6 +379,12 @@ finding it was scored from, and listing every row ever raised made the page
 disagree with the dashboard about the same estate on the same day. The rule is
 settled rather than strict — a risk linked to no finding at all is still
 listed, because the absence of a link is not evidence that a risk is over.
+
+`GET /risks/{id}` returns `observed_at` on a scenario: when the route was last
+seen, resolved from the scan that saw it. `null` where that scan has been pruned
+or the route predates this being tracked — both mean "we cannot say when", and
+the page renders that rather than a date it cannot support. A finding risk
+carries none, taking its reading from the finding it was scored from.
 
 `/compliance` reads the rule catalogue's `compliance_mappings` against the
 framework catalogue in `app/compliance/catalog.py` and this organization's

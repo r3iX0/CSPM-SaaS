@@ -141,10 +141,10 @@ export function DashboardPage() {
           }
           action={
             <Link
-              to={hasConnection ? "/scans" : "/connections"}
+              to={hasConnection ? "/scans" : "/connections/new"}
               className={buttonVariants()}
             >
-              {hasConnection ? t.dashboard.runFirstScan : t.connection.connectAzure}
+              {hasConnection ? t.dashboard.runFirstScan : t.connection.connectCloud}
             </Link>
           }
         />
@@ -193,6 +193,7 @@ export function DashboardPage() {
         unknown={data.coverage.unknown}
         conclusive={data.coverage.conclusive}
         categories={data.coverage.categories}
+        context={data.coverage.context}
         gaps={gaps}
         freshness={data.evidence_freshness ?? null}
       />

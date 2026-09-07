@@ -82,13 +82,20 @@ export const STATUS_LABELS: Record<string, string> = {
  * grey, for the same reason UNKNOWN does: a control CloudGuard could not
  * evaluate must never look like one it cleared. NOT_COVERED is quieter still —
  * it is a statement about this product, not about the user's environment.
+ *
+ * The last two are separated by fill rather than by text colour: NOT_ASSESSED
+ * is filled, NOT_COVERED is bare and dashed. They used to be `bg-stone-50` and
+ * `bg-white`, which is a light-mode palette written into a component — on a
+ * dark page NOT_COVERED rendered as a white block, the brightest thing on the
+ * screen, for the status that is meant to be the quietest. Tokens flip; the
+ * stone scale does not.
  */
 const CONTROL_STATUS_STYLES: Record<ControlStatus, string> = {
   PASSING: "bg-ok-bg text-ok border-ok-border",
   FAILING: "bg-critical-bg text-critical border-critical-border",
   INCONCLUSIVE: "bg-unknown-bg text-unknown border-unknown-border border-dashed",
-  NOT_ASSESSED: "bg-stone-50 text-stone-500 border-stone-200",
-  NOT_COVERED: "bg-white text-stone-400 border-stone-200 border-dashed",
+  NOT_ASSESSED: "bg-muted text-muted-foreground border-border",
+  NOT_COVERED: "bg-background text-muted-foreground border-border border-dashed",
 };
 
 export const controlStatusStyle = (status: string) =>
@@ -120,6 +127,39 @@ export function formatDateTime(value: string | null): string {
   });
 }
 
+/**
+ * How long ago, in the words a person would use.
+ *
+ * The connections list is read to answer "is this current?", and an absolute
+ * timestamp makes the reader do the subtraction -- against a clock they cannot
+ * see, since the row is about a machine somewhere else. Rounded down at every
+ * step: saying "1 hour ago" of something 119 minutes old is the direction that
+ * flatters the product, so it says 1 hour only from 60 minutes.
+ */
+export function formatRelative(value: string | null): string {
+  if (!value) return "\u2014";
+  const then = new Date(value).getTime();
+  if (Number.isNaN(then)) return "\u2014";
+
+  const seconds = Math.floor((Date.now() - then) / 1000);
+  // A clock that is a little behind the server's is ordinary; reporting a read
+  // that has not happened yet is not.
+  if (seconds < 60) return "just now";
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} day${days === 1 ? "" : "s"} ago`;
+
+  // Past a month, "63 days ago" is arithmetic nobody asked for and the date
+  // itself is the more useful answer.
+  return formatDate(value);
+}
+
 export function formatEffort(minutes: number): string {
   if (minutes < 60) return `${minutes} min`;
   const hours = minutes / 60;
@@ -129,3 +169,31 @@ export function formatEffort(minutes: number): string {
 
 export const resourceTypeLabel = (type: string) =>
   type.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+
+/**
+ * A collection category, as a customer would name it.
+ *
+ * The backend's categories are the divisions a cloud's read permissions
+ * actually fall along, which makes them the right unit for "these checks
+ * cannot run" -- and the wrong words for a screen. "secrets" is what the
+ * permission model calls a key vault; "Key vault" is what the customer went
+ * looking for.
+ *
+ * Unknown values fall through to the generic tidy-up rather than being
+ * dropped. A category this map has not caught up with is still a category
+ * whose checks are not running, and saying it awkwardly beats not saying it.
+ */
+const COLLECTION_CATEGORY_LABELS: Record<string, string> = {
+  resources: "Inventory",
+  authorization: "Role assignments",
+  network: "Network",
+  compute: "Virtual machines",
+  storage: "Storage",
+  database: "Databases",
+  logging: "Logging",
+  identity: "Directory",
+  secrets: "Key vaults",
+};
+
+export const collectionCategoryLabel = (category: string) =>
+  COLLECTION_CATEGORY_LABELS[category] ?? resourceTypeLabel(category);

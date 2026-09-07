@@ -133,6 +133,11 @@ async def plan_collection(
             collected_at=_aware(row.collected_at),
             item_count=row.item_count,
             permissions=tuple(row.permissions or ()),
+            # The scan that read the provider, which is this row's own scan
+            # only if this row is not itself a carried one. Following the chain
+            # rather than restarting it is what keeps the trail one hop long
+            # however many scans have reused a reading since.
+            source_scan_id=row.source_scan_id or row.scan_id,
         )
 
     if carried:
@@ -206,7 +211,7 @@ async def _payloads_for(
             )
         )
     ).scalars()
-    return {row.content_hash: row.payload for row in rows}
+    return {row.content_hash: row.content for row in rows}
 
 
 def _aware(moment: datetime) -> datetime:

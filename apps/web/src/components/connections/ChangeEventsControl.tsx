@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
@@ -6,6 +5,7 @@ import type { ChangeEventSetup, CloudConnection } from "@/lib/types";
 import { useT } from "@/i18n";
 import { cn, formatDateTime } from "@/lib/format";
 import { Button } from "@/components/ui/button";
+import { CodeBlock } from "@/components/common/CodeBlock";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -19,11 +19,17 @@ import { Skeleton } from "@/components/ui/skeleton";
  * after somebody opened it.
  *
  * The copy carries one thing the toggle cannot: turning this on wires nothing
- * up. Creating the Event Grid subscription is a write in the customer's tenant,
- * and CloudGuard holds no write permission anywhere -- so it opens the webhook
- * and hands over the command. A switch that looked like it had done the work
- * would leave a customer believing they were monitored when nothing was ever
- * going to arrive.
+ * up. Creating the delivery is a write in the customer's cloud -- an Event Grid
+ * subscription on Azure, an SNS topic and an EventBridge rule on AWS -- and
+ * CloudGuard holds no write permission anywhere, so it opens the webhook and
+ * hands over the commands. A switch that looked like it had done the work would
+ * leave a customer believing they were monitored when nothing was ever going to
+ * arrive.
+ *
+ * AWS needs three commands where Azure needs one, because no AWS call points a
+ * rule at an HTTPS endpoint directly. That is a difference in the copy and not
+ * in the mechanism: both are generated per connection, and both carry a token
+ * that works for this connection alone.
  */
 export function ChangeEventsControl({
   connection,
@@ -56,6 +62,16 @@ export function ChangeEventsControl({
       // returns the same shape the GET does, and the commands appearing a
       // request later would read as the toggle not having taken.
       queryClient.setQueryData(["change-events", connection.id], response.data);
+      // And the connection itself, which is a different query holding the same
+      // fact. ``ReadCadencePanel`` reads ``change_events_enabled`` off the
+      // connection, not off this endpoint, so writing only the line above left
+      // the panel beside this one still saying "Not listening" after a toggle
+      // that had worked -- which reads as the button doing nothing. Every other
+      // control on this page invalidates both keys for the same reason.
+      queryClient.invalidateQueries({
+        queryKey: ["cloud-connection", connection.id],
+      });
+      queryClient.invalidateQueries({ queryKey: ["cloud-connections"] });
     },
     onError: (err) =>
       onError(
@@ -149,13 +165,17 @@ export function ChangeEventsControl({
           {data.enabled && (
             <>
               <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-                {t.connection.changeNotWired}
+                {connection.provider === "aws"
+                  ? t.connection.changeNotWiredAws
+                  : t.connection.changeNotWired}
               </p>
 
               {data.commands.length > 0 && (
                 <div className="mt-3">
                   <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                    {t.connection.changeCommandsLabel}
+                    {connection.provider === "aws"
+                      ? t.connection.changeCommandsLabelAws
+                      : t.connection.changeCommandsLabel}
                   </p>
                   <ul className="mt-2 flex flex-col gap-2">
                     {data.commands.map((entry) => (
@@ -195,27 +215,19 @@ function CommandRow({
   command: string;
 }) {
   const t = useT();
-  const [copied, setCopied] = useState(false);
 
   return (
     <li className="rounded-md border border-border bg-background px-3 py-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <code className="text-[11px] text-muted-foreground">{subscriptionId}</code>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => {
-            void navigator.clipboard.writeText(command);
-            setCopied(true);
-            window.setTimeout(() => setCopied(false), 2000);
-          }}
-        >
-          {copied ? t.connection.changeCopied : t.connection.changeCopyCommand}
-        </Button>
-      </div>
-      <pre className="mt-1 overflow-x-auto text-[11px] leading-relaxed text-foreground">
-        <code>{command}</code>
-      </pre>
+      <code className="text-[11px] text-muted-foreground">{subscriptionId}</code>
+      {/* One copy control, on the command itself. The text button that used to
+          sit in this header copied the same string from a foot away, and two
+          buttons for one command invited the reader to wonder what the other
+          one copied. */}
+      <CodeBlock
+        code={command}
+        className="mt-1 border-0 bg-transparent p-0 text-[11px] text-foreground"
+        label={`${t.connection.changeCopyCommand}: ${subscriptionId}`}
+      />
     </li>
   );
 }

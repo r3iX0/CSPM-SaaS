@@ -7,6 +7,8 @@ can find and a rule whose evidence goes nowhere, which in a compliance view is
 the kind of wrong that gets believed.
 """
 
+from datetime import UTC, datetime, timedelta
+
 import pytest
 
 from app.compliance.catalog import FRAMEWORKS, get_framework
@@ -16,8 +18,11 @@ from app.compliance.coverage import (
     coverage_ratio,
     resolve_control_status,
     status_counts,
+    summarize_readings,
 )
 from app.rules.registry import RULE_REGISTRY
+
+NOW = datetime(2026, 9, 3, 12, 0, tzinfo=UTC)
 
 
 def evidence(
@@ -176,3 +181,193 @@ def test_status_counts_include_absent_statuses() -> None:
     assert counts["PASSING"] == 1
     assert counts["FAILING"] == 0
     assert set(counts) == {s.value for s in ControlStatus}
+
+
+def test_no_framework_text_carries_markup_the_page_renders_literally() -> None:
+    """These strings are shown as text, not parsed.
+
+    ``ComplianceFramework.tsx`` renders ``{data.scope_note}`` straight into
+    JSX, so a ``**`` written for emphasis reaches the customer as two
+    asterisks. Caught here rather than by eye, because the place a caveat most
+    wants emphasis -- PCI's, about scope it cannot know -- is exactly where
+    somebody reaches for markdown, and where a stray asterisk reads as sloppy
+    on the page that most needs to be believed.
+    """
+    offenders = []
+    for framework in FRAMEWORKS:
+        text = f"{framework.summary} {framework.scope_note} {framework.name}"
+        text += " " + " ".join(c.title for c in framework.controls)
+        for markup in ("**", "__", "`", "<"):
+            if markup in text:
+                offenders.append(f"{framework.id}: {markup!r}")
+    assert offenders == [], (
+        "these render as literal characters rather than formatting: "
+        f"{offenders}"
+    )
+
+
+
+# ------------------------------------------------ the readings under a control
+class TestReadingsBehindAControl:
+    """How CloudGuard knows a control is *met*, which is the harder half.
+
+    A finding cites the readings behind it, so "how do you know this is wrong"
+    has always been answerable. A passing control has no findings, so it had no
+    citations at all -- a green row asserted on nothing, which is exactly the
+    row an auditor asks about first.
+    """
+
+    @staticmethod
+    def _row(
+        key: str,
+        outcome: str = "COMPLETE",
+        *,
+        hours: int = 1,
+        permissions: tuple[str, ...] = ("Microsoft.Storage/storageAccounts/read",),
+        content_hash: str | None = "a" * 64,
+    ) -> tuple:
+        return (key, outcome, NOW - timedelta(hours=hours), permissions, content_hash)
+
+    def test_a_reading_is_one_entry_however_many_subscriptions_it_covered(self) -> None:
+        """Fifty subscriptions read storage fifty times, and fifty identical
+        rows under one control is a table nobody reads."""
+        readings = summarize_readings(
+            ["storage_accounts"],
+            [self._row("storage_accounts") for _ in range(50)],
+            frozenset({"a" * 64}),
+        )
+
+        assert len(readings) == 1
+        assert readings[0].scopes == 50
+
+    def test_the_worst_outcome_wins(self) -> None:
+        """A listing truncated in one subscription out of nine cannot support
+        "none of them are public" -- the same reason PARTIAL is not a pass one
+        layer below this."""
+        readings = summarize_readings(
+            ["storage_accounts"],
+            [
+                self._row("storage_accounts", "COMPLETE"),
+                self._row("storage_accounts", "PARTIAL"),
+                self._row("storage_accounts", "COMPLETE"),
+            ],
+        )
+
+        assert readings[0].outcome == "PARTIAL"
+
+    def test_a_failure_outranks_a_truncation(self) -> None:
+        readings = summarize_readings(
+            ["storage_accounts"],
+            [
+                self._row("storage_accounts", "PARTIAL"),
+                self._row("storage_accounts", "FAILED"),
+            ],
+        )
+
+        assert readings[0].outcome == "FAILED"
+
+    def test_the_oldest_read_is_the_one_reported(self) -> None:
+        """A control is only as current as the least current thing it rests on.
+        Taking the newest would let forty-nine fresh subscriptions hide the one
+        nobody has read since Tuesday."""
+        readings = summarize_readings(
+            ["storage_accounts"],
+            [
+                self._row("storage_accounts", hours=1),
+                self._row("storage_accounts", hours=200),
+            ],
+        )
+
+        assert readings[0].collected_at == NOW - timedelta(hours=200)
+
+    def test_a_key_nothing_read_is_still_listed(self) -> None:
+        """The case that matters most, and the one an omission would hide: the
+        verdict above rests on a reading nobody took. Reported as no outcome
+        rather than as a failure -- the provider did not refuse, nothing
+        asked."""
+        readings = summarize_readings(["key_vaults"], [])
+
+        assert len(readings) == 1
+        assert readings[0].outcome is None
+        assert readings[0].collected_at is None
+        assert readings[0].scopes == 0
+
+    def test_permissions_are_reported_once_across_scopes(self) -> None:
+        """"Under what permission did you see this" is one answer, not fifty."""
+        readings = summarize_readings(
+            ["storage_accounts"],
+            [
+                self._row("storage_accounts", permissions=("A/read",)),
+                self._row("storage_accounts", permissions=("A/read", "B/read")),
+            ],
+        )
+
+        assert readings[0].permissions == ("A/read", "B/read")
+
+    def test_a_pruned_payload_is_reported_as_no_longer_followable(self) -> None:
+        """The citation stays true and the bytes are gone. Retention prunes
+        payloads long before the record that they were read, and offering a link
+        that fails would be worse than saying so."""
+        readings = summarize_readings(
+            ["storage_accounts"],
+            [self._row("storage_accounts", content_hash="b" * 64)],
+            frozenset({"a" * 64}),
+        )
+
+        assert readings[0].retained is False
+
+    def test_one_pruned_payload_makes_the_whole_reading_unfollowable(self) -> None:
+        """Nine readings of which one has aged out cannot be followed all the
+        way back, and "partly retained" is honestly reported as no."""
+        readings = summarize_readings(
+            ["storage_accounts"],
+            [
+                self._row("storage_accounts", content_hash="a" * 64),
+                self._row("storage_accounts", content_hash="c" * 64),
+            ],
+            frozenset({"a" * 64}),
+        )
+
+        assert readings[0].retained is False
+
+
+# --------------------------------------------------- scoped to the clouds in use
+def test_a_cloud_benchmark_is_only_shown_to_the_clouds_that_use_it() -> None:
+    """An AWS-only tenant measured against CIS Azure reports near-zero coverage
+    for reasons that have nothing to do with its security posture.
+
+    That is the same class of misleading number the coverage ledger exists to
+    prevent, pointed the other way (MULTI_CLOUD.md section 7).
+    """
+    from app.core.enums import Provider
+    from app.services.compliance import frameworks_for
+
+    aws_only = {f.id for f in frameworks_for({Provider.AWS})}
+    assert "CIS_AWS_3.0" in aws_only
+    assert "CIS_AZURE_2.0" not in aws_only
+
+    azure_only = {f.id for f in frameworks_for({Provider.AZURE})}
+    assert "CIS_AZURE_2.0" in azure_only
+    assert "CIS_AWS_3.0" not in azure_only
+
+
+def test_a_framework_about_an_organization_applies_to_every_cloud() -> None:
+    """ISO, GDPR, NIST, SOC 2 and PCI are written about organizations rather
+    than providers, so scoping them by cloud would hide the ones that always
+    apply."""
+    from app.core.enums import Provider
+    from app.services.compliance import frameworks_for
+
+    shown = {f.id for f in frameworks_for({Provider.AWS})}
+    for framework_id in ("ISO_27001", "GDPR", "NIST_CSF", "SOC2", "PCI_DSS_4"):
+        assert framework_id in shown
+
+
+def test_an_organization_with_no_connections_sees_everything() -> None:
+    """There is nothing to scope by, and answering "what does this product
+    check?" with silence would be worse than showing a benchmark they may not
+    end up needing."""
+    from app.compliance.catalog import FRAMEWORKS
+    from app.services.compliance import frameworks_for
+
+    assert len(frameworks_for(set())) == len(FRAMEWORKS)

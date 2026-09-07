@@ -1,15 +1,21 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { CircleCheckIcon, CopyIcon } from "lucide-react";
+import { CircleCheckIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/lib/api";
-import type { FindingAttackPath, FindingDetail } from "@/lib/types";
+import type {
+  EvidenceCitation,
+  FindingAttackPath,
+  FindingDetail,
+  FindingProvenance,
+} from "@/lib/types";
 import { useT } from "@/i18n";
 import { StatusPill } from "@/components/security/StatusPill";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { Breadcrumbs, DetailSkeleton, ErrorState } from "@/components/common/states";
+import { CodeBlock } from "@/components/common/CodeBlock";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,7 +40,13 @@ import { RemediationPanel } from "@/components/security/RemediationPanel";
 import { TrackFix } from "@/components/security/TrackFix";
 import { VerificationPanel } from "@/components/security/VerificationPanel";
 import { FindingTimeline } from "@/components/security/FindingTimeline";
-import { cn, formatDateTime, resourceTypeLabel } from "@/lib/format";
+import {
+  cn,
+  formatDateTime,
+  formatRelative,
+  outcomeStyle,
+  resourceTypeLabel,
+} from "@/lib/format";
 
 /**
  * The page the whole product is really about. It must answer, in order:
@@ -71,6 +83,23 @@ export function FindingDetailPage() {
         .get<FindingAttackPath[]>(`/api/v1/findings/${findingId}/attack-paths`)
         .then((r) => r.data),
     enabled: Boolean(data?.resource),
+    retry: false,
+  });
+
+  /**
+   * How CloudGuard knows.
+   *
+   * A separate request for the same reason the routes are: the page answering
+   * "what is wrong" must not wait on a question most readers never ask. Unlike
+   * the routes it is asked for every finding, because a tenant-wide finding has
+   * provenance even though it has no asset.
+   */
+  const provenance = useQuery({
+    queryKey: ["finding-provenance", findingId],
+    queryFn: () =>
+      api
+        .get<FindingProvenance>(`/api/v1/findings/${findingId}/provenance`)
+        .then((r) => r.data),
     retry: false,
   });
 
@@ -205,8 +234,17 @@ export function FindingDetailPage() {
             </Card>
           )}
 
+          {/* WHAT IS ALREADY IN THE WAY */}
+          <ControlsPanel controls={data.evidence.compensating_controls} />
+
           {/* EVIDENCE */}
           <EvidencePanel evidence={data.evidence} />
+
+          {/* WHERE THAT EVIDENCE CAME FROM */}
+          <ProvenancePanel
+            provenance={provenance.data}
+            loading={provenance.isLoading}
+          />
 
           {/* WHAT IT IS PART OF */}
           <AttackPathContext
@@ -494,6 +532,52 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
  * with the rest one click away, and it can be copied whole into a ticket, which
  * is what most people were selecting it by hand to do.
  */
+/**
+ * Defences that lowered this finding's score without closing it.
+ *
+ * Shown above the raw evidence rather than inside it, because it answers a
+ * question a reader asks before they read anything: why is an administrator
+ * with no second factor not at the top of the list? A score arrived at through
+ * a rule nobody can see is the kind a customer stops trusting.
+ *
+ * The panel is deliberately not reassuring. Each of these can be switched off,
+ * rescoped, or have the affected account excluded in a change nobody reviews,
+ * and the misconfiguration underneath it is untouched — so the finding is still
+ * open and the copy says why.
+ */
+function ControlsPanel({
+  controls,
+}: {
+  controls?: FindingDetail["evidence"]["compensating_controls"];
+}) {
+  const t = useT();
+  if (!controls?.length) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t.findings.controlsTitle}</CardTitle>
+        <CardDescription>{t.findings.controlsHelp}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ul className="flex flex-col gap-3">
+          {controls.map((control) => (
+            <li
+              key={control.id}
+              className="rounded-lg border border-ok-border bg-ok-bg/40 px-4 py-3"
+            >
+              <p className="text-sm font-medium text-foreground">{control.name}</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                {control.detail}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
+  );
+}
+
 function EvidencePanel({ evidence }: { evidence: unknown }) {
   const t = useT();
   const [expanded, setExpanded] = useState(false);
@@ -507,25 +591,6 @@ function EvidencePanel({ evidence }: { evidence: unknown }) {
       <CardHeader>
         <CardTitle>{t.findings.evidence}</CardTitle>
         <CardDescription>Exactly what CloudGuard observed</CardDescription>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="col-start-2 row-span-2 row-start-1 self-start justify-self-end"
-          onClick={() => {
-            void navigator.clipboard
-              .writeText(json)
-              .then(() => toast.success("Evidence copied"))
-              .catch(() =>
-                toast.error("Could not copy", {
-                  description:
-                    "This browser refused clipboard access — select the text instead.",
-                }),
-              );
-          }}
-        >
-          <CopyIcon data-icon="inline-start" />
-          Copy
-        </Button>
       </CardHeader>
       <CardContent>
         <Collapsible open={expanded || !long} onOpenChange={setExpanded}>
@@ -541,9 +606,7 @@ function EvidencePanel({ evidence }: { evidence: unknown }) {
               // reaches the part that is out of view.
               keepMounted
             >
-              <pre className="overflow-x-auto rounded-lg border bg-muted/60 p-3 font-mono text-xs leading-relaxed">
-                {json}
-              </pre>
+              <CodeBlock code={json} label="Copy this evidence" />
             </CollapsibleContent>
             {!expanded && long && (
               <div
@@ -564,6 +627,187 @@ function EvidencePanel({ evidence }: { evidence: unknown }) {
         </Collapsible>
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * Where the evidence above came from.
+ *
+ * The excerpt says what the rule saw. This says which listing produced it, when
+ * the provider was actually read, under which permission, and whether the bytes
+ * are still held — which is the difference between a claim a customer has to
+ * accept and one they can check.
+ *
+ * Sat directly under the excerpt rather than in its own tab, because the two
+ * are one thought: a reader who has just looked at a capture and wondered where
+ * it came from should not have to go looking.
+ */
+function ProvenancePanel({
+  provenance,
+  loading,
+}: {
+  provenance?: FindingProvenance;
+  loading: boolean;
+}) {
+  const t = useT();
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>{t.findings.provenance}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <Skeleton className="h-4 w-2/3" />
+          <Skeleton className="h-4 w-1/2" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // A failed request is not an absent citation: saying "not recorded" here
+  // would invent a fact about the finding out of a network error. Absent data
+  // is the whole test -- a failed first fetch leaves it undefined, and a failed
+  // *refetch* leaves the last good answer in place, which is the one that
+  // should stay on screen rather than being hidden because a later request
+  // fell over.
+  if (!provenance) return null;
+
+  const citations = provenance.evidence;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t.findings.provenance}</CardTitle>
+        <CardDescription>{t.findings.provenanceIntro}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {citations === null ? (
+          // `null` and `[]` are different answers and the page must not blur
+          // them. This one is about CloudGuard, not about the finding.
+          <p className="text-sm text-muted-foreground">
+            {t.findings.provenanceUnrecorded}
+          </p>
+        ) : citations.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            {t.findings.provenanceNone}
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {citations.map((citation) => (
+              <Citation key={citation.evidence_key} citation={citation} />
+            ))}
+          </ul>
+        )}
+
+        <p className="text-xs text-muted-foreground">
+          {t.findings.provenanceRule
+            .replace("{rule}", provenance.rule_id)
+            .replace("{version}", provenance.rule_version)}
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** One reading, with the four things that make it checkable. */
+function Citation({ citation }: { citation: EvidenceCitation }) {
+  const t = useT();
+  // A reading whose scan has been pruned has no outcome left to show. Rendered
+  // as absent rather than as SKIPPED: "we no longer hold that" is not a verdict
+  // the collector ever reached.
+  const outcome = citation.outcome;
+
+  return (
+    <li className="rounded-lg border border-border bg-muted/40 px-3 py-2.5">
+      <div className="flex flex-wrap items-center gap-2">
+        <code className="text-sm font-medium text-foreground">
+          {citation.evidence_key}
+        </code>
+        {outcome && (
+          <Badge
+            variant="outline"
+            className={cn("border text-xs", outcomeStyle(outcome))}
+          >
+            {outcome}
+          </Badge>
+        )}
+        {typeof citation.item_count === "number" && (
+          <span className="text-xs text-muted-foreground">
+            {t.findings.provenanceItems.replace(
+              "{count}",
+              String(citation.item_count),
+            )}
+          </span>
+        )}
+      </div>
+
+      <dl className="mt-2 grid gap-x-6 gap-y-1 text-xs sm:grid-cols-2">
+        <div className="flex gap-2">
+          <dt className="text-muted-foreground">{t.findings.provenanceRead}</dt>
+          {/* Relative first, because the question is "how current is this",
+              and the exact moment on hover for whoever needs to cite it. */}
+          <dd className="text-foreground" title={formatDateTime(citation.collected_at)}>
+            {formatRelative(citation.collected_at)}
+          </dd>
+        </div>
+        <div className="flex gap-2">
+          <dt className="text-muted-foreground">
+            {t.findings.provenancePayload}
+          </dt>
+          <dd className="text-foreground">
+            {citation.payload_available
+              ? t.findings.provenanceHeld
+              : t.findings.provenancePruned}
+          </dd>
+        </div>
+      </dl>
+
+      {citation.permissions.length > 0 && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          {t.findings.provenanceUnder}{" "}
+          {citation.permissions.map((permission) => (
+            <code key={permission} className="text-foreground">
+              {permission}
+            </code>
+          ))}
+        </p>
+      )}
+
+      {citation.endpoints.length > 0 && (
+        // The call and the contract. Shown because an absent field in the
+        // capture above is two different answers -- a setting nobody set, and
+        // an api-version too old to return it -- and only this tells them
+        // apart. The path is a template, so the tail is the readable part.
+        <ul className="mt-2 space-y-0.5">
+          {citation.endpoints.map((endpoint) => (
+            <li
+              key={`${endpoint.path}-${endpoint.api_version}`}
+              className="font-mono text-[11px] text-muted-foreground"
+              title={endpoint.path}
+            >
+              {endpoint.path.replace(/^https?:\/\/[^/]+/, "")}
+              <span className="text-foreground">
+                {" "}
+                ?api-version={endpoint.api_version}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {citation.content_hash && (
+        // Truncated because nobody reads sixty-four hex characters, and shown
+        // at all because it is what makes the reading identifiable: two scans
+        // citing the same hash read byte-identical bytes.
+        <p
+          className="mt-1 font-mono text-[11px] text-muted-foreground"
+          title={citation.content_hash}
+        >
+          sha256 {citation.content_hash.slice(0, 12)}…
+        </p>
+      )}
+    </li>
   );
 }
 

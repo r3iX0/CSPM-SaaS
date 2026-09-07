@@ -2,13 +2,26 @@
 
 Azure-first Cloud Security Posture Management. Prototype v0.1.
 
-CloudGuard connects to a customer's Azure environment read-only, discovers what
-is there, evaluates it against deterministic security rules, scores the results
-as business risks rather than raw alerts, tells the user how to fix the ones
-that matter — and then **verifies the fix itself** on the next scan.
+CloudGuard connects to a customer's cloud read-only, discovers what is there,
+evaluates it against deterministic security rules, scores the results as
+business risks rather than raw alerts, tells the user how to fix the ones that
+matter — and then **verifies the fix itself** on the next scan.
 
 The specification this is built from lives in [`docs/`](docs/); start with
 [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md).
+
+### AWS is built and is not offered yet
+
+An AWS connector, its permission manifest, its onboarding flow, change-triggered
+scanning and thirty-three AWS rules exist behind the same seam Azure sits behind
+([`docs/AWS_INTEGRATION.md`](docs/AWS_INTEGRATION.md)). **None of it has been
+run against a live AWS account.** Every IAM action name, response shape and
+CloudFormation string is written from AWS's published reference, so the wizard
+shows AWS greyed out with the reason until the eighteen-item checklist in
+`AWS_INTEGRATION.md` §1 has passed and `AWS_ENABLED=true` is set.
+
+That is why the line above still says Azure-first. It will stop saying so when
+somebody has scanned an AWS account with it, and not before.
 
 ---
 
@@ -28,17 +41,26 @@ Full walkthrough: **[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)**. Both Railway
 and Vercel build directly from this repository and redeploy on every push to
 `main`.
 
-### Seeing the product loop before Azure is registered
+### Seeing the product loop before a cloud is registered
 
 Scanning a real environment needs an Entra app registration
-([`docs/AZURE_INTEGRATION.md`](docs/AZURE_INTEGRATION.md) §2). Until then, the
-demo seed runs the **real** pipeline — real normalizer, real rules, real risk
-engine — against a recorded Azure snapshot. From the API service's shell on
+([`docs/AZURE_INTEGRATION.md`](docs/AZURE_INTEGRATION.md) §2), or an AWS
+principal ([`docs/AWS_INTEGRATION.md`](docs/AWS_INTEGRATION.md) §2). Until then,
+the demo seed runs the **real** pipeline — real normalizer, real rules, real
+risk engine — against a recorded snapshot. From the API service's shell on
 Railway, with `APP_ENV=staging`:
 
 ```bash
 python /srv/database/seed/demo_environment.py --email you@example.com
+python /srv/database/seed/demo_environment.py --email you@example.com --provider aws
 ```
+
+The AWS recording matters more than a demo usually would: it is the only way to
+watch that half of the product work end to end, because none of it has been run
+against a live account. It exercises the normalizer, thirty rules, the risk
+engine and the findings lifecycle. What it cannot prove is whether the payloads
+it replays are the payloads AWS actually sends — that is what §1's checklist is
+for.
 
 Sign in first so Supabase has created your account; the demo organization
 attaches to it. Then run it again with `--fix` to watch three findings
@@ -54,8 +76,8 @@ which provisions PostgreSQL and Redis as service containers. That is the
 supported way to run them.
 
 ```
-backend    259 tests   pytest, ruff, mypy
-frontend    37 tests   vitest, tsc
+backend    1774 tests   pytest, ruff, mypy
+frontend    354 tests   vitest, tsc
 ```
 
 Rule tests run against fixture JSON in `apps/api/tests/fixtures/` — no database,
@@ -78,7 +100,7 @@ apps/api/app/
 ├── services/      scanner pipeline, findings, dashboard, cloud accounts
 ├── models/        SQLAlchemy tables
 ├── api/routes/    HTTP surface
-└── workers/       Celery app and scan task
+└── workers/       Celery app, the scan step tasks, and the periodic sweeps
 
 apps/web/src/      React + TypeScript + Tailwind
 database/          migrations (with RLS policies) and the demo seed
@@ -126,12 +148,24 @@ CloudGuard custom role instead: exactly the read operations the collector
 performs, no `*/action` entries at all, generated from the connector so a test
 fails if the two ever disagree.
 
+**A scan is durable steps, not one long task.** Planning, one collection per
+subscription plus one for the tenant directory, then a single analysis — each
+recorded, claimed under a lease, and retried on its own. A redeploy costs the
+step in flight rather than the scan, one unreadable subscription does not take
+the other forty-nine with it, and every write a running step makes is fenced on
+the claim it was made under, so a worker that stalled past its lease cannot
+settle a step another worker has taken over. See
+[`docs/DECISIONS.md`](docs/DECISIONS.md).
+
 **Compliance is evidence, never a verdict.** The `/compliance` view maps rules
 to CIS Azure 2.0, ISO 27001, GDPR and NIST CSF controls — including the controls
 nothing checks, so coverage cannot read 100% by omission. A control whose rules
 returned UNKNOWN is *inconclusive*, not passing, and the headline figure counts
 conclusions rather than passes. "78% GDPR compliant" is a sentence this product
-must never produce.
+must never produce. Each control also carries the provider readings its verdict
+rests on — which listing, when it was taken, under what permission, whether the
+bytes are still stored — for the controls that *passed* as much as the ones that
+failed, and the whole assessment exports as CSV or JSON.
 
 **CloudGuard's API never handles a password or a customer credential.** Sign-in
 is Supabase Auth — Microsoft (Entra ID), email and password, or a magic link.

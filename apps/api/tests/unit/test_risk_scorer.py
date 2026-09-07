@@ -1,5 +1,7 @@
 """Risk formula (RISK_ENGINE.md section 1) and org security score (section 3)."""
 
+from itertools import pairwise
+
 import pytest
 
 from app.core.enums import Level, Priority, Severity
@@ -178,6 +180,114 @@ def test_band_boundaries(score: float, expected: Level) -> None:
     assert scorer.band(score) == expected
 
 
+class TestKnownContext:
+    """The second number: what the score can be charged for.
+
+    The formula ranks UNKNOWN context just under High so an unlabelled asset
+    never sorts below a labelled one (section 1). That caution is right for an
+    ordering and wrong for a posture number -- section 3 says coverage is
+    reported beside the score rather than folded into it, and the cautious band
+    was folding it in through the back door: an estate nobody had labelled was
+    told its posture was worse, when the honest sentence is that CloudGuard
+    cannot yet tell.
+    """
+
+    def inputs(self, **overrides: object) -> RiskInputs:
+        base = {
+            "severity": Severity.CRITICAL,
+            "asset_criticality": Level.CRITICAL,
+            "data_sensitivity": Level.CRITICAL,
+            "internet_exposure": Level.CRITICAL,
+            "exploitability": 5,
+        }
+        base.update(overrides)
+        return RiskInputs(**base)  # type: ignore[arg-type]
+
+    def test_a_fully_classified_asset_scores_the_same_either_way(self) -> None:
+        """Nothing changes for a customer who has labelled their estate. The
+        two numbers only diverge where CloudGuard is guessing."""
+        scored = scorer.score(self.inputs())
+
+        assert scored.known_score == scored.score
+        assert scored.known_level == scored.level
+
+    def test_missing_context_is_not_charged_for(self) -> None:
+        scored = scorer.score(
+            self.inputs(
+                asset_criticality=Level.UNKNOWN,
+                data_sensitivity=Level.UNKNOWN,
+                internet_exposure=Level.UNKNOWN,
+            )
+        )
+
+        # Still ranked at the top, so it is not buried under labelled findings.
+        assert scored.level == Level.CRITICAL
+        # But the org score is charged for what was established, which here is
+        # the rule's own severity and exploitability and nothing else.
+        assert scored.known_score < scored.score
+        assert scored.known_level == Level.MEDIUM
+
+    def test_the_established_part_still_counts(self) -> None:
+        """Flooring an unknown is not discarding the whole finding. A publicly
+        reachable store with unclassified contents is public either way."""
+        scored = scorer.score(
+            self.inputs(
+                asset_criticality=Level.UNKNOWN,
+                data_sensitivity=Level.UNKNOWN,
+            )
+        )
+
+        assert scored.known_level == Level.HIGH
+
+    @pytest.mark.parametrize(
+        "level",
+        [Level.LOW, Level.MEDIUM, Level.HIGH, Level.CRITICAL, Level.UNKNOWN],
+    )
+    def test_the_known_score_never_exceeds_the_ranked_one(self, level: Level) -> None:
+        """The invariant. Caution may only ever add."""
+        scored = scorer.score(
+            self.inputs(
+                asset_criticality=level,
+                data_sensitivity=level,
+                internet_exposure=level,
+            )
+        )
+
+        assert scored.known_score is not None
+        assert scored.known_score <= scored.score
+
+    def test_an_unknown_floors_rather_than_vanishing(self) -> None:
+        """LOW, not zero: an asset is at least a low-criticality asset, and
+        scoring it at nothing would claim it does not matter at all."""
+        unknown = scorer.score(
+            self.inputs(
+                asset_criticality=Level.UNKNOWN,
+                data_sensitivity=Level.UNKNOWN,
+                internet_exposure=Level.UNKNOWN,
+            )
+        )
+        low = scorer.score(
+            self.inputs(
+                asset_criticality=Level.LOW,
+                data_sensitivity=Level.LOW,
+                internet_exposure=Level.LOW,
+            )
+        )
+
+        assert unknown.known_score == low.score
+
+    def test_a_scenario_has_no_second_band(self) -> None:
+        """A route is a statement about how an environment is wired rather than
+        about one asset's context, and it never reaches the org score -- the
+        findings it groups are already counted there."""
+        scenario = scorer.scenario_score(
+            [80.0], hops=2, entry_exposure=Level.HIGH, target_sensitivity=Level.HIGH
+        )
+
+        assert scenario.known_score is None
+        assert scenario.known_level is None
+
+
 class TestSecurityScore:
     def test_clean_environment_scores_100(self) -> None:
         assert scorer.security_score([]) == 100
@@ -186,13 +296,103 @@ class TestSecurityScore:
         """Stated explicitly in RISK_ENGINE.md section 3."""
         assert scorer.security_score([Level.CRITICAL, Level.CRITICAL]) == 60
 
-    def test_score_floors_at_zero(self) -> None:
-        assert scorer.security_score([Level.CRITICAL] * 20) == 0
-
     def test_mixed_findings(self) -> None:
-        # 20 + 8 + 8 + 3 + 1 = 40 deducted.
+        # 20 + 8 + 8 + 3 + 1 = 40 deducted, which is the anchor's deduction, so
+        # this lands on the anchor's score.
         levels = [Level.CRITICAL, Level.HIGH, Level.HIGH, Level.MEDIUM, Level.LOW]
         assert scorer.security_score(levels) == 60
+
+    def test_every_critical_fixed_moves_the_number(self) -> None:
+        """The regression this curve exists for.
+
+        Subtracting from 100 and clamping made the score stop moving exactly
+        where a customer needs it to: five open Criticals scored 0, twenty
+        scored 0, and so did the same estate after seven were fixed. Months of
+        remediation showed a flat line on the product whose north-star metric is
+        verified risk reduction.
+        """
+        scores = [scorer.security_score([Level.CRITICAL] * n) for n in range(0, 16)]
+
+        assert scores[0] == 100
+        assert all(
+            later < earlier for earlier, later in pairwise(scores)
+        ), scores
+
+    def test_a_badly_broken_estate_still_scores_badly(self) -> None:
+        """Not flat is not the same as forgiving. Five open Criticals is a red
+        number, not a mid-range one."""
+        assert scorer.security_score([Level.CRITICAL] * 5) < 40
+
+    def test_zero_is_where_a_catastrophe_ends_up_not_where_bad_starts(self) -> None:
+        assert scorer.security_score([Level.CRITICAL] * 8) > 0
+        assert scorer.security_score([Level.CRITICAL] * 40) == 0
+
+    def test_the_anchor_holds_when_the_deductions_are_retuned(self) -> None:
+        """The calibration is what is configured, not a decay rate. The doc's
+        sentence -- two open Criticals leave 60 -- has to stay true after
+        somebody tunes what a Critical costs, or the number in the doc and the
+        number on the dashboard part company silently.
+
+        And because the curve is fitted to that anchor, the *size* of the
+        deductions is absorbed by it: scaling all of them by the same factor is
+        a no-op, and only their ratios to a Critical decide anything. Worth
+        pinning, because "make everything cost more" is the obvious way to
+        attempt a stricter score and it does nothing at all.
+        """
+        scaled_up = RiskScorer(
+            RiskEngineConfig(
+                score_deductions={
+                    Level.CRITICAL: 40,
+                    Level.HIGH: 16,
+                    Level.MEDIUM: 6,
+                    Level.LOW: 2,
+                    Level.UNKNOWN: 6,
+                }
+            )
+        )
+
+        assert scaled_up.security_score([Level.CRITICAL, Level.CRITICAL]) == 60
+        assert scaled_up.security_score([Level.HIGH]) == scorer.security_score(
+            [Level.HIGH]
+        )
+
+    def test_moving_a_band_against_critical_does_change_it(self) -> None:
+        """The lever that works: what a High costs *relative to* a Critical."""
+        high_hurts = RiskScorer(
+            RiskEngineConfig(
+                score_deductions={
+                    Level.CRITICAL: 20,
+                    Level.HIGH: 16,
+                    Level.MEDIUM: 3,
+                    Level.LOW: 1,
+                    Level.UNKNOWN: 3,
+                }
+            )
+        )
+
+        assert high_hurts.security_score([Level.CRITICAL, Level.CRITICAL]) == 60
+        assert high_hurts.security_score([Level.HIGH]) < scorer.security_score(
+            [Level.HIGH]
+        )
+
+    def test_an_anchor_off_the_scale_is_rejected(self) -> None:
+        """A curve pinned to 0 or 100 has no solution, and one pinned outside
+        them describes nothing. Fail at construction rather than at the first
+        scan."""
+        with pytest.raises(ValueError, match="strictly between 0 and 100"):
+            RiskEngineConfig(score_anchor_value=0.0)
+        with pytest.raises(ValueError, match="at least one Critical"):
+            RiskEngineConfig(score_anchor_criticals=0)
+
+    def test_the_curve_is_steepest_at_the_first_critical(self) -> None:
+        """Where the strictness has to live. The first Critical must cost more
+        than the tenth, or a clean estate and a nearly clean one read alike."""
+        first = 100 - scorer.security_score([Level.CRITICAL])
+        tenth = scorer.security_score([Level.CRITICAL] * 9) - scorer.security_score(
+            [Level.CRITICAL] * 10
+        )
+
+        assert first > tenth
 
 
 class TestPriority:

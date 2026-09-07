@@ -25,15 +25,14 @@ owner connection and scopes every write by the ``organization_id`` taken from
 the scan record it was handed — never from client input.
 """
 
-import hashlib
-import json
-from collections.abc import AsyncIterator, Awaitable, Callable
-from contextlib import asynccontextmanager
+import asyncio
+from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
+from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import and_, delete, func, or_, select
+from sqlalchemy import and_, delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
@@ -60,13 +59,16 @@ from app.core.enums import (
     TaskOutcome,
     VerificationStatus,
 )
+from app.core.errors import SnapshotUnavailable
 from app.core.logging import get_logger, log_context
+from app.core.payloads import digest
+from app.core.vocabulary import words
 from app.domain.resource import CloudResource
 from app.graph import AssetGraph, Path
 from app.models.cloud_account import CloudAccount
 from app.models.cloud_connection import CloudConnection
 from app.models.context import ContextDeclarationRecord
-from app.models.finding import Finding
+from app.models.finding import Finding, FindingEvidence
 from app.models.history import AssetChangeEvent, FindingEventRecord
 from app.models.resource import ResourceRecord, ResourceRelationship
 from app.models.risk import Risk, RiskFinding, RiskHistory
@@ -81,7 +83,7 @@ from app.models.scan import (
 )
 from app.models.verification import RemediationVerification
 from app.risk.scorer import RiskInputs, ScoredRisk, default_scorer
-from app.rules.base import RuleContext, SecurityRule
+from app.rules.base import RuleContext, RuleResult, SecurityRule
 from app.rules.engine import EvaluatedResult, EvaluationReport, RuleEngine
 from app.services import orchestrator
 from app.services import verification as verification_service
@@ -90,17 +92,143 @@ from app.services.evidence_planner import plan_collection, required_evidence
 
 log = get_logger(__name__)
 
+# One failing check, everything the risk layer needs to write it down:
+# the finding row, the rule that raised it, the asset it is about, the score,
+# and the sentence. Named because two things now consume it -- a risk per
+# finding, and a risk per group of them.
+PendingFinding = tuple[Finding, SecurityRule, CloudResource | None, ScoredRisk, str]
 
-def _digest(payload: dict) -> tuple[str, int]:
-    """A payload's content hash and serialized size.
 
-    ``sort_keys`` and the compact separators are what make it a *content*
-    hash rather than a hash of one particular serialization. Two runs that read
-    the same environment must produce the same digest, or the deduplication is
-    decorative -- and JSON dict ordering is not something a provider promises.
+def _manifest(snapshot: RawSnapshot) -> dict:
+    """The capture, minus the bytes, plus where to find them.
+
+    Everything ``to_json`` records except ``data``, and in its place the content
+    hash of each reading. The payloads live once in ``evidence_blobs``, shared
+    by every scan that read identical bytes -- so an estate that has not changed
+    stores one copy rather than one per night.
+
+    The hashes are computed the same way ``_record_evidence`` computes them,
+    from the same ``snapshot.payloads``, so a manifest and the evidence rows
+    beside it can never name different bytes for one reading.
     """
-    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
-    return hashlib.sha256(encoded).hexdigest(), len(encoded)
+    stored = snapshot.to_json()
+    stored.pop("data", None)
+    stored["payload_hashes"] = {
+        key: digest(payload)[0] for key, payload in snapshot.payloads.items()
+    }
+    return stored
+
+
+async def _rebuild_capture(
+    session: AsyncSession,
+    organization_id: UUID,
+    row: CloudSnapshot,
+    payloads: dict[str, dict] | None = None,
+) -> dict:
+    """The stored form of a capture, whichever way it was written.
+
+    A capture written before the manifest carries its payloads inline and is
+    returned as it stands. A manifest is rebuilt by merging the blobs it names,
+    which is exactly what ``TestCaptureReconstruction`` proves adds back up to
+    what used to be stored.
+
+    Merged rather than keyed by reading, and that is the case a careless version
+    of this gets wrong: one task can produce several payload keys.
+    ``authentication_methods`` has no task of its own -- the directory's
+    role-map task reads it -- so a rebuild that assumed one key per reading
+    would drop it, and the MFA rule would find nothing to judge while reporting
+    no error at all.
+
+    A missing blob is refused rather than silently skipped. Half a capture
+    replays as an estate that has lost whatever was in the missing half, which
+    is the same overclaim as a PASS nobody earned -- retention's interlock
+    exists so this cannot happen, and this is what says so if it ever does.
+
+    ``payloads`` is the readings already in hand, keyed by content hash. A
+    tenant-wide scan rebuilds one capture per subscription and each rebuild was
+    a query of its own, so a fifty-subscription analysis opened with fifty
+    round trips before it read a rule -- see :meth:`ScanPipeline._payloads_for`,
+    which fetches the lot in one. Absent, this asks for its own, which is what a
+    single-capture caller wants.
+
+    **The manifest decides which form this is, not ``data``.** This used to ask
+    whether ``data`` was NULL, and that question could not be answered by the
+    column: 0001 created it ``DEFAULT '{}'::jsonb`` and 0027 dropped only its
+    NOT NULL, so a capture written as a manifest came back carrying an empty
+    object and read as an inline capture of an estate with nothing in it. Every
+    scan then failed in ANALYZE, on a capture that had been stored perfectly.
+    0029 removes the default and clears those rows; asking about the manifest
+    instead is what stops a column default ever answering "did anybody write
+    this" again.
+    """
+    if row.manifest is None:
+        if not row.data:
+            raise SnapshotUnavailable(
+                "this capture carries neither a manifest nor any inline "
+                "readings, so there is nothing to replay it from"
+            )
+        return dict(row.data)
+
+    manifest = dict(row.manifest)
+    hashes = dict(manifest.pop("payload_hashes", {}) or {})
+    held = payloads if payloads is not None else await _payloads_by_hash(
+        session, organization_id, set(hashes.values())
+    )
+
+    data: dict = {}
+    for key, content_hash in hashes.items():
+        payload = held.get(content_hash)
+        if payload is None:
+            raise SnapshotUnavailable(
+                f"the stored reading for {key} is no longer held, so this "
+                "capture cannot be replayed without describing an estate that "
+                "is missing whatever it contained"
+            )
+        data.update(payload)
+
+    manifest["data"] = data
+    return manifest
+
+
+def _manifest_hashes(rows: Sequence[CloudSnapshot]) -> set[str]:
+    """Every payload hash these captures name.
+
+    Empty for a capture written before manifests, which carries its readings
+    inline and needs nothing fetched.
+    """
+    return {
+        content_hash
+        for row in rows
+        if row.manifest
+        for content_hash in (row.manifest.get("payload_hashes") or {}).values()
+    }
+
+
+async def _payloads_by_hash(
+    session: AsyncSession, organization_id: UUID, hashes: set[str]
+) -> dict[str, dict]:
+    """The stored readings these hashes name, decompressed.
+
+    One statement whatever the number of captures asking, which is the point of
+    lifting it out of the per-capture rebuild: the hashes are content-addressed
+    and a tenant's subscriptions share plenty of them, so a merged fetch is both
+    fewer round trips and fewer decompressions than one query per capture.
+    """
+    if not hashes:
+        return {}
+    return {
+        blob.content_hash: blob.content
+        for blob in (
+            await session.execute(
+                select(EvidenceBlob).where(
+                    EvidenceBlob.organization_id == organization_id,
+                    EvidenceBlob.content_hash.in_(list(hashes)),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    }
 
 
 class ScanVanished(Exception):
@@ -160,34 +288,130 @@ class ReconstructedScan:
     observed_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
-class _StepHeartbeat:
-    """The progress callback a step hands to collection.
+class StepLeaseLost(ScanStepError):
+    """This worker is no longer the one running this step.
 
-    Renews the step's lease rather than counting anything. Per-listing progress
-    was accumulated in one process, which could only ever describe the part of
-    a scan that process happened to run; the scan's progress is now derived
-    from its steps, which every worker can see. What is left for a callback to
-    do is the thing only the running worker knows -- that it is still alive.
+    Raised by the lease keeper when a renewal is refused, which means the step
+    was reclaimed while this process was working -- it stopped reporting for
+    longer than the lease, the reaper returned the step to PENDING, and another
+    worker has it now. The right response is to stop immediately: the work is
+    being done elsewhere, and everything this attempt would still write is a
+    duplicate of it.
+
+    Not retryable, because there is nothing to retry. The step is already back
+    in the queue or already running somewhere else, and the settle that follows
+    is fenced out anyway.
     """
 
-    def __init__(self, step_id: UUID, organization_id: UUID) -> None:
+    retryable = False
+
+
+class LeaseKeeper:
+    """Holds a step's lease for as long as this worker is running it.
+
+    A lease renewed only when collection reports progress covered exactly one
+    of the three step kinds. PLAN is short enough not to need it, but ANALYZE
+    is the longest thing a scan does -- reconstructing every capture,
+    evaluating every rule, scoring every finding -- and it renewed nothing at
+    all. A tenant whose analysis ran past ``ScanStep.LEASE_SECONDS`` had its
+    step reaped mid-evaluation and started again on another worker, while the
+    first was still writing findings for the same scan. The bigger the tenant,
+    the more certain it was: the one case where the reaper reliably fired was
+    the one where nothing had actually gone wrong.
+
+    So the lease is held by the clock rather than by whatever the phase happens
+    to report. A background task renews it on a fraction of the window, and a
+    refused renewal -- the fence in ``orchestrator.renew`` -- means the step has
+    been taken, which sets ``lost`` and makes the next heartbeat raise.
+    """
+
+    # Three renewals inside one lease window. Two would leave a single missed
+    # renewal -- a slow query, a paused container -- looking exactly like a dead
+    # worker; more would spend writes for no more safety.
+    RENEW_EVERY = ScanStep.LEASE_SECONDS / 3
+
+    def __init__(self, step_id: UUID, organization_id: UUID, attempt: int) -> None:
         self.step_id = step_id
-        # Carried so the heartbeat runs on the same constrained session as the
+        # Carried so the renewal runs on the same constrained session as the
         # step it is beating for. It writes one column on one row, and doing
         # that on the owner connection would be a small hole in an otherwise
         # closed boundary.
         self.organization_id = organization_id
+        self.attempt = attempt
+        self.lost = False
+        self._task: asyncio.Task[None] | None = None
+
+    async def __aenter__(self) -> "LeaseKeeper":
+        self._task = asyncio.create_task(self._run())
+        return self
+
+    async def __aexit__(self, *_exc: object) -> None:
+        if self._task is not None:
+            self._task.cancel()
+            with suppress(asyncio.CancelledError):
+                await self._task
+
+    async def _run(self) -> None:
+        while True:
+            await asyncio.sleep(self.RENEW_EVERY)
+            try:
+                async with scan_session(self.organization_id) as session:
+                    held = await orchestrator.renew(
+                        session, self.step_id, self.attempt
+                    )
+            except Exception as exc:  # pragma: no cover - never fatal in itself
+                # A failed renewal is not proof the step was taken; the database
+                # may simply have been unreachable for a moment. Losing enough
+                # of them costs the lease, which the reaper handles -- and that
+                # path ends in the same place, with this attempt fenced out of
+                # its own settle.
+                log.warning(
+                    "scan.lease_renew_failed",
+                    step_id=str(self.step_id),
+                    error=str(exc),
+                )
+                continue
+            if not held:
+                log.warning(
+                    "scan.lease_lost",
+                    step_id=str(self.step_id),
+                    attempt=self.attempt,
+                )
+                self.lost = True
+                return
+
+
+async def _no_heartbeat(done: int, total: int) -> None:
+    """Progress reported by a collection with no step behind it.
+
+    A direct ``collect`` call in a test has no lease to lose, and the collector
+    always has somewhere to report progress rather than a callback it must
+    check for None.
+    """
+    return None
+
+
+class _StepHeartbeat:
+    """The progress callback a step hands to collection.
+
+    It no longer renews anything -- :class:`LeaseKeeper` does that on a clock,
+    for every kind of step rather than only the one that reports progress. What
+    is left is the half a callback is uniquely placed to do: stop the work.
+
+    A step whose lease was lost is being run by somebody else, so every request
+    this one still makes spends the customer's Azure quota to produce a capture
+    that will be discarded. Raising at the next progress report ends it at the
+    first opportunity the collector offers.
+    """
+
+    def __init__(self, keeper: "LeaseKeeper") -> None:
+        self.keeper = keeper
 
     async def __call__(self, done: int, total: int) -> None:
-        try:
-            async with scan_session(self.organization_id) as session:
-                await orchestrator.renew(session, self.step_id)
-        except Exception as exc:  # pragma: no cover - a heartbeat is never fatal
-            # Losing a heartbeat costs the step its lease eventually, which the
-            # reaper handles. Failing the step over it would turn a database
-            # blip into lost collection.
-            log.warning(
-                "scan.heartbeat_failed", step_id=str(self.step_id), error=str(exc)
+        if self.keeper.lost:
+            raise StepLeaseLost(
+                "This step was taken over by another worker while it was "
+                "running, so this attempt stopped."
             )
 
 
@@ -270,6 +494,11 @@ class ScanPipeline:
                 return ScanStepStatus.FAILED
             kind = step.kind
             scope = step.cloud_account_id
+            # The claim this worker is running under. Everything below is
+            # fenced on it: the lease it renews, and the settle it writes at the
+            # end. A step reclaimed while this attempt was working carries a
+            # higher number, and this attempt then writes nothing.
+            attempt = step.attempt
 
         # Bound here rather than in the Celery task, so a step driven by the
         # tests or by a future caller carries the same context a queued one
@@ -281,20 +510,28 @@ class ScanPipeline:
             step_kind=kind.value,
             cloud_account_id=str(scope) if scope else None,
         ):
-            try:
-                if kind == ScanStepKind.PLAN:
-                    await self.plan()
-                elif kind == ScanStepKind.COLLECT:
-                    await self.collect(step_id)
-                else:
-                    await self.analyze()
-            except ScanStepError as exc:
-                return await self._settle(step_id, str(exc), retryable=exc.retryable)
-            except Exception as exc:
-                log.exception("scan.step_failed")
-                return await self._settle(step_id, str(exc), retryable=True)
+            organization_id = await self._organization()
+            async with LeaseKeeper(step_id, organization_id, attempt) as keeper:
+                try:
+                    if kind == ScanStepKind.PLAN:
+                        await self.plan()
+                    elif kind == ScanStepKind.COLLECT:
+                        await self.collect(step_id, _StepHeartbeat(keeper))
+                    else:
+                        await self.analyze()
+                except ScanStepError as exc:
+                    return await self._settle(
+                        step_id, str(exc), retryable=exc.retryable, attempt=attempt
+                    )
+                except Exception as exc:
+                    log.exception("scan.step_failed")
+                    return await self._settle(
+                        step_id, str(exc), retryable=True, attempt=attempt
+                    )
 
-            return await self._settle(step_id, None, retryable=False)
+                return await self._settle(
+                    step_id, None, retryable=False, attempt=attempt
+                )
 
     def _log_step(self, step: ScanStep, outcome: ScanStepStatus) -> None:
         """One line per stage, carrying what it cost.
@@ -320,25 +557,65 @@ class ScanPipeline:
         )
 
     async def _settle(
-        self, step_id: UUID, error: str | None, *, retryable: bool
+        self,
+        step_id: UUID,
+        error: str | None,
+        *,
+        retryable: bool,
+        attempt: int | None = None,
     ) -> ScanStepStatus:
+        """Record how this attempt went, if it is still this attempt's to record.
+
+        ``attempt`` is the fence, and the case it closes is not exotic. A worker
+        paused past its lease -- a container throttled, a database stall, a
+        redeploy that took the process's CPU away for a quarter of an hour --
+        has its step reclaimed and re-run elsewhere, and then comes back. What
+        it wrote before is already discarded by the retry's own demolition; what
+        it must not do is settle a step another worker is in the middle of,
+        because ANALYZE waits on COLLECT settling and would then start on a
+        collection still being written.
+        """
         async with self._session() as session:
             step = await session.get(ScanStep, step_id)
             if step is None:
                 return ScanStepStatus.FAILED
             if error is None:
-                await orchestrator.finish(session, step, ScanStepStatus.SUCCEEDED)
+                if not await orchestrator.finish(
+                    session, step, ScanStepStatus.SUCCEEDED, attempt=attempt
+                ):
+                    return self._lost(step)
                 self._log_step(step, ScanStepStatus.SUCCEEDED)
                 return ScanStepStatus.SUCCEEDED
             if not retryable:
-                await orchestrator.finish(
-                    session, step, ScanStepStatus.FAILED, error
-                )
+                if not await orchestrator.finish(
+                    session, step, ScanStepStatus.FAILED, error, attempt=attempt
+                ):
+                    return self._lost(step)
                 self._log_step(step, ScanStepStatus.FAILED)
                 return ScanStepStatus.FAILED
-            outcome = await orchestrator.fail_or_retry(session, step, error)
+            outcome = await orchestrator.fail_or_retry(
+                session, step, error, attempt=attempt
+            )
+            if outcome is None:
+                return self._lost(step)
             self._log_step(step, outcome)
             return outcome
+
+    def _lost(self, step: ScanStep) -> ScanStepStatus:
+        """What this attempt reports when the step was no longer its own.
+
+        The step's real state is whatever the worker that took it says, so this
+        returns what the row already holds rather than a verdict of its own. It
+        is reported as this attempt's outcome only for the log line and the
+        task's return value; nothing was written.
+        """
+        log.warning(
+            "scan.step_settle_skipped",
+            scan_id=str(self.scan_id),
+            step_id=str(step.id),
+            detail="another worker holds this step",
+        )
+        return step.status
 
     async def plan(self) -> list[CloudAccount]:
         """Resolve what this scan covers and create a step per scope.
@@ -355,13 +632,20 @@ class ScanPipeline:
                 return []
 
             accounts = await self._resolve_scope(session, scan)
+            connection = await self._resolve_connection(session, scan, accounts)
+            # The nouns this scan's messages are written in. A customer reading
+            # "subscription" about an AWS account is reading a product that has
+            # not noticed which cloud it is looking at. Resolved before the
+            # scope check, because that message is one of the ones that needs
+            # them and fires when there is no account left to ask.
+            scope_words = words(connection.provider if connection else None)
             if not accounts:
                 raise ScanScopeEmpty(
-                    "This scan has nothing in scope. Its subscriptions may have "
-                    "been removed, excluded from scanning, or never discovered."
+                    f"This scan has nothing in scope. Its {scope_words.accounts} "
+                    "may have been removed, excluded from scanning, or never "
+                    "discovered."
                 )
 
-            connection = await self._resolve_connection(session, scan, accounts)
             scan.started_at = scan.started_at or datetime.now(UTC)
             await orchestrator.create_collect_steps(
                 session,
@@ -382,8 +666,14 @@ class ScanPipeline:
             )
             return accounts
 
-    async def collect(self, step_id: UUID) -> None:
+    async def collect(
+        self, step_id: UUID, heartbeat: "_StepHeartbeat | None" = None
+    ) -> None:
         """Read one scope and store what came back. Interprets nothing.
+
+        ``heartbeat`` is how collection finds out it has lost the step. Optional
+        so a test can drive one collection without a lease to hold, and passed
+        by ``run_step`` in every other case.
 
         Idempotent by demolition: a retried step deletes whatever the previous
         attempt stored for this scope before storing again. The alternative is
@@ -405,18 +695,20 @@ class ScanPipeline:
             connection = await self._resolve_connection(
                 session, scan, await self._resolve_scope(session, scan)
             )
+            scope_words = words(connection.provider if connection else None)
             await self._discard_prior_attempt(session, scan, step.cloud_account_id)
 
             if step.is_directory:
                 if connection is None or not connection.tenant_id:
                     raise CollectionUnavailable(
-                        "This connection has no tenant to read a directory from."
+                        f"This connection has no {scope_words.boundary} to read "
+                        f"its {scope_words.directory} from."
                     )
                 await self._collect_directory(
                     session,
                     scan,
                     connection,
-                    _StepHeartbeat(step_id, scan.organization_id),
+                    heartbeat or _no_heartbeat,
                     observed_at,
                     required=True,
                 )
@@ -426,13 +718,15 @@ class ScanPipeline:
             account = await session.get(CloudAccount, step.cloud_account_id)
             if account is None:
                 raise CollectionUnavailable(
-                    "This subscription is no longer connected to CloudGuard."
+                    f"This {scope_words.account} is no longer connected to "
+                    "CloudGuard."
                 )
 
             connector = get_connector(
                 account.provider,
                 tenant_id=account.tenant_id,
                 subscription_id=account.subscription_id,
+                provider_ref=account.provider_ref,
             )
             # What this reading is for, decided before it is taken: every key
             # some enabled rule reads, plus the ones the product itself is
@@ -450,9 +744,7 @@ class ScanPipeline:
                 connection_id=account.connection_id,
                 now=observed_at,
             )
-            snapshot = await connector.collect(
-                _StepHeartbeat(step_id, scan.organization_id), plan
-            )
+            snapshot = await connector.collect(heartbeat or _no_heartbeat, plan)
             await self._explain_role_drift(session, account, snapshot)
 
             # Persisted before interpretation, always. One row per subscription,
@@ -465,7 +757,7 @@ class ScanPipeline:
                     connection_id=account.connection_id,
                     scan_id=scan.id,
                     snapshot_version=snapshot.version,
-                    data=snapshot.to_json(),
+                    manifest=_manifest(snapshot),
                 )
             )
             await self._record_evidence(
@@ -609,6 +901,7 @@ class ScanPipeline:
             connection.provider,
             tenant_id=connection.tenant_id,
             subscription_id=None,
+            provider_ref=connection.provider_ref,
         )
         plan = await plan_collection(
             session,
@@ -645,7 +938,7 @@ class ScanPipeline:
                 connection_id=connection.id,
                 scan_id=scan.id,
                 snapshot_version=snapshot.version,
-                data=snapshot.to_json(),
+                manifest=_manifest(snapshot),
             )
         )
         await self._record_evidence(
@@ -710,7 +1003,7 @@ class ScanPipeline:
         )
         account_id = account.id if account is not None else None
         digests = {
-            key: _digest(payload) for key, payload in snapshot.payloads.items()
+            key: digest(payload) for key, payload in snapshot.payloads.items()
         }
         # Readings this run did not take, and when they were taken. Read off
         # the plan rather than off the capture: the capture carries the same
@@ -720,10 +1013,17 @@ class ScanPipeline:
             key.value: reading.collected_at
             for key, reading in (plan.carried.items() if plan else ())
         }
+        # And which scan made the call. Without it every row this scan writes
+        # claims the reading as its own, and a citation followed back lands on
+        # a scan that read nothing for that key.
+        carried_from = {
+            key.value: reading.source_scan_id
+            for key, reading in (plan.carried.items() if plan else ())
+        }
         await self._store_blobs(session, org_id, snapshot.payloads, digests, observed_at)
 
         for key, entry in snapshot.coverage.items():
-            digest = digests.get(key)
+            hashed = digests.get(key)
             session.add(
                 Evidence(
                     organization_id=org_id,
@@ -731,7 +1031,15 @@ class ScanPipeline:
                     cloud_account_id=account_id,
                     connection_id=connection_id,
                     provider=snapshot.provider,
-                    evidence_key=key,
+                    # The bare key, and the region beside it. ``key`` here is
+                    # the entry name, which for a regional reading is
+                    # ``security_groups@eu-west-1`` -- unique within a capture,
+                    # and not what a rule declares a dependency on. Captures
+                    # taken before regions existed carry no ``key`` field, and
+                    # their entry name is already the bare key, which is what
+                    # the fallback says.
+                    evidence_key=entry.get("key") or key,
+                    region=entry.get("region"),
                     category=entry.get("category", ""),
                     outcome=TaskOutcome(entry.get("outcome", TaskOutcome.FAILED.value)),
                     detail=entry.get("detail") or None,
@@ -742,12 +1050,19 @@ class ScanPipeline:
                     # rather than about the read itself, and one reading could
                     # then be carried for ever, each scan renewing it.
                     collected_at=carried_at.get(key, observed_at),
+                    # NULL for a reading this scan took, which is the common
+                    # case and the honest one: the row is the reading.
+                    source_scan_id=carried_from.get(key),
                     permissions=list(entry.get("permissions") or []),
+                    # `[]` for a reading taken before this was recorded, which
+                    # is a fact about CloudGuard's history rather than a claim
+                    # that the task called nothing.
+                    endpoints=list(entry.get("endpoints") or []),
                     # NULL where a task produced nothing, which a failed one
                     # did. A hash of an empty payload would claim there was
                     # something to point at.
-                    content_hash=digest[0] if digest else None,
-                    byte_size=digest[1] if digest else 0,
+                    content_hash=hashed[0] if hashed else None,
+                    byte_size=hashed[1] if hashed else 0,
                 )
             )
 
@@ -765,16 +1080,23 @@ class ScanPipeline:
         a dozen readings and a tenant-wide one produces a dozen per
         subscription, and the whole point of content addressing is that most of
         them are already here.
+
+        That query asks for the hashes alone. It used to load the rows, which
+        meant a scan of an unchanged estate -- the case content addressing
+        exists for, and the common one -- read every payload it already held
+        back out of PostgreSQL, decompressed nothing, used none of it, and set
+        a timestamp. The touch is a single UPDATE instead, guarded so it can
+        only move ``last_seen_at`` forward: a replay of a capture collected in
+        March must not make its payloads look freshly read.
         """
         if not digests:
             return
 
-        hashes = {digest for digest, _size in digests.values()}
-        existing = {
-            row.content_hash: row
-            for row in (
+        hashes = {content_hash for content_hash, _size in digests.values()}
+        held = set(
+            (
                 await session.execute(
-                    select(EvidenceBlob).where(
+                    select(EvidenceBlob.content_hash).where(
                         EvidenceBlob.organization_id == org_id,
                         EvidenceBlob.content_hash.in_(hashes),
                     )
@@ -782,30 +1104,39 @@ class ScanPipeline:
             )
             .scalars()
             .all()
-        }
+        )
 
-        for key, (digest, size) in digests.items():
-            stored = existing.get(digest)
-            if stored is not None:
-                # Already held, byte for byte. Touched rather than rewritten,
-                # so retention can tell a payload still in use from one whose
-                # last reference was months ago.
-                stored.last_seen_at = max(stored.last_seen_at or observed_at, observed_at)
-                continue
-            blob = EvidenceBlob(
-                organization_id=org_id,
-                content_hash=digest,
-                payload=payloads[key],
-                byte_size=size,
-                first_stored_at=observed_at,
-                last_seen_at=observed_at,
+        if held:
+            # Already here, byte for byte. Touched rather than rewritten, so
+            # retention can tell a payload still in use from one whose last
+            # reference was months ago.
+            await session.execute(
+                update(EvidenceBlob)
+                .where(
+                    EvidenceBlob.organization_id == org_id,
+                    EvidenceBlob.content_hash.in_(held),
+                    EvidenceBlob.last_seen_at < observed_at,
+                )
+                .values(last_seen_at=observed_at)
             )
-            session.add(blob)
-            # Registered immediately: two readings in one scan can produce
+
+        for key, (content_hash, size) in digests.items():
+            if content_hash in held:
+                continue
+            session.add(
+                EvidenceBlob.of(
+                    organization_id=org_id,
+                    payload=payloads[key],
+                    content_hash=content_hash,
+                    byte_size=size,
+                    observed_at=observed_at,
+                )
+            )
+            # Recorded immediately: two readings in one scan can produce
             # identical bytes -- two subscriptions with no storage accounts do
             # -- and a second insert of the same key would break on the
             # primary key.
-            existing[digest] = blob
+            held.add(content_hash)
 
     # ------------------------------------------------------------------ scope
     async def _resolve_scope(
@@ -990,6 +1321,15 @@ class ScanPipeline:
         # change how its findings rank today, including on a replay of an older
         # reading.
         declarations = await self._declarations_for(session, org_id, list(accounts))
+        # Every reading of every capture, in one statement. A rebuild used to
+        # fetch its own, so an analysis of a tenant with fifty subscriptions
+        # opened with fifty queries against the largest table in the schema
+        # before a single rule ran -- and the captures share hashes, because
+        # content addressing is the whole reason two subscriptions with the same
+        # empty listing store it once.
+        payloads = await _payloads_by_hash(
+            session, org_id, _manifest_hashes(stored)
+        )
 
         for row in stored:
             # The directory capture, read on its own terms. It is a reading of
@@ -998,7 +1338,11 @@ class ScanPipeline:
             # has since re-read the same directory through the same connection.
             if row.cloud_account_id is None:
                 restored = await self._restore_directory(
-                    session, org_id, row, check_freshness=check_freshness
+                    session,
+                    org_id,
+                    row,
+                    check_freshness=check_freshness,
+                    payloads=payloads,
                 )
                 if restored is None:
                     state.is_current = False
@@ -1010,6 +1354,10 @@ class ScanPipeline:
                 state.merged.collection_errors.update(
                     state.directory[1].collection_errors
                 )
+                # Tenant defences. They come from the directory reading and are
+                # about the whole tenant, so they merge once rather than per
+                # subscription -- the same reason the directory is read once.
+                state.merged.controls.update(state.directory[1].controls)
                 state.errors.update(snapshot.errors)
                 continue
 
@@ -1024,11 +1372,14 @@ class ScanPipeline:
             if check_freshness and row.id != newest_by_account.get(account.id):
                 state.is_current = False
 
-            snapshot = RawSnapshot.from_json(row.data)
+            snapshot = RawSnapshot.from_json(
+                await _rebuild_capture(session, org_id, row, payloads)
+            )
             connector = get_connector(
                 account.provider,
                 tenant_id=account.tenant_id,
                 subscription_id=account.subscription_id,
+                provider_ref=account.provider_ref,
             )
             account_state = connector.normalize(snapshot)
             # Normalization is a pure function of the capture, so this is where
@@ -1121,16 +1472,26 @@ class ScanPipeline:
             )
         ).scalar_one_or_none()
 
+        # The connection this scan runs through, for its words alone. A customer
+        # reading "the tenant directory" about an AWS organization is reading a
+        # product that has not noticed which cloud it is looking at.
+        connection = (
+            await session.get(CloudConnection, scan.connection_id)
+            if scan.connection_id
+            else None
+        )
+        scope_words = words(connection.provider if connection else None)
         if step is None:
             reason = (
                 "This scan has no cloud connection behind it, so CloudGuard has "
-                "no grant to read the tenant directory. Reconnect it from the "
-                "connections page."
+                f"no grant to read its {scope_words.directory}. Reconnect it "
+                "from the connections page."
             )
         else:
             reason = (
-                "The tenant directory could not be read for this scan, so no "
-                f"identity check could reach a verdict. ({step.error or 'unknown error'})"
+                f"The {scope_words.directory} could not be read for this scan, "
+                "so no identity check could reach a verdict. "
+                f"({step.error or 'unknown error'})"
             )
 
         # Asked of the connector rather than of Azure's key enum directly. The
@@ -1193,6 +1554,17 @@ class ScanPipeline:
         # it read rather than how large the customer has grown.
         account_ids = [account.id for account, _ in account_state]
         connection_id = directory[0].id if directory is not None else None
+        # Which subscription each asset came from, taken before the merge --
+        # after it, a tenant-wide scan's resources are one list and the
+        # subscription that produced each is no longer recoverable from them.
+        # A finding cites the readings of *its* asset's subscription, so this is
+        # what keeps subscription B's storage listing from being offered as the
+        # provenance of a finding in subscription A.
+        account_of = {
+            resource.provider_resource_id: account.id
+            for account, state in account_state
+            for resource in state.resources
+        }
 
         # --- normalize ------------------------------------------------------
         await self._set_status(session, scan, ScanStatus.NORMALIZING)
@@ -1230,6 +1602,7 @@ class ScanPipeline:
             resources=merged.resources,
             relationships=self._group_edges(merged),
             collection_errors=merged.collection_errors,
+            controls=merged.controls,
         )
         report = self.engine.evaluate(context)
         scan.rule_count = report.rules_run
@@ -1248,6 +1621,7 @@ class ScanPipeline:
                 observed_at,
                 account_ids=account_ids,
                 connection_id=connection_id,
+                account_of=account_of,
             )
             await self._verify_remediations(
                 session,
@@ -1262,7 +1636,7 @@ class ScanPipeline:
             # them: the worst member is the floor a route is scored from, and
             # a route assembled before its members would have nothing to stand
             # on.
-            await self._correlate_paths(session, org_id, merged, id_map)
+            await self._correlate_paths(session, org_id, scan, merged, id_map)
             # Last, because it is a reading of everything above it: the
             # findings this scan wrote, the risks they were scored into, and
             # the routes correlation found between them.
@@ -1437,6 +1811,7 @@ class ScanPipeline:
         row: CloudSnapshot,
         *,
         check_freshness: bool = False,
+        payloads: dict[str, dict] | None = None,
     ) -> tuple[tuple[CloudConnection, NormalizedState], RawSnapshot, bool] | None:
         """Re-normalize a stored directory capture.
 
@@ -1478,11 +1853,14 @@ class ScanPipeline:
             else row.id
         )
 
-        snapshot = RawSnapshot.from_json(row.data)
+        snapshot = RawSnapshot.from_json(
+            await _rebuild_capture(session, org_id, row, payloads)
+        )
         connector = get_connector(
             connection.provider,
             tenant_id=connection.tenant_id,
             subscription_id=None,
+            provider_ref=connection.provider_ref,
         )
         state = connector.normalize(snapshot)
         return (connection, state), snapshot, row.id == newest
@@ -1977,6 +2355,7 @@ class ScanPipeline:
         *,
         account_ids: list[UUID],
         connection_id: UUID | None,
+        account_of: dict[str, UUID],
     ) -> int:
         """Write this scan's failures as findings, and score each one.
 
@@ -2031,10 +2410,7 @@ class ScanPipeline:
         # VM is guarded by the same NSG through two NICs -- and findings are
         # unique on (organization, rule, resource). Two entries for one row
         # meant two INSERTs of the same key.
-        pending: dict[
-            tuple[str, UUID | None],
-            tuple[Finding, SecurityRule, CloudResource | None, ScoredRisk, str],
-        ] = {}
+        pending: dict[tuple[str, UUID | None], PendingFinding] = {}
         # (finding, what happened, the status it left, the sentence). Held
         # until the flush, because a finding raised by this scan has no primary
         # key for an event to point at until then.
@@ -2083,7 +2459,7 @@ class ScanPipeline:
             finding.severity = rule.severity
             finding.title = title
             finding.description = description
-            finding.evidence = failure.result.evidence or {}
+            finding.evidence = self._evidence_with_controls(failure.result)
             # Snapshot-copied so later edits to the rule's guidance do not
             # rewrite the history of findings already raised.
             finding.remediation = rule.remediation
@@ -2098,7 +2474,8 @@ class ScanPipeline:
                     asset_criticality=resource.criticality if resource else Level.UNKNOWN,
                     data_sensitivity=resource.data_sensitivity if resource else Level.UNKNOWN,
                     internet_exposure=resource.public_exposure if resource else Level.UNKNOWN,
-                    exploitability=rule.exploitability,
+                    # The rule's tag unless this instance earned a lower one.
+                    exploitability=rule.effective_exploitability(failure.result),
                 )
             )
             finding.risk_score = scored.score
@@ -2110,6 +2487,8 @@ class ScanPipeline:
 
         # One flush for every new finding, rather than one per finding.
         await session.flush()
+
+        await self._link_evidence(session, org_id, scan, pending, account_of)
 
         for finding, event, previous, detail in events:
             session.add(
@@ -2141,11 +2520,43 @@ class ScanPipeline:
             else {}
         )
 
+        # Failures from a rule that groups them: one risk for the rule, with
+        # every failing asset as a member.
+        grouped: dict[str, list[PendingFinding]] = {}
+        for entry in pending.values():
+            if entry[1].risk_grouping is not None:
+                grouped.setdefault(entry[1].rule_id, []).append(entry)
+
+        # Looked up by key rather than reached through the junction. A group
+        # risk outlives every one of its members closing, so the scan that
+        # reopens one has to find the existing row -- and inserting a second
+        # for a key the unique index already holds would fail the whole scan.
+        group_risks: dict[str, Risk] = {}
+        if grouped:
+            group_risks = {
+                risk.scenario_key: risk
+                for risk in (
+                    await session.execute(
+                        select(Risk).where(
+                            Risk.organization_id == org_id,
+                            Risk.scenario_key.in_(
+                                [self._group_key(rule_id) for rule_id in grouped]
+                            ),
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+                if risk.scenario_key
+            }
+
         # Risks whose junction row does not exist yet. The link needs both ids,
         # so it is written after the risks are flushed rather than inside the
         # loop -- ``RiskFinding`` has no ORM relationships, only the two columns.
         unlinked: list[tuple[Risk, Finding]] = []
         for finding, rule, resource, scored, title in pending.values():
+            if rule.risk_grouping is not None:
+                continue
             linked = risk_by_finding.get(finding.id)
             risk = self._upsert_risk(
                 session,
@@ -2160,6 +2571,18 @@ class ScanPipeline:
             if linked is None:
                 unlinked.append((risk, finding))
 
+        for rule_id, members in grouped.items():
+            unlinked.extend(
+                await self._upsert_group_risk(
+                    session,
+                    org_id,
+                    members,
+                    existing=group_risks.get(self._group_key(rule_id)),
+                    linked_risks=risks,
+                    risk_by_finding=risk_by_finding,
+                )
+            )
+
         if unlinked:
             await session.flush()
             for risk, finding in unlinked:
@@ -2173,6 +2596,212 @@ class ScanPipeline:
 
         await session.commit()
         return open_count
+
+    @staticmethod
+    def _group_key(rule_id: str) -> str:
+        """What makes a rule's group risk the same risk between scans.
+
+        Reuses ``scenario_key`` -- the column that already answers "what
+        identifies a risk that is not identified by a single finding" -- and
+        namespaces itself for the same reason the escalation template does: the
+        unique index covers (organization, key) across every kind.
+        """
+        return f"group:{rule_id}"
+
+    async def _upsert_group_risk(
+        self,
+        session: AsyncSession,
+        org_id: UUID,
+        members: list[PendingFinding],
+        *,
+        existing: Risk | None,
+        linked_risks: dict[UUID, Risk],
+        risk_by_finding: dict[UUID, UUID],
+    ) -> list[tuple[Risk, Finding]]:
+        """One risk for a rule that groups, with every failing asset in it.
+
+        Scored as the worst member, exactly as a scenario is: a group cannot be
+        less serious than the most serious thing in it, and it must not be more
+        serious either -- forty accounts missing MFA is one policy that was
+        never written, not forty times the problem. Summing them would be the
+        arithmetic that pins a security score at zero over a single mistake,
+        which is the reason this exists.
+
+        The breakdown is the worst member's, so "why is this 84?" still names
+        real components measured on a real asset rather than an average of
+        forty. What the group adds is the count, which is in the title.
+
+        Returns the (risk, finding) pairs still needing a junction row.
+        """
+        rule = members[0][1]
+        grouping = rule.risk_grouping
+        assert grouping is not None  # only rules that declare one reach here
+
+        worst_finding, _, worst_resource, worst_scored, _ = max(
+            members, key=lambda entry: entry[3].score
+        )
+
+        # Risks each member used to have to itself, from before this rule
+        # grouped -- or from before the declaration was added. Deleted rather
+        # than resolved, which is the opposite of what happens to a route that
+        # closes, and for the opposite reason: nothing here ended. The same
+        # accounts are still failing the same check, and a resolved duplicate
+        # would show a customer a fixed MFA risk sitting beside an open one for
+        # the same people. The findings keep every event they ever had.
+        group_key = self._group_key(rule.rule_id)
+        for finding, *_ in members:
+            superseded = risk_by_finding.get(finding.id)
+            if superseded is None:
+                continue
+            risk = linked_risks.get(superseded)
+            if risk is not None and risk.scenario_key != group_key:
+                await session.delete(risk)
+                linked_risks.pop(superseded, None)
+                risk_by_finding.pop(finding.id, None)
+
+        risk = self._upsert_risk(
+            session,
+            org_id,
+            worst_finding,
+            rule,
+            worst_resource,
+            worst_scored,
+            grouping.title(len(members)),
+            existing,
+        )
+        risk.scenario_key = group_key
+
+        # A risk being inserted has no id yet, so every member needs a link.
+        # An existing one keeps the links it already has.
+        return [
+            (risk, finding)
+            for finding, *_ in members
+            if risk.id is None or risk_by_finding.get(finding.id) != risk.id
+        ]
+
+    async def _link_evidence(
+        self,
+        session: AsyncSession,
+        org_id: UUID,
+        scan: Scan,
+        pending: dict[tuple[str, UUID | None], PendingFinding],
+        account_of: dict[str, UUID],
+    ) -> None:
+        """Cite the readings each finding rests on.
+
+        The finding already carries an excerpt of its evidence. This records
+        where that came from: which listing, taken when, under which
+        permissions, and the hash of the payload. An excerpt cannot be
+        re-verified; a citation can.
+
+        **Read from the scan that collected, not the scan that concluded.** A
+        replay evaluates a capture some earlier scan took and writes no evidence
+        rows of its own, so resolving against ``scan.id`` would find nothing and
+        delete every link it touched -- silently, on the path that exists to
+        verify fixes. ``replay_of_scan_id`` is the scan that did the reading.
+
+        Rewritten rather than accumulated. A citation describes what a finding
+        rests on *now*; what it used to rest on is ``finding_events``' job.
+        """
+        if not pending:
+            return
+
+        source_scan_id = scan.replay_of_scan_id or scan.id
+        wanted = {
+            key.value
+            for _finding, rule, *_rest in pending.values()
+            for key in rule.requires_evidence
+        }
+        if not wanted:
+            # Every rule that failed reads nothing it declared. Nothing to cite,
+            # and no rows to clear -- a finding cannot have acquired a citation
+            # for a key its rule never asked for.
+            return
+
+        rows = (
+            (
+                await session.execute(
+                    select(Evidence).where(
+                        Evidence.organization_id == org_id,
+                        Evidence.scan_id == source_scan_id,
+                        Evidence.evidence_key.in_(wanted),
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        # (account, key) -> reading. The directory's readings are filed under
+        # None, which is how ``Evidence`` records them: a tenant-wide read did
+        # not happen *in* a subscription, and naming one would attribute it to a
+        # scope that is fine.
+        by_scope: dict[tuple[UUID | None, str], Evidence] = {
+            (row.cloud_account_id, row.evidence_key): row for row in rows
+        }
+
+        finding_ids = [finding.id for finding, *_ in pending.values()]
+        await session.execute(
+            delete(FindingEvidence).where(
+                FindingEvidence.organization_id == org_id,
+                FindingEvidence.finding_id.in_(finding_ids),
+            )
+        )
+
+        for finding, rule, resource, *_rest in pending.values():
+            account_id = (
+                account_of.get(resource.provider_resource_id) if resource else None
+            )
+            for key in rule.requires_evidence:
+                # The asset's own subscription first, then the directory. Both
+                # arms are needed rather than one: an aggregate rule reads only
+                # tenant-wide listings, while a per-resource rule may read a
+                # directory listing beside its subscription's.
+                row = by_scope.get((account_id, key.value)) or by_scope.get(
+                    (None, key.value)
+                )
+                if row is None:
+                    # No reading of this key reached this scope. That is not an
+                    # error and not a gap to record here -- the rule degrades to
+                    # UNKNOWN through ``collection_errors`` and never becomes a
+                    # finding, so a FAIL citing a key with no reading means the
+                    # rule read something it did not declare, which the evidence
+                    # tests catch at their own layer.
+                    continue
+                session.add(
+                    FindingEvidence(
+                        organization_id=org_id,
+                        finding_id=finding.id,
+                        evidence_key=row.evidence_key,
+                        evidence_id=row.id,
+                        content_hash=row.content_hash,
+                        # The provider's read time, which for a carried reading
+                        # is older than this scan. Copied rather than joined so
+                        # the age survives the reading's deletion.
+                        collected_at=row.collected_at,
+                        # The scan that read the provider. For a carried
+                        # reading that is an earlier scan than the one holding
+                        # this row, which is the distinction this field exists
+                        # to make and could not make while it was copied from
+                        # ``row.scan_id``.
+                        source_scan_id=row.source_scan_id or row.scan_id,
+                    )
+                )
+
+    @staticmethod
+    def _evidence_with_controls(result: RuleResult) -> dict:
+        """The rule's evidence, plus why its score was lowered.
+
+        Merged here rather than left to each rule, so the key cannot be spelled
+        two ways by two authors -- and so a customer asking why an
+        administrator without MFA is not scored as a Critical has the answer on
+        the finding rather than in a scoring formula they cannot see.
+        """
+        evidence = dict(result.evidence or {})
+        if result.controls:
+            evidence["compensating_controls"] = [
+                control.as_evidence() for control in result.controls
+            ]
+        return evidence
 
     def _upsert_risk(
         self,
@@ -2200,11 +2829,16 @@ class ScanPipeline:
             "description": rule.rationale or rule.description,
             "risk_score": scored.score,
             "risk_level": scored.level,
+            "known_risk_level": scored.known_level,
             "severity": rule.severity.value,
             "asset_criticality": resource.criticality if resource else Level.UNKNOWN,
             "data_sensitivity": resource.data_sensitivity if resource else Level.UNKNOWN,
             "internet_exposure": resource.public_exposure if resource else Level.UNKNOWN,
-            "exploitability": rule.exploitability,
+            # From the scored inputs, not from the rule: the two differ whenever
+            # a result stepped its own exploitability down, and reading the
+            # class tag here would show a number the score was not computed
+            # from on the one page that exists to explain the score.
+            "exploitability": scored.inputs.exploitability,
             "business_impact": scored.business_impact,
             "score_breakdown": scored.breakdown,
         }
@@ -2286,9 +2920,18 @@ class ScanPipeline:
         # Finding risks only, exactly as the security score counts them: a
         # scenario groups findings already counted here, and including it would
         # charge the customer twice for one problem.
+        #
+        # Counted distinctly, because the join fans a risk out across its
+        # members. A rule that groups its findings has one risk with forty of
+        # them, and counting join rows would deduct forty times for the one
+        # problem grouping exists to state once.
         band_rows = (
             await session.execute(
-                select(Risk.risk_level, func.count())
+                select(
+                    Risk.risk_level,
+                    func.coalesce(Risk.known_risk_level, Risk.risk_level),
+                    func.count(func.distinct(Risk.id)),
+                )
                 .join(RiskFinding, RiskFinding.risk_id == Risk.id)
                 .join(Finding, Finding.id == RiskFinding.finding_id)
                 .where(
@@ -2296,7 +2939,10 @@ class ScanPipeline:
                     Risk.kind == RiskKind.FINDING,
                     Finding.status.in_(open_statuses),
                 )
-                .group_by(Risk.risk_level)
+                .group_by(
+                    Risk.risk_level,
+                    func.coalesce(Risk.known_risk_level, Risk.risk_level),
+                )
             )
         ).all()
 
@@ -2312,14 +2958,18 @@ class ScanPipeline:
             )
         ).scalar_one()
 
-        bands = {Level(level): int(count) for level, count in band_rows}
+        bands: dict[Level, int] = {}
         open_levels: list[Level] = []
-        for level, count in bands.items():
-            open_levels.extend([level] * count)
+        for level, known, count in band_rows:
+            bands[Level(level)] = bands.get(Level(level), 0) + int(count)
+            open_levels.extend([Level(known)] * int(count))
 
         return {
             "security_score": default_scorer.security_score(open_levels),
-            "open_finding_count": sum(bands.values()),
+            # Findings, from the findings. It used to be the width of the band
+            # query, which was the same number only while every risk had
+            # exactly one member.
+            "open_finding_count": sum(int(count) for _, count in severity_rows),
             "findings_by_severity": {
                 str(severity): int(count) for severity, count in severity_rows
             },
@@ -2332,6 +2982,7 @@ class ScanPipeline:
         self,
         session: AsyncSession,
         org_id: UUID,
+        scan: Scan,
         merged: NormalizedState,
         id_map: dict[str, UUID],
     ) -> None:
@@ -2380,6 +3031,7 @@ class ScanPipeline:
             open_findings,
             kind=RiskKind.ATTACK_PATH,
             paths=graph.attack_paths(),
+            scan=scan,
         )
         # The second template. A route to an identity that can hand out roles is
         # a different question from a route to data -- not what an attacker
@@ -2393,6 +3045,7 @@ class ScanPipeline:
             open_findings,
             kind=RiskKind.ESCALATION,
             paths=graph.escalation_chains(),
+            scan=scan,
         )
         await session.commit()
 
@@ -2406,6 +3059,7 @@ class ScanPipeline:
         *,
         kind: RiskKind,
         paths: list[Path],
+        scan: Scan,
     ) -> None:
         """One correlation template: routes of a kind, in and out of existence.
 
@@ -2499,6 +3153,11 @@ class ScanPipeline:
             ]
             risk.risk_score = scored.score
             risk.risk_level = scored.level
+            # None, and deliberately. A scenario is a statement about a route
+            # rather than about one asset's context, and it never reaches the
+            # org security score -- the findings it groups are already counted
+            # there. A second band for it would be a number nobody claimed.
+            risk.known_risk_level = scored.known_level
             risk.severity = Severity.HIGH.value
             risk.asset_criticality = path.target.criticality
             risk.data_sensitivity = target_sensitivity
@@ -2508,6 +3167,12 @@ class ScanPipeline:
             risk.score_breakdown = scored.breakdown
             risk.status = RiskStatus.OPEN
             risk.resolved_at = None
+            # Which reading saw it. Written on every observation rather than
+            # only at creation: the useful question about a route is not when it
+            # first appeared but whether anything has looked since, and a value
+            # frozen at creation would answer the first while looking like the
+            # second.
+            risk.observed_scan_id = scan.id
 
             await session.flush()
             await self._link_members(session, org_id, risk, members)
@@ -2736,9 +3401,40 @@ class ScanPipeline:
                 verified_by_scan=str(scan.id),
             )
 
-        for link in links:
-            risk = risks.get(link.risk_id)
-            if risk is not None:
+        # A risk closes when nothing it groups is still open, which for a risk
+        # with one finding is the same sentence as before. For a grouped one it
+        # is the difference between "the policy is written" and "one of the
+        # forty administrators registered an authenticator app": closing on the
+        # first member would report the whole problem fixed while thirty-nine
+        # accounts still had no second factor.
+        #
+        # The findings resolved above are excluded by id rather than by status.
+        # They are mutated in the session and not yet flushed, so the database
+        # still reports them open and would keep every risk alive.
+        resolved_ids = [finding.id for finding in resolved]
+        risk_ids = {link.risk_id for link in links}
+        still_open = set(
+            (
+                await session.execute(
+                    select(RiskFinding.risk_id)
+                    .join(Finding, Finding.id == RiskFinding.finding_id)
+                    .where(
+                        RiskFinding.organization_id == org_id,
+                        RiskFinding.risk_id.in_(risk_ids),
+                        Finding.status.in_(
+                            [FindingStatus.OPEN, FindingStatus.IN_PROGRESS]
+                        ),
+                        Finding.id.notin_(resolved_ids),
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+        for risk_id in risk_ids:
+            risk = risks.get(risk_id)
+            if risk is not None and risk_id not in still_open:
                 risk.status = RiskStatus.RESOLVED
                 risk.resolved_at = now
 

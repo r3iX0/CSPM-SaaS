@@ -26,14 +26,16 @@ Overview                            ✓ Assessed 31 Aug 01:51  [Scan now] [Repor
 
 ┌────────────────────────┬────────────────────────────────────┐
 │ PRIORITY RISKS         │ SHORTEST ATTACK PATH               │
-│ ① Public database  94  │ vm-jump-01 → prodstorage           │
+│ ▣ Public database      │ vm-jump-01 → prodstorage           │
 │   Internet-facing      │ ① runs as mi-jump                  │
 │   Sensitive data       │ ✂ can act over prodstorage         │
+│                94 CRIT │                                    │
 └────────────────────────┴────────────────────────────────────┘
 
 ┌────────────────────────┬────────────────────────────────────┐
 │ REMEDIATION            │ RECENT CHANGES                     │
-│ 34% verified fixed     │ ↑ exposure · storage-prod    2h    │
+│ 34% verified fixed     │  2h ●─ storage-prod — exposure ↑   │
+│                        │  1d ●─ vm-jump-01 — appeared       │
 └────────────────────────┴────────────────────────────────────┘
 ```
 
@@ -55,7 +57,19 @@ wrong has to see what could not be answered in the same glance.
 **A ranked risk carries the terms it was ranked by** — internet-facing,
 sensitive data, business-critical — so a rank reads as a reason rather than as
 an assertion. A scenario is marked as a route, because it groups findings that
-are already counted individually.
+are already counted individually. The row leads with a severity-tinted mark
+rather than an ordinal: the list is already in rank order, so a number column
+would restate the reading direction, and the tint is what a reader actually
+scans a list of five for. Score and severity badge sit together at the trailing
+edge, where the eye lands after the title.
+
+**Recent changes is drawn as a timeline** — date gutter, spine, entry — because
+the question it answers is temporal: one bad afternoon and a steady drift are
+the same five rows in a flat list and visibly different on a spine. The spine
+stops at the first and last mark rather than running off the ends, which would
+imply rows that are not there. A movement keeps its shape as well as its colour,
+so a regression stays distinguishable from an arrival, and an attribute that
+moved into UNKNOWN renders neutral in both.
 
 **The charts follow the question, not the variety.** Rings only where the data
 is a whole divided in two or three (coverage; finding status); severity as one
@@ -111,9 +125,72 @@ knows where they are, not only where to leave.
 
 **Finding detail** — title, severity, asset, why it matters, evidence, risk score, recommended fix, estimated effort, owner, and actions: **Assign / Mark In Progress / Accept Risk / Rescan**. It also says what the finding is *part of*: the attack paths its asset sits on, drawn as routes with the link worth cutting marked, and labelled by where the asset sits on each — the way in, a link in the middle, or the target. No route found is written as a fact about the graph rather than as reassurance, because what counts as sensitive is something the customer declares. Evidence is the raw capture, clipped past about two screens with the rest one click away and copyable whole.
 
+**Finding detail — how we know.** Under the evidence excerpt, the readings that
+excerpt came from: which listing, how long ago the *provider* was read, the
+permission the read was made under, and whether the capture is still stored. The
+excerpt says what the rule saw; this says where it came from, which is the
+difference between a claim a customer accepts and one they check. Three answers
+are kept apart that a careless rendering would flatten into one blank space —
+"raised before CloudGuard recorded this" is a fact about the product, "this
+check reads no collected evidence" is a fact about the rule, and a failed
+request is neither, so the panel does not render at all. Age is the API's
+number, not the browser's: a carried reading is older than the scan that raised
+the finding, and a clock-side calculation would differ per machine.
+
+**Scan — what rested on a reading.** Each listing in a scan's collection panel
+says when the provider was read and how many findings rest on it, linking to
+exactly those. The finding page asks where its evidence came from; this is the
+same chain from the evidence end, which is the question somebody looking at a
+failed or stale listing actually has. A reading that failed says *no findings
+rest on this* and is not a link — the rules that needed it degraded to UNKNOWN
+and never became findings, which is the engine working rather than a gap. The
+link carries `status=all`, because a reading whose findings have since been
+fixed would otherwise land on an empty table and read as "nothing rested on it".
+
+**Notifications** — a bell in the header, between the scan indicator and the
+theme toggle: what is happening now, then what happened, then how the app looks.
+It answers "since you last looked", which is a different question from the
+Changes page and must not become a second copy of it. A popover rather than a
+dropdown menu, because the rows are content containing links and a screen reader
+announcing "menu, 6 items" would be wrong about what they are. Rows link and
+never act — resolving or accepting is a decision about a finding, and one taken
+from a dropdown is one taken without the evidence in front of you. It is marked
+read when the panel opens rather than when it closes, and by an effect rather
+than the click handler, because the unread count can arrive after the click.
+No polling: `ScanIndicator` beside it polls only while a scan is in flight and
+refuses to poll a finished one overnight, and there is no "in flight" here.
+Empty reads *"Nothing new"* plus what it would have told you about; a failed
+request renders nothing at all, because a network error is not an all-clear.
+
 **Rules** — the catalogue, filterable by severity and free text. It lists what CloudGuard *runs*: a rule withdrawn from the registry (`enabled: false`) is held back behind a toggle and named as withdrawn, because it no longer runs and compliance coverage no longer counts it. Each rule expands to its rationale and the fix in every form the backend holds — prose, CLI, Terraform, Azure Policy.
 
+**Compliance — a framework, control by control.** Controls keep the framework's
+own section order, because somebody arrives holding an auditor's spreadsheet in
+that order. Each control carries its verdict, the rules mapped to it, why a rule
+could not tell where that applies, and — the half a compliance screen usually
+leaves out — the provider readings the verdict rests on: which listing, how long
+ago it was taken, across how many subscriptions, under what permission, and
+whether the payload is still stored. Those are shown for a *passing* control as
+much as a failing one, which is the whole point: a finding cites the readings
+behind it, so "how do you know this is wrong" was already answerable, while the
+green row an auditor asks about first had nothing behind it at all. The oldest
+read and the worst outcome are what a control reports, never an average — a
+control is only as current and as complete as the least of the things it rests
+on. The page is dated by the scan it was assessed from, and says so when that
+scan was PARTIAL. **Export** takes the same assessment away as CSV (the
+spreadsheet an audit is run from) or JSON (a GRC platform), fetched with the
+caller's token rather than linked, because the token lives in memory and a plain
+anchor would arrive unauthenticated.
+
 **Risk detail** — the findings a risk was built from, each one openable, plus the arithmetic in the terms that score was actually built from: the six weighted components for a finding risk, or worst-member/amplifier/hops for a route. The two are never mixed — a scenario was not scored from criticality and exploitability, so it is not shown them.
+
+**Risk detail — when a route was last confirmed.** A scenario says when
+anything last looked, under the route it draws. A path is a claim about how an
+environment is wired *as of a reading*, and without a date one that survived the
+latest scan and one nothing has re-checked since Tuesday render identically —
+with the second reading as current. Where the scan that found it has been
+pruned, the page says CloudGuard cannot tell rather than showing a date it
+cannot support.
 
 **Settings** — the half of the evidence a person supplies. The organization profile (name, industry, country; the slug is shown and never editable, because a rename must not change an identifier already in stored references). Per-subscription **context declarations** — environment, criticality, data sensitivity, note — which are what the risk engine multiplies every finding by, and which beat anything inferred from a tag or a resource name. `UNKNOWN` is not offered: it is CloudGuard's word for "nothing said anything", so leaving a field unset withdraws a claim rather than declaring the value unknown. A declaration applies at the next evaluation, not retroactively. Deletion lives here too, gated on typing the organization name, and offered to owners only.
 
@@ -123,10 +200,91 @@ knows where they are, not only where to leave.
 
 **Scan** — **automatic scanning** per connection (an interval, off by default). It is set here rather than on the connection card: this page answers when the environment was last read and when it will be read next, and a schedule is the second half of that sentence. Then live progress (discovery → rules → risk analysis) then a summary: resources, rules run, findings by severity. A finished run also offers **Re-evaluate**, which runs today's rules against the capture it already stored — no Azure call. A replay labels itself as one, and says which of the two things its counts mean: applied to the current picture (findings moved), or advisory (the capture has been superseded, so nothing was created, resolved or reopened).
 
-**Connection card** — per connection: the two grants, discovered subscriptions and their scope, a line naming where automatic scanning is now set and what it is set to, and **React to changes** (opens CloudGuard's webhook and hands over the `az eventgrid` command per subscription). The change control has to say that turning it on wires nothing up: creating that subscription is a write in the customer's tenant, and CloudGuard holds no write permission anywhere.
+**Connection card** — per connection: the grants (two on Azure, one on AWS — the panel is a function of the provider, because a permanently green "Consent: granted" row beside a single AWS grant would describe a step that never happened), discovered subscriptions and their scope, a line naming where automatic scanning is now set and what it is set to, and **React to changes** (opens CloudGuard's webhook and hands over the `az eventgrid` command per subscription). The change control has to say that turning it on wires nothing up: creating that subscription is a write in the customer's tenant, and CloudGuard holds no write permission anywhere.
+
+**Removing a connection is a dialog, not a panel.** It is the one irreversible
+action in the product, and the confirmation is long — the three `az` commands
+that revoke access, why CloudGuard cannot run them itself, and a probe that asks
+Azure whether they worked. Expanded inside the row it pushed the rest of the
+connection off screen while somebody was deciding whether to delete an
+environment. As a modal it takes focus, Escape and "Keep it" are the same safe
+answer, and the revocation commands are fetched only once the dialog is open —
+a page of six connections must not ask six times for commands nobody wanted to
+see. The commands stay *inside* the removal flow because that is the only moment
+the customer is thinking about ending this, and deleting the connection destroys
+the principal id and scope needed to write them.
 
 ---
 
-## 4. Onboarding
+## 4. Colour
+
+Two layers, and the separation is load-bearing. The **semantic tokens** —
+`background`, `card`, `muted`, `border`, `ring`, `primary`, `destructive` — are
+the product's chrome and may be re-themed. The **severity scale** —
+`critical`, `high`, `medium`, `low`, `unknown`, `ok`, each with a `-bg` tint and
+a `-border` — is what a colour *means* to somebody reading a security finding,
+and must not drift when an accent changes. `destructive` means "this button
+deletes something"; `critical` means "an attacker can reach your data".
+Collapsing the two would paint a cancel button and a public storage account the
+same colour.
+
+Both live in `apps/web/src/index.css` as Tailwind 4 `@theme inline` (there is no
+`tailwind.config.js`; `DECISIONS.md` §35 covers why v3 cannot be gone back to).
+Components use the tokens, never a raw hex or a Tailwind palette class — a
+`bg-stone-50` is a light-mode decision written into a component, and it does not
+flip when the theme does.
+
+**Every pair is contrast-checked in both modes.** Text clears 4.5:1 against the
+surface it sits on; chart series and the focus ring clear 3:1. The theme is a
+class on `<html>` set before React exists, so "system" is a real third choice
+rather than a synonym for light.
+
+Three things that follow from this and are easy to get wrong:
+
+- **Each mode is lit from its own surface.** The dark severity backgrounds are
+  tints of the dark surface, not of white — a light tint on a dark page glows,
+  and a glowing badge reads as more urgent than the one beside it, which is a
+  ranking the rules never made. The neutral chart ramp likewise runs light-to-
+  dark on the light page and dark-to-light on the dark one; it used to be one
+  ramp copied into both blocks, which left roughly half of it invisible in each.
+- **Hue is reserved for severity.** The chart ramp is deliberately neutral: a
+  chart that coloured its series would be making a claim the rules never made.
+  For the same reason there is no saturated accent anywhere in the chrome.
+- **UNKNOWN gets its own colour and a dashed border**, not a shade of LOW — a gap
+  in knowledge is not a mild problem, and the dash keeps it distinguishable
+  without relying on colour at all.
+
+---
+
+## 5. When the app itself fails
+
+Three failures are the client's own rather than any page's, and each is a
+production condition that does not exist in development — where modules are
+served from a running dev server, nothing redeploys under an open tab, and the
+API is on localhost and either answers or refuses at once.
+
+**A thrown error must not become a blank page.** React unmounts the whole tree
+when a render throws and nothing catches it. There is a boundary at the root and
+a second around the router's outlet, so a page that fails leaves the reader with
+the navigation they arrived by. It says, in as many words, that nothing about
+their environment has changed — an error screen in a security product is read as
+a statement about the cloud unless it says otherwise.
+
+**A release under an open tab is not an error.** Every page is a dynamic import,
+and a deploy replaces the hashed files an open tab was going to fetch. The
+boundary recognises that failure and reloads once, guarded in session storage
+against a loop.
+
+**Nothing may spin for ever.** Requests carry a timeout (`lib/api.ts`), because
+neither `fetch` nor TanStack Query has one, and a host that accepts a connection
+then goes quiet would otherwise leave the query loading until the tab closes. A
+401 clears the token so the router sends the reader to sign in; a 403 does not,
+because a viewer refused a write is signed in and should stay signed in.
+
+See `DECISIONS.md` §66.
+
+---
+
+## 6. Onboarding
 
 See `AZURE_INTEGRATION.md` §3 for the full onboarding flow and the connection-screen copy.

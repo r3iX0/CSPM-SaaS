@@ -314,6 +314,35 @@ class RiskKind(StrEnum):
     ESCALATION = "ESCALATION"
 
 
+class NotificationKind(StrEnum):
+    """What a notification is *about*, and the whole of the vocabulary.
+
+    Three, and the shortness is the design. A CSPM that notifies per finding
+    becomes a filter rule in the second week, and the product already made this
+    decision one layer down: a rule may declare that forty failures are one
+    problem, because forty rows saying the same sentence is not forty pieces of
+    news (``risk/grouping.py``).
+
+    So the bar is not severity -- severity is the rulebook's opinion, and the
+    product's whole argument is that what matters is what a finding means on
+    *this* asset. The bar is whether a person would want to be interrupted.
+    """
+
+    # A new finding on an asset standing on a route from somewhere an attacker
+    # could start to something worth taking. Not every Critical: "a Critical was
+    # raised" is a fact about the rulebook, while "something reachable just
+    # became exploitable" is news.
+    REACHABLE_FINDING = "REACHABLE_FINDING"
+    # A fix CloudGuard observed working. The only positive one, and the one a
+    # customer is actually waiting for -- verified risk reduction is the north
+    # star, and until now the only way to learn of it was to go and look.
+    VERIFIED_FIX = "VERIFIED_FIX"
+    # A reading that stopped arriving. The posture number is then measuring
+    # something narrower than it was yesterday, and saying nothing would let a
+    # score hold steady while the evidence under it thinned out.
+    COVERAGE_DROP = "COVERAGE_DROP"
+
+
 class AssetChange(StrEnum):
     """What happened to an asset between two readings of the same environment.
 
@@ -415,14 +444,30 @@ class ConnectionScope(StrEnum):
     """How much of a customer's cloud one connection covers.
 
     The choice is a real trade between coverage and least privilege, and it is
-    the customer's to make: TENANT_ROOT sees every subscription that exists now
-    or later and needs a correspondingly broad grant, while SUBSCRIPTION is the
-    narrowest thing that works. CloudGuard does not pick for them.
+    the customer's to make: the widest scope sees every account that exists now
+    or later and needs a correspondingly broad grant, while the narrowest is the
+    least that works. CloudGuard does not pick for them.
+
+    Three levels, three times over, because every cloud has the same shape --
+    a trust boundary, a grouping inside it, and the unit a scan actually reads::
+
+        Azure   TENANT_ROOT         MANAGEMENT_GROUP        SUBSCRIPTION
+        AWS     ORGANIZATION        ORGANIZATIONAL_UNIT     ACCOUNT
+
+    Named per provider rather than abstracted to "root / group / unit". The
+    reader of one of these rows is usually a support engineer matching it
+    against what the customer sees in a portal, and the portal says
+    "management group" or "organizational unit" -- an abstract name would be
+    accurate and would leave them translating (MULTI_CLOUD.md section 3).
     """
 
     TENANT_ROOT = "TENANT_ROOT"
     MANAGEMENT_GROUP = "MANAGEMENT_GROUP"
     SUBSCRIPTION = "SUBSCRIPTION"
+
+    ORGANIZATION = "ORGANIZATION"
+    ORGANIZATIONAL_UNIT = "ORGANIZATIONAL_UNIT"
+    ACCOUNT = "ACCOUNT"
 
 
 
@@ -471,8 +516,20 @@ class ResourceType(StrEnum):
     # remediation differs entirely -- a person gets MFA, a workload identity
     # gets a narrower role.
     SERVICE_PRINCIPAL = "service_principal"
+    # An Entra application registration: the object a tenant creates to let
+    # something authenticate as itself. Distinct from SERVICE_PRINCIPAL, which
+    # is the identity that registration has *in one tenant* -- the credentials
+    # a scan reads live on the registration, and the two are separately
+    # deletable, so folding them together would name the wrong object in a
+    # remediation.
+    APPLICATION = "application"
     ROLE_ASSIGNMENT = "role_assignment"
     DIAGNOSTIC_SETTING = "diagnostic_setting"
+    # The vault itself, as an asset. Its contents are not modelled and never
+    # will be: CloudGuard holds no data-plane permission, so a key or a secret
+    # is a thing it knows exists only in the sense that a vault exists to hold
+    # them.
+    KEY_VAULT = "key_vault"
     UNKNOWN = "unknown"
 
 

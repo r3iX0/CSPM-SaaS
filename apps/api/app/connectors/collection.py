@@ -21,6 +21,16 @@ which results are trustworthy enough to draw conclusions from.
 
 Provider-neutral on purpose. Azure supplies the tasks (``azure/plan.py``);
 nothing here knows what ARM is.
+
+A task may also be scoped to a **region**, which is what AWS needs and Azure
+does not: ARM lists a subscription's resources globally, while almost every
+``Describe*`` is per region -- so one account reading its security groups in
+seventeen regions produces seventeen readings of one evidence key. The executor
+therefore identifies a task by key *and* region, and aggregates back to the bare
+key whenever the rules ask: a key is trustworthy only if every region's reading
+of it was, because "no security group is open" is not a conclusion a view
+missing a region can support. Everything above this line still degrades one
+``EvidenceKey`` at a time and never learns that regions exist.
 """
 
 import asyncio
@@ -30,7 +40,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from app.connectors.evidence import EvidenceCategory, EvidenceKey
+from app.connectors.evidence import EvidenceCategory, EvidenceKey, ProviderEndpoint
 from app.connectors.planning import CollectionPlan
 from app.core.enums import TaskOutcome
 from app.core.logging import get_logger
@@ -58,6 +68,30 @@ class CollectionTask:
     # collector and the rules can be checked against one definition instead of
     # agreeing by hand across three files.
     actions: tuple[str, ...] = ()
+    # The provider calls this task makes. Declared beside ``actions`` and for
+    # the same reason: the alternative is reading the collector to find out what
+    # a stored reading was a reading *of*, months after the fact.
+    endpoints: tuple[ProviderEndpoint, ...] = ()
+    # Which region this task reads. ``None`` means the listing is global, which
+    # is every Azure task and, on AWS, IAM, S3 and Organizations.
+    #
+    # Deliberately not part of :attr:`key`. A rule depends on evidence and never
+    # on a region -- seventeen regional readings of ``security_groups`` are one
+    # answer to "did we see the security groups" -- so the region qualifies the
+    # task without ever reaching the thing a rule declares.
+    region: str | None = None
+
+    @property
+    def scoped_key(self) -> str:
+        """This task's identity within a run: its key, qualified by region.
+
+        The key stopped being unique the moment a listing became regional, and
+        the key is what everything above the connector reads. So the two are
+        kept apart rather than merged: this string names one reading, and
+        nothing outside this module and the evidence row it becomes ever
+        depends on one.
+        """
+        return f"{self.key.value}@{self.region}" if self.region else self.key.value
 
     @property
     def category(self) -> EvidenceCategory:
@@ -82,14 +116,25 @@ class TaskResult:
     # redeployed between the scan and the question: what matters is what the
     # read actually needed at the moment it was made.
     permissions: tuple[str, ...] = ()
+    # Which provider calls produced it, copied from the task's declaration for
+    # the same reason ``permissions`` is: the answer must describe the read that
+    # was made, not the collector as it stands whenever somebody asks.
+    endpoints: tuple[ProviderEndpoint, ...] = ()
     # Set only on a reading this run did not make: when the provider was
     # actually read, on the earlier scan the plan carried this forward from.
     # Absent means the obvious thing -- this run read it, just now.
     carried_from: datetime | None = None
+    # Which region this was a reading of; ``None`` for a global listing.
+    region: str | None = None
 
     @property
     def is_trustworthy(self) -> bool:
         return self.outcome.is_trustworthy
+
+    @property
+    def scoped_key(self) -> str:
+        """Matches :attr:`CollectionTask.scoped_key`, and for the same reason."""
+        return f"{self.key.value}@{self.region}" if self.region else self.key.value
 
 
 @dataclass
@@ -117,9 +162,9 @@ class CoverageReport:
     payloads: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def record(self, result: TaskResult, payload: dict[str, Any] | None = None) -> None:
-        self.results[result.key] = result
+        self.results[result.scoped_key] = result
         if payload:
-            self.payloads[result.key] = payload
+            self.payloads[result.scoped_key] = payload
 
     @property
     def is_complete(self) -> bool:
@@ -127,6 +172,29 @@ class CoverageReport:
 
     def untrustworthy(self) -> list[TaskResult]:
         return [r for r in self.results.values() if not r.is_trustworthy]
+
+    def readings_of(self, key: EvidenceKey) -> list[TaskResult]:
+        """Every reading of one evidence key, however many regions produced it."""
+        return [r for r in self.results.values() if r.key == key]
+
+    def saw(self, key: EvidenceKey) -> bool:
+        """Whether this run produced any reading of a key at all."""
+        return any(r.key == key for r in self.results.values())
+
+    def key_is_trustworthy(self, key: EvidenceKey) -> bool:
+        """Whether *every* reading of a key can be relied on.
+
+        Every, not any, and that is the whole reason the aggregation exists. A
+        listing that failed in one region of seventeen has produced a partial
+        view of the estate, and a rule concluding "nothing is open" from it
+        would be answering a question it does not have the evidence for -- the
+        same reason a truncated listing is PARTIAL rather than COMPLETE.
+
+        False for a key nothing read, which is the honest answer to "can this
+        be relied on" when there is nothing to rely on.
+        """
+        readings = self.readings_of(key)
+        return bool(readings) and all(r.is_trustworthy for r in readings)
 
     def key_problems(self) -> dict[str, str]:
         """Evidence key -> why that one piece of evidence cannot be relied on.
@@ -141,11 +209,19 @@ class CoverageReport:
         is not a conclusion a list missing an unknown number of entries can
         support.
         """
-        return {
-            result.key.value: result.detail or result.outcome.value.lower()
-            for result in self.results.values()
-            if not result.is_trustworthy
-        }
+        problems: dict[str, list[str]] = {}
+        for result in self.results.values():
+            if result.is_trustworthy:
+                continue
+            reason = result.detail or result.outcome.value.lower()
+            # Keyed by the bare key, because that is what a rule declares. A
+            # region names itself inside the reason instead: the rule loses its
+            # verdict either way, and whoever reads the gap still learns that
+            # sixteen regions were fine and one was not.
+            problems.setdefault(result.key.value, []).append(
+                f"{result.region}: {reason}" if result.region else reason
+            )
+        return {key: "; ".join(reasons) for key, reasons in problems.items()}
 
     def category_problems(self) -> dict[str, str]:
         """Category -> why its data cannot be relied on.
@@ -161,7 +237,7 @@ class CoverageReport:
             if result.is_trustworthy:
                 continue
             problems.setdefault(result.category.value, []).append(
-                f"{result.key.value}: {result.detail or result.outcome.value.lower()}"
+                f"{result.scoped_key}: {result.detail or result.outcome.value.lower()}"
             )
         return {category: "; ".join(reasons) for category, reasons in problems.items()}
 
@@ -169,11 +245,28 @@ class CoverageReport:
         entries: dict[str, Any] = {}
         for key, r in self.results.items():
             entry: dict[str, Any] = {
+                # The bare evidence key, stated rather than recoverable by
+                # splitting the entry name. A regional reading is filed under
+                # ``security_groups@eu-west-1`` so that seventeen of them do
+                # not overwrite each other, and everything reading a stored
+                # capture wants the key it was a reading *of* -- deriving that
+                # from the name would make the record a function of how the
+                # name happens to be spelled.
+                "key": r.key.value,
+                "region": r.region,
                 "category": r.category.value,
                 "outcome": r.outcome.value,
                 "detail": r.detail,
                 "item_count": r.item_count,
                 "permissions": list(r.permissions),
+                # What was actually called, and under which contract. Two
+                # answers a stored capture could not previously give: an absent
+                # field is a setting nobody set *or* an api-version too old to
+                # return it, and only the second is CloudGuard's fault.
+                "endpoints": [
+                    {"path": e.path, "api_version": e.api_version}
+                    for e in r.endpoints
+                ],
             }
             # Written only where it applies, so a capture taken entirely by
             # this run looks exactly as it always did. It is provenance for
@@ -208,6 +301,7 @@ class CollectionRun:
         *,
         on_progress: Callable[[int, int], Awaitable[None]] | None = None,
         plan: CollectionPlan | None = None,
+        max_concurrency: int | None = None,
     ) -> None:
         # The plan is applied to what the provider offers, never the other way
         # round: a plan naming a key this provider does not produce asks for
@@ -216,7 +310,17 @@ class CollectionRun:
         self.carried = dict(self.plan.carried) if self.plan is not None else {}
         self.tasks = self._select(tasks)
         self.on_progress = on_progress
-        self._by_key = {t.key: t for t in self.tasks}
+        self._by_scope = {t.scoped_key: t for t in self.tasks}
+        # Which evidence this run produces, without regard to how many regions
+        # produce it. Dependencies are declared against this, never against
+        # ``_by_scope``: a task needing the instance listing needs all of it.
+        self._produces = {t.key for t in self.tasks}
+        # How many tasks may be in flight at once. Unbounded was fine while a
+        # wave was eleven ARM listings; a regional fan-out puts a listing per
+        # region in one wave, and a customer with seventeen regions would open
+        # a hundred and fifty concurrent calls and be throttled for it. A
+        # provider that says nothing keeps the old behaviour exactly.
+        self._gate = asyncio.Semaphore(max_concurrency or len(self.tasks) or 1)
         self._validate()
 
     def _select(self, tasks: list[CollectionTask]) -> list[CollectionTask]:
@@ -258,7 +362,7 @@ class CollectionRun:
         key nothing produces silently skips a task forever, and a cycle hangs
         the wave loop with no output to explain it.
         """
-        counts = Counter(t.key for t in self.tasks)
+        counts = Counter(t.scoped_key for t in self.tasks)
         duplicates = sorted(key for key, n in counts.items() if n > 1)
         if duplicates:
             raise ValueError(
@@ -272,7 +376,7 @@ class CollectionRun:
                 # original typo -- a dependency the provider never produces --
                 # since a plan that omits a dependency has already had it added
                 # back by :meth:`_select`.
-                if dependency in self._by_key or dependency in self.carried:
+                if dependency in self._produces or dependency in self.carried:
                     continue
                 raise ValueError(
                     f"Task {task.key!r} depends on {dependency!r}, which no task produces"
@@ -280,12 +384,16 @@ class CollectionRun:
 
     def waves(self) -> list[list[CollectionTask]]:
         """Tasks grouped so everything in a wave can run at once."""
-        remaining = dict(self._by_key)
+        remaining = dict(self._by_scope)
         # A carried reading satisfies a dependency exactly as a fresh one does:
         # its payload is seeded into the run's data before the first wave, so a
         # task reading it cannot tell the difference and has no business being
         # able to.
         satisfied: set[str] = set(self.carried)
+        # How many readings of each key are still unscheduled. Counting down
+        # rather than marking satisfied on the first one is the difference
+        # between a dependent task seeing one region and seeing the estate.
+        pending = Counter(t.key for t in self.tasks)
         waves: list[list[CollectionTask]] = []
 
         while remaining:
@@ -299,8 +407,10 @@ class CollectionRun:
                 )
             waves.append(ready)
             for task in ready:
-                del remaining[task.key]
-                satisfied.add(task.key)
+                del remaining[task.scoped_key]
+                pending[task.key] -= 1
+                if pending[task.key] == 0:
+                    satisfied.add(task.key)
         return waves
 
     @property
@@ -324,13 +434,15 @@ class CollectionRun:
 
             for task in skipped:
                 blocker = next(
-                    d for d in task.depends_on if not report.results[d].is_trustworthy
+                    d for d in task.depends_on if not report.key_is_trustworthy(d)
                 )
                 report.record(
                     TaskResult(
                         key=task.key,
                         category=task.category,
+                        region=task.region,
                         permissions=task.actions,
+                        endpoints=task.endpoints,
                         outcome=TaskOutcome.SKIPPED,
                         detail=f"needs {blocker}, which did not produce usable data",
                     )
@@ -341,8 +453,8 @@ class CollectionRun:
                 *(self._run_one(task, data) for task in runnable),
                 return_exceptions=False,
             )
-            for result, produced in results:
-                data.update(produced)
+            for task, result, produced in results:
+                self._merge(data, task, produced)
                 report.record(result, produced)
                 done += 1
 
@@ -375,6 +487,7 @@ class CollectionRun:
                     detail="carried forward from an earlier scan",
                     item_count=reading.item_count,
                     permissions=reading.permissions,
+                    endpoints=reading.endpoints,
                     carried_from=reading.collected_at,
                 ),
                 reading.payload,
@@ -388,36 +501,75 @@ class CollectionRun:
         skipped: list[CollectionTask] = []
         for task in wave:
             blocked = any(
-                d in report.results and not report.results[d].is_trustworthy
+                report.saw(d) and not report.key_is_trustworthy(d)
                 for d in task.depends_on
             )
             (skipped if blocked else runnable).append(task)
         return runnable, skipped
 
+    @staticmethod
+    def _merge(
+        data: dict[str, Any], task: CollectionTask, produced: dict[str, Any]
+    ) -> None:
+        """Fold one task's output into the capture.
+
+        A global listing is the whole answer for its key, and replaces it. A
+        regional one is a seventeenth of the answer, so it appends a block
+        naming the region it came from, with the provider's payload untouched
+        inside ``items`` -- the capture is stored verbatim, and a scan replayed
+        years from now has to read what the provider actually said.
+
+        Blocks rather than one flattened list, because the region is a fact
+        about a reading that most listings do not repeat inside themselves. A
+        normalizer forced to recover it from an ARN would recover nothing for
+        the services whose ARNs omit the region, and would then have to guess.
+        """
+        if task.region is None:
+            data.update(produced)
+            return
+        for key, value in produced.items():
+            block = {"region": task.region, "items": value}
+            existing = data.get(key)
+            if isinstance(existing, list):
+                existing.append(block)
+            else:
+                data[key] = [block]
+
     async def _run_one(
         self, task: CollectionTask, collected: dict[str, Any]
-    ) -> tuple[TaskResult, dict[str, Any]]:
+    ) -> tuple[CollectionTask, TaskResult, dict[str, Any]]:
         """Run one task, converting any failure into a recorded gap.
 
         The bare ``except`` is the design, not an oversight: every failure must
         leave a trace the rule engine can see, and no single API may take down
         a scan.
+
+        The task comes back out with its result because the caller merges the
+        payload and needs to know whether it was a region's worth or all of it.
         """
-        try:
-            produced = await task.run(collected)
-        except Exception as exc:
-            message = str(exc) or type(exc).__name__
-            log.warning("collection.task_failed", task=task.key, error=message)
-            return (
-                TaskResult(
-                    key=task.key,
-                    category=task.category,
-                    permissions=task.actions,
-                    outcome=TaskOutcome.FAILED,
-                    detail=message,
-                ),
-                {},
+        def outcome(
+            result: TaskOutcome, detail: str = "", item_count: int = 0
+        ) -> TaskResult:
+            return TaskResult(
+                key=task.key,
+                category=task.category,
+                region=task.region,
+                permissions=task.actions,
+                endpoints=task.endpoints,
+                outcome=result,
+                detail=detail,
+                item_count=item_count,
             )
+
+        async with self._gate:
+            try:
+                produced = await task.run(collected)
+            except Exception as exc:
+                message = str(exc) or type(exc).__name__
+                log.warning(
+                    "collection.task_failed", task=task.scoped_key, error=message
+                )
+                return task, outcome(TaskOutcome.FAILED, message), {}
 
         if isinstance(produced, TaskData):
             payload, partial_reason = produced.data, produced.partial_reason
@@ -427,27 +579,8 @@ class CollectionRun:
         count = sum(len(v) for v in payload.values() if isinstance(v, list | dict))
         if partial_reason:
             log.warning(
-                "collection.task_partial", task=task.key, reason=partial_reason
+                "collection.task_partial", task=task.scoped_key, reason=partial_reason
             )
-            return (
-                TaskResult(
-                    key=task.key,
-                    category=task.category,
-                    permissions=task.actions,
-                    outcome=TaskOutcome.PARTIAL,
-                    detail=partial_reason,
-                    item_count=count,
-                ),
-                payload,
-            )
+            return task, outcome(TaskOutcome.PARTIAL, partial_reason, count), payload
 
-        return (
-            TaskResult(
-                key=task.key,
-                category=task.category,
-                permissions=task.actions,
-                outcome=TaskOutcome.COMPLETE,
-                item_count=count,
-            ),
-            payload,
-        )
+        return task, outcome(TaskOutcome.COMPLETE, item_count=count), payload

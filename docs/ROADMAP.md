@@ -6,7 +6,13 @@ Architecturally anticipated, **not implemented in the MVP** — extension points
 
 ## Compliance — **partly built**
 
-The chain below is implemented for CIS Azure 2.0, ISO 27001, GDPR and NIST CSF:
+The chain below is implemented for CIS Azure 2.0, CIS AWS 3.0 (44 of the 56
+controls catalogued; the whole of section 4, and the remaining gaps are in
+sections 1, 2 and 5), ISO 27001,
+GDPR, NIST CSF, NIST SP 800-53 Rev. 5, the SOC 2 Trust Services Criteria and PCI
+DSS v4.0.1. A cloud benchmark is shown only to organizations that connect that cloud
+(`DECISIONS.md` §74); the rest are about organizations rather than providers and
+always apply:
 `app/compliance/catalog.py` (frameworks and controls, as data),
 `app/services/compliance.py` (coverage against the latest scan), and the
 `/compliance` screens. See `DECISIONS.md` §"Compliance mappings drive a coverage
@@ -73,7 +79,7 @@ MSP
 
 ## Multi-Cloud
 
-`CloudResource` / `CloudSnapshot` / `SecurityRule` / `Finding` / `Risk` stay cloud-neutral so AWS and GCP connectors can be added under `connectors/` without reshaping the core (`ARCHITECTURE.md` §6).
+`CloudResource` / `RawSnapshot` / `NormalizedState` / `SecurityRule` / `Finding` / `Risk` stay cloud-neutral so AWS and GCP connectors can be added under `connectors/` without reshaping the core (`ARCHITECTURE.md` §6).
 
 Designed in `MULTI_CLOUD.md`: which seams already hold, the region dimension AWS
 introduces and Azure does not, how trust is established per provider, and why

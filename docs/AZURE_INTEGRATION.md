@@ -1,12 +1,12 @@
 # CloudGuard — Azure Integration
 
-Covers how CloudGuard connects to a customer's Azure environment: auth model, consent flow, onboarding, and the collection pipeline. Schema detail: `DATABASE.md` §2 (`cloud_accounts`). Generic connector interface: `ARCHITECTURE.md` §6.
+Covers how CloudGuard connects to a customer's Azure environment: auth model, consent flow, onboarding, and the collection pipeline. Schema detail: `DATABASE.md` §6 (`cloud_connections`, which superseded `cloud_accounts` as the unit a scan runs against). Generic connector interface: `ARCHITECTURE.md` §6.
 
 ---
 
 ## 1. Decision: Real Azure Only
 
-There is **no product-facing MockAzureConnector** in the MVP. Rule unit tests use fixture data (`fixtures/secure/`, `fixtures/vulnerable/`, `fixtures/unknown/` — see `TESTING.md`), not a mock connector component. Real Azure integration is built in **Phase 2** (see `PRODUCT_SPEC.md` §7), not deferred to the end.
+There is **no product-facing MockAzureConnector** in the MVP. Rule unit tests use fixture data (`tests/fixtures/secure/`, `vulnerable/`, `unknown/` — see `TESTING.md` §1), not a mock connector component. Real Azure integration is built in **Phase 2** (see `PRODUCT_SPEC.md` §7), not deferred to the end.
 
 ---
 
@@ -16,8 +16,8 @@ There is **no product-facing MockAzureConnector** in the MVP. Rule unit tests us
 
 This is **two separate consent steps**, not one:
 
-1. **Entra admin consent** — CloudGuard's multi-tenant app requests Microsoft Graph application permissions (e.g. `Directory.Read.All`, `UserAuthenticationMethod.Read.All` for MFA checks). The customer's Entra admin clicks one consent link and grants tenant-wide.
-2. **Azure RBAC Reader role** — a separate grant not covered by Graph consent. The customer assigns CloudGuard's app the **Reader** role on the subscription(s)/resource group(s) to scan, via Portal, Azure CLI, or an ARM/Bicep template CloudGuard provides.
+1. **Entra admin consent** — CloudGuard's multi-tenant app requests nine Microsoft Graph *application* permissions, listed in `REQUIRED_GRAPH_PERMISSIONS` (`app/connectors/azure/auth.py`): `Directory.Read.All`, `User.Read.All`, `RoleManagement.Read.Directory`, `UserAuthenticationMethod.Read.All`, `Policy.Read.All`, `Application.Read.All`, `Group.Read.All`, `IdentityRiskyUser.Read.All`, `AuditLog.Read.All`. Every one is a read scope. The customer's Entra admin clicks one consent link and grants tenant-wide.
+2. **Azure RBAC scanner role** — a separate grant not covered by Graph consent. The customer deploys CloudGuard's own custom read-only role and its assignment over the scope to scan, from a pre-filled ARM template the product generates (the "Deploy to Azure" button); the built-in **Reader** works too and grants a superset. Portal and Azure CLI remain available for anyone who prefers to do it by hand. See §"The role is exactly what the scanner reads" for what the custom role contains and why it is versioned.
 
 Access is **read-only** for the MVP. No write permissions are ever requested. Credentials/secrets never reach the frontend.
 
@@ -78,12 +78,17 @@ it character for character and refuses the round-trip otherwise. The path
 changed when connections replaced per-subscription accounts, so a value ending
 `/cloud-accounts/azure/consent/callback` is out of date and will fail.
 
-Confirm with `GET /api/v1/cloud-connections/options`: `azure_configured` turns
-`true`, and the wizard's notice disappears.
+Confirm with `GET /api/v1/cloud-connections/azure/app-registration`. It returns
+the manifest fragment this registration must declare plus the `az` command that
+applies it, so the deployed registration can be **diffed** against what the code
+requires rather than inspected by eye in a portal — which is how a registration
+missing seven of its nine permissions still produced a consent screen that
+looked entirely normal. The wizard's "cannot start a consent flow" notice
+disappears once `AZURE_CLIENT_ID` and `AZURE_CLIENT_SECRET` are both set.
 
 ### Why this replaces the earlier "Tenant ID / Client ID / Credential" flow
 
-An earlier draft of the build spec described the connection screen asking for Tenant ID, Client ID, and a Credential — that's the manual service-principal flow, and it's superseded by the model above. The `cloud_accounts` table reflects this: no `client_id`/`credential_reference` columns, just `tenant_id`, `subscription_id`, and consent-tracking fields. See `DATABASE.md` §2.
+An earlier draft of the build spec described the connection screen asking for Tenant ID, Client ID, and a Credential — that's the manual service-principal flow, and it's superseded by the model above. The schema reflects it: no `client_id`/`credential_reference` column anywhere. `cloud_connections` carries `tenant_id`, the service principal's object id, and consent-tracking fields, and nothing that is a secret. See `DATABASE.md` §6.
 
 ---
 
@@ -214,7 +219,7 @@ checked.
 
 ### The role is exactly what the scanner reads
 
-The custom role declares 14 read actions, and every one is exercised by a real
+The custom role declares 19 read actions, and every one is exercised by a real
 call in `app/connectors/azure/client.py`. Nothing is granted speculatively.
 
 It was briefly wider — 30 actions, with 17 declared ahead of the rules that
@@ -243,13 +248,34 @@ az provider operation show --namespace Microsoft.KeyVault \
   --query "resourceTypes[].operations[].name"
 ```
 
-`ROLE_VERSION` is `v2`. It exists to flag a deployed role that is
-*insufficient* for a newer rule; narrowing is backward compatible and does not
-warrant a bump. `v2` adds `Microsoft.ResourceGraph/resources/read`, which
-inventory needs since it moved off the ARM resource listing (`DECISIONS.md`
-§14). A connection still on `v1` keeps every other category and loses
-inventory until the customer redeploys, which `degraded_categories` tells them
-in those terms rather than as a 403.
+`ROLE_VERSION` is `v6`, and `ROLE_HISTORY` records what every published version
+granted. A version exists to flag a deployed role that is *insufficient* for a
+newer rule; narrowing is backward compatible and does not warrant a bump. `v2`
+added Resource Graph, which inventory needs since it moved off the ARM resource
+listing (`DECISIONS.md` §14); `v3` key vaults, `v4` SQL auditing settings, `v5`
+Defender for Cloud's assessments, and `v6` the two reads behind encryption at
+rest -- which databases a SQL server holds, and whether each one encrypts what
+it stores. A connection on an older role keeps every
+other category and loses exactly the checks the missing actions serve, which
+`degraded_categories` names in those terms rather than as a 403 — and those
+checks report UNKNOWN rather than passing.
+
+**Which version a connection is on is read from Azure, not remembered.**
+`cloud_connections.role_version` was stamped when the connection was created and
+never written again, so it recorded the role a customer was *offered* rather
+than the one they have: redeploying could not clear the prompt asking them to
+redeploy. It is now resolved from the assignments the scanner's principal holds
+at the connection's scope, by reading the actions on the definitions those
+assignments point at. Actions rather than the role's name, because the name is
+not evidence — a role edited in the portal, or the built-in `Reader` assigned
+instead of the template, both say nothing useful in their title and everything
+in their permissions. A probe that cannot answer leaves the recorded version
+alone rather than replacing a fact with a guess.
+
+The connection page re-reads it on demand
+(`POST /cloud-connections/{id}/recheck`) and on any detail request while the
+role is believed to be behind, so a customer who redeploys and comes back finds
+the prompt gone without having to press anything (`DECISIONS.md` §65).
 
 ### Permission modes
 
@@ -286,6 +312,17 @@ than only Microsoft's "Insufficient privileges to complete the operation",
 which names neither the permission nor who can grant it. `consent_status` stays
 GRANTED either way -- the subscription half of the connection is separate and
 unaffected.
+
+One Graph 403 is not about consent at all. `signInActivity` -- the reading
+behind AZ-ID-003 -- additionally requires an Entra ID P1 or P2 licence, and a
+fully consented tenant on the free tier is refused it with the same status code
+a missing permission produces. That refusal is recognised from Microsoft's own
+wording and reported as a licence, because sending a Global Administrator to a
+consent screen that cannot grant it wastes the one action they were asked for.
+Which permissions each collector call actually exercises is declared in
+`GRAPH_PERMISSION_USE`, and a test refuses any requested permission that is
+neither used nor deliberately reserved -- the Graph counterpart of the ARM
+role's `ROLE_ONLY_ACTIONS`.
 
 **Validation probes both.** `validate_connection` proves ARM access by
 listing, and Resource Graph access by querying a single row. A Resource Graph

@@ -48,6 +48,20 @@ class Risk(UUIDPrimaryKey, TenantOwned, Timestamps, Base):
     risk_level: Mapped[Level] = mapped_column(
         StrEnumType(Level, 16), nullable=False, default=Level.LOW
     )
+    # The band this risk reaches on established context alone, with every
+    # UNKNOWN input taken at the bottom of the scale rather than just under
+    # High. What the org security score charges for.
+    #
+    # ``risk_level`` above ranks, and ranks cautiously so an unclassified
+    # production database never sorts below a tagged dev box. That caution is
+    # right for an ordering and wrong for a posture number: a score moved by
+    # what CloudGuard could not work out is measuring CloudGuard rather than the
+    # customer (RISK_ENGINE.md section 3).
+    #
+    # Nullable, and NULL means "not computed" rather than "no risk": scenario
+    # risks never reach the org score, and rows written before this column
+    # existed fall back to ``risk_level`` rather than being rewritten.
+    known_risk_level: Mapped[Level | None] = mapped_column(StrEnumType(Level, 16))
     status: Mapped[RiskStatus] = mapped_column(
         StrEnumType(RiskStatus, 16), nullable=False, default=RiskStatus.OPEN, index=True
     )
@@ -65,6 +79,19 @@ class Risk(UUIDPrimaryKey, TenantOwned, Timestamps, Base):
     # Full component -> contribution breakdown from the scorer.
     score_breakdown: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
 
+    # The reading this was last seen in. Set for scenario risks, where it is
+    # the answer to a question the row could not previously address: a route is
+    # a claim about how an environment is wired *as of a scan*, and "this route
+    # is open" with no reading behind it cannot be told apart from one nothing
+    # has re-checked since Tuesday.
+    #
+    # SET NULL on a pruned scan, because risks outlive scans exactly as findings
+    # do. The row then says it was seen and no longer which reading saw it,
+    # which is a worse answer than the full one and a much better one than the
+    # route quietly disappearing with its scan.
+    observed_scan_id: Mapped[uuid.UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("scans.id", ondelete="SET NULL")
+    )
     owner_id: Mapped[uuid.UUID | None] = mapped_column(PGUUID(as_uuid=True))
     due_date: Mapped[date | None] = mapped_column(Date)
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

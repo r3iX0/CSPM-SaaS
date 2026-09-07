@@ -17,6 +17,7 @@ from sqlalchemy import text
 
 from app.core.config import settings
 from app.main import app
+from app.rules.registry import RULE_REGISTRY
 
 pytestmark = pytest.mark.integration
 
@@ -255,6 +256,84 @@ class TestConnectionListing:
         assert rows[0]["subscription_count"] == 0
 
 
+class TestSubscriptionScope:
+    async def test_excluding_a_subscription_records_when_it_was_decided(
+        self, client, cleanup_orgs
+    ) -> None:
+        """"Excluded by you" is a decision, and a decision has a date.
+
+        The screen tells the customer that unticking keeps existing findings and
+        marks the subscription out of scope rather than deleting it. Months
+        later, a boolean cannot distinguish a choice somebody made last week
+        from one nobody remembers making -- so the flip is stamped, and only the
+        flip: re-sending a row that did not change must not move its date.
+        """
+        from app.core.db import service_session
+        from app.core.enums import (
+            CloudAccountStatus,
+            ConnectionScope,
+            ConsentStatus,
+            Provider,
+        )
+        from app.models.cloud_account import CloudAccount
+        from app.models.cloud_connection import CloudConnection
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Scope Ltd"))
+        cleanup_orgs.append(org_id)
+
+        tenant_id = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+        subscription_id = "00000000-0000-0000-0000-000000000009"
+        async with service_session() as session:
+            connection = CloudConnection(
+                organization_id=org_id,
+                provider=Provider.AZURE,
+                name="prod",
+                scope_type=ConnectionScope.TENANT_ROOT,
+                role_version="v2",
+                tenant_id=tenant_id,
+                consent_status=ConsentStatus.GRANTED,
+                rbac_verified_at=datetime.now(UTC),
+                status=CloudAccountStatus.ACTIVE,
+            )
+            session.add(connection)
+            await session.flush()
+            session.add(
+                CloudAccount(
+                    organization_id=org_id,
+                    connection_id=connection.id,
+                    provider=Provider.AZURE,
+                    account_name="Sandbox",
+                    tenant_id=tenant_id,
+                    subscription_id=subscription_id,
+                    consent_status=ConsentStatus.GRANTED,
+                    rbac_verified_at=datetime.now(UTC),
+                    status=CloudAccountStatus.ACTIVE,
+                )
+            )
+            await session.commit()
+            connection_id = connection.id
+
+        excluded = await client.patch(
+            f"/api/v1/cloud-connections/{connection_id}/subscriptions",
+            json={"in_scope": {subscription_id: False}},
+            headers=auth_header(user),
+        )
+        assert excluded.status_code == 200, excluded.text
+        row = excluded.json()["data"][0]
+        assert row["in_scope"] is False
+        stamped = row["scope_changed_at"]
+        assert stamped is not None
+
+        # The same answer again is not a new decision.
+        unchanged = await client.patch(
+            f"/api/v1/cloud-connections/{connection_id}/subscriptions",
+            json={"in_scope": {subscription_id: False}},
+            headers=auth_header(user),
+        )
+        assert unchanged.json()["data"][0]["scope_changed_at"] == stamped
+
+
 class TestCloudConnections:
     async def test_connection_screen_never_asks_for_a_credential(self, client) -> None:
         """The published contract: read-only, no customer secret."""
@@ -401,7 +480,10 @@ class TestRuleCatalogue:
 
         body = (await client.get("/api/v1/rules", headers=auth_header(user))).json()
         rules = {r["rule_id"]: r for r in body["data"]}
-        assert len(rules) == 10
+        # Counted from the registry rather than written out. The mirror's job is
+        # to hold whatever the registry holds, and a literal here says nothing
+        # about that while going stale every time a rule is added.
+        assert len(rules) == len(RULE_REGISTRY)
         # Data-driven mappings, not hardcoded logic (requirement 15).
         assert "CIS_AZURE_2.0" in rules["AZ-NET-001"]["compliance_mappings"]
         assert rules["AZ-ID-002"]["scope"] == "aggregate"
@@ -441,13 +523,92 @@ class TestCompliance:
         statuses = {c["status"] for c in data["controls"]}
         assert statuses <= {"NOT_ASSESSED", "NOT_COVERED"}
 
+    async def test_the_export_carries_a_row_per_control(
+        self, client, cleanup_orgs, rule_catalogue
+    ) -> None:
+        """The chain leaves the browser, or it may as well not exist.
+
+        An auditor asks for the evidence as a file. What matters here is that
+        the file is a table a spreadsheet opens, that every row says which
+        framework and which reading it came from, and that the controls with
+        nothing to say are in it too -- an export of only the interesting rows
+        is an export that answers the question it prefers.
+        """
+        import csv
+        import io
+
+        user = uuid.uuid4()
+        org = await make_org(client, user, "Exporting Ltd")
+        cleanup_orgs.append(uuid.UUID(org))
+
+        response = await client.get(
+            "/api/v1/compliance/GDPR/export", headers=auth_header(user)
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.headers["content-type"].startswith("text/csv")
+        assert "attachment" in response.headers["content-disposition"]
+        assert "exporting-ltd-GDPR.csv" in response.headers["content-disposition"]
+
+        rows = list(csv.DictReader(io.StringIO(response.text)))
+        detail = (
+            await client.get("/api/v1/compliance/GDPR", headers=auth_header(user))
+        ).json()["data"]
+        assert len(rows) == detail["control_count"]
+        assert {row["framework"] for row in rows} == {detail["short_name"]}
+        # No scan has run, so the assessed column is empty rather than carrying
+        # the moment the file was generated.
+        assert {row["assessed_at"] for row in rows} == {""}
+
+    async def test_the_json_export_is_a_document_not_an_envelope(
+        self, client, cleanup_orgs, rule_catalogue
+    ) -> None:
+        """It is saved to disk and read by something else. An envelope would
+        make every consumer unwrap a shape that means nothing in a file."""
+        user = uuid.uuid4()
+        org = await make_org(client, user, "Machine Readable Ltd")
+        cleanup_orgs.append(uuid.UUID(org))
+
+        response = await client.get(
+            "/api/v1/compliance/ISO_27001/export?format=json",
+            headers=auth_header(user),
+        )
+
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert set(body) == {
+            "generated_at",
+            "organization",
+            "framework",
+            "assessment",
+            "controls",
+        }
+        assert body["organization"] == "Machine Readable Ltd"
+        assert body["assessment"] is None
+        assert len(body["controls"]) > 0
+
+    async def test_an_export_of_a_framework_that_does_not_exist_is_a_404(
+        self, client, cleanup_orgs
+    ) -> None:
+        user = uuid.uuid4()
+        org = await make_org(client, user, "Wrong Framework Ltd")
+        cleanup_orgs.append(uuid.UUID(org))
+
+        response = await client.get(
+            "/api/v1/compliance/NOT_A_FRAMEWORK/export", headers=auth_header(user)
+        )
+        assert response.status_code == 404
+
     async def test_unknown_framework_is_a_404(self, client, cleanup_orgs) -> None:
         user = uuid.uuid4()
         org = await make_org(client, user, "Curious Ltd")
         cleanup_orgs.append(uuid.UUID(org))
 
+        # Not a framework this catalogue has ever held. SOC 2 used to serve as
+        # the example and stopped being one the day it was mapped, which is the
+        # failure mode of naming a real standard nobody has got to yet.
         response = await client.get(
-            "/api/v1/compliance/SOC2", headers=auth_header(user)
+            "/api/v1/compliance/NOT_A_FRAMEWORK", headers=auth_header(user)
         )
         assert response.status_code == 404
 
@@ -471,6 +632,12 @@ class TestDashboard:
         # looked at.
         assert data["evidence_freshness"]["readings"] == 0
         assert data["evidence_freshness"]["stale_hours"] is None
+        # Nor about context. Nothing is open, so nothing is being guessed at.
+        assert data["coverage"]["context"] == {
+            "unclassified": 0,
+            "classified": 0,
+            "ratio": 1.0,
+        }
 
 
 class TestChangeFeed:
@@ -728,9 +895,11 @@ class TestSubscriptionDiscovery:
                     }
                 ]
 
-        from app.services import cloud_connections as service
-
-        monkeypatch.setattr(service, "ArmClient", FakeArm)
+        # Patched where the call is made. Onboarding lives behind
+        # ``ProviderOnboarding`` (DECISIONS.md §71), so ``cloud_connections``
+        # holds no provider client to replace -- and the seam test fails the
+        # build if it ever does again.
+        monkeypatch.setattr("app.connectors.azure.onboarding.ArmClient", FakeArm)
         monkeypatch.setattr(
             "app.connectors.azure.auth.TokenProvider", lambda tenant_id: object()
         )
@@ -750,6 +919,152 @@ class TestSubscriptionDiscovery:
         assert subscriptions[0]["subscription_id"] == (
             "00000000-0000-0000-0000-000000000001"
         )
+
+
+class TestRecheckingAccess:
+    """What the access panel's button has to actually do.
+
+    Reported from a live tenant: the customer redeployed the scanner role, the
+    checks it enables started working, and the connection page went on saying
+    "v2, behind (v5)" with the redeploy banner up. Two things were wrong at
+    once. Nothing ever wrote ``role_version`` back after the row was created,
+    and "Re-check access" refetched the connection -- whose only probe runs
+    while a connection is *unverified*, so on a working connection it re-read
+    the same row and repainted the same answer.
+    """
+
+    async def _connection(self, org_id: uuid.UUID) -> uuid.UUID:
+        from datetime import UTC, datetime
+
+        from app.core.db import service_session
+        from app.core.enums import (
+            CloudAccountStatus,
+            ConnectionScope,
+            ConsentStatus,
+            Provider,
+        )
+        from app.models.cloud_connection import CloudConnection
+
+        async with service_session() as session:
+            connection = CloudConnection(
+                organization_id=org_id,
+                provider=Provider.AZURE,
+                name="prod",
+                scope_type=ConnectionScope.SUBSCRIPTION,
+                scope_id="00000000-0000-0000-0000-000000000001",
+                role_version="v2",
+                tenant_id="aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+                service_principal_object_id="99999999-8888-7777-6666-555555555555",
+                consent_status=ConsentStatus.GRANTED,
+                consented_at=datetime.now(UTC),
+                rbac_verified_at=datetime.now(UTC),
+                status=CloudAccountStatus.ACTIVE,
+            )
+            session.add(connection)
+            await session.commit()
+            return connection.id
+
+    @staticmethod
+    def _azure(monkeypatch, actions: tuple[str, ...]) -> None:
+        """Azure, reduced to the calls re-checking makes: does the read still
+        work, and which definitions is CloudGuard's principal assigned."""
+        definition_id = "/subscriptions/x/providers/Microsoft.Authorization/roleDefinitions/r"
+
+        class FakeArm:
+            def __init__(self, *args, **kwargs) -> None:
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *exc) -> None:
+                return None
+
+            async def list_subscriptions(self) -> list[dict]:
+                return [
+                    {
+                        "subscriptionId": "00000000-0000-0000-0000-000000000001",
+                        "displayName": "Production",
+                    }
+                ]
+
+            async def list_resources(self, subscription_id: str) -> list[dict]:
+                return []
+
+            async def list_role_assignments_at_scope(self, scope: str) -> list[dict]:
+                return [
+                    {
+                        "properties": {
+                            "principalId": "99999999-8888-7777-6666-555555555555",
+                            "roleDefinitionId": definition_id,
+                        }
+                    }
+                ]
+
+            async def get_role_definition(self, definition_id_: str) -> dict:
+                return {
+                    "properties": {
+                        "permissions": [
+                            {"actions": list(actions), "notActions": []}
+                        ]
+                    }
+                }
+
+        # Patched where the call is made. Onboarding lives behind
+        # ``ProviderOnboarding`` (DECISIONS.md §71), so ``cloud_connections``
+        # holds no provider client to replace -- and the seam test fails the
+        # build if it ever does again.
+        monkeypatch.setattr("app.connectors.azure.onboarding.ArmClient", FakeArm)
+        monkeypatch.setattr(
+            "app.connectors.azure.auth.TokenProvider", lambda tenant_id: object()
+        )
+
+    async def test_a_redeployed_role_is_recorded_and_the_prompt_clears(
+        self, client, cleanup_orgs, monkeypatch
+    ) -> None:
+        from app.connectors.azure.rbac import ARM_READ_ACTIONS, ROLE_VERSION
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Recheck Ltd"))
+        cleanup_orgs.append(org_id)
+        connection_id = await self._connection(org_id)
+        self._azure(monkeypatch, ARM_READ_ACTIONS)
+
+        response = await client.post(
+            f"/api/v1/cloud-connections/{connection_id}/recheck",
+            headers=auth_header(user),
+        )
+
+        assert response.status_code == 200, response.text
+        data = response.json()["data"]
+        assert data["role_version"] == ROLE_VERSION
+        assert data["role_upgrade_available"] is False
+        assert data["degraded_categories"] == []
+
+    async def test_a_role_still_behind_still_says_so(
+        self, client, cleanup_orgs, monkeypatch
+    ) -> None:
+        """The other direction, and the reason the probe is not optimistic: a
+        customer who has not redeployed yet must still be told which checks
+        cannot run, with the same words as before they pressed the button."""
+        from app.connectors.azure.rbac import ROLE_HISTORY
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Behind Ltd"))
+        cleanup_orgs.append(org_id)
+        connection_id = await self._connection(org_id)
+        self._azure(monkeypatch, ROLE_HISTORY["v2"])
+
+        response = await client.post(
+            f"/api/v1/cloud-connections/{connection_id}/recheck",
+            headers=auth_header(user),
+        )
+
+        assert response.status_code == 200, response.text
+        data = response.json()["data"]
+        assert data["role_version"] == "v2"
+        assert data["role_upgrade_available"] is True
+        assert data["degraded_categories"] == ["database", "posture", "secrets"]
 
 
 class TestAssetList:

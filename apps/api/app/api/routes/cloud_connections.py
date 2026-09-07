@@ -1,4 +1,5 @@
 import json
+from urllib.parse import quote
 from uuid import UUID
 
 from fastapi import APIRouter, Query, status
@@ -7,7 +8,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from app.core.config import settings
 from app.core.db import service_session
 from app.core.deps import DbSession, Tenant
-from app.core.enums import ConsentStatus, Role
+from app.core.enums import ConsentStatus, Provider, Role
 from app.core.errors import CloudAccountNotFound, envelope
 from app.core.signing import SignedStateError, verify_state
 from app.models.cloud_account import CloudAccount
@@ -32,6 +33,16 @@ TEMPLATE_CORS_HEADERS = {
     "Cache-Control": "no-store",
 }
 
+# What of a connection's provider reference reaches the browser.
+#
+# An allow-list rather than a denylist: this column is where a provider-shaped
+# field lands, and the next one added should have to be named here before a
+# customer can see it. Both entries are things the customer needs in front of
+# them -- the role ARN to check what they deployed, the external id to check
+# their own trust policy requires it. Neither is a credential; the external id
+# means nothing without a role that demands it.
+VISIBLE_PROVIDER_REF = frozenset({"role_arn", "external_id"})
+
 
 def _serialize(
     connection: CloudConnection,
@@ -41,13 +52,33 @@ def _serialize(
 ) -> dict:
     data = CloudConnectionOut.model_validate(connection).model_dump(mode="json")
     data["is_verified"] = connection.is_verified
-    data["scope_path"] = connection.scope_path
+    data["scope_path"] = service.scope_path(connection)
+    # Filtered rather than passed through. ``provider_ref`` is where a future
+    # field could land that a viewer should not see, and a serializer that
+    # forwarded the whole blob would carry it to the browser without anybody
+    # deciding to.
+    data["provider_ref"] = {
+        key: value
+        for key, value in (connection.provider_ref or {}).items()
+        if key in VISIBLE_PROVIDER_REF
+    }
     data["subscription_count"] = subscription_count
-    data["template_url"] = service.deploy_to_azure_url(connection)
+    data["template_url"] = service.deployment_url(connection)
     # Lets the card stop showing a spinner once waiting has stopped being a
     # plausible explanation for the silence.
     data["deploy_stalled"] = service.deploy_stalled(connection)
-    data["role_upgrade_available"] = service.role_upgrade_available(connection)
+    data["role_upgrade_available"] = service.grant_upgrade_available(connection)
+    # What to redeploy to, and what is lost until they do. The boolean above
+    # says a newer role exists; on its own it can only produce "something is
+    # out of date", which is a notification rather than a decision. These two
+    # turn it into a sentence a customer can act on -- "database and secrets
+    # checks report UNKNOWN until you redeploy" -- and the categories come from
+    # the same function the scanner uses to explain the gaps, so the screen and
+    # the scan cannot disagree about which checks are affected.
+    data["role_required_version"] = service.required_grant_version(connection)
+    data["degraded_categories"] = sorted(
+        category.value for category in service.degraded_categories(connection)
+    )
     # Both grants proven is not the same as having something to scan, and the
     # card said "Ready to scan: Yes" over an empty connection because it read
     # ``is_verified``. Readiness needs a subscription CloudGuard can actually
@@ -56,13 +87,25 @@ def _serialize(
     data["is_ready_to_scan"] = connection.is_verified and any(
         a.is_scannable for a in (subscriptions or [])
     )
+    # Whether this environment reports its own changes, and when it last did.
+    # Sent with the connection rather than left to the change-events endpoint:
+    # the list states how often each environment is read, and a clock is only
+    # half of that answer -- fetching the other half would be one request per
+    # row to render one line. Coerced, because a connection built in memory has
+    # not had the column default applied.
+    data["change_events_enabled"] = bool(connection.change_events_enabled)
+    data["last_change_event_at"] = (
+        connection.last_change_event_at.isoformat()
+        if connection.last_change_event_at
+        else None
+    )
 
     # Regenerated on every read, not just on create. Returning it only from the
     # create response meant a page reload lost the consent button and left the
     # connection stuck in PENDING with no route forward. The signed state also
     # expires in 30 minutes, so a stored one would usually be dead anyway.
     if connection.consent_status != ConsentStatus.GRANTED:
-        fresh, problem = service.consent_url_for(connection)
+        fresh, problem = service.grant_start_url(connection)
         consent_url = consent_url or fresh
         if problem:
             data["status_detail"] = problem
@@ -133,16 +176,29 @@ async def arm_template(
         connection = await session.get(CloudConnection, connection_id)
         if connection is None:
             raise CloudAccountNotFound("Connection not found")
-        body = service.render_template(connection)
+        artifact = service.render_artifact(connection)
 
     return JSONResponse(
-        content=json.loads(body),
-        media_type="application/json",
+        content=json.loads(artifact.body),
+        media_type=artifact.media_type,
         headers={
-            "Content-Disposition": 'inline; filename="cloudguard-scanner.json"',
+            "Content-Disposition": f'inline; filename="{artifact.filename}"',
             **TEMPLATE_CORS_HEADERS,
         },
     )
+
+
+@router.get("/providers")
+async def list_providers(tenant: Tenant) -> dict:
+    """Which clouds this deployment can connect, and why not.
+
+    Behind authentication because it describes the deployment's configuration,
+    and read by the wizard's first step. Unavailable providers come back with a
+    reason rather than being omitted -- a picker that silently held an option
+    would answer "does this support AWS?" with nothing.
+    """
+    assert tenant  # authenticated; the answer is the same for every tenant
+    return envelope(service.available_providers())
 
 
 @router.get("/azure/app-registration")
@@ -161,7 +217,7 @@ async def app_registration(tenant: Tenant) -> dict:
     eye in a portal.
     """
     tenant.require_role(Role.OWNER, Role.ADMIN)
-    return envelope(service.azure_app_registration())
+    return envelope(service.self_registration(Provider.AZURE) or {})
 
 
 @router.get("/azure/consent/callback", include_in_schema=False)
@@ -174,30 +230,42 @@ async def consent_callback(
 ) -> RedirectResponse:
     """Entra redirects the customer's browser here after admin consent.
 
-    Redirects to the Connect page with the connection ID as a query param.
+    Redirects into the setup wizard for this connection, which is where the
+    customer left off. Failures land on the same page rather than on the
+    connections list: the state parameter comes back on a denial too, so the
+    reason can be shown against the step it belongs to, next to the button that
+    starts consent again.
+
+    The list is the fallback for the one case where there is no connection to
+    return to -- a state that is missing, tampered with, or expired.
     """
     frontend = settings.app_url.rstrip("/")
-
-    if error:
-        return RedirectResponse(
-            f"{frontend}/connections?consent_error={error_description or error}"
-        )
 
     try:
         payload = verify_state(state)
     except SignedStateError as exc:
-        return RedirectResponse(f"{frontend}/connections?consent_error={exc}")
-
-    if admin_consent.lower() not in {"true", "1", ""}:
+        reason = error_description or error or str(exc)
         return RedirectResponse(
-            f"{frontend}/connections?consent_error=Admin+consent+was+not+granted"
+            f"{frontend}/connections?consent_error={quote(reason)}"
         )
 
     connection_id = UUID(payload["cloud_connection_id"])
+    setup = f"{frontend}/connections/{connection_id}/setup"
+
+    if error:
+        return RedirectResponse(
+            f"{setup}?consent_error={quote(error_description or error)}"
+        )
+
+    if admin_consent.lower() not in {"true", "1", ""}:
+        return RedirectResponse(
+            f"{setup}?consent_error={quote('Admin consent was not granted')}"
+        )
+
     async with service_session() as session:
         await service.record_consent(session, connection_id, tenant)
 
-    return RedirectResponse(f"{frontend}/connections?id={connection_id}")
+    return RedirectResponse(setup)
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -246,6 +314,22 @@ async def rediscover(connection_id: UUID, session: DbSession, tenant: Tenant) ->
     """
     tenant.require_write()
     connection, subscriptions = await service.rediscover_subscriptions(
+        session, tenant, connection_id
+    )
+    return envelope(_serialize(connection, len(subscriptions), subscriptions))
+
+
+@router.post("/{connection_id}/recheck")
+async def recheck_access(connection_id: UUID, session: DbSession, tenant: Tenant) -> dict:
+    """Ask Azure again what this connection is allowed to do.
+
+    A real probe, which is what the access panel's button has always said it
+    was. The GET only validates a connection that is not verified yet, so on a
+    working connection re-checking read the same row back -- and the role
+    version on it had not been looked at since the connection was created.
+    """
+    tenant.require_write()
+    connection, subscriptions = await service.recheck_access(
         session, tenant, connection_id
     )
     return envelope(_serialize(connection, len(subscriptions), subscriptions))

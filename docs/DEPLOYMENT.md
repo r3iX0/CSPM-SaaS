@@ -227,11 +227,16 @@ Node installed on your machine.
    SUPABASE_JWT_SECRET=<jwt secret>
    JWT_AUDIENCE=authenticated
 
-   DATABASE_URL=postgresql+asyncpg://cloudguard_app:<password>@db.<ref>.supabase.co:5432/postgres
-   DATABASE_OWNER_URL=postgresql+asyncpg://postgres:<db-password>@db.<ref>.supabase.co:5432/postgres
+   # Session pooler form, exactly as built in step 1.3 — host
+   # aws-0-<region>.pooler.supabase.com, port 5432, username <user>.<project-ref>.
+   # NOT db.<ref>.supabase.co: that is the direct connection, it is IPv6-only on
+   # current projects, and Railway cannot route to it. See the "Network is
+   # unreachable" entry in §4.
+   DATABASE_URL=postgresql+asyncpg://cloudguard_app.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
+   DATABASE_OWNER_URL=postgresql+asyncpg://postgres.<project-ref>:<db-password>@aws-0-<region>.pooler.supabase.com:5432/postgres
 
    # Worker service only, and optional — see step 1.3.
-   DATABASE_WORKER_URL=postgresql+asyncpg://cloudguard_worker:<password>@db.<ref>.supabase.co:5432/postgres
+   DATABASE_WORKER_URL=postgresql+asyncpg://cloudguard_worker.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
 
    REDIS_URL=${{Redis.REDIS_URL}}
 
@@ -254,7 +259,46 @@ Node installed on your machine.
    AZURE_TENANT_ID=
    AZURE_REDIRECT_URI=https://<your-railway-api-domain>/api/v1/cloud-connections/azure/consent/callback
 
+   # Optional until you create CloudGuard's own AWS principal — the identity a
+   # customer's scanner role trusts. See AWS_INTEGRATION.md §2. Leave blank
+   # until then; AWS simply is not offered as a provider.
+   #
+   # The key grants nothing but sts:AssumeRole against roles that already name
+   # it, and every one of those roles additionally requires an external id
+   # CloudGuard generated per connection and never published.
+   #
+   # AWS_PRINCIPAL_ARN is what the deployed template names, so it must match
+   # exactly: a wrong value fails when the customer clicks deploy.
+   AWS_ACCESS_KEY_ID=
+   AWS_SECRET_ACCESS_KEY=
+   AWS_PRINCIPAL_ARN=arn:aws:iam::<cloudguard-account-id>:user/cloudguard-scanner
+
+   # Required if you connect AWS, optional if you only connect Azure. Azure
+   # derives this API's public address from AZURE_REDIRECT_URI, which Entra
+   # forces to be correct; AWS has no consent round trip and so no such value,
+   # and without an address CloudFormation has nowhere to fetch the stack from.
+   API_URL=https://<your-railway-api-domain>
+
+   # Whether AWS appears in the connection wizard. Off by default, and
+   # deliberately separate from having credentials: the connector has never
+   # been run against a live AWS account. Set this to true only after the
+   # ten-item checklist in AWS_INTEGRATION.md §1 has passed.
+   AWS_ENABLED=false
+
    SENTRY_DSN=
+
+   # Optional, both with defaults, both about disk rather than correctness.
+   # A raw capture is kept for SNAPSHOT_RETENTION_DAYS *and* no more than
+   # SNAPSHOT_RETENTION_MAX_PER_SCOPE captures are kept per subscription --
+   # days alone is a policy about time, and a customer scanning every half hour
+   # stores 48 captures a day per subscription against a weekly scanner's 4,
+   # inside the same stated retention. The newest capture of a scope survives
+   # both limits whatever they say: it is what a replay reads.
+   # EVIDENCE_RETENTION_DAYS measures from when a payload was last *seen*, so an
+   # estate that has not changed keeps one copy alive by re-reading it.
+   SNAPSHOT_RETENTION_DAYS=30
+   SNAPSHOT_RETENTION_MAX_PER_SCOPE=90
+   EVIDENCE_RETENTION_DAYS=90
    ```
 
    Start on `APP_ENV=staging` while you are still filling in URLs: every value

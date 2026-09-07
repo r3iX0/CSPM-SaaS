@@ -18,8 +18,9 @@ from app.core.enums import FindingStatus, ScanStatus, ScanStepStatus, ScanTrigge
 from app.core.errors import ScanNotFound
 from app.models.cloud_account import CloudAccount
 from app.models.cloud_connection import CloudConnection
-from app.models.finding import Finding
+from app.models.finding import Finding, FindingEvidence
 from app.models.scan import Evidence, Scan, ScanStep
+from app.services import cloud_connections
 
 OPEN_STATUSES = [FindingStatus.OPEN, FindingStatus.IN_PROGRESS]
 
@@ -62,8 +63,27 @@ async def lock_scan_target(
 
     ``hashtextextended`` rather than Python's ``hash``: the value has to be the
     same in every process, and PYTHONHASHSEED makes Python's is not.
+
+    **One key per target, whichever way the caller names it.** The key used to
+    be built from both ids, and the callers do not agree on how many they hold:
+    the API and the rescan button pass a connection *and* the subscription they
+    resolved it from, while the scheduler, the change trigger and the
+    verification sweep pass the connection alone. Two names for the same target
+    are two different locks, so a customer pressing "Scan now" at the moment the
+    scheduler started the same connection took one lock each, both read
+    "nothing running" -- ``scan_in_flight`` matches either form and would have
+    caught it -- and both inserted. The two scans then wrote findings for the
+    same resources, and the unique index on (organization, rule, resource)
+    turned the overlap into a scan that failed with nothing a customer could
+    read.
+
+    So the connection is the target whenever there is one, and the subscription
+    only for an account that predates connections. That is exactly the set
+    ``scan_in_flight`` treats as overlapping, which is what makes the check and
+    the lock agree.
     """
-    key = f"scan:{organization_id}:{connection_id or ''}:{account_id or ''}"
+    target = f"connection:{connection_id}" if connection_id else f"account:{account_id}"
+    key = f"scan:{organization_id}:{target}"
     await session.execute(
         text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"), {"key": key}
     )
@@ -346,13 +366,25 @@ async def scan_context(session: AsyncSession, scan: Scan) -> dict:
             for a in accounts
         ],
         "subscription_count": len(accounts),
+        # Which cloud this scan read. The keys around it keep Azure's
+        # vocabulary because the columns do (DECISIONS.md §70); this is what
+        # lets the screen reading them use the right noun.
+        "provider": (
+            connection.provider.value
+            if connection
+            else first.provider.value
+            if first
+            else None
+        ),
         # Kept for the single-subscription case the detail panel still renders.
         "subscription_id": first.subscription_id if first else None,
         "subscription_name": first.display_name if first else None,
         "tenant_id": first.tenant_id if first else None,
         "connection_name": connection.name if connection else None,
         "scope_type": connection.scope_type.value if connection else None,
-        "scope_path": connection.scope_path if connection else None,
+        "scope_path": (
+            cloud_connections.scope_path(connection) if connection else None
+        ),
         # The identity that did the reading, named the way the customer sees it.
         "service_principal_object_id": (
             connection.service_principal_object_id if connection else None
@@ -472,6 +504,30 @@ async def collection_status(session: AsyncSession, scan: Scan) -> dict:
         ).all()
     )
 
+    # How many findings each reading is the evidence for -- the citation chain
+    # walked from the other end. The finding page asks "where did this come
+    # from"; this answers "what rests on this", which is the question a reader
+    # looking at a failed listing actually has.
+    #
+    # One grouped query rather than one per reading, and counted distinctly
+    # because a finding cites a reading once per key it declared.
+    cited: dict[UUID | None, int] = {
+        evidence_id: int(count)
+        for evidence_id, count in (
+            await session.execute(
+                select(
+                    FindingEvidence.evidence_id,
+                    func.count(func.distinct(FindingEvidence.finding_id)),
+                )
+                .where(
+                    FindingEvidence.organization_id == scan.organization_id,
+                    FindingEvidence.evidence_id.in_([row.id for row, _ in rows]),
+                )
+                .group_by(FindingEvidence.evidence_id)
+            )
+        ).all()
+    }
+
     tasks = [
         {
             # Named for what it is a reading of. "Tenant directory" rather than
@@ -489,6 +545,18 @@ async def collection_status(session: AsyncSession, scan: Scan) -> dict:
             "outcome": row.outcome.value,
             "detail": row.detail,
             "item_count": row.item_count,
+            # Exposed so the count below is followable to exactly the findings
+            # it counts. A key alone would span every subscription and every
+            # scan that read it, which is a different set from the one named.
+            "evidence_id": str(row.id),
+            # A reading that failed is the evidence for nothing: the rules that
+            # needed it degraded to UNKNOWN and never became findings. Zero is
+            # the honest answer there, not a gap.
+            "finding_count": cited.get(row.id, 0),
+            "collected_at": row.collected_at.isoformat(),
+            # `[]` on a reading taken before this was recorded, which is a fact
+            # about CloudGuard's history rather than a claim it called nothing.
+            "endpoints": list(row.endpoints or []),
         }
         for row, name in rows
     ]

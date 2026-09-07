@@ -12,9 +12,9 @@ See `PRODUCT_SPEC.md` for vision/scope. This doc covers the technical shape: sta
 | Backend | Python, FastAPI, Pydantic, SQLAlchemy 2, Alembic, Pytest, Ruff, MyPy |
 | Database / Auth | Supabase PostgreSQL + Supabase Auth + PostgreSQL Row-Level Security (a real security boundary, not a frontend convenience) |
 | Background jobs | Celery + Redis |
-| Cloud | Azure Resource Manager APIs, Azure SDK for Python, Microsoft Graph API, Microsoft Entra ID |
+| Cloud | Azure Resource Manager REST, Microsoft Graph REST, Microsoft Entra ID, MSAL for tokens — **not** the `azure-mgmt-*` SDKs, so the raw JSON can be stored verbatim and re-evaluated (`DECISIONS.md` §3) |
 | Infra | Docker image built by Railway, GitHub Actions (CI). No local runtime. |
-| Testing | Pytest, Vitest, Playwright |
+| Testing | Pytest (unit + an `integration` marker needing live PostgreSQL), Vitest. No E2E runner — see `TESTING.md` §5 |
 | Monitoring | Sentry now; OpenTelemetry later |
 | Reports | Jinja2 + WeasyPrint |
 | Architecture style | **Modular monolith + worker.** Explicitly NOT microservices. |
@@ -35,6 +35,18 @@ React (TS/Vite) → FastAPI (REST) → Supabase PostgreSQL (+RLS)
 
 Full detail on the Azure-specific parts of this pipeline (collection architecture, auth model) is in `AZURE_INTEGRATION.md`. Rule/risk engine detail is in `RULE_ENGINE.md` and `RISK_ENGINE.md`.
 
+**A scan is not one queued task.** It is a set of durable steps -- PLAN, one
+COLLECT per subscription plus one for the tenant directory, then ANALYZE --
+recorded in `scan_steps` and claimed under a lease by whichever worker is free.
+Collection and analysis go to different queues because they cost opposite
+things: collection waits on Azure and wants many in flight, analysis holds a
+tenant in memory and wants few. What makes it survivable is that the state lives
+in the database rather than in a Python frame: a redeploy costs the step in
+flight rather than the scan, one unreadable subscription does not take the other
+forty-nine with it, and every write a running step makes is fenced on the claim
+it was made under, so a worker that was merely slow cannot settle a step another
+worker is running (`services/orchestrator.py`, `DECISIONS.md` §65).
+
 ---
 
 ## 3. Repository Structure
@@ -47,24 +59,41 @@ cloudguard/
 |   |-- web/                      # React + Vite
 |   |   `-- src/, package.json, vite.config.ts
 |   `-- api/
-|       `-- app/
-|           |-- main.py
-|           |-- core/            # config, security, logging, dependencies
-|           |-- api/routes/      # organizations, cloud_accounts, scans, assets,
-|           |                     # findings, risks, remediation, compliance, reports
-|           |-- models/, schemas/, repositories/, services/
-|           |-- connectors/azure/
-|           |-- rules/azure/{identity,network,storage,compute,database,logging}/
-|           |-- rules/registry.py
-|           |-- risk/{scorer.py, models.py}
-|           `-- workers/{celery_app.py, scan_tasks.py}
-|-- packages/shared/
+|       |-- app/
+|       |   |-- main.py
+|       |   |-- core/            # config, enums, security, logging, dependencies
+|       |   |-- api/routes/      # organizations, cloud_accounts, cloud_connections,
+|       |   |                     # scans, assets, findings, risks, attack_paths,
+|       |   |                     # remediation, compliance, reports, rules,
+|       |   |                     # dashboard, changes, events
+|       |   |-- models/, schemas/, repositories/, services/
+|       |   |-- domain/          # CloudResource -- the evaluation-time view, no DB, no SDK
+|       |   |-- connectors/     # base.py, collection.py, planning.py, evidence.py,
+|       |   |                     # onboarding.py, registry.py -- all provider-neutral
+|       |   |-- connectors/azure/, connectors/aws/
+|       |   |-- context/         # asset context: inferred, then overruled by declaration
+|       |   |-- graph/           # AssetGraph: attack paths, escalation chains, choke points
+|       |   |-- rules/azure/{identity,rbac,network,storage,compute,database,logging,secrets,posture}/
+|       |   |-- rules/{base.py, controls.py, registry.py}
+|       |   |-- risk/{config.py, scorer.py, grouping.py}
+|       |   |-- remediation/     # RemediationSpec: the machine-readable half of a fix
+|       |   |-- compliance/, reports/
+|       |   `-- workers/{celery_app.py, scan_tasks.py}
+|       `-- tests/{unit/, integration/, fixtures/}
 |-- database/{migrations/, seed/}
-|-- infrastructure/docker/
+|-- infrastructure/{docker/, supabase/, railway/, azure/, ci/}
 |-- docs/
-|-- railway.json, vercel.json, README.md
 `-- .github/workflows/
 ```
+
+Three directories are worth naming because they are not obvious from the flow
+diagram above. `domain/` holds the cloud-neutral resource a rule actually sees,
+which is what lets rules be tested against fixture JSON with no database and no
+network. `context/` is where criticality and sensitivity are inferred from tags
+and names and then overruled by what a customer declared — the multiplier the
+risk engine applies, kept apart from both the connector that read the tags and
+the scorer that uses the result. `graph/` is the second question asked of one
+scan's normalized state: not "what is wrong" but "what is wrong *together*".
 
 ---
 
@@ -97,18 +126,28 @@ Generic interface so AWS/GCP can be added later without reshaping the core. Azur
 
 ```python
 class CloudConnector(ABC):
-    async def validate_connection(self): ...
-    async def discover_resources(self): ...
-    async def discover_identity(self): ...
-    async def discover_network(self): ...
-    async def discover_storage(self): ...
-    async def discover_compute(self): ...
-    async def discover_databases(self): ...
-    async def discover_logging(self): ...
+    async def validate_connection(self) -> ConnectionCheck: ...
+    async def collect(...) -> RawSnapshot: ...          # subscription-scoped
+    async def collect_directory(...) -> RawSnapshot: ...  # tenant-scoped
 
 CloudConnector
   `-- AzureConnector          # MVP
       (future: AWSConnector, GCPConnector)
 ```
 
-The core data model (`CloudResource`, `CloudSnapshot`, `SecurityRule`, `Finding`, `Risk`) stays cloud-neutral; cloud-specific logic lives under `connectors/`.
+Two collection methods rather than one per service. An earlier draft of this
+doc listed eight `discover_*` calls — one for identity, one for storage, and so
+on — and the shape did not survive contact with evidence tracking: a
+subscription whose PostgreSQL listing timed out has read its SQL servers
+perfectly well, so what a scan needs to record is which *evidence key* failed,
+not which method was called. `collect` returns a `RawSnapshot` carrying the
+verbatim JSON plus per-key outcomes, and the rule engine degrades only the rules
+whose own evidence is missing (`RULE_ENGINE.md`).
+
+The split between the two is directory versus subscription, because they are
+different grants with different consent: tenant-level reads (Entra users, role
+assignments, Conditional Access) come from one, resource reads from the other.
+
+The core data model (`CloudResource`, `RawSnapshot`, `NormalizedState`,
+`SecurityRule`, `Finding`, `Risk`) stays cloud-neutral; cloud-specific logic
+lives under `connectors/`.

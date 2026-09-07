@@ -10,8 +10,10 @@ application, and CI should not make live Azure calls on every commit
 """
 
 import copy
+import hashlib
 import json
 import uuid
+import zlib
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -42,6 +44,7 @@ from app.models.context import ContextDeclarationRecord
 from app.models.finding import Finding
 from app.models.scan import Scan, ScanStep
 from app.models.verification import RemediationVerification
+from app.rules.registry import RULE_REGISTRY
 from app.services import orchestrator
 from app.services import scanner as scanner_module
 from app.services import scans as scans_service
@@ -386,7 +389,7 @@ class TestFirstScan:
 
         assert scan.status == ScanStatus.COMPLETED
         assert scan.resource_count > 0
-        assert scan.rule_count == 10
+        assert scan.rule_count == len(RULE_REGISTRY)
 
         # A capture per scope, not one per scan. This scan read one
         # subscription and the tenant directory above it, and both are stored
@@ -508,7 +511,9 @@ class TestFirstScan:
             "not_applicable_count FROM scan_rule_results WHERE scan_id = :s",
             {"s": scan_id},
         )
-        assert len(rows) == 10, "one aggregate row per rule in the registry"
+        assert len(rows) == len(RULE_REGISTRY), (
+            "one aggregate row per rule in the registry"
+        )
 
 
 class TestUnknownHandling:
@@ -671,6 +676,56 @@ class TestRemediationVerification:
             {"o": org_id},
         )
         assert rows == [], "a re-detection must update, not duplicate"
+
+    async def test_risks_are_not_duplicated_across_scans(
+        self, replay, connected_account
+    ) -> None:
+        """The half the finding check above never covered.
+
+        A finding is unique on (organization, rule, resource) and the database
+        says so, so re-detection could only ever update one. A risk has no such
+        key -- it is reached through ``risk_findings`` -- and nothing asserted
+        that the junction was actually written, so a risk row created without
+        its link would be invisible here and permanently listed on the risks
+        page, which shows an unlinked risk rather than dropping it.
+        """
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+        await run_scan(org_id, account_id)
+        await run_scan(org_id, account_id)
+
+        rows = await fetch(
+            "SELECT title, count(*) FROM risks WHERE organization_id = :o "
+            "AND kind = 'FINDING' GROUP BY title HAVING count(*) > 1",
+            {"o": org_id},
+        )
+
+        assert rows == [], f"three scans left duplicate risks: {rows}"
+
+    async def test_every_finding_risk_is_reachable_through_the_junction(
+        self, replay, connected_account
+    ) -> None:
+        """An unlinked risk is listed for ever.
+
+        ``list_risks`` hides a finding risk whose findings have closed, but
+        keeps one that is linked to nothing at all -- deliberately, because the
+        junction is the only thing that could vouch for it and silently
+        dropping a risk is the worse failure for a security product. That makes
+        a missing link permanent, so it is worth asserting that the writer
+        never leaves one.
+        """
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+
+        orphans = await fetch(
+            "SELECT r.id, r.title FROM risks r "
+            "LEFT JOIN risk_findings rf ON rf.risk_id = r.id "
+            "WHERE r.organization_id = :o AND r.kind = 'FINDING' "
+            "AND rf.risk_id IS NULL",
+            {"o": org_id},
+        )
+
+        assert orphans == [], f"finding risks with no junction row: {orphans}"
 
 
 class TestSecurityScoreMoves:
@@ -1224,6 +1279,51 @@ class TestCollectionStatus:
         assert status["failed"] == 0
         assert status["degraded_categories"] == []
 
+    async def test_a_reading_says_what_rests_on_it(
+        self, replay, connected_account
+    ) -> None:
+        """The citation chain walked from the evidence end.
+
+        The finding page asks where its evidence came from. A person looking at
+        a listing on the scans page has the mirror question -- what did this
+        reading actually support -- and the count has to be followable to
+        exactly those findings, which is why the reading's own id is exposed
+        beside it rather than only its key.
+        """
+        from app.services.scans import collection_status
+
+        org_id, account_id = connected_account
+        scan_id = await run_scan(org_id, account_id)
+
+        async with service_session() as session:
+            scan = await session.get(Scan, scan_id)
+            status = await collection_status(session, scan)
+
+        cited = [t for t in status["tasks"] if t["finding_count"] > 0]
+        assert cited, "no reading was reported as supporting any finding"
+
+        for task in status["tasks"]:
+            assert task["evidence_id"], "a count with no way to follow it"
+            assert task["collected_at"]
+
+        # The count and the filter must name the same set, or the number stops
+        # surviving being clicked.
+        for task in cited:
+            rows = await fetch(
+                "SELECT count(DISTINCT finding_id) FROM finding_evidence "
+                "WHERE organization_id = :o AND evidence_id = :e",
+                {"o": org_id, "e": task["evidence_id"]},
+            )
+            assert rows[0][0] == task["finding_count"]
+
+    # What a reading *called* is recorded from the plan's own declaration, and
+    # the recorded fixture predates it -- exactly as it predates `permissions`,
+    # noted in TestEvidence above for the same reason. A recording can only echo
+    # what was written into it, so asserting here would be this file checking
+    # its own fixture. The declaration lives in
+    # tests/unit/test_provider_endpoints.py and its journey into an evidence row
+    # in tests/unit/test_evidence_store.py, both against a real plan.
+
     async def test_each_reading_names_the_subscription_it_came_from(
         self, replay, connected_tenant
     ) -> None:
@@ -1745,6 +1845,103 @@ class TestOrchestration:
             scan = await session.get(Scan, scan_id)
         assert scan.status in (ScanStatus.COMPLETED, ScanStatus.PARTIAL)
 
+    async def test_a_worker_that_lost_its_step_settles_nothing(
+        self, replay, connected_account
+    ) -> None:
+        """The half of the lease that was missing, held against real SQL.
+
+        A worker paused past its lease has not died. Its step is reclaimed and
+        re-run, and then it comes back and marks the step SUCCEEDED -- while
+        another worker is still collecting the same subscription. ANALYZE waits
+        on collection *settling*, so the scan interpreted a subscription that
+        was still being written and reported it as a complete reading.
+
+        The attempt number is the fence: every settle is conditional on the row
+        still carrying the claim it was made under.
+        """
+        org_id, account_id = connected_account
+        async with service_session() as session:
+            scan = Scan(
+                organization_id=org_id,
+                cloud_account_id=account_id,
+                status=ScanStatus.QUEUED,
+            )
+            session.add(scan)
+            await session.commit()
+            scan_id = scan.id
+            await orchestrator.create_initial_steps(session, scan)
+            await session.commit()
+
+        # The first worker claims, then stops reporting.
+        async with service_session() as session:
+            steps = await orchestrator.steps_for(session, scan_id)
+            plan_step = next(s for s in steps if s.kind == ScanStepKind.PLAN)
+            claimed = await orchestrator.claim(session, [plan_step.id])
+            assert claimed
+            await session.execute(
+                text("UPDATE scan_steps SET lease_until = :t WHERE id = :s"),
+                {"t": datetime.now(UTC) - timedelta(minutes=30), "s": plan_step.id},
+            )
+            await session.commit()
+            lost_attempt = 1
+
+        # The reaper returns it, and a second worker takes it.
+        async with service_session() as session:
+            await orchestrator.reap_expired_steps(session)
+        async with service_session() as session:
+            await orchestrator.claim(session, [plan_step.id])
+
+        # The first worker comes back and tries to settle its own attempt.
+        async with service_session() as session:
+            step = await session.get(ScanStep, plan_step.id)
+            settled = await orchestrator.finish(
+                session, step, ScanStepStatus.SUCCEEDED, attempt=lost_attempt
+            )
+        assert settled is False
+
+        async with service_session() as session:
+            step = await session.get(ScanStep, plan_step.id)
+        assert step.status == ScanStepStatus.RUNNING, (
+            "the step the second worker is running was settled by the first"
+        )
+        assert step.attempt == 2
+
+    async def test_a_renewal_from_a_worker_that_lost_its_step_is_refused(
+        self, replay, connected_account
+    ) -> None:
+        """Unfenced, the returning worker kept the lease of a step somebody else
+        was running alive -- so the mechanism that reports a lost step was the
+        thing hiding that two workers had it."""
+        org_id, account_id = connected_account
+        async with service_session() as session:
+            scan = Scan(
+                organization_id=org_id,
+                cloud_account_id=account_id,
+                status=ScanStatus.QUEUED,
+            )
+            session.add(scan)
+            await session.commit()
+            scan_id = scan.id
+            await orchestrator.create_initial_steps(session, scan)
+            await session.commit()
+
+        async with service_session() as session:
+            steps = await orchestrator.steps_for(session, scan_id)
+            plan_step = next(s for s in steps if s.kind == ScanStepKind.PLAN)
+            await orchestrator.claim(session, [plan_step.id])
+
+        async with service_session() as session:
+            assert await orchestrator.renew(session, plan_step.id, 1) is True
+            # A second claim, as the reaper and another worker would produce.
+            await session.execute(
+                text(
+                    "UPDATE scan_steps SET attempt = 2 WHERE id = :s"
+                ),
+                {"s": plan_step.id},
+            )
+            await session.commit()
+            assert await orchestrator.renew(session, plan_step.id, 1) is False
+
     async def test_a_reaped_step_is_not_a_reaped_scan(
         self, replay, connected_account
     ) -> None:
@@ -2265,6 +2462,640 @@ class TestAssetGraph:
 
         assert graph.attack_paths() == []
 
+    async def test_an_absent_resource_is_not_on_any_route(
+        self, replay, connected_account
+    ) -> None:
+        """The reported bug. An asset a scan looked for and did not find keeps
+        its row -- so its findings stay history, and so an asset that vanishes
+        for a week and returns is one asset rather than two -- and the loader
+        was reading every row the organization had. The attack-paths page
+        therefore served routes through resources that were gone, while the
+        scanner's own graph, built from one scan's state, never contained them.
+        """
+        from app.services import graph as graph_service
+
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+
+        async with service_session() as session:
+            assert await graph_service.load_graph(session, org_id) is not None
+            # Not deleted: absent, which is what a scan that covered the scope
+            # and did not find it records.
+            await session.execute(
+                text(
+                    "UPDATE cloud_resources SET absent_since = now() "
+                    "WHERE organization_id = :o AND resource_type = 'service_principal'"
+                ),
+                {"o": org_id},
+            )
+            await session.commit()
+            graph = await graph_service.load_graph(session, org_id)
+
+        assert graph.attack_paths() == []
+        assert not any(
+            node.resource_type.value == "service_principal"
+            for node in graph.nodes.values()
+        )
+
+
+class TestRouteProvenance:
+    """Which reading a route was seen in.
+
+    A finding has always named the scan that detected it. A route did not, and
+    it is the risk kind where the question carries most weight: a path is a
+    claim about how an environment is wired, assembled from one scan's
+    normalized state, and "this route is open" is only ever true as of a
+    reading.
+
+    Without it, a customer who fixed the middle hop this morning cannot tell a
+    route that survived the latest scan from one nothing has re-checked since
+    Tuesday. The two render identically.
+    """
+
+    async def test_a_route_names_the_scan_that_saw_it(
+        self, replay, connected_account
+    ) -> None:
+        org_id, account_id = connected_account
+        scan_id = await run_scan(org_id, account_id)
+
+        rows = await fetch(
+            "SELECT kind, observed_scan_id FROM risks "
+            "WHERE organization_id = :o AND kind <> 'FINDING'",
+            {"o": org_id},
+        )
+        assert rows, "the scan produced no scenario risks to attribute"
+        for kind, observed in rows:
+            assert observed == scan_id, f"{kind} named no reading"
+
+    async def test_re_observing_a_route_moves_it_to_the_newer_reading(
+        self, replay, connected_account
+    ) -> None:
+        """Written on every observation, not only at creation.
+
+        The useful question about a route is not when it first appeared but
+        whether anything has looked since. A value frozen at creation would
+        answer the first while looking like the second -- a route last checked
+        in March, reported as though it were current.
+        """
+        org_id, account_id = connected_account
+        first = await run_scan(org_id, account_id)
+
+        before = await fetch(
+            "SELECT count(*) FROM risks WHERE organization_id = :o "
+            "AND observed_scan_id = :s AND kind <> 'FINDING'",
+            {"o": org_id, "s": first},
+        )
+        assert before[0][0] > 0
+
+        second = await run_scan(org_id, account_id)
+
+        stale = await fetch(
+            "SELECT count(*) FROM risks WHERE organization_id = :o "
+            "AND observed_scan_id = :s AND kind <> 'FINDING'",
+            {"o": org_id, "s": first},
+        )
+        current = await fetch(
+            "SELECT count(*) FROM risks WHERE organization_id = :o "
+            "AND observed_scan_id = :s AND kind <> 'FINDING'",
+            {"o": org_id, "s": second},
+        )
+
+        assert stale[0][0] == 0, "a route still names the reading before last"
+        assert current[0][0] > 0
+
+    async def test_a_finding_risk_names_no_reading_of_its_own(
+        self, replay, connected_account
+    ) -> None:
+        """It takes its reading from the finding it was scored from.
+
+        Setting it here as well would be a second answer to one question, and
+        the two would drift the first time a finding was re-detected by a scan
+        that produced no scenario at all.
+        """
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+
+        rows = await fetch(
+            "SELECT count(*) FROM risks WHERE organization_id = :o "
+            "AND kind = 'FINDING' AND observed_scan_id IS NOT NULL",
+            {"o": org_id},
+        )
+        assert rows[0][0] == 0
+
+    async def test_deleting_the_scan_leaves_the_route_standing(
+        self, replay, connected_account
+    ) -> None:
+        """``SET NULL``, because risks outlive scans exactly as findings do.
+
+        The row then says it was seen and no longer which reading saw it, which
+        is a worse answer than the full one and a much better one than the route
+        disappearing with its scan.
+        """
+        org_id, account_id = connected_account
+        scan_id = await run_scan(org_id, account_id)
+
+        before = await fetch(
+            "SELECT count(*) FROM risks WHERE organization_id = :o "
+            "AND kind <> 'FINDING'",
+            {"o": org_id},
+        )
+        assert before[0][0] > 0
+
+        async with service_session() as session:
+            await session.execute(
+                text("DELETE FROM scans WHERE id = :s"), {"s": scan_id}
+            )
+            await session.commit()
+
+        after = await fetch(
+            "SELECT count(*), count(observed_scan_id) FROM risks "
+            "WHERE organization_id = :o AND kind <> 'FINDING'",
+            {"o": org_id},
+        )
+        assert after[0][0] == before[0][0], "routes were deleted with the scan"
+        assert after[0][1] == 0, "the reference should have been nulled"
+
+
+class TestCaptureReconstruction:
+    """Whether the readings add back up to the capture, on real scans.
+
+    ``tests/unit/test_evidence_store.py`` states the precondition: replay reads
+    ``cloud_snapshots`` and must keep doing so until reconstruction holds
+    against real scans. This is that check, and it is the gate on a change worth
+    naming, because the same bytes are currently stored twice.
+
+    ``cloud_snapshots.data`` is a whole capture per scan and is **not**
+    deduplicated: a daily scan of an estate that has not changed writes a fresh
+    full copy every night. The per-key payloads beside it are content-addressed
+    and store one. If the second reconstructs the first, the first is a copy
+    the schema is paying for nightly.
+
+    The flip has since happened (0027): a capture is a manifest, and the
+    payloads live once. What these hold now is the shape that made it safe --
+    every hash resolves, a replay of a manifest reproduces the scan, and
+    retention refuses to prune a payload a live capture still names.
+    """
+
+    async def test_a_scan_stores_a_manifest_and_no_payloads(
+        self, replay, connected_account
+    ) -> None:
+        """The change itself: captures stop carrying the bytes.
+
+        The manifest keeps everything the capture recorded except ``data``, plus
+        the hash of each reading. The payloads live once in ``evidence_blobs``,
+        shared by every scan that read identical bytes.
+        """
+        org_id, account_id = connected_account
+        scan_id = await run_scan(org_id, account_id)
+
+        rows = await fetch(
+            "SELECT data, manifest FROM cloud_snapshots WHERE scan_id = :s",
+            {"s": scan_id},
+        )
+        assert rows
+        for data, manifest in rows:
+            assert data is None, "the capture still carries its payloads"
+            assert manifest and manifest.get("payload_hashes")
+            # Everything else the capture recorded is still here: a manifest
+            # that dropped coverage or errors would make a replay evaluate
+            # blind where the original degraded to UNKNOWN.
+            assert "coverage" in manifest and "errors" in manifest
+            assert "data" not in manifest
+
+    async def test_the_capture_column_carries_no_default(self) -> None:
+        """What made the manifest flip fail every scan for a release.
+
+        ``data`` was created ``DEFAULT '{}'::jsonb`` and 0027 dropped only its
+        NOT NULL, so a capture written as a manifest came back holding an empty
+        object -- and the read path, which chose the inline form on "``data`` is
+        not NULL", rebuilt an estate with nothing in it. Collection succeeded,
+        the manifest was correct, and ANALYZE raised ``KeyError: 'provider'``.
+
+        The read path now asks about the manifest instead, so this is belt and
+        braces. It is here because a default that nothing writes is invisible
+        until something stops writing the column, which is exactly the shape of
+        the next change like 0027.
+        """
+        rows = await fetch(
+            "SELECT column_default FROM information_schema.columns "
+            "WHERE table_name = 'cloud_snapshots' AND column_name = 'data'",
+            {},
+        )
+
+        assert rows and rows[0][0] is None, (
+            "cloud_snapshots.data has a default again, so a capture written as "
+            "a manifest will come back looking like an empty inline capture"
+        )
+
+    async def test_a_replay_of_a_manifest_reproduces_the_scan(
+        self, replay, connected_account
+    ) -> None:
+        """The property the whole flip rests on.
+
+        A replay rebuilds the capture by merging the blobs the manifest names.
+        If that produced anything but the original, a replay would report on an
+        estate that never existed -- and it may resolve findings.
+        """
+        org_id, account_id = connected_account
+        original_id = await run_scan(org_id, account_id)
+
+        replayed_id = await run_replay(org_id, account_id, original_id)
+
+        async with service_session() as session:
+            original = await session.get(Scan, original_id)
+            replayed = await session.get(Scan, replayed_id)
+
+        assert replayed.status == original.status
+        assert replayed.resource_count == original.resource_count
+        assert replayed.finding_count == original.finding_count
+
+    async def test_retention_will_not_prune_a_payload_a_capture_needs(
+        self, replay, connected_account
+    ) -> None:
+        """The dependency this change created, held shut.
+
+        A capture is no longer self-contained. Pruning a blob it names raises
+        nothing now and fails months later, at the one moment somebody replays
+        to check whether a fix held.
+        """
+        from app.services import retention
+
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+
+        async with service_session() as session:
+            # Every payload is far past any window somebody might configure.
+            await session.execute(
+                text(
+                    "UPDATE evidence_blobs SET last_seen_at = now() - interval "
+                    "'400 days' WHERE organization_id = :o"
+                ),
+                {"o": org_id},
+            )
+            await session.commit()
+            pruned = await retention.prune_blobs(session, org_id, keep_days=90)
+            await session.commit()
+
+        remaining = await fetch(
+            "SELECT count(*) FROM evidence_blobs WHERE organization_id = :o",
+            {"o": org_id},
+        )
+
+        assert pruned == 0, "retention pruned a payload a live capture points at"
+        assert remaining[0][0] > 0
+
+    async def test_every_hash_a_manifest_names_is_stored(
+        self, replay, connected_account
+    ) -> None:
+        """No dangling reference at the moment a capture is written.
+
+        This was the gate on the flip, and it read the capture's inline data to
+        check the readings added back up to it. There is no inline data now --
+        which is the change -- so what it holds today is the property that
+        replaced it: every hash a manifest names resolves to a payload that is
+        actually here.
+
+        A manifest naming bytes nobody stored is a capture that cannot be
+        replayed, and it would be discovered months later by somebody checking
+        whether a fix held.
+        """
+        org_id, account_id = connected_account
+        scan_id = await run_scan(org_id, account_id)
+
+        manifests = await fetch(
+            "SELECT manifest FROM cloud_snapshots WHERE scan_id = :s",
+            {"s": scan_id},
+        )
+        assert manifests, "the scan stored no capture"
+
+        for (manifest,) in manifests:
+            hashes = list((manifest.get("payload_hashes") or {}).values())
+            assert hashes, "a capture that names no readings"
+            stored = await fetch(
+                "SELECT count(*) FROM evidence_blobs "
+                "WHERE organization_id = :o AND content_hash = ANY(:h)",
+                {"o": org_id, "h": hashes},
+            )
+            assert stored[0][0] == len(set(hashes)), (
+                "a manifest names bytes nobody stored, so this capture cannot "
+                "be replayed"
+            )
+
+    async def test_an_unchanged_estate_stores_one_payload_set_and_many_captures(
+        self, replay, connected_account
+    ) -> None:
+        """The cost this measures, stated as a test rather than as an estimate.
+
+        Scanning the same recording twice must add no payloads at all --
+        content addressing already sees to that -- while adding a second whole
+        capture. That gap is the duplication, and it grows once per scan for as
+        long as retention keeps the captures.
+        """
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+        blobs_after_one = await fetch(
+            "SELECT count(*), coalesce(sum(byte_size), 0) FROM evidence_blobs "
+            "WHERE organization_id = :o",
+            {"o": org_id},
+        )
+
+        await run_scan(org_id, account_id)
+        blobs_after_two = await fetch(
+            "SELECT count(*), coalesce(sum(byte_size), 0) FROM evidence_blobs "
+            "WHERE organization_id = :o",
+            {"o": org_id},
+        )
+        captures = await fetch(
+            "SELECT count(*) FROM cloud_snapshots WHERE organization_id = :o",
+            {"o": org_id},
+        )
+
+        assert blobs_after_two == blobs_after_one, "payloads were stored twice"
+        assert captures[0][0] > 1, "captures are not deduplicated, and are not here"
+
+    async def test_re_reading_a_payload_marks_it_seen_without_rewriting_it(
+        self, replay, connected_account
+    ) -> None:
+        """The touch that keeps an unchanged estate's payloads alive.
+
+        Retention measures from ``last_seen_at``, so a scan that finds a payload
+        already stored has to say so. It does that with an UPDATE now rather
+        than by loading the row -- the previous version read every payload it
+        already held back out of PostgreSQL and used none of it -- and the
+        guard being checked is that the UPDATE only ever moves the timestamp
+        forward, and leaves ``first_stored_at`` alone.
+        """
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+
+        async with service_session() as session:
+            await session.execute(
+                text(
+                    "UPDATE evidence_blobs SET last_seen_at = now() - interval "
+                    "'200 days', first_stored_at = now() - interval '400 days' "
+                    "WHERE organization_id = :o"
+                ),
+                {"o": org_id},
+            )
+            await session.commit()
+
+        await run_scan(org_id, account_id)
+
+        rows = await fetch(
+            "SELECT count(*) FROM evidence_blobs WHERE organization_id = :o "
+            "AND last_seen_at > now() - interval '1 day' "
+            "AND first_stored_at < now() - interval '300 days'",
+            {"o": org_id},
+        )
+        stale = await fetch(
+            "SELECT count(*) FROM evidence_blobs WHERE organization_id = :o "
+            "AND last_seen_at < now() - interval '1 day'",
+            {"o": org_id},
+        )
+
+        assert rows[0][0] > 0, "a re-read payload was not marked seen"
+        assert stale[0][0] == 0, (
+            "a payload this scan read again still looks untouched, so retention "
+            "will delete the bytes behind a current reading"
+        )
+
+
+
+class TestPayloadCompression:
+    """What a stored reading costs, and that it is still exactly what was read.
+
+    Deduplication (0027) removed the copies. This removes the size of what is
+    left: a payload is a provider listing, which is the same twenty key names
+    and the same resource-group prefix repeated per row, and JSONB stores that
+    as a parsed tree with the keys held per value. The bytes go in compressed
+    instead.
+
+    The risk this carries is silent: a payload that inflates to something other
+    than what was collected replays as an estate that never existed, and
+    nothing would say so at the time. So these check the bytes against the hash
+    they are filed under rather than only that a scan finished.
+    """
+
+    async def test_a_scan_stores_its_payloads_compressed(
+        self, replay, connected_account
+    ) -> None:
+        """The change itself. No row keeps a second, uncompressed copy."""
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+
+        rows = await fetch(
+            "SELECT payload, payload_compressed FROM evidence_blobs "
+            "WHERE organization_id = :o",
+            {"o": org_id},
+        )
+
+        assert rows, "the scan stored no payloads"
+        for payload, compressed in rows:
+            assert payload is None, "the payload is still stored as JSONB as well"
+            assert compressed, "the payload was stored with nothing in it"
+
+    async def test_a_stored_payload_still_hashes_to_the_hash_it_is_filed_under(
+        self, replay, connected_account
+    ) -> None:
+        """The check that makes compression safe rather than merely smaller.
+
+        Content addressing is only worth anything if the bytes under a hash are
+        the bytes that hash names. Inflate them and take the hash again: an
+        encoding that round-tripped to an equal dict through a different byte
+        string would fail here, and would otherwise be found by a replay months
+        later reporting on an estate nobody had.
+        """
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+
+        rows = await fetch(
+            "SELECT content_hash, payload_compressed, byte_size FROM evidence_blobs "
+            "WHERE organization_id = :o",
+            {"o": org_id},
+        )
+
+        assert rows
+        for content_hash, compressed, byte_size in rows:
+            inflated = zlib.decompress(compressed)
+            assert hashlib.sha256(inflated).hexdigest() == content_hash
+            assert len(inflated) == byte_size, (
+                "byte_size no longer describes the reading it was taken over"
+            )
+
+    async def test_the_stored_size_is_recorded_and_smaller_than_the_reading(
+        self, replay, connected_account
+    ) -> None:
+        """``byte_size`` goes on meaning what the reading was; ``stored_bytes``
+        is what keeping it costs. Two numbers because the answer to "how much
+        did this scan read" and "how much is this table" stopped being the same
+        one, and a customer's retention window is set against the first."""
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+
+        rows = await fetch(
+            "SELECT sum(byte_size), sum(stored_bytes) FROM evidence_blobs "
+            "WHERE organization_id = :o",
+            {"o": org_id},
+        )
+
+        read, stored = rows[0]
+        assert read > 0 and stored > 0
+        assert stored < read, "compression made the table no smaller"
+
+    async def test_a_payload_stored_before_compression_still_reads(
+        self, replay, connected_account
+    ) -> None:
+        """The fallback, which is the half a migration usually gets wrong.
+
+        No backfill runs: rewriting every historical payload is a long write on
+        the largest table in the schema, and retention retires those rows on its
+        own schedule anyway. So the read path has to take whichever form it
+        finds, and a replay of a capture written before this change must
+        reproduce the same scan rather than fail because the bytes are in the
+        older column.
+        """
+        org_id, account_id = connected_account
+        original_id = await run_scan(org_id, account_id)
+
+        # Put every payload back the way 0027 left it: inline JSONB, no bytes.
+        # Inflated here rather than in SQL because PostgreSQL ships no zlib
+        # inflate -- which is also why migration 0028's downgrade is Python.
+        stored = await fetch(
+            "SELECT content_hash, payload_compressed FROM evidence_blobs "
+            "WHERE organization_id = :o",
+            {"o": org_id},
+        )
+        assert stored
+        async with service_session() as session:
+            for content_hash, compressed in stored:
+                await session.execute(
+                    text(
+                        "UPDATE evidence_blobs "
+                        "SET payload = CAST(:payload AS jsonb), "
+                        "    payload_compressed = NULL "
+                        "WHERE organization_id = :o AND content_hash = :h"
+                    ),
+                    {
+                        "payload": zlib.decompress(compressed).decode(),
+                        "o": org_id,
+                        "h": content_hash,
+                    },
+                )
+            await session.commit()
+
+        replayed_id = await run_replay(org_id, account_id, original_id)
+
+        async with service_session() as session:
+            original = await session.get(Scan, original_id)
+            replayed = await session.get(Scan, replayed_id)
+
+        assert replayed.status == original.status
+        assert replayed.resource_count == original.resource_count
+        assert replayed.finding_count == original.finding_count
+
+
+class TestGraphCaching:
+    """The cache is keyed on a version, so the version has to actually move.
+
+    The unit tests hold the caching logic. What only a real database can settle
+    is the premise underneath it: that a scan changes what ``graph_version``
+    reports. If it did not, the attack-path pages would serve the estate as it
+    was the first time anybody looked at them, indefinitely, and nothing would
+    say so.
+    """
+
+    async def test_a_scan_changes_the_version_the_graph_is_keyed_on(
+        self, replay, connected_account
+    ) -> None:
+        from app.services import graph as graph_service
+
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+
+        async with service_session() as session:
+            before = await graph_service.graph_version(session, org_id)
+
+        # A second reading of a changed environment: assets are rewritten, and
+        # the version must move with them.
+        await run_scan(org_id, account_id)
+
+        async with service_session() as session:
+            after = await graph_service.graph_version(session, org_id)
+
+        assert before != after, (
+            "a scan left the graph version unchanged, so cached attack paths "
+            "would outlive the estate they describe"
+        )
+
+    async def test_the_version_is_stable_when_nothing_has_scanned(
+        self, replay, connected_account
+    ) -> None:
+        """Otherwise the cache would never hit and the whole thing is dead
+        weight that costs an extra query per request."""
+        from app.services import graph as graph_service
+
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+
+        async with service_session() as session:
+            first = await graph_service.graph_version(session, org_id)
+            second = await graph_service.graph_version(session, org_id)
+
+        assert first == second
+
+
+class TestChokePoints:
+    """Which single change closes the most routes.
+
+    The list ranks routes, which is right for reading and wrong for acting. This
+    is the other half, and the number has to be the verified one: a customer
+    told four routes close who then sees two remain stops believing the next
+    number too.
+    """
+
+    async def test_the_link_it_names_really_does_close_those_routes(
+        self, replay, connected_account
+    ) -> None:
+        from app.services import graph as graph_service
+
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+
+        async with service_session() as session:
+            graph = await graph_service.load_graph(session, org_id)
+
+        routes = graph.attack_paths()
+        assert routes, "the fixture estate has a route"
+
+        for choke in graph.choke_points():
+            # The claim, re-checked against the graph it was made about.
+            pruned = graph._without(
+                (
+                    choke.step.source.provider_resource_id,
+                    choke.step.relationship.value,
+                    choke.step.target.provider_resource_id,
+                )
+            )
+            assert len(pruned.attack_paths()) == len(routes) - choke.severs
+            assert choke.severs <= choke.on_routes
+
+    async def test_asking_does_not_change_the_graph(
+        self, replay, connected_account
+    ) -> None:
+        """The analysis is a question, not a change."""
+        from app.services import graph as graph_service
+
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+
+        async with service_session() as session:
+            graph = await graph_service.load_graph(session, org_id)
+
+        before = len(graph.attack_paths())
+        graph.choke_points()
+
+        assert len(graph.attack_paths()) == before
+
 
 class TestScenarioRisk:
     """A route through the environment, as a risk rather than a page.
@@ -2297,11 +3128,19 @@ class TestScenarioRisk:
         await run_scan(org_id, account_id)
 
         scenarios = await self._risks(org_id, "ATTACK_PATH")
+        # The findings *this* scenario groups, reached through the junction it
+        # was linked with. Taking the maximum across every finding risk in the
+        # organization asked a different question -- whether the worst thing
+        # anywhere sits on this route -- which is not a property of the scorer
+        # and stopped being true the moment a rule outside the route outscored
+        # the ones on it.
         members = await fetch(
-            "SELECT max(r.risk_score) FROM risks r "
-            "JOIN risk_findings rf ON rf.risk_id = r.id "
-            "WHERE r.organization_id = :o AND r.kind = 'FINDING'",
-            {"o": org_id},
+            "SELECT max(member.risk_score) FROM risks scenario "
+            "JOIN risk_findings sf ON sf.risk_id = scenario.id "
+            "JOIN risk_findings mf ON mf.finding_id = sf.finding_id "
+            "JOIN risks member ON member.id = mf.risk_id "
+            "WHERE scenario.id = :s AND member.kind = 'FINDING'",
+            {"s": scenarios[0][0]},
         )
 
         assert float(scenarios[0][2]) >= float(members[0][0])
@@ -3080,6 +3919,75 @@ class TestTemporalModel:
         assert after == before
 
 
+class TestContextCoverage:
+    """What the score is not charging for.
+
+    The risk formula scores UNKNOWN context just under High, so an unlabelled
+    asset never sorts below a labelled one. That band used to drive the org
+    security score too, which meant an estate nobody had classified was told its
+    posture was worse -- CloudGuard's own blind spot spent as if it were the
+    customer's risk, on the same dashboard whose coverage panel promises that
+    coverage is reported beside the score and not folded into it.
+    """
+
+    async def test_the_score_charges_the_established_band_not_the_cautious_one(
+        self, replay, connected_account
+    ) -> None:
+        from app.risk.scorer import default_scorer
+        from app.services.dashboard import build_dashboard
+
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+
+        async with service_session() as session:
+            dashboard = await build_dashboard(session, org_id)
+        rows = await fetch(
+            "SELECT risk_level, known_risk_level FROM risks "
+            "WHERE organization_id = :o AND kind = 'FINDING'",
+            {"o": org_id},
+        )
+
+        assert rows, "the fixture estate has findings"
+        # Every risk carries both bands, and the established one is never the
+        # harsher of the two.
+        assert all(known is not None for _, known in rows)
+        cautious = default_scorer.security_score([Level(level) for level, _ in rows])
+        assert dashboard["security_score"] >= cautious
+
+    async def test_the_guessing_is_reported_rather_than_spent(
+        self, replay, connected_account
+    ) -> None:
+        """A number the customer can act on: label these assets and the score
+        will move. Silently deducting for them instead told them nothing."""
+        from app.services.dashboard import build_dashboard
+
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+
+        async with service_session() as session:
+            context = (await build_dashboard(session, org_id))["coverage"]["context"]
+
+        assert context["unclassified"] + context["classified"] > 0
+        assert 0.0 <= context["ratio"] <= 1.0
+
+    async def test_a_scenario_risk_carries_no_established_band(
+        self, replay, connected_account
+    ) -> None:
+        """It never reaches the org score -- the findings it groups are already
+        counted there -- so a second band for it would be a number nobody
+        claimed."""
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+
+        rows = await fetch(
+            "SELECT known_risk_level FROM risks "
+            "WHERE organization_id = :o AND kind <> 'FINDING'",
+            {"o": org_id},
+        )
+
+        assert all(known is None for (known,) in rows)
+
+
 class TestEvidenceFreshness:
     """How current the picture is, which is not what coverage says.
 
@@ -3150,3 +4058,755 @@ class TestEvidenceFreshness:
             summary = await build_dashboard(session, org_id)
 
         assert summary["evidence_freshness"]["stale_hours"] > 200
+
+
+class TestFindingProvenance:
+    """Which readings a finding rests on, against a real database.
+
+    The unit tests hold the write path against fakes. These hold the two things
+    a fake cannot: that the foreign keys behave as the migration declares when
+    rows are actually deleted, and that a replay -- which runs a different code
+    path with a different scan id -- leaves the citations standing.
+
+    Both failures would be silent. A finding whose citations were quietly
+    removed looks exactly like one raised before CloudGuard recorded them.
+    """
+
+    async def test_a_finding_cites_the_readings_its_rule_declared(
+        self, replay, connected_account
+    ) -> None:
+        org_id, account_id = connected_account
+        scan_id = await run_scan(org_id, account_id)
+
+        rows = await fetch(
+            "SELECT fe.evidence_key, fe.content_hash, fe.collected_at, "
+            "       fe.source_scan_id, fe.evidence_id "
+            "FROM finding_evidence fe "
+            "JOIN findings f ON f.id = fe.finding_id "
+            "WHERE f.organization_id = :o",
+            {"o": org_id},
+        )
+
+        assert rows, "a scan that raised findings recorded no provenance for any"
+        for key, content_hash, collected_at, source_scan_id, evidence_id in rows:
+            assert key, "a citation must name the reading it cites"
+            assert collected_at is not None
+            assert source_scan_id == scan_id
+            assert evidence_id is not None
+            # The hash is NULL only where the reading produced nothing. These
+            # findings came from readings that succeeded, so a NULL here means
+            # the citation was written from the wrong row.
+            assert content_hash is not None and len(content_hash) == 64
+
+    async def test_every_citation_points_at_a_reading_of_the_same_key(
+        self, replay, connected_account
+    ) -> None:
+        """The join is the claim. A citation naming ``storage_accounts`` while
+        pointing at the virtual machine listing would be worse than none: it
+        would answer "how do you know" with the wrong evidence, confidently."""
+        org_id, _account_id = connected_account
+        await run_scan(org_id, _account_id)
+
+        mismatched = await fetch(
+            "SELECT fe.evidence_key, e.evidence_key "
+            "FROM finding_evidence fe "
+            "JOIN evidence e ON e.id = fe.evidence_id "
+            "WHERE fe.organization_id = :o AND fe.evidence_key <> e.evidence_key",
+            {"o": org_id},
+        )
+
+        assert mismatched == []
+
+    async def test_a_rescan_replaces_citations_rather_than_accumulating(
+        self, replay, connected_account
+    ) -> None:
+        """A citation says what a finding rests on now.
+
+        Without the delete the table grows a row per scan per key for the life
+        of a finding, and the primary key would refuse the second scan outright.
+        """
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+        first = await fetch(
+            "SELECT count(*) FROM finding_evidence WHERE organization_id = :o",
+            {"o": org_id},
+        )
+
+        second_scan = await run_scan(org_id, account_id)
+        after = await fetch(
+            "SELECT count(*) FROM finding_evidence WHERE organization_id = :o",
+            {"o": org_id},
+        )
+        sources = await fetch(
+            "SELECT DISTINCT source_scan_id FROM finding_evidence "
+            "WHERE organization_id = :o",
+            {"o": org_id},
+        )
+
+        assert after[0][0] == first[0][0], "citations accumulated across scans"
+        assert [row[0] for row in sources] == [second_scan], (
+            "a rescan must leave its findings citing the reading it just took"
+        )
+
+    async def test_an_applied_replay_keeps_citing_the_scan_that_read(
+        self, replay, connected_account
+    ) -> None:
+        """The regression the write path is shaped around.
+
+        A replay collects nothing, so it owns no evidence rows. Resolving
+        citations against its own id finds none -- and because they are rewritten
+        each evaluation, it deletes the ones the original scan left. On the path
+        whose entire purpose is confirming a fix held.
+        """
+        org_id, account_id = connected_account
+        original_id = await run_scan(org_id, account_id)
+        before = await fetch(
+            "SELECT count(*) FROM finding_evidence WHERE organization_id = :o",
+            {"o": org_id},
+        )
+        assert before[0][0] > 0, "nothing to preserve; the test proves nothing"
+
+        replayed_id = await run_replay(org_id, account_id, original_id)
+
+        async with service_session() as session:
+            replayed = await session.get(Scan, replayed_id)
+        # The precondition, asserted here rather than assumed from a
+        # neighbouring test: an *advisory* replay never reaches
+        # ``_persist_findings`` at all, so it would leave the citations alone
+        # whether the write path resolved them correctly or not, and this test
+        # would pass against the bug it exists to catch.
+        assert replayed.evaluation_only is False, (
+            "replaying the newest capture must be applied, or this proves nothing"
+        )
+
+        after = await fetch(
+            "SELECT count(*), count(DISTINCT source_scan_id) "
+            "FROM finding_evidence WHERE organization_id = :o",
+            {"o": org_id},
+        )
+        sources = await fetch(
+            "SELECT DISTINCT source_scan_id FROM finding_evidence "
+            "WHERE organization_id = :o",
+            {"o": org_id},
+        )
+
+        assert after[0][0] == before[0][0], "a replay removed the citations"
+        assert [row[0] for row in sources] == [original_id], (
+            "a replay must cite the scan that read the provider, not itself"
+        )
+
+    async def test_deleting_the_scan_leaves_the_citation_standing(
+        self, replay, connected_account
+    ) -> None:
+        """``ON DELETE SET NULL``, and the reason the facts are copied.
+
+        Findings outlive scans. A citation that cascaded away with its scan
+        would leave the finding claiming nothing rather than claiming something
+        no longer inspectable -- and the hash is what keeps it followable to the
+        payload, which is stored against the blob rather than the scan.
+        """
+        org_id, account_id = connected_account
+        scan_id = await run_scan(org_id, account_id)
+
+        before = await fetch(
+            "SELECT count(*) FROM finding_evidence WHERE organization_id = :o",
+            {"o": org_id},
+        )
+        assert before[0][0] > 0
+
+        async with service_session() as session:
+            await session.execute(
+                text("DELETE FROM scans WHERE id = :s"), {"s": scan_id}
+            )
+            await session.commit()
+
+        rows = await fetch(
+            "SELECT evidence_id, evidence_key, content_hash, collected_at, "
+            "       source_scan_id "
+            "FROM finding_evidence WHERE organization_id = :o",
+            {"o": org_id},
+        )
+
+        assert len(rows) == before[0][0], "citations were deleted with the scan"
+        for evidence_id, key, content_hash, collected_at, source_scan_id in rows:
+            # The reading is gone with its scan; the citation is not.
+            assert evidence_id is None
+            assert key
+            assert collected_at is not None
+            # No foreign key on this column, deliberately: it is what survives.
+            assert source_scan_id == scan_id
+            assert content_hash is not None
+
+    async def test_a_pruned_payload_leaves_the_citation_intact(
+        self, replay, connected_account
+    ) -> None:
+        """The citation stays true after the bytes are gone.
+
+        Retention prunes blobs on their own schedule, and the hash on a citation
+        is not a foreign key into them for exactly that reason. What the
+        endpoint then reports -- ``payload_available: false`` rather than a
+        dropped row or a dead link -- is held by
+        ``tests/unit/test_finding_provenance.py``; what this holds is that the
+        row is still here to report on.
+        """
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+
+        before = await fetch(
+            "SELECT count(*) FROM finding_evidence WHERE organization_id = :o",
+            {"o": org_id},
+        )
+        assert before[0][0] > 0
+
+        async with service_session() as session:
+            await session.execute(
+                text("DELETE FROM evidence_blobs WHERE organization_id = :o"),
+                {"o": org_id},
+            )
+            await session.commit()
+
+        rows = await fetch(
+            "SELECT fe.content_hash, b.content_hash "
+            "FROM finding_evidence fe "
+            "LEFT JOIN evidence_blobs b ON b.content_hash = fe.content_hash "
+            "WHERE fe.organization_id = :o",
+            {"o": org_id},
+        )
+
+        assert len(rows) == before[0][0], "citations were pruned with the payloads"
+        for cited, stored in rows:
+            assert cited is not None, "the hash is what keeps the citation checkable"
+            assert stored is None, "the payload should be gone; the citation should not"
+
+
+class TestRetention:
+    """Letting go of evidence without letting go of what it proved.
+
+    Written against a real database rather than a fake because the whole feature
+    is a set of DELETEs with exceptions, and the interesting failures are the
+    rows that should have survived one. A fake would return whatever it was
+    told.
+    """
+
+    async def test_the_newest_capture_of_a_subscription_is_never_pruned(
+        self, replay, connected_account
+    ) -> None:
+        """The invariant, and the one that fails silently.
+
+        The newest capture is what an *applied* replay reads: replaying it may
+        resolve findings, while every older one is advisory and may not. Pruning
+        it raises nothing -- it turns "did the fix work" into an answer nobody
+        can act on, on the path the product's north-star metric runs through.
+        """
+        from app.services import retention
+
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+        await run_scan(org_id, account_id)
+
+        # Every capture is now far outside any window somebody might configure.
+        async with service_session() as session:
+            await session.execute(
+                text(
+                    "UPDATE cloud_snapshots SET created_at = now() - interval "
+                    "'400 days' WHERE organization_id = :o"
+                ),
+                {"o": org_id},
+            )
+            await session.commit()
+
+        newest = await fetch(
+            "SELECT id FROM cloud_snapshots WHERE organization_id = :o "
+            "AND cloud_account_id IS NOT NULL "
+            "ORDER BY created_at DESC, id DESC LIMIT 1",
+            {"o": org_id},
+        )
+
+        async with service_session() as session:
+            pruned = await retention.prune_snapshots(session, org_id, keep_days=30)
+            await session.commit()
+
+        survivors = await fetch(
+            "SELECT id FROM cloud_snapshots WHERE organization_id = :o "
+            "AND cloud_account_id IS NOT NULL",
+            {"o": org_id},
+        )
+
+        assert pruned > 0, "nothing was pruned; the test proves nothing"
+        assert [row[0] for row in survivors] == [newest[0][0]]
+
+    async def test_the_newest_directory_capture_survives_too(
+        self, replay, connected_tenant
+    ) -> None:
+        """A replay restores the directory beside each subscription.
+
+        Pruned out from under one, the identity rules would read nothing while
+        the subscription rules carried on -- a replay that half worked, which is
+        worse than one that refused.
+        """
+        from app.services import retention
+
+        org_id, connection_id = connected_tenant
+        await run_connection_scan(org_id, connection_id)
+        await run_connection_scan(org_id, connection_id)
+
+        async with service_session() as session:
+            await session.execute(
+                text(
+                    "UPDATE cloud_snapshots SET created_at = now() - interval "
+                    "'400 days' WHERE organization_id = :o"
+                ),
+                {"o": org_id},
+            )
+            await session.commit()
+            await retention.prune_snapshots(session, org_id, keep_days=30)
+            await session.commit()
+
+        directories = await fetch(
+            "SELECT count(*) FROM cloud_snapshots WHERE organization_id = :o "
+            "AND cloud_account_id IS NULL",
+            {"o": org_id},
+        )
+        assert directories[0][0] == 1, "the directory a replay needs was pruned"
+
+    async def test_a_capture_inside_the_window_is_kept(
+        self, replay, connected_account
+    ) -> None:
+        """Retention is a window, not a "keep one" policy.
+
+        Drift between two scans is a diff rather than an inference, and a
+        history one capture deep cannot be diffed against anything.
+        """
+        from app.services import retention
+
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+        await run_scan(org_id, account_id)
+
+        before = await fetch(
+            "SELECT count(*) FROM cloud_snapshots WHERE organization_id = :o",
+            {"o": org_id},
+        )
+
+        async with service_session() as session:
+            pruned = await retention.prune_snapshots(session, org_id, keep_days=30)
+            await session.commit()
+
+        after = await fetch(
+            "SELECT count(*) FROM cloud_snapshots WHERE organization_id = :o",
+            {"o": org_id},
+        )
+        assert pruned == 0
+        assert after[0][0] == before[0][0]
+
+    async def test_a_payload_still_being_re_read_is_not_pruned(
+        self, replay, connected_account
+    ) -> None:
+        """Why the column is ``last_seen_at`` and not ``first_stored_at``.
+
+        An estate that has not changed in six months stores one copy and touches
+        it on every scan. Measuring from when it was first stored would delete
+        the payload behind every current reading, which is the deduplication
+        working against itself.
+        """
+        from app.services import retention
+
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+
+        async with service_session() as session:
+            # Stored long ago, seen just now: exactly the unchanged estate.
+            await session.execute(
+                text(
+                    "UPDATE evidence_blobs SET first_stored_at = now() - interval "
+                    "'400 days' WHERE organization_id = :o"
+                ),
+                {"o": org_id},
+            )
+            await session.commit()
+            pruned = await retention.prune_blobs(session, org_id, keep_days=90)
+            await session.commit()
+
+        remaining = await fetch(
+            "SELECT count(*) FROM evidence_blobs WHERE organization_id = :o",
+            {"o": org_id},
+        )
+        assert pruned == 0
+        assert remaining[0][0] > 0
+
+    async def test_a_pruned_payload_leaves_its_citations_standing(
+        self, replay, connected_account
+    ) -> None:
+        """The reason a citation copies the hash instead of holding a key.
+
+        A finding raised last year is still answerable after its bytes are gone:
+        the citation says truthfully what was read, when, and under which
+        permission, and the API reports the payload as unavailable rather than
+        offering a link that fails.
+
+        Getting a payload pruned takes two scans of *different* estates now,
+        and that is 0027's interlock rather than an inconvenience. A payload a
+        surviving manifest still names is kept whatever its age says, so the
+        only bytes retention can let go of are those no live capture is made
+        of. Scanning twice over an unchanged estate produces one payload set
+        that both captures name -- nothing to prune, which is the sibling test
+        above. Changing the estate leaves the first scan's reading spoken for
+        by the first scan's capture alone, and that capture is prunable once it
+        is no longer the newest.
+        """
+        from app.services import retention
+
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+
+        # A second scan of a changed estate: the network reading now hashes
+        # differently, so the first scan's copy of it is named by the first
+        # scan's capture and by nothing else.
+        fixed = load_raw()
+        for nsg in fixed["data"]["network_security_groups"]:
+            for rule in nsg["properties"]["securityRules"]:
+                if rule["name"] == "AllowRDP":
+                    rule["properties"]["sourceAddressPrefix"] = "10.10.0.0/16"
+        replay["payload"] = fixed
+        await run_scan(org_id, account_id)
+
+        citations_before = await fetch(
+            "SELECT count(*) FROM finding_evidence WHERE organization_id = :o",
+            {"o": org_id},
+        )
+        assert citations_before[0][0] > 0
+
+        async with service_session() as session:
+            # Everything is old. What survives is decided by whether a live
+            # capture still names it, not by any of these timestamps.
+            await session.execute(
+                text(
+                    "UPDATE evidence_blobs SET last_seen_at = now() - interval "
+                    "'400 days' WHERE organization_id = :o"
+                ),
+                {"o": org_id},
+            )
+            await session.execute(
+                text(
+                    "UPDATE cloud_snapshots SET created_at = now() - interval "
+                    "'400 days' WHERE organization_id = :o"
+                ),
+                {"o": org_id},
+            )
+            await session.commit()
+            # Captures first, then payloads -- the order retention.prune uses,
+            # and the order that makes this possible at all.
+            await retention.prune_snapshots(session, org_id, keep_days=90)
+            await session.commit()
+            pruned = await retention.prune_blobs(session, org_id, keep_days=90)
+            await session.commit()
+
+        citations_after = await fetch(
+            "SELECT count(*), count(content_hash) FROM finding_evidence "
+            "WHERE organization_id = :o",
+            {"o": org_id},
+        )
+
+        assert pruned > 0, "no payload was left unreferenced to prune"
+        assert citations_after[0][0] == citations_before[0][0]
+        # And still followable in principle: the hash is what identifies the
+        # bytes, whether or not they are still held.
+        assert citations_after[0][1] == citations_before[0][0]
+
+    async def test_pruning_twice_is_safe(self, replay, connected_account) -> None:
+        """It runs on a timer and may overlap itself after a slow night."""
+        from app.services import retention
+
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+        await run_scan(org_id, account_id)
+
+        async with service_session() as session:
+            await session.execute(
+                text(
+                    "UPDATE cloud_snapshots SET created_at = now() - interval "
+                    "'400 days' WHERE organization_id = :o"
+                ),
+                {"o": org_id},
+            )
+            await session.commit()
+            first = await retention.prune(
+                session, org_id, snapshot_days=30, evidence_days=90
+            )
+            await session.commit()
+            second = await retention.prune(
+                session, org_id, snapshot_days=30, evidence_days=90
+            )
+            await session.commit()
+
+        assert first["snapshots"] > 0
+        assert second["snapshots"] == 0
+
+    async def test_a_ceiling_caps_what_one_subscription_can_accumulate(
+        self, replay, connected_account
+    ) -> None:
+        """Ranked in PostgreSQL, so this is the test that matters.
+
+        A window is a policy about time and storage is not spent in time: a
+        customer scanning every half hour keeps 1,440 captures per subscription
+        inside a 30-day window, and one scanning weekly keeps 4. The ceiling is
+        what makes the two comparable, and the ranking behind it has to agree
+        with every other place that decides which capture is the newest.
+        """
+        from app.services import retention
+
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+        await run_scan(org_id, account_id)
+        await run_scan(org_id, account_id)
+
+        newest = await fetch(
+            "SELECT id FROM cloud_snapshots WHERE organization_id = :o "
+            "AND cloud_account_id IS NOT NULL "
+            "ORDER BY created_at DESC, id DESC LIMIT 1",
+            {"o": org_id},
+        )
+
+        async with service_session() as session:
+            # Everything is well inside the window: the age limit must not be
+            # what does the work here.
+            pruned = await retention.prune_snapshots(
+                session, org_id, keep_days=30, keep_per_scope=1
+            )
+            await session.commit()
+
+        survivors = await fetch(
+            "SELECT id FROM cloud_snapshots WHERE organization_id = :o "
+            "AND cloud_account_id IS NOT NULL",
+            {"o": org_id},
+        )
+        directories = await fetch(
+            "SELECT id FROM cloud_snapshots WHERE organization_id = :o "
+            "AND cloud_account_id IS NULL",
+            {"o": org_id},
+        )
+
+        # Four, not two: each scan of this connection reads the subscription and
+        # the tenant directory, so three scans leave two series of three and the
+        # ceiling takes two from each.
+        assert pruned == 4
+        assert [row[0] for row in survivors] == [newest[0][0]]
+        assert len(directories) == 1
+
+    async def test_the_ceiling_counts_each_subscription_on_its_own(
+        self, replay, connected_tenant
+    ) -> None:
+        """Two subscriptions and a directory are three series, not one pile.
+
+        Counted together, a tenant of fifty subscriptions would keep a ceiling's
+        worth between them -- which for most of them is nothing, and the newest
+        capture of a scope is the one thing retention may never take.
+        """
+        from app.services import retention
+
+        org_id, connection_id = connected_tenant
+        await run_connection_scan(org_id, connection_id)
+        await run_connection_scan(org_id, connection_id)
+
+        async with service_session() as session:
+            pruned = await retention.prune_snapshots(
+                session, org_id, keep_days=30, keep_per_scope=1
+            )
+            await session.commit()
+
+        remaining = await fetch(
+            "SELECT cloud_account_id, connection_id, count(*) FROM cloud_snapshots "
+            "WHERE organization_id = :o GROUP BY cloud_account_id, connection_id",
+            {"o": org_id},
+        )
+
+        # Two subscriptions and one directory, each down to its newest capture.
+        assert pruned == 3
+        assert len(remaining) == 3
+        assert all(row[2] == 1 for row in remaining)
+
+    async def test_no_ceiling_leaves_the_window_in_charge(
+        self, replay, connected_account
+    ) -> None:
+        """The prune runs daily against every tenant, so the extra ranking scan
+        is only paid for where a ceiling is actually configured."""
+        from app.services import retention
+
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+        await run_scan(org_id, account_id)
+
+        async with service_session() as session:
+            pruned = await retention.prune_snapshots(session, org_id, keep_days=30)
+            await session.commit()
+
+        assert pruned == 0
+
+
+class TestComplianceProvenance:
+    """A control that passed, and what it passed on.
+
+    The chain a compliance view claims -- reading, rule, control, framework --
+    was followable in one direction only. A *finding* cites the readings behind
+    it, so "how do you know this is wrong" had an answer; a passing control has
+    no findings, so the green row an auditor asks about first had nothing behind
+    it at all.
+
+    Written against a real scan because the readings come from the evidence the
+    scan actually wrote, and a fake would return whatever it was told.
+    """
+
+    async def _framework(self, org_id: uuid.UUID, framework_id: str) -> dict:
+        from app.services import compliance
+
+        async with service_session() as session:
+            detail = await compliance.get_framework_detail(session, org_id, framework_id)
+        assert detail is not None
+        return detail
+
+    async def test_a_control_cites_the_readings_its_verdict_rests_on(
+        self, replay, connected_account, rule_catalogue
+    ) -> None:
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+
+        detail = await self._framework(org_id, "CIS_AZURE_2.0")
+        cited = [c for c in detail["controls"] if c["readings"]]
+
+        assert cited, "no control carried a reading; the chain stops at the rule"
+        for control in cited:
+            for reading in control["readings"]:
+                assert reading["evidence_key"]
+                # Either it was read, or it is reported as not read. A silent
+                # third state is how a control ends up green on nothing.
+                assert reading["outcome"] in {"COMPLETE", "PARTIAL", "FAILED", None}
+
+    async def test_a_passing_control_is_the_one_that_needed_this(
+        self, replay, connected_account, rule_catalogue
+    ) -> None:
+        """It has no findings, so before this it had no provenance either."""
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+
+        detail = await self._framework(org_id, "CIS_AZURE_2.0")
+        passing = [
+            c for c in detail["controls"] if c["status"] == "PASSING" and c["readings"]
+        ]
+
+        assert passing, "no passing control carried a reading"
+        reading = passing[0]["readings"][0]
+        assert reading["collected_at"] is not None
+        assert reading["scopes"] >= 1
+        # Empty here, and truthfully so: this scan replays a stored capture
+        # whose coverage report predates CloudGuard recording which actions a
+        # read was made under, and `Evidence.permissions` says `[]` means
+        # exactly that rather than "the task called nothing". The next test
+        # holds the carrying itself.
+        assert isinstance(reading["permissions"], list)
+
+    async def test_the_permission_a_read_was_made_under_reaches_the_control(
+        self, replay, connected_account, rule_catalogue
+    ) -> None:
+        """"How did you even see this" is a question with an answer.
+
+        Written onto the evidence rows rather than taken from the fixture,
+        whose coverage report predates CloudGuard recording permissions: what
+        is under test is that the actions on a reading reach the control that
+        rests on it, not what a fixture happens to carry.
+        """
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+
+        async with service_session() as session:
+            await session.execute(
+                text(
+                    "UPDATE evidence SET permissions = :p "
+                    "WHERE organization_id = :o AND evidence_key = 'storage_accounts'"
+                ),
+                {
+                    "p": '["Microsoft.Storage/storageAccounts/read"]',
+                    "o": org_id,
+                },
+            )
+            await session.commit()
+
+        detail = await self._framework(org_id, "CIS_AZURE_2.0")
+        readings = [
+            reading
+            for control in detail["controls"]
+            for reading in control["readings"]
+            if reading["evidence_key"] == "storage_accounts"
+        ]
+
+        assert readings, "no control rests on the storage listing"
+        assert all(
+            reading["permissions"] == ["Microsoft.Storage/storageAccounts/read"]
+            for reading in readings
+        )
+
+    async def test_the_assessment_names_the_scan_it_came_from(
+        self, replay, connected_account, rule_catalogue
+    ) -> None:
+        """A compliance page with no date on it is a claim about no particular
+        moment. The export copies this onto every row for the same reason."""
+        org_id, account_id = connected_account
+        scan_id = await run_scan(org_id, account_id)
+
+        detail = await self._framework(org_id, "ISO_27001")
+
+        assert detail["assessment"] is not None
+        assert detail["assessment"]["scan_id"] == str(scan_id)
+        assert detail["assessment"]["completed_at"] is not None
+
+    async def test_a_pruned_payload_is_reported_as_no_longer_followable(
+        self, replay, connected_account, rule_catalogue
+    ) -> None:
+        """Retention takes the bytes long before it takes the record that they
+        were read. The citation stays true, and offering a link that fails
+        would be worse than saying so."""
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+
+        async with service_session() as session:
+            await session.execute(
+                text("DELETE FROM evidence_blobs WHERE organization_id = :o"),
+                {"o": org_id},
+            )
+            await session.commit()
+
+        detail = await self._framework(org_id, "CIS_AZURE_2.0")
+        readings = [r for c in detail["controls"] for r in c["readings"] if r["outcome"]]
+
+        assert readings
+        assert all(reading["retained"] is False for reading in readings)
+
+    async def test_the_export_says_the_same_thing_as_the_screen(
+        self, replay, connected_account, rule_catalogue
+    ) -> None:
+        """One assessment, two renderings. A file that disagreed with the page
+        it was downloaded from would be the more believed of the two."""
+        import csv
+        import io
+
+        from app.compliance.export import to_csv
+        from app.services import compliance
+
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+
+        async with service_session() as session:
+            payload = await compliance.build_export(
+                session, org_id, "CIS_AZURE_2.0", organization_name="Contoso"
+            )
+        assert payload is not None
+
+        detail = await self._framework(org_id, "CIS_AZURE_2.0")
+        rows = list(csv.DictReader(io.StringIO(to_csv(payload))))
+
+        assert len(rows) == detail["control_count"]
+        by_id = {c["id"]: c for c in detail["controls"]}
+        for row in rows:
+            assert row["status"] == by_id[row["control_id"]]["status"]
+        assert {row["assessed_at"] for row in rows} == {
+            detail["assessment"]["completed_at"]
+        }

@@ -1,12 +1,13 @@
 # CloudGuard — Designing for AWS and GCP
 
-Design only. Nothing here is implemented, and deliberately so: most of it should
-not be built until a second provider actually exists, because an abstraction
-guessed at from one example is usually wrong in the places that matter.
+Written as design only, while Azure was the only provider: most of it should not
+be built until a second one exists, because an abstraction guessed at from one
+example is usually wrong in the places that matter.
 
-What this document is for is the opposite — deciding which of today's shapes are
-load-bearing and must not drift while Azure is the only provider, and naming the
-one defect worth fixing before any of it starts.
+That is no longer entirely true of the document. AWS is now being built, and the
+sections it has reached say so — with what the work actually needed replacing
+what this file guessed, since the guesses are only worth keeping where they held.
+Everything still marked as design is still design.
 
 ---
 
@@ -38,13 +39,14 @@ exactly that, in their own vocabulary.
 `service_principal_object_id`, `consent_status`. These are not neutral columns
 with Azure values — they are Azure concepts.
 
-**Eleven import sites reach into `connectors/azure` from outside it** —
-`services/cloud_connections.py`, `services/cloud_accounts.py`,
-`api/routes/cloud_connections.py`, `connectors/registry.py`. Onboarding is the
-Azure-coupled half of the application; scanning is not.
+~~**Eleven import sites reach into `connectors/azure` from outside it.**~~
+Down to the registry, which is where mapping a provider to its implementation
+belongs. Onboarding sits behind `ProviderOnboarding` (`DECISIONS.md` §71) and
+`test_provider_seam.py` has no scheduled exceptions left.
 
-**There is no region dimension.** See §4 — it is the largest structural
-difference, and it is not a naming problem.
+~~**There is no region dimension.**~~ Built. See §4 — it was the largest
+structural difference, and it was not a naming problem: readings are now scoped
+by region while verdicts stay per evidence key (`DECISIONS.md` §69).
 
 **Rules could judge another cloud's resources.** Fixed ahead of the rest, since it was cheap while still theoretical. See §6.
 
@@ -60,11 +62,21 @@ Three hierarchies, one shape:
 | AWS | organization | account | organizational unit |
 | GCP | organization | project | folder |
 
-**Decision: two neutral columns plus a provider blob.** `provider_directory_id`
-(the trust boundary CloudGuard is trusted *by*) and `provider_account_id` (the
-unit a scan reads), with `provider_ref JSONB` for everything that is genuinely
-provider-shaped — the Entra service principal object id, the AWS role ARN and
-external id, the GCP workload identity pool.
+**Decided as two neutral columns plus a provider blob. Half built** — see
+`DECISIONS.md` §70. `provider_ref JSONB` exists on both tables and carries what
+is genuinely provider-shaped: the AWS role ARN and external id, later the GCP
+workload identity pool.
+
+The rename of `tenant_id` / `subscription_id` to `provider_directory_id` /
+`provider_account_id` is **not** done, for a reason this section did not have.
+`RawSnapshot.to_json` writes those two names into every stored capture, so
+renaming the columns alone leaves two vocabularies and renaming both makes every
+capture already taken unreplayable. It is worth doing against a migration of the
+stored snapshots, which is its own piece of work. The columns are neutral enough
+to carry AWS meanwhile — an organization id and an account id, under names that
+happen to be Azure's.
+
+`ConnectionScope` did gain AWS's three levels, in one enum rather than two.
 
 Rejected: renaming to fully abstract terms. "Scope" and "principal" read as
 nothing to the customer support engineer trying to match a row against what they
@@ -98,15 +110,28 @@ aggregator, or Cloud Control API can answer "what exists, where" in one call;
 GCP's Cloud Asset Inventory does the same per organization. Then fan out detail
 calls only to regions that hold something.
 
-**Decision: (b) primary, (a) fallback.** Same reasoning as preferring Defender
-for Cloud over a second scanner: let the provider do the fan-out it is built for,
-and keep our own enumeration for what the aggregator cannot answer or the
-customer has not enabled. Fallback matters — Resource Explorer is opt-in, and a
-customer without it must still be scannable rather than reported as empty.
+**Decided here as (b) primary, (a) fallback. Built as (a).** The reasoning for
+(b) still holds — let the provider do the fan-out it is built for — but the
+fallback is the part every customer needs, because Resource Explorer is opt-in
+and a customer without it must be scannable rather than reported as empty. So
+(a) is what exists, and (b) is an optimization to add on top of a working
+enumeration rather than the thing the first connector rests on.
 
-The honest cost of (b): the aggregator is a second thing that can be stale or
-disabled, and a stale index reads as a complete one. It gets a `PARTIAL`, for
-exactly the reason a truncated listing does.
+The honest cost of (b), when it comes: the aggregator is a second thing that can
+be stale or disabled, and a stale index reads as a complete one. It gets a
+`PARTIAL`, for exactly the reason a truncated listing does.
+
+**What (a) actually cost, now that it is built** (`DECISIONS.md` §69). Rather
+less than this section feared, and in a different place. `CollectionTask` gained
+a `region` and the executor absorbed the fan-out without changing shape, as
+predicted. What it did not predict: the region could not go into the
+`EvidenceKey`, because that is what a rule declares and a rule has no business
+knowing which regions a customer enabled — so readings are scoped by key *and*
+region while verdicts stay per key, and a key is trustworthy only if every
+region's reading of it was. The `evidence` unique constraint had to grow the
+column too. And a wave needed a concurrency cap for the first time, since
+seventeen regions × nine listings in one wave is a shape designed to be
+throttled.
 
 ---
 
@@ -162,6 +187,14 @@ the concepts are neutral. Rename at the point a second provider maps onto them,
 not before — a rename with one caller is bookkeeping, a rename with two is a
 decision.
 
+**Built, and no rename yet** (`DECISIONS.md` §74). An S3 bucket normalizes to
+`STORAGE_ACCOUNT`, an RDS instance to `SQL_SERVER` or `POSTGRESQL_SERVER` by
+engine, an IAM role to `SERVICE_PRINCIPAL`. Reading those in AWS code is mildly
+odd and nothing more; renaming them now, inside the change that adds the second
+provider, would put a migration of stored resource rows in the way of shipping
+it. It is a decision with two callers now, which is when this section said to
+make it — worth doing, and worth doing on its own.
+
 ### The one defect to fix now — done
 
 `SecurityRule.provider` was declared and never read, so `matches()` compared
@@ -181,13 +214,20 @@ single-provider context returns itself unchanged, so today's scans pay nothing.
 
 ---
 
-## 7. Compliance
+## 7. Compliance — built
 
-`FRAMEWORKS` is a tuple and `catalog.py` is data, so CIS AWS and CIS GCP are
-additive. One thing does need changing: **coverage must be scoped by provider.**
-An AWS-only tenant measured against CIS Azure would report near-zero coverage
-for reasons that have nothing to do with its security posture, which is the same
-class of misleading number the coverage ledger exists to prevent.
+`FRAMEWORKS` is a tuple and `catalog.py` is data, so CIS AWS 3.0 was additive
+exactly as predicted. The one thing that needed changing did: **coverage is
+scoped by provider.** `Framework` carries one, and a cloud benchmark is shown
+only to organizations that connect that cloud — an AWS-only tenant measured
+against CIS Azure would report near-zero coverage for reasons that have nothing
+to do with its security posture.
+
+Two details the section did not anticipate. Frameworks written about
+*organizations* — ISO, GDPR, NIST, SOC 2, PCI — carry no provider and are always
+shown, because scoping them by cloud would hide the ones that always apply. And
+the scoping keys off *any* connection rather than a verified one, so the AWS
+benchmark appears while a customer is still setting AWS up.
 
 ---
 
@@ -204,24 +244,52 @@ class of misleading number the coverage ledger exists to prevent.
    `tests/unit/test_provider_seam.py` fails the build on the next one. This step
    was not in the original list because nobody had checked.
 1. ~~Fix `matches()`.~~ Done, along with the aggregate-path hole beside it.
-2. Second provider's connector, plan and normalizer — behind the existing
-   `CloudConnector` seam, changing nothing above it.
+2. ~~Second provider's connector, plan and normalizer.~~ Built —
+   `app/connectors/aws/`, behind the existing `CloudConnector` seam
+   (`DECISIONS.md` §72). It changed nothing above the seam except the region
+   dimension, which landed in the collection executor rather than in the
+   connector.
 
-   **Not startable from a desk.** Every part of it is a string that has to be
-   verified against a live account: IAM action names, SigV4 signing, the STS
-   assume-role round trip, the CloudFormation template, which `Describe*` calls
-   answer what. `rbac.py` records what happens when one of those is written on
-   the strength of looking plausible — ARM validates a role definition
-   atomically, so a single wrong action fails the whole deployment and the
-   customer sees "Deployment Failed". A connector written without an AWS
-   account to try it against would be a large body of code claiming to scan a
-   cloud nobody had scanned, and the seam would then *look* finished.
-3. The permission-manifest pattern generalized out of `rbac.py`, once there are
-   two instances to generalize from.
+   **This section said it was not startable from a desk, and it was started
+   from one.** The warning stands and is now a live liability rather than a
+   prediction. Every IAM action name, response key, pagination shape and the
+   CloudFormation template is written from the published reference and has been
+   called by nothing. IAM makes this worse than the Azure case it was arguing
+   from: ARM refuses a role definition atomically, so a wrong action fails the
+   deployment visibly, while IAM accepts a policy naming an action that does not
+   exist and simply grants nothing — the customer sees a successful deployment
+   and a scan that fails later.
+
+   So the risk was taken deliberately and is bounded by two things rather than
+   by optimism. Every unverified string is marked in the code, and AWS is
+   reachable through the API but **not offered in the UI** until
+   `AWS_INTEGRATION.md` §1's checklist has been run against a real account.
+   Without that gate this would be exactly what the paragraph warned about: a
+   large body of code claiming to scan a cloud nobody had scanned, with the seam
+   *looking* finished.
+3. **The permission-manifest pattern is not generalized, and that is a decision
+   rather than a gap.** There are two instances now — `azure/rbac.py` and
+   `aws/iam.py` — and they share a *discipline*, not a mechanism: every call has
+   a permission, every permission has a call, a version bump names the checks an
+   older grant loses, and the customer's artefact is generated from the
+   declaration rather than hand-maintained. What differs is everything a shared
+   module would have to hold. Azure grants a role definition whose actions ARM
+   validates atomically; AWS grants managed policies plus an inline document
+   that IAM will accept with an action that does not exist. One renders ARM
+   JSON at a scope path, the other renders CloudFormation with a trust policy
+   and an external id. A common base would be a parameter bag with two
+   implementations behind it, which is the abstraction with nothing in the
+   middle. Revisit at three.
 4. Scope vocabulary migration, driven by what the second connector actually
    needed rather than by this document's guess.
-5. Onboarding services split by provider — the eleven import sites, which are
-   worth untangling only when there is a second thing to untangle them for.
+5. ~~Onboarding services split by provider.~~ Done, and step 2 forced it
+   rather than the other way round: the AWS connector could not be reached
+   without a connection, and a connection could not be made without a flow that
+   was not Azure's. `ProviderOnboarding` is what the two clouds turned out to
+   have in common — deploy something generated from the declared permission
+   set, prove the grant by using it, discover what is beneath the scope — with
+   the steps a provider lacks answering "nothing to do" rather than being
+   special-cased by the caller (`DECISIONS.md` §71).
 
 Steps 3 through 5 are deliberately after step 2. Every one of them is a
 refactor whose right shape is knowable from two examples and guessable from one.

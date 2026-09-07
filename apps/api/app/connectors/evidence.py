@@ -26,8 +26,31 @@ The mapping between the two lives with the keys, so a task never declares its
 own category and the two can never disagree.
 """
 
+from dataclasses import dataclass
 from datetime import timedelta
 from enum import StrEnum
+
+
+@dataclass(frozen=True)
+class ProviderEndpoint:
+    """One provider call a task makes, and the contract it makes it under.
+
+    Recorded because "the field was not there" is two different answers and
+    nothing could tell them apart: a storage account that does not set
+    ``allowBlobPublicAccess``, and an ``api-version`` old enough not to return
+    the field at all. The first is a finding; the second is CloudGuard reading
+    an out-of-date shape and drawing a conclusion from a gap it created.
+
+    The path is the template rather than a resolved URL. A resolved one names a
+    subscription and would differ per row while saying nothing more -- the
+    evidence row already records which subscription it is a reading of.
+    """
+
+    path: str
+    api_version: str
+
+    def describe(self) -> str:
+        return f"{self.path}?api-version={self.api_version}"
 
 
 class EvidenceCategory(StrEnum):
@@ -52,6 +75,19 @@ class EvidenceCategory(StrEnum):
     DATABASE = "database"
     LOGGING = "logging"
     IDENTITY = "identity"
+    # Where a tenant keeps the things that unlock everything else: keys,
+    # secrets, certificates. Its own category rather than part of STORAGE
+    # because the permission to read it is granted separately by every cloud,
+    # which is the line these divisions follow -- and because losing visibility
+    # of a key store is a different sentence to a customer than losing
+    # visibility of a blob container.
+    SECRETS = "secrets"
+    # What the cloud's own security service has already assessed. Its own
+    # category because it is granted separately by every cloud, and because
+    # losing it costs a different sentence: not "we could not read your
+    # configuration" but "we could not read what your provider already
+    # concluded about it".
+    POSTURE = "posture"
 
 
 class EvidenceKey(StrEnum):

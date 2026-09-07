@@ -8,6 +8,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
     String,
     Text,
     UniqueConstraint,
@@ -26,6 +27,9 @@ from app.core.enums import (
     ScanTrigger,
     TaskOutcome,
 )
+from app.core.errors import SnapshotUnavailable
+from app.core.payloads import compress, decompress
+from app.core.vocabulary import words
 from app.models.base import Base, StrEnumType, TenantOwned, Timestamps, UUIDPrimaryKey
 
 
@@ -184,7 +188,20 @@ class CloudSnapshot(UUIDPrimaryKey, TenantOwned, Base):
         PGUUID(as_uuid=True), ForeignKey("scans.id", ondelete="CASCADE"), nullable=False
     )
     snapshot_version: Mapped[str] = mapped_column(String(16), nullable=False, default="1.0")
-    data: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    # Everything about the reading except its payloads: provider, tenant, scope,
+    # the coverage report, the errors. Plus ``payload_hashes``, the content
+    # hashes of the readings it was made of.
+    #
+    # The payloads themselves live once in ``evidence_blobs``, deduplicated
+    # across every scan that read identical bytes. Holding them here as well
+    # meant a nightly scan of an unchanged estate stored a fresh full copy every
+    # night while the deduplicated set beside it stayed one.
+    manifest: Mapped[dict | None] = mapped_column(JSONB)
+    # Captures written before the manifest existed. Nullable now, and read as a
+    # fallback: an old capture must go on being replayable, and a column holding
+    # the only copy of anything is not one to drop in the same change that stops
+    # writing it.
+    data: Mapped[dict | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -227,7 +244,10 @@ class ScanEvaluationGap(UUIDPrimaryKey, TenantOwned, Base):
         PGUUID(as_uuid=True), ForeignKey("scans.id", ondelete="CASCADE"), nullable=False
     )
     rule_id: Mapped[str] = mapped_column(String(32), nullable=False)
-    # NULL for AGGREGATE-scope rules, which are not about any single resource.
+    # NULL for AGGREGATE-scope rules, which are not about any single resource,
+    # and for a per-resource rule whose listing failed and so returned none --
+    # a verdict about the scan rather than about an asset, because there is no
+    # asset to attribute it to. That is the whole content of the gap.
     resource_id: Mapped[uuid.UUID | None] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("cloud_resources.id", ondelete="CASCADE")
     )
@@ -269,7 +289,15 @@ class Evidence(UUIDPrimaryKey, TenantOwned, Base):
             "scan_id",
             "cloud_account_id",
             "evidence_key",
+            "region",
             name="uq_evidence_scan_account_key",
+            # Both NULLable columns here mean "this reading is not scoped that
+            # way" -- a directory reading belongs to no subscription, a global
+            # listing to no region -- and two readings that are both unscoped
+            # are the same reading. Under Postgres's default the NULLs would be
+            # distinct from each other and the constraint would stop protecting
+            # exactly the rows it was added for.
+            postgresql_nulls_not_distinct=True,
         ),
         Index("ix_evidence_outcome", "organization_id", "outcome"),
         # What the evidence planner will ask: what do we already hold for this
@@ -310,6 +338,14 @@ class Evidence(UUIDPrimaryKey, TenantOwned, Base):
     evidence_key: Mapped[str] = mapped_column(String(64), nullable=False)
     # The permission bucket it belongs to, e.g. "storage".
     category: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    # Which region this was a reading of, for a provider that reads per region.
+    #
+    # NULL means the listing is global, which is every Azure reading and, on
+    # AWS, IAM, S3 and Organizations. Beside ``evidence_key`` rather than folded
+    # into it because a rule depends on the key: seventeen rows here are one
+    # answer to "did we see the security groups", and the aggregation that
+    # decides whether that answer is trustworthy lives in the coverage report.
+    region: Mapped[str | None] = mapped_column(String(32))
     outcome: Mapped[TaskOutcome] = mapped_column(
         StrEnumType(TaskOutcome, 16), nullable=False
     )
@@ -324,11 +360,36 @@ class Evidence(UUIDPrimaryKey, TenantOwned, Base):
     collected_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+    # Which scan read the provider, where that is not ``scan_id``. A reading
+    # inside its reuse window is carried into the next scan, which writes a row
+    # of its own under its own id -- so the honest reading of an unqualified
+    # row was "this scan holds this evidence", and everything downstream took it
+    # to mean "this scan collected it". ``FindingEvidence.source_scan_id`` says
+    # in its own comment that the collecting scan is not necessarily the scan
+    # that raised the finding, and it was copied from ``Evidence.scan_id``,
+    # which could only ever name the latter.
+    #
+    # NULL means this row is the reading: the scan named by ``scan_id`` made the
+    # call. No foreign key, matching the discipline the rest of this provenance
+    # chain follows -- a scan may be deleted, and a citation that vanished with
+    # it would leave the finding claiming nothing rather than claiming something
+    # no longer inspectable.
+    source_scan_id: Mapped[uuid.UUID | None] = mapped_column(PGUUID(as_uuid=True))
     # The actions the read was made under, copied from the task's own
     # declaration. Turns "we could not read storage" into "we could not read
     # storage, and this is the action your role is missing" without anyone
     # correlating two files by hand.
     permissions: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    # The provider calls this reading was made with: ``[{"path", "api_version"}]``.
+    #
+    # The api-version is the load-bearing half. Azure's response shape is a
+    # function of it, so a field missing from a stored capture is ambiguous
+    # between "the customer did not set it" and "we asked a contract that does
+    # not return it" -- and a rule reading the second as the first raises a
+    # finding out of CloudGuard's own staleness. Recorded per reading rather
+    # than looked up from today's collector, because the collector moves and
+    # the reading does not.
+    endpoints: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     # SHA-256 of the payload, or NULL where there is no payload: a task that
     # failed outright collected nothing, and a hash of nothing would say
     # otherwise.
@@ -347,6 +408,12 @@ class EvidenceBlob(Base):
     a month stored thirty identical copies of them. Keyed by hash, they store
     one -- and an unchanged environment costs almost nothing to keep looking at,
     which is what makes daily scanning affordable rather than merely possible.
+
+    Stored compressed rather than as JSONB, which was the wrong shape for a
+    provider listing: five hundred near-identical objects repeating the same
+    twenty key names, held as a parsed tree with the names per value. The bytes
+    written are the same canonical bytes the content hash was taken over, so a
+    stored payload is always checkable against the hash it is filed under.
 
     Scoped per organization, and that is a security decision rather than a
     modelling one. Content-addressed storage shared across tenants would
@@ -370,8 +437,27 @@ class EvidenceBlob(Base):
         primary_key=True,
     )
     content_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
-    payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    # The stored copy: the same canonical bytes the hash was taken over, run
+    # through zlib. Compressed here rather than left to PostgreSQL's own TOAST
+    # compression, which only engages above a couple of kilobytes and only
+    # after the row has already been stored as JSONB -- a parsed tree with its
+    # keys held per value, which is the expensive form for a listing of five
+    # hundred near-identical objects. Holding the bytes instead gives up JSONB
+    # querying that nothing ever used: a payload is read whole, by hash, or not
+    # at all.
+    payload_compressed: Mapped[bytes | None] = mapped_column(LargeBinary)
+    # Payloads written before compression. Nullable now and read as a fallback,
+    # for the same reason ``CloudSnapshot.data`` is: a column holding the only
+    # copy of anything is not one to drop in the change that stops writing it.
+    payload: Mapped[dict | None] = mapped_column(JSONB)
+    # What the reading was, uncompressed. The number a customer means by "how
+    # much did this scan read", and comparable across rows stored before
+    # compression and after it.
     byte_size: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # What it costs to keep. Recorded rather than derived, because the answer
+    # for a legacy row is not ``len(payload_compressed)`` and pretending it is
+    # would understate the table by however much has not been rewritten.
+    stored_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     first_stored_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -380,6 +466,56 @@ class EvidenceBlob(Base):
     last_seen_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+    @property
+    def content(self) -> dict:
+        """The payload, whichever way this row stores it.
+
+        One of the two forms is always present -- 0028's CHECK constraint says
+        so -- and a row that somehow held neither raises rather than returning
+        an empty payload. An empty payload is a real thing a reading produces
+        (a subscription with no storage accounts), so answering with one here
+        would make "the bytes are gone" indistinguishable from "there was
+        nothing there": the same overclaim as a PASS nobody earned, reached
+        from a direction the rule engine cannot see.
+        """
+        if self.payload_compressed is not None:
+            return decompress(self.payload_compressed)
+        if self.payload is None:
+            raise SnapshotUnavailable(
+                f"the stored reading {self.content_hash[:12]} holds neither a "
+                "compressed nor an inline payload, so there is nothing to "
+                "replay it from"
+            )
+        return dict(self.payload)
+
+    @classmethod
+    def of(
+        cls,
+        *,
+        organization_id: uuid.UUID,
+        payload: dict,
+        content_hash: str,
+        byte_size: int,
+        observed_at: datetime,
+    ) -> "EvidenceBlob":
+        """A row holding this payload, compressed.
+
+        The hash and size are passed in rather than recomputed: the caller has
+        already taken them to decide the payload is not already stored, and a
+        second computation is a second chance for the row and the manifest
+        beside it to disagree about what bytes they name.
+        """
+        stored = compress(payload)
+        return cls(
+            organization_id=organization_id,
+            content_hash=content_hash,
+            payload_compressed=stored,
+            byte_size=byte_size,
+            stored_bytes=len(stored),
+            first_stored_at=observed_at,
+            last_seen_at=observed_at,
+        )
 
 
 class ScanStep(UUIDPrimaryKey, TenantOwned, Base):
@@ -439,11 +575,22 @@ class ScanStep(UUIDPrimaryKey, TenantOwned, Base):
 
     @property
     def is_directory(self) -> bool:
-        """Whether this COLLECT step reads the tenant rather than a subscription."""
+        """Whether this COLLECT step reads the trust boundary rather than one
+        account beneath it."""
         return self.kind == ScanStepKind.COLLECT and self.cloud_account_id is None
 
-    def describe(self) -> str:
-        """What this step is, for a log line or an error message."""
+    def describe(self, provider: Provider | None = None) -> str:
+        """What this step is, for a log line or an error message.
+
+        Takes the provider because the answer is a sentence a customer reads,
+        and "one subscription" is the wrong noun for an AWS account. The columns
+        keep Azure's names (``DECISIONS.md`` §70); the words do not.
+        """
         if self.kind != ScanStepKind.COLLECT:
             return self.kind.value.lower()
-        return "the tenant directory" if self.is_directory else "one subscription"
+        vocabulary = words(provider)
+        return (
+            f"the {vocabulary.directory}"
+            if self.is_directory
+            else f"one {vocabulary.account}"
+        )

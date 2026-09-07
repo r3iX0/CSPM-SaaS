@@ -151,6 +151,98 @@ async def test_diagnostics_wait_for_the_ids_they_need() -> None:
     assert snapshot.data["diagnostic_settings"], "ran after its inputs"
 
 
+# ------------------------------------- a listing read in part, one server deep
+async def test_a_half_read_firewall_listing_makes_the_server_task_partial() -> None:
+    """The SQL listing makes a second call per server, and used to report on
+    the first alone.
+
+    A per-server failure was recorded on the server for the rules to degrade on
+    and nowhere else, so the reading came back COMPLETE -- and the one screen
+    whose job is saying what was and was not read said everything was.
+    """
+    snapshot = await collect(fail={"firewallRules"})
+
+    assert snapshot.data["sql_servers"], "the servers themselves were still read"
+    assert snapshot.coverage["sql_servers"]["outcome"] == "PARTIAL"
+    assert "firewall rules" in snapshot.coverage["sql_servers"]["detail"]
+
+
+async def test_a_truncated_listing_still_reports_its_own_reason() -> None:
+    """The wrapper's reason and the call's own reason are different facts, and
+    the wrapper must not lose either."""
+    snapshot = await collect(truncate={"Microsoft.Sql/servers"})
+
+    assert snapshot.coverage["sql_servers"]["outcome"] == "PARTIAL"
+    assert "longer than CloudGuard reads" in snapshot.coverage["sql_servers"]["detail"]
+
+
+async def test_a_fully_read_listing_is_still_complete() -> None:
+    """The other direction, and the one that keeps the signal worth having. A
+    task that reports PARTIAL when nothing went wrong is a task nobody reads."""
+    snapshot = await collect()
+
+    assert snapshot.coverage["sql_servers"]["outcome"] == "COMPLETE"
+    assert snapshot.coverage["sql_auditing"]["outcome"] == "COMPLETE"
+
+
+# ------------------------------------------------- auditing is its own reading
+async def test_auditing_is_collected_as_its_own_reading() -> None:
+    """A key is the unit a rule depends on, and these two are different units:
+    reachability rests on the servers and their firewall rules, the audit trail
+    rests on this."""
+    snapshot = await collect()
+
+    assert "sql_auditing" in snapshot.coverage
+    assert snapshot.data["sql_auditing"]
+
+
+async def test_a_refused_auditing_read_leaves_the_server_listing_complete() -> None:
+    """The whole reason for the split.
+
+    A scanner role deployed before v4 reads servers and firewall rules
+    perfectly well and is refused the auditing call. Folded into one key, that
+    403 cost AZ-DB-001 its verdict too -- over a call it never reads, which is a
+    gap CloudGuard invented rather than found.
+    """
+    snapshot = await collect(fail={"auditingSettings"})
+
+    assert snapshot.coverage["sql_servers"]["outcome"] == "COMPLETE"
+    assert snapshot.coverage["sql_auditing"]["outcome"] == "PARTIAL"
+
+
+async def test_a_refused_auditing_read_names_the_role_as_the_likely_cause() -> None:
+    """Otherwise a v3 customer sees an unexplained partial on every scan with
+    nothing to act on."""
+    snapshot = await collect(fail={"auditingSettings"})
+
+    assert "role deployed before" in snapshot.coverage["sql_auditing"]["detail"]
+
+
+async def test_auditing_waits_for_the_servers_it_reads(monkeypatch) -> None:
+    """It is a dependent task: without the ids there is nothing to ask about,
+    and asking anyway would report a gap where there was no server."""
+    snapshot = await collect(fail={"Microsoft.Sql/servers"})
+
+    assert snapshot.coverage["sql_auditing"]["outcome"] == "SKIPPED"
+
+
+async def test_diagnostics_ask_about_the_subscription_itself() -> None:
+    """The activity log, which AZ-LOG-002 judges.
+
+    Every other target here is a resource whose own logging is in question;
+    this one is the record of who did what across all of them. It is read
+    through the same action and the same endpoint -- a subscription is a scope
+    diagnostic settings apply to like any other -- so it costs no customer a
+    new permission, which is why it shipped ahead of the checks that do.
+    """
+    snapshot = await collect()
+
+    assert "/subscriptions/sub-1" in snapshot.data["diagnostic_settings"], (
+        "the subscription's own diagnostic settings were never asked for, so "
+        "the activity log check can only ever report UNKNOWN"
+    )
+
+
 async def test_diagnostics_are_skipped_when_their_inputs_are_missing() -> None:
     """Nothing is wrong with the diagnostics task itself, and reporting it as
     failed would send someone looking for a second problem."""
@@ -255,3 +347,64 @@ async def test_the_whole_plan_shares_one_request_ceiling() -> None:
 
     assert limiter.stats()["requests"] > 10, "the plan really did fan out"
     assert state["peak"] <= 3
+
+
+# ------------------------------------------ encryption is its own reading too
+async def test_encryption_is_collected_as_its_own_reading() -> None:
+    """A per-database fan-out beneath the server listing, keyed separately.
+
+    The permissions behind it arrive in role v6, so on every connection that
+    has not redeployed this is the reading that fails while the servers, their
+    firewall rules and their auditing settings all succeed.
+    """
+    snapshot = await collect()
+
+    assert "sql_tde" in snapshot.coverage
+    assert snapshot.coverage["sql_tde"]["outcome"] == "COMPLETE"
+    assert snapshot.data["sql_tde"]
+
+
+async def test_a_refused_encryption_read_leaves_the_server_listing_complete() -> None:
+    """The gap a role upgrade produces, and the one ``requires_evidence``
+    exists to keep from spreading: a 403 here must not cost the reachability
+    rule its verdict over a call it never reads."""
+    snapshot = await collect(fail={"transparentDataEncryption"})
+
+    assert snapshot.coverage["sql_servers"]["outcome"] == "COMPLETE"
+    assert snapshot.coverage["sql_tde"]["outcome"] == "PARTIAL"
+
+
+async def test_a_refused_encryption_read_names_the_role_as_the_likely_cause() -> None:
+    """"Encryption state could not be read" points nowhere. "Your scanner role
+    predates the permission" is a thing a customer can act on this afternoon."""
+    snapshot = await collect(fail={"transparentDataEncryption"})
+
+    assert "role deployed before" in snapshot.coverage["sql_tde"]["detail"]
+
+
+async def test_a_refused_database_listing_is_reported_rather_than_empty() -> None:
+    """A server whose databases could not be listed is not a server with no
+    databases, and only one of those can support a pass."""
+    snapshot = await collect(fail={"/databases"})
+
+    assert snapshot.coverage["sql_tde"]["outcome"] == "PARTIAL"
+    assert all(
+        isinstance(entry, str) and entry.startswith("error:")
+        for entry in snapshot.data["sql_tde"].values()
+    )
+
+
+async def test_encryption_waits_for_the_servers_it_reads() -> None:
+    """It reads one call per database of each server, so it cannot run before
+    the server listing that names them."""
+    from app.connectors.azure.evidence import AzureEvidence
+    from app.connectors.azure.plan import AzurePlanBuilder
+
+    builder = AzurePlanBuilder(
+        tokens=FakeTokens(), subscription_id="sub-1", http_client=azure()
+    )
+    task = next(
+        t for t in builder.build_account_plan() if t.key is AzureEvidence.SQL_TDE
+    )
+
+    assert AzureEvidence.SQL_SERVERS in task.depends_on
