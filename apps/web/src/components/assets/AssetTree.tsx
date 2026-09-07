@@ -74,7 +74,7 @@ export function AssetTree() {
       <Suspense fallback={<Skeleton className="h-48 w-full rounded-xl" />}>
         <EstateTreemap
           scopes={data}
-          className="h-48 w-full overflow-hidden rounded-xl ring-1 ring-foreground/10"
+          className="h-48 w-full overflow-hidden rounded-xl ring-1 ring-border"
         />
       </Suspense>
 

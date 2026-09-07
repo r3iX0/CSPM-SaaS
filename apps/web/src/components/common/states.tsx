@@ -278,7 +278,7 @@ export function DashboardSkeleton() {
         <Skeleton className="h-7 w-40" />
       </div>
 
-      <div className="grid gap-px overflow-hidden rounded-xl bg-border ring-1 ring-foreground/10 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+      <div className="grid gap-px overflow-hidden rounded-xl bg-border ring-1 ring-border lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
         <div className="flex flex-col gap-4 bg-card p-5">
           <Skeleton className="h-3 w-24" />
           <Skeleton className="h-14 w-32" />
@@ -291,7 +291,7 @@ export function DashboardSkeleton() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-border ring-1 ring-foreground/10 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-border ring-1 ring-border sm:grid-cols-3 lg:grid-cols-5">
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="flex flex-col gap-2 bg-card px-4 py-3.5">
             <Skeleton className="h-4 w-16" />
@@ -300,7 +300,7 @@ export function DashboardSkeleton() {
         ))}
       </div>
 
-      <div className="flex flex-col gap-3 rounded-xl bg-card p-5 ring-1 ring-foreground/10">
+      <div className="flex flex-col gap-3 rounded-xl bg-card p-5 ring-1 ring-border">
         <Skeleton className="h-4 w-44" />
         <Skeleton className="h-3 w-full max-w-xl" />
         <Skeleton className="h-1 w-full" />
@@ -310,7 +310,7 @@ export function DashboardSkeleton() {
         {Array.from({ length: 2 }).map((_, i) => (
           <div
             key={i}
-            className="flex flex-col gap-3 rounded-xl bg-card p-5 ring-1 ring-foreground/10"
+            className="flex flex-col gap-3 rounded-xl bg-card p-5 ring-1 ring-border"
           >
             <Skeleton className="h-4 w-36" />
             <Skeleton className="h-3 w-full max-w-sm" />

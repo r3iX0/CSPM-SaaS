@@ -144,7 +144,14 @@ so white on it is 4.9:1. The toggle is not gated.
 
 ### 2.3 Surfaces
 
-- Panel: `--card` fill, 1px `--border`, `border-radius: 14px`.
+- Panel: `--card` fill, 1px `--border`, `border-radius: 14px`. In code this
+  is `ring-1 ring-border` on `Card` — a ring rather than a border so the
+  edge costs no layout, and the `--border` token rather than
+  `foreground/10`, which sits about 9% lighter and made every panel read
+  as more outlined than the mockup.
+- **Floating overlays are the exception** — popover, dialog, dropdown and
+  select keep `ring-foreground/10`. A brighter edge is what separates a
+  thing above the page from a thing on it.
 - Nothing has a drop shadow. Depth comes from the fill step between page,
   panel and row.
 - Table rows separate with a 1px `#151c2b` rule, one step darker than
