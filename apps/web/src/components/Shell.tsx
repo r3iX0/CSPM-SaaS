@@ -108,7 +108,7 @@ export function Shell() {
         <aside
           className={cn(
             "fixed inset-y-0 left-0 z-30 hidden border-r bg-sidebar transition-[width] duration-200 lg:flex lg:flex-col",
-            collapsed ? "w-14" : "w-60",
+            collapsed ? "w-14" : "w-[236px]",
           )}
         >
           <div
