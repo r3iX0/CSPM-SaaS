@@ -2,14 +2,19 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Legend,
-  ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
 
-import { usePrefersReducedMotion } from "@/lib/motion";
+import {
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
+import { DURATION, usePrefersReducedMotion } from "@/lib/motion";
 
 export type ActivityWeek = {
   week: string;
@@ -18,17 +23,26 @@ export type ActivityWeek = {
   reopened: number;
 };
 
-const GRID = "var(--border)";
-const AXIS = "var(--muted-foreground)";
-const SURFACE = "var(--popover)";
-const SURFACE_INK = "var(--popover-foreground)";
+/**
+ * The three series, named and coloured once.
+ *
+ * `ChartConfig` is what makes the tooltip and the legend agree: both read the
+ * label and the swatch from here rather than from props passed twice, so a
+ * series cannot be "Verified fixed" in one and "resolved" in the other.
+ *
+ * The colours are the severity scale, not the neutral chart ramp, because these
+ * are statuses rather than arbitrary categories -- raised is the problem
+ * colour, fixed is the good one, and a fix that did not hold is critical,
+ * because that is what it is.
+ */
+const CONFIG = {
+  detected: { label: "Raised", color: "var(--sev-medium)" },
+  resolved: { label: "Verified fixed", color: "var(--sev-ok)" },
+  reopened: { label: "Came back", color: "var(--sev-critical)" },
+} satisfies ChartConfig;
 
 /**
  * What happened, week by week: raised, fixed, and come back.
- *
- * Three series, and they are statuses rather than arbitrary categories, so they
- * wear the status scale — raised is the problem colour, fixed is the good one,
- * and a fix that did not hold is critical, because that is what it is.
  *
  * **Reopenings are never subtracted from fixes.** A fix that regressed
  * happened; netting the two would hide exactly the pattern a security team
@@ -51,68 +65,52 @@ export function ActivityBars({ weeks }: { weeks: ActivityWeek[] }) {
   }));
 
   return (
-    <div className="h-40 w-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -24 }} barGap={2}>
-          <CartesianGrid stroke={GRID} strokeDasharray="2 4" vertical={false} />
-          <XAxis
-            dataKey="label"
-            tick={{ fill: AXIS, fontSize: 11 }}
-            tickLine={false}
-            axisLine={{ stroke: GRID }}
-            minTickGap={16}
-          />
-          <YAxis
-            allowDecimals={false}
-            tick={{ fill: AXIS, fontSize: 11 }}
-            tickLine={false}
-            axisLine={false}
-            width={40}
-          />
-          <Tooltip
-            cursor={{ fill: "var(--muted)", opacity: 0.4 }}
-            contentStyle={{
-              background: SURFACE,
-              color: SURFACE_INK,
-              border: "1px solid var(--border)",
-              borderRadius: "var(--radius)",
-              fontSize: "0.75rem",
-            }}
-            labelFormatter={(value: string) => `Week of ${value}`}
-          />
-          {/* Three series, so a legend is not optional: identity must never be
-              carried by colour alone. */}
-          <Legend
-            iconType="square"
-            iconSize={8}
-            wrapperStyle={{ fontSize: "0.7rem", color: AXIS, paddingTop: 4 }}
-          />
+    // `aspect-auto` because the height is fixed by the panel this sits in; the
+    // primitive's default aspect ratio would fight it.
+    <ChartContainer config={CONFIG} className="aspect-auto h-40 w-full">
+      <BarChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -24 }} barGap={2}>
+        <CartesianGrid
+          stroke="var(--border)"
+          strokeDasharray="2 4"
+          vertical={false}
+        />
+        <XAxis
+          dataKey="label"
+          tick={{ fontSize: 11 }}
+          tickLine={false}
+          axisLine={{ stroke: "var(--border)" }}
+          minTickGap={16}
+        />
+        <YAxis
+          allowDecimals={false}
+          tick={{ fontSize: 11 }}
+          tickLine={false}
+          axisLine={false}
+          width={40}
+        />
+        <ChartTooltip
+          cursor={{ fill: "var(--muted)", opacity: 0.4 }}
+          content={
+            <ChartTooltipContent
+              labelFormatter={(value) => `Week of ${value}`}
+            />
+          }
+        />
+        {/* Three series, so a legend is not optional: identity must never be
+            carried by colour alone. */}
+        <ChartLegend content={<ChartLegendContent />} />
+        {(["detected", "resolved", "reopened"] as const).map((key) => (
           <Bar
-            dataKey="detected"
-            name="Raised"
-            fill="var(--sev-medium)"
+            key={key}
+            dataKey={key}
+            name={key}
+            fill={`var(--color-${key})`}
             radius={[3, 3, 0, 0]}
             isAnimationActive={!reduced}
-            animationDuration={600}
+            animationDuration={DURATION.chart}
           />
-          <Bar
-            dataKey="resolved"
-            name="Verified fixed"
-            fill="var(--sev-ok)"
-            radius={[3, 3, 0, 0]}
-            isAnimationActive={!reduced}
-            animationDuration={600}
-          />
-          <Bar
-            dataKey="reopened"
-            name="Came back"
-            fill="var(--sev-critical)"
-            radius={[3, 3, 0, 0]}
-            isAnimationActive={!reduced}
-            animationDuration={600}
-          />
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
+        ))}
+      </BarChart>
+    </ChartContainer>
   );
 }

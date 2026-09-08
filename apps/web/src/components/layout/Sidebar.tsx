@@ -1,8 +1,17 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useMatch } from "react-router-dom";
 
 import { NAV_GROUPS } from "@/components/layout/nav";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn } from "@/lib/format";
+import {
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  useSidebar,
+} from "@/components/ui/sidebar";
+
+type NavItem = (typeof NAV_GROUPS)[number]["items"][number];
 
 /**
  * The navigation, in two widths.
@@ -12,68 +21,85 @@ import { cn } from "@/lib/format";
  * workflow and their order is what a returning reader navigates by, so the rail
  * keeps both the order and the grouping and gives up only the labels — and each
  * icon still says its own name on hover and to a screen reader.
+ *
+ * The collapsed/expanded switch is no longer a prop threaded down from the
+ * shell. `Sidebar` owns that state now, so this reads it from context: one
+ * source of truth means the rail, the labels, the tooltips and the mobile sheet
+ * cannot disagree about which width they are in.
  */
-export function SidebarNav({
-  onNavigate,
-  collapsed = false,
-}: {
-  onNavigate?: () => void;
-  collapsed?: boolean;
-}) {
+export function SidebarNav() {
+  const { state, isMobile, setOpenMobile } = useSidebar();
+  // On mobile the sidebar is a sheet at full width, so it is never the rail
+  // even when the desktop preference says collapsed.
+  const collapsed = state === "collapsed" && !isMobile;
+
   return (
-    <nav
-      className={cn("flex flex-col gap-5 py-4", collapsed ? "px-2" : "px-3")}
-      aria-label="Main"
-    >
+    <>
       {NAV_GROUPS.map((group) => (
-        <div key={group.label} className="flex flex-col gap-1">
+        <SidebarGroup key={group.label}>
           {collapsed ? (
             // A rule rather than a heading: the grouping is still information
             // even when there is no room to name it.
             <span className="mx-2 mb-1 border-t" aria-hidden />
           ) : (
-            <p className="px-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-              {group.label}
-            </p>
+            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
           )}
-          {group.items.map((item) => {
-            const link = (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={"end" in item ? item.end : undefined}
-                onClick={onNavigate}
-                className={({ isActive }) =>
-                  cn(
-                    "flex items-center gap-2.5 rounded-md py-1.5 text-sm transition-colors",
-                    collapsed ? "justify-center px-2" : "px-2",
-                    "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
-                    isActive
-                      ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
-                      : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground",
-                  )
-                }
-              >
-                <item.icon className="size-4 shrink-0" aria-hidden />
-                {collapsed ? (
-                  <span className="sr-only">{item.label}</span>
-                ) : (
-                  item.label
-                )}
-              </NavLink>
-            );
-
-            if (!collapsed) return link;
-
-            return (
-              <Tooltip key={item.to}>
-                <TooltipTrigger render={link} />
-                <TooltipContent side="right">{item.label}</TooltipContent>
-              </Tooltip>
-            );
-          })}
-        </div>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {group.items.map((item) => (
+                <NavRow
+                  key={item.to}
+                  item={item}
+                  // On a phone the navigation is a sheet covering the page it
+                  // navigates to, so following a link has to close it. The
+                  // shell used to pass this down; it belongs here, where the
+                  // thing that knows it is a sheet lives.
+                  onNavigate={isMobile ? () => setOpenMobile(false) : undefined}
+                />
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       ))}
-    </nav>
+    </>
+  );
+}
+
+/**
+ * One destination.
+ *
+ * Its own component because of the hook: whether a row is current is a route
+ * match, and a match per row inside `.map()` would be a hook count that depends
+ * on the data. The array is static today, but the rule that keeps it safe
+ * should not be "nobody makes the navigation dynamic".
+ *
+ * `useMatch` rather than `NavLink`'s own render-prop because the primitive
+ * needs the answer as a prop -- the anchor itself is what carries the button
+ * styling and the focus ring, so nothing may sit between them.
+ */
+function NavRow({
+  item,
+  onNavigate,
+}: {
+  item: NavItem;
+  onNavigate?: () => void;
+}) {
+  const exact = "end" in item && item.end === true;
+  // Non-exact rows stay lit on their detail screens: a reader on
+  // /findings/<id> has not left Findings, and a navigation that says otherwise
+  // makes them look for where they are.
+  const match = useMatch({ path: item.to, end: exact });
+
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        isActive={match !== null}
+        tooltip={item.label}
+        render={<NavLink to={item.to} end={exact} onClick={onNavigate} />}
+      >
+        <item.icon aria-hidden />
+        <span>{item.label}</span>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
   );
 }

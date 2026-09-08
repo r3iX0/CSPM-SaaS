@@ -287,7 +287,7 @@ describe("the risk ranking", () => {
     renderPagedPage();
     await screen.findByText(/of 80 risks/);
 
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
 
     await waitFor(() => expect(requested.some((u) => u.includes("offset=25"))).toBe(true));
   });
@@ -308,11 +308,13 @@ describe("the risk ranking", () => {
     renderPagedPage();
     await screen.findByText(/of 80 risks/);
 
-    fireEvent.click(screen.getByLabelText("Filter by risk level"));
-
+    // The levels are laid out rather than hidden behind a menu, so the one
+    // that matters most here is on screen without opening anything.
     // Leaving it out would hide the risks CloudGuard could not score, which
     // are the ones most worth looking at.
-    expect(await screen.findByRole("option", { name: "Unknown" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "Unknown" }),
+    ).toBeInTheDocument();
   });
 
   it("keeps findings and routes in one ranking by default", async () => {

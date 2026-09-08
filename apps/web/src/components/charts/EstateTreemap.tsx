@@ -1,8 +1,13 @@
 import { useNavigate } from "react-router-dom";
-import { ResponsiveContainer, Tooltip, Treemap } from "recharts";
+import { Treemap } from "recharts";
 
 import type { AssetScopeNode } from "@/lib/types";
-import { usePrefersReducedMotion } from "@/lib/motion";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import { DURATION, usePrefersReducedMotion } from "@/lib/motion";
 
 type Cell = {
   name: string;
@@ -62,13 +67,17 @@ export function EstateTreemap({
 
   return (
     <div className={className}>
-      <ResponsiveContainer width="100%" height="100%">
+      {/* An empty config: this chart colours its own cells by finding rate,
+          which is a scale rather than a set of named series, so there is
+          nothing for the primitive to key a swatch off. It is here for the
+          tooltip chrome and the container. */}
+      <ChartContainer config={{}} className="aspect-auto size-full">
         <Treemap
           data={cells}
           dataKey="size"
           stroke="var(--card)"
           isAnimationActive={!reduced}
-          animationDuration={600}
+          animationDuration={DURATION.chart}
           content={
             <TreemapCell
               worstRate={worstRate}
@@ -80,28 +89,31 @@ export function EstateTreemap({
             />
           }
         >
-          <Tooltip
+          <ChartTooltip
             cursor={false}
-            contentStyle={{
-              background: "var(--popover)",
-              color: "var(--popover-foreground)",
-              border: "1px solid var(--border)",
-              borderRadius: "var(--radius)",
-              fontSize: "0.75rem",
-            }}
-            formatter={(_value, _name, item) => {
-              const cell = item?.payload as Cell | undefined;
-              if (!cell) return null;
-              return [
-                `${cell.size} asset${cell.size === 1 ? "" : "s"} · ${cell.findings} open finding${
-                  cell.findings === 1 ? "" : "s"
-                }`,
-                cell.name,
-              ];
-            }}
+            content={
+              <ChartTooltipContent
+                hideIndicator
+                labelKey="name"
+                formatter={(_value, _name, item) => {
+                  const cell = item?.payload as Cell | undefined;
+                  if (!cell) return null;
+                  return (
+                    <div className="grid gap-0.5">
+                      <span className="font-medium">{cell.name}</span>
+                      <span className="text-muted-foreground">
+                        {cell.size} asset{cell.size === 1 ? "" : "s"} ·{" "}
+                        {cell.findings} open finding
+                        {cell.findings === 1 ? "" : "s"}
+                      </span>
+                    </div>
+                  );
+                }}
+              />
+            }
           />
         </Treemap>
-      </ResponsiveContainer>
+      </ChartContainer>
     </div>
   );
 }

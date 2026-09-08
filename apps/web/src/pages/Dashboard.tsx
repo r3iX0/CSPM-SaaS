@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { motion } from "motion/react";
 import { CloudOffIcon, ScanLineIcon } from "lucide-react";
 
 import { ApiError, api, auth } from "@/lib/api";
@@ -25,6 +26,7 @@ import { RemediationProgress } from "@/components/dashboard/RemediationProgress"
 import { RecentChanges } from "@/components/dashboard/RecentChanges";
 import { DashboardSkeleton, EmptyState, ErrorState } from "@/components/common/states";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { listContainer, listItem } from "@/lib/motion";
 
 /** Scan statuses that mean CloudGuard is reading the cloud right now. */
 const RUNNING = new Set([
@@ -158,58 +160,77 @@ export function DashboardPage() {
   const gaps = Object.entries(data.last_scan.collection_errors ?? {});
 
   return (
-    <div className="flex flex-col gap-4">
-      <PostureHeader
-        scannedAt={data.last_scan.completed_at}
-        staleHours={data.evidence_freshness?.stale_hours ?? null}
-        scanning={scanning}
-      />
+    // The panels arrive in the order they are read in. The stagger is small --
+    // three hundredths of a second between panels -- because it is there to
+    // give the eye a path down the argument, not to make the page a
+    // performance. Everything after the eighth panel shares the last delay.
+    <motion.div
+      className="flex flex-col gap-4"
+      variants={listContainer}
+      initial="initial"
+      animate="animate"
+    >
+      <motion.div variants={listItem}>
+        <PostureHeader
+          scannedAt={data.last_scan.completed_at}
+          staleHours={data.evidence_freshness?.stale_hours ?? null}
+          scanning={scanning}
+        />
+      </motion.div>
 
       {/* 1 — where we stand, and which way it is going */}
-      <ScorePanel
-        score={data.security_score}
-        delta={data.score_delta}
-        history={data.history ?? []}
-        scannedAt={data.last_scan.completed_at}
-      />
+      <motion.div variants={listItem}>
+        <ScorePanel
+          score={data.security_score}
+          delta={data.score_delta}
+          history={data.history ?? []}
+          scannedAt={data.last_scan.completed_at}
+        />
+      </motion.div>
 
       {/* 2 — what that number is made of */}
-      <SeverityStrip
-        counts={data.findings_by_severity}
-        unknown={data.coverage.unknown}
-        history={data.history ?? []}
-      />
+      <motion.div variants={listItem}>
+        <SeverityStrip
+          counts={data.findings_by_severity}
+          unknown={data.coverage.unknown}
+          history={data.history ?? []}
+        />
+      </motion.div>
 
       {/* 2b — the shape of what is open: mix, standing, and risk bands */}
-      <PostureBreakdown
-        bySeverity={data.findings_by_severity}
-        byStatus={data.findings_by_status}
-        riskBands={data.risk_bands}
-      />
+      <motion.div variants={listItem}>
+        <PostureBreakdown
+          bySeverity={data.findings_by_severity}
+          byStatus={data.findings_by_status}
+          riskBands={data.risk_bands}
+        />
+      </motion.div>
 
       {/* 3 — how much of the estate the opinion was formed from */}
-      <CoveragePanel
-        ratio={data.coverage.ratio}
-        unknown={data.coverage.unknown}
-        conclusive={data.coverage.conclusive}
-        categories={data.coverage.categories}
-        context={data.coverage.context}
-        gaps={gaps}
-        freshness={data.evidence_freshness ?? null}
-      />
+      <motion.div variants={listItem}>
+        <CoveragePanel
+          ratio={data.coverage.ratio}
+          unknown={data.coverage.unknown}
+          conclusive={data.coverage.conclusive}
+          categories={data.coverage.categories}
+          context={data.coverage.context}
+          gaps={gaps}
+          freshness={data.evidence_freshness ?? null}
+        />
+      </motion.div>
 
       {/* 4 — what to deal with, and what those faults form together */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <motion.div variants={listItem} className="grid gap-4 lg:grid-cols-2">
         <PriorityRisks risks={data.top_risks} />
         <AttackPathPanel
           paths={paths.data}
           loading={paths.isLoading}
           history={data.history ?? []}
         />
-      </div>
+      </motion.div>
 
       {/* 5 — whether any of it is being fixed, and what moved meanwhile */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <motion.div variants={listItem} className="grid gap-4 lg:grid-cols-2">
         <RemediationProgress
           rate={data.remediation_rate}
           verifiedLast30Days={data.verified_resolved_last_30_days}
@@ -217,16 +238,18 @@ export function DashboardPage() {
           activity={data.remediation_activity ?? []}
         />
         <RecentChanges events={changes.data} loading={changes.isLoading} />
-      </div>
+      </motion.div>
 
       {/* 6 — what the evidence adds up to for somebody who reports on it */}
-      <ComplianceSummary
-        frameworks={
-          Array.isArray(compliance.data) ? compliance.data : undefined
-        }
-        loading={compliance.isLoading}
-      />
-    </div>
+      <motion.div variants={listItem}>
+        <ComplianceSummary
+          frameworks={
+            Array.isArray(compliance.data) ? compliance.data : undefined
+          }
+          loading={compliance.isLoading}
+        />
+      </motion.div>
+    </motion.div>
   );
 }
 

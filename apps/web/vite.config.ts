@@ -39,5 +39,18 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
+    /**
+     * Longer than vitest's five seconds, because of what these tests are.
+     *
+     * Almost every one of them mounts a real page -- a router, a query client,
+     * several settling requests and a full component tree -- inside jsdom, and
+     * the suite runs those in parallel across every core the machine has. On a
+     * loaded machine a page that renders in 200ms alone can take several
+     * seconds, and the failure that produced was always the same shape: a
+     * `findByText` that times out on text the page does render, in a test that
+     * passes on its own. That is a slow machine reported as a broken product,
+     * which is worse than a slow suite.
+     */
+    testTimeout: 20_000,
   },
 });

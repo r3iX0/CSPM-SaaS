@@ -4053,6 +4053,140 @@ colour and its shape (`TrendingUp` for a regression, `Plus` for an arrival,
 attribute that moved into UNKNOWN is a loss of knowledge, renders neutral, and
 is still distinguishable from an improvement without relying on hue.
 
+## 84. A motion runtime, the sidebar primitive, and charts on shadcn's wrapper
+
+Three UI decisions taken together, because each one is a thing the project had
+declined before and the reasons it declined them have changed.
+
+### The frontend now has a motion library
+
+`motion` (framer-motion's current package name) is a dependency. The rule it
+breaks is the useful kind of rule — no runtime for something CSS already does —
+and it is broken for the one case CSS genuinely cannot do in a React SPA:
+*exit*. A route that unmounts has no frames left to animate in, so a page swap
+either cuts hard or the outgoing tree has to be kept alive by something that
+knows it is leaving. That is `AnimatePresence`, and it is why `PageTransition`
+exists.
+
+What did **not** move: `index.css` still owns the two chart keyframes and the
+`prefers-reduced-motion` block, and `useCountUp` is still hand-written, because
+a number counting to its value is arithmetic rather than animation and the
+existing one already guarantees it lands exactly on the value. The list staggers
+on the findings and assets tables are still CSS — a `<tr>` cannot be wrapped in
+a `<div>`, and the rise is the whole effect.
+
+Reduced motion is answered in one place per layer and nowhere else:
+`<MotionConfig reducedMotion="user">` in `main.tsx` for the runtime, the media
+query in `index.css` for everything else. Both degrade to *the end state,
+immediately* — reduced motion means arriving, not crawling. Nothing below either
+of them checks the preference itself.
+
+The timings live in `lib/motion.ts` as `DURATION` and two easings, not as
+numbers typed into components. Motion in this product is a claim that something
+arrived or changed, and six panels each picking their own duration would make
+six different claims about one event.
+
+**Entry animation is never gated on a "first render" flag.** A motion element
+runs `initial` when it mounts and never again, so a keyed row that survives a
+refetch does not replay. Keep the keys stable and the animation stays honest:
+the dashboard polls every twenty seconds, and a table that re-staggered on every
+poll would teach the reader that movement means nothing.
+
+### The shell runs on `@shadcn/sidebar`
+
+`Shell.tsx` hand-rolled a fixed rail, a collapse button, a `Sheet` for mobile
+and the padding that kept the two in step. All of that is the primitive's, so it
+is the primitive's now — `SidebarProvider` / `Sidebar collapsible="icon"` /
+`SidebarInset` / `SidebarRail`, with `SidebarMenuButton` carrying the collapsed
+tooltip that used to be wired by hand.
+
+Two edits to the vendored source were needed and both are deliberate:
+
+* **The cookie is gone.** Upstream writes `sidebar_state` on every toggle. That
+  would be the only cookie CloudGuard sets, and a security product that plants
+  one to remember a rail width has to explain it in a privacy notice. The
+  provider is controlled from `Shell` instead, and the preference stays in
+  `localStorage` under the same `cloudguard.sidebar.collapsed` key it has always
+  used — so nobody's remembered rail is lost.
+* **`useIsMobile` reads its media query up front.** Upstream starts at
+  `undefined` and fills the answer in from an effect, which renders one frame of
+  "not mobile" on every phone and trips this project's lint rule against setting
+  state in an effect.
+
+`SidebarTrigger` names itself "Toggle Sidebar" in both states, which is a
+control a screen-reader user cannot tell the state of. `NavToggle` wraps it to
+say which way it will go and to carry `aria-expanded`, keeping the accessible
+names the shell already had.
+
+Which row is current is `useMatch` per row rather than `NavLink`'s render prop:
+the primitive wants the answer as a prop, because the anchor itself carries the
+button styling and the focus ring, so nothing may sit between them. Non-exact
+rows stay lit on their detail screens — a reader on `/findings/<id>` has not
+left Findings.
+
+### Charts sit inside `ChartContainer`
+
+`ActivityBars`, `Donut`, `EstateTreemap` and `ScoreTrend` each hand-built a
+Recharts `<Tooltip>` with an inline `contentStyle`, because Recharts paints that
+element inline and it does not inherit the surface — unset, it stays white on a
+dark page. Four copies of the same six declarations. They now use
+`ChartContainer` / `ChartTooltip` / `ChartTooltipContent` / `ChartLegendContent`,
+and the tooltip is a themed element like every other popover in the product.
+
+**The tuned ramps stay authoritative.** `chart.tsx` defines no `--chart-*`
+tokens of its own; it emits a `--color-<key>` per series, scoped to one chart
+id, from the `ChartConfig` it is given. So the contrast-measured neutral ramp in
+`index.css` and the severity scale are still the only definitions of those
+colours, and `ActivityBars` still maps its three series to `--sev-medium`,
+`--sev-ok` and `--sev-critical` — those are statuses, not categories.
+
+This upgraded Recharts 2.15 → 3.8, which `chart.tsx` is written against. The
+cost was the four hand-written tooltip formatters, whose v2 signatures no longer
+typecheck; they were the code being deleted anyway.
+
+### The rest of the pass
+
+* **Destructive confirmations are `AlertDialog`.** `RemoveConfirm` and
+  `DeleteScanConfirm` announce themselves as `alertdialog` and cannot be
+  dismissed by a click on the backdrop. A stray click outside an ordinary dialog
+  is a harmless miss; on these two it was the same gesture that deletes an
+  environment or purges findings. `DeleteScanConfirm` also stopped being a red
+  panel wedged under the scan card it was about to delete.
+* **One pager, and it can jump.** Four pages had copied the same
+  Previous / "3 / 9" / Next. `common/Pager.tsx` draws real page numbers with
+  first, last, and a window either side, so reaching the end of a four-hundred-
+  row findings list is one click rather than eight round trips. `StepPager` is
+  the variant for the changes feed, which is windowed by date and has no total —
+  inventing one would be a claim the API never made.
+* **Severity is a `ToggleGroup`, not a select.** Four values plus "all", never
+  changing, the filter the findings and risks pages are actually worked
+  through — laid out, the current filter is visible without opening anything.
+  Deselecting the active item keeps it: an empty severity filter is not a filter
+  anybody wants.
+* **Change detection is a `Switch`.** A pill reading "Listening for changes"
+  beside a button reading "Turn on change detection" stated the same fact twice.
+  The switch is labelled with what the setting is *for* rather than what it
+  currently is, because that is the half that does not change when it moves.
+* **Compliance controls collapse, except the ones that matter.** CIS Azure is
+  fifty-six controls; rendering every rule and reading of all of them buried the
+  dozen that are wrong under the forty that are not. Failing and inconclusive
+  controls arrive expanded, passing and not-covered collapsed — and the verdict
+  is always in the trigger, never inside the panel. What a control says is not
+  something a reader should have to expand to find out.
+* **Finding titles preview on hover.** The column truncates, which is right for
+  a table and wrong for the reader opening six rows to find the one they meant.
+
+### One test-suite change, and it is not about this work
+
+`findByText` waits one second by default — a figure that describes how long a
+*component* takes to settle. These tests mount whole pages inside jsdom, in
+parallel across every core, and under that load a page rendering in 200ms alone
+takes several seconds. The failure was always the same shape: a `findByText`
+timing out on text the page does render, in a test that passes on its own. It
+predates this work; one suite carries a comment about losing "about one run in
+three". `asyncUtilTimeout` is now five seconds and `testTimeout` twenty, which
+is a slow suite instead of a slow machine reported as a broken product.
+
 ## Settings: the evidence a person supplies
 
 `PATCH /organizations` takes no id in the path. Deleting a *different*

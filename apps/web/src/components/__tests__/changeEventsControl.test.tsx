@@ -49,7 +49,7 @@ describe("the change-events control", () => {
     mount(setup());
 
     await waitFor(() => expect(screen.getByText("Not listening")).toBeInTheDocument());
-    expect(screen.getByRole("button", { name: "Turn on change detection" })).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "React to changes" })).toBeInTheDocument();
   });
 
   it("says that turning it on wires nothing up on its own", async () => {
@@ -126,9 +126,9 @@ describe("the change-events control", () => {
     });
 
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Turn on change detection" })).toBeInTheDocument(),
+      expect(screen.getByRole("switch", { name: "React to changes" })).toBeInTheDocument(),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Turn on change detection" }));
+    fireEvent.click(screen.getByRole("switch", { name: "React to changes" }));
 
     await waitFor(() => expect(screen.getByText("az eventgrid one")).toBeInTheDocument());
     expect(patch).toHaveBeenCalledWith(
@@ -150,9 +150,9 @@ describe("the change-events control", () => {
     });
 
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Turn on change detection" })).toBeInTheDocument(),
+      expect(screen.getByRole("switch", { name: "React to changes" })).toBeInTheDocument(),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Turn on change detection" }));
+    fireEvent.click(screen.getByRole("switch", { name: "React to changes" }));
 
     await waitFor(() =>
       expect(invalidate).toHaveBeenCalledWith({ queryKey: ["cloud-connections"] }),

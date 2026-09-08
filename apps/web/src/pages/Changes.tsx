@@ -26,6 +26,7 @@ import {
   ErrorState,
   PageHeader,
 } from "@/components/common/states";
+import { StepPager } from "@/components/common/Pager";
 
 const PAGE_SIZE = 50;
 const WINDOWS = [1, 7, 30, 90] as const;
@@ -164,26 +165,12 @@ export function ChangesPage() {
               {page * PAGE_SIZE + 1}–{page * PAGE_SIZE + events.length}{" "}
               {events.length === 1 ? t.changes.count : t.changes.countPlural}
             </p>
-            {(page > 0 || hasMore) && (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page === 0}
-                  onClick={() => setPage((p) => Math.max(0, p - 1))}
-                >
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!hasMore}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Next
-                </Button>
-              </div>
-            )}
+            <StepPager
+              page={page}
+              hasMore={hasMore}
+              onPage={setPage}
+              className="w-auto"
+            />
           </div>
         </>
       )}

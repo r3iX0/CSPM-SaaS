@@ -18,8 +18,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 import { Input } from "@/components/ui/input";
 import { SelectField } from "@/components/common/SelectField";
+import { ToggleFilter } from "@/components/common/ToggleFilter";
 import {
   Table,
   TableBody,
@@ -28,7 +34,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Pager } from "@/components/common/Pager";
 import { cn, formatDate, resourceTypeLabel } from "@/lib/format";
+import { stagger } from "@/lib/motion";
 
 const SEVERITIES = ["CRITICAL", "HIGH", "MEDIUM", "LOW"] as const;
 const PAGE_SIZE = 50;
@@ -186,13 +194,15 @@ export function FindingsPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <SelectField
+          {/* Laid out rather than in a menu: severity is the filter this page
+              is worked through, and which one is active has to be readable
+              without opening anything. */}
+          <ToggleFilter
             value={severity}
-            onValueChange={(value) => refilter(() => setSeverity(value || "all"))}
+            onValueChange={(value) => refilter(() => setSeverity(value))}
             ariaLabel="Filter by severity"
-            className="w-[150px]"
             options={[
-              { value: "all", label: "All severities" },
+              { value: "all", label: "All" },
               ...SEVERITIES.map((level) => ({
                 value: level,
                 label: level.charAt(0) + level.slice(1).toLowerCase(),
@@ -330,15 +340,52 @@ export function FindingsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows.map((finding) => (
-                    <TableRow key={finding.id} className="group">
+                  {rows.map((finding, index) => (
+                    // The same arrival the dashboard's lists use, in CSS
+                    // rather than through the motion runtime: a `tr` cannot be
+                    // wrapped without breaking the table, and the rise is the
+                    // one thing needed here. Capped at eight rows of stagger,
+                    // so a fifty-row page does not become a slow page.
+                    <TableRow
+                      key={finding.id}
+                      className="group [animation:cg-rise_260ms_ease-out_both]"
+                      style={stagger(index)}
+                    >
                       <TableCell className="max-w-0">
-                        <Link
-                          to={`/findings/${finding.id}`}
-                          className="block truncate font-medium text-foreground after:absolute hover:underline"
-                        >
-                          {finding.title}
-                        </Link>
+                        {/* The column truncates, which is right for a table
+                            and wrong for the reader who has to open six rows
+                            to work out which one they meant. The preview is
+                            the untruncated title and what the rule says, on
+                            hover and on focus -- it opens nothing and changes
+                            nothing, so it costs a reader who wants the whole
+                            page nothing either. */}
+                        <HoverCard>
+                          <HoverCardTrigger
+                            render={
+                              <Link
+                                to={`/findings/${finding.id}`}
+                                className="block truncate font-medium text-foreground after:absolute hover:underline"
+                              />
+                            }
+                          >
+                            {finding.title}
+                          </HoverCardTrigger>
+                          <HoverCardContent
+                            side="right"
+                            align="start"
+                            className="w-96"
+                          >
+                            <p className="text-sm font-medium">
+                              {finding.title}
+                            </p>
+                            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                              {finding.description}
+                            </p>
+                            <p className="mt-2 text-[11px] uppercase tracking-wide text-muted-foreground">
+                              {finding.rule_id} · v{finding.rule_version}
+                            </p>
+                          </HoverCardContent>
+                        </HoverCard>
                         <p className="mt-0.5 truncate text-xs text-muted-foreground">
                           {finding.rule_id}
                         </p>
@@ -385,29 +432,12 @@ export function FindingsPage() {
               {total === 1 ? "" : "s"}
               {filtered ? " matching these filters" : ""}
             </p>
-            {pages > 1 && (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page === 0}
-                  onClick={() => setPage((p) => Math.max(0, p - 1))}
-                >
-                  Previous
-                </Button>
-                <span className="text-xs tabular-nums text-muted-foreground">
-                  {page + 1} / {pages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page + 1 >= pages}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Next
-                </Button>
-              </div>
-            )}
+            <Pager
+              page={page}
+              pages={pages}
+              onPage={setPage}
+              className="w-auto"
+            />
           </div>
         </>
       )}

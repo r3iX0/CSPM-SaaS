@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { motion } from "motion/react";
 import { Link } from "react-router-dom";
 import { RadarIcon, SearchIcon } from "lucide-react";
 
@@ -24,6 +25,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SelectField } from "@/components/common/SelectField";
+import { listContainer, listItem } from "@/lib/motion";
+import { ToggleFilter } from "@/components/common/ToggleFilter";
+import { Pager } from "@/components/common/Pager";
 
 const PAGE_SIZE = 25;
 const SEARCH_DEBOUNCE_MS = 250;
@@ -122,13 +126,14 @@ export function RisksPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <SelectField
+          {/* The same control the findings list filters severity with, because
+              it is the same question asked of the ranked view. */}
+          <ToggleFilter
             value={level}
-            onValueChange={(value) => refilter(() => setLevel(value || "all"))}
+            onValueChange={(value) => refilter(() => setLevel(value))}
             ariaLabel="Filter by risk level"
-            className="w-[150px]"
             options={[
-              { value: "all", label: "All levels" },
+              { value: "all", label: "All" },
               { value: "CRITICAL", label: "Critical" },
               { value: "HIGH", label: "High" },
               { value: "MEDIUM", label: "Medium" },
@@ -201,20 +206,31 @@ export function RisksPage() {
 
       {data && risks.length > 0 && (
         <>
-          <div className="flex flex-col gap-3">
+          {/* The ranking arrives a card at a time. Keyed by risk id, so a
+              poll that returns the same ranking does not replay it -- only
+              cards that are actually new animate, which keeps the movement a
+              statement that something arrived. */}
+          <motion.div
+            className="flex flex-col gap-3"
+            variants={listContainer}
+            initial="initial"
+            animate="animate"
+          >
             {/* Both kinds in one list, deliberately. A route outranking the
                 findings inside it is only visible where they are ranked
                 together — on a page of its own it would be a second opinion
                 nobody compares. The kind filter can separate them; the default
                 does not. */}
-            {risks.map((risk) =>
-              risk.kind === "FINDING" ? (
-                <FindingRiskCard key={risk.id} risk={risk} />
-              ) : (
-                <ScenarioCard key={risk.id} risk={risk} />
-              ),
-            )}
-          </div>
+            {risks.map((risk) => (
+              <motion.div key={risk.id} variants={listItem}>
+                {risk.kind === "FINDING" ? (
+                  <FindingRiskCard risk={risk} />
+                ) : (
+                  <ScenarioCard risk={risk} />
+                )}
+              </motion.div>
+            ))}
+          </motion.div>
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground">
@@ -223,29 +239,12 @@ export function RisksPage() {
               {total === 1 ? "" : "s"}
               {filtering ? " matching these filters" : ""}
             </p>
-            {pages > 1 && (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page === 0}
-                  onClick={() => setPage((p) => Math.max(0, p - 1))}
-                >
-                  Previous
-                </Button>
-                <span className="text-xs tabular-nums text-muted-foreground">
-                  {page + 1} / {pages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page + 1 >= pages}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Next
-                </Button>
-              </div>
-            )}
+            <Pager
+              page={page}
+              pages={pages}
+              onPage={setPage}
+              className="w-auto"
+            />
           </div>
         </>
       )}
@@ -274,7 +273,7 @@ function ScenarioCard({ risk }: { risk: Risk }) {
   const escalation = risk.kind === "ESCALATION";
 
   return (
-    <Card>
+    <Card className="transition-shadow duration-150 hover:shadow-md">
       <CardHeader>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
@@ -359,7 +358,10 @@ function ScenarioCard({ risk }: { risk: Risk }) {
 
 function FindingRiskCard({ risk }: { risk: Risk }) {
   return (
-    <Card>
+    // The lift is a hundred and twenty milliseconds and one step of shadow --
+    // enough that a pointer moving down the ranking can tell which card it is
+    // over, and not so much that a page of them looks like it is breathing.
+    <Card className="transition-shadow duration-150 hover:shadow-md">
       <CardHeader>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 flex-1">

@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, Outlet, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { MenuIcon, PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react";
 
 import { api, auth } from "@/lib/api";
 import type { CloudAccount, Organization } from "@/lib/types";
@@ -10,17 +9,22 @@ import { ShieldMark } from "@/components/Brand";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AccountMenu } from "@/components/AccountMenu";
 import { SidebarNav } from "@/components/layout/Sidebar";
+import { PageTransition } from "@/components/PageTransition";
 import { CommandPalette } from "@/components/layout/CommandPalette";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { ScanIndicator } from "@/components/layout/ScanIndicator";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
-import { Button } from "@/components/ui/button";
 import {
-  Sheet,
-  SheetContent,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarInset,
+  SidebarProvider,
+  SidebarRail,
+  SidebarTrigger,
+  useSidebar,
+} from "@/components/ui/sidebar";
 import { Toaster } from "@/components/ui/sonner";
 import {
   Tooltip,
@@ -51,27 +55,29 @@ const COLLAPSE_KEY = "cloudguard.sidebar.collapsed";
 export function Shell() {
   const t = useT();
   const navigate = useNavigate();
-  const [mobileOpen, setMobileOpen] = useState(false);
-
   // A choice about the shape of the workspace, so it is remembered: somebody
   // working on a small laptop should not re-collapse the sidebar every morning.
   // Read lazily and defensively -- a browser with storage disabled must still
   // render an application.
-  const [collapsed, setCollapsed] = useState(() => {
+  //
+  // Kept here rather than left to the sidebar primitive, which persists to a
+  // cookie upstream. This app already stores the theme in localStorage and
+  // sets no cookies at all; a rail width is not a reason to start.
+  const [open, setOpen] = useState(() => {
     try {
-      return window.localStorage.getItem(COLLAPSE_KEY) === "1";
+      return window.localStorage.getItem(COLLAPSE_KEY) !== "1";
     } catch {
-      return false;
+      return true;
     }
   });
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(COLLAPSE_KEY, collapsed ? "1" : "0");
+      window.localStorage.setItem(COLLAPSE_KEY, open ? "0" : "1");
     } catch {
       // Nothing to do: the preference simply does not survive the session.
     }
-  }, [collapsed]);
+  }, [open]);
 
   const { data: orgs, isLoading } = useQuery({
     queryKey: ["organizations"],
@@ -102,87 +108,38 @@ export function Shell() {
     // One provider for the whole application: without it every tooltip runs its
     // own delay, so crossing a row of them makes each one wait again.
     <TooltipProvider delay={200}>
-      <div className="min-h-screen bg-background">
-        {/* Fixed rather than scrolling with the page: navigation that scrolls
-          away makes a long findings table a one-way trip. */}
-        <aside
-          className={cn(
-            "fixed inset-y-0 left-0 z-30 hidden border-r bg-sidebar transition-[width] duration-200 lg:flex lg:flex-col",
-            collapsed ? "w-14" : "w-60",
-          )}
-        >
-          <div
-            className={cn(
-              "flex h-14 shrink-0 items-center border-b",
-              collapsed ? "justify-center px-2" : "gap-2.5 px-4",
-            )}
-          >
-            <ShieldMark className="size-5" />
-            {!collapsed && (
-              <span className="text-sm font-semibold tracking-tight">
-                {t.app.name}
-              </span>
-            )}
-          </div>
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            <SidebarNav collapsed={collapsed} />
-          </div>
-          <div
-            className={cn(
-              "flex shrink-0 items-center gap-1 border-t",
-              collapsed ? "flex-col p-2" : "p-3",
-            )}
-          >
-            <ConnectionBadge collapsed={collapsed} />
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className={collapsed ? "" : "ml-auto"}
-              onClick={() => setCollapsed((v) => !v)}
-              aria-label={
-                collapsed ? "Expand navigation" : "Collapse navigation"
-              }
-              aria-expanded={!collapsed}
+      <SidebarProvider open={open} onOpenChange={setOpen}>
+        {/* `collapsible="icon"` is the rail this shell always had: navigation
+            that scrolls away makes a long findings table a one-way trip, so it
+            narrows to icons rather than leaving. On mobile the same component
+            is the sheet, which is why there is no second copy of the
+            navigation here any more. */}
+        <Sidebar collapsible="icon">
+          <SidebarHeader className="h-14 shrink-0 justify-center border-b group-data-[collapsible=icon]:items-center">
+            <Link
+              to="/"
+              className="flex items-center gap-2.5 rounded-md px-2 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 group-data-[collapsible=icon]:px-0"
             >
-              {collapsed ? <PanelLeftOpenIcon /> : <PanelLeftCloseIcon />}
-            </Button>
-          </div>
-        </aside>
-
-        <div
-          className={cn(
-            "transition-[padding] duration-200",
-            collapsed ? "lg:pl-14" : "lg:pl-60",
-          )}
-        >
-          <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:px-6">
-            <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-              <SheetTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="lg:hidden"
-                    aria-label="Open navigation"
-                  />
-                }
-              >
-                <MenuIcon />
-              </SheetTrigger>
-              <SheetContent side="left" className="w-64 p-0">
-                <SheetTitle className="flex h-14 items-center gap-2.5 border-b px-4 text-sm font-semibold">
-                  <ShieldMark className="size-5" />
-                  {t.app.name}
-                </SheetTitle>
-                <SidebarNav onNavigate={() => setMobileOpen(false)} />
-              </SheetContent>
-            </Sheet>
-
-            <div className="flex items-center gap-2 lg:hidden">
-              <span className="text-sm font-semibold tracking-tight">
+              <ShieldMark className="size-5 shrink-0" />
+              <span className="truncate text-sm font-semibold tracking-tight group-data-[collapsible=icon]:hidden">
                 {t.app.name}
               </span>
-            </div>
+            </Link>
+          </SidebarHeader>
+          <SidebarContent>
+            <SidebarNav />
+          </SidebarContent>
+          <SidebarFooter className="border-t">
+            <ConnectionBadge />
+          </SidebarFooter>
+          {/* The drag/click edge. It is what replaces the collapse button that
+              used to sit in the footer, and it is reachable by keyboard. */}
+          <SidebarRail />
+        </Sidebar>
+
+        <SidebarInset>
+          <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:px-6">
+            <NavToggle />
 
             <div className="ml-auto flex items-center gap-3">
               <CommandPalette />
@@ -195,24 +152,55 @@ export function Shell() {
             </div>
           </header>
 
-          <main className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:py-8">
+          <main className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 lg:py-8">
             {/* Per-page, inside the chrome. A page that throws is one broken
                 screen the reader can navigate away from, rather than a product
                 that vanished -- and the root boundary is still behind this for
-                anything the shell itself does. */}
+                anything the shell itself does.
+
+                The boundary is outside the transition, not inside: an error
+                that arrives mid-animation must not be something that animates
+                away. */}
             <ErrorBoundary variant="page">
-              <Outlet />
+              <PageTransition>
+                <Outlet />
+              </PageTransition>
             </ErrorBoundary>
           </main>
-        </div>
+        </SidebarInset>
+      </SidebarProvider>
 
-        {/* Mounted once, here, because an action's outcome outlives the panel it
-          was taken in: marking a task done navigates nowhere, and the answer --
-          that CloudGuard will look again rather than that the finding is now
-          closed -- has to arrive somewhere that is always on screen. */}
-        <Toaster position="bottom-right" />
-      </div>
+      {/* Mounted once, here, because an action's outcome outlives the panel it
+        was taken in: marking a task done navigates nowhere, and the answer --
+        that CloudGuard will look again rather than that the finding is now
+        closed -- has to arrive somewhere that is always on screen. */}
+      <Toaster position="bottom-right" />
     </TooltipProvider>
+  );
+}
+
+/**
+ * The control that opens and closes the navigation.
+ *
+ * A thin wrapper on the primitive's trigger for one reason: the primitive names
+ * itself "Toggle Sidebar" in every state, and a control whose label does not
+ * change is a control a screen-reader user cannot tell the state of. This says
+ * which way it will go, and carries `aria-expanded` so assistive technology
+ * does not have to infer it from the wording.
+ *
+ * Inside the provider rather than in `Shell`, because on a phone the same
+ * button opens a sheet rather than widening a rail, and only the provider knows
+ * which of those is true.
+ */
+function NavToggle() {
+  const { isMobile, open, openMobile } = useSidebar();
+  const shown = isMobile ? openMobile : open;
+
+  return (
+    <SidebarTrigger
+      aria-label={shown ? "Collapse navigation" : "Expand navigation"}
+      aria-expanded={shown}
+    />
   );
 }
 
@@ -223,7 +211,10 @@ export function Shell() {
  * number on every other screen: a product showing a security score of 100 over
  * an environment it has never connected to is not reassuring, it is wrong.
  */
-function ConnectionBadge({ collapsed = false }: { collapsed?: boolean }) {
+function ConnectionBadge() {
+  const { state, isMobile } = useSidebar();
+  const collapsed = state === "collapsed" && !isMobile;
+
   const { data } = useQuery({
     queryKey: ["cloud-accounts"],
     queryFn: () =>
@@ -241,6 +232,15 @@ function ConnectionBadge({ collapsed = false }: { collapsed?: boolean }) {
         ? `${scannable} subscription${scannable === 1 ? "" : "s"} monitored`
         : "Connected, not ready to scan";
 
+  const dot = cn(
+    "size-1.5 shrink-0 rounded-full transition-colors",
+    count === 0
+      ? "bg-muted-foreground"
+      : scannable > 0
+        ? "bg-ok"
+        : "bg-medium",
+  );
+
   // On the rail there is room for the state and not for the sentence. The dot
   // keeps its meaning and the sentence moves to a tooltip, rather than the
   // precondition for every number in the product disappearing with the labels.
@@ -256,16 +256,7 @@ function ConnectionBadge({ collapsed = false }: { collapsed?: boolean }) {
             />
           }
         >
-          <span
-            className={cn(
-              "size-2 rounded-full",
-              count === 0
-                ? "bg-muted-foreground"
-                : scannable > 0
-                  ? "bg-ok"
-                  : "bg-medium",
-            )}
-          />
+          <span className={cn(dot, "size-2")} />
         </TooltipTrigger>
         <TooltipContent side="right">{summary}</TooltipContent>
       </Tooltip>
@@ -274,28 +265,20 @@ function ConnectionBadge({ collapsed = false }: { collapsed?: boolean }) {
 
   if (count === 0) {
     return (
-      <a
-        href="/connections"
+      <Link
+        to="/connections"
         className="flex items-center gap-2 rounded-md border border-dashed px-2.5 py-2 text-xs text-muted-foreground transition-colors hover:border-solid hover:text-foreground"
       >
-        <span className="size-1.5 shrink-0 rounded-full bg-muted-foreground" />
+        <span className={dot} />
         No cloud connected
-      </a>
+      </Link>
     );
   }
 
   return (
     <div className="flex items-center gap-2 px-2.5 py-2 text-xs text-muted-foreground">
-      <span
-        className={
-          scannable > 0
-            ? "size-1.5 shrink-0 rounded-full bg-ok"
-            : "size-1.5 shrink-0 rounded-full bg-medium"
-        }
-      />
-      {scannable > 0
-        ? `${scannable} subscription${scannable === 1 ? "" : "s"} monitored`
-        : "Connected, not ready to scan"}
+      <span className={dot} />
+      {summary}
     </div>
   );
 }

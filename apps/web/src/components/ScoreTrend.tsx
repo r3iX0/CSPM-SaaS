@@ -3,15 +3,19 @@ import {
   AreaChart,
   CartesianGrid,
   ReferenceArea,
-  ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
 
 import { useT } from "@/i18n";
 import type { PostureReading } from "@/lib/types";
-import { usePrefersReducedMotion } from "@/lib/motion";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
+import { DURATION, usePrefersReducedMotion } from "@/lib/motion";
 import { formatDateTime } from "@/lib/format";
 
 /**
@@ -40,10 +44,15 @@ import { formatDateTime } from "@/lib/format";
 const INK = "var(--foreground)";
 const GRID = "var(--border)";
 const AXIS = "var(--muted-foreground)";
-// Recharts paints the tooltip inline, so it does not inherit the surface the
-// way a Tailwind-classed element does: unset, it stays white on a dark page.
+// The tooltip is `ChartTooltipContent` now, which is a themed element rather
+// than an inline style block -- so the surface colours it used to be handed by
+// hand come from the same tokens as every other popover in the product.
 const SURFACE = "var(--popover)";
-const SURFACE_INK = "var(--popover-foreground)";
+
+const CONFIG = {
+  score: { label: "Security score", color: INK },
+  open_findings: { label: "Open findings" },
+} satisfies ChartConfig;
 
 /**
  * The bands the score itself is read in.
@@ -95,7 +104,7 @@ export function ScoreTrend({ history }: { history: PostureReading[] }) {
         Score over time: {points.length} readings, from {first.score} on{" "}
         {formatDateTime(first.at)} to {last.score} on {formatDateTime(last.at)}.
       </p>
-      <ResponsiveContainer width="100%" height="100%">
+      <ChartContainer config={CONFIG} className="aspect-auto size-full">
         <AreaChart data={points} margin={{ top: 4, right: 12, bottom: 0, left: 0 }}>
           <defs>
             <linearGradient id="cg-score-fill" x1="0" y1="0" x2="0" y2="1">
@@ -143,20 +152,17 @@ export function ScoreTrend({ history }: { history: PostureReading[] }) {
             // what scale this is.
             width={32}
           />
-          <Tooltip
+          <ChartTooltip
             cursor={{ stroke: GRID, strokeWidth: 1 }}
-            contentStyle={{
-              background: SURFACE,
-              color: SURFACE_INK,
-              border: "1px solid var(--border)",
-              borderRadius: "var(--radius)",
-              fontSize: "0.75rem",
-            }}
-            labelFormatter={(value: string) => formatDateTime(value)}
-            formatter={(value: number, name: string) => [
-              value,
-              name === "score" ? "Security score" : "Open findings",
-            ]}
+            content={
+              <ChartTooltipContent
+                labelFormatter={(_label, payload) =>
+                  formatDateTime(
+                    String(payload?.[0]?.payload?.at ?? ""),
+                  )
+                }
+              />
+            }
           />
           <Area
             type="monotone"
@@ -170,10 +176,10 @@ export function ScoreTrend({ history }: { history: PostureReading[] }) {
             dot={{ r: 2.5, fill: SURFACE, stroke: INK, strokeWidth: 1.5 }}
             activeDot={{ r: 4.5, fill: INK, stroke: SURFACE, strokeWidth: 2 }}
             isAnimationActive={!reduced}
-            animationDuration={700}
+            animationDuration={DURATION.chart}
           />
         </AreaChart>
-      </ResponsiveContainer>
+      </ChartContainer>
     </div>
   );
 }

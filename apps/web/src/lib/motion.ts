@@ -91,3 +91,95 @@ export function useCountUp(value: number, durationMs = 650): number {
 export function stagger(index: number, stepMs = 30): { animationDelay: string } {
   return { animationDelay: `${Math.min(index, 8) * stepMs}ms` };
 }
+
+/* -------------------------------------------------------------------------
+ * Shared motion vocabulary
+ *
+ * The two hooks above animate numbers, which CSS cannot do. Everything below
+ * animates elements, and exists because a React SPA cannot express one thing in
+ * CSS at all: *exit*. A route that unmounts has no frames left to animate in,
+ * so a page swap either cuts hard or the outgoing tree has to be kept alive by
+ * something that knows it is leaving -- which is what `AnimatePresence` is for,
+ * and is the reason a motion runtime is here rather than another keyframe.
+ *
+ * Timings and easings are declared once, here, rather than typed into each
+ * component. Motion in this product is a claim that something arrived or
+ * changed, and a dashboard where six panels each picked their own duration
+ * makes six different claims about the same event.
+ *
+ * Reduced motion is answered in one place -- `<MotionConfig reducedMotion="user">`
+ * in `main.tsx` -- exactly as the CSS half is answered by one media query in
+ * `index.css`. Nothing below needs to check it, and nothing below should.
+ * ---------------------------------------------------------------------- */
+
+/** Milliseconds, shared with the chart libraries so a bar and a card agree. */
+export const DURATION = {
+  /** Hover, press, colour: fast enough to feel like the pointer did it. */
+  instant: 120,
+  /** The default. A panel arriving, a row appearing. */
+  quick: 180,
+  /** A page swapping, a drawer opening -- far enough to need the time. */
+  page: 240,
+  /** Charts drawing themselves. Longer, because the eye follows a path. */
+  chart: 600,
+} as const;
+
+/** Ease-out: leaves immediately, settles gently. Movement the reader caused. */
+export const EASE_OUT = [0.16, 1, 0.3, 1] as const;
+/** Ease-in: for things leaving, which should not linger. */
+export const EASE_IN = [0.4, 0, 1, 1] as const;
+
+/**
+ * A page arriving and leaving.
+ *
+ * Exit is deliberately shorter than enter and moves the other way. A swap where
+ * both halves take the same time reads as a crossfade of two pages; a short
+ * exit followed by a longer enter reads as one page replacing another.
+ */
+export const pageTransition = {
+  initial: { opacity: 0, y: 6 },
+  animate: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: DURATION.page / 1000, ease: EASE_OUT },
+  },
+  exit: {
+    opacity: 0,
+    y: -4,
+    transition: { duration: DURATION.instant / 1000, ease: EASE_IN },
+  },
+} as const;
+
+/** A panel or card arriving. The same rise the CSS `cg-rise` keyframe makes. */
+export const fadeUp = {
+  initial: { opacity: 0, y: 8 },
+  animate: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: DURATION.quick / 1000, ease: EASE_OUT },
+  },
+} as const;
+
+/**
+ * A list whose rows arrive one at a time.
+ *
+ * There is no "animate on mount only" flag here, and none is needed: a motion
+ * element runs `initial` when it mounts and never again, so a keyed row that
+ * survives a refetch does not replay. That is exactly the rule this product
+ * wants -- the dashboard polls every twenty seconds, and movement has to mean
+ * something arrived rather than that a request came back. Keep the keys stable
+ * and the animation stays honest.
+ */
+export const listContainer = {
+  initial: {},
+  animate: { transition: { staggerChildren: 0.03, delayChildren: 0.02 } },
+} as const;
+
+export const listItem = {
+  initial: { opacity: 0, y: 6 },
+  animate: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: DURATION.quick / 1000, ease: EASE_OUT },
+  },
+} as const;

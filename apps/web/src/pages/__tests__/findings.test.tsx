@@ -122,7 +122,7 @@ describe("the findings list", () => {
     renderPage();
     await screen.findByText(/of 120 findings/);
 
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
 
     await waitFor(() => expect(requested.some((url) => url.includes("offset=50"))).toBe(true));
     expect(await screen.findByText(/51–100 of 120 findings/)).toBeInTheDocument();
@@ -131,7 +131,7 @@ describe("the findings list", () => {
   it("returns to the first page when a filter changes the set", async () => {
     renderPage();
     await screen.findByText(/of 120 findings/);
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
     await screen.findByText(/51–100 of 120 findings/);
 
     fireEvent.change(screen.getByLabelText("Search findings"), {

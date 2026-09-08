@@ -162,8 +162,6 @@ export const en = {
       "A schedule reads this environment on a clock. This reads it when something actually moves \u2014 a port opened, a role assigned, a storage account made public \u2014 so the finding arrives while whoever made the change is still at their desk.",
     changeOn: "Listening for changes",
     changeOff: "Not listening",
-    changeEnable: "Turn on change detection",
-    changeDisable: "Turn off",
     changeSaving: "Saving\u2026",
     changeNotWired:
       "The webhook is open. Nothing reaches it until you run the command below in each account \u2014 CloudGuard cannot create that wiring for you, because it holds no write permission in your cloud and does not ask for one.",
@@ -651,6 +649,10 @@ export const en = {
     deleteScan: "Delete",
     deleting: "Deleting\u2026",
     deleteTitle: "Delete this scan record?",
+    // The choice itself, stated once above the two options: which of the two
+    // deletions this is has to be decided before either button is read.
+    deleteIntro:
+      "Deleting a run and deleting what it found are two different things. Choose which one you mean.",
     deleteRecordOnly: "Delete record only",
     deleteRecordOnlyDetail:
       "Removes the execution log. Findings it raised stay \u2014 they describe your environment, not this run.",

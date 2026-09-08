@@ -1,7 +1,13 @@
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import { Cell, Pie, PieChart } from "recharts";
 
 import type { Slice } from "@/components/charts/DonutLegend";
-import { usePrefersReducedMotion } from "@/lib/motion";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
+import { DURATION, usePrefersReducedMotion } from "@/lib/motion";
 import { cn } from "@/lib/format";
 
 /**
@@ -33,9 +39,16 @@ export function Donut({
   const reduced = usePrefersReducedMotion();
   const total = slices.reduce((sum, slice) => sum + slice.value, 0);
 
+  // Built from the slices rather than declared, because a donut's categories
+  // are data here -- which severities are present, which verdicts were
+  // reached -- and the tooltip has to name whatever arrived.
+  const config: ChartConfig = Object.fromEntries(
+    slices.map((slice) => [slice.key, { label: slice.label, color: slice.tone }]),
+  );
+
   return (
     <div className={cn("relative", className)} role="img" aria-label={ariaLabel}>
-      <ResponsiveContainer width="100%" height="100%">
+      <ChartContainer config={config} className="aspect-auto size-full">
         <PieChart>
           <Pie
             data={slices}
@@ -55,28 +68,37 @@ export function Donut({
             stroke="var(--card)"
             strokeWidth={2}
             isAnimationActive={!reduced}
-            animationDuration={600}
+            animationDuration={DURATION.chart}
           >
             {slices.map((slice) => (
               <Cell key={slice.key} fill={slice.tone} />
             ))}
           </Pie>
-          <Tooltip
+          <ChartTooltip
             cursor={false}
-            contentStyle={{
-              background: "var(--popover)",
-              color: "var(--popover-foreground)",
-              border: "1px solid var(--border)",
-              borderRadius: "var(--radius)",
-              fontSize: "0.75rem",
-            }}
-            formatter={(value: number, name: string) => [
-              `${value}${total ? ` · ${Math.round((value / total) * 100)}%` : ""}`,
-              name,
-            ]}
+            content={
+              <ChartTooltipContent
+                nameKey="label"
+                hideLabel
+                // The share, not only the count: a ring's whole claim is "this
+                // much of that", and a tooltip reading "12" alone answers a
+                // question the chart was not asked.
+                formatter={(value, name) => (
+                  <>
+                    <span className="text-muted-foreground">{name}</span>
+                    <span className="ml-auto font-mono font-medium tabular-nums">
+                      {Number(value)}
+                      {total
+                        ? ` · ${Math.round((Number(value) / total) * 100)}%`
+                        : ""}
+                    </span>
+                  </>
+                )}
+              />
+            }
           />
         </PieChart>
-      </ResponsiveContainer>
+      </ChartContainer>
 
       {/* The headline sits in the hole, in text ink rather than a series
           colour: the ring carries identity, the number carries the value. */}

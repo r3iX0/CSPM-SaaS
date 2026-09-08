@@ -26,6 +26,7 @@ import {
   CommandList,
   CommandShortcut,
 } from "@/components/ui/command";
+import { Kbd } from "@/components/ui/kbd";
 
 /** Below this, a search is a letter or two and would match most of an estate. */
 const MIN_QUERY = 2;
@@ -193,9 +194,7 @@ export function CommandPalette() {
       >
         <SearchIcon data-icon="inline-start" />
         <span className="hidden sm:inline">Search</span>
-        <kbd className="hidden rounded border bg-muted px-1.5 py-0.5 text-[10px] font-medium sm:inline">
-          {shortcutLabel()}
-        </kbd>
+        <Kbd className="hidden sm:inline-flex">{shortcutLabel()}</Kbd>
       </Button>
 
       <CommandDialog

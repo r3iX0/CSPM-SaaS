@@ -77,9 +77,19 @@ stacked bar; risk bands and framework coverage as bars from a common baseline;
 the trend as an area on a fixed 0–100 scale with the score bands painted behind
 it; a treemap on the Assets hierarchy, the one place area is the right encoding.
 Sparklines under each severity count and beside the attack-path panel come from
-posture history the payload already carried. No dual axes anywhere. Motion
-counts numbers up when they change, animates a chart once on mount, and honours
-`prefers-reduced-motion` by arriving rather than crawling.
+posture history the payload already carried. No dual axes anywhere. Everything
+with axes or a tooltip sits inside shadcn's `ChartContainer`, which is what
+themes the tooltip; the contrast-tuned neutral ramp and the severity scale in
+`index.css` stay the only definitions of the colours it draws with
+(DECISIONS.md §84).
+
+Motion counts numbers up when they change, animates a chart once on mount,
+brings the panels in one at a time in the order they are read, and honours
+`prefers-reduced-motion` by arriving rather than crawling. Timings live in
+`lib/motion.ts` rather than in components, so a panel and a bar cannot disagree
+about how long an arrival takes. A row that was already on screen when a poll
+returned does not animate: entry motion means something arrived, and the
+dashboard refetches every twenty seconds.
 
 **Inventory counts are not headline figures here.** Assets, subscriptions and
 resources are true and answer a different question; every pixel one takes is a
@@ -103,11 +113,20 @@ Response   Remediation  Compliance
 Evidence   Scans  Rules  Cloud  Settings
 ```
 
-It collapses to an icon rail, remembered per browser, because sixty pixels of
-label per row is a good trade on a wide monitor and a bad one on a small laptop.
-The rail keeps the grouping and the order and gives up only the words; every
-icon still names itself on hover and to a screen reader. Below `lg` the same
-navigation is a sheet behind the header's menu button.
+It collapses to an icon rail, remembered per browser in `localStorage` —
+CloudGuard sets no cookies — because sixty pixels of label per row is a good
+trade on a wide monitor and a bad one on a small laptop. The rail keeps the
+grouping and the order and gives up only the words; every icon still names
+itself on hover and to a screen reader. Below `lg` the same navigation is a
+sheet behind the header's toggle. The shell is shadcn's `Sidebar` primitive
+(DECISIONS.md §84); the toggle is wrapped so that its accessible name says which
+way it will go rather than the primitive's fixed "Toggle Sidebar".
+
+One page replaces another rather than cutting to it: the outgoing page leaves in
+120ms and the incoming one arrives in 240ms, which reads as a replacement rather
+than as a crossfade of two dense screens. Filters and pagination live in the
+query string and deliberately do not re-play it — what changed there is the
+table, not the page.
 
 Detail screens carry a breadcrumb rather than a lone back button — what this is
 a detail *of*, then what it is called — so somebody arriving from a shared link
@@ -119,7 +138,9 @@ knows where they are, not only where to leave.
 
 **Assets** — resource, type, environment, region, criticality, exposure, findings count, last seen; filterable by type/environment/criticality/exposure/risk. Two readings of one inventory, switched in the header. **List** is the queue: assets with open findings first, filterable, paged, groupable by resource group, type or environment. **Hierarchy** is the estate's shape — subscription → resource group, counted server-side over the whole estate and ordered worst first at both levels, with a group expanding to what is in it. The tree is what leads from a number to an owner, since a resource group usually has one; opening a group in the list carries the scope as a filter chip that can be taken off. Assets sitting directly in a subscription are named as that, not as "Ungrouped".
 
-**Findings** — finding, severity, asset, risk, status, first/last seen; filterable by severity/status/rule and free text, searched and ordered in the database rather than in the browser. Severity, risk score and last seen order from their own column headers, one direction each: worst risk, worst severity and most recent all mean descending, and an ascending security queue puts the least urgent row first.
+**Findings** — finding, severity, asset, risk, status, first/last seen; filterable by severity/status/rule and free text, searched and ordered in the database rather than in the browser. Severity is laid out as a toggle group rather than hidden in a menu — it is the filter this page is worked through, so which one is active has to be readable without opening anything. Severity, risk score and last seen order from their own column headers, one direction each: worst risk, worst severity and most recent all mean descending, and an ascending security queue puts the least urgent row first. A finding's title previews in full on hover, because the column truncates and opening six rows to find the one you meant is not navigation.
+
+Every paged list uses one pager (`common/Pager.tsx`) with real page numbers — first, last, and a window either side — so the end of a four-hundred-row list is one click rather than eight. The changes feed is windowed by date and has no total, so it gets Previous and Next and nothing that implies a length.
 
 **Remediation** — the work queue, ordered by impact against effort. Work reaches it from a finding's recommended fix (`DECISIONS.md` §41). Each row names the finding and the asset it is on, joined in the browser because the endpoint returns only the task (`DECISIONS.md` §29). Marking work done does not close a finding — a scan does — and the answer says so where the button is.
 
@@ -173,7 +194,12 @@ ago it was taken, across how many subscriptions, under what permission, and
 whether the payload is still stored. Those are shown for a *passing* control as
 much as a failing one, which is the whole point: a finding cites the readings
 behind it, so "how do you know this is wrong" was already answerable, while the
-green row an auditor asks about first had nothing behind it at all. The oldest
+green row an auditor asks about first had nothing behind it at all. The evidence
+collapses per control, and what opens by default is the argument: failing and
+inconclusive controls arrive expanded, passing and not-covered closed — CIS
+Azure is fifty-six controls, and rendering all of them open buries the dozen
+that are wrong under the forty that are not. The verdict itself is always
+visible, never inside the panel. The oldest
 read and the worst outcome are what a control reports, never an average — a
 control is only as current and as complete as the least of the things it rests
 on. The page is dated by the scan it was assessed from, and says so when that
