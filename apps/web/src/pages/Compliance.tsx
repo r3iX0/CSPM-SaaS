@@ -42,7 +42,11 @@ export function CompliancePage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader title={t.compliance.title} description={t.compliance.intro} />
+      <PageHeader
+        icon={ClipboardCheckIcon}
+        title={t.compliance.title}
+        description={t.compliance.intro}
+      />
 
       <EvidenceNotice />
 

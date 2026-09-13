@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
+import { CloudIcon } from "lucide-react";
 
 import { api } from "@/lib/api";
 import type { CloudConnection } from "@/lib/types";
@@ -49,6 +50,7 @@ export function ConnectPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        icon={CloudIcon}
         title={t.connection.title}
         description={t.connection.intro}
         actions={

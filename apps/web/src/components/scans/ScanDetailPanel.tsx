@@ -5,6 +5,7 @@ import type { ScanDetail } from "@/lib/types";
 import { useT } from "@/i18n";
 import { words } from "@/lib/vocabulary";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
+import { ProviderMark } from "@/components/security/ProviderMark";
 import { ScanProgress } from "@/components/scans/ScanProgress";
 import { CollectionPanel } from "@/components/scans/CollectionPanel";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -35,7 +36,17 @@ export function ScanDetailPanel({ scanId }: { scanId: string }) {
       <div>
         <SectionLabel>{t.scans.scope}</SectionLabel>
         <dl className="mt-1.5 flex flex-col gap-1 text-xs">
-          <Row label={t.connection.connectionName} value={scope.connection_name} />
+          <Row
+            label={t.connection.connectionName}
+            value={
+              scope.connection_name ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <ProviderMark provider={scope.provider} className="size-3.5" />
+                  {scope.connection_name}
+                </span>
+              ) : null
+            }
+          />
           <Row
             label={vocabulary.Account}
             value={scope.subscription_name ?? scope.subscription_id}
@@ -108,7 +119,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Row({ label: text, value }: { label: string; value: string | null }) {
+function Row({ label: text, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex gap-2">
       <dt className="shrink-0 text-muted-foreground">{text}</dt>

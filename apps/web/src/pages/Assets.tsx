@@ -2,6 +2,8 @@ import { Fragment, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { BoxesIcon, ListIcon, NetworkIcon, SearchIcon, XIcon } from "lucide-react";
+import { LEVEL_ICONS, resourceTypeIcon } from "@/lib/icons";
+import { ResourceTypeLabel } from "@/components/security/IconLabel";
 
 import { api } from "@/lib/api";
 import type { Asset } from "@/lib/types";
@@ -177,6 +179,7 @@ export function AssetsPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
+        icon={BoxesIcon}
         title={t.assets.title}
         description="Everything CloudGuard has discovered, with what it is worth and how exposed it is."
         actions={
@@ -241,12 +244,14 @@ export function AssetsPage() {
             value={type}
             onValueChange={resetTo(setType)}
             ariaLabel="Filter by type"
-            className="w-[150px]"
+            className="w-[190px]"
+            idleValue="all"
             options={[
               { value: "all", label: "All types" },
               ...types.map((value) => ({
                 value,
                 label: resourceTypeLabel(value),
+                icon: resourceTypeIcon(value),
               })),
             ]}
           />
@@ -255,7 +260,8 @@ export function AssetsPage() {
             value={environment}
             onValueChange={resetTo(setEnvironment)}
             ariaLabel="Filter by environment"
-            className="w-[160px]"
+            className="w-[170px]"
+            idleValue="all"
             options={[
               { value: "all", label: "All environments" },
               { value: "production", label: "Production" },
@@ -267,14 +273,15 @@ export function AssetsPage() {
             value={exposure}
             onValueChange={resetTo(setExposure)}
             ariaLabel="Filter by exposure"
-            className="w-[150px]"
+            className="w-[160px]"
+            idleValue="all"
             options={[
               { value: "all", label: "All exposure" },
-              { value: "CRITICAL", label: "Critical" },
-              { value: "HIGH", label: "High" },
-              { value: "MEDIUM", label: "Medium" },
-              { value: "LOW", label: "Low" },
-              { value: "UNKNOWN", label: "Unknown" },
+              { value: "CRITICAL", label: "Critical", icon: LEVEL_ICONS.CRITICAL },
+              { value: "HIGH", label: "High", icon: LEVEL_ICONS.HIGH },
+              { value: "MEDIUM", label: "Medium", icon: LEVEL_ICONS.MEDIUM },
+              { value: "LOW", label: "Low", icon: LEVEL_ICONS.LOW },
+              { value: "UNKNOWN", label: "Unknown", icon: LEVEL_ICONS.UNKNOWN },
             ]}
           />
 
@@ -416,7 +423,10 @@ export function AssetsPage() {
                             </Link>
                           </TableCell>
                           <TableCell className="text-muted-foreground">
-                            {asset.azure_type ?? resourceTypeLabel(asset.resource_type)}
+                            <ResourceTypeLabel
+                              type={asset.resource_type}
+                              label={asset.azure_type}
+                            />
                           </TableCell>
                           <TableCell className="text-muted-foreground">
                             {asset.environment ?? "—"}

@@ -1,3 +1,5 @@
+import type { LucideIcon } from "lucide-react";
+
 import {
   Select,
   SelectContent,
@@ -5,8 +7,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/format";
 
-export type Option = { value: string; label: string };
+export type Option = { value: string; label: string; icon?: LucideIcon };
 
 /**
  * A select whose trigger says what was chosen.
@@ -21,7 +24,13 @@ export type Option = { value: string; label: string };
  * `ScheduleControl` solved it locally by rendering from the value; every other
  * filter in the app had the same bug. Passing one list of options to both the
  * trigger and the menu also removes the other half of the problem, which is a
- * label defined twice and only updated once.
+ * label defined twice and only updated once. An option's icon travels the same
+ * way, so the trigger shows the shape of what is chosen as well as its name.
+ *
+ * `idleValue` marks the control as a filter: while the value differs from it,
+ * a dot sits in the trigger, so a row of filters says which of them are
+ * actually narrowing the list without the reader comparing every label
+ * against its default.
  */
 export function SelectField({
   id,
@@ -34,6 +43,7 @@ export function SelectField({
   disabled,
   placeholder,
   fallbackLabel,
+  idleValue,
 }: {
   /** Forwarded to the trigger, so a `FieldLabel`'s `htmlFor` still lands. */
   id?: string;
@@ -53,7 +63,11 @@ export function SelectField({
    * whose value is an identifier a person never chose to read.
    */
   fallbackLabel?: (value: string) => string;
+  /** The unfiltered value. When set, a dot marks the trigger while it is not chosen. */
+  idleValue?: string;
 }) {
+  const active = idleValue !== undefined && value !== idleValue;
+
   return (
     <Select
       value={value}
@@ -65,6 +79,7 @@ export function SelectField({
         size={size}
         className={className}
         aria-label={ariaLabel}
+        data-active={active || undefined}
       >
         <SelectValue placeholder={placeholder}>
           {(current) => {
@@ -74,15 +89,28 @@ export function SelectField({
             // scanning only" — and treating empty as "nothing selected" left
             // that control blank, which reads as broken rather than as off.
             const known = options.find((option) => option.value === chosen);
-            if (known) return known.label;
-            if (!chosen) return placeholder ?? "";
-            return fallbackLabel?.(chosen) ?? chosen;
+            const text = known
+              ? known.label
+              : !chosen
+                ? (placeholder ?? "")
+                : (fallbackLabel?.(chosen) ?? chosen);
+            const Icon = known?.icon;
+            return (
+              <>
+                {active && (
+                  <span className="size-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
+                )}
+                {Icon && <Icon className={cn(!active && "text-muted-foreground")} aria-hidden />}
+                <span className="truncate">{text}</span>
+              </>
+            );
           }}
         </SelectValue>
       </SelectTrigger>
       <SelectContent>
         {options.map((option) => (
           <SelectItem key={option.value} value={option.value}>
+            {option.icon && <option.icon className="text-muted-foreground" aria-hidden />}
             {option.label}
           </SelectItem>
         ))}

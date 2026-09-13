@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeftIcon } from "lucide-react";
+import { ArrowLeftIcon, CloudIcon } from "lucide-react";
 
 import { api } from "@/lib/api";
 import type { CloudConnection, Provider } from "@/lib/types";
@@ -109,6 +109,7 @@ export function ConnectionSetupPage() {
           {t.setup.backToConnections}
         </Link>
         <PageHeader
+          icon={CloudIcon}
           className="mt-3"
           title={connection ? connection.name : t.setup.title}
           description={t.setup.intro}

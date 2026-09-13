@@ -36,7 +36,8 @@ export function ContextRow({
   fact,
   fallback,
 }: {
-  label: string;
+  /** A word, or a word with its factor icon. */
+  label: React.ReactNode;
   fact?: ContextFact;
   fallback?: React.ReactNode;
 }) {

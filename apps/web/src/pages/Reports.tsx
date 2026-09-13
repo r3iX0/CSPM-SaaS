@@ -153,7 +153,11 @@ export function ReportsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader title={t.reports.title} description={t.reports.intro} />
+      <PageHeader
+        icon={FileTextIcon}
+        title={t.reports.title}
+        description={t.reports.intro}
+      />
 
       {failure && (
         <ErrorState

@@ -1,11 +1,6 @@
 import { Link } from "react-router-dom";
-import {
-  ArrowRightIcon,
-  DatabaseIcon,
-  GlobeIcon,
-  RouteIcon,
-  ShieldAlertIcon,
-} from "lucide-react";
+import { ArrowRightIcon, RouteIcon, ShieldAlertIcon } from "lucide-react";
+import { FACTOR_ICONS } from "@/lib/icons";
 
 import type { Dashboard } from "@/lib/types";
 import { RiskScore } from "@/components/security/SecurityScore";
@@ -145,9 +140,9 @@ function RiskMark({ risk }: { risk: Risk }) {
  */
 function RiskContext({ risk }: { risk: Risk }) {
   const facts = [
-    { label: "Internet-facing", level: risk.internet_exposure, Icon: GlobeIcon },
-    { label: "Sensitive data", level: risk.data_sensitivity, Icon: DatabaseIcon },
-    { label: "Business-critical", level: risk.asset_criticality, Icon: ShieldAlertIcon },
+    { label: "Internet-facing", level: risk.internet_exposure, Icon: FACTOR_ICONS.exposure },
+    { label: "Sensitive data", level: risk.data_sensitivity, Icon: FACTOR_ICONS.dataSensitivity },
+    { label: "Business-critical", level: risk.asset_criticality, Icon: FACTOR_ICONS.criticality },
   ].filter(
     (fact) =>
       fact.level === "CRITICAL" || fact.level === "HIGH" || fact.level === "UNKNOWN",

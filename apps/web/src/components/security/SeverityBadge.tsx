@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
-import { AlertTriangleIcon, HelpCircleIcon } from "lucide-react";
+import { AlertTriangleIcon } from "lucide-react";
 
 import { cn, label, levelStyle } from "@/lib/format";
+import { LEVEL_ICONS } from "@/lib/icons";
+import type { Level } from "@/lib/types";
 
 /**
  * Severity, in the one visual language the whole product speaks.
@@ -24,7 +26,7 @@ export function SeverityBadge({
   className?: string;
   size?: "default" | "sm";
 }) {
-  const unknown = level?.toUpperCase() === "UNKNOWN";
+  const Icon = LEVEL_ICONS[level?.toUpperCase() as Level] ?? LEVEL_ICONS.UNKNOWN;
   return (
     <span
       className={cn(
@@ -34,11 +36,12 @@ export function SeverityBadge({
         className,
       )}
     >
-      {/* UNKNOWN carries a mark as well as a colour. Someone who cannot
-          separate the hues still has to be able to tell "we could not look"
-          from "we looked and it was fine" -- that distinction is the product's
-          whole claim to honesty, and colour alone would hide it from them. */}
-      {unknown && <HelpCircleIcon className="size-3 shrink-0" aria-hidden />}
+      {/* Every level carries a shape as well as a colour. Someone who cannot
+          separate the hues still has to be able to tell critical from low, and
+          above all "we could not look" (a question mark) from "we looked and
+          it was fine" -- that distinction is the product's whole claim to
+          honesty, and colour alone would hide it from them. */}
+      <Icon className="size-3 shrink-0" aria-hidden />
       {children ?? label(level)}
     </span>
   );

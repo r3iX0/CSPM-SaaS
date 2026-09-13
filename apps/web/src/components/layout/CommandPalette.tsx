@@ -14,7 +14,7 @@ import { api } from "@/lib/api";
 import type { Asset, Rule } from "@/lib/types";
 import { NAV_GROUPS } from "@/components/layout/nav";
 import { setThemeChoice, type ThemeChoice } from "@/lib/theme";
-import { resourceTypeLabel } from "@/lib/format";
+import { ResourceTypeLabel } from "@/components/security/IconLabel";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { Button } from "@/components/ui/button";
 import {
@@ -261,9 +261,10 @@ export function CommandPalette() {
                     <span className="min-w-0 flex-1 truncate">
                       {asset.name}
                     </span>
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                      {resourceTypeLabel(asset.resource_type)}
-                    </span>
+                    <ResourceTypeLabel
+                      type={asset.resource_type}
+                      className="shrink-0 text-xs text-muted-foreground"
+                    />
                     {/* Exposure travels with the name: an asset worth jumping to
                     is usually one somebody is worried about. */}
                     <SeverityBadge level={asset.public_exposure} size="sm" />

@@ -6,6 +6,7 @@ import type { CollectionOutcome, CollectionReading, CollectionStatus } from "@/l
 import { useT } from "@/i18n";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatRelative, outcomeStyle } from "@/lib/format";
+import { OUTCOME_ICONS } from "@/lib/icons";
 
 /**
  * What the scan could and could not read.
@@ -164,10 +165,12 @@ export function CollectionPanel({ scanId }: { scanId: string }) {
  */
 function OutcomeBadge({ outcome }: { outcome: CollectionOutcome }) {
   const t = useT();
+  const Icon = OUTCOME_ICONS[outcome] ?? OUTCOME_ICONS.SKIPPED;
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${outcomeStyle(outcome)}`}
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${outcomeStyle(outcome)}`}
     >
+      <Icon className="size-3 shrink-0" aria-hidden />
       {outcomeLabel(t, outcome)}
     </span>
   );

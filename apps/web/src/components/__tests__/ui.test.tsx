@@ -36,17 +36,26 @@ describe("StatusPill", () => {
 });
 
 describe("SeverityBadge", () => {
-  it("marks UNKNOWN with more than a colour", () => {
-    // Someone who cannot separate the hues still has to be able to tell "we
-    // could not look" from "we looked and it was fine". That distinction is the
-    // product's whole claim to honesty, and colour alone would hide it.
-    const { container } = render(<Badge level="UNKNOWN" />);
-    expect(container.querySelector("svg")).toBeInTheDocument();
+  it("marks every level with more than a colour", () => {
+    // Someone who cannot separate the hues still has to be able to tell the
+    // levels apart, so each one carries a shape of its own.
+    const shapes = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN"].map((level) => {
+      const { container } = render(<Badge level={level} />);
+      const svg = container.querySelector("svg");
+      expect(svg).toBeInTheDocument();
+      return svg?.getAttribute("class");
+    });
+    expect(new Set(shapes).size).toBe(shapes.length);
   });
 
-  it("does not mark a severity that was actually determined", () => {
-    const { container } = render(<Badge level="CRITICAL" />);
-    expect(container.querySelector("svg")).not.toBeInTheDocument();
+  it("does not give UNKNOWN the shape of a determined level", () => {
+    // "We could not look" and "we looked and it was fine" are the distinction
+    // the product exists to keep; UNKNOWN must never share LOW's mark.
+    const { container: unknown } = render(<Badge level="UNKNOWN" />);
+    const { container: low } = render(<Badge level="LOW" />);
+    expect(unknown.querySelector("svg")?.getAttribute("class")).not.toBe(
+      low.querySelector("svg")?.getAttribute("class"),
+    );
   });
 });
 

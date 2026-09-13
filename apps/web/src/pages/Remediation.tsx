@@ -97,6 +97,7 @@ export function RemediationPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
+        icon={WrenchIcon}
         title={t.remediation.title}
         description="Ordered by impact against effort. Marking work done does not close a finding — a scan does."
       />

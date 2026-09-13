@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArchiveIcon, ListChecksIcon, SearchIcon } from "lucide-react";
+import { LEVEL_ICONS } from "@/lib/icons";
 
 import { api } from "@/lib/api";
 import type { Rule } from "@/lib/types";
@@ -76,6 +77,7 @@ export function RulesPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
+        icon={ListChecksIcon}
         title={t.rules.title}
         description="Every check CloudGuard runs. Rules are deterministic — the same environment always produces the same result."
       />
@@ -98,12 +100,14 @@ export function RulesPage() {
           value={severity}
           onValueChange={(value) => setSeverity(value || "all")}
           ariaLabel="Filter by severity"
-          className="w-[150px]"
+          className="w-[160px]"
+          idleValue="all"
           options={[
             { value: "all", label: "All severities" },
             ...SEVERITIES.map((value) => ({
               value,
               label: value.charAt(0) + value.slice(1).toLowerCase(),
+              icon: LEVEL_ICONS[value],
             })),
           ]}
         />

@@ -125,6 +125,15 @@ The shell is shadcn's `Sidebar` primitive (DECISIONS.md §84); the toggle is
 wrapped so that its accessible name says which way it will go rather than the
 primitive's fixed "Toggle Sidebar".
 
+Every page title repeats its sidebar icon. Across the product, icons carry
+meaning rather than decoration, and each meaning has exactly one icon, defined
+in `src/lib/icons.ts` (DECISIONS.md §86). Resource types, severity levels,
+statuses, verdicts, risk factors and change kinds each have their own shape. A
+shape always sits beside a word and never replaces one. Filters built on
+`SelectField` show the chosen option's icon and a dot while they are narrowing
+the list. Cloud providers are drawn by `ProviderMark`, a monochrome hand-drawn
+glyph, because Lucide carries no brand logos.
+
 One page replaces another rather than cutting to it: the outgoing page leaves in
 120ms and the incoming one arrives in 240ms, which reads as a replacement rather
 than as a crossfade of two dense screens. Filters and pagination live in the

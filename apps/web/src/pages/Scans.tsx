@@ -63,6 +63,7 @@ export function ScansPage() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <PageHeader
+          icon={ActivityIcon}
           title={t.scans.title}
           description="Every time CloudGuard has read your environment, and what it could reach."
         />

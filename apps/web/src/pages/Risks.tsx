@@ -26,6 +26,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SelectField } from "@/components/common/SelectField";
 import { listContainer, listItem } from "@/lib/motion";
+import {
+  FACTOR_ICONS,
+  LEVEL_ICONS,
+  RISK_KIND_ICONS,
+  statusIcon,
+} from "@/lib/icons";
+import { IconLabel } from "@/components/security/IconLabel";
+import type { LucideIcon } from "lucide-react";
 import { Pager } from "@/components/common/Pager";
 
 const PAGE_SIZE = 25;
@@ -105,6 +113,7 @@ export function RisksPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
+        icon={RadarIcon}
         title={t.risks.title}
         description="A finding is what we observed. A risk is what it means for this asset, with this data, at this level of exposure."
       />
@@ -131,17 +140,18 @@ export function RisksPage() {
             value={level}
             onValueChange={(value) => refilter(() => setLevel(value || "all"))}
             ariaLabel="Filter by risk level"
-            className="w-[150px]"
+            className="w-[160px]"
+            idleValue="all"
             options={[
               { value: "all", label: "All levels" },
-              { value: "CRITICAL", label: "Critical" },
-              { value: "HIGH", label: "High" },
-              { value: "MEDIUM", label: "Medium" },
-              { value: "LOW", label: "Low" },
+              { value: "CRITICAL", label: "Critical", icon: LEVEL_ICONS.CRITICAL },
+              { value: "HIGH", label: "High", icon: LEVEL_ICONS.HIGH },
+              { value: "MEDIUM", label: "Medium", icon: LEVEL_ICONS.MEDIUM },
+              { value: "LOW", label: "Low", icon: LEVEL_ICONS.LOW },
               // UNKNOWN is a level the risk engine really assigns, and leaving
               // it out of the filter would hide the risks CloudGuard could not
               // score — the ones most worth looking at.
-              { value: "UNKNOWN", label: "Unknown" },
+              { value: "UNKNOWN", label: "Unknown", icon: LEVEL_ICONS.UNKNOWN },
             ]}
           />
 
@@ -149,13 +159,16 @@ export function RisksPage() {
             value={status}
             onValueChange={(value) => refilter(() => setStatus(value || "all"))}
             ariaLabel="Filter by status"
-            className="w-[160px]"
+            className="w-[170px]"
+            idleValue="all"
             options={[
               { value: "all", label: "All statuses" },
-              { value: "OPEN", label: "Open" },
-              { value: "IN_PROGRESS", label: "In progress" },
-              { value: "ACCEPTED", label: "Accepted" },
-              { value: "RESOLVED", label: "Resolved" },
+              ...[
+                { value: "OPEN", label: "Open" },
+                { value: "IN_PROGRESS", label: "In progress" },
+                { value: "ACCEPTED", label: "Accepted" },
+                { value: "RESOLVED", label: "Resolved" },
+              ].map((option) => ({ ...option, icon: statusIcon(option.value) })),
             ]}
           />
 
@@ -163,12 +176,13 @@ export function RisksPage() {
             value={kind}
             onValueChange={(value) => refilter(() => setKind(value || "all"))}
             ariaLabel="Filter by kind"
-            className="w-[190px]"
+            className="w-[200px]"
+            idleValue="all"
             options={[
               { value: "all", label: "Findings and routes" },
-              { value: "FINDING", label: "Findings only" },
-              { value: "ATTACK_PATH", label: "Attack paths" },
-              { value: "ESCALATION", label: "Escalations" },
+              { value: "FINDING", label: "Findings only", icon: RISK_KIND_ICONS.FINDING },
+              { value: "ATTACK_PATH", label: "Attack paths", icon: RISK_KIND_ICONS.ATTACK_PATH },
+              { value: "ESCALATION", label: "Escalations", icon: RISK_KIND_ICONS.ESCALATION },
             ]}
           />
         </div>
@@ -389,27 +403,54 @@ function FindingRiskCard({ risk }: { risk: Risk }) {
       </CardHeader>
 
       <CardFooter className="flex flex-wrap gap-x-6 gap-y-2 border-t pt-4 text-xs">
-        <Factor label="Asset criticality" level={risk.asset_criticality} />
-        <Factor label="Data sensitivity" level={risk.data_sensitivity} />
-        <Factor label="Internet exposure" level={risk.internet_exposure} />
-        <span className="text-muted-foreground">
-          Exploitability{" "}
-          <strong className="text-foreground">{risk.exploitability}/5</strong>
-        </span>
-        <span className="text-muted-foreground">
-          Business impact{" "}
-          <strong className="text-foreground">{risk.business_impact}</strong>
-        </span>
+        <Factor
+          icon={FACTOR_ICONS.criticality}
+          label="Asset criticality"
+          value={<SeverityBadge level={risk.asset_criticality} size="sm" />}
+        />
+        <Factor
+          icon={FACTOR_ICONS.dataSensitivity}
+          label="Data sensitivity"
+          value={<SeverityBadge level={risk.data_sensitivity} size="sm" />}
+        />
+        <Factor
+          icon={FACTOR_ICONS.exposure}
+          label="Internet exposure"
+          value={<SeverityBadge level={risk.internet_exposure} size="sm" />}
+        />
+        <Factor
+          icon={FACTOR_ICONS.exploitability}
+          label="Exploitability"
+          value={<strong className="text-foreground">{risk.exploitability}/5</strong>}
+        />
+        <Factor
+          icon={FACTOR_ICONS.businessImpact}
+          label="Business impact"
+          value={<strong className="text-foreground">{risk.business_impact}</strong>}
+        />
       </CardFooter>
     </Card>
   );
 }
 
-function Factor({ label, level }: { label: string; level: string }) {
+/**
+ * One of the things this risk was weighed by. The icon is the same one the
+ * risk detail and finding pages use for the factor, so five grey labels in a
+ * row can be told apart by shape before they are read.
+ */
+function Factor({
+  icon,
+  label,
+  value,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: React.ReactNode;
+}) {
   return (
     <span className="flex items-center gap-1.5 text-muted-foreground">
-      {label}
-      <SeverityBadge level={level} size="sm" />
+      <IconLabel icon={icon}>{label}</IconLabel>
+      {value}
     </span>
   );
 }

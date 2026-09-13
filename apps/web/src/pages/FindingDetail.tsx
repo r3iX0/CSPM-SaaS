@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { CircleCheckIcon } from "lucide-react";
+import { CircleCheckIcon, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -47,6 +47,13 @@ import {
   outcomeStyle,
   resourceTypeLabel,
 } from "@/lib/format";
+import {
+  FACT_ICONS,
+  FACTOR_ICONS,
+  OUTCOME_ICONS,
+  resourceTypeIcon,
+} from "@/lib/icons";
+import { IconLabel } from "@/components/security/IconLabel";
 
 /**
  * The page the whole product is really about. It must answer, in order:
@@ -414,15 +421,22 @@ export function FindingDetailPage() {
                 </Link>
                 <dl className="mt-3 flex flex-col gap-2 text-xs">
                   <Row
+                    icon={resourceTypeIcon(data.resource.resource_type)}
                     label="Type"
                     value={resourceTypeLabel(data.resource.resource_type)}
                   />
                   <Row
+                    icon={FACT_ICONS.environment}
                     label="Environment"
                     value={data.resource.environment ?? "—"}
                   />
-                  <Row label="Region" value={data.resource.region ?? "—"} />
                   <Row
+                    icon={FACT_ICONS.region}
+                    label="Region"
+                    value={data.resource.region ?? "—"}
+                  />
+                  <Row
+                    icon={FACTOR_ICONS.criticality}
                     label="Criticality"
                     value={
                       <SeverityBadge
@@ -432,6 +446,7 @@ export function FindingDetailPage() {
                     }
                   />
                   <Row
+                    icon={FACTOR_ICONS.dataSensitivity}
                     label="Data sensitivity"
                     value={
                       <SeverityBadge
@@ -441,6 +456,7 @@ export function FindingDetailPage() {
                     }
                   />
                   <Row
+                    icon={FACTOR_ICONS.exposure}
                     label="Internet exposure"
                     value={
                       <SeverityBadge
@@ -461,15 +477,18 @@ export function FindingDetailPage() {
             <CardContent>
               <dl className="flex flex-col gap-2 text-xs">
                 <Row
+                  icon={FACT_ICONS.firstSeen}
                   label={t.findings.firstSeen}
                   value={formatDateTime(data.first_detected_at)}
                 />
                 <Row
+                  icon={FACT_ICONS.lastSeen}
                   label={t.findings.lastSeen}
                   value={formatDateTime(data.last_detected_at)}
                 />
                 {data.resolved_at && (
                   <Row
+                    icon={FACT_ICONS.resolved}
                     label={t.findings.resolvedBy}
                     value={formatDateTime(data.resolved_at)}
                   />
@@ -514,10 +533,20 @@ export function FindingDetailPage() {
   );
 }
 
-function Row({ label, value }: { label: string; value: React.ReactNode }) {
+function Row({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: React.ReactNode;
+  icon?: LucideIcon;
+}) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <dt className="text-muted-foreground">{label}</dt>
+      <dt className="text-muted-foreground">
+        {icon ? <IconLabel icon={icon}>{label}</IconLabel> : label}
+      </dt>
       <dd className="font-medium text-foreground">{value}</dd>
     </div>
   );
@@ -710,6 +739,17 @@ function ProvenancePanel({
   );
 }
 
+/** A collection outcome, with the same verdict shape the scans page gives it. */
+function OutcomeMark({ outcome }: { outcome: NonNullable<EvidenceCitation["outcome"]> }) {
+  const Icon = OUTCOME_ICONS[outcome];
+  return (
+    <Badge variant="outline" className={cn("border text-xs", outcomeStyle(outcome))}>
+      {Icon && <Icon aria-hidden />}
+      {outcome}
+    </Badge>
+  );
+}
+
 /** One reading, with the four things that make it checkable. */
 function Citation({ citation }: { citation: EvidenceCitation }) {
   const t = useT();
@@ -725,12 +765,7 @@ function Citation({ citation }: { citation: EvidenceCitation }) {
           {citation.evidence_key}
         </code>
         {outcome && (
-          <Badge
-            variant="outline"
-            className={cn("border text-xs", outcomeStyle(outcome))}
-          >
-            {outcome}
-          </Badge>
+          <OutcomeMark outcome={outcome} />
         )}
         {typeof citation.item_count === "number" && (
           <span className="text-xs text-muted-foreground">

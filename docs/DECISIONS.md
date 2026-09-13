@@ -4231,6 +4231,100 @@ kind select widened to fit its longest label for the same truncation reason.
 primitive because nothing uses it today would mean re-adding it through the CLI
 the next time something does.
 
+## 86. Icons carry meaning, and each meaning has one icon
+
+The interface had icons in the sidebar, on the dashboard panels and in empty
+states, and almost none where a reader actually scans: a storage account, a
+virtual machine and a key vault rendered identically in every table; a status
+pill was told apart from its neighbours by tone alone; and a severity badge had
+a mark only when it was UNKNOWN. This pass adds shape everywhere a reader is
+sorting things by kind or by state, and nowhere else.
+
+### One registry, `lib/icons.ts`
+
+Every icon that means something is defined once: resource types, the five
+severity levels, verdicts, finding and scan statuses, the risk factors, detail
+page facts, change kinds and risk kinds. Components read from those maps rather
+than importing a glyph of their own.
+
+The failure this closes is the one colour already taught: two screens choosing
+their own shape for one state teaches the reader that shapes mean nothing.
+`VerificationPanel` and the scans page had already drifted — `CheckCircle2`
+and `XCircle` in one, nothing in the other — and the finding page's risk
+factors used a shield for "business-critical" while nothing else used a shield
+for it at all. A new status or resource type is now a one-line change to a map,
+and a missing entry falls back to a neutral shape (a box, a plain circle)
+rather than to nothing.
+
+Icons follow the shadcn rule and are passed as component objects, never as
+string keys. Lucide is still the only icon set; `ProviderMark` is the one
+exception, below.
+
+### What each mark says
+
+* **Resource types** — `ResourceTypeLabel` puts the type's icon in front of its
+  name in the findings and assets tables, the asset tree, the blast radius, the
+  command palette, the change feed and the asset and finding detail pages. The
+  icon comes from the neutral type even where the label is the provider's own
+  (`azure_type`), so an unmodelled resource still reads as a box.
+* **Severity** — every level carries its own shape: an octagon for critical, a
+  triangle for high, a circle for medium, an info mark for low, and a question
+  mark for UNKNOWN. §84's rule that UNKNOWN is marked beyond colour is kept and
+  widened: a reader who cannot separate the hues can now tell critical from low,
+  not only UNKNOWN from the rest. The test now asserts every level has a mark
+  and that UNKNOWN never shares LOW's.
+* **Status** — a tick for a fix, a dot for open, an ellipsis for in progress,
+  and a *shield switched off* for an accepted risk. Accepting a risk is a
+  person's decision, not a fix, and the icon must never give it RESOLVED's
+  shape any more than the tone may.
+* **Verdicts** — pass, fail and unknown are the same three circles on compliance
+  controls, collection outcomes, cited readings and verification. The absence
+  of a verdict (not assessed, pending, not covered) is drawn hollow or dashed,
+  so it cannot look like a quiet pass.
+* **Risk factors** — criticality, data sensitivity, internet exposure,
+  exploitability and business impact have one icon each, used on the risk
+  cards, the risk and finding detail pages, the asset page and the dashboard's
+  priority risks.
+* **Facts** — environment, region, first seen, last seen and resolved on the
+  detail pages.
+* **Change kinds** — the change feed puts the kind's icon beside its name. The
+  round mark at the start of each row is still *direction* (worse, better,
+  neutral), because an exposure change can go either way; kind and direction
+  are separate facts and get separate marks.
+* **Page headers** — `PageHeader` takes the page's sidebar icon, so a screen and
+  the entry that opened it are visibly the same place.
+
+### Filters say which of them are filtering
+
+`SelectField` gained two things. An option may carry an `icon`, shown in the
+menu and in the trigger, so a severity filter set to Critical shows the critical
+octagon. And `idleValue` marks a select as a filter: while its value differs
+from the unfiltered one, a dot sits in the trigger. On a row of four filters
+that is the difference between seeing which ones are narrowing the list and
+reading every label against a default you have to remember. The findings status
+filter idles at OPEN rather than "all", because open is what the page shows
+unasked.
+
+### Provider marks are hand-drawn and monochrome
+
+Lucide deliberately ships no brand logos, so `ProviderMark` draws two small
+glyphs for Azure and AWS. They are simplified shapes that identify the provider,
+not the vendors' official artwork, and they are drawn in `currentColor` rather
+than in brand colours: two vendor palettes on the connections page would be the
+only raw colour in the product, and exactly the kind of second token layer the
+severity scale is protected from. Each is labelled with the provider's name,
+since a mark alone is only recognisable to someone who already knows it. They
+appear on connection rows, the provider picker in setup, and a scan's scope.
+Swapping in official artwork later is a change to one file.
+
+### What was left alone
+
+Buttons that already had icons kept them, and buttons without one did not get
+one: an icon on "Cancel" or "Save" is decoration. Headings, cards and panels did
+not get icons for the sake of it. The dashboard's recent-changes timeline keeps
+its direction marks only; its rows are one truncated sentence, and a second
+icon there would cost the asset name its room.
+
 ## Settings: the evidence a person supplies
 
 `PATCH /organizations` takes no id in the path. Deleting a *different*

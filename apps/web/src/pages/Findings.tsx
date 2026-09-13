@@ -1,7 +1,15 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { ArrowDownIcon, SearchIcon, ShieldCheckIcon, XIcon } from "lucide-react";
+import {
+  ArrowDownIcon,
+  SearchIcon,
+  ShieldAlertIcon,
+  ShieldCheckIcon,
+  XIcon,
+} from "lucide-react";
+import { LEVEL_ICONS, statusIcon } from "@/lib/icons";
+import { ResourceTypeLabel } from "@/components/security/IconLabel";
 
 import { api } from "@/lib/api";
 import type { Finding } from "@/lib/types";
@@ -34,7 +42,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Pager } from "@/components/common/Pager";
-import { cn, formatDate, resourceTypeLabel } from "@/lib/format";
+import { cn, formatDate } from "@/lib/format";
 import { stagger } from "@/lib/motion";
 
 const SEVERITIES = ["CRITICAL", "HIGH", "MEDIUM", "LOW"] as const;
@@ -173,6 +181,7 @@ export function FindingsPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
+        icon={ShieldAlertIcon}
         title={t.findings.title}
         description="Everything CloudGuard has observed and judged wrong, ranked by what it means on the asset it was found on."
       />
@@ -199,27 +208,35 @@ export function FindingsPage() {
             value={severity}
             onValueChange={(value) => refilter(() => setSeverity(value || "all"))}
             ariaLabel="Filter by severity"
-            className="w-[150px]"
+            className="w-[160px]"
+            idleValue="all"
             options={[
               { value: "all", label: "All severities" },
               ...SEVERITIES.map((level) => ({
                 value: level,
                 label: level.charAt(0) + level.slice(1).toLowerCase(),
+                icon: LEVEL_ICONS[level],
               })),
             ]}
           />
 
+          {/* Idle at OPEN rather than "all": open is what the page shows
+              unasked, so the dot appears only when somebody widened or
+              narrowed it. */}
           <SelectField
             value={status}
             onValueChange={(value) => refilter(() => setStatus(value || "all"))}
             ariaLabel="Filter by status"
-            className="w-[160px]"
+            className="w-[170px]"
+            idleValue="OPEN"
             options={[
               { value: "all", label: "All statuses" },
-              { value: "OPEN", label: "Open" },
-              { value: "IN_PROGRESS", label: "In progress" },
-              { value: "RESOLVED", label: "Verified fixed" },
-              { value: "ACCEPTED_RISK", label: "Risk accepted" },
+              ...[
+                { value: "OPEN", label: "Open" },
+                { value: "IN_PROGRESS", label: "In progress" },
+                { value: "RESOLVED", label: "Verified fixed" },
+                { value: "ACCEPTED_RISK", label: "Risk accepted" },
+              ].map((option) => ({ ...option, icon: statusIcon(option.value) })),
             ]}
           />
         </div>
@@ -398,11 +415,10 @@ export function FindingsPage() {
                             <span className="block max-w-[16rem] truncate text-foreground">
                               {finding.resource.name}
                             </span>
-                            <span className="text-xs">
-                              {resourceTypeLabel(
-                                finding.resource.resource_type,
-                              )}
-                            </span>
+                            <ResourceTypeLabel
+                              type={finding.resource.resource_type}
+                              className="max-w-[16rem] text-xs"
+                            />
                           </>
                         ) : (
                           <span className="italic">Tenant-wide</span>

@@ -17,6 +17,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { cn, formatRelative } from "@/lib/format";
+import { FACTOR_ICONS } from "@/lib/icons";
+import { IconLabel } from "@/components/security/IconLabel";
+import type { LucideIcon } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -269,19 +272,30 @@ export function RiskDetailPage() {
               <CardContent>
                 <dl className="flex flex-col gap-2 text-xs">
                   <Row
+                    icon={FACTOR_ICONS.criticality}
                     label="Asset criticality"
                     value={<SeverityBadge level={data.asset_criticality} size="sm" />}
                   />
                   <Row
+                    icon={FACTOR_ICONS.dataSensitivity}
                     label="Data sensitivity"
                     value={<SeverityBadge level={data.data_sensitivity} size="sm" />}
                   />
                   <Row
+                    icon={FACTOR_ICONS.exposure}
                     label="Internet exposure"
                     value={<SeverityBadge level={data.internet_exposure} size="sm" />}
                   />
-                  <Row label="Exploitability" value={`${data.exploitability}/5`} />
-                  <Row label="Business impact" value={data.business_impact} />
+                  <Row
+                    icon={FACTOR_ICONS.exploitability}
+                    label="Exploitability"
+                    value={`${data.exploitability}/5`}
+                  />
+                  <Row
+                    icon={FACTOR_ICONS.businessImpact}
+                    label="Business impact"
+                    value={data.business_impact}
+                  />
                 </dl>
               </CardContent>
             </Card>
@@ -310,13 +324,17 @@ function BackLink({ label }: { label: string }) {
 function Row({
   label,
   value,
+  icon,
 }: {
   label: string;
   value: React.ReactNode;
+  icon?: LucideIcon;
 }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <dt className="text-muted-foreground">{label}</dt>
+      <dt className="text-muted-foreground">
+        {icon ? <IconLabel icon={icon}>{label}</IconLabel> : label}
+      </dt>
       <dd className="font-medium tabular-nums text-foreground">{value}</dd>
     </div>
   );

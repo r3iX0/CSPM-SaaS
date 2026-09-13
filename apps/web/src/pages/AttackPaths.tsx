@@ -51,6 +51,7 @@ export function AttackPathsPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
+        icon={RouteIcon}
         title={t.attackPaths.title}
         description={t.attackPaths.intro}
       />
