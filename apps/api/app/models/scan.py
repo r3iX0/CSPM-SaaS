@@ -560,6 +560,10 @@ class ScanStep(UUIDPrimaryKey, TenantOwned, Base):
     lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     worker_id: Mapped[str | None] = mapped_column(String(128))
     error: Mapped[str | None] = mapped_column(Text)
+    # Which ``AnalyzePhase`` a running ANALYZE step has reached. NULL on every
+    # other kind, and on an ANALYZE step that has not reached its first phase
+    # -- including one just reclaimed, which starts again from nothing.
+    phase: Mapped[str | None] = mapped_column(String(16))
 
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

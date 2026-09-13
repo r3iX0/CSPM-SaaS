@@ -64,7 +64,7 @@ export default tseslint.config(
     // A provider and the hook that reads it belong in one file: splitting them
     // to satisfy a development-time refresh optimisation would put the context
     // and its only consumer in different modules for no reader's benefit.
-    files: ["src/i18n/index.tsx"],
+    files: ["src/i18n/index.tsx", "src/components/scans/ScanWizardProvider.tsx"],
     rules: { "react-refresh/only-export-components": "off" },
   },
   {

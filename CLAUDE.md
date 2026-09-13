@@ -63,6 +63,8 @@ npm test                         # vitest run
 
 **Findings lifecycle**: Auto-resolve when a later scan shows PASS on a prior FAIL.
 
+**Scan wizard**: `ScanWizardProvider` is mounted in `Shell`, so a scan is started and followed from any page and the header's `ScanIndicator` reopens it. The live view animates only what `GET /scans/{id}/detail` reports — no timer-driven progress, no sub-phases the API does not expose (DECISIONS.md §87). ANALYZE's sub-phases come from `scan_steps.phase`, written fenced on the attempt; `GET /scans/{id}/events` pushes the same detail payload over SSE, re-reading through a fresh `rls_session` each tick, and the browser falls back to polling whenever the stream is not live (§88).
+
 **Shell**: `Shell.tsx` runs on shadcn's `Sidebar` primitive. The collapse state is controlled from the shell and stored in `localStorage` — the vendored `sidebar.tsx` has upstream's cookie write removed, because CloudGuard sets no cookies (DECISIONS.md §84).
 
 ## Code Style

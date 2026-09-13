@@ -30,7 +30,13 @@ from uuid import UUID
 from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.enums import Provider, ScanStatus, ScanStepKind, ScanStepStatus
+from app.core.enums import (
+    AnalyzePhase,
+    Provider,
+    ScanStatus,
+    ScanStepKind,
+    ScanStepStatus,
+)
 from app.core.logging import get_logger
 from app.models.cloud_account import CloudAccount
 from app.models.cloud_connection import CloudConnection
@@ -217,6 +223,9 @@ async def claim(
                 attempt=ScanStep.attempt + 1,
                 lease_until=now + timedelta(seconds=ScanStep.LEASE_SECONDS),
                 worker_id=WORKER_ID,
+                # A reclaimed analysis starts again from its first phase, so the
+                # mark the interrupted attempt left must not survive into this one.
+                phase=None,
                 # Kept from the first attempt: it records when work on this step
                 # began, and a retry is a continuation of that rather than a new
                 # thing.
@@ -256,6 +265,29 @@ async def renew(session: AsyncSession, step_id: UUID, attempt: int) -> bool:
         .values(
             lease_until=datetime.now(UTC) + timedelta(seconds=ScanStep.LEASE_SECONDS)
         )
+    )
+    await session.commit()
+    return bool(updated.rowcount)
+
+
+async def set_phase(
+    session: AsyncSession, step_id: UUID, attempt: int, phase: AnalyzePhase
+) -> bool:
+    """Record which phase a running analysis has reached. Returns whether it did.
+
+    Fenced exactly as :func:`renew` is, and for the same reason: a worker that
+    lost its lease is still executing, and without the fence its progress marks
+    would overwrite those of the attempt that took the step over -- a screen
+    showing "scoring" for an analysis that has in fact restarted.
+    """
+    updated = await session.execute(
+        update(ScanStep)
+        .where(
+            ScanStep.id == step_id,
+            ScanStep.status == ScanStepStatus.RUNNING,
+            ScanStep.attempt == attempt,
+        )
+        .values(phase=phase.value)
     )
     await session.commit()
     return bool(updated.rowcount)

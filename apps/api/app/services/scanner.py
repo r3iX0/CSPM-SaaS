@@ -43,6 +43,7 @@ from app.connectors.registry import get_connector
 from app.context import ContextDeclaration, resolve_resource
 from app.core.db import scan_session, service_session
 from app.core.enums import (
+    AnalyzePhase,
     AssetChange,
     FindingEvent,
     FindingStatus,
@@ -415,6 +416,49 @@ class _StepHeartbeat:
             )
 
 
+PhaseReport = Callable[[AnalyzePhase], Awaitable[None]]
+
+
+async def _no_phase(phase: AnalyzePhase) -> None:
+    """Analysis with no step behind it: a replay, or a direct call in a test.
+
+    Replay is one task rather than a set of steps, so there is no step row to
+    mark, and the evaluation it shares with a real scan still has somewhere to
+    report rather than a callback it must check for None.
+    """
+    return None
+
+
+class _PhaseReporter:
+    """Writes where a running ANALYZE step is, on a session of its own.
+
+    Its own session because the pipeline's is mid-transaction at two of the
+    three seams, and a progress mark must not wait for -- or be rolled back
+    with -- the work it describes. Fenced on the attempt through
+    :func:`orchestrator.set_phase`, like the lease renewal beside it.
+
+    Never fatal. A mark that fails to write costs the screen one phase label;
+    failing the analysis over it would cost the scan.
+    """
+
+    def __init__(self, step_id: UUID, organization_id: UUID, attempt: int) -> None:
+        self.step_id = step_id
+        self.organization_id = organization_id
+        self.attempt = attempt
+
+    async def __call__(self, phase: AnalyzePhase) -> None:
+        try:
+            async with scan_session(self.organization_id) as session:
+                await orchestrator.set_phase(session, self.step_id, self.attempt, phase)
+        except Exception as exc:  # pragma: no cover - never fatal in itself
+            log.warning(
+                "scan.phase_report_failed",
+                step_id=str(self.step_id),
+                phase=phase.value,
+                error=str(exc),
+            )
+
+
 class ScanPipeline:
     def __init__(self, scan_id: UUID) -> None:
         self.scan_id = scan_id
@@ -518,7 +562,9 @@ class ScanPipeline:
                     elif kind == ScanStepKind.COLLECT:
                         await self.collect(step_id, _StepHeartbeat(keeper))
                     else:
-                        await self.analyze()
+                        await self.analyze(
+                            _PhaseReporter(step_id, organization_id, attempt)
+                        )
                 except ScanStepError as exc:
                     return await self._settle(
                         step_id, str(exc), retryable=exc.retryable, attempt=attempt
@@ -772,7 +818,7 @@ class ScanPipeline:
             account.last_scan_at = observed_at
             await session.commit()
 
-    async def analyze(self) -> None:
+    async def analyze(self, report_phase: PhaseReport = _no_phase) -> None:
         """Interpret every capture this scan stored.
 
         Reconstructs from the database what the old single-task pipeline held
@@ -812,6 +858,7 @@ class ScanPipeline:
                 # from the steps. A stage writing its own terminal status would
                 # be a second source of truth for it.
                 finalize=False,
+                on_phase=report_phase,
             )
 
     async def _require_scan(self, session: AsyncSession) -> Scan | None:
@@ -1537,6 +1584,7 @@ class ScanPipeline:
         degraded: bool,
         directory: tuple[CloudConnection, NormalizedState] | None = None,
         finalize: bool = True,
+        on_phase: PhaseReport = _no_phase,
     ) -> None:
         """Everything downstream of the snapshots: persist, evaluate, finalize.
 
@@ -1567,6 +1615,7 @@ class ScanPipeline:
         }
 
         # --- normalize ------------------------------------------------------
+        await on_phase(AnalyzePhase.NORMALIZE)
         await self._set_status(session, scan, ScanStatus.NORMALIZING)
         if mutate_findings:
             id_map = await self._persist_resources(
@@ -1597,6 +1646,7 @@ class ScanPipeline:
         await session.commit()
 
         # --- evaluate -------------------------------------------------------
+        await on_phase(AnalyzePhase.EVALUATE)
         await self._set_status(session, scan, ScanStatus.EVALUATING)
         context = RuleContext(
             resources=merged.resources,
@@ -1610,6 +1660,7 @@ class ScanPipeline:
         await self._persist_coverage(session, org_id, scan, report, id_map)
 
         # --- findings and risks ---------------------------------------------
+        await on_phase(AnalyzePhase.SCORE)
         await self._set_status(session, scan, ScanStatus.CALCULATING_RISK)
         if mutate_findings:
             finding_count = await self._persist_findings(

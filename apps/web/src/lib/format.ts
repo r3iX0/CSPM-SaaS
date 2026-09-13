@@ -167,6 +167,13 @@ export function formatEffort(minutes: number): string {
   return `${Math.round(hours / 8)} day${hours >= 16 ? "s" : ""}`;
 }
 
+/** Minutes and seconds, because scans are minutes long. */
+export function formatSeconds(seconds: number): string {
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}m ${String(Math.round(seconds % 60)).padStart(2, "0")}s`;
+}
+
 export const resourceTypeLabel = (type: string) =>
   type.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
 

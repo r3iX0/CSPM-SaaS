@@ -24,6 +24,7 @@ from app.connectors.azure.normalizer import AzureNormalizer
 from app.connectors.base import CloudConnector, NormalizedState, RawSnapshot
 from app.core.db import service_session
 from app.core.enums import (
+    AnalyzePhase,
     CloudAccountStatus,
     CollectionScope,
     ConsentStatus,
@@ -1941,6 +1942,73 @@ class TestOrchestration:
             )
             await session.commit()
             assert await orchestrator.renew(session, plan_step.id, 1) is False
+
+    async def test_analysis_reports_the_phase_it_reached(
+        self, replay, connected_tenant
+    ) -> None:
+        """The scan wizard draws normalize, evaluate and score inside the one
+        ANALYZE step from this column, so a finished analysis must have passed
+        all three and left the last one behind."""
+        org_id, connection_id = connected_tenant
+        scan_id = await run_connection_scan(org_id, connection_id)
+
+        steps = await self._steps(scan_id)
+        analyze = next(s for s in steps if s.kind == ScanStepKind.ANALYZE)
+        assert analyze.status == ScanStepStatus.SUCCEEDED
+        assert analyze.phase == AnalyzePhase.SCORE.value
+        # Only analysis has phases.
+        assert all(s.phase is None for s in steps if s.kind != ScanStepKind.ANALYZE)
+
+        async with service_session() as session:
+            scan = await session.get(Scan, scan_id)
+            stages = await scans_service.scan_stages(session, scan)
+        assert [s["phase"] for s in stages if s["stage"] == "ANALYZE"] == ["SCORE"]
+
+    async def test_a_phase_from_a_worker_that_lost_its_step_is_refused(
+        self, replay, connected_account
+    ) -> None:
+        """Unfenced, an interrupted analysis still running on the old worker
+        would keep writing "scoring" over the attempt that restarted it."""
+        org_id, account_id = connected_account
+        async with service_session() as session:
+            scan = Scan(
+                organization_id=org_id,
+                cloud_account_id=account_id,
+                status=ScanStatus.QUEUED,
+            )
+            session.add(scan)
+            await session.commit()
+            scan_id = scan.id
+            await orchestrator.create_initial_steps(session, scan)
+            await session.commit()
+
+        async with service_session() as session:
+            steps = await orchestrator.steps_for(session, scan_id)
+            analyze = next(s for s in steps if s.kind == ScanStepKind.ANALYZE)
+            await orchestrator.claim(session, [analyze.id])
+
+        async with service_session() as session:
+            assert (
+                await orchestrator.set_phase(session, analyze.id, 1, AnalyzePhase.SCORE)
+                is True
+            )
+            # Reaped and reclaimed: back to PENDING, then claimed at attempt 2.
+            await session.execute(
+                text("UPDATE scan_steps SET status = 'PENDING' WHERE id = :s"),
+                {"s": analyze.id},
+            )
+            await session.commit()
+            await orchestrator.claim(session, [analyze.id])
+
+        async with service_session() as session:
+            reclaimed = await session.get(ScanStep, analyze.id)
+            assert reclaimed.attempt == 2
+            # A retry starts again from no phase.
+            assert reclaimed.phase is None
+            assert (
+                await orchestrator.set_phase(session, analyze.id, 1, AnalyzePhase.EVALUATE)
+                is False
+            )
 
     async def test_a_reaped_step_is_not_a_reaped_scan(
         self, replay, connected_account

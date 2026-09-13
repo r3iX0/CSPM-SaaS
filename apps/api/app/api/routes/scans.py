@@ -1,9 +1,12 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Request, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.db import rls_session
 from app.core.deps import DbSession, Tenant
 from app.core.enums import ScanStatus
 from app.core.errors import ConflictError, ScanNotFound, ValidationFailed, envelope
@@ -12,6 +15,7 @@ from app.models.scan import Scan, ScanEvaluationGap, ScanRuleResult
 from app.schemas.scan import CoverageOut, ScanCreate, ScanDetailOut, ScanOut
 from app.services import cloud_accounts as accounts_service
 from app.services import scans as scans_service
+from app.services.scan_events import stream_scan
 from app.workers.celery_app import celery_app
 from app.workers.scan_tasks import replay_scan, run_scan
 
@@ -249,10 +253,13 @@ async def worker_status(tenant: Tenant) -> dict:
     )
 
 
-@router.get("/{scan_id}/detail")
-async def get_scan_detail(scan_id: UUID, session: DbSession, tenant: Tenant) -> dict:
-    """One scan, with its scope, identity, stages and severity breakdown."""
-    scan = await scans_service.get_scan(session, tenant, scan_id)
+async def _detail_payload(session: AsyncSession, scan: Scan) -> dict:
+    """What the detail endpoint returns, and what the event stream pushes.
+
+    One builder for both, so a state delivered over the stream and one fetched
+    by a poll are the same document -- the browser writes either into the same
+    query and cannot tell them apart.
+    """
     data = ScanDetailOut.model_validate(scan).model_dump(mode="json")
     data["scope"] = await scans_service.scan_context(session, scan)
     data["stages"] = await scans_service.scan_stages(session, scan)
@@ -260,7 +267,49 @@ async def get_scan_detail(scan_id: UUID, session: DbSession, tenant: Tenant) -> 
     data["purgeable_finding_count"] = await scans_service.findings_attributable_to(
         session, scan
     )
-    return envelope(data)
+    return data
+
+
+@router.get("/{scan_id}/detail")
+async def get_scan_detail(scan_id: UUID, session: DbSession, tenant: Tenant) -> dict:
+    """One scan, with its scope, identity, stages and severity breakdown."""
+    scan = await scans_service.get_scan(session, tenant, scan_id)
+    return envelope(await _detail_payload(session, scan))
+
+
+@router.get("/{scan_id}/events")
+async def scan_events(
+    scan_id: UUID, request: Request, session: DbSession, tenant: Tenant
+) -> StreamingResponse:
+    """A running scan's detail, pushed as server-sent events whenever it changes.
+
+    The scan is resolved once up front, on the request's session, so a scan
+    this reader cannot see is a 404 before any stream opens. Every tick after
+    that reads through a fresh ``rls_session`` for the same user: the request
+    session is not held open for the life of a stream, and PostgreSQL applies
+    the tenant boundary to each read exactly as it does to a poll.
+    """
+    await scans_service.get_scan(session, tenant, scan_id)
+    user_id = tenant.user.id
+
+    async def load() -> dict | None:
+        async with rls_session(user_id) as tick:
+            try:
+                scan = await scans_service.get_scan(tick, tenant, scan_id)
+            except ScanNotFound:
+                return None
+            return await _detail_payload(tick, scan)
+
+    return StreamingResponse(
+        stream_scan(load, is_disconnected=request.is_disconnected),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            # Proxies that buffer responses would hold every event until the
+            # stream ended, which is the one thing a stream must not do.
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.get("/{scan_id}")

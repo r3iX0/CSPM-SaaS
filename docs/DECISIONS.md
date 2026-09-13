@@ -4331,6 +4331,171 @@ not get icons for the sake of it. The dashboard's recent-changes timeline keeps
 its direction marks only; its rows are one truncated sentence, and a second
 icon there would cost the asset name its room.
 
+## 87. A scan is started and followed in a wizard that lives in the shell
+
+The scans page started a scan with a subscription select and a button, and
+followed it as a row of chips under a card on that page only. Two things were
+wrong with that, and neither was how it looked.
+
+**It asked a question the API ignores.** `POST /scans` takes a subscription id,
+but a scan is scoped to the subscription's whole connection — the worker
+resolves the subscriptions beneath it. Choosing "Payments" from the select
+scanned Payments and every other subscription in its tenant. The wizard's first
+step chooses an *environment* (a connection), and review lists what is in
+scope with a link to change it on the connections page, rather than offering a
+per-subscription choice the backend would not honour.
+
+**It said nothing before reading.** The review step exists for the three things
+a reader should know before CloudGuard reads their cloud: what will be read,
+roughly how long that took last time (the last finished run of that connection,
+labelled as such, or nothing when there is none), and which checks will come
+back UNKNOWN because the deployed role cannot serve them
+(`degraded_categories`). A scan whose inconclusive checks arrive as a surprise
+reads as a broken scan.
+
+### The live view shows only what the API reports
+
+The run step polls `GET /scans/{id}/detail` every 2.5 seconds while the scan is
+in flight and stops when it is not.
+
+* **Plan, Collect, Analyze** are drawn as one track. A connector fills when the
+  phase before it has finished, however it finished — a partial collection
+  still hands over to analysis. The current phase breathes.
+* **Collect is one lane per scope**, with a segmented bar above it: one segment
+  per scope, coloured by that scope's state. Not a single percentage: one red
+  segment in twelve is a gap in a report, and a percentage would average it
+  away. Lanes re-sort (running, failed, pending, done) and glide to their new
+  place, so on a tenant with forty subscriptions the one that matters stays in
+  view. A failed lane carries its error inline, and a retried one says which
+  attempt it is on.
+* **Nothing moves on a timer.** There is no progress invented from elapsed
+  time, and ANALYZE stays one node although normalise, evaluate and score would
+  be nicer to watch: the durable pipeline reports it as one step, and drawing
+  sub-phases it does not report would be animating work nobody measured. Those
+  arrive when the backend exposes them.
+
+Every animation uses the timings in `lib/motion.ts`, and reduced motion is
+answered by the existing `<MotionConfig reducedMotion="user">` — the breathing
+node and the running segment hold still, and lanes arrive in place.
+
+### How it ends
+
+When the scan leaves the in-flight states the pipeline is replaced in place by
+a result card: resources, rules run and findings counting up, the change in
+findings against the last finished scan of the same connection (left out, not
+guessed, when there is none), the severity breakdown, and the first three
+collection gaps. **A partial scan ends amber, never green** — data came back,
+and it still cannot support a pass for what was not read. Findings, risks, the
+dashboard and the scan list are invalidated once, on that transition, because
+none of them poll on their own.
+
+A refused start — `409`, a scan already running for this connection — is not
+shown as an error. The wizard finds the running scan and follows it, which is
+the only useful thing a reader could have done with the message.
+
+### It lives in the shell, and closing it minimises it
+
+`ScanWizardProvider` is mounted in `Shell`, above every page, because a scan
+outlives the page it was started from. Closing the sheet does not cancel or
+forget the scan; the header's `ScanIndicator` is now a button that reopens the
+live view of the running scan from wherever the reader is, where it used to
+navigate to the scans page. Each opening is a fresh session — the body is keyed
+on it — so a wizard reopened after a finished scan starts at the first step
+rather than inheriting the last one's choices and errors, without an effect
+resetting state.
+
+The provider and its hook share a file, like `i18n/index.tsx`, and the lint
+override for fast refresh names it for the same reason.
+
+### What did not change
+
+The connection row's **Scan now** still starts a scan directly: it is already
+scoped to one connection and sits beside that connection's own status, so a
+three-step panel in front of it would be ceremony. Scan cards on the scans page
+keep their own progress chips and details. Live counts during a run, ANALYZE
+sub-phases, and a push channel instead of polling were the backend half of this
+work; they are §88.
+
+## 88. Analysis reports its phase, and a running scan is pushed rather than polled
+
+§87's live view drew ANALYZE as one spinning node and refreshed every two and a
+half seconds. Both were the honest minimum, and both left the longest, quietest
+stretch of a scan — persisting assets, running every rule, reconciling
+findings, scoring risk — looking the same from its first second to its last.
+
+### ANALYZE writes where it is
+
+`scan_steps.phase` (migration 0035) holds an `AnalyzePhase` — `NORMALIZE`,
+`EVALUATE`, `SCORE` — written by the step as it passes the three seams
+`_evaluate` already had, immediately before each `_set_status`. It is a
+progress mark and nothing more: the step is still claimed, retried and settled
+as one unit, and nothing reads `phase` to decide what runs. That is the line
+between this and splitting ANALYZE into three steps, which would have been a
+change to the durable pipeline's shape for the sake of a label.
+
+Three rules keep it truthful.
+
+* **It is fenced.** `orchestrator.set_phase` updates only where the step is
+  RUNNING *at the attempt it was claimed under*, exactly as `renew` does. An
+  interrupted analysis still executing on the old worker cannot write
+  "scoring" over the attempt that restarted it.
+* **A reclaim clears it.** `claim` sets `phase` to NULL, so a retried analysis
+  starts from no phase rather than inheriting where the failed one stopped.
+* **It is written on its own session, and never fails the step.** Two of the
+  three seams fall inside the pipeline's open transaction; a progress mark must
+  neither wait for that work nor roll back with it. `_PhaseReporter` opens a
+  `scan_session` per mark and logs a write that fails. A missing label costs the
+  screen one word; failing the analysis over it would cost the scan.
+
+Replay shares `_evaluate` and passes nothing, so it reports to a no-op: it is
+one task, with no step row to mark.
+
+### Live counts are the ones already committed
+
+No new counter was added. `resource_count` is committed when normalizing has
+persisted the assets, and `rule_count` when the scan moves to scoring, because
+`_set_status` commits at every seam. The wizard shows each once it is non-zero.
+**Findings are deliberately not counted live**: they are reconciled as one
+change — raised, reopened and resolved together — and a number climbing through
+that would be a count of nothing in particular. The result card states it.
+
+### `GET /scans/{id}/events` pushes the detail when it changes
+
+A server-sent event stream whose payload is exactly `GET /scans/{id}/detail` —
+both are built by one `_detail_payload` — sent only when it differs from the
+last one, with a keep-alive comment every fifteen seconds, an `end` event when
+the scan settles, `gone` when it is deleted or no longer visible, and `timeout`
+after thirty minutes.
+
+It is the same read, done on the server, and that was the choice. A Redis
+channel the worker publishes to would deliver sooner, and would also make the
+browser trust a message to agree with the rows — a second source of truth for a
+scan's state, which §65's fencing exists to keep single. Here the database is
+still the only thing that knows, the worker writes nothing new, and the stream
+cannot tell the reader anything a poll would not. The cost is a tick every one
+and a half seconds per open wizard, paid only while a scan is in flight.
+
+The tenant boundary holds per read, not per connection. The scan is resolved on
+the request's session first, so a scan the reader cannot see is a 404 before any
+stream opens; every tick after that opens a fresh `rls_session` for the same
+user. The request session is not held for the life of the stream.
+
+The loop is `services/scan_events.stream_scan`, a pure async generator over an
+injected loader, clock and sleep, so its rules — change-only, keep-alive, the
+three endings, stopping when the reader disconnects — are unit tested without a
+database or a server.
+
+### The browser treats the stream as an optimisation
+
+`useScanEvents` reads the stream with `fetch`, not `EventSource`, because the
+bearer token lives in memory and `EventSource` cannot send an Authorization
+header. Each `scan` event is written into the `["scan-detail", id]` query the
+pipeline already renders. While the stream is live the query stops polling;
+the moment it is not — a buffering proxy, a dropped network, the server's
+ceiling — polling resumes. Nothing on screen depends on which of the two
+delivered a state, and a deployment where streaming never works simply behaves
+as §87 did.
+
 ## Settings: the evidence a person supplies
 
 `PATCH /organizations` takes no id in the path. Deleting a *different*

@@ -36,7 +36,7 @@ DELETE /cloud-accounts/{id}/context
 POST   /scans                              GET    /scans
 GET    /scans/{id}                         DELETE /scans/{id}
 GET    /scans/{id}/detail                  GET    /scans/{id}/coverage
-GET    /scans/{id}/collection
+GET    /scans/{id}/collection              GET    /scans/{id}/events  (text/event-stream)
 POST   /scans/{id}/replay                  POST   /scans/{id}/cancel
 GET    /scans/worker-status
 

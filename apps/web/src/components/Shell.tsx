@@ -14,6 +14,7 @@ import { CommandPalette } from "@/components/layout/CommandPalette";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { ScanIndicator } from "@/components/layout/ScanIndicator";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { ScanWizardProvider } from "@/components/scans/ScanWizardProvider";
 import {
   Sidebar,
   SidebarContent,
@@ -108,6 +109,7 @@ export function Shell() {
     // One provider for the whole application: without it every tooltip runs its
     // own delay, so crossing a row of them makes each one wait again.
     <TooltipProvider delay={200}>
+      <ScanWizardProvider>
       <SidebarProvider open={open} onOpenChange={setOpen}>
         {/* `collapsible="icon"` is the rail this shell always had: navigation
             that scrolls away makes a long findings table a one-way trip, so it
@@ -174,6 +176,7 @@ export function Shell() {
           </main>
         </SidebarInset>
       </SidebarProvider>
+      </ScanWizardProvider>
 
       {/* Mounted once, here, because an action's outcome outlives the panel it
         was taken in: marking a task done navigates nowhere, and the answer --

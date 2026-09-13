@@ -263,6 +263,8 @@ export interface FindingDetail extends Finding {
 export interface Scan {
   id: string;
   cloud_account_id: string;
+  /** Set for a tenant-wide scan; the scan wizard matches runs to a connection by it. */
+  connection_id?: string | null;
   status: string;
   started_at: string | null;
   completed_at: string | null;
@@ -844,6 +846,8 @@ export interface ScanStage {
   attempt: number;
   duration_seconds: number | null;
   error: string | null;
+  /** Where a running ANALYZE step is. Null on every other kind of step. */
+  phase?: "NORMALIZE" | "EVALUATE" | "SCORE" | null;
 }
 
 export interface ScanDetail extends Scan {

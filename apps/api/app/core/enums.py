@@ -230,6 +230,22 @@ class ScanStepKind(StrEnum):
     ANALYZE = "ANALYZE"
 
 
+class AnalyzePhase(StrEnum):
+    """Where a running ANALYZE step is, inside the one durable step it is.
+
+    Reported, not scheduled: the step is still claimed, retried and settled as a
+    single unit, and these are progress marks it writes as it passes the seams
+    ``_evaluate`` already had. A retry starts again from no phase.
+    """
+
+    # Persist the assets the captures describe.
+    NORMALIZE = "NORMALIZE"
+    # Run every rule over them.
+    EVALUATE = "EVALUATE"
+    # Reconcile findings, score risks, correlate routes, record posture.
+    SCORE = "SCORE"
+
+
 class ScanStepStatus(StrEnum):
     PENDING = "PENDING"
     RUNNING = "RUNNING"

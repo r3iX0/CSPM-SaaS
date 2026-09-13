@@ -314,6 +314,8 @@ async def scan_stages(session: AsyncSession, scan: Scan) -> list[dict]:
                 "attempt": step.attempt,
                 "duration_seconds": round(seconds, 1) if seconds is not None else None,
                 "error": step.error,
+                # Where a running analysis is. Only ever set on ANALYZE.
+                "phase": step.phase,
             }
         )
     return stages
