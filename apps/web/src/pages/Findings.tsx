@@ -25,7 +25,6 @@ import {
 } from "@/components/ui/hover-card";
 import { Input } from "@/components/ui/input";
 import { SelectField } from "@/components/common/SelectField";
-import { ToggleFilter } from "@/components/common/ToggleFilter";
 import {
   Table,
   TableBody,
@@ -194,15 +193,15 @@ export function FindingsPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Laid out rather than in a menu: severity is the filter this page
-              is worked through, and which one is active has to be readable
-              without opening anything. */}
-          <ToggleFilter
+          {/* A select, like every other filter in the product: the trigger
+              names the active severity, so it reads without opening. */}
+          <SelectField
             value={severity}
-            onValueChange={(value) => refilter(() => setSeverity(value))}
+            onValueChange={(value) => refilter(() => setSeverity(value || "all"))}
             ariaLabel="Filter by severity"
+            className="w-[150px]"
             options={[
-              { value: "all", label: "All" },
+              { value: "all", label: "All severities" },
               ...SEVERITIES.map((level) => ({
                 value: level,
                 label: level.charAt(0) + level.slice(1).toLowerCase(),

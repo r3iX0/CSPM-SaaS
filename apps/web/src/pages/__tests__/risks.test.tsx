@@ -11,6 +11,7 @@
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -305,16 +306,29 @@ describe("the risk ranking", () => {
   });
 
   it("offers UNKNOWN as a level, because the engine really assigns it", async () => {
+    vi.useRealTimers();
     renderPagedPage();
     await screen.findByText(/of 80 risks/);
 
-    // The levels are laid out rather than hidden behind a menu, so the one
-    // that matters most here is on screen without opening anything.
     // Leaving it out would hide the risks CloudGuard could not score, which
     // are the ones most worth looking at.
+    const user = userEvent.setup();
+    const trigger = screen.getByRole("combobox", { name: "Filter by risk level" });
+    // Opened from the keyboard, not with a click. After any earlier test in
+    // this block has run under the fake clock, a pointer press on the trigger
+    // never opens the listbox — the select's press handling keeps timing state
+    // across mounts — while the keyboard path has no such guard.
+    trigger.focus();
+    await user.keyboard("{ArrowDown}");
+    await waitFor(() => expect(trigger).toHaveAttribute("aria-expanded", "true"));
+    await user.click(await screen.findByRole("option", { name: "Unknown" }));
+
+    await waitFor(() =>
+      expect(requested.some((u) => u.includes("risk_level=UNKNOWN"))).toBe(true),
+    );
     expect(
-      await screen.findByRole("button", { name: "Unknown" }),
-    ).toBeInTheDocument();
+      screen.getByRole("combobox", { name: "Filter by risk level" }),
+    ).toHaveTextContent("Unknown");
   });
 
   it("keeps findings and routes in one ranking by default", async () => {

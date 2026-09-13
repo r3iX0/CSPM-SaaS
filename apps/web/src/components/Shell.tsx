@@ -129,17 +129,22 @@ export function Shell() {
           <SidebarContent>
             <SidebarNav />
           </SidebarContent>
-          <SidebarFooter className="border-t">
-            <ConnectionBadge />
+          <SidebarFooter className="flex-row items-center gap-1 border-t group-data-[collapsible=icon]:flex-col">
+            <div className="min-w-0 flex-1 group-data-[collapsible=icon]:flex-none">
+              <ConnectionBadge />
+            </div>
+            {/* The collapse control lives at the foot of the column it
+                collapses, beside the rail edge, rather than in the page
+                header — so it does not move when the rail narrows. */}
+            <NavToggle placement="sidebar" />
           </SidebarFooter>
-          {/* The drag/click edge. It is what replaces the collapse button that
-              used to sit in the footer, and it is reachable by keyboard. */}
+          {/* The drag/click edge, a second way to do the same thing. */}
           <SidebarRail />
         </Sidebar>
 
         <SidebarInset>
           <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:px-6">
-            <NavToggle />
+            <NavToggle placement="header" />
 
             <div className="ml-auto flex items-center gap-3">
               <CommandPalette />
@@ -188,13 +193,18 @@ export function Shell() {
  * which way it will go, and carries `aria-expanded` so assistive technology
  * does not have to infer it from the wording.
  *
- * Inside the provider rather than in `Shell`, because on a phone the same
- * button opens a sheet rather than widening a rail, and only the provider knows
- * which of those is true.
+ * Rendered in one of two places, never both. On a desktop it sits at the foot
+ * of the sidebar, where it stays put as the rail narrows. On a phone the sidebar
+ * is a sheet that is not on screen until it is opened, so a control inside it
+ * could never open it — there the trigger stays in the page header. Only the
+ * provider knows which of those is true, which is why this reads `isMobile`
+ * rather than hiding one copy with a breakpoint class.
  */
-function NavToggle() {
+function NavToggle({ placement }: { placement: "sidebar" | "header" }) {
   const { isMobile, open, openMobile } = useSidebar();
   const shown = isMobile ? openMobile : open;
+
+  if ((placement === "header") !== isMobile) return null;
 
   return (
     <SidebarTrigger

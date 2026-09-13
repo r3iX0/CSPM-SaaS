@@ -26,7 +26,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SelectField } from "@/components/common/SelectField";
 import { listContainer, listItem } from "@/lib/motion";
-import { ToggleFilter } from "@/components/common/ToggleFilter";
 import { Pager } from "@/components/common/Pager";
 
 const PAGE_SIZE = 25;
@@ -126,14 +125,15 @@ export function RisksPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* The same control the findings list filters severity with, because
-              it is the same question asked of the ranked view. */}
-          <ToggleFilter
+          {/* A select like every other filter in the product, and the same
+              control the findings list filters severity with. */}
+          <SelectField
             value={level}
-            onValueChange={(value) => refilter(() => setLevel(value))}
+            onValueChange={(value) => refilter(() => setLevel(value || "all"))}
             ariaLabel="Filter by risk level"
+            className="w-[150px]"
             options={[
-              { value: "all", label: "All" },
+              { value: "all", label: "All levels" },
               { value: "CRITICAL", label: "Critical" },
               { value: "HIGH", label: "High" },
               { value: "MEDIUM", label: "Medium" },
@@ -163,7 +163,7 @@ export function RisksPage() {
             value={kind}
             onValueChange={(value) => refilter(() => setKind(value || "all"))}
             ariaLabel="Filter by kind"
-            className="w-[150px]"
+            className="w-[190px]"
             options={[
               { value: "all", label: "Findings and routes" },
               { value: "FINDING", label: "Findings only" },

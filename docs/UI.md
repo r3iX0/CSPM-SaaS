@@ -117,10 +117,13 @@ It collapses to an icon rail, remembered per browser in `localStorage` —
 CloudGuard sets no cookies — because sixty pixels of label per row is a good
 trade on a wide monitor and a bad one on a small laptop. The rail keeps the
 grouping and the order and gives up only the words; every icon still names
-itself on hover and to a screen reader. Below `lg` the same navigation is a
-sheet behind the header's toggle. The shell is shadcn's `Sidebar` primitive
-(DECISIONS.md §84); the toggle is wrapped so that its accessible name says which
-way it will go rather than the primitive's fixed "Toggle Sidebar".
+itself on hover and to a screen reader. The collapse toggle sits at the foot of
+the sidebar, beside the connection status, so it stays under the pointer in both
+widths (DECISIONS.md §85). On mobile the same navigation is a sheet behind a
+toggle in the header, since a control inside a closed sheet could not open it.
+The shell is shadcn's `Sidebar` primitive (DECISIONS.md §84); the toggle is
+wrapped so that its accessible name says which way it will go rather than the
+primitive's fixed "Toggle Sidebar".
 
 One page replaces another rather than cutting to it: the outgoing page leaves in
 120ms and the incoming one arrives in 240ms, which reads as a replacement rather
@@ -138,7 +141,7 @@ knows where they are, not only where to leave.
 
 **Assets** — resource, type, environment, region, criticality, exposure, findings count, last seen; filterable by type/environment/criticality/exposure/risk. Two readings of one inventory, switched in the header. **List** is the queue: assets with open findings first, filterable, paged, groupable by resource group, type or environment. **Hierarchy** is the estate's shape — subscription → resource group, counted server-side over the whole estate and ordered worst first at both levels, with a group expanding to what is in it. The tree is what leads from a number to an owner, since a resource group usually has one; opening a group in the list carries the scope as a filter chip that can be taken off. Assets sitting directly in a subscription are named as that, not as "Ungrouped".
 
-**Findings** — finding, severity, asset, risk, status, first/last seen; filterable by severity/status/rule and free text, searched and ordered in the database rather than in the browser. Severity is laid out as a toggle group rather than hidden in a menu — it is the filter this page is worked through, so which one is active has to be readable without opening anything. Severity, risk score and last seen order from their own column headers, one direction each: worst risk, worst severity and most recent all mean descending, and an ascending security queue puts the least urgent row first. A finding's title previews in full on hover, because the column truncates and opening six rows to find the one you meant is not navigation.
+**Findings** — finding, severity, asset, risk, status, first/last seen; filterable by severity/status/rule and free text, searched and ordered in the database rather than in the browser. Severity is a select like every other filter in the product; its trigger names the active severity, so which one is applied reads without opening anything (DECISIONS.md §85). Severity, risk score and last seen order from their own column headers, one direction each: worst risk, worst severity and most recent all mean descending, and an ascending security queue puts the least urgent row first. A finding's title previews in full on hover, because the column truncates and opening six rows to find the one you meant is not navigation.
 
 Every paged list uses one pager (`common/Pager.tsx`) with real page numbers — first, last, and a window either side — so the end of a four-hundred-row list is one click rather than eight. The changes feed is windowed by date and has no total, so it gets Previous and Next and nothing that implies a length.
 

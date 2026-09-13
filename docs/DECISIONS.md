@@ -4116,7 +4116,7 @@ Two edits to the vendored source were needed and both are deliberate:
 `SidebarTrigger` names itself "Toggle Sidebar" in both states, which is a
 control a screen-reader user cannot tell the state of. `NavToggle` wraps it to
 say which way it will go and to carry `aria-expanded`, keeping the accessible
-names the shell already had.
+names the shell already had. (Where it sits changed in §85.)
 
 Which row is current is `useMatch` per row rather than `NavLink`'s render prop:
 the primitive wants the answer as a prop, because the anchor itself carries the
@@ -4158,11 +4158,11 @@ typecheck; they were the code being deleted anyway.
   row findings list is one click rather than eight round trips. `StepPager` is
   the variant for the changes feed, which is windowed by date and has no total —
   inventing one would be a claim the API never made.
-* **Severity is a `ToggleGroup`, not a select.** Four values plus "all", never
-  changing, the filter the findings and risks pages are actually worked
-  through — laid out, the current filter is visible without opening anything.
-  Deselecting the active item keeps it: an empty severity filter is not a filter
-  anybody wants.
+* **Severity is a `ToggleGroup`, not a select.** *Superseded by §85: severity
+  is a `SelectField` again.* Four values plus "all", never changing, the filter
+  the findings and risks pages are actually worked through — laid out, the
+  current filter is visible without opening anything. Deselecting the active
+  item keeps it: an empty severity filter is not a filter anybody wants.
 * **Change detection is a `Switch`.** A pill reading "Listening for changes"
   beside a button reading "Turn on change detection" stated the same fact twice.
   The switch is labelled with what the setting is *for* rather than what it
@@ -4186,6 +4186,50 @@ timing out on text the page does render, in a test that passes on its own. It
 predates this work; one suite carries a comment about losing "about one run in
 three". `asyncUtilTimeout` is now five seconds and `testTimeout` twenty, which
 is a slow suite instead of a slow machine reported as a broken product.
+
+## 85. The collapse control sits at the foot of the sidebar, and every filter is a select
+
+Two reversals of §84, both made after using the result on the deployed build.
+
+### The sidebar toggle moved from the header to the sidebar footer
+
+§84 left `NavToggle` at the left edge of the page header. That put the control
+for the column in a different element from the column, and it moved: the header
+starts where the sidebar ends, so narrowing the rail slid the button left by
+the width the rail gave up, out from under the pointer that had just clicked it. A reader
+toggling back had to go and find it.
+
+On a desktop it is now the last item in `SidebarFooter`, beside the connection
+status — a row when expanded, stacked and centred on the icon rail. It sits in
+the column it collapses and stays under the pointer in both widths.
+`SidebarRail` remains as the second, edge-drag way to do the same thing.
+
+**On a phone it stays in the header.** Below the mobile breakpoint the sidebar
+is a `Sheet` that is not rendered until opened, so a trigger inside it could
+never open it. `NavToggle` takes a `placement` and renders only where it
+belongs, decided from the provider's `isMobile` rather than hidden with a
+breakpoint class: two copies in the DOM would give the page two buttons with
+the same accessible name, one of them invisible.
+
+### Severity and risk level are selects, like every other filter
+
+§84 laid severity out as a `ToggleGroup` on the findings and risks pages. In
+practice it was the only filter drawn that way. Next to the status and kind
+selects on the same row it read as a different kind of control, it was twice as
+wide as its neighbours — six segments on the risks page, where `UNKNOWN` is a
+real level — and it pushed those neighbours into truncating their own labels
+("Findings and rou…").
+
+Both pages now use `SelectField`, with "All severities" / "All levels" as the
+unfiltered label. The original argument for the toggle — that the active filter
+must be readable without opening anything — is already met by `SelectField`,
+whose trigger always names the chosen option rather than the raw value. The
+kind select widened to fit its longest label for the same truncation reason.
+
+`common/ToggleFilter.tsx` had no other users and is deleted. The vendored
+`ui/toggle-group.tsx` primitive stays: it is shadcn source, and removing a
+primitive because nothing uses it today would mean re-adding it through the CLI
+the next time something does.
 
 ## Settings: the evidence a person supplies
 
