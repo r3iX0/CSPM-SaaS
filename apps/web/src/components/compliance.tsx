@@ -1,8 +1,6 @@
 import { useT } from "@/i18n";
 import type { ControlStatus } from "@/lib/types";
 import { cn, controlStatusStyle, label } from "@/lib/format";
-import { CONTROL_STATUS_ICONS } from "@/lib/icons";
-
 /**
  * Shared compliance chrome.
  *
@@ -68,16 +66,14 @@ export function CoverageBar({
 
 export function ControlStatusPill({ status }: { status: ControlStatus }) {
   const t = useT();
-  const Icon = CONTROL_STATUS_ICONS[status] ?? CONTROL_STATUS_ICONS.NOT_COVERED;
   return (
     <span
       title={t.compliance.statusHelp[status]}
       className={cn(
-        "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium",
+        "inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-xs font-medium",
         controlStatusStyle(status),
       )}
     >
-      <Icon className="size-3 shrink-0" aria-hidden />
       {label(status)}
     </span>
   );

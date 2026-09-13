@@ -29,6 +29,11 @@ describe("StatusPill", () => {
     expect(container.firstElementChild?.className).toContain("text-medium");
   });
 
+  it("stays text, with no icon", () => {
+    const { container } = render(<StatusPill status="OPEN" />);
+    expect(container.querySelector("svg")).not.toBeInTheDocument();
+  });
+
   it("does not present an accepted risk as resolved", () => {
     const { container } = render(<StatusPill status="ACCEPTED_RISK" />);
     expect(container.firstElementChild?.className).not.toContain("text-ok");
@@ -36,26 +41,19 @@ describe("StatusPill", () => {
 });
 
 describe("SeverityBadge", () => {
-  it("marks every level with more than a colour", () => {
-    // Someone who cannot separate the hues still has to be able to tell the
-    // levels apart, so each one carries a shape of its own.
-    const shapes = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN"].map((level) => {
+  it("stays text, with no icon, at every level", () => {
+    for (const level of ["CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN"]) {
       const { container } = render(<Badge level={level} />);
-      const svg = container.querySelector("svg");
-      expect(svg).toBeInTheDocument();
-      return svg?.getAttribute("class");
-    });
-    expect(new Set(shapes).size).toBe(shapes.length);
+      expect(container.querySelector("svg")).not.toBeInTheDocument();
+    }
   });
 
-  it("does not give UNKNOWN the shape of a determined level", () => {
-    // "We could not look" and "we looked and it was fine" are the distinction
-    // the product exists to keep; UNKNOWN must never share LOW's mark.
-    const { container: unknown } = render(<Badge level="UNKNOWN" />);
-    const { container: low } = render(<Badge level="LOW" />);
-    expect(unknown.querySelector("svg")?.getAttribute("class")).not.toBe(
-      low.querySelector("svg")?.getAttribute("class"),
-    );
+  it("marks UNKNOWN with more than a colour", () => {
+    // Someone who cannot separate the hues still has to be able to tell "we
+    // could not look" from "we looked and it was fine" -- here by the dashed
+    // border, since the badge carries no icon.
+    const { container } = render(<Badge level="UNKNOWN" />);
+    expect(container.firstElementChild?.className).toContain("border-dashed");
   });
 });
 

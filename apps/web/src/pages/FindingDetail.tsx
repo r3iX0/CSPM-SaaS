@@ -47,12 +47,7 @@ import {
   outcomeStyle,
   resourceTypeLabel,
 } from "@/lib/format";
-import {
-  FACT_ICONS,
-  FACTOR_ICONS,
-  OUTCOME_ICONS,
-  resourceTypeIcon,
-} from "@/lib/icons";
+import { FACT_ICONS, FACTOR_ICONS, resourceTypeIcon } from "@/lib/icons";
 import { IconLabel } from "@/components/security/IconLabel";
 
 /**
@@ -739,17 +734,6 @@ function ProvenancePanel({
   );
 }
 
-/** A collection outcome, with the same verdict shape the scans page gives it. */
-function OutcomeMark({ outcome }: { outcome: NonNullable<EvidenceCitation["outcome"]> }) {
-  const Icon = OUTCOME_ICONS[outcome];
-  return (
-    <Badge variant="outline" className={cn("border text-xs", outcomeStyle(outcome))}>
-      {Icon && <Icon aria-hidden />}
-      {outcome}
-    </Badge>
-  );
-}
-
 /** One reading, with the four things that make it checkable. */
 function Citation({ citation }: { citation: EvidenceCitation }) {
   const t = useT();
@@ -765,7 +749,12 @@ function Citation({ citation }: { citation: EvidenceCitation }) {
           {citation.evidence_key}
         </code>
         {outcome && (
-          <OutcomeMark outcome={outcome} />
+          <Badge
+            variant="outline"
+            className={cn("border text-xs", outcomeStyle(outcome))}
+          >
+            {outcome}
+          </Badge>
         )}
         {typeof citation.item_count === "number" && (
           <span className="text-xs text-muted-foreground">

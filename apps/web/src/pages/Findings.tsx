@@ -8,7 +8,6 @@ import {
   ShieldCheckIcon,
   XIcon,
 } from "lucide-react";
-import { LEVEL_ICONS, statusIcon } from "@/lib/icons";
 import { ResourceTypeLabel } from "@/components/security/IconLabel";
 
 import { api } from "@/lib/api";
@@ -215,7 +214,6 @@ export function FindingsPage() {
               ...SEVERITIES.map((level) => ({
                 value: level,
                 label: level.charAt(0) + level.slice(1).toLowerCase(),
-                icon: LEVEL_ICONS[level],
               })),
             ]}
           />
@@ -231,12 +229,10 @@ export function FindingsPage() {
             idleValue="OPEN"
             options={[
               { value: "all", label: "All statuses" },
-              ...[
-                { value: "OPEN", label: "Open" },
-                { value: "IN_PROGRESS", label: "In progress" },
-                { value: "RESOLVED", label: "Verified fixed" },
-                { value: "ACCEPTED_RISK", label: "Risk accepted" },
-              ].map((option) => ({ ...option, icon: statusIcon(option.value) })),
+              { value: "OPEN", label: "Open" },
+              { value: "IN_PROGRESS", label: "In progress" },
+              { value: "RESOLVED", label: "Verified fixed" },
+              { value: "ACCEPTED_RISK", label: "Risk accepted" },
             ]}
           />
         </div>

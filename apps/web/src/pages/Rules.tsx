@@ -1,8 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArchiveIcon, ListChecksIcon, SearchIcon } from "lucide-react";
-import { LEVEL_ICONS } from "@/lib/icons";
-
 import { api } from "@/lib/api";
 import type { Rule } from "@/lib/types";
 import { useT } from "@/i18n";
@@ -107,7 +105,6 @@ export function RulesPage() {
             ...SEVERITIES.map((value) => ({
               value,
               label: value.charAt(0) + value.slice(1).toLowerCase(),
-              icon: LEVEL_ICONS[value],
             })),
           ]}
         />

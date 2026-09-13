@@ -4242,9 +4242,9 @@ sorting things by kind or by state, and nowhere else.
 
 ### One registry, `lib/icons.ts`
 
-Every icon that means something is defined once: resource types, the five
-severity levels, verdicts, finding and scan statuses, the risk factors, detail
-page facts, change kinds and risk kinds. Components read from those maps rather
+Every icon that means something is defined once: resource types, the risk
+factors, detail page facts, change kinds, risk kinds and the verification
+verdicts. Components read from those maps rather
 than importing a glyph of their own.
 
 The failure this closes is the one colour already taught: two screens choosing
@@ -4267,20 +4267,6 @@ exception, below.
   command palette, the change feed and the asset and finding detail pages. The
   icon comes from the neutral type even where the label is the provider's own
   (`azure_type`), so an unmodelled resource still reads as a box.
-* **Severity** — every level carries its own shape: an octagon for critical, a
-  triangle for high, a circle for medium, an info mark for low, and a question
-  mark for UNKNOWN. §84's rule that UNKNOWN is marked beyond colour is kept and
-  widened: a reader who cannot separate the hues can now tell critical from low,
-  not only UNKNOWN from the rest. The test now asserts every level has a mark
-  and that UNKNOWN never shares LOW's.
-* **Status** — a tick for a fix, a dot for open, an ellipsis for in progress,
-  and a *shield switched off* for an accepted risk. Accepting a risk is a
-  person's decision, not a fix, and the icon must never give it RESOLVED's
-  shape any more than the tone may.
-* **Verdicts** — pass, fail and unknown are the same three circles on compliance
-  controls, collection outcomes, cited readings and verification. The absence
-  of a verdict (not assessed, pending, not covered) is drawn hollow or dashed,
-  so it cannot look like a quiet pass.
 * **Risk factors** — criticality, data sensitivity, internet exposure,
   exploitability and business impact have one icon each, used on the risk
   cards, the risk and finding detail pages, the asset page and the dashboard's
@@ -4297,8 +4283,8 @@ exception, below.
 ### Filters say which of them are filtering
 
 `SelectField` gained two things. An option may carry an `icon`, shown in the
-menu and in the trigger, so a severity filter set to Critical shows the critical
-octagon. And `idleValue` marks a select as a filter: while its value differs
+menu and in the trigger — used for resource types, change kinds and risk kinds.
+And `idleValue` marks a select as a filter: while its value differs
 from the unfiltered one, a dot sits in the trigger. On a row of four filters
 that is the difference between seeing which ones are narrowing the list and
 reading every label against a default you have to remember. The findings status
@@ -4316,6 +4302,26 @@ severity scale is protected from. Each is labelled with the provider's name,
 since a mark alone is only recognisable to someone who already knows it. They
 appear on connection rows, the provider picker in setup, and a scan's scope.
 Swapping in official artwork later is a change to one file.
+
+### Severity and status stay text
+
+The first version of this pass also gave every severity badge, status pill,
+compliance control pill and collection outcome its own shape, and put those
+shapes in the severity and status filters. It was taken back out the same day.
+Those badges sit several to a row — a risk card carries a severity, a status and
+three factor levels in one line — and a glyph on each one made the densest rows
+in the product busier without saying anything the word beside it did not. They
+are text on a tone again, as they were before this section.
+
+What that costs, and why it is acceptable: colour is still not the only signal,
+because every badge carries its word. UNKNOWN is additionally set apart from LOW
+by its dashed border (`levelStyle`), which the badge test now asserts in place of
+the icon. The same-day version had also dropped the help mark UNKNOWN carried
+before §86; that is not restored, because the dashed border and the word already
+answer the question it answered.
+
+`VerificationPanel` keeps its icons. It is one large callout, not a badge in a
+row, and it had them before this pass.
 
 ### What was left alone
 

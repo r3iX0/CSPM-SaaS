@@ -127,11 +127,12 @@ primitive's fixed "Toggle Sidebar".
 
 Every page title repeats its sidebar icon. Across the product, icons carry
 meaning rather than decoration, and each meaning has exactly one icon, defined
-in `src/lib/icons.ts` (DECISIONS.md §86). Resource types, severity levels,
-statuses, verdicts, risk factors and change kinds each have their own shape. A
-shape always sits beside a word and never replaces one. Filters built on
-`SelectField` show the chosen option's icon and a dot while they are narrowing
-the list. Cloud providers are drawn by `ProviderMark`, a monochrome hand-drawn
+in `src/lib/icons.ts` (DECISIONS.md §86). Resource types, risk factors, detail
+page facts and change kinds each have their own shape. A shape always sits
+beside a word and never replaces one. Severity badges and status pills are the
+exception: they stay text on a tone, with no icon, to keep dense rows simple.
+Filters built on `SelectField` show the chosen option's icon where it has one,
+and a dot while they are narrowing the list. Cloud providers are drawn by `ProviderMark`, a monochrome hand-drawn
 glyph, because Lucide carries no brand logos.
 
 One page replaces another rather than cutting to it: the outgoing page leaves in

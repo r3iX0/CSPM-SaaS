@@ -26,12 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SelectField } from "@/components/common/SelectField";
 import { listContainer, listItem } from "@/lib/motion";
-import {
-  FACTOR_ICONS,
-  LEVEL_ICONS,
-  RISK_KIND_ICONS,
-  statusIcon,
-} from "@/lib/icons";
+import { FACTOR_ICONS, RISK_KIND_ICONS } from "@/lib/icons";
 import { IconLabel } from "@/components/security/IconLabel";
 import type { LucideIcon } from "lucide-react";
 import { Pager } from "@/components/common/Pager";
@@ -144,14 +139,14 @@ export function RisksPage() {
             idleValue="all"
             options={[
               { value: "all", label: "All levels" },
-              { value: "CRITICAL", label: "Critical", icon: LEVEL_ICONS.CRITICAL },
-              { value: "HIGH", label: "High", icon: LEVEL_ICONS.HIGH },
-              { value: "MEDIUM", label: "Medium", icon: LEVEL_ICONS.MEDIUM },
-              { value: "LOW", label: "Low", icon: LEVEL_ICONS.LOW },
+              { value: "CRITICAL", label: "Critical" },
+              { value: "HIGH", label: "High" },
+              { value: "MEDIUM", label: "Medium" },
+              { value: "LOW", label: "Low" },
               // UNKNOWN is a level the risk engine really assigns, and leaving
               // it out of the filter would hide the risks CloudGuard could not
               // score — the ones most worth looking at.
-              { value: "UNKNOWN", label: "Unknown", icon: LEVEL_ICONS.UNKNOWN },
+              { value: "UNKNOWN", label: "Unknown" },
             ]}
           />
 
@@ -163,12 +158,10 @@ export function RisksPage() {
             idleValue="all"
             options={[
               { value: "all", label: "All statuses" },
-              ...[
-                { value: "OPEN", label: "Open" },
-                { value: "IN_PROGRESS", label: "In progress" },
-                { value: "ACCEPTED", label: "Accepted" },
-                { value: "RESOLVED", label: "Resolved" },
-              ].map((option) => ({ ...option, icon: statusIcon(option.value) })),
+              { value: "OPEN", label: "Open" },
+              { value: "IN_PROGRESS", label: "In progress" },
+              { value: "ACCEPTED", label: "Accepted" },
+              { value: "RESOLVED", label: "Resolved" },
             ]}
           />
 

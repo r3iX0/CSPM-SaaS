@@ -2,7 +2,7 @@ import { Fragment, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { BoxesIcon, ListIcon, NetworkIcon, SearchIcon, XIcon } from "lucide-react";
-import { LEVEL_ICONS, resourceTypeIcon } from "@/lib/icons";
+import { resourceTypeIcon } from "@/lib/icons";
 import { ResourceTypeLabel } from "@/components/security/IconLabel";
 
 import { api } from "@/lib/api";
@@ -277,11 +277,11 @@ export function AssetsPage() {
             idleValue="all"
             options={[
               { value: "all", label: "All exposure" },
-              { value: "CRITICAL", label: "Critical", icon: LEVEL_ICONS.CRITICAL },
-              { value: "HIGH", label: "High", icon: LEVEL_ICONS.HIGH },
-              { value: "MEDIUM", label: "Medium", icon: LEVEL_ICONS.MEDIUM },
-              { value: "LOW", label: "Low", icon: LEVEL_ICONS.LOW },
-              { value: "UNKNOWN", label: "Unknown", icon: LEVEL_ICONS.UNKNOWN },
+              { value: "CRITICAL", label: "Critical" },
+              { value: "HIGH", label: "High" },
+              { value: "MEDIUM", label: "Medium" },
+              { value: "LOW", label: "Low" },
+              { value: "UNKNOWN", label: "Unknown" },
             ]}
           />
 
