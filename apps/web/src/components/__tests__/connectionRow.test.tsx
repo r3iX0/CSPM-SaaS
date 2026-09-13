@@ -218,7 +218,7 @@ describe("a connection row", () => {
     expect(screen.getByText(/v5, verified/i)).toBeInTheDocument();
   });
 
-  it("asks about removal in a dialog, without moving the rest of the row", async () => {
+  it("asks about removal in an alert dialog, without moving the rest of the row", async () => {
     // The confirmation is long -- three revocation commands, why CloudGuard
     // cannot run them, and a probe -- and expanded in place it pushed the rest
     // of the connection off screen while somebody decided whether to delete an
@@ -256,13 +256,16 @@ describe("a connection row", () => {
     await userEvent.click(screen.getByRole("button", { name: /show this connection/i }));
     // Nothing is asked for until the reader asks: a page of six connections
     // must not fetch six sets of revocation commands nobody wanted to see.
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
 
     await userEvent.click(
       screen.getByRole("button", { name: /remove connection/i }),
     );
 
-    const dialog = await screen.findByRole("dialog");
+    // `alertdialog` rather than `dialog`: this is the one irreversible action
+    // in the product, and the role is what tells a screen reader to announce
+    // the whole thing rather than only its title.
+    const dialog = await screen.findByRole("alertdialog");
     expect(dialog).toHaveTextContent(/remove this connection/i);
     expect(await screen.findByText(/az role assignment delete/)).toBeInTheDocument();
     // The row is still there behind it rather than replaced -- and inert, which
@@ -289,11 +292,13 @@ describe("a connection row", () => {
     await userEvent.click(
       screen.getByRole("button", { name: /remove connection/i }),
     );
-    await screen.findByRole("dialog");
+    await screen.findByRole("alertdialog");
 
     await userEvent.keyboard("{Escape}");
 
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
   });
 
   it("scans the connection through one of its scannable subscriptions", async () => {

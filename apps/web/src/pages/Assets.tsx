@@ -2,6 +2,8 @@ import { Fragment, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { BoxesIcon, ListIcon, NetworkIcon, SearchIcon, XIcon } from "lucide-react";
+import { resourceTypeIcon } from "@/lib/icons";
+import { ResourceTypeLabel } from "@/components/security/IconLabel";
 
 import { api } from "@/lib/api";
 import type { Asset } from "@/lib/types";
@@ -22,8 +24,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Pager } from "@/components/common/Pager";
 import { cn, formatDate, resourceTypeLabel } from "@/lib/format";
 import { scopeLabel } from "@/lib/scope";
+import { stagger } from "@/lib/motion";
 
 const PAGE_SIZE = 50;
 
@@ -175,6 +179,7 @@ export function AssetsPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
+        icon={BoxesIcon}
         title={t.assets.title}
         description="Everything CloudGuard has discovered, with what it is worth and how exposed it is."
         actions={
@@ -239,12 +244,14 @@ export function AssetsPage() {
             value={type}
             onValueChange={resetTo(setType)}
             ariaLabel="Filter by type"
-            className="w-[150px]"
+            className="w-[190px]"
+            idleValue="all"
             options={[
               { value: "all", label: "All types" },
               ...types.map((value) => ({
                 value,
                 label: resourceTypeLabel(value),
+                icon: resourceTypeIcon(value),
               })),
             ]}
           />
@@ -253,7 +260,8 @@ export function AssetsPage() {
             value={environment}
             onValueChange={resetTo(setEnvironment)}
             ariaLabel="Filter by environment"
-            className="w-[160px]"
+            className="w-[170px]"
+            idleValue="all"
             options={[
               { value: "all", label: "All environments" },
               { value: "production", label: "Production" },
@@ -265,7 +273,8 @@ export function AssetsPage() {
             value={exposure}
             onValueChange={resetTo(setExposure)}
             ariaLabel="Filter by exposure"
-            className="w-[150px]"
+            className="w-[160px]"
+            idleValue="all"
             options={[
               { value: "all", label: "All exposure" },
               { value: "CRITICAL", label: "Critical" },
@@ -399,8 +408,12 @@ export function AssetsPage() {
                           </TableCell>
                         </TableRow>
                       )}
-                      {rows.map((asset) => (
-                        <TableRow key={asset.id}>
+                      {rows.map((asset, index) => (
+                        <TableRow
+                          key={asset.id}
+                          className="[animation:cg-rise_260ms_ease-out_both]"
+                          style={stagger(index)}
+                        >
                           <TableCell className="max-w-0">
                             <Link
                               to={`/assets/${asset.id}`}
@@ -410,7 +423,10 @@ export function AssetsPage() {
                             </Link>
                           </TableCell>
                           <TableCell className="text-muted-foreground">
-                            {asset.azure_type ?? resourceTypeLabel(asset.resource_type)}
+                            <ResourceTypeLabel
+                              type={asset.resource_type}
+                              label={asset.azure_type}
+                            />
                           </TableCell>
                           <TableCell className="text-muted-foreground">
                             {asset.environment ?? "—"}
@@ -463,29 +479,12 @@ export function AssetsPage() {
                 </>
               )}
             </p>
-            {pages > 1 && (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page === 0}
-                  onClick={() => setPage((p) => Math.max(0, p - 1))}
-                >
-                  Previous
-                </Button>
-                <span className="text-xs tabular-nums text-muted-foreground">
-                  {page + 1} / {pages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page + 1 >= pages}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Next
-                </Button>
-              </div>
-            )}
+            <Pager
+              page={page}
+              pages={pages}
+              onPage={setPage}
+              className="w-auto"
+            />
           </div>
         </>
       )}

@@ -5,7 +5,10 @@ import type { Level } from "@/lib/types";
 import { useT } from "@/i18n";
 import { StatusPill } from "@/components/security/StatusPill";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
-import { formatDateTime, resourceTypeLabel } from "@/lib/format";
+import { formatDateTime } from "@/lib/format";
+import { FACT_ICONS, FACTOR_ICONS } from "@/lib/icons";
+import { IconLabel, ResourceTypeLabel } from "@/components/security/IconLabel";
+import type { LucideIcon } from "lucide-react";
 import { Breadcrumbs, DetailSkeleton, ErrorState } from "@/components/common/states";
 import { CodeBlock } from "@/components/common/CodeBlock";
 import {
@@ -86,10 +89,12 @@ export function AssetDetailPage() {
 
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">{data.name}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {resourceTypeLabel(data.resource_type)}
-          {data.region && ` · ${data.region}`}
-          {data.environment && ` · ${data.environment}`}
+        <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+          <ResourceTypeLabel type={data.resource_type} />
+          {data.region && <IconLabel icon={FACT_ICONS.region}>{data.region}</IconLabel>}
+          {data.environment && (
+            <IconLabel icon={FACT_ICONS.environment}>{data.environment}</IconLabel>
+          )}
         </p>
       </div>
 
@@ -101,12 +106,14 @@ export function AssetDetailPage() {
           <CardContent>
             <dl className="flex flex-col gap-3 text-sm">
               <ContextRow
-                label="Criticality"
+                label={<IconLabel icon={FACTOR_ICONS.criticality}>Criticality</IconLabel>}
                 fact={data.context?.criticality}
                 fallback={<SeverityBadge level={data.criticality} size="sm" />}
               />
               <ContextRow
-                label="Data sensitivity"
+                label={
+                  <IconLabel icon={FACTOR_ICONS.dataSensitivity}>Data sensitivity</IconLabel>
+                }
                 fact={data.context?.data_sensitivity}
                 fallback={
                   <SeverityBadge level={data.data_sensitivity} size="sm" />
@@ -116,15 +123,22 @@ export function AssetDetailPage() {
                   configuration in the capture -- a public IP is attached or it
                   is not -- so there is nothing to attribute or declare. */}
               <Row
+                icon={FACTOR_ICONS.exposure}
                 label="Internet exposure"
                 value={<SeverityBadge level={data.public_exposure} size="sm" />}
               />
-              <Row label="Environment" value={data.environment ?? "—"} />
               <Row
+                icon={FACT_ICONS.environment}
+                label="Environment"
+                value={data.environment ?? "—"}
+              />
+              <Row
+                icon={FACT_ICONS.firstSeen}
                 label="First seen"
                 value={formatDateTime(data.first_seen_at)}
               />
               <Row
+                icon={FACT_ICONS.lastSeen}
                 label="Last seen"
                 value={formatDateTime(data.last_seen_at)}
               />
@@ -200,10 +214,20 @@ export function AssetDetailPage() {
   );
 }
 
-function Row({ label, value }: { label: string; value: React.ReactNode }) {
+function Row({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: React.ReactNode;
+  icon?: LucideIcon;
+}) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <dt className="text-muted-foreground">{label}</dt>
+      <dt className="text-muted-foreground">
+        {icon ? <IconLabel icon={icon}>{label}</IconLabel> : label}
+      </dt>
       <dd className="font-medium text-foreground">{value}</dd>
     </div>
   );

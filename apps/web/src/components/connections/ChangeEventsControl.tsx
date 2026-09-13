@@ -3,8 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { ChangeEventSetup, CloudConnection } from "@/lib/types";
 import { useT } from "@/i18n";
-import { cn, formatDateTime } from "@/lib/format";
-import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/lib/format";
+import { Switch } from "@/components/ui/switch";
 import { CodeBlock } from "@/components/common/CodeBlock";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -105,18 +105,32 @@ export function ChangeEventsControl({
             {t.connection.changeHelp}
           </p>
         </div>
-        {/* The same reasoning as the schedule pill: listening is not a
-            severity, so it does not borrow the severity scale. */}
-        <span
-          className={cn(
-            "inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-xs font-medium",
-            data.enabled
-              ? "border-ok-border bg-ok-bg text-ok"
-              : "border-border bg-background text-muted-foreground",
-          )}
-        >
-          {data.enabled ? t.connection.changeOn : t.connection.changeOff}
-        </span>
+        {/* The state and the control are now one thing. A pill saying
+            "Listening for changes" beside a button saying "Turn on change
+            detection" stated the same fact twice and left the reader working
+            out which of the two was the current state and which was the
+            offer; a switch is the state, and moving it is the change.
+
+            Only where there is somewhere to deliver to -- see below. */}
+        {data.webhook_url && (
+          <div className="flex shrink-0 items-center gap-2">
+            {/* The state, in words, beside the switch that is the same state
+                in a shape. Deliberately not the switch's `<Label>`: a control
+                named "Not listening" tells a screen-reader user what the
+                setting currently is where it should be telling them what the
+                setting is *for*, and the answer to that is the same in both
+                positions. */}
+            <span className="text-xs font-medium text-muted-foreground">
+              {data.enabled ? t.connection.changeOn : t.connection.changeOff}
+            </span>
+            <Switch
+              checked={data.enabled}
+              disabled={save.isPending}
+              onCheckedChange={(next) => save.mutate(next)}
+              aria-label={t.connection.changeTitle}
+            />
+          </div>
+        )}
       </div>
 
       {/* Nothing to deliver to. Offering the toggle here would open a webhook
@@ -131,16 +145,6 @@ export function ChangeEventsControl({
       ) : (
         <>
           <div className="mt-3 flex flex-wrap items-center gap-3">
-            <Button
-              size="sm"
-              variant={data.enabled ? "secondary" : "default"}
-              disabled={save.isPending}
-              onClick={() => save.mutate(!data.enabled)}
-            >
-              {data.enabled
-                ? t.connection.changeDisable
-                : t.connection.changeEnable}
-            </Button>
             {save.isPending && (
               <span className="text-xs text-muted-foreground">
                 {t.connection.changeSaving}

@@ -8,7 +8,7 @@ See `PRODUCT_SPEC.md` for vision/scope. This doc covers the technical shape: sta
 
 | Layer | Choice |
 |---|---|
-| Frontend | React, TypeScript, Vite, Tailwind CSS, shadcn/ui, React Router, TanStack Query, Recharts |
+| Frontend | React, TypeScript, Vite, Tailwind CSS, shadcn/ui, React Router, TanStack Query, Recharts, Motion |
 | Backend | Python, FastAPI, Pydantic, SQLAlchemy 2, Alembic, Pytest, Ruff, MyPy |
 | Database / Auth | Supabase PostgreSQL + Supabase Auth + PostgreSQL Row-Level Security (a real security boundary, not a frontend convenience) |
 | Background jobs | Celery + Redis |

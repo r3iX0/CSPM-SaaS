@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { motion } from "motion/react";
 import { Link } from "react-router-dom";
 import { RadarIcon, SearchIcon } from "lucide-react";
 
@@ -24,6 +25,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SelectField } from "@/components/common/SelectField";
+import { listContainer, listItem } from "@/lib/motion";
+import { FACTOR_ICONS, RISK_KIND_ICONS } from "@/lib/icons";
+import { IconLabel } from "@/components/security/IconLabel";
+import type { LucideIcon } from "lucide-react";
+import { Pager } from "@/components/common/Pager";
 
 const PAGE_SIZE = 25;
 const SEARCH_DEBOUNCE_MS = 250;
@@ -102,6 +108,7 @@ export function RisksPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
+        icon={RadarIcon}
         title={t.risks.title}
         description="A finding is what we observed. A risk is what it means for this asset, with this data, at this level of exposure."
       />
@@ -122,11 +129,14 @@ export function RisksPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* A select like every other filter in the product, and the same
+              control the findings list filters severity with. */}
           <SelectField
             value={level}
             onValueChange={(value) => refilter(() => setLevel(value || "all"))}
             ariaLabel="Filter by risk level"
-            className="w-[150px]"
+            className="w-[160px]"
+            idleValue="all"
             options={[
               { value: "all", label: "All levels" },
               { value: "CRITICAL", label: "Critical" },
@@ -144,7 +154,8 @@ export function RisksPage() {
             value={status}
             onValueChange={(value) => refilter(() => setStatus(value || "all"))}
             ariaLabel="Filter by status"
-            className="w-[160px]"
+            className="w-[170px]"
+            idleValue="all"
             options={[
               { value: "all", label: "All statuses" },
               { value: "OPEN", label: "Open" },
@@ -158,12 +169,13 @@ export function RisksPage() {
             value={kind}
             onValueChange={(value) => refilter(() => setKind(value || "all"))}
             ariaLabel="Filter by kind"
-            className="w-[150px]"
+            className="w-[200px]"
+            idleValue="all"
             options={[
               { value: "all", label: "Findings and routes" },
-              { value: "FINDING", label: "Findings only" },
-              { value: "ATTACK_PATH", label: "Attack paths" },
-              { value: "ESCALATION", label: "Escalations" },
+              { value: "FINDING", label: "Findings only", icon: RISK_KIND_ICONS.FINDING },
+              { value: "ATTACK_PATH", label: "Attack paths", icon: RISK_KIND_ICONS.ATTACK_PATH },
+              { value: "ESCALATION", label: "Escalations", icon: RISK_KIND_ICONS.ESCALATION },
             ]}
           />
         </div>
@@ -201,20 +213,31 @@ export function RisksPage() {
 
       {data && risks.length > 0 && (
         <>
-          <div className="flex flex-col gap-3">
+          {/* The ranking arrives a card at a time. Keyed by risk id, so a
+              poll that returns the same ranking does not replay it -- only
+              cards that are actually new animate, which keeps the movement a
+              statement that something arrived. */}
+          <motion.div
+            className="flex flex-col gap-3"
+            variants={listContainer}
+            initial="initial"
+            animate="animate"
+          >
             {/* Both kinds in one list, deliberately. A route outranking the
                 findings inside it is only visible where they are ranked
                 together — on a page of its own it would be a second opinion
                 nobody compares. The kind filter can separate them; the default
                 does not. */}
-            {risks.map((risk) =>
-              risk.kind === "FINDING" ? (
-                <FindingRiskCard key={risk.id} risk={risk} />
-              ) : (
-                <ScenarioCard key={risk.id} risk={risk} />
-              ),
-            )}
-          </div>
+            {risks.map((risk) => (
+              <motion.div key={risk.id} variants={listItem}>
+                {risk.kind === "FINDING" ? (
+                  <FindingRiskCard risk={risk} />
+                ) : (
+                  <ScenarioCard risk={risk} />
+                )}
+              </motion.div>
+            ))}
+          </motion.div>
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground">
@@ -223,29 +246,12 @@ export function RisksPage() {
               {total === 1 ? "" : "s"}
               {filtering ? " matching these filters" : ""}
             </p>
-            {pages > 1 && (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page === 0}
-                  onClick={() => setPage((p) => Math.max(0, p - 1))}
-                >
-                  Previous
-                </Button>
-                <span className="text-xs tabular-nums text-muted-foreground">
-                  {page + 1} / {pages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page + 1 >= pages}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Next
-                </Button>
-              </div>
-            )}
+            <Pager
+              page={page}
+              pages={pages}
+              onPage={setPage}
+              className="w-auto"
+            />
           </div>
         </>
       )}
@@ -274,7 +280,7 @@ function ScenarioCard({ risk }: { risk: Risk }) {
   const escalation = risk.kind === "ESCALATION";
 
   return (
-    <Card>
+    <Card className="transition-shadow duration-150 hover:shadow-md">
       <CardHeader>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
@@ -359,7 +365,10 @@ function ScenarioCard({ risk }: { risk: Risk }) {
 
 function FindingRiskCard({ risk }: { risk: Risk }) {
   return (
-    <Card>
+    // The lift is a hundred and twenty milliseconds and one step of shadow --
+    // enough that a pointer moving down the ranking can tell which card it is
+    // over, and not so much that a page of them looks like it is breathing.
+    <Card className="transition-shadow duration-150 hover:shadow-md">
       <CardHeader>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
@@ -387,27 +396,54 @@ function FindingRiskCard({ risk }: { risk: Risk }) {
       </CardHeader>
 
       <CardFooter className="flex flex-wrap gap-x-6 gap-y-2 border-t pt-4 text-xs">
-        <Factor label="Asset criticality" level={risk.asset_criticality} />
-        <Factor label="Data sensitivity" level={risk.data_sensitivity} />
-        <Factor label="Internet exposure" level={risk.internet_exposure} />
-        <span className="text-muted-foreground">
-          Exploitability{" "}
-          <strong className="text-foreground">{risk.exploitability}/5</strong>
-        </span>
-        <span className="text-muted-foreground">
-          Business impact{" "}
-          <strong className="text-foreground">{risk.business_impact}</strong>
-        </span>
+        <Factor
+          icon={FACTOR_ICONS.criticality}
+          label="Asset criticality"
+          value={<SeverityBadge level={risk.asset_criticality} size="sm" />}
+        />
+        <Factor
+          icon={FACTOR_ICONS.dataSensitivity}
+          label="Data sensitivity"
+          value={<SeverityBadge level={risk.data_sensitivity} size="sm" />}
+        />
+        <Factor
+          icon={FACTOR_ICONS.exposure}
+          label="Internet exposure"
+          value={<SeverityBadge level={risk.internet_exposure} size="sm" />}
+        />
+        <Factor
+          icon={FACTOR_ICONS.exploitability}
+          label="Exploitability"
+          value={<strong className="text-foreground">{risk.exploitability}/5</strong>}
+        />
+        <Factor
+          icon={FACTOR_ICONS.businessImpact}
+          label="Business impact"
+          value={<strong className="text-foreground">{risk.business_impact}</strong>}
+        />
       </CardFooter>
     </Card>
   );
 }
 
-function Factor({ label, level }: { label: string; level: string }) {
+/**
+ * One of the things this risk was weighed by. The icon is the same one the
+ * risk detail and finding pages use for the factor, so five grey labels in a
+ * row can be told apart by shape before they are read.
+ */
+function Factor({
+  icon,
+  label,
+  value,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: React.ReactNode;
+}) {
   return (
     <span className="flex items-center gap-1.5 text-muted-foreground">
-      {label}
-      <SeverityBadge level={level} size="sm" />
+      <IconLabel icon={icon}>{label}</IconLabel>
+      {value}
     </span>
   );
 }

@@ -1,7 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { ArrowDownIcon, SearchIcon, ShieldCheckIcon, XIcon } from "lucide-react";
+import {
+  ArrowDownIcon,
+  SearchIcon,
+  ShieldAlertIcon,
+  ShieldCheckIcon,
+  XIcon,
+} from "lucide-react";
+import { ResourceTypeLabel } from "@/components/security/IconLabel";
 
 import { api } from "@/lib/api";
 import type { Finding } from "@/lib/types";
@@ -18,6 +25,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 import { Input } from "@/components/ui/input";
 import { SelectField } from "@/components/common/SelectField";
 import {
@@ -28,7 +40,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { cn, formatDate, resourceTypeLabel } from "@/lib/format";
+import { Pager } from "@/components/common/Pager";
+import { cn, formatDate } from "@/lib/format";
+import { stagger } from "@/lib/motion";
 
 const SEVERITIES = ["CRITICAL", "HIGH", "MEDIUM", "LOW"] as const;
 const PAGE_SIZE = 50;
@@ -166,6 +180,7 @@ export function FindingsPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
+        icon={ShieldAlertIcon}
         title={t.findings.title}
         description="Everything CloudGuard has observed and judged wrong, ranked by what it means on the asset it was found on."
       />
@@ -186,11 +201,14 @@ export function FindingsPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* A select, like every other filter in the product: the trigger
+              names the active severity, so it reads without opening. */}
           <SelectField
             value={severity}
             onValueChange={(value) => refilter(() => setSeverity(value || "all"))}
             ariaLabel="Filter by severity"
-            className="w-[150px]"
+            className="w-[160px]"
+            idleValue="all"
             options={[
               { value: "all", label: "All severities" },
               ...SEVERITIES.map((level) => ({
@@ -200,11 +218,15 @@ export function FindingsPage() {
             ]}
           />
 
+          {/* Idle at OPEN rather than "all": open is what the page shows
+              unasked, so the dot appears only when somebody widened or
+              narrowed it. */}
           <SelectField
             value={status}
             onValueChange={(value) => refilter(() => setStatus(value || "all"))}
             ariaLabel="Filter by status"
-            className="w-[160px]"
+            className="w-[170px]"
+            idleValue="OPEN"
             options={[
               { value: "all", label: "All statuses" },
               { value: "OPEN", label: "Open" },
@@ -330,15 +352,52 @@ export function FindingsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows.map((finding) => (
-                    <TableRow key={finding.id} className="group">
+                  {rows.map((finding, index) => (
+                    // The same arrival the dashboard's lists use, in CSS
+                    // rather than through the motion runtime: a `tr` cannot be
+                    // wrapped without breaking the table, and the rise is the
+                    // one thing needed here. Capped at eight rows of stagger,
+                    // so a fifty-row page does not become a slow page.
+                    <TableRow
+                      key={finding.id}
+                      className="group [animation:cg-rise_260ms_ease-out_both]"
+                      style={stagger(index)}
+                    >
                       <TableCell className="max-w-0">
-                        <Link
-                          to={`/findings/${finding.id}`}
-                          className="block truncate font-medium text-foreground after:absolute hover:underline"
-                        >
-                          {finding.title}
-                        </Link>
+                        {/* The column truncates, which is right for a table
+                            and wrong for the reader who has to open six rows
+                            to work out which one they meant. The preview is
+                            the untruncated title and what the rule says, on
+                            hover and on focus -- it opens nothing and changes
+                            nothing, so it costs a reader who wants the whole
+                            page nothing either. */}
+                        <HoverCard>
+                          <HoverCardTrigger
+                            render={
+                              <Link
+                                to={`/findings/${finding.id}`}
+                                className="block truncate font-medium text-foreground after:absolute hover:underline"
+                              />
+                            }
+                          >
+                            {finding.title}
+                          </HoverCardTrigger>
+                          <HoverCardContent
+                            side="right"
+                            align="start"
+                            className="w-96"
+                          >
+                            <p className="text-sm font-medium">
+                              {finding.title}
+                            </p>
+                            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                              {finding.description}
+                            </p>
+                            <p className="mt-2 text-[11px] uppercase tracking-wide text-muted-foreground">
+                              {finding.rule_id} · v{finding.rule_version}
+                            </p>
+                          </HoverCardContent>
+                        </HoverCard>
                         <p className="mt-0.5 truncate text-xs text-muted-foreground">
                           {finding.rule_id}
                         </p>
@@ -352,11 +411,10 @@ export function FindingsPage() {
                             <span className="block max-w-[16rem] truncate text-foreground">
                               {finding.resource.name}
                             </span>
-                            <span className="text-xs">
-                              {resourceTypeLabel(
-                                finding.resource.resource_type,
-                              )}
-                            </span>
+                            <ResourceTypeLabel
+                              type={finding.resource.resource_type}
+                              className="max-w-[16rem] text-xs"
+                            />
                           </>
                         ) : (
                           <span className="italic">Tenant-wide</span>
@@ -385,29 +443,12 @@ export function FindingsPage() {
               {total === 1 ? "" : "s"}
               {filtered ? " matching these filters" : ""}
             </p>
-            {pages > 1 && (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page === 0}
-                  onClick={() => setPage((p) => Math.max(0, p - 1))}
-                >
-                  Previous
-                </Button>
-                <span className="text-xs tabular-nums text-muted-foreground">
-                  {page + 1} / {pages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page + 1 >= pages}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Next
-                </Button>
-              </div>
-            )}
+            <Pager
+              page={page}
+              pages={pages}
+              onPage={setPage}
+              className="w-auto"
+            />
           </div>
         </>
       )}

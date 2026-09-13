@@ -1,6 +1,6 @@
 import { Fragment, type ComponentType, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { AlertCircleIcon } from "lucide-react";
+import { AlertCircleIcon, type LucideIcon } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -36,20 +36,33 @@ export function PageHeader({
   title,
   description,
   actions,
+  icon: Icon,
   className,
 }: {
   title: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
+  /**
+   * The page's sidebar icon, repeated beside its title so the screen and the
+   * entry that opened it are visibly the same place.
+   */
+  icon?: LucideIcon;
   className?: string;
 }) {
   return (
     <div className={cn("flex flex-wrap items-start justify-between gap-4", className)}>
-      <div className="min-w-0">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">{title}</h1>
-        {description && (
-          <p className="mt-1 max-w-3xl text-sm text-muted-foreground">{description}</p>
+      <div className="flex min-w-0 items-start gap-3">
+        {Icon && (
+          <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg border bg-muted/50 text-muted-foreground">
+            <Icon className="size-4.5" aria-hidden />
+          </span>
         )}
+        <div className="min-w-0">
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">{title}</h1>
+          {description && (
+            <p className="mt-1 max-w-3xl text-sm text-muted-foreground">{description}</p>
+          )}
+        </div>
       </div>
       {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
     </div>

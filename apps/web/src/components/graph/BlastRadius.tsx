@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { resourceTypeLabel } from "@/lib/format";
+import { ResourceTypeLabel } from "@/components/security/IconLabel";
 
 interface Reached {
   id: string;
@@ -99,9 +99,10 @@ export function BlastRadius({
                 className="flex items-center gap-3 py-2 text-sm first:pt-0 last:pb-0"
               >
                 <span className="min-w-0 flex-1 truncate">{reached.name}</span>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {resourceTypeLabel(reached.resource_type)}
-                </span>
+                <ResourceTypeLabel
+                  type={reached.resource_type}
+                  className="shrink-0 text-xs text-muted-foreground"
+                />
                 <SeverityBadge level={reached.data_sensitivity} size="sm" />
               </li>
             ))}

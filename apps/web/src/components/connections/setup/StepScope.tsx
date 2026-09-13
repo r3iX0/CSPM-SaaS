@@ -23,6 +23,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Spinner } from "@/components/ui/spinner";
+import { ProviderMark } from "@/components/security/ProviderMark";
 import { cn } from "@/lib/format";
 
 /**
@@ -215,7 +216,8 @@ export function StepScope({
                   className="mt-1"
                 />
                 <span className="min-w-0">
-                  <span className="block text-sm font-medium text-foreground">
+                  <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+                    <ProviderMark provider={option.id} />
                     {option.name}
                   </span>
                   {!option.available && option.unavailable_reason && (

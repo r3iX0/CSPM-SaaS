@@ -14,7 +14,7 @@ import { api } from "@/lib/api";
 import type { Asset, Rule } from "@/lib/types";
 import { NAV_GROUPS } from "@/components/layout/nav";
 import { setThemeChoice, type ThemeChoice } from "@/lib/theme";
-import { resourceTypeLabel } from "@/lib/format";
+import { ResourceTypeLabel } from "@/components/security/IconLabel";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +26,7 @@ import {
   CommandList,
   CommandShortcut,
 } from "@/components/ui/command";
+import { Kbd } from "@/components/ui/kbd";
 
 /** Below this, a search is a letter or two and would match most of an estate. */
 const MIN_QUERY = 2;
@@ -193,9 +194,7 @@ export function CommandPalette() {
       >
         <SearchIcon data-icon="inline-start" />
         <span className="hidden sm:inline">Search</span>
-        <kbd className="hidden rounded border bg-muted px-1.5 py-0.5 text-[10px] font-medium sm:inline">
-          {shortcutLabel()}
-        </kbd>
+        <Kbd className="hidden sm:inline-flex">{shortcutLabel()}</Kbd>
       </Button>
 
       <CommandDialog
@@ -262,9 +261,10 @@ export function CommandPalette() {
                     <span className="min-w-0 flex-1 truncate">
                       {asset.name}
                     </span>
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                      {resourceTypeLabel(asset.resource_type)}
-                    </span>
+                    <ResourceTypeLabel
+                      type={asset.resource_type}
+                      className="shrink-0 text-xs text-muted-foreground"
+                    />
                     {/* Exposure travels with the name: an asset worth jumping to
                     is usually one somebody is worried about. */}
                     <SeverityBadge level={asset.public_exposure} size="sm" />

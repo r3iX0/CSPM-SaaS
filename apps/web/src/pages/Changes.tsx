@@ -13,9 +13,11 @@ import {
 import { api } from "@/lib/api";
 import type { AssetChange, ChangeEvent } from "@/lib/types";
 import { useT } from "@/i18n";
-import { cn, formatDate, formatDateTime, resourceTypeLabel } from "@/lib/format";
+import { cn, formatDate, formatDateTime } from "@/lib/format";
 import { changeDirection, type Direction } from "@/lib/changes";
+import { CHANGE_KIND_ICONS } from "@/lib/icons";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
+import { IconLabel, ResourceTypeLabel } from "@/components/security/IconLabel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,6 +28,7 @@ import {
   ErrorState,
   PageHeader,
 } from "@/components/common/states";
+import { StepPager } from "@/components/common/Pager";
 
 const PAGE_SIZE = 50;
 const WINDOWS = [1, 7, 30, 90] as const;
@@ -76,7 +79,11 @@ export function ChangesPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader title={t.changes.title} description={t.changes.intro} />
+      <PageHeader
+        icon={GitCompareArrowsIcon}
+        title={t.changes.title}
+        description={t.changes.intro}
+      />
 
       <div className="flex flex-wrap items-center gap-2">
         <SelectField
@@ -94,12 +101,14 @@ export function ChangesPage() {
           value={kind}
           onValueChange={(value) => rewindow(() => setKind(value || "all"))}
           ariaLabel={t.changes.kindLabel}
-          className="w-[210px]"
+          className="w-[230px]"
+          idleValue="all"
           options={[
             { value: "all", label: t.changes.allKinds },
             ...(Object.keys(t.changes.kind) as AssetChange[]).map((value) => ({
               value,
               label: t.changes.kind[value],
+              icon: CHANGE_KIND_ICONS[value],
             })),
           ]}
         />
@@ -164,26 +173,12 @@ export function ChangesPage() {
               {page * PAGE_SIZE + 1}–{page * PAGE_SIZE + events.length}{" "}
               {events.length === 1 ? t.changes.count : t.changes.countPlural}
             </p>
-            {(page > 0 || hasMore) && (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page === 0}
-                  onClick={() => setPage((p) => Math.max(0, p - 1))}
-                >
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!hasMore}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Next
-                </Button>
-              </div>
-            )}
+            <StepPager
+              page={page}
+              hasMore={hasMore}
+              onPage={setPage}
+              className="w-auto"
+            />
           </div>
         </>
       )}
@@ -222,16 +217,19 @@ function ChangeRow({ event }: { event: ChangeEvent }) {
           >
             {event.asset.name}
           </Link>
-          <span className="text-xs text-muted-foreground">
-            {resourceTypeLabel(event.asset.resource_type)}
-          </span>
+          <ResourceTypeLabel
+            type={event.asset.resource_type}
+            className="text-xs text-muted-foreground"
+          />
           {event.asset.environment && (
             <Badge variant="outline">{event.asset.environment}</Badge>
           )}
         </div>
 
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-          <span>{t.changes.kind[event.change]}</span>
+          <IconLabel icon={CHANGE_KIND_ICONS[event.change]}>
+            {t.changes.kind[event.change]}
+          </IconLabel>
 
           {attribute && (
             <span className="flex items-center gap-1.5">

@@ -13,7 +13,7 @@
  * has no action. So the reason travels with it.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -61,6 +61,18 @@ function control(overrides: Record<string, unknown> = {}) {
     readings: [reading()],
     ...overrides,
   };
+}
+
+/**
+ * Open a control's evidence.
+ *
+ * Failing and inconclusive controls arrive expanded; a passing one does not,
+ * because a fifty-six-control framework rendered fully open buries the dozen
+ * that are wrong. These tests are about what is behind a *passing* verdict, so
+ * they have to ask for it the way a reader does.
+ */
+async function expand(id = "4.1.1") {
+  fireEvent.click(await screen.findByRole("button", { name: new RegExp(id) }));
 }
 
 function mount(controls: object[]) {
@@ -204,6 +216,7 @@ describe("what a control's verdict rests on", () => {
      * control has no findings, so the green row an auditor asks about first had
      * nothing behind it at all. */
     mount([control({ status: "PASSING" })]);
+    await expand();
 
     expect(await screen.findByText("sql_auditing")).toBeInTheDocument();
     expect(screen.getByText("complete")).toBeInTheDocument();
@@ -218,6 +231,7 @@ describe("what a control's verdict rests on", () => {
         readings: [reading({ outcome: null, collected_at: null, scopes: 0, age_seconds: null })],
       }),
     ]);
+    await expand();
 
     expect(await screen.findByText(/not read in the last scan/i)).toBeInTheDocument();
   });
@@ -226,6 +240,7 @@ describe("what a control's verdict rests on", () => {
     /** Retention prunes payloads long before the record that they were read.
      * The citation stays true, and a link that fails would be worse. */
     mount([control({ readings: [reading({ retained: false })] })]);
+    await expand();
 
     expect(await screen.findByText(/payload no longer stored/i)).toBeInTheDocument();
   });

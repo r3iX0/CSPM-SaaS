@@ -4053,6 +4053,284 @@ colour and its shape (`TrendingUp` for a regression, `Plus` for an arrival,
 attribute that moved into UNKNOWN is a loss of knowledge, renders neutral, and
 is still distinguishable from an improvement without relying on hue.
 
+## 84. A motion runtime, the sidebar primitive, and charts on shadcn's wrapper
+
+Three UI decisions taken together, because each one is a thing the project had
+declined before and the reasons it declined them have changed.
+
+### The frontend now has a motion library
+
+`motion` (framer-motion's current package name) is a dependency. The rule it
+breaks is the useful kind of rule — no runtime for something CSS already does —
+and it is broken for the one case CSS genuinely cannot do in a React SPA:
+*exit*. A route that unmounts has no frames left to animate in, so a page swap
+either cuts hard or the outgoing tree has to be kept alive by something that
+knows it is leaving. That is `AnimatePresence`, and it is why `PageTransition`
+exists.
+
+What did **not** move: `index.css` still owns the two chart keyframes and the
+`prefers-reduced-motion` block, and `useCountUp` is still hand-written, because
+a number counting to its value is arithmetic rather than animation and the
+existing one already guarantees it lands exactly on the value. The list staggers
+on the findings and assets tables are still CSS — a `<tr>` cannot be wrapped in
+a `<div>`, and the rise is the whole effect.
+
+Reduced motion is answered in one place per layer and nowhere else:
+`<MotionConfig reducedMotion="user">` in `main.tsx` for the runtime, the media
+query in `index.css` for everything else. Both degrade to *the end state,
+immediately* — reduced motion means arriving, not crawling. Nothing below either
+of them checks the preference itself.
+
+The timings live in `lib/motion.ts` as `DURATION` and two easings, not as
+numbers typed into components. Motion in this product is a claim that something
+arrived or changed, and six panels each picking their own duration would make
+six different claims about one event.
+
+**Entry animation is never gated on a "first render" flag.** A motion element
+runs `initial` when it mounts and never again, so a keyed row that survives a
+refetch does not replay. Keep the keys stable and the animation stays honest:
+the dashboard polls every twenty seconds, and a table that re-staggered on every
+poll would teach the reader that movement means nothing.
+
+### The shell runs on `@shadcn/sidebar`
+
+`Shell.tsx` hand-rolled a fixed rail, a collapse button, a `Sheet` for mobile
+and the padding that kept the two in step. All of that is the primitive's, so it
+is the primitive's now — `SidebarProvider` / `Sidebar collapsible="icon"` /
+`SidebarInset` / `SidebarRail`, with `SidebarMenuButton` carrying the collapsed
+tooltip that used to be wired by hand.
+
+Two edits to the vendored source were needed and both are deliberate:
+
+* **The cookie is gone.** Upstream writes `sidebar_state` on every toggle. That
+  would be the only cookie CloudGuard sets, and a security product that plants
+  one to remember a rail width has to explain it in a privacy notice. The
+  provider is controlled from `Shell` instead, and the preference stays in
+  `localStorage` under the same `cloudguard.sidebar.collapsed` key it has always
+  used — so nobody's remembered rail is lost.
+* **`useIsMobile` reads its media query up front.** Upstream starts at
+  `undefined` and fills the answer in from an effect, which renders one frame of
+  "not mobile" on every phone and trips this project's lint rule against setting
+  state in an effect.
+
+`SidebarTrigger` names itself "Toggle Sidebar" in both states, which is a
+control a screen-reader user cannot tell the state of. `NavToggle` wraps it to
+say which way it will go and to carry `aria-expanded`, keeping the accessible
+names the shell already had. (Where it sits changed in §85.)
+
+Which row is current is `useMatch` per row rather than `NavLink`'s render prop:
+the primitive wants the answer as a prop, because the anchor itself carries the
+button styling and the focus ring, so nothing may sit between them. Non-exact
+rows stay lit on their detail screens — a reader on `/findings/<id>` has not
+left Findings.
+
+### Charts sit inside `ChartContainer`
+
+`ActivityBars`, `Donut`, `EstateTreemap` and `ScoreTrend` each hand-built a
+Recharts `<Tooltip>` with an inline `contentStyle`, because Recharts paints that
+element inline and it does not inherit the surface — unset, it stays white on a
+dark page. Four copies of the same six declarations. They now use
+`ChartContainer` / `ChartTooltip` / `ChartTooltipContent` / `ChartLegendContent`,
+and the tooltip is a themed element like every other popover in the product.
+
+**The tuned ramps stay authoritative.** `chart.tsx` defines no `--chart-*`
+tokens of its own; it emits a `--color-<key>` per series, scoped to one chart
+id, from the `ChartConfig` it is given. So the contrast-measured neutral ramp in
+`index.css` and the severity scale are still the only definitions of those
+colours, and `ActivityBars` still maps its three series to `--sev-medium`,
+`--sev-ok` and `--sev-critical` — those are statuses, not categories.
+
+This upgraded Recharts 2.15 → 3.8, which `chart.tsx` is written against. The
+cost was the four hand-written tooltip formatters, whose v2 signatures no longer
+typecheck; they were the code being deleted anyway.
+
+### The rest of the pass
+
+* **Destructive confirmations are `AlertDialog`.** `RemoveConfirm` and
+  `DeleteScanConfirm` announce themselves as `alertdialog` and cannot be
+  dismissed by a click on the backdrop. A stray click outside an ordinary dialog
+  is a harmless miss; on these two it was the same gesture that deletes an
+  environment or purges findings. `DeleteScanConfirm` also stopped being a red
+  panel wedged under the scan card it was about to delete.
+* **One pager, and it can jump.** Four pages had copied the same
+  Previous / "3 / 9" / Next. `common/Pager.tsx` draws real page numbers with
+  first, last, and a window either side, so reaching the end of a four-hundred-
+  row findings list is one click rather than eight round trips. `StepPager` is
+  the variant for the changes feed, which is windowed by date and has no total —
+  inventing one would be a claim the API never made.
+* **Severity is a `ToggleGroup`, not a select.** *Superseded by §85: severity
+  is a `SelectField` again.* Four values plus "all", never changing, the filter
+  the findings and risks pages are actually worked through — laid out, the
+  current filter is visible without opening anything. Deselecting the active
+  item keeps it: an empty severity filter is not a filter anybody wants.
+* **Change detection is a `Switch`.** A pill reading "Listening for changes"
+  beside a button reading "Turn on change detection" stated the same fact twice.
+  The switch is labelled with what the setting is *for* rather than what it
+  currently is, because that is the half that does not change when it moves.
+* **Compliance controls collapse, except the ones that matter.** CIS Azure is
+  fifty-six controls; rendering every rule and reading of all of them buried the
+  dozen that are wrong under the forty that are not. Failing and inconclusive
+  controls arrive expanded, passing and not-covered collapsed — and the verdict
+  is always in the trigger, never inside the panel. What a control says is not
+  something a reader should have to expand to find out.
+* **Finding titles preview on hover.** The column truncates, which is right for
+  a table and wrong for the reader opening six rows to find the one they meant.
+
+### One test-suite change, and it is not about this work
+
+`findByText` waits one second by default — a figure that describes how long a
+*component* takes to settle. These tests mount whole pages inside jsdom, in
+parallel across every core, and under that load a page rendering in 200ms alone
+takes several seconds. The failure was always the same shape: a `findByText`
+timing out on text the page does render, in a test that passes on its own. It
+predates this work; one suite carries a comment about losing "about one run in
+three". `asyncUtilTimeout` is now five seconds and `testTimeout` twenty, which
+is a slow suite instead of a slow machine reported as a broken product.
+
+## 85. The collapse control sits at the foot of the sidebar, and every filter is a select
+
+Two reversals of §84, both made after using the result on the deployed build.
+
+### The sidebar toggle moved from the header to the sidebar footer
+
+§84 left `NavToggle` at the left edge of the page header. That put the control
+for the column in a different element from the column, and it moved: the header
+starts where the sidebar ends, so narrowing the rail slid the button left by
+the width the rail gave up, out from under the pointer that had just clicked it. A reader
+toggling back had to go and find it.
+
+On a desktop it is now the last item in `SidebarFooter`, beside the connection
+status — a row when expanded, stacked and centred on the icon rail. It sits in
+the column it collapses and stays under the pointer in both widths.
+`SidebarRail` remains as the second, edge-drag way to do the same thing.
+
+**On a phone it stays in the header.** Below the mobile breakpoint the sidebar
+is a `Sheet` that is not rendered until opened, so a trigger inside it could
+never open it. `NavToggle` takes a `placement` and renders only where it
+belongs, decided from the provider's `isMobile` rather than hidden with a
+breakpoint class: two copies in the DOM would give the page two buttons with
+the same accessible name, one of them invisible.
+
+### Severity and risk level are selects, like every other filter
+
+§84 laid severity out as a `ToggleGroup` on the findings and risks pages. In
+practice it was the only filter drawn that way. Next to the status and kind
+selects on the same row it read as a different kind of control, it was twice as
+wide as its neighbours — six segments on the risks page, where `UNKNOWN` is a
+real level — and it pushed those neighbours into truncating their own labels
+("Findings and rou…").
+
+Both pages now use `SelectField`, with "All severities" / "All levels" as the
+unfiltered label. The original argument for the toggle — that the active filter
+must be readable without opening anything — is already met by `SelectField`,
+whose trigger always names the chosen option rather than the raw value. The
+kind select widened to fit its longest label for the same truncation reason.
+
+`common/ToggleFilter.tsx` had no other users and is deleted. The vendored
+`ui/toggle-group.tsx` primitive stays: it is shadcn source, and removing a
+primitive because nothing uses it today would mean re-adding it through the CLI
+the next time something does.
+
+## 86. Icons carry meaning, and each meaning has one icon
+
+The interface had icons in the sidebar, on the dashboard panels and in empty
+states, and almost none where a reader actually scans: a storage account, a
+virtual machine and a key vault rendered identically in every table; a status
+pill was told apart from its neighbours by tone alone; and a severity badge had
+a mark only when it was UNKNOWN. This pass adds shape everywhere a reader is
+sorting things by kind or by state, and nowhere else.
+
+### One registry, `lib/icons.ts`
+
+Every icon that means something is defined once: resource types, the risk
+factors, detail page facts, change kinds, risk kinds and the verification
+verdicts. Components read from those maps rather
+than importing a glyph of their own.
+
+The failure this closes is the one colour already taught: two screens choosing
+their own shape for one state teaches the reader that shapes mean nothing.
+`VerificationPanel` and the scans page had already drifted — `CheckCircle2`
+and `XCircle` in one, nothing in the other — and the finding page's risk
+factors used a shield for "business-critical" while nothing else used a shield
+for it at all. A new status or resource type is now a one-line change to a map,
+and a missing entry falls back to a neutral shape (a box, a plain circle)
+rather than to nothing.
+
+Icons follow the shadcn rule and are passed as component objects, never as
+string keys. Lucide is still the only icon set; `ProviderMark` is the one
+exception, below.
+
+### What each mark says
+
+* **Resource types** — `ResourceTypeLabel` puts the type's icon in front of its
+  name in the findings and assets tables, the asset tree, the blast radius, the
+  command palette, the change feed and the asset and finding detail pages. The
+  icon comes from the neutral type even where the label is the provider's own
+  (`azure_type`), so an unmodelled resource still reads as a box.
+* **Risk factors** — criticality, data sensitivity, internet exposure,
+  exploitability and business impact have one icon each, used on the risk
+  cards, the risk and finding detail pages, the asset page and the dashboard's
+  priority risks.
+* **Facts** — environment, region, first seen, last seen and resolved on the
+  detail pages.
+* **Change kinds** — the change feed puts the kind's icon beside its name. The
+  round mark at the start of each row is still *direction* (worse, better,
+  neutral), because an exposure change can go either way; kind and direction
+  are separate facts and get separate marks.
+* **Page headers** — `PageHeader` takes the page's sidebar icon, so a screen and
+  the entry that opened it are visibly the same place.
+
+### Filters say which of them are filtering
+
+`SelectField` gained two things. An option may carry an `icon`, shown in the
+menu and in the trigger — used for resource types, change kinds and risk kinds.
+And `idleValue` marks a select as a filter: while its value differs
+from the unfiltered one, a dot sits in the trigger. On a row of four filters
+that is the difference between seeing which ones are narrowing the list and
+reading every label against a default you have to remember. The findings status
+filter idles at OPEN rather than "all", because open is what the page shows
+unasked.
+
+### Provider marks are hand-drawn and monochrome
+
+Lucide deliberately ships no brand logos, so `ProviderMark` draws two small
+glyphs for Azure and AWS. They are simplified shapes that identify the provider,
+not the vendors' official artwork, and they are drawn in `currentColor` rather
+than in brand colours: two vendor palettes on the connections page would be the
+only raw colour in the product, and exactly the kind of second token layer the
+severity scale is protected from. Each is labelled with the provider's name,
+since a mark alone is only recognisable to someone who already knows it. They
+appear on connection rows, the provider picker in setup, and a scan's scope.
+Swapping in official artwork later is a change to one file.
+
+### Severity and status stay text
+
+The first version of this pass also gave every severity badge, status pill,
+compliance control pill and collection outcome its own shape, and put those
+shapes in the severity and status filters. It was taken back out the same day.
+Those badges sit several to a row — a risk card carries a severity, a status and
+three factor levels in one line — and a glyph on each one made the densest rows
+in the product busier without saying anything the word beside it did not. They
+are text on a tone again, as they were before this section.
+
+What that costs, and why it is acceptable: colour is still not the only signal,
+because every badge carries its word. UNKNOWN is additionally set apart from LOW
+by its dashed border (`levelStyle`), which the badge test now asserts in place of
+the icon. The same-day version had also dropped the help mark UNKNOWN carried
+before §86; that is not restored, because the dashed border and the word already
+answer the question it answered.
+
+`VerificationPanel` keeps its icons. It is one large callout, not a badge in a
+row, and it had them before this pass.
+
+### What was left alone
+
+Buttons that already had icons kept them, and buttons without one did not get
+one: an icon on "Cancel" or "Save" is decoration. Headings, cards and panels did
+not get icons for the sake of it. The dashboard's recent-changes timeline keeps
+its direction marks only; its rows are one truncated sentence, and a second
+icon there would cost the asset name its room.
+
 ## Settings: the evidence a person supplies
 
 `PATCH /organizations` takes no id in the path. Deleting a *different*

@@ -1,4 +1,21 @@
 import "@testing-library/jest-dom/vitest";
+import { configure } from "@testing-library/react";
+
+/**
+ * How long a `findBy*` waits before calling text missing.
+ *
+ * Testing Library's default is one second, which is a statement about how long
+ * a *component* takes to settle. These tests mount whole pages -- a router, a
+ * query client, three or four settling requests and a full tree -- inside
+ * jsdom, in parallel across every core the machine has. Under that load a page
+ * that renders in 200ms alone can take several seconds, and the failure it
+ * produced was always the same: a `findByText` timing out on text the page does
+ * render, in a test that passes on its own.
+ *
+ * Five seconds, not more: a genuinely missing element should still fail the
+ * run quickly rather than hold it for the full test timeout.
+ */
+configure({ asyncUtilTimeout: 5_000 });
 
 /**
  * jsdom implements no `ResizeObserver`, and Recharts' `ResponsiveContainer`

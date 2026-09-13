@@ -6,7 +6,6 @@ import type { CollectionOutcome, CollectionReading, CollectionStatus } from "@/l
 import { useT } from "@/i18n";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatRelative, outcomeStyle } from "@/lib/format";
-
 /**
  * What the scan could and could not read.
  *

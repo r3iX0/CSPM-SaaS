@@ -6,14 +6,15 @@ import type { Revocation, RevocationCheck } from "@/lib/types";
 import { useT } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { CodeBlock } from "@/components/common/CodeBlock";
 
 /**
@@ -24,13 +25,16 @@ import { CodeBlock } from "@/components/common/CodeBlock";
  * commands are generated for the customer to run, and "check" asks Azure
  * whether they did -- an answer, not an assurance.
  *
- * **A dialog rather than a panel inside the row.** The confirmation is long --
+ * **An alert dialog rather than a panel inside the row.** The confirmation is long --
  * three commands, an explanation of why CloudGuard cannot run them, and a probe
  * -- and expanded in place it pushed the rest of the connection off screen,
  * so a reader deciding whether to delete an environment was scrolling a page
  * whose other half had moved. It is also the one irreversible action in the
- * product, which is the case a modal exists for: it takes the screen, it takes
- * focus, and Escape or "Keep it" is always the way out.
+ * product, which is the case an *alert* dialog exists for rather than a plain
+ * one: it announces itself as `alertdialog`, it cannot be dismissed by a click
+ * on the backdrop, and "Keep it" is where focus starts. A stray click outside a
+ * regular dialog is a harmless miss; here it would be the same gesture that
+ * deletes an environment.
  *
  * Controlled by the caller rather than owning its own trigger. The row already
  * holds the button, and a dialog that opened itself would leave the row unable
@@ -75,12 +79,16 @@ export function RemoveConfirm({
   const steps = revocation.data?.steps ?? [];
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="text-critical">{t.connection.removeTitle}</DialogTitle>
-          <DialogDescription>{t.connection.removeDetail}</DialogDescription>
-        </DialogHeader>
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent className="sm:max-w-lg">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="text-critical">
+            {t.connection.removeTitle}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {t.connection.removeDetail}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
 
         {/* Revocation sits inside the removal confirmation on purpose. It is the
             only moment the customer is thinking about ending this, and once the
@@ -153,18 +161,22 @@ export function RemoveConfirm({
           </div>
         )}
 
-        <DialogFooter>
-          {/* "Keep it" is the close, so Escape and the backdrop do the same
-              thing the button does -- and the destructive action is never the
-              one a stray keypress reaches. */}
-          <DialogClose render={<Button variant="secondary" />}>
+        <AlertDialogFooter>
+          {/* "Keep it" is the close, so Escape does the same thing the button
+              does -- and the destructive action is never the one a stray
+              keypress reaches. */}
+          <AlertDialogCancel variant="secondary">
             {t.connection.keep}
-          </DialogClose>
-          <Button variant="destructive" onClick={onConfirm} disabled={busy}>
+          </AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            onClick={onConfirm}
+            disabled={busy}
+          >
             {busy ? t.connection.removing : t.connection.remove}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

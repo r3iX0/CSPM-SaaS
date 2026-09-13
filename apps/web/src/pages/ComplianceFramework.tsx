@@ -8,6 +8,7 @@ import type {
   ComplianceControl,
   ComplianceFrameworkDetail,
   ControlReading,
+  ControlStatus,
 } from "@/lib/types";
 import { useT } from "@/i18n";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
@@ -20,6 +21,12 @@ import {
   EvidenceNotice,
 } from "@/components/compliance";
 import { Breadcrumbs, DetailSkeleton, ErrorState } from "@/components/common/states";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -158,11 +165,27 @@ export function ComplianceFrameworkPage() {
           <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {group}
           </h2>
-          <div className="flex flex-col gap-2">
+          {/* One accordion per section, `multiple` because these are not
+              alternatives -- a reader comparing two failing controls should
+              not have the first close when they open the second.
+
+              What opens by default is the argument: a control that is failing
+              or inconclusive arrives expanded, because its evidence is the
+              reason somebody opened this page. Passing and not-covered start
+              collapsed. CIS Azure alone is fifty-six controls, and a page that
+              renders every rule and every reading of all of them buries the
+              dozen that are wrong under the forty that are not. */}
+          <Accordion
+            multiple
+            defaultValue={controls
+              .filter((control) => NEEDS_ATTENTION.has(control.status))
+              .map((control) => control.id)}
+            className="flex flex-col gap-2"
+          >
             {controls.map((control) => (
               <ControlRow key={control.id} control={control} />
             ))}
-          </div>
+          </Accordion>
         </section>
       ))}
     </div>
@@ -183,35 +206,47 @@ function groupBySection(
   return [...groups.entries()];
 }
 
+/** The verdicts whose evidence is the reason the page was opened. */
+const NEEDS_ATTENTION = new Set<ControlStatus>(["FAILING", "INCONCLUSIVE"]);
+
 function ControlRow({ control }: { control: ComplianceControl }) {
   const t = useT();
 
   return (
     <Card className="py-4">
       <CardContent className="px-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <code className="text-xs font-medium text-muted-foreground">
-                {control.id}
-              </code>
-              {/* Not a status: it says CloudGuard cannot speak to this control
-                  at all, which is a different thing from having looked and
-                  found nothing wrong. */}
-              {!control.technically_assessable && (
-                <Badge
-                  variant="secondary"
-                  title={t.compliance.notAssessableHelp}
-                >
-                  {t.compliance.notAssessable}
-                </Badge>
-              )}
+        <AccordionItem value={control.id} className="border-b-0">
+          {/* The verdict is in the trigger, never inside the panel: what a
+              control says is not something a reader should have to expand to
+              find out. Only the evidence behind it collapses. */}
+          <AccordionTrigger className="py-0 hover:no-underline">
+            <div className="flex flex-1 flex-wrap items-start justify-between gap-3 pr-3">
+              <div className="flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <code className="text-xs font-medium text-muted-foreground">
+                    {control.id}
+                  </code>
+                  {/* Not a status: it says CloudGuard cannot speak to this
+                      control at all, which is a different thing from having
+                      looked and found nothing wrong. */}
+                  {!control.technically_assessable && (
+                    <Badge
+                      variant="secondary"
+                      title={t.compliance.notAssessableHelp}
+                    >
+                      {t.compliance.notAssessable}
+                    </Badge>
+                  )}
+                </div>
+                <p className="mt-1 text-sm font-normal text-foreground">
+                  {control.title}
+                </p>
+              </div>
+              <ControlStatusPill status={control.status} />
             </div>
-            <p className="mt-1 text-sm text-foreground">{control.title}</p>
-          </div>
-          <ControlStatusPill status={control.status} />
-        </div>
+          </AccordionTrigger>
 
+          <AccordionContent>
         {control.rules.length > 0 ? (
           <div className="mt-3 border-t pt-3">
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
@@ -279,7 +314,9 @@ function ControlRow({ control }: { control: ComplianceControl }) {
           </p>
         )}
 
-        <ControlReadings readings={control.readings ?? []} />
+            <ControlReadings readings={control.readings ?? []} />
+          </AccordionContent>
+        </AccordionItem>
       </CardContent>
     </Card>
   );

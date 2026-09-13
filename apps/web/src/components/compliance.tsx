@@ -1,7 +1,6 @@
 import { useT } from "@/i18n";
 import type { ControlStatus } from "@/lib/types";
 import { cn, controlStatusStyle, label } from "@/lib/format";
-
 /**
  * Shared compliance chrome.
  *

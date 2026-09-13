@@ -1,11 +1,5 @@
-import {
-  CheckCircle2Icon,
-  CircleDashedIcon,
-  HelpCircleIcon,
-  XCircleIcon,
-} from "lucide-react";
-
 import type { Verification } from "@/lib/types";
+import { VERDICT_ICONS } from "@/lib/icons";
 import { cn, formatDateTime } from "@/lib/format";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -27,27 +21,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
  */
 const PRESENTATION = {
   VERIFIED: {
-    icon: CheckCircle2Icon,
+    icon: VERDICT_ICONS.pass,
     tone: "border-ok-border bg-ok-bg text-ok",
     heading: "Fix verified",
   },
   PENDING: {
-    icon: CircleDashedIcon,
+    icon: VERDICT_ICONS.pending,
     tone: "border-border bg-muted text-muted-foreground",
     heading: "Checking",
   },
   STILL_FAILING: {
-    icon: XCircleIcon,
+    icon: VERDICT_ICONS.fail,
     tone: "border-critical-border bg-critical-bg text-critical",
     heading: "Still failing",
   },
   INSUFFICIENT_EVIDENCE: {
-    icon: HelpCircleIcon,
+    icon: VERDICT_ICONS.unknown,
     tone: "border-unknown-border bg-unknown-bg text-unknown border-dashed",
     heading: "Could not verify",
   },
   ABANDONED: {
-    icon: CircleDashedIcon,
+    icon: VERDICT_ICONS.pending,
     tone: "border-border bg-muted text-muted-foreground",
     heading: "No longer checking",
   },

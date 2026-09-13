@@ -9,7 +9,8 @@ import { CardsSkeleton, EmptyState, ErrorState } from "@/components/common/state
 import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn, resourceTypeLabel } from "@/lib/format";
+import { cn } from "@/lib/format";
+import { ResourceTypeLabel } from "@/components/security/IconLabel";
 
 /** How many assets a group shows inline before it defers to the list. */
 const INLINE_LIMIT = 25;
@@ -193,9 +194,10 @@ function GroupRow({
                   >
                     {asset.name}
                   </Link>
-                  <span className="hidden shrink-0 text-xs text-muted-foreground sm:block">
-                    {resourceTypeLabel(asset.resource_type)}
-                  </span>
+                  <ResourceTypeLabel
+                    type={asset.resource_type}
+                    className="hidden shrink-0 text-xs text-muted-foreground sm:inline-flex"
+                  />
                   <SeverityBadge level={asset.public_exposure} size="sm" />
                   <span
                     className={cn(

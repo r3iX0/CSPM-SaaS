@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { AlertTriangleIcon, HelpCircleIcon } from "lucide-react";
+import { AlertTriangleIcon } from "lucide-react";
 
 import { cn, label, levelStyle } from "@/lib/format";
 
@@ -24,7 +24,6 @@ export function SeverityBadge({
   className?: string;
   size?: "default" | "sm";
 }) {
-  const unknown = level?.toUpperCase() === "UNKNOWN";
   return (
     <span
       className={cn(
@@ -34,11 +33,9 @@ export function SeverityBadge({
         className,
       )}
     >
-      {/* UNKNOWN carries a mark as well as a colour. Someone who cannot
-          separate the hues still has to be able to tell "we could not look"
-          from "we looked and it was fine" -- that distinction is the product's
-          whole claim to honesty, and colour alone would hide it from them. */}
-      {unknown && <HelpCircleIcon className="size-3 shrink-0" aria-hidden />}
+      {/* Text on a tone, no icon. UNKNOWN is still told apart from LOW by
+          more than colour: its border is dashed (`levelStyle`), and its word
+          says "Unknown". */}
       {children ?? label(level)}
     </span>
   );

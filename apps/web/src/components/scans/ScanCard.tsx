@@ -210,9 +210,13 @@ export function ScanCard({ scan }: { scan: Scan }) {
           </p>
         )}
 
+        {/* Mounted only while it is being asked, so the count of purgeable
+            findings is fetched for the one scan under the pointer rather than
+            for every run on the page. */}
         {confirmingDelete && (
           <DeleteScanConfirm
             scanId={scan.id}
+            open={confirmingDelete}
             busy={remove.isPending}
             onCancel={() => setConfirmingDelete(false)}
             onConfirm={(purge) => remove.mutate(purge)}
