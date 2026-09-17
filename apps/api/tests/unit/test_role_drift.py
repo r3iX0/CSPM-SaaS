@@ -65,6 +65,25 @@ def make_connection(role_version: str, provider: Provider = Provider.AZURE):
     )
 
 
+# What v7 added. Named once, because every older version now lacks it too.
+V7_READS = {
+    "Microsoft.Security/pricings/read",
+    "Microsoft.Storage/storageAccounts/blobServices/read",
+    "Microsoft.Sql/servers/administrators/read",
+    "Microsoft.DBforPostgreSQL/flexibleServers/configurations/read",
+    "Microsoft.Web/sites/read",
+    "Microsoft.Web/sites/config/read",
+}
+V7_CATEGORIES = frozenset(
+    {
+        EvidenceCategory.COMPUTE,
+        EvidenceCategory.STORAGE,
+        EvidenceCategory.DATABASE,
+        EvidenceCategory.POSTURE,
+    }
+)
+
+
 # --------------------------------------------------------------- the guards
 def test_current_role_version_is_recorded_in_history() -> None:
     """Bumping ROLE_VERSION without recording its actions is the failure mode
@@ -173,8 +192,12 @@ def test_an_unknown_role_version_is_treated_as_granting_nothing() -> None:
 # ------------------------------------------------------------- a real drift
 @pytest.fixture
 def role_v2(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A future in which the role grew a storage action v1 never granted."""
-    new_action = "Microsoft.Storage/storageAccounts/blobServices/read"
+    """A future in which the role grew a storage action v1 never granted.
+
+    Hypothetical on purpose, and only ever monkeypatched: it is not in the role
+    and has not been verified against Azure. It was the blob service read until
+    v7 made that one real."""
+    new_action = "Microsoft.Storage/storageAccounts/fileServices/read"
     grown = (*ARM_READ_ACTIONS, new_action)
 
     monkeypatch.setattr(rbac, "ARM_READ_ACTIONS", grown)
@@ -188,8 +211,8 @@ def role_v2(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_an_older_role_is_behind_in_exactly_the_affected_category(role_v2: None) -> None:
-    assert rbac.actions_missing_from("v1") == (
-        "Microsoft.Storage/storageAccounts/blobServices/read",
+    assert rbac.actions_missing_from("v1")[-1] == (
+        "Microsoft.Storage/storageAccounts/fileServices/read"
     )
     assert rbac.categories_behind("v1") == frozenset({"storage"})
 
@@ -240,28 +263,44 @@ class TestRoleUpgrades:
     redeploy, the rules behind it report UNKNOWN rather than PASS.
     """
 
-    def test_the_current_role_is_v6(self) -> None:
-        assert rbac.ROLE_VERSION == "v6"
-        assert rbac.role_is_current("v6")
+    def test_the_current_role_is_v7(self) -> None:
+        assert rbac.ROLE_VERSION == "v7"
+        assert rbac.role_is_current("v7")
 
-    def test_a_v5_role_lacks_exactly_the_encryption_reads(self) -> None:
-        """v6 asks for two more reads and nothing else: which databases a SQL
-        server holds, and whether each encrypts what it stores."""
+    def test_a_v6_role_lacks_exactly_the_v7_reads(self) -> None:
+        """Six reads and nothing else: Defender plans, blob recovery, the SQL
+        Entra administrator, one PostgreSQL parameter, and App Service."""
+        assert set(rbac.actions_missing_from("v6")) == V7_READS
+        assert rbac.categories_behind("v6") == V7_CATEGORIES
+
+    def test_a_v6_role_keeps_every_category_v7_did_not_touch(self) -> None:
+        """If this returned more, the upgrade would be costing a customer checks
+        the new actions have nothing to do with."""
+        untouched = {
+            EvidenceCategory.RESOURCES,
+            EvidenceCategory.NETWORK,
+            EvidenceCategory.LOGGING,
+            EvidenceCategory.AUTHORIZATION,
+            EvidenceCategory.SECRETS,
+        }
+        assert not untouched & rbac.categories_behind("v6")
+
+    def test_a_v5_role_lacks_the_encryption_reads_and_the_v7_reads(self) -> None:
         assert set(rbac.actions_missing_from("v5")) == {
             "Microsoft.Sql/servers/databases/read",
             "Microsoft.Sql/servers/databases/transparentDataEncryption/read",
+            *V7_READS,
         }
-        assert rbac.categories_behind("v5") == frozenset({EvidenceCategory.DATABASE})
+        assert rbac.categories_behind("v5") == V7_CATEGORIES
 
     def test_a_v4_role_lacks_the_defender_and_encryption_reads(self) -> None:
         assert set(rbac.actions_missing_from("v4")) == {
             "Microsoft.Security/assessments/read",
             "Microsoft.Sql/servers/databases/read",
             "Microsoft.Sql/servers/databases/transparentDataEncryption/read",
+            *V7_READS,
         }
-        assert rbac.categories_behind("v4") == frozenset(
-            {EvidenceCategory.POSTURE, EvidenceCategory.DATABASE}
-        )
+        assert rbac.categories_behind("v4") == V7_CATEGORIES
 
     def test_a_v3_role_lacks_the_auditing_encryption_and_defender_reads(self) -> None:
         assert set(rbac.actions_missing_from("v3")) == {
@@ -269,38 +308,24 @@ class TestRoleUpgrades:
             "Microsoft.Sql/servers/databases/read",
             "Microsoft.Sql/servers/databases/transparentDataEncryption/read",
             "Microsoft.Security/assessments/read",
+            *V7_READS,
         }
         assert not rbac.role_is_current("v3")
 
     def test_a_v3_role_loses_the_database_and_posture_categories(self) -> None:
-        """Every other category keeps working. If this returned more, an upgrade
-        would be costing a customer checks the new actions have nothing to do
-        with."""
-        assert rbac.categories_behind("v3") == frozenset(
-            {EvidenceCategory.DATABASE, EvidenceCategory.POSTURE}
-        )
+        assert rbac.categories_behind("v3") == V7_CATEGORIES
 
     def test_a_v2_role_is_behind_on_vaults_and_databases(self) -> None:
-        assert rbac.categories_behind("v2") == frozenset(
-            {
-                EvidenceCategory.SECRETS,
-                EvidenceCategory.DATABASE,
-                EvidenceCategory.POSTURE,
-            }
-        )
+        assert rbac.categories_behind("v2") == V7_CATEGORIES | {EvidenceCategory.SECRETS}
 
     def test_v1_still_reports_every_gap_it_has(self) -> None:
         """v2 added Resource Graph, v3 vaults, v4 SQL auditing. A history that
         quietly forgot an older gap would tell a v1 customer they were one
         action away when they are several."""
-        assert rbac.categories_behind("v1") == frozenset(
-            {
-                EvidenceCategory.RESOURCES,
-                EvidenceCategory.SECRETS,
-                EvidenceCategory.DATABASE,
-                EvidenceCategory.POSTURE,
-            }
-        )
+        assert rbac.categories_behind("v1") == V7_CATEGORIES | {
+            EvidenceCategory.RESOURCES,
+            EvidenceCategory.SECRETS,
+        }
 
     def test_every_shipped_version_is_a_prefix_of_the_next(self) -> None:
         """A version may add actions and may never drop one. Removing an action
@@ -308,7 +333,7 @@ class TestRoleUpgrades:
         believed to grant, and ``actions_missing_from`` would stop reporting a
         gap that is still real.
         """
-        versions = ["v1", "v2", "v3", "v4", "v5", "v6"]
+        versions = ["v1", "v2", "v3", "v4", "v5", "v6", "v7"]
         for older, newer in itertools.pairwise(versions):
             assert set(rbac.ROLE_HISTORY[older]) <= set(rbac.ROLE_HISTORY[newer]), (
                 f"{newer} dropped an action {older} granted"
@@ -329,7 +354,11 @@ class TestRoleUpgrades:
         # dismisses a finding, or changes what the customer is assessed on.
         assert [
             a for a in rbac.ARM_READ_ACTIONS if a.startswith("Microsoft.Security/")
-        ] == ["Microsoft.Security/assessments/read"]
+        ] == ["Microsoft.Security/assessments/read", "Microsoft.Security/pricings/read"]
+        # App Service configuration, never its secrets. Application settings
+        # and connection strings are ``config/list``, an action this role must
+        # never carry.
+        assert not [a for a in rbac.ARM_READ_ACTIONS if "/list" in a.lower()]
 
     def test_every_granted_action_is_reached_by_a_collector_call(self) -> None:
         """Already asserted for the role as a whole; restated here because a new
@@ -402,14 +431,11 @@ class TestTheConnectionPayloadExplainsTheGap:
     def test_a_stale_role_names_the_checks_that_cannot_run(self) -> None:
         """The same categories the scanner uses to explain its own gaps, so the
         screen and the scan cannot disagree about which checks are affected."""
-        assert self._payload("v5")["degraded_categories"] == ["database"]
-        assert self._payload("v4")["degraded_categories"] == ["database", "posture"]
-        assert self._payload("v3")["degraded_categories"] == ["database", "posture"]
-        assert self._payload("v2")["degraded_categories"] == [
-            "database",
-            "posture",
-            "secrets",
-        ]
+        v7 = ["compute", "database", "posture", "storage"]
+        assert self._payload("v6")["degraded_categories"] == v7
+        assert self._payload("v5")["degraded_categories"] == v7
+        assert self._payload("v3")["degraded_categories"] == v7
+        assert self._payload("v2")["degraded_categories"] == sorted([*v7, "secrets"])
 
 
 
@@ -462,7 +488,7 @@ class TestReadingTheGrantedActions:
         """None rather than a version string. "I could not tell" is not "v1":
         recording a guess is the lie this whole mechanism exists to stop."""
         granted = rbac.actions_granted_by(
-            self._permissions("Microsoft.Web/sites/read")
+            self._permissions("Microsoft.Cdn/profiles/read")
         )
 
         assert granted == frozenset()

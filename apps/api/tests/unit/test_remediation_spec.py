@@ -90,6 +90,14 @@ def _violation(value: object) -> object:
         return "Enabled"
     if value == "TLS1_2":
         return "TLS1_0"
+    # The spellings SQL and App Service use for the same floor, a PostgreSQL
+    # server parameter, and an identity type.
+    if value == "1.2":
+        return "1.0"
+    if value == "on":
+        return "off"
+    if value == "SystemAssigned":
+        return "None"
     raise AssertionError(f"no violation defined for {value!r}")
 
 

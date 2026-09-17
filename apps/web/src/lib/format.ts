@@ -194,7 +194,8 @@ const COLLECTION_CATEGORY_LABELS: Record<string, string> = {
   resources: "Inventory",
   authorization: "Role assignments",
   network: "Network",
-  compute: "Virtual machines",
+  // Virtual machines and, since role v7, App Service.
+  compute: "Compute",
   storage: "Storage",
   database: "Databases",
   logging: "Logging",

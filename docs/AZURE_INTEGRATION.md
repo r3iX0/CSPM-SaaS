@@ -248,14 +248,20 @@ az provider operation show --namespace Microsoft.KeyVault \
   --query "resourceTypes[].operations[].name"
 ```
 
-`ROLE_VERSION` is `v6`, and `ROLE_HISTORY` records what every published version
+`ROLE_VERSION` is `v7`, and `ROLE_HISTORY` records what every published version
 granted. A version exists to flag a deployed role that is *insufficient* for a
 newer rule; narrowing is backward compatible and does not warrant a bump. `v2`
 added Resource Graph, which inventory needs since it moved off the ARM resource
 listing (`DECISIONS.md` §14); `v3` key vaults, `v4` SQL auditing settings, `v5`
 Defender for Cloud's assessments, and `v6` the two reads behind encryption at
 rest -- which databases a SQL server holds, and whether each one encrypts what
-it stores. A connection on an older role keeps every
+it stores. `v7` adds six: Defender for Cloud plan pricing, each storage
+account's blob service, each SQL server's Entra administrator, one PostgreSQL
+server parameter (`require_secure_transport`), and App Service sites and their
+configuration -- twenty-five reads in all. The App Service configuration read
+returns TLS, FTP and debugging settings; application settings and connection
+strings sit behind `config/list`, an `/action` the role never requests.
+A connection on an older role keeps every
 other category and loses exactly the checks the missing actions serve, which
 `degraded_categories` names in those terms rather than as a 403 — and those
 checks report UNKNOWN rather than passing.

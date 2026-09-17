@@ -210,7 +210,12 @@ def test_no_permission_is_requested_that_nothing_uses() -> None:
 
 def test_the_role_is_small_enough_to_read() -> None:
     """Reader is `*/read` across every provider. The point of a custom role is
-    that a human can check this list in full."""
+    that a human can check this list in full.
+
+    The ceiling was twenty until v7 needed twenty-five. Raised rather than
+    removed: App Service and Defender plans are two whole services, and a
+    ceiling is still what makes the next addition a decision rather than a
+    habit."""
     from app.connectors.azure.rbac import ARM_READ_ACTIONS
 
-    assert len(ARM_READ_ACTIONS) <= 20
+    assert len(ARM_READ_ACTIONS) <= 30

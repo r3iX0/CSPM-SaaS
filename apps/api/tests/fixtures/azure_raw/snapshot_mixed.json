@@ -101,7 +101,11 @@
           },
           "storageProfile": {
             "osDisk": {
-              "osType": "Windows"
+              "osType": "Windows",
+              "managedDisk": {
+                "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-prod/providers/Microsoft.Compute/disks/vm-jumpbox-osdisk",
+                "storageAccountType": "Premium_LRS"
+              }
             }
           },
           "networkProfile": {
@@ -154,7 +158,8 @@
           "publicNetworkAccess": "Enabled",
           "version": "12.0",
           "administratorLogin": "sqladmin",
-          "privateEndpointConnections": []
+          "privateEndpointConnections": [],
+          "minimalTlsVersion": "1.2"
         },
         "_firewall_rules": [
           {
@@ -247,7 +252,143 @@
           ]
         }
       }
-    ]
+    ],
+    "sql_administrators": {
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-prod/providers/Microsoft.Sql/servers/sql-prod-01": []
+    },
+    "storage_blob_services": {
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-prod/providers/Microsoft.Storage/storageAccounts/stgpublic": {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-prod/providers/Microsoft.Storage/storageAccounts/stgpublic/blobServices/default",
+        "name": "default",
+        "type": "Microsoft.Storage/storageAccounts/blobServices",
+        "properties": {
+          "deleteRetentionPolicy": {
+            "enabled": true,
+            "days": 7
+          },
+          "containerDeleteRetentionPolicy": {
+            "enabled": true,
+            "days": 7
+          },
+          "isVersioningEnabled": false
+        }
+      }
+    },
+    "postgresql_configurations": {},
+    "defender_plans": [
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Security/pricings/VirtualMachines",
+        "name": "VirtualMachines",
+        "type": "Microsoft.Security/pricings",
+        "properties": {
+          "pricingTier": "Free"
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Security/pricings/SqlServers",
+        "name": "SqlServers",
+        "type": "Microsoft.Security/pricings",
+        "properties": {
+          "pricingTier": "Standard"
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Security/pricings/AppServices",
+        "name": "AppServices",
+        "type": "Microsoft.Security/pricings",
+        "properties": {
+          "pricingTier": "Standard"
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Security/pricings/StorageAccounts",
+        "name": "StorageAccounts",
+        "type": "Microsoft.Security/pricings",
+        "properties": {
+          "pricingTier": "Standard"
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Security/pricings/KeyVaults",
+        "name": "KeyVaults",
+        "type": "Microsoft.Security/pricings",
+        "properties": {
+          "pricingTier": "Standard"
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Security/pricings/Arm",
+        "name": "Arm",
+        "type": "Microsoft.Security/pricings",
+        "properties": {
+          "pricingTier": "Standard"
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Security/pricings/OpenSourceRelationalDatabases",
+        "name": "OpenSourceRelationalDatabases",
+        "type": "Microsoft.Security/pricings",
+        "properties": {
+          "pricingTier": "Standard"
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Security/pricings/SqlServerVirtualMachines",
+        "name": "SqlServerVirtualMachines",
+        "type": "Microsoft.Security/pricings",
+        "properties": {
+          "pricingTier": "Standard"
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Security/pricings/Containers",
+        "name": "Containers",
+        "type": "Microsoft.Security/pricings",
+        "properties": {
+          "pricingTier": "Standard"
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Security/pricings/CosmosDbs",
+        "name": "CosmosDbs",
+        "type": "Microsoft.Security/pricings",
+        "properties": {
+          "pricingTier": "Standard"
+        }
+      }
+    ],
+    "app_services": [
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-prod/providers/Microsoft.Web/sites/app-portal",
+        "name": "app-portal",
+        "type": "Microsoft.Web/sites",
+        "kind": "app,linux",
+        "location": "westeurope",
+        "tags": {
+          "environment": "production"
+        },
+        "properties": {
+          "httpsOnly": true,
+          "clientCertEnabled": false,
+          "publicNetworkAccess": "Enabled",
+          "state": "Running"
+        }
+      }
+    ],
+    "app_service_configs": {
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-prod/providers/Microsoft.Web/sites/app-portal": {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-prod/providers/Microsoft.Web/sites/app-portal/config/web",
+        "name": "web",
+        "type": "Microsoft.Web/sites/config",
+        "properties": {
+          "minTlsVersion": "1.2",
+          "scmMinTlsVersion": "1.2",
+          "ftpsState": "FtpsOnly",
+          "remoteDebuggingEnabled": false,
+          "http20Enabled": true
+        }
+      }
+    }
   },
   "coverage": {
     "network_security_groups": {
@@ -329,6 +470,42 @@
       "detail": "",
       "item_count": 1,
       "permissions": []
+    },
+    "sql_administrators": {
+      "category": "database",
+      "outcome": "COMPLETE",
+      "detail": "",
+      "item_count": 1
+    },
+    "storage_blob_services": {
+      "category": "storage",
+      "outcome": "COMPLETE",
+      "detail": "",
+      "item_count": 1
+    },
+    "postgresql_configurations": {
+      "category": "database",
+      "outcome": "COMPLETE",
+      "detail": "",
+      "item_count": 0
+    },
+    "defender_plans": {
+      "category": "posture",
+      "outcome": "COMPLETE",
+      "detail": "",
+      "item_count": 10
+    },
+    "app_services": {
+      "category": "compute",
+      "outcome": "COMPLETE",
+      "detail": "",
+      "item_count": 1
+    },
+    "app_service_configs": {
+      "category": "compute",
+      "outcome": "COMPLETE",
+      "detail": "",
+      "item_count": 1
     }
   }
 }

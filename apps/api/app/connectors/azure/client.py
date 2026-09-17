@@ -483,6 +483,61 @@ class ArmClient(_BaseClient):
             "/flexibleServers?api-version=2023-03-01-preview"
         )
 
+    async def get_postgresql_secure_transport(self, server_id: str) -> dict[str, Any]:
+        """Whether this PostgreSQL server refuses connections without TLS.
+
+        One named parameter rather than the configuration listing, which is a
+        few hundred parameters and would be stored verbatim for the one value
+        a rule reads.
+        """
+        return await self.get(
+            f"{server_id}/configurations/require_secure_transport"
+            "?api-version=2023-03-01-preview"
+        )
+
+    async def list_sql_administrators(self, server_id: str) -> list[dict[str, Any]]:
+        """The Entra administrator this SQL server accepts, if it has one.
+
+        A listing because ARM models it as a collection, though a server holds
+        at most one: an empty listing is a server that authenticates only the
+        SQL logins it was created with.
+        """
+        return await self.get_all(f"{server_id}/administrators?api-version=2021-11-01")
+
+    async def get_blob_service(self, account_id: str) -> dict[str, Any]:
+        """The blob service beneath one storage account.
+
+        ``default`` is the only blob service an account can have, so this is a
+        read of a singleton rather than a listing that could hold a choice.
+        """
+        return await self.get(f"{account_id}/blobServices/default?api-version=2023-01-01")
+
+    async def list_app_services(self, subscription_id: str) -> list[dict[str, Any]]:
+        """Every web app and function app in the subscription.
+
+        The listing leaves ``siteConfig`` empty, so what a site negotiates and
+        whether it accepts FTP is a second read per site
+        (:meth:`get_app_service_config`).
+        """
+        return await self.get_all(
+            f"/subscriptions/{subscription_id}/providers/Microsoft.Web"
+            "/sites?api-version=2022-09-01"
+        )
+
+    async def get_app_service_config(self, site_id: str) -> dict[str, Any]:
+        return await self.get(f"{site_id}/config/web?api-version=2022-09-01")
+
+    async def list_defender_plans(self, subscription_id: str) -> list[dict[str, Any]]:
+        """Which Defender for Cloud plans this subscription is on.
+
+        Read, never changed: the pricing read grants no way to turn a plan on,
+        and turning one on is billed to the customer.
+        """
+        return await self.get_all(
+            f"/subscriptions/{subscription_id}/providers/Microsoft.Security"
+            "/pricings?api-version=2024-01-01"
+        )
+
     async def list_diagnostic_settings(self, resource_id: str) -> list[dict[str, Any]]:
         return await self.get_all(
             f"{resource_id}/providers/Microsoft.Insights"

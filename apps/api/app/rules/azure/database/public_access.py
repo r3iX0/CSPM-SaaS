@@ -87,7 +87,7 @@ class AzurePublicDatabaseRule(SecurityRule):
         ),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
-        "CIS_AZURE_2.0": ["4.1.1", "4.1.2"],
+        "CIS_AZURE_2.0": ["4.1.2"],
         "ISO_27001": ["A.8.20", "A.8.22"],
         "NIST_CSF": ["PR.AC-3", "PR.AC-5", "PR.DS-5"],
         "GDPR": ["5(1)(f)", "32(1)(b)"],
@@ -257,7 +257,6 @@ class AzureDatabasePrivateConnectivityRule(SecurityRule):
         ),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
-        "CIS_AZURE_2.0": ["4.1.1", "4.1.2"],
         "ISO_27001": ["A.8.20", "A.8.22"],
         "NIST_CSF": ["PR.AC-5", "PR.DS-5"],
         "GDPR": ["5(1)(f)", "32(1)(b)"],
@@ -393,7 +392,7 @@ class AzureDatabaseAuditingRule(SecurityRule):
         ),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
-        "CIS_AZURE_2.0": ["4.1.1", "5.1.1"],
+        "CIS_AZURE_2.0": ["4.1.1"],
         "ISO_27001": ["A.8.15", "A.8.16"],
         "NIST_CSF": ["PR.PT-1", "DE.AE-3"],
         "GDPR": ["5(1)(f)", "32(1)(b)"],

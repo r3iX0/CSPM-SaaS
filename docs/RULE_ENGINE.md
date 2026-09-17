@@ -116,12 +116,30 @@ When a later scan runs the same rule against the same resource and returns PASS 
 | AZ-LOG-002 — Subscription activity log is not exported | Logging | MEDIUM | 1 |
 | AZ-CMP-001 — Internet-exposed compute with admin service exposed | Compute | HIGH | 4 |
 | AZ-CMP-002 — Virtual machine governed by no security group | Compute | MEDIUM | 2 |
+| AZ-CMP-003 — Virtual machine runs on unmanaged disks | Compute | MEDIUM | 2 |
+| AZ-NET-009 — UDP exposed to the internet | Network | MEDIUM | 3 |
+| AZ-STO-004 — Storage account can replicate into another tenant | Storage | MEDIUM | 2 |
+| AZ-STO-005 — Deleted blobs cannot be recovered | Storage | MEDIUM | 2 |
+| AZ-DB-007 — SQL server accepts TLS below 1.2 | Database | MEDIUM | 2 |
+| AZ-DB-008 — SQL server has no Entra administrator | Database | MEDIUM | 3 |
+| AZ-DB-009 — PostgreSQL server accepts connections without TLS | Database | HIGH | 3 |
+| AZ-KV-003 — Key vault authorizes through access policies | Secrets | MEDIUM | 2 |
+| AZ-DEF-001 — Defender for Cloud plans are off | Posture | MEDIUM | 1 |
+| AZ-WEB-001 — Web app accepts plain HTTP | Compute | MEDIUM | 2 |
+| AZ-WEB-002 — Web app negotiates TLS below 1.2 | Compute | MEDIUM | 2 |
+| AZ-WEB-003 — Web app accepts unencrypted FTP deployments | Compute | HIGH | 3 |
+| AZ-WEB-004 — Web app has remote debugging switched on | Compute | MEDIUM | 2 |
+| AZ-WEB-005 — Web app runs without a managed identity | Compute | LOW | 1 |
+
+The table is not every rule -- `app/rules/registry.py` is, and there are 52 for
+Azure. The last fourteen above arrived together with role `v7` (`DECISIONS.md`
+§89): five on evidence the scanner already read, nine on six new reads.
 
 ### What bounds this list
 
 Not ambition. Every rule here reads evidence a collector actually produces, and
-the constraint is the collectors rather than the writing: there are 21 evidence
-keys, and a rule outside them could only ever return UNKNOWN.
+the constraint is the collectors rather than the writing: there are 28 Azure
+evidence keys, and a rule outside them could only ever return UNKNOWN.
 
 So the categories a CSPM is expected to cover and this list does not — backup
 configuration among them — are absent because the evidence is, and they arrive
@@ -152,6 +170,18 @@ UNKNOWN naming the licence. A licence is not something a Global Administrator
 can consent their way to, and saying "consent is missing" to a tenant whose
 consent is complete would send somebody to fix a directory that is already
 correct.
+
+App Service was the largest of those absences, and the inventory had been
+saying so: every web app a customer owned was listed as unchecked. It arrived
+in `v7` as two reads -- the site listing, and each site's configuration beneath
+it, because ARM leaves `siteConfig` empty in the listing -- and five rules split
+along them, so a configuration read that fails costs that site three verdicts
+and keeps the other two.
+
+One check was offered in the same release and not built: CIS 6.4, HTTP(S)
+reachable from the internet. AZ-NET-003 already records why -- a public web
+server is a design rather than a defect -- and a rule firing on every one of
+them would bury the findings that are defects.
 
 And not every gap is worth closing. Managed disk encryption was scoped and
 dropped: managed disks are always encrypted at rest and cannot be turned off, so

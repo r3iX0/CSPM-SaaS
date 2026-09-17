@@ -20,11 +20,12 @@ the controls CloudGuard happens to check would report 100% coverage forever,
 which is worse than reporting nothing. Entries a rule cannot reach are listed
 too, and resolve to NOT_COVERED.
 
-**Gaps are listed at whatever resolution is honest.** Where CloudGuard covers a
-specific control it is listed specifically; where a whole area is unchecked, the
-benchmark's own section number is listed rather than inventing leaf numbers to
-mark absent. A wrong control number in a compliance view is worse than a coarse
-one.
+**Gaps are listed at whatever resolution is honest.** Where a benchmark's own
+index is to hand, every leaf is listed; where it is not, a whole unchecked area is
+listed by its section number rather than by leaf numbers invented to mark it
+absent. A wrong control number in a compliance view is worse than a coarse one --
+which is what the CIS Azure catalogue turned out to be holding, and why it was
+rebuilt from the published index (DECISIONS.md section 89).
 
 None of this produces a compliance claim. It produces evidence, mapped to a
 requirement, attributed to a framework -- the chain in ROADMAP.md, no further.
@@ -92,13 +93,23 @@ CIS_AZURE = Framework(
         "checkable without interviewing anybody."
     ),
     scope_note=(
-        "Covers the benchmark sections a posture scanner can reach. Sections "
-        "listed without a leaf number are areas CloudGuard runs no checks in at "
-        "all, shown so the gap is visible rather than absent."
+        "Every recommendation in the published benchmark, leaf by leaf. Controls "
+        "without a CloudGuard check behind them are listed so the gap is visible "
+        "rather than absent, and the few that describe a review process rather "
+        "than a setting are marked as beyond what a scanner can observe."
     ),
+    # Rebuilt from the benchmark's own index in DECISIONS.md section 89. The
+    # earlier catalogue listed nineteen entries, several of them whole sections
+    # ("8", "9"), and cited leaf numbers that name different controls in 2.0 --
+    # 1.21 is Microsoft 365 group creation, not subscription administrators, and
+    # 6.5 is flow log retention, not unrestricted inbound rules. Titles remain
+    # CloudGuard's own wording; the identifiers are the benchmark's.
     controls=(
+        # 1 -- Identity and Access Management
         Control(
-            "1.1.1", "Security defaults enabled on the directory", "Identity and Access Management"
+            "1.1.1",
+            "Security defaults enabled on the directory",
+            "Identity and Access Management",
         ),
         Control(
             "1.1.2",
@@ -111,31 +122,338 @@ CIS_AZURE = Framework(
             "Identity and Access Management",
         ),
         Control(
-            "1.21",
-            "No excessive or custom subscription administrator roles",
+            "1.1.4",
+            "Users cannot skip MFA by remembering a trusted device",
             "Identity and Access Management",
         ),
         Control(
-            "2", "Microsoft Defender for Cloud plans and alerting", "Microsoft Defender for Cloud"
+            "1.2.1",
+            "Trusted locations defined for Conditional Access",
+            "Identity and Access Management",
         ),
+        Control("1.2.2", "Geographic access policy considered", "Identity and Access Management"),
+        Control(
+            "1.2.3",
+            "Conditional Access requires MFA for administrative groups",
+            "Identity and Access Management",
+        ),
+        Control(
+            "1.2.4",
+            "Conditional Access requires MFA for all users",
+            "Identity and Access Management",
+        ),
+        Control("1.2.5", "MFA required for risky sign-ins", "Identity and Access Management"),
+        Control("1.2.6", "MFA required for Azure management", "Identity and Access Management"),
+        Control("1.3", "Users cannot create new tenants", "Identity and Access Management"),
+        Control(
+            "1.4",
+            "Access reviews set up for external users with privileged roles",
+            "Identity and Access Management",
+        ),
+        Control(
+            "1.5",
+            "Guest users reviewed on a regular basis",
+            "Identity and Access Management",
+            technically_assessable=False,
+        ),
+        Control("1.6", "Password reset requires two methods", "Identity and Access Management"),
+        Control("1.7", "Custom banned-password list enforced", "Identity and Access Management"),
+        Control(
+            "1.8",
+            "Users re-confirm authentication information periodically",
+            "Identity and Access Management",
+        ),
+        Control("1.9", "Users notified of password resets", "Identity and Access Management"),
+        Control(
+            "1.10",
+            "Administrators notified when another administrator resets a password",
+            "Identity and Access Management",
+        ),
+        Control("1.11", "Users cannot consent to applications", "Identity and Access Management"),
+        Control(
+            "1.12",
+            "User consent limited to verified publishers",
+            "Identity and Access Management",
+        ),
+        Control(
+            "1.13",
+            "Users cannot add gallery apps to My Apps",
+            "Identity and Access Management",
+        ),
+        Control("1.14", "Users cannot register applications", "Identity and Access Management"),
+        Control(
+            "1.15",
+            "Guest access restricted to their own directory objects",
+            "Identity and Access Management",
+        ),
+        Control(
+            "1.16",
+            "Guest invitations limited to specific administrator roles",
+            "Identity and Access Management",
+        ),
+        Control(
+            "1.17",
+            "Entra administration portal restricted to administrators",
+            "Identity and Access Management",
+        ),
+        Control(
+            "1.18",
+            "Group features in the access pane restricted",
+            "Identity and Access Management",
+        ),
+        Control("1.19", "Users cannot create security groups", "Identity and Access Management"),
+        Control(
+            "1.20",
+            "Group owners cannot manage membership requests in the access pane",
+            "Identity and Access Management",
+        ),
+        Control(
+            "1.21",
+            "Users cannot create Microsoft 365 groups",
+            "Identity and Access Management",
+        ),
+        Control(
+            "1.22",
+            "MFA required to register or join devices",
+            "Identity and Access Management",
+        ),
+        Control(
+            "1.23",
+            "No custom subscription administrator roles",
+            "Identity and Access Management",
+        ),
+        Control(
+            "1.24",
+            "A custom role administers resource locks",
+            "Identity and Access Management",
+        ),
+        Control(
+            "1.25",
+            "Subscriptions cannot enter or leave the directory freely",
+            "Identity and Access Management",
+        ),
+        # 2 -- Microsoft Defender for Cloud
+        Control("2.1.1", "Defender for Servers on", "Microsoft Defender for Cloud"),
+        Control("2.1.2", "Defender for App Service on", "Microsoft Defender for Cloud"),
+        Control("2.1.3", "Defender for Databases on", "Microsoft Defender for Cloud"),
+        Control("2.1.4", "Defender for Azure SQL databases on", "Microsoft Defender for Cloud"),
+        Control("2.1.5", "Defender for SQL servers on machines on", "Microsoft Defender for Cloud"),
+        Control(
+            "2.1.6",
+            "Defender for open-source relational databases on",
+            "Microsoft Defender for Cloud",
+        ),
+        Control("2.1.7", "Defender for Storage on", "Microsoft Defender for Cloud"),
+        Control("2.1.8", "Defender for Containers on", "Microsoft Defender for Cloud"),
+        Control("2.1.9", "Defender for Azure Cosmos DB on", "Microsoft Defender for Cloud"),
+        Control("2.1.10", "Defender for Key Vault on", "Microsoft Defender for Cloud"),
+        Control("2.1.11", "Defender for DNS on", "Microsoft Defender for Cloud"),
+        Control("2.1.12", "Defender for Resource Manager on", "Microsoft Defender for Cloud"),
+        Control(
+            "2.1.13",
+            "System updates applied where Defender recommends them",
+            "Microsoft Defender for Cloud",
+        ),
+        Control(
+            "2.1.14",
+            "Default Defender policy settings not disabled",
+            "Microsoft Defender for Cloud",
+        ),
+        Control(
+            "2.1.15",
+            "Log Analytics agent auto-provisioned to virtual machines",
+            "Microsoft Defender for Cloud",
+        ),
+        Control(
+            "2.1.16",
+            "Vulnerability assessment auto-provisioned to machines",
+            "Microsoft Defender for Cloud",
+        ),
+        Control(
+            "2.1.17",
+            "Defender for Containers components auto-provisioned",
+            "Microsoft Defender for Cloud",
+        ),
+        Control(
+            "2.1.18",
+            "Subscription owners receive security alert email",
+            "Microsoft Defender for Cloud",
+        ),
+        Control(
+            "2.1.19",
+            "A security contact email address is configured",
+            "Microsoft Defender for Cloud",
+        ),
+        Control(
+            "2.1.20",
+            "Notifications sent for high-severity alerts",
+            "Microsoft Defender for Cloud",
+        ),
+        Control(
+            "2.1.21",
+            "Defender for Cloud Apps integration enabled",
+            "Microsoft Defender for Cloud",
+        ),
+        Control(
+            "2.1.22",
+            "Defender for Endpoint integration enabled",
+            "Microsoft Defender for Cloud",
+        ),
+        Control("2.2.1", "Defender for IoT Hub on", "Microsoft Defender for Cloud"),
+        # 3 -- Storage Accounts
         Control("3.1", "Secure transfer required on storage accounts", "Storage Accounts"),
+        Control("3.2", "Infrastructure encryption enabled on storage accounts", "Storage Accounts"),
+        Control("3.3", "Key rotation reminders enabled on storage accounts", "Storage Accounts"),
+        Control("3.4", "Storage account access keys regenerated periodically", "Storage Accounts"),
+        Control("3.5", "Queue service logs reads, writes and deletes", "Storage Accounts"),
+        Control(
+            "3.6",
+            "Shared access signatures expire within an hour",
+            "Storage Accounts",
+            technically_assessable=False,
+        ),
         Control("3.7", "Public blob access disabled", "Storage Accounts"),
-        Control("3.8", "Storage account network access restricted by default", "Storage Accounts"),
-        Control("3.15", "Minimum TLS version enforced on storage accounts", "Storage Accounts"),
-        Control("4.1.1", "Public network access disabled on database servers", "Database Services"),
+        Control("3.8", "Storage account network access denied by default", "Storage Accounts"),
         Control(
-            "4.1.2", "Database firewall rules do not permit all addresses", "Database Services"
+            "3.9",
+            "Trusted Azure services allowed through the storage firewall",
+            "Storage Accounts",
+        ),
+        Control("3.10", "Private endpoints used to reach storage accounts", "Storage Accounts"),
+        Control("3.11", "Soft delete enabled for blobs and containers", "Storage Accounts"),
+        Control(
+            "3.12",
+            "Storage for critical data encrypted with customer-managed keys",
+            "Storage Accounts",
+        ),
+        Control("3.13", "Blob service logs reads, writes and deletes", "Storage Accounts"),
+        Control("3.14", "Table service logs reads, writes and deletes", "Storage Accounts"),
+        Control("3.15", "Minimum TLS version 1.2 on storage accounts", "Storage Accounts"),
+        # 4 -- Database Services
+        Control("4.1.1", "Auditing on for SQL servers", "Database Services"),
+        Control("4.1.2", "No SQL firewall rule admits every address", "Database Services"),
+        Control("4.1.3", "SQL TDE protector is a customer-managed key", "Database Services"),
+        Control("4.1.4", "SQL servers have an Entra administrator", "Database Services"),
+        Control("4.1.5", "Data encryption on for SQL databases", "Database Services"),
+        Control("4.1.6", "SQL auditing retained for more than 90 days", "Database Services"),
+        Control("4.2.1", "Defender for SQL on for critical SQL servers", "Database Services"),
+        Control("4.2.2", "SQL vulnerability assessment stores its results", "Database Services"),
+        Control("4.2.3", "SQL vulnerability assessment runs recurring scans", "Database Services"),
+        Control("4.2.4", "SQL vulnerability assessment sends its reports", "Database Services"),
+        Control(
+            "4.2.5",
+            "SQL vulnerability assessment notifies administrators",
+            "Database Services",
+        ),
+        Control("4.3.1", "PostgreSQL requires TLS connections", "Database Services"),
+        Control("4.3.2", "PostgreSQL logs checkpoints", "Database Services"),
+        Control("4.3.3", "PostgreSQL logs connections", "Database Services"),
+        Control("4.3.4", "PostgreSQL logs disconnections", "Database Services"),
+        Control("4.3.5", "PostgreSQL connection throttling on", "Database Services"),
+        Control("4.3.6", "PostgreSQL logs retained for more than three days", "Database Services"),
+        Control("4.3.7", "PostgreSQL does not admit all Azure services", "Database Services"),
+        Control("4.3.8", "PostgreSQL infrastructure double encryption on", "Database Services"),
+        Control("4.4.1", "MySQL requires TLS connections", "Database Services"),
+        Control("4.4.2", "MySQL flexible server requires TLS 1.2", "Database Services"),
+        Control("4.4.3", "MySQL audit logging on", "Database Services"),
+        Control("4.4.4", "MySQL audit log records connections", "Database Services"),
+        Control("4.5.1", "Cosmos DB reachable only from selected networks", "Database Services"),
+        Control("4.5.2", "Cosmos DB reached through private endpoints", "Database Services"),
+        Control("4.5.3", "Cosmos DB uses Entra authentication and RBAC", "Database Services"),
+        # 5 -- Logging and Monitoring
+        Control("5.1.1", "A subscription diagnostic setting exists", "Logging and Monitoring"),
+        Control(
+            "5.1.2",
+            "Subscription diagnostic setting captures the right categories",
+            "Logging and Monitoring",
+        ),
+        Control("5.1.3", "Activity log storage container is not public", "Logging and Monitoring"),
+        Control(
+            "5.1.4",
+            "Activity log storage account encrypted with a customer-managed key",
+            "Logging and Monitoring",
+        ),
+        Control("5.1.5", "Key vault logging enabled", "Logging and Monitoring"),
+        Control(
+            "5.1.6",
+            "Network security group flow logs sent to Log Analytics",
+            "Logging and Monitoring",
+        ),
+        Control("5.1.7", "App Service HTTP logs enabled", "Logging and Monitoring"),
+        Control("5.2.1", "Alert on policy assignment creation", "Logging and Monitoring"),
+        Control("5.2.2", "Alert on policy assignment deletion", "Logging and Monitoring"),
+        Control("5.2.3", "Alert on network security group changes", "Logging and Monitoring"),
+        Control("5.2.4", "Alert on network security group deletion", "Logging and Monitoring"),
+        Control("5.2.5", "Alert on security solution changes", "Logging and Monitoring"),
+        Control("5.2.6", "Alert on security solution deletion", "Logging and Monitoring"),
+        Control("5.2.7", "Alert on SQL firewall rule changes", "Logging and Monitoring"),
+        Control("5.2.8", "Alert on SQL firewall rule deletion", "Logging and Monitoring"),
+        Control("5.2.9", "Alert on public IP address changes", "Logging and Monitoring"),
+        Control("5.2.10", "Alert on public IP address deletion", "Logging and Monitoring"),
+        Control("5.3.1", "Application Insights configured", "Logging and Monitoring"),
+        Control(
+            "5.4",
+            "Resource logs enabled for every service that supports them",
+            "Logging and Monitoring",
         ),
         Control(
-            "5.1.1", "Diagnostic settings capture subscription activity", "Logging and Monitoring"
+            "5.5",
+            "Monitored workloads not on Basic or Consumption SKUs",
+            "Logging and Monitoring",
         ),
-        Control("5.3", "Diagnostic logs enabled on supported resources", "Logging and Monitoring"),
+        # 6 -- Networking
         Control("6.1", "RDP not reachable from the internet", "Networking"),
         Control("6.2", "SSH not reachable from the internet", "Networking"),
-        Control("6.5", "Network watcher and unrestricted inbound rules reviewed", "Networking"),
-        Control("7.1", "Virtual machine disk encryption", "Virtual Machines"),
-        Control("8", "Key Vault access policies, expiry and purge protection", "Key Vault"),
-        Control("9", "App Service authentication, TLS and HTTPS enforcement", "AppService"),
+        Control("6.3", "UDP not reachable from the internet", "Networking"),
+        Control("6.4", "HTTP and HTTPS exposure to the internet reviewed", "Networking"),
+        Control("6.5", "Flow logs retained for more than 90 days", "Networking"),
+        Control("6.6", "Network Watcher enabled", "Networking"),
+        Control(
+            "6.7",
+            "Public IP addresses reviewed periodically",
+            "Networking",
+            technically_assessable=False,
+        ),
+        # 7 -- Virtual Machines
+        Control("7.1", "An Azure Bastion host exists", "Virtual Machines"),
+        Control("7.2", "Virtual machines use managed disks", "Virtual Machines"),
+        Control(
+            "7.3",
+            "OS and data disks encrypted with customer-managed keys",
+            "Virtual Machines",
+        ),
+        Control("7.4", "Unattached disks encrypted with customer-managed keys", "Virtual Machines"),
+        Control(
+            "7.5",
+            "Only approved extensions installed",
+            "Virtual Machines",
+            technically_assessable=False,
+        ),
+        Control("7.6", "Endpoint protection installed on virtual machines", "Virtual Machines"),
+        Control("7.7", "Legacy VHDs encrypted", "Virtual Machines"),
+        # 8 -- Key Vault
+        Control("8.1", "Keys in RBAC vaults have an expiry date", "Key Vault"),
+        Control("8.2", "Keys in access-policy vaults have an expiry date", "Key Vault"),
+        Control("8.3", "Secrets in RBAC vaults have an expiry date", "Key Vault"),
+        Control("8.4", "Secrets in access-policy vaults have an expiry date", "Key Vault"),
+        Control("8.5", "Key vaults are recoverable", "Key Vault"),
+        Control("8.6", "Key vaults use Azure RBAC", "Key Vault"),
+        Control("8.7", "Key vaults reached through private endpoints", "Key Vault"),
+        Control("8.8", "Automatic key rotation enabled", "Key Vault"),
+        # 9 -- AppService
+        Control("9.1", "App Service authentication set up", "AppService"),
+        Control("9.2", "Web apps redirect HTTP to HTTPS", "AppService"),
+        Control("9.3", "Web apps use a current TLS version", "AppService"),
+        Control("9.4", "Web apps require client certificates", "AppService"),
+        Control("9.5", "Web apps run as a managed identity", "AppService"),
+        Control("9.6", "PHP version current where used", "AppService"),
+        Control("9.7", "Python version current where used", "AppService"),
+        Control("9.8", "Java version current where used", "AppService"),
+        Control("9.9", "HTTP version current", "AppService"),
+        Control("9.10", "FTP deployments disabled", "AppService"),
+        Control("9.11", "Key vaults hold application secrets", "AppService"),
+        # 10 -- Miscellaneous
+        Control("10.1", "Resource locks on mission-critical resources", "Miscellaneous"),
     ),
 )
 

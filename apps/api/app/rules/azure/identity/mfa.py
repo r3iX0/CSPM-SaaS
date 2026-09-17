@@ -184,7 +184,7 @@ class AzureMfaRule(SecurityRule):
         ),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
-        "CIS_AZURE_2.0": ["1.1.1", "1.1.2"],
+        "CIS_AZURE_2.0": ["1.1.2"],
         "ISO_27001": ["A.5.15", "A.5.17"],
         "NIST_CSF": ["PR.AC-1", "PR.AC-7"],
         "GDPR": ["25", "32(1)(b)"],
@@ -320,7 +320,7 @@ class AzureUserWithoutMfaRule(SecurityRule):
         ),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
-        "CIS_AZURE_2.0": ["1.1.2", "1.1.3"],
+        "CIS_AZURE_2.0": ["1.1.3"],
         "ISO_27001": ["A.5.15", "A.5.17"],
         "NIST_CSF": ["PR.AC-1", "PR.AC-7"],
         "GDPR": ["32(1)(b)"],
@@ -427,7 +427,7 @@ class AzureTenantMfaEnforcementRule(SecurityRule):
         ),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
-        "CIS_AZURE_2.0": ["1.1.1", "1.1.2", "1.1.3"],
+        "CIS_AZURE_2.0": ["1.1.1", "1.2.4"],
         "ISO_27001": ["A.5.15", "A.5.17"],
         "NIST_CSF": ["PR.AC-1", "PR.AC-7"],
         "GDPR": ["32(1)(b)"],
@@ -545,7 +545,7 @@ class AzureLegacyAuthenticationRule(SecurityRule):
         ),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
-        "CIS_AZURE_2.0": ["1.1.3", "1.21"],
+        "CIS_AZURE_2.0": ["1.1.1"],
         "ISO_27001": ["A.5.15", "A.5.17", "A.8.2"],
         "NIST_CSF": ["PR.AC-1", "PR.AC-7"],
         "GDPR": ["32(1)(b)"],

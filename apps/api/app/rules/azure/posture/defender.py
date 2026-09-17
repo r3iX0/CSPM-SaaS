@@ -146,7 +146,7 @@ class AzureExposedVulnerableMachineRule(_DefenderRule):
         "just-in-time access rather than a standing public address."
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
-        "CIS_AZURE_2.0": ["2"],
+        "CIS_AZURE_2.0": ["2.1.13"],
         "ISO_27001": ["A.8.8"],
         "NIST_CSF": ["PR.AC-5", "DE.CM-1"],
         "GDPR": ["32(1)(b)"],
@@ -239,6 +239,7 @@ class AzureMissingEndpointProtectionRule(_DefenderRule):
         "different problem with the same consequence."
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
+        "CIS_AZURE_2.0": ["7.6"],
         "ISO_27001": ["A.8.8"],
         "NIST_CSF": ["DE.CM-1"],
         "NIST_800_53": ["SI-2"],

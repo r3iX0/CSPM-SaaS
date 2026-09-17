@@ -546,6 +546,12 @@ class ResourceType(StrEnum):
     # is a thing it knows exists only in the sense that a vault exists to hold
     # them.
     KEY_VAULT = "key_vault"
+    # A hosted web workload: an Azure web app or function app. Its own type
+    # rather than VIRTUAL_MACHINE because the platform owns the host, so every
+    # fix is a site setting rather than something done to a machine -- and the
+    # questions differ with it: whether it insists on HTTPS, not which ports
+    # its network security group opens.
+    APP_SERVICE = "app_service"
     UNKNOWN = "unknown"
 
 

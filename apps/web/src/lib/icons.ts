@@ -22,6 +22,7 @@ import {
   MapPinIcon,
   MinusIcon,
   NetworkIcon,
+  PanelsTopLeftIcon,
   PlusIcon,
   RouteIcon,
   ScrollTextIcon,
@@ -71,6 +72,8 @@ const RESOURCE_TYPE_ICONS: Record<string, LucideIcon> = {
   role_assignment: UserCogIcon,
   diagnostic_setting: ScrollTextIcon,
   key_vault: KeyRoundIcon,
+  // A hosted web app. Not AppWindowIcon, which is already an Entra application.
+  app_service: PanelsTopLeftIcon,
   unknown: BoxIcon,
 };
 

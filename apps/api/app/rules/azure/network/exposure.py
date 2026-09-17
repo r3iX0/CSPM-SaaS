@@ -348,7 +348,6 @@ class AzurePublicWinRmRule(_PublicPortRule):
     )
     remediation_spec: ClassVar[RemediationSpec | None] = None  # set below
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
-        "CIS_AZURE_2.0": ["6.5"],
         "ISO_27001": ["A.8.20", "A.8.23"],
         "NIST_CSF": ["PR.AC-5", "PR.PT-4"],
         "GDPR": ["5(1)(f)", "32(1)(b)"],
@@ -427,7 +426,6 @@ class AzureOpenNsgRule(SecurityRule):
         ),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
-        "CIS_AZURE_2.0": ["6.5"],
         "ISO_27001": ["A.8.20", "A.8.22"],
         "NIST_CSF": ["PR.AC-5", "PR.PT-4"],
         "GDPR": ["5(1)(f)", "32(1)(b)"],
@@ -555,7 +553,6 @@ class AzurePublicSqlPortRule(_PublicPortRule):
         "access disabled, so the server has no internet-facing address to firewall at all."
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
-        "CIS_AZURE_2.0": ["6.1", "6.2", "4.1.1"],
         "ISO_27001": ["A.8.20", "A.8.22", "A.8.23"],
         "NIST_CSF": ["PR.AC-3", "PR.AC-5", "PR.DS-5"],
         "GDPR": ["5(1)(f)", "32(1)(b)"],
@@ -596,7 +593,6 @@ class AzurePublicSmbRule(_PublicPortRule):
         "over the public internet."
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
-        "CIS_AZURE_2.0": ["6.1", "6.2"],
         "ISO_27001": ["A.8.20", "A.8.22"],
         "NIST_CSF": ["PR.AC-3", "PR.AC-5"],
         "GDPR": ["5(1)(f)", "32(1)(b)"],
@@ -669,7 +665,6 @@ class AzureSensitivePublicAddressRule(SecurityRule):
         ),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
-        "CIS_AZURE_2.0": ["6.5", "7.1"],
         "ISO_27001": ["A.8.20", "A.8.22", "A.5.10"],
         "NIST_CSF": ["PR.AC-3", "PR.AC-5", "PR.DS-5"],
         "GDPR": ["5(1)(f)", "25", "32(1)(b)"],
@@ -723,6 +718,130 @@ class AzureSensitivePublicAddressRule(SecurityRule):
             message=(
                 f"{resource.name} holds sensitive or business-critical data and is "
                 "addressable from the internet"
+            ),
+        )
+
+
+class AzurePublicUdpRule(SecurityRule):
+    """Any UDP port answering the internet, which is its own kind of exposure.
+
+    Disjoint from AZ-NET-003 on purpose: a rule opening every port to the
+    internet is that rule's finding whatever its protocol, so this one judges
+    only rules that name UDP and name ports. One NSG rule, one finding.
+    """
+
+    rule_id = "AZ-NET-009"
+    name = "UDP exposed to the internet"
+    description = (
+        "A network security group allows inbound UDP from any source address. UDP "
+        "services -- DNS, NTP, SNMP, SSDP -- are the raw material of reflection and "
+        "amplification attacks, and are rarely meant to answer the whole internet."
+    )
+    category = "network"
+    severity = Severity.MEDIUM
+    # Reachable anonymously, which would be a 5, but what is reached is usually
+    # a reflector rather than a foothold: the victim of an amplification attack
+    # is somebody else, and the cost here is the bill and the abuse report.
+    exploitability = 3
+    applies_to: ClassVar[list[ResourceType]] = [ResourceType.NETWORK_SECURITY_GROUP]
+    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (
+        AzureEvidence.NETWORK_SECURITY_GROUPS,
+        AzureEvidence.NETWORK_INTERFACES,
+    )
+    estimated_effort_minutes = 30
+    rationale = (
+        "Open UDP ports are found by the same continuous scanning that finds RDP, and a "
+        "misconfigured DNS or NTP service becomes part of somebody else's "
+        "denial-of-service attack within hours. Where a UDP service must be public -- a "
+        "game server, a VPN endpoint -- narrowing it to the one port it needs is still "
+        "the fix."
+    )
+    remediation = (
+        "Remove or narrow each inbound UDP rule whose source is the internet.\n\n"
+        "Azure CLI:\n"
+        "  az network nsg rule list --resource-group <rg> --nsg-name <nsg> -o table\n"
+        "  az network nsg rule update --resource-group <rg> --nsg-name <nsg> \\\n"
+        "    --name <rule> --source-address-prefixes <approved.range/24>\n\n"
+        "A VPN gateway or Azure Firewall in front of a UDP service that must be public "
+        "gives it a single, logged point of entry."
+    )
+    remediation_spec: ClassVar[RemediationSpec | None] = RemediationSpec(
+        expected=(
+            ExpectedState(
+                field="security_rules",
+                comparison=Comparison.NONE_MATCHING,
+                equals=None,
+                describes="No inbound rule allows UDP from the internet",
+                example={
+                    "name": "<rule>",
+                    "direction": "Inbound",
+                    "access": "Allow",
+                    "protocol": "Udp",
+                    "source": "0.0.0.0/0",
+                    "destination_ports": ["53"],
+                },
+            ),
+        ),
+        cli=(
+            "az network nsg rule update --resource-group <rg> --nsg-name <nsg> "
+            "--name <rule> --source-address-prefixes <approved.range/24>",
+            "az network nsg rule delete --resource-group <rg> --nsg-name <nsg> "
+            "--name <rule>",
+        ),
+        notes="No policy is generated, for the reason recorded on AZ-NET-001.",
+    )
+    compliance_mappings: ClassVar[dict[str, list[str]]] = {
+        "CIS_AZURE_2.0": ["6.3"],
+        "ISO_27001": ["A.8.20", "A.8.22"],
+        "NIST_CSF": ["PR.AC-5"],
+        "GDPR": ["32(1)(b)"],
+        "NIST_800_53": ["SC-7", "CM-7"],
+        "SOC2": ["CC6.6"],
+        "PCI_DSS_4": ["1.2.1", "1.3.1"],
+    }
+
+    def evaluate(
+        self, resource: CloudResource | None, context: RuleContext
+    ) -> RuleResult | list[RuleResult]:
+        if resource is None:
+            return RuleResult.not_applicable("Rule is per-resource")
+
+        failure = context.has_collection_error(*self.requires_evidence)
+        if failure:
+            return RuleResult.unknown(f"Network configuration unavailable: {failure}")
+
+        inbound = _inbound_allow_rules(resource)
+        if inbound is None:
+            return RuleResult.unknown("Security rule list missing from snapshot")
+
+        exposed = [
+            rule
+            for rule in inbound
+            if str(rule.get("protocol", "")).lower() == "udp"
+            and _is_public(rule.get("source"))
+            # Every port at once is AZ-NET-003's finding, whatever the protocol.
+            and not any(str(p).strip() == "*" for p in rule.get("destination_ports") or [])
+        ]
+        if not exposed:
+            return RuleResult.passed({"public_udp_rules": 0})
+
+        attachment = _attachment_evidence(resource, context)
+        return RuleResult.failed(
+            evidence={
+                "rules": [
+                    {
+                        "nsg_rule_name": rule.get("name"),
+                        "source": rule.get("source"),
+                        "ports": rule.get("destination_ports") or [],
+                    }
+                    for rule in exposed
+                ],
+                **attachment,
+            },
+            exploitability=None if attachment["attached"] else 1,
+            message=(
+                f"{len(exposed)} inbound rule(s) expose UDP to the internet: "
+                + ", ".join(str(rule.get("name")) for rule in exposed)
             ),
         )
 

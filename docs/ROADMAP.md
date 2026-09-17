@@ -6,7 +6,8 @@ Architecturally anticipated, **not implemented in the MVP** — extension points
 
 ## Compliance — **partly built**
 
-The chain below is implemented for CIS Azure 2.0, CIS AWS 3.0 (44 of the 56
+The chain below is implemented for CIS Azure 2.0 (all 151 recommendations
+catalogued, 41 cited by a rule; `DECISIONS.md` §89), CIS AWS 3.0 (44 of the 56
 controls catalogued; the whole of section 4, and the remaining gaps are in
 sections 1, 2 and 5), ISO 27001,
 GDPR, NIST CSF, NIST SP 800-53 Rev. 5, the SOC 2 Trust Services Criteria and PCI

@@ -60,6 +60,7 @@ from app.rules.aws.storage.public_access import (
     AwsBucketTransportRule,
     AwsPublicBucketRule,
 )
+from app.rules.azure.compute.disks import AzureUnmanagedDiskRule
 from app.rules.azure.compute.exposure import (
     AzureExposedComputeRule,
     AzureUnguardedVmRule,
@@ -69,6 +70,11 @@ from app.rules.azure.database.public_access import (
     AzureDatabaseAuditingRule,
     AzureDatabasePrivateConnectivityRule,
     AzurePublicDatabaseRule,
+)
+from app.rules.azure.database.transport import (
+    AzurePostgresTlsRule,
+    AzureSqlEntraAdminRule,
+    AzureSqlTlsRule,
 )
 from app.rules.azure.identity.credentials import (
     AzureLongLivedApplicationCredentialRule,
@@ -96,6 +102,7 @@ from app.rules.azure.network.exposure import (
     AzurePublicSmbRule,
     AzurePublicSqlPortRule,
     AzurePublicSshRule,
+    AzurePublicUdpRule,
     AzurePublicWinRmRule,
     AzureSensitivePublicAddressRule,
 )
@@ -103,6 +110,7 @@ from app.rules.azure.posture.defender import (
     AzureExposedVulnerableMachineRule,
     AzureMissingEndpointProtectionRule,
 )
+from app.rules.azure.posture.plans import AzureDefenderPlansRule
 from app.rules.azure.rbac.privilege import (
     AzureBroadScopeAssignmentRule,
     AzureDangerousCustomRoleRule,
@@ -112,13 +120,25 @@ from app.rules.azure.rbac.privilege import (
     AzureWorkloadWithSubscriptionControlRule,
 )
 from app.rules.azure.secrets.key_vault import (
+    AzureKeyVaultAccessModelRule,
     AzureKeyVaultDeletionRule,
     AzureKeyVaultNetworkRule,
+)
+from app.rules.azure.storage.data_protection import (
+    AzureBlobSoftDeleteRule,
+    AzureStorageCrossTenantReplicationRule,
 )
 from app.rules.azure.storage.public_access import (
     AzurePublicStorageRule,
     AzureStorageEncryptionRule,
     AzureStorageTransportRule,
+)
+from app.rules.azure.web.app_service import (
+    AzureAppServiceFtpRule,
+    AzureAppServiceHttpsRule,
+    AzureAppServiceIdentityRule,
+    AzureAppServiceRemoteDebuggingRule,
+    AzureAppServiceTlsRule,
 )
 from app.rules.base import SecurityRule
 
@@ -161,6 +181,22 @@ RULE_REGISTRY: list[SecurityRule] = [
     AzureKeyVaultNetworkRule(),
     AzureExposedVulnerableMachineRule(),
     AzureMissingEndpointProtectionRule(),
+    # Role v7 and the checks on evidence already collected, batched as one
+    # release (DECISIONS.md section 89).
+    AzurePublicUdpRule(),
+    AzureStorageCrossTenantReplicationRule(),
+    AzureBlobSoftDeleteRule(),
+    AzureSqlTlsRule(),
+    AzureSqlEntraAdminRule(),
+    AzurePostgresTlsRule(),
+    AzureKeyVaultAccessModelRule(),
+    AzureUnmanagedDiskRule(),
+    AzureDefenderPlansRule(),
+    AzureAppServiceHttpsRule(),
+    AzureAppServiceTlsRule(),
+    AzureAppServiceFtpRule(),
+    AzureAppServiceRemoteDebuggingRule(),
+    AzureAppServiceIdentityRule(),
     # AWS. Separate rules over the same neutral resource types, never one rule
     # branching on provider: ``remediation`` is snapshot-copied onto every
     # finding, and ``aws s3api put-public-access-block`` is not a variant of

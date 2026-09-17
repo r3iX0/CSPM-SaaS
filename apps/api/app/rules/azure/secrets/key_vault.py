@@ -1,6 +1,6 @@
-"""Key vault rules: whether the vault survives, and who can reach it.
+"""Key vault rules: whether the vault survives, who can reach it, and how access is granted.
 
-Both read the *management plane* -- the vault's own configuration -- because
+All three read the *management plane* -- the vault's own configuration -- because
 that is all CloudGuard is permitted to read. Nothing here knows what keys or
 secrets a vault holds, and the role deliberately does not ask: a product that
 can tell you your vault is deletable without being able to read a single secret
@@ -82,7 +82,7 @@ class AzureKeyVaultDeletionRule(SecurityRule):
         policy_effect="Deny",
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
-        "CIS_AZURE_2.0": ["8"],
+        "CIS_AZURE_2.0": ["8.5"],
         "ISO_27001": ["A.8.13", "A.8.24"],
         "NIST_CSF": ["PR.DS-1", "PR.IP-4"],
         "GDPR": ["32(1)(c)"],
@@ -203,7 +203,6 @@ class AzureKeyVaultNetworkRule(SecurityRule):
         policy_effect="Audit",
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
-        "CIS_AZURE_2.0": ["8"],
         "ISO_27001": ["A.8.20", "A.8.24"],
         "NIST_CSF": ["PR.AC-5", "PR.DS-5"],
         "GDPR": ["5(1)(f)", "32(1)(b)"],
@@ -259,5 +258,98 @@ class AzureKeyVaultNetworkRule(SecurityRule):
             message=(
                 f"{resource.name} accepts connections from any network, with only its "
                 "access controls in front of the secrets it holds"
+            ),
+        )
+
+
+class AzureKeyVaultAccessModelRule(SecurityRule):
+    rule_id = "AZ-KV-003"
+    name = "Key vault authorizes through access policies"
+    description = (
+        "A key vault grants access to its keys and secrets through vault access "
+        "policies rather than Azure RBAC. Access policies cannot be scoped below the "
+        "vault, cannot be governed by Privileged Identity Management, and are invisible "
+        "to every role-assignment review the tenant runs."
+    )
+    category = "secrets"
+    severity = Severity.MEDIUM
+    # Nothing is open because of it. What it changes is who can grant access
+    # and whether anyone reviewing access would see the grant: a Contributor
+    # on the vault can write themselves an access policy.
+    exploitability = 2
+    applies_to: ClassVar[list[ResourceType]] = [ResourceType.KEY_VAULT]
+    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (AzureEvidence.KEY_VAULTS,)
+    estimated_effort_minutes = 90
+    rationale = (
+        "Under access policies, anyone with write access to the vault's management "
+        "plane -- Contributor is enough -- can add a policy granting themselves every "
+        "secret. Under RBAC that takes a role that can assign roles, which is exactly "
+        "the permission the rest of the tenant's controls already watch."
+    )
+    remediation = (
+        "Move the vault to the Azure RBAC permission model.\n\n"
+        "First grant equivalent roles -- Key Vault Secrets User, Key Vault Crypto User "
+        "and so on -- to every principal that holds an access policy today, or they "
+        "lose access the moment the model changes.\n\n"
+        "Azure Portal: Key vault > Settings > Access configuration > Permission model: "
+        "Azure role-based access control > Apply.\n\n"
+        "Azure CLI:\n"
+        "  az keyvault update --name <vault> --resource-group <rg> "
+        "--enable-rbac-authorization true"
+    )
+    remediation_spec: ClassVar[RemediationSpec | None] = RemediationSpec(
+        expected=(
+            ExpectedState(
+                field="rbac_authorization",
+                equals=True,
+                describes="Data-plane access is authorized through Azure RBAC",
+            ),
+        ),
+        cli=(
+            "az keyvault update --name <vault> --resource-group <rg> "
+            "--enable-rbac-authorization true",
+        ),
+        notes=(
+            "No policy is generated. Microsoft ships a built-in for this, and its alias "
+            "has not been verified from here; a Deny would also break every vault "
+            "deployment that still writes access policies, which is a migration rather "
+            "than a switch."
+        ),
+    )
+    compliance_mappings: ClassVar[dict[str, list[str]]] = {
+        "CIS_AZURE_2.0": ["8.6"],
+        "ISO_27001": ["A.5.15", "A.5.18", "A.8.2"],
+        "NIST_CSF": ["PR.AC-4"],
+        "GDPR": ["32(1)(b)"],
+        "NIST_800_53": ["AC-3", "AC-6"],
+        "SOC2": ["CC6.1", "CC6.3"],
+        "PCI_DSS_4": ["7.2.1", "3.6.1"],
+    }
+
+    def evaluate(
+        self, resource: CloudResource | None, context: RuleContext
+    ) -> RuleResult | list[RuleResult]:
+        if resource is None:
+            return RuleResult.not_applicable("Rule is per-resource")
+
+        failure = context.has_collection_error(*self.requires_evidence)
+        if failure:
+            return RuleResult.unknown(f"Key vault configuration unavailable: {failure}")
+
+        rbac = resource.get("rbac_authorization")
+        evidence = {
+            "rbac_authorization": rbac,
+            "access_policy_count": resource.get("access_policy_count"),
+        }
+        if rbac is True:
+            return RuleResult.passed(evidence)
+        # Absent is read as off. The property defaults to false in the API
+        # version this reads, and a vault created that way has never been
+        # anything but access policies.
+        return RuleResult.failed(
+            evidence=evidence,
+            message=(
+                f"{resource.name} grants access to its secrets through access policies "
+                "rather than Azure RBAC"
             ),
         )

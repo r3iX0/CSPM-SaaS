@@ -129,6 +129,29 @@ POSTGRES_ENDPOINT = ProviderEndpoint(
     "/flexibleServers",
     "2023-03-01-preview",
 )
+# v7. Four fan-outs beneath listings the plan already takes, and two new
+# listings.
+SQL_ADMINISTRATORS_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/{{serverId}}/administrators", "2021-11-01"
+)
+POSTGRES_SECURE_TRANSPORT_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/{{serverId}}/configurations/require_secure_transport",
+    "2023-03-01-preview",
+)
+BLOB_SERVICE_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/{{accountId}}/blobServices/default", "2023-01-01"
+)
+APP_SERVICES_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Web/sites",
+    "2022-09-01",
+)
+APP_SERVICE_CONFIG_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/{{siteId}}/config/web", "2022-09-01"
+)
+DEFENDER_PLANS_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Security/pricings",
+    "2024-01-01",
+)
 ROLE_ASSIGNMENTS_ENDPOINT = ProviderEndpoint(
     f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Authorization"
     "/roleAssignments",
@@ -330,6 +353,12 @@ class AzurePlanBuilder:
         async def postgres(arm: ArmClient) -> dict[str, Any]:
             return {"postgresql_servers": await arm.list_postgresql_servers(sub)}
 
+        async def app_services(arm: ArmClient) -> dict[str, Any]:
+            return {"app_services": await arm.list_app_services(sub)}
+
+        async def defender_plans(arm: ArmClient) -> dict[str, Any]:
+            return {"defender_plans": await arm.list_defender_plans(sub)}
+
         async def role_assignments(arm: ArmClient) -> dict[str, Any]:
             """Who holds which role over what, inside this subscription.
 
@@ -453,6 +482,18 @@ class AzurePlanBuilder:
                 endpoints=(POSTGRES_ENDPOINT,),
             ),
             self._arm_task(
+                AzureEvidence.APP_SERVICES,
+                ("Microsoft.Web/sites/read",),
+                app_services,
+                endpoints=(APP_SERVICES_ENDPOINT,),
+            ),
+            self._arm_task(
+                AzureEvidence.DEFENDER_PLANS,
+                ("Microsoft.Security/pricings/read",),
+                defender_plans,
+                endpoints=(DEFENDER_PLANS_ENDPOINT,),
+            ),
+            self._arm_task(
                 AzureEvidence.ROLE_ASSIGNMENTS,
                 ("Microsoft.Authorization/roleAssignments/read",),
                 role_assignments,
@@ -467,9 +508,107 @@ class AzurePlanBuilder:
             self._inventory_task(),
             self._sql_auditing_task(),
             self._sql_tde_task(),
+            self._per_resource_task(
+                AzureEvidence.SQL_ADMINISTRATORS,
+                source=AzureEvidence.SQL_SERVERS,
+                action="Microsoft.Sql/servers/administrators/read",
+                endpoint=SQL_ADMINISTRATORS_ENDPOINT,
+                read=lambda arm, server_id: arm.list_sql_administrators(server_id),
+                noun="Entra administrators",
+                of="servers",
+            ),
+            self._per_resource_task(
+                AzureEvidence.POSTGRESQL_CONFIGURATIONS,
+                source=AzureEvidence.POSTGRESQL_SERVERS,
+                action="Microsoft.DBforPostgreSQL/flexibleServers/configurations/read",
+                endpoint=POSTGRES_SECURE_TRANSPORT_ENDPOINT,
+                read=lambda arm, server_id: arm.get_postgresql_secure_transport(server_id),
+                noun="the TLS requirement",
+                of="PostgreSQL servers",
+            ),
+            self._per_resource_task(
+                AzureEvidence.STORAGE_BLOB_SERVICES,
+                source=AzureEvidence.STORAGE_ACCOUNTS,
+                action="Microsoft.Storage/storageAccounts/blobServices/read",
+                endpoint=BLOB_SERVICE_ENDPOINT,
+                read=lambda arm, account_id: arm.get_blob_service(account_id),
+                noun="blob recovery settings",
+                of="storage accounts",
+            ),
+            self._per_resource_task(
+                AzureEvidence.APP_SERVICE_CONFIGS,
+                source=AzureEvidence.APP_SERVICES,
+                action="Microsoft.Web/sites/config/read",
+                endpoint=APP_SERVICE_CONFIG_ENDPOINT,
+                read=lambda arm, site_id: arm.get_app_service_config(site_id),
+                noun="configuration",
+                of="apps",
+            ),
             self._diagnostics_task(),
         ]
         return tasks
+
+    def _per_resource_task(
+        self,
+        key: AzureEvidence,
+        *,
+        source: AzureEvidence,
+        action: str,
+        endpoint: ProviderEndpoint,
+        read: Callable[[ArmClient, str], Awaitable[Any]],
+        noun: str,
+        of: str,
+    ) -> CollectionTask:
+        """One read per resource another listing produced, keyed by its id.
+
+        The shape the auditing task has, written once for the four v7 readings
+        that share it rather than four more times. Each is a dependent task
+        rather than a further call inside its listing, for the reason auditing
+        is: the rule that reads it and the rules that read the listing rest on
+        different evidence, and a role predating v7 must cost exactly the
+        first.
+
+        A resource whose read failed is recorded as ``"error: ..."`` against its
+        own id, so one refusal costs one resource its verdict and the task says
+        how many -- naming the role, because a 403 across every resource is
+        what a v6 role produces.
+        """
+
+        async def run(collected: dict[str, Any]) -> TaskData:
+            arm = ArmClient(self.tokens, self._http, limiter=self._limiter)
+            ids = [item["id"] for item in collected.get(source, []) if item.get("id")]
+
+            failures = 0
+
+            async def for_resource(resource_id: str) -> tuple[str, Any]:
+                nonlocal failures
+                try:
+                    return resource_id, await read(arm, resource_id)
+                except Exception as exc:
+                    failures += 1
+                    return resource_id, f"error: {exc}"
+
+            pairs = await self._gather_limited([for_resource(i) for i in ids])
+            data = {key.value: dict(pairs)}
+
+            if failures:
+                return TaskData(
+                    data,
+                    partial_reason=(
+                        f"{noun} could not be read for {failures} of {len(ids)} "
+                        f"{of}. A scanner role deployed before {ROLE_VERSION} does "
+                        "not grant the permission this needs."
+                    ),
+                )
+            return TaskData(data)
+
+        return CollectionTask(
+            key=key,
+            run=run,
+            depends_on=(source,),
+            actions=(action,),
+            endpoints=(endpoint,),
+        )
 
     def _sql_auditing_task(self) -> CollectionTask:
         """Whether each SQL server records who queried it.

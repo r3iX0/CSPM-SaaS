@@ -3765,8 +3765,8 @@ product it is supposed to describe.
 ### The estate is deliberately not catastrophic
 
 The first draft failed 28 of 30 rules. That is a worse demonstration, not a
-better one: the security score floors at zero (`RISK_ENGINE.md` §3, and the open
-item already recorded), and a screen with no green on it says nothing about a
+better one: the security score decays toward zero (`RISK_ENGINE.md` §3, §45
+above), and a screen with no green on it says nothing about a
 product whose whole point is telling the two apart.
 
 Tuned to 14 failures against 21 passes, and the split is the realistic one — the
@@ -4496,6 +4496,133 @@ ceiling — polling resumes. Nothing on screen depends on which of the two
 delivered a state, and a deployment where streaming never works simply behaves
 as §87 did.
 
+## 89. Fourteen Azure checks, role v7, and a CIS catalogue that named the wrong controls
+
+Azure is the cloud customers can connect, and it had fewer rules than AWS, which
+nobody can. This closes that with one release in two tiers, and corrects the
+compliance catalogue the rules report into.
+
+### Two tiers, one version
+
+Five checks judge evidence the scanner already read, so every existing
+connection gets their verdicts on its next scan with nothing to redeploy:
+public UDP (AZ-NET-009), cross-tenant blob replication (AZ-STO-004), SQL's
+minimum TLS version (AZ-DB-007), a key vault still on access policies
+(AZ-KV-003), and unmanaged VM disks (AZ-CMP-003).
+
+Nine need reads the role did not grant, and those six reads are `v7`:
+`Microsoft.Security/pricings/read`, `Microsoft.Storage/storageAccounts/blobServices/read`,
+`Microsoft.Sql/servers/administrators/read`,
+`Microsoft.DBforPostgreSQL/flexibleServers/configurations/read`,
+`Microsoft.Web/sites/read` and `Microsoft.Web/sites/config/read`. Each string
+was checked against Microsoft's published operations reference on 2026-09-17,
+because the `rbac.py` module docstring records what one unverified string
+costs: the whole role fails to deploy.
+
+They are one version rather than several for v4's reason. Every version is a
+redeploy prompt, and a customer who ignores one ignores the next. A v6
+connection keeps every verdict it had; the nine report UNKNOWN naming the role,
+and `degraded_categories` lists compute, database, posture and storage.
+
+The role is now twenty-five reads. `test_the_role_is_small_enough_to_read`
+capped it at twenty and was raised to thirty rather than removed -- the cap is
+what makes the next addition a decision.
+
+### The four fan-outs share one task shape
+
+Three of the new reads sit beneath a listing the plan already took (SQL
+servers, PostgreSQL servers, storage accounts) and one beneath a new listing
+(App Service sites). Each is its own evidence key and its own dependent task,
+for the reason SQL auditing is (see `AzureEvidence.SQL_AUDITING`): a role predating v7 answers the
+listing and refuses the fan-out, and folded into one key that refusal would cost
+the listing's rules their verdicts too. `_per_resource_task` writes the shape
+once; a resource whose read fails is recorded against its own id, so one refusal
+costs one resource.
+
+The SQL Entra administrator is read per server rather than through
+`$expand=administrators/activedirectory` on the server listing, which would be a
+call fewer. Whether the expansion is authorized by `servers/read` alone is not
+documented, and guessing wrong would turn a missing permission into a failed
+listing of every SQL server -- AZ-DB-001's verdict included.
+
+### App Service is its own resource type
+
+`APP_SERVICE`, not `VIRTUAL_MACHINE`, because the platform owns the host and
+every fix is a site setting. Web apps and function apps are both
+`Microsoft.Web/sites` and share the five rules. A site's managed identity is
+drawn as a `HAS_IDENTITY` edge exactly as a machine's is, so a taken web app now
+appears as the first hop of an attack path.
+
+### Absent is not always unknown, and each case says which
+
+Most of the new fields read absent as UNKNOWN: a minimum TLS version the listing
+did not carry, a blob service that never arrived. Two read absent as the
+documented default, and the rule says so in its evidence:
+
+- `allowCrossTenantReplication` is omitted on accounts created before
+  15 December 2023 that never set it, and Microsoft documents that such an
+  account permits cross-tenant policies. AZ-STO-004 fails it with
+  `default_applied: true`.
+- `enableRbacAuthorization` defaults to false in the API version read. AZ-KV-003
+  fails a vault that does not say it is on, as AZ-KV-001 already does for purge
+  protection.
+
+And one empty answer is not a pass: a Defender plan listing that names none of
+the plans CIS asks about is UNKNOWN, because Azure returns every plan for a
+subscription it can price.
+
+### Two checks declined
+
+CIS 6.4, HTTP(S) reachable from the internet, was offered and not built.
+AZ-NET-003 records why 80 and 443 are excluded from its own list -- a public web
+server is a design rather than a defect -- and a rule firing on every one would
+bury the findings that are defects. Encryption at host was not built for the
+reason v4 dropped disk encryption: managed disks are encrypted regardless.
+
+### The CIS Azure catalogue named the wrong controls
+
+Mapping the new rules meant looking up leaf numbers, and the numbers already in
+the catalogue did not match the benchmark. It listed nineteen entries, three of
+them whole sections ("2", "8", "9"), and several of the leaves meant something
+else in 2.0:
+
+- `1.21` was cited by ten rules as "no excessive subscription administrators".
+  In 2.0 it is whether users may create Microsoft 365 groups. The control about
+  custom administrator roles is `1.23`.
+- `6.5` was cited for WinRM, unrestricted inbound rules and unguarded VMs. It is
+  flow log retention.
+- `4.1.1` was cited for public network access and encryption. It is auditing.
+- `5.3` does not exist in 2.0, and `7.1` is whether a Bastion host exists.
+
+The catalogue is rebuilt from the benchmark's own index: all 151
+recommendations, in CloudGuard's wording, grouped by the benchmark's sections.
+The index came from the public compliance mapping Prowler maintains, cross-checked
+against Microsoft's Azure Policy regulatory-compliance initiative for CIS 2.0,
+which corrected the two titles Prowler duplicates (2.1.20 and 4.5.1). Four are
+marked as beyond a scanner: guest reviews on a schedule (1.5), SAS token lifetime
+(3.6, since issued tokens are recorded nowhere readable), periodic public IP
+review (6.7), and an approved-extension list (7.5, which needs the customer's
+list).
+
+Every existing rule was re-mapped against it, and several lost their CIS
+mapping entirely -- WinRM, SMB, the SQL port, too many Owners, a guest or
+disabled account holding a privileged role. That lowers the Azure CIS coverage
+number, and it should: the benchmark has no control for those, and evidence
+filed under a control it does not answer is the overclaim §81 was about. The
+rules still map to ISO, NIST, SOC 2, PCI and GDPR, where they do answer
+something. After the rebuild, 41 of 151 controls are cited by a rule.
+
+Compliance coverage is computed live from the registry, so no stored finding
+carries the old numbers; the next compliance view shows the corrected ones.
+
+### The recording carries the new readings
+
+`tests/fixtures/azure_raw/snapshot_mixed.json` -- replayed by the demo and by
+the integration suite -- gained the six readings, a managed OS disk and a SQL
+minimum TLS version, so no new rule is blind on it. Four fail there on purpose:
+an SQL server with no Entra administrator, the Servers plan off, an older storage
+account permitting cross-tenant replication, and a web app with no identity.
+
 ## Settings: the evidence a person supplies
 
 `PATCH /organizations` takes no id in the path. Deleting a *different*
@@ -4517,14 +4644,6 @@ scan concluded; rewriting stored scores from a form would leave findings
 carrying numbers no observation ever produced.
 
 ## Open items carried forward
-
-**The security score floors at zero quickly.** The deductions in
-`RISK_ENGINE.md` §3 are −20 per Critical-band finding, so five of them reach
-zero. The demo environment scores 0/100 before remediation and 52/100 after.
-This is the specified formula and it is honest, but it loses resolution at the
-bad end: an organization with five Critical findings and one with fifty both
-read 0. The spec anticipates tuning these values against real environments;
-`app/risk/config.py` is where that happens, and no rule logic needs to change.
 
 **Phase 9 (reports) is built, generated on request rather than stored.**
 Jinja2 renders the report to HTML and WeasyPrint prints that HTML — the stack

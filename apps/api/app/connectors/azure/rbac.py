@@ -39,7 +39,7 @@ from app.connectors.evidence import EvidenceCategory
 from app.core.enums import ConnectionScope
 
 # Bump when the action list changes.
-ROLE_VERSION = "v6"
+ROLE_VERSION = "v7"
 
 ROLE_NAME = "CloudGuard Security Scanner"
 
@@ -122,6 +122,27 @@ ARM_READ_ACTIONS: tuple[str, ...] = (
     # Grants nothing beyond reading them. There is no Defender action here that
     # enables a plan, dismisses a finding, or changes what is assessed.
     "Microsoft.Security/assessments/read",
+    # v7. Six reads, each verified against the published operations reference
+    # on 2026-09-17, which is what this file's rule about unverified strings
+    # asks for.
+    #
+    # Which Defender plans the subscription is on. The pricing *read*: the
+    # write that turns a plan on, and bills for it, is a different action.
+    "Microsoft.Security/pricings/read",
+    # The blob service beneath an account -- whether deleted data can be
+    # recovered. Service properties, not blobs: listing or reading a blob is a
+    # data action and is not requested.
+    "Microsoft.Storage/storageAccounts/blobServices/read",
+    # Who the SQL server accepts as its Entra administrator.
+    "Microsoft.Sql/servers/administrators/read",
+    # One PostgreSQL server parameter, read by name.
+    "Microsoft.DBforPostgreSQL/flexibleServers/configurations/read",
+    # Web apps and function apps, and each one's configuration. The
+    # configuration read returns TLS, FTP and debugging settings; application
+    # settings and connection strings are a separate ``config/list`` action,
+    # which is an ``/action`` and is never requested.
+    "Microsoft.Web/sites/read",
+    "Microsoft.Web/sites/config/read",
 )
 
 # Which ARM action each collector call needs. This is the link between the code
@@ -161,6 +182,14 @@ CLIENT_ACTIONS: dict[str, tuple[str, ...]] = {
     "get_role_definition": ("Microsoft.Authorization/roleDefinitions/read",),
     "list_key_vaults": ("Microsoft.KeyVault/vaults/read",),
     "list_security_assessments": ("Microsoft.Security/assessments/read",),
+    "list_defender_plans": ("Microsoft.Security/pricings/read",),
+    "get_blob_service": ("Microsoft.Storage/storageAccounts/blobServices/read",),
+    "list_sql_administrators": ("Microsoft.Sql/servers/administrators/read",),
+    "get_postgresql_secure_transport": (
+        "Microsoft.DBforPostgreSQL/flexibleServers/configurations/read",
+    ),
+    "list_app_services": ("Microsoft.Web/sites/read",),
+    "get_app_service_config": ("Microsoft.Web/sites/config/read",),
 }
 
 # Which collection category each ARM action serves, for the categories the
@@ -186,15 +215,24 @@ COLLECTION_ACTIONS: dict[EvidenceCategory, tuple[str, ...]] = {
         "Microsoft.Network/networkInterfaces/read",
         "Microsoft.Network/publicIPAddresses/read",
     ),
-    EvidenceCategory.COMPUTE: ("Microsoft.Compute/virtualMachines/read",),
-    EvidenceCategory.STORAGE: ("Microsoft.Storage/storageAccounts/read",),
+    EvidenceCategory.COMPUTE: (
+        "Microsoft.Compute/virtualMachines/read",
+        "Microsoft.Web/sites/read",
+        "Microsoft.Web/sites/config/read",
+    ),
+    EvidenceCategory.STORAGE: (
+        "Microsoft.Storage/storageAccounts/read",
+        "Microsoft.Storage/storageAccounts/blobServices/read",
+    ),
     EvidenceCategory.DATABASE: (
         "Microsoft.Sql/servers/read",
         "Microsoft.Sql/servers/firewallRules/read",
         "Microsoft.Sql/servers/auditingSettings/read",
         "Microsoft.Sql/servers/databases/read",
         "Microsoft.Sql/servers/databases/transparentDataEncryption/read",
+        "Microsoft.Sql/servers/administrators/read",
         "Microsoft.DBforPostgreSQL/flexibleServers/read",
+        "Microsoft.DBforPostgreSQL/flexibleServers/configurations/read",
     ),
     EvidenceCategory.LOGGING: ("Microsoft.Insights/diagnosticSettings/read",),
     EvidenceCategory.AUTHORIZATION: (
@@ -202,7 +240,10 @@ COLLECTION_ACTIONS: dict[EvidenceCategory, tuple[str, ...]] = {
         "Microsoft.Authorization/roleDefinitions/read",
     ),
     EvidenceCategory.SECRETS: ("Microsoft.KeyVault/vaults/read",),
-    EvidenceCategory.POSTURE: ("Microsoft.Security/assessments/read",),
+    EvidenceCategory.POSTURE: (
+        "Microsoft.Security/assessments/read",
+        "Microsoft.Security/pricings/read",
+    ),
 }
 
 # What each published role version granted. Frozen once shipped: a customer's
@@ -357,6 +398,40 @@ ROLE_HISTORY: dict[str, tuple[str, ...]] = {
         "Microsoft.Sql/servers/databases/read",
         "Microsoft.Sql/servers/databases/transparentDataEncryption/read",
         "Microsoft.Security/assessments/read",
+    ),
+    # v7 adds six reads across five categories, batched into one version for
+    # the reason v4 was: every version is a redeploy prompt, and a customer
+    # who ignores one has ignored the next. A v6 role keeps every verdict it
+    # had and reports UNKNOWN for the new checks that need these -- Defender
+    # plans, blob recovery, the SQL Entra administrator, PostgreSQL transport,
+    # and all of App Service, which a v6 role cannot see exists beyond the
+    # inventory.
+    "v7": (
+        "Microsoft.Resources/subscriptions/read",
+        "Microsoft.Resources/subscriptions/resources/read",
+        "Microsoft.ResourceGraph/resources/read",
+        "Microsoft.Network/networkSecurityGroups/read",
+        "Microsoft.Network/networkInterfaces/read",
+        "Microsoft.Network/publicIPAddresses/read",
+        "Microsoft.Compute/virtualMachines/read",
+        "Microsoft.Storage/storageAccounts/read",
+        "Microsoft.Sql/servers/read",
+        "Microsoft.Sql/servers/firewallRules/read",
+        "Microsoft.Sql/servers/auditingSettings/read",
+        "Microsoft.DBforPostgreSQL/flexibleServers/read",
+        "Microsoft.Insights/diagnosticSettings/read",
+        "Microsoft.Authorization/roleAssignments/read",
+        "Microsoft.Authorization/roleDefinitions/read",
+        "Microsoft.KeyVault/vaults/read",
+        "Microsoft.Sql/servers/databases/read",
+        "Microsoft.Sql/servers/databases/transparentDataEncryption/read",
+        "Microsoft.Security/assessments/read",
+        "Microsoft.Security/pricings/read",
+        "Microsoft.Storage/storageAccounts/blobServices/read",
+        "Microsoft.Sql/servers/administrators/read",
+        "Microsoft.DBforPostgreSQL/flexibleServers/configurations/read",
+        "Microsoft.Web/sites/read",
+        "Microsoft.Web/sites/config/read",
     ),
 }
 

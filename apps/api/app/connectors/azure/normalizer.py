@@ -181,6 +181,7 @@ class AzureNormalizer:
         state.resources.extend(self._normalize_storage(data, diagnostics))
         state.resources.extend(self._normalize_databases(data, diagnostics))
         state.resources.extend(self._normalize_key_vaults(data, diagnostics))
+        state.resources.extend(self._normalize_app_services(data))
 
         vms, vm_edges = self._normalize_vms(data, nics, public_ips)
         state.resources.extend(vms)
@@ -463,6 +464,10 @@ class AzureNormalizer:
                 # Claiming a level here would double-count it.
                 metadata={
                     "subscription_id": subscription_id,
+                    # Which Defender for Cloud plans this subscription is on.
+                    # None where the pricing listing was never read, which is
+                    # not a subscription with every plan off.
+                    "defender_plans": self._defender_plans(snapshot.data),
                     # The roles this tenant wrote itself, with what each one
                     # grants. Recorded on the subscription because that is
                     # where they are defined and where they are assignable: a
@@ -518,6 +523,22 @@ class AzureNormalizer:
             )
 
         return nodes, edges
+
+    @staticmethod
+    def _defender_plans(data: dict[str, Any]) -> list[dict[str, Any]] | None:
+        raw = data.get("defender_plans")
+        if not isinstance(raw, list):
+            return None
+        return [
+            {
+                "name": plan.get("name"),
+                "tier": _first(plan, "properties", "pricingTier"),
+                "sub_plan": _first(plan, "properties", "subPlan"),
+                "deprecated": _first(plan, "properties", "deprecated") is True,
+            }
+            for plan in raw
+            if isinstance(plan, dict) and plan.get("name")
+        ]
 
     # ----------------------------------------------------------- authorization
     def _normalize_authorization(
@@ -604,8 +625,10 @@ class AzureNormalizer:
                 )
                 existing.metadata["roles"] = roles
 
-        # Resources that run as an identity. The first hop of the path.
-        for vm in data.get("virtual_machines", []):
+        # Resources that run as an identity. The first hop of the path. A web
+        # app is a workload exactly as a machine is, and a taken app acts as its
+        # identity the same way.
+        for vm in [*data.get("virtual_machines", []), *data.get("app_services", [])]:
             identity = vm.get("identity") or {}
             principal_id = identity.get("principalId")
             if not principal_id or not vm.get("id"):
@@ -756,6 +779,17 @@ class AzureNormalizer:
                         "https_traffic_only": props.get("supportsHttpsTrafficOnly"),
                         "min_tls_version": props.get("minimumTlsVersion"),
                         "allow_shared_key_access": props.get("allowSharedKeyAccess"),
+                        # Absent is not unknown here. Azure omits it on accounts
+                        # created before 15 December 2023 that never set it, and
+                        # documents that such an account permits cross-tenant
+                        # replication -- so the absence is kept as None and the
+                        # rule reads it as the documented default.
+                        "allow_cross_tenant_replication": props.get(
+                            "allowCrossTenantReplication"
+                        ),
+                        **self._blob_service(
+                            account["id"], data.get("storage_blob_services", {}) or {}
+                        ),
                         "infrastructure_encryption": _first(
                             props, "encryption", "requireInfrastructureEncryption"
                         ),
@@ -857,6 +891,9 @@ class AzureNormalizer:
                         "version": props.get("version"),
                         "administrator_login": props.get("administratorLogin"),
                         "minimal_tls_version": props.get("minimalTlsVersion"),
+                        "entra_administrators": self._entra_administrators(
+                            server["id"], data.get("sql_administrators", {}) or {}
+                        ),
                         "auditing": self._auditing(server["id"], auditing),
                         # What each database on this server does about
                         # encryption at rest. None where the reading never
@@ -901,6 +938,9 @@ class AzureNormalizer:
                             else []
                         ),
                         "version": props.get("version"),
+                        "require_secure_transport": self._server_parameter(
+                            server["id"], data.get("postgresql_configurations", {}) or {}
+                        ),
                         "diagnostic_settings": self._diagnostics_for(server["id"], diagnostics),
                         "tags": server.get("tags") or {},
                     },
@@ -908,6 +948,72 @@ class AzureNormalizer:
             )
 
         return resources
+
+    @staticmethod
+    def _blob_service(account_id: str, services: dict[str, Any]) -> dict[str, Any]:
+        """Whether deleted blobs and containers can be recovered on this account.
+
+        Flat fields rather than one nested block, so a remediation can name the
+        setting a rule reads. Each is ``None`` where the reading failed or was
+        never taken -- the distinction ``_auditing`` draws, for the same reason:
+        an account whose blob service could not be read is not one known to
+        lack soft delete.
+
+        An enabled flag absent from a policy that did arrive is read as off.
+        That is ARM's shape for a policy nobody configured, not a missing
+        reading: the service properties came back, and they did not say it was
+        on.
+        """
+        raw = services.get(account_id)
+        if not isinstance(raw, dict):
+            return {
+                "blob_soft_delete": None,
+                "blob_retention_days": None,
+                "container_soft_delete": None,
+                "container_retention_days": None,
+                "blob_versioning": None,
+            }
+        props = raw.get("properties", {}) or {}
+        blobs = props.get("deleteRetentionPolicy") or {}
+        containers = props.get("containerDeleteRetentionPolicy") or {}
+        return {
+            "blob_soft_delete": blobs.get("enabled") is True,
+            "blob_retention_days": blobs.get("days"),
+            "container_soft_delete": containers.get("enabled") is True,
+            "container_retention_days": containers.get("days"),
+            "blob_versioning": props.get("isVersioningEnabled") is True,
+        }
+
+    @staticmethod
+    def _entra_administrators(
+        server_id: str, administrators: dict[str, Any]
+    ) -> list[dict[str, Any]] | None:
+        """The Entra administrators this SQL server accepts.
+
+        ``None`` for a reading that failed or never happened; an empty list for
+        a server that answered and has none, which is the finding.
+        """
+        raw = administrators.get(server_id)
+        if not isinstance(raw, list):
+            return None
+        return [
+            {
+                "login": _first(entry, "properties", "login"),
+                "administrator_type": _first(entry, "properties", "administratorType"),
+                "entra_only": _first(entry, "properties", "azureADOnlyAuthentication"),
+            }
+            for entry in raw
+            if isinstance(entry, dict)
+        ]
+
+    @staticmethod
+    def _server_parameter(server_id: str, parameters: dict[str, Any]) -> str | None:
+        """One server parameter's value, lower-cased, or None if never read."""
+        raw = parameters.get(server_id)
+        if not isinstance(raw, dict):
+            return None
+        value = _first(raw, "properties", "value")
+        return str(value).strip().lower() if value is not None else None
 
     def _firewall_rules(self, server: dict[str, Any]) -> list[dict[str, Any]] | None:
         """None (not []) when the call failed -- the difference between "no
@@ -1074,6 +1180,7 @@ class AzureNormalizer:
                         "has_public_ip": has_public_ip,
                         "public_ips": vm_public_ips,
                         "os_type": _first(props, "storageProfile", "osDisk", "osType"),
+                        "unmanaged_disks": self._unmanaged_disks(props),
                         "vm_size": _first(props, "hardwareProfile", "vmSize"),
                         "network_interfaces": attached_nic_ids,
                         "guarding_nsgs": sorted(guarding_nsgs),
@@ -1083,6 +1190,84 @@ class AzureNormalizer:
             )
 
         return resources, edges
+
+    @staticmethod
+    def _unmanaged_disks(props: dict[str, Any]) -> list[str] | None:
+        """The machine's disks that are VHD blobs rather than managed disks.
+
+        ARM describes every disk as one or the other: a ``managedDisk`` block,
+        or a ``vhd`` URI into somebody's storage account. A disk with neither
+        is one this reading cannot place, and a machine whose OS disk is such a
+        disk is reported as ``None`` rather than guessed at.
+        """
+        storage = props.get("storageProfile") or {}
+        os_disk = storage.get("osDisk") or {}
+        disks = [("OS disk", os_disk)] + [
+            (str(d.get("name") or f"data disk {d.get('lun')}"), d)
+            for d in (storage.get("dataDisks") or [])
+            if isinstance(d, dict)
+        ]
+
+        if not os_disk.get("managedDisk") and not os_disk.get("vhd"):
+            return None
+        return [name for name, disk in disks if disk.get("vhd") and not disk.get("managedDisk")]
+
+    # ------------------------------------------------------------ app service
+    def _normalize_app_services(self, data: dict[str, Any]) -> list[CloudResource]:
+        """Web apps and function apps, with the configuration read beneath each.
+
+        The configuration fields are None where that second read failed or
+        never happened, so a rule judging TLS can tell "not read" from "read
+        and weak" -- while the rules that only need the listing keep their
+        verdicts either way.
+        """
+        configs = data.get("app_service_configs", {}) or {}
+        resources = []
+        for site in data.get("app_services", []):
+            if not site.get("id"):
+                continue
+            props = site.get("properties", {}) or {}
+            identity = site.get("identity") or {}
+            context = _context(site, ResourceType.APP_SERVICE)
+            public_access = props.get("publicNetworkAccess")
+
+            raw_config = configs.get(site["id"])
+            cfg = (raw_config.get("properties", {}) or {}) if isinstance(raw_config, dict) else {}
+
+            resources.append(
+                CloudResource(
+                    provider_resource_id=site["id"],
+                    resource_type=ResourceType.APP_SERVICE,
+                    name=site.get("name", "unnamed"),
+                    provider=Provider.AZURE,
+                    region=site.get("location"),
+                    **context.fields(),
+                    # A site answers on its public hostname unless somebody
+                    # turned that off. Access restrictions can narrow it and
+                    # are not read, so "not disabled" is reachable rather than
+                    # guessed safe.
+                    public_exposure=(
+                        Level.LOW
+                        if str(public_access).lower() == "disabled"
+                        else Level.HIGH
+                    ),
+                    metadata={
+                        "kind": site.get("kind"),
+                        "https_only": props.get("httpsOnly"),
+                        "client_cert_enabled": props.get("clientCertEnabled"),
+                        "public_network_access": public_access,
+                        "identity_type": identity.get("type"),
+                        # From the configuration read. Every one is None where
+                        # that read failed, which the rules report as UNKNOWN.
+                        "min_tls_version": cfg.get("minTlsVersion"),
+                        "scm_min_tls_version": cfg.get("scmMinTlsVersion"),
+                        "ftps_state": cfg.get("ftpsState"),
+                        "remote_debugging": cfg.get("remoteDebuggingEnabled"),
+                        "tags": site.get("tags") or {},
+                    },
+                )
+            )
+        return resources
 
     # --------------------------------------------------------------- identity
     def _normalize_users(

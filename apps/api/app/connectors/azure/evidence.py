@@ -33,7 +33,19 @@ class AzureEvidence(EvidenceKey):
 
     VIRTUAL_MACHINES = "virtual_machines"
 
+    # Web apps and function apps -- both are ``Microsoft.Web/sites``. The
+    # listing carries what the site is and whether it insists on HTTPS; the
+    # configuration beneath each one carries TLS, FTP and remote debugging,
+    # and ARM leaves ``siteConfig`` empty in the listing, so the two are two
+    # reads and two keys.
+    APP_SERVICES = "app_services"
+    APP_SERVICE_CONFIGS = "app_service_configs"
+
     STORAGE_ACCOUNTS = "storage_accounts"
+    # The blob service beneath each account: whether a deleted blob or
+    # container can be recovered. A separate resource with its own read, so a
+    # role predating v7 loses this and keeps every account-level verdict.
+    STORAGE_BLOB_SERVICES = "storage_blob_services"
 
     SQL_SERVERS = "sql_servers"
     # Whether each server records who queried it. Its own key rather than part
@@ -53,6 +65,20 @@ class AzureEvidence(EvidenceKey):
     # reachability rule its verdict over a call it never reads.
     SQL_TDE = "sql_tde"
     POSTGRESQL_SERVERS = "postgresql_servers"
+    # Who the SQL server accepts as its Entra administrator, if anybody. Its own
+    # key for the reason auditing is: it is a per-server call beneath the
+    # listing, it arrives in role v7, and a role that predates it must cost
+    # exactly this verdict rather than the reachability rule's as well.
+    #
+    # Not ``$expand=administrators`` on the server listing, which would have
+    # been one call fewer. Whether the expansion is authorized by the server
+    # read alone is not documented, and guessing wrong would turn a missing
+    # permission into a failed listing of every SQL server a customer owns.
+    SQL_ADMINISTRATORS = "sql_administrators"
+    # One server parameter per PostgreSQL server: whether it refuses clients
+    # that do not negotiate TLS. Read by name rather than by listing all of
+    # them, because a listing is a few hundred parameters nothing reads.
+    POSTGRESQL_CONFIGURATIONS = "postgresql_configurations"
 
     # The vault's configuration. Never its contents -- reading a secret is a
     # data-plane permission this connector does not hold.
@@ -67,6 +93,12 @@ class AzureEvidence(EvidenceKey):
     # the finding for and CloudGuard has the exposure for, and neither says
     # alone.
     SECURITY_ASSESSMENTS = "security_assessments"
+    # Which Defender for Cloud plans this subscription pays for. A statement
+    # about coverage rather than a finding Defender reached, and the reason it
+    # is not folded into the assessments above: a plan that is off produces no
+    # assessments at all, so the silence of the key above cannot say whether
+    # anything was looking.
+    DEFENDER_PLANS = "defender_plans"
 
     DIAGNOSTIC_SETTINGS = "diagnostic_settings"
 
@@ -125,12 +157,18 @@ _CATEGORIES: dict[AzureEvidence, EvidenceCategory] = {
     AzureEvidence.NETWORK_INTERFACES: EvidenceCategory.NETWORK,
     AzureEvidence.PUBLIC_IP_ADDRESSES: EvidenceCategory.NETWORK,
     AzureEvidence.VIRTUAL_MACHINES: EvidenceCategory.COMPUTE,
+    AzureEvidence.APP_SERVICES: EvidenceCategory.COMPUTE,
+    AzureEvidence.APP_SERVICE_CONFIGS: EvidenceCategory.COMPUTE,
     AzureEvidence.STORAGE_ACCOUNTS: EvidenceCategory.STORAGE,
+    AzureEvidence.STORAGE_BLOB_SERVICES: EvidenceCategory.STORAGE,
     AzureEvidence.SQL_SERVERS: EvidenceCategory.DATABASE,
     AzureEvidence.SQL_AUDITING: EvidenceCategory.DATABASE,
     AzureEvidence.SQL_TDE: EvidenceCategory.DATABASE,
+    AzureEvidence.SQL_ADMINISTRATORS: EvidenceCategory.DATABASE,
+    AzureEvidence.POSTGRESQL_CONFIGURATIONS: EvidenceCategory.DATABASE,
     AzureEvidence.KEY_VAULTS: EvidenceCategory.SECRETS,
     AzureEvidence.SECURITY_ASSESSMENTS: EvidenceCategory.POSTURE,
+    AzureEvidence.DEFENDER_PLANS: EvidenceCategory.POSTURE,
     AzureEvidence.POSTGRESQL_SERVERS: EvidenceCategory.DATABASE,
     AzureEvidence.DIAGNOSTIC_SETTINGS: EvidenceCategory.LOGGING,
     AzureEvidence.ROLE_ASSIGNMENTS: EvidenceCategory.AUTHORIZATION,
