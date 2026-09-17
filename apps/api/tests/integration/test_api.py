@@ -1064,7 +1064,16 @@ class TestRecheckingAccess:
         data = response.json()["data"]
         assert data["role_version"] == "v2"
         assert data["role_upgrade_available"] is True
-        assert data["degraded_categories"] == ["database", "posture", "secrets"]
+        # Every category a v2 role cannot fully serve, which grows with each
+        # role version: v7 added reads under compute and storage, so a customer
+        # five versions behind is behind on those too.
+        assert data["degraded_categories"] == [
+            "compute",
+            "database",
+            "posture",
+            "secrets",
+            "storage",
+        ]
 
 
 class TestAssetList:
