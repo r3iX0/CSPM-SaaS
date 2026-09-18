@@ -18,8 +18,11 @@ Graph and none goes near Azure RBAC, so "check that the Reader role is
 assigned" was advice that could never once have been right.
 """
 
+import asyncio
+
 import httpx
 import pytest
+import structlog
 
 from app.connectors.azure import client as client_module
 from app.connectors.azure.client import (
@@ -273,3 +276,91 @@ async def test_a_complete_listing_records_no_truncation() -> None:
         await api.get_all("/subscriptions/s/things")
 
     assert api.truncated == set()
+
+
+# ------------------------------------------------- what the log is left with
+#
+# A failing call used to leave nothing behind. The message above reaches the
+# customer only when a *collector* raises it; the connection probe answers
+# ok/not-ok and discards it, so a connection that would not verify produced a
+# spinner in the browser and silence in the logs, and the only way to find out
+# why was to open Azure's portal. These assert that the call says what happened
+# where an operator can read it.
+def logs_from(status: int, payload: dict | None = None, text: str = "", headers=None):
+    """Every structlog event the client emitted for one failing call."""
+    events: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if payload is not None:
+            return httpx.Response(status, json=payload, headers=headers)
+        return httpx.Response(status, text=text, headers=headers)
+
+    async def run() -> None:
+        transport = httpx.MockTransport(handler)
+        async with ArmClient(
+            FakeTokens(), httpx.AsyncClient(transport=transport)
+        ) as api:
+            with pytest.raises(AzureApiError):
+                await api.get("/subscriptions")
+
+    with structlog.testing.capture_logs() as captured:
+        asyncio.run(run())
+    events.extend(captured)
+    return [event for event in events if event.get("event") == "azure.request_failed"]
+
+
+def test_a_failing_call_is_logged_with_azure_s_own_request_ids() -> None:
+    """The two ids Microsoft support asks for first, and which cannot be
+    recovered once the response is gone."""
+    (failure,) = logs_from(
+        403,
+        {"error": {"code": "AuthorizationFailed", "message": "does not have access"}},
+        headers={
+            "x-ms-request-id": "req-1",
+            "x-ms-correlation-request-id": "corr-1",
+        },
+    )
+
+    assert failure["status"] == 403
+    assert failure["url"].endswith("/subscriptions")
+    assert failure["request_id"] == "req-1"
+    assert failure["correlation_id"] == "corr-1"
+    assert "AuthorizationFailed" in failure["detail"]
+    assert "does not have access" in failure["detail"]
+
+
+def test_an_html_body_is_logged_as_the_sentence_it_contains() -> None:
+    """The failure that prompted this: ARM answers an authorization denial with
+    JSON, so an HTML page means something in front of ARM refused the call --
+    which is worth knowing and unreadable as raw markup. Truncated at 200
+    characters, ``<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0...`` had not yet
+    reached a single word of the explanation."""
+    (failure,) = logs_from(
+        403,
+        text=(
+            "<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN'>"
+            "<html><head><title>403 - Forbidden</title></head>"
+            "<body>   <h2>Access is denied by the gateway.</h2>   </body></html>"
+        ),
+    )
+
+    assert "Access is denied by the gateway." in failure["detail"]
+    assert "<" not in failure["detail"]
+    assert "DOCTYPE" not in failure["detail"]
+    # One line, however the markup was laid out.
+    assert "  " not in failure["detail"]
+
+
+def test_a_long_body_cannot_fill_the_log() -> None:
+    """A poll runs every five seconds for as long as a setup is unfinished."""
+    (failure,) = logs_from(500, text="<p>" + ("x" * 5000) + "</p>")
+
+    assert len(failure["detail"]) <= client_module.DETAIL_LIMIT
+
+
+def test_a_throttled_call_is_logged_too() -> None:
+    """429 raises its own message and used to leave no trace of which call was
+    throttled."""
+    (failure,) = logs_from(429, text="slow down")
+
+    assert failure["status"] == 429

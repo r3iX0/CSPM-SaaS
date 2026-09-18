@@ -287,20 +287,42 @@ class AzureOnboarding(ProviderOnboarding):
     # ------------------------------------------------------------- verifying
 
     async def probe(self, connection: CloudConnection) -> ConnectionCheck:
-        """Verify ARM access. Returns ok=False silently on failure."""
+        """Verify ARM access. Returns ok=False on failure, and says why.
+
+        The verdict stays quiet -- a connection mid-deployment fails this on
+        every poll, and that is not an error. The *reason* no longer is. This
+        answered ok/not-ok and discarded what Azure said, so a setup that would
+        not verify showed a spinner for thirty minutes with nothing anywhere
+        naming the cause, and diagnosing it meant reading Azure's portal
+        instead of CloudGuard's logs.
+        """
         tenant_id = connection.tenant_id or ""
         check = ConnectionCheck(ok=False, tenant_id=tenant_id)
 
+        def unverified(reason: str, error: object) -> ConnectionCheck:
+            log.warning(
+                "azure.probe_failed",
+                connection_id=str(connection.id),
+                tenant_id=tenant_id,
+                reason=reason,
+                error=str(error),
+            )
+            return check
+
         try:
             tokens = auth.TokenProvider(tenant_id)
-        except Exception:
-            return check
+        except Exception as exc:
+            return unverified("no_token", exc)
 
         try:
             async with ArmClient(tokens) as arm:
                 subscriptions = await arm.list_subscriptions()
                 if not subscriptions:
-                    return check
+                    # A readable listing with nothing in it. Azure says this
+                    # rather than 403 when a principal is known and holds no
+                    # role anywhere, so it is the shape of "deployed nothing
+                    # yet" -- and it is not an exception.
+                    return unverified("no_subscriptions_readable", "listing was empty")
                 check.permissions_verified.append(
                     f"Azure Resource Manager: {len(subscriptions)} subscription(s) readable"
                 )
@@ -311,10 +333,10 @@ class AzureOnboarding(ProviderOnboarding):
                 try:
                     await arm.list_resources(check.subscription_id)
                     check.permissions_verified.append("Resource listing confirmed")
-                except AzureApiError:
-                    return check
-        except Exception:
-            return check
+                except AzureApiError as exc:
+                    return unverified("resources_unreadable", exc)
+        except Exception as exc:
+            return unverified("subscriptions_unreadable", exc)
 
         check.ok = True
         check.detail = "Connection verified"

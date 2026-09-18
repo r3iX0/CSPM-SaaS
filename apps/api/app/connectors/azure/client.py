@@ -9,6 +9,7 @@ handles every token.
 
 import asyncio
 import random
+import re
 from email.utils import parsedate_to_datetime
 from types import TracebackType
 from typing import Any, ClassVar, Self
@@ -123,6 +124,21 @@ class AzureApiError(CloudConnectionError):
         self.azure_status_code = status_code
 
 
+# Markup, and the runs of whitespace that come with it, carry nothing a reader
+# needs. Reduced rather than dropped: an HTML body is itself the evidence that
+# something other than the API answered.
+_TAGS = re.compile(r"<[^>]+>")
+
+# Long enough for Azure's longest authorization message and for the visible
+# text of an error page; short enough that a failing poll cannot fill a log.
+DETAIL_LIMIT = 400
+
+
+def _readable(body: str) -> str:
+    """One line of whatever the provider sent, tags and padding removed."""
+    return " ".join(_TAGS.sub(" ", body or "").split())[:DETAIL_LIMIT]
+
+
 class _BaseClient:
     base_url: str
 
@@ -211,6 +227,24 @@ class _BaseClient:
             )
             await asyncio.sleep(wait)
 
+        if response.status_code >= 400:
+            # Logged here rather than left to the caller, because the callers
+            # that matter cannot report it: ``probe`` answers ok/not-ok and
+            # throws the reason away, so a connection that will not verify
+            # produced a spinner and no explanation anywhere. Azure's own
+            # request ids are included -- they are what Microsoft support asks
+            # for first, and they are unrecoverable after the fact.
+            log.warning(
+                "azure.request_failed",
+                method=method,
+                url=full_url,
+                status=response.status_code,
+                content_type=response.headers.get("content-type", ""),
+                request_id=response.headers.get("x-ms-request-id", ""),
+                correlation_id=response.headers.get("x-ms-correlation-request-id", ""),
+                detail=self._detail(response),
+            )
+
         if response.status_code == 403:
             raise AzureApiError(
                 f"Access denied. {self.access_denied_hint}"
@@ -298,11 +332,27 @@ class _BaseClient:
 
     @staticmethod
     def _detail(response: httpx.Response) -> str:
-        """Azure's own account of what went wrong, however it chose to send it."""
+        """Azure's own account of what went wrong, however it chose to send it.
+
+        Azure answers an authorization failure with JSON, and several things
+        *in front of* Azure answer with an HTML page -- which is a useful
+        distinction rather than noise, because it says the call never reached
+        the service being asked. Both are worth reading, so markup is reduced
+        to its text instead of being returned raw: 200 characters of
+        ``<!DOCTYPE html PUBLIC "-//W3C//DTD...`` is a body that has been
+        truncated before the sentence that would have explained anything.
+        """
         try:
-            return str(response.json().get("error", {}).get("message", ""))
+            error = response.json().get("error", {})
+            code = str(error.get("code", "")).strip()
+            message = str(error.get("message", "")).strip()
+            if code and message:
+                return f"{code}: {message}"
+            if code or message:
+                return code or message
         except Exception:
-            return response.text[:200]
+            pass
+        return _readable(response.text)
 
     def _reported_detail(self, response: httpx.Response) -> str:
         """The provider's message, appended only when it says something.

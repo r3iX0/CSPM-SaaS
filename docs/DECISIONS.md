@@ -4658,6 +4658,49 @@ loop -- so the logs show a beat task failing, then succeeding, then failing,
 which reads like an intermittent database problem rather than a certainty with
 a period of five minutes.
 
+## 91. A refused Azure call says so in CloudGuard's own logs
+
+`probe` decides whether a connection may read its environment yet, and the
+setup screen turns that one bit into a spinner or a green tick. Returning
+ok/not-ok is right -- a connection whose role is still being deployed fails on
+every five-second poll, and none of those failures is an incident. Discarding
+Azure's account of *why* was not: a connection that would never verify looked
+exactly like one deploying normally, for the thirty minutes before the stalled
+panel appears, and finding out what Azure objected to meant opening Azure's
+portal, because nothing in CloudGuard had written it down.
+
+Two changes, and they are deliberately at different levels.
+
+`_BaseClient` logs every response of 400 or worse as `azure.request_failed`,
+with the method, the URL, the status, and Azure's `x-ms-request-id` and
+`x-ms-correlation-request-id`. Those two ids are the first thing Microsoft
+support asks for and cannot be recovered once the response is gone. It sits in
+`_request`, before the raise, because the raise is caught in several places and
+one of them -- the probe -- is the place the evidence was being lost.
+
+`probe` logs `azure.probe_failed` with a reason and Azure's message. The four
+reasons are separate on purpose, because they send somebody to different
+places: `no_token` is an application missing from the tenant, before any ARM
+call; `subscriptions_unreadable` is ARM refusing the listing;
+`no_subscriptions_readable` is a listing that worked and returned nothing, which
+is what Azure says for a principal that holds no role anywhere -- "nothing
+deployed yet", not a refusal; and `resources_unreadable` is a role that grants
+the subscription listing and nothing beneath it.
+
+The detail is now read for its text. Azure answers an authorization failure with
+JSON, and several things *in front of* Azure answer with an HTML page, which is
+itself worth knowing: it says the call never reached the service being asked.
+Reading 200 characters of raw body meant `<!DOCTYPE html PUBLIC "-//W3C//DTD
+XHTML 1.0 Transitional//EN"...` -- a body truncated before the first word that
+would have explained anything. Markup is reduced to its text and capped at 400
+characters, which holds Azure's longest authorization message and cannot let a
+five-second poll fill a log.
+
+This is what a live staging connection cost to diagnose without it: the
+enterprise application had been deleted and recreated three times, the failure
+moved from "no service principal" to an HTML 403 as it went, and the logs
+carried the same six words throughout.
+
 ## Settings: the evidence a person supplies
 
 `PATCH /organizations` takes no id in the path. Deleting a *different*
