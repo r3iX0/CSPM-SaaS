@@ -184,7 +184,7 @@ export function RisksPage() {
           onChange={(value) => refilter({ kind: value })}
           segments={[
             { value: "all", label: "All risks" },
-            { value: "FINDING", label: "Findings" },
+            { value: "FINDING", label: "Misconfigurations" },
             { value: "ATTACK_PATH", label: "Attack paths" },
             { value: "ESCALATION", label: "Escalations" },
           ]}

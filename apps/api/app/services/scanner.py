@@ -2730,6 +2730,9 @@ class ScanPipeline:
             existing,
         )
         risk.scenario_key = group_key
+        # One row for every member, so the sentence is the rule's, not the
+        # worst member's -- which would name one asset on a row about forty.
+        risk.description = rule.rationale or rule.description
         # Every member has a say, not only the worst one the row was scored from.
         risk.status = finding_risk_status(
             [finding.status for finding, *_ in members], risk.status
@@ -2890,7 +2893,11 @@ class ScanPipeline:
         """
         values = {
             "title": title,
-            "description": rule.rationale or rule.description,
+            # What was found on this asset, not why the rule exists. The
+            # rationale is the same sentence on every row a rule raises, so a
+            # queue of them read as one row repeated; the finding's own
+            # message names the asset and what it holds.
+            "description": finding.description or rule.rationale or rule.description,
             "risk_score": scored.score,
             "risk_level": scored.level,
             "known_risk_level": scored.known_level,

@@ -283,7 +283,7 @@ class TestGraphFromRecordedAzure:
         )
         assert principal.name == "vm-jumpbox (managed identity)"
 
-    def test_a_principal_with_no_workload_keeps_its_type_as_a_name(self) -> None:
+    def test_a_principal_with_no_workload_is_named_by_type_and_id(self) -> None:
         snapshot = load_snapshot("snapshot_mixed")
         for vm in snapshot.data["virtual_machines"]:
             vm["identity"] = {"type": "UserAssigned", "principalId": vm["identity"]["principalId"]}
@@ -292,7 +292,11 @@ class TestGraphFromRecordedAzure:
             for r in AzureNormalizer().normalize(snapshot).resources
             if r.resource_type == ResourceType.SERVICE_PRINCIPAL
         )
-        assert principal.name == "ServicePrincipal"
+        # The type alone made every such identity read alike; the start of the
+        # object id tells them apart and can be looked up in Entra.
+        assert principal.name == (
+            f"ServicePrincipal {principal.metadata['principal_id'][:8]}"
+        )
 
     def test_the_vm_runs_as_that_identity(self, state) -> None:
         edges = {

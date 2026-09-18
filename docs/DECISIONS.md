@@ -5448,6 +5448,33 @@ finding page's accept form takes the same optional day, and the page shows
 `accepted_until` -- so an acceptance can be given an end on whichever page it
 is made, and seen on both.
 
+## 105. Queue rows say which asset and what was found
+
+**The queue read as one row repeated.** On a real tenant, the Misconfigurations
+view of the risks list showed rows like "Identity can grant itself any role —
+User" three times over, each with the same paragraph under it. Two causes:
+
+- *A principal with no name was named by its type.* A role assignment whose
+  principal is not in the directory capture, and is not a workload's
+  system-assigned identity (§102), became a node called "User" or
+  "ServicePrincipal". It is now the type followed by the first eight characters
+  of the object id -- "User 3f2a91c0" -- which tells rows apart and is what a
+  person searches Entra for. The directory name, when the capture has it, still
+  wins.
+- *A finding risk's description was the rule's rationale,* the same sentence on
+  every row one rule raises. It is now the finding's own message ("User 3f2a91c0
+  holds User Access Administrator, which permits writing role assignments"),
+  which names the asset and what it holds. A grouped risk keeps the rationale,
+  because its one row stands for every member and the worst member's message
+  would name one asset on a row about forty.
+
+**The kind filter says Misconfigurations, not Findings.** The segment selects
+risks scored from a single failed check. Labelled "Findings", it read as the old
+findings page inside the new one -- the confusion §103 set out to remove.
+
+Both text changes are written by the scanner, so existing rows change at the
+next scan of each subscription; nothing is rewritten in place.
+
 ## Settings: the evidence a person supplies
 
 `PATCH /organizations` takes no id in the path. Deleting a *different*

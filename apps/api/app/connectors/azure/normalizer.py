@@ -606,9 +606,13 @@ class AzureNormalizer:
                 nodes[principal_node] = CloudResource(
                     provider_resource_id=principal_node,
                     resource_type=ResourceType.SERVICE_PRINCIPAL,
+                    # With no directory record and no workload to name it after,
+                    # the type alone made every such identity read the same --
+                    # forty rows of "Identity can grant itself any role — User".
+                    # The start of the object id is what a person can look up in
+                    # Entra, and it tells the rows apart.
                     name=system_assigned.get(principal_id)
-                    or props.get("principalType")
-                    or "Principal",
+                    or f"{props.get('principalType') or 'Principal'} {principal_id[:8]}",
                     provider=Provider.AZURE,
                     metadata={
                         "principal_id": principal_id,
