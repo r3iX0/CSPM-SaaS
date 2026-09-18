@@ -1,7 +1,5 @@
-import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
-import { CloudOffIcon, ScanLineIcon } from "lucide-react";
 
 import { ApiError, api, auth } from "@/lib/api";
 import { supabaseSignOut } from "@/lib/supabase";
@@ -14,6 +12,7 @@ import type {
   Scan,
 } from "@/lib/types";
 import { useT } from "@/i18n";
+import { GettingStarted } from "@/components/dashboard/GettingStarted";
 import { PostureHeader } from "@/components/dashboard/PostureHeader";
 import { ScorePanel } from "@/components/dashboard/ScorePanel";
 import { SeverityStrip } from "@/components/dashboard/SeverityStrip";
@@ -24,8 +23,8 @@ import { PriorityRisks } from "@/components/dashboard/PriorityRisks";
 import { AttackPathPanel } from "@/components/dashboard/AttackPathPanel";
 import { RemediationProgress } from "@/components/dashboard/RemediationProgress";
 import { RecentChanges } from "@/components/dashboard/RecentChanges";
-import { DashboardSkeleton, EmptyState, ErrorState } from "@/components/common/states";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { DashboardSkeleton, ErrorState } from "@/components/common/states";
+import { Button } from "@/components/ui/button";
 import { listContainer, listItem } from "@/lib/motion";
 
 /** Scan statuses that mean CloudGuard is reading the cloud right now. */
@@ -115,7 +114,6 @@ export function DashboardPage() {
   if (!data) return null;
 
   if (!data.last_scan) {
-    const hasConnection = (accounts.data?.length ?? 0) > 0;
     return (
       <div className="flex flex-col gap-4">
         <div>
@@ -128,27 +126,13 @@ export function DashboardPage() {
           </p>
         </div>
         {/* No score is rendered before a scan exists. A number over no evidence
-            is a number about nothing, and a reassuring one is worse. */}
-        <EmptyState
-          icon={hasConnection ? ScanLineIcon : CloudOffIcon}
-          title={
-            hasConnection
-              ? "Your posture is ready to be assessed"
-              : "Connect your cloud environment"
-          }
-          detail={
-            hasConnection
-              ? "CloudGuard is connected but has not read this environment yet. Nothing here is scored until a scan has."
-              : "CloudGuard needs read access to your Azure environment before it can assess anything. It holds no credential of yours and performs no writes."
-          }
-          action={
-            <Link
-              to={hasConnection ? "/scans" : "/connections/new"}
-              className={buttonVariants()}
-            >
-              {hasConnection ? t.dashboard.runFirstScan : t.connection.connectCloud}
-            </Link>
-          }
+            is a number about nothing, and a reassuring one is worse. What the
+            page offers instead is the way to one: the checklist, which is the
+            whole of this screen until the first scan lands. */}
+        <GettingStarted
+          dashboard={data}
+          accounts={Array.isArray(accounts.data) ? accounts.data : []}
+          variant="full"
         />
       </div>
     );
@@ -178,6 +162,15 @@ export function DashboardPage() {
         />
       </motion.div>
 
+      {/* 0 — what is left to set up, until it is done or put away */}
+      <motion.div variants={listItem}>
+        <GettingStarted
+          dashboard={data}
+          accounts={Array.isArray(accounts.data) ? accounts.data : []}
+          variant="compact"
+        />
+      </motion.div>
+
       {/* 1 — where we stand, and which way it is going */}
       <motion.div variants={listItem}>
         <ScorePanel
@@ -197,16 +190,27 @@ export function DashboardPage() {
         />
       </motion.div>
 
-      {/* 2b — the shape of what is open: mix, standing, and risk bands */}
+      {/* 3 — what to deal with, and what those faults form together. Directly
+          under the numbers, because it is what a reader does about them: the
+          analysis below explains the score, this says where to start. */}
+      <motion.div variants={listItem} className="grid gap-4 lg:grid-cols-2">
+        <PriorityRisks risks={data.top_risks} />
+        <AttackPathPanel
+          paths={paths.data}
+          loading={paths.isLoading}
+          history={data.history ?? []}
+        />
+      </motion.div>
+
+      {/* 4 — the shape of what is open: mix, standing, and risk bands */}
       <motion.div variants={listItem}>
         <PostureBreakdown
-          bySeverity={data.findings_by_severity}
           byStatus={data.findings_by_status}
           riskBands={data.risk_bands}
         />
       </motion.div>
 
-      {/* 3 — how much of the estate the opinion was formed from */}
+      {/* 4b — how much of the estate the opinion was formed from */}
       <motion.div variants={listItem}>
         <CoveragePanel
           ratio={data.coverage.ratio}
@@ -216,16 +220,6 @@ export function DashboardPage() {
           context={data.coverage.context}
           gaps={gaps}
           freshness={data.evidence_freshness ?? null}
-        />
-      </motion.div>
-
-      {/* 4 — what to deal with, and what those faults form together */}
-      <motion.div variants={listItem} className="grid gap-4 lg:grid-cols-2">
-        <PriorityRisks risks={data.top_risks} />
-        <AttackPathPanel
-          paths={paths.data}
-          loading={paths.isLoading}
-          history={data.history ?? []}
         />
       </motion.div>
 

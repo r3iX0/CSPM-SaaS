@@ -9,9 +9,10 @@ import { ScanProgress } from "@/components/scans/ScanProgress";
 import { ScanDetailPanel } from "@/components/scans/ScanDetailPanel";
 import { DeleteScanConfirm } from "@/components/scans/DeleteScanConfirm";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { IN_FLIGHT } from "@/components/scans/status";
-import { formatDateTime, label } from "@/lib/format";
+import { useIsDemo } from "@/lib/useDemo";
+import { cn, formatDateTime, formatRelative, label } from "@/lib/format";
+import { ChevronDownIcon, RotateCcwIcon, Trash2Icon } from "lucide-react";
 
 /**
  * The statuses that guarantee a stored snapshot to re-evaluate.
@@ -65,95 +66,53 @@ export function ScanCard({ scan }: { scan: Scan }) {
     },
   });
 
+  // Nothing in the demo is re-run or removed: it is a recording others share.
+  const isDemo = useIsDemo();
+  const replayable = !running && REPLAYABLE.includes(scan.status) && !isDemo;
+  const helpId = `scan-replay-help-${scan.id}`;
+
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <StatusPill status={scan.status} />
-            <span className="text-sm text-muted-foreground">
+    <div className="px-4 py-3.5 sm:px-5">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <StatusPill status={scan.status} />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium text-foreground">
               {formatDateTime(scan.completed_at ?? scan.started_at ?? scan.created_at)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {formatRelative(scan.completed_at ?? scan.started_at ?? scan.created_at)}
+              {scan.trigger === "SCHEDULED" && ` · ${t.scans.scheduled}`}
+              {scan.trigger === "MANUAL" && ` · ${t.scans.manualUnknownUser}`}
+            </p>
+          </div>
+          {/* A replay read the database, not the cloud. Left unlabelled it
+              sits in the list looking like a scan that went and checked,
+              which is the one thing it did not do. */}
+          {scan.replay_of_scan_id && (
+            <span className="inline-flex shrink-0 items-center rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+              {t.scans.replayOfLabel}
             </span>
-            {/* A replay read the database, not the cloud. Left unlabelled it
-                sits in the list looking like a scan that went and checked,
-                which is the one thing it did not do. */}
-            {scan.replay_of_scan_id && (
-              <span className="inline-flex items-center rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                {t.scans.replayOfLabel}
-              </span>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
-            {scan.duration_seconds != null && (
-              <Stat label={t.scans.duration} value={formatDuration(scan.duration_seconds)} />
-            )}
-            <Stat label={t.scans.resources} value={scan.resource_count} />
-            <Stat label={t.scans.rules} value={scan.rule_count} />
-            <Stat
-              label={
-                scan.evaluation_only ? t.scans.wouldHaveFound : t.scans.findings
-              }
-              value={scan.finding_count}
-            />
-          </div>
+          )}
         </div>
-      </CardHeader>
 
-      <CardContent>
-        {running && <LiveProgress scanId={scan.id} status={scan.status} />}
+        <dl className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+          {scan.duration_seconds != null && (
+            <Stat label={t.scans.duration} value={formatDuration(scan.duration_seconds)} />
+          )}
+          <Stat label={t.scans.resources} value={scan.resource_count} />
+          <Stat label={t.scans.rules} value={scan.rule_count} />
+          <Stat
+            label={scan.evaluation_only ? t.scans.wouldHaveFound : t.scans.findings}
+            value={scan.finding_count}
+          />
+        </dl>
 
-        {/* What a replay's numbers are allowed to mean. The two cases differ
-            in the only way that matters -- whether any finding moved -- and a
-            reader cannot tell them apart from the counters. */}
-        {scan.replay_of_scan_id && !running && (
-          <div
-            className={
-              scan.evaluation_only
-                ? "mb-3 rounded-lg border border-medium-border bg-medium-bg px-3 py-2"
-                : "mb-3 rounded-lg border border-ok-border bg-ok-bg px-3 py-2"
-            }
-          >
-            <p
-              className={
-                scan.evaluation_only
-                  ? "text-xs font-medium text-medium"
-                  : "text-xs font-medium text-ok"
-              }
-            >
-              {scan.evaluation_only
-                ? t.scans.replayAdvisoryTitle
-                : t.scans.replayCurrentTitle}
-            </p>
-            <p className="mt-1 text-xs leading-relaxed text-foreground">
-              {scan.evaluation_only
-                ? t.scans.replayAdvisoryDetail
-                : t.scans.replayCurrentDetail}
-            </p>
-          </div>
-        )}
-
-        {/* Queued far longer than a worker takes to collect one. The progress
-            bar above keeps implying imminent work, so the reason has to say
-            otherwise -- this is almost always no worker running at all. */}
-        {scan.stuck_in_queue && <StuckNote />}
-
-        {/* Zero resources reads as a failure and is usually not one. The engine
-            already knows which: a category that errored is recorded in
-            collection_errors, so anything not listed there returned
-            successfully and was simply empty. Saying so separates "nothing to
-            assess" from "could not look", which the counters alone cannot. */}
-        {!running && scan.status !== "FAILED" && scan.resource_count === 0 && (
-          <div className="rounded-lg border bg-muted/40 px-3 py-2">
-            <p className="text-xs font-medium text-foreground">{t.scans.nothingFound}</p>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              {Object.keys(scan.collection_errors).length > 0
-                ? t.scans.nothingFoundPartial
-                : t.scans.nothingFoundHelp}
-            </p>
-          </div>
-        )}
-
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+        {/* Actions sit at the end of the row, quiet until wanted. The long
+            explanation of what re-evaluating does is the button's description
+            -- read by assistive tech and shown on hover -- rather than a
+            paragraph printed under every run in the history. */}
+        <div className="flex items-center justify-end gap-1 sm:w-64">
           {running && (
             <Button
               variant="secondary"
@@ -168,15 +127,23 @@ export function ScanCard({ scan }: { scan: Scan }) {
               the endpoint resolves that back to the scan that collected, so
               re-evaluating twice is the ordinary thing a reader expects and
               not an error. */}
-          {!running && REPLAYABLE.includes(scan.status) && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => replay.mutate()}
-              disabled={replay.isPending}
-            >
-              {replay.isPending ? t.scans.replayQueueing : t.scans.replay}
-            </Button>
+          {replayable && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                title={t.scans.replayHelp}
+                aria-describedby={helpId}
+                onClick={() => replay.mutate()}
+                disabled={replay.isPending}
+              >
+                <RotateCcwIcon data-icon="inline-start" aria-hidden />
+                {replay.isPending ? t.scans.replayQueueing : t.scans.replay}
+              </Button>
+              <span id={helpId} className="sr-only">
+                {t.scans.replayHelp}
+              </span>
+            </>
           )}
           <Button
             variant="ghost"
@@ -185,78 +152,134 @@ export function ScanCard({ scan }: { scan: Scan }) {
             onClick={() => setOpen((v) => !v)}
           >
             {open ? t.scans.hideDetails : t.scans.details}
+            <ChevronDownIcon
+              data-icon="inline-end"
+              aria-hidden
+              className={cn("transition-transform", open && "rotate-180")}
+            />
           </Button>
-          {!running && (
+          {!running && !isDemo && (
             <Button
               variant="ghost"
-              size="sm"
-              className="ml-auto text-critical hover:bg-critical-bg"
+              size="icon-sm"
+              aria-label={t.scans.deleteScan}
+              title={t.scans.deleteScan}
+              className="text-muted-foreground hover:bg-critical-bg hover:text-critical"
               onClick={() => setConfirmingDelete(true)}
             >
-              {t.scans.deleteScan}
+              <Trash2Icon aria-hidden />
             </Button>
           )}
         </div>
+      </div>
 
-        {!running && REPLAYABLE.includes(scan.status) && (
-          <p className="mt-2 max-w-prose text-xs leading-relaxed text-muted-foreground">
-            {t.scans.replayHelp}
+      {running && (
+        <div className="mt-3">
+          <LiveProgress scanId={scan.id} status={scan.status} />
+        </div>
+      )}
+
+      {/* What a replay's numbers are allowed to mean. The two cases differ
+          in the only way that matters -- whether any finding moved -- and a
+          reader cannot tell them apart from the counters. */}
+      {scan.replay_of_scan_id && !running && (
+        <div
+          className={
+            scan.evaluation_only
+              ? "mt-3 rounded-lg border border-medium-border bg-medium-bg px-3 py-2"
+              : "mt-3 rounded-lg border border-ok-border bg-ok-bg px-3 py-2"
+          }
+        >
+          <p
+            className={
+              scan.evaluation_only ? "text-xs font-medium text-medium" : "text-xs font-medium text-ok"
+            }
+          >
+            {scan.evaluation_only ? t.scans.replayAdvisoryTitle : t.scans.replayCurrentTitle}
           </p>
-        )}
-
-        {replayError && (
-          <p className="mt-2 rounded-lg border border-high-border bg-high-bg px-3 py-2 text-xs text-high">
-            {replayError}
+          <p className="mt-1 text-xs leading-relaxed text-foreground">
+            {scan.evaluation_only ? t.scans.replayAdvisoryDetail : t.scans.replayCurrentDetail}
           </p>
-        )}
+        </div>
+      )}
 
-        {/* Mounted only while it is being asked, so the count of purgeable
-            findings is fetched for the one scan under the pointer rather than
-            for every run on the page. */}
-        {confirmingDelete && (
-          <DeleteScanConfirm
-            scanId={scan.id}
-            open={confirmingDelete}
-            busy={remove.isPending}
-            onCancel={() => setConfirmingDelete(false)}
-            onConfirm={(purge) => remove.mutate(purge)}
-          />
-        )}
+      {/* Queued far longer than a worker takes to collect one. The progress
+          bar above keeps implying imminent work, so the reason has to say
+          otherwise -- this is almost always no worker running at all. */}
+      {scan.stuck_in_queue && <StuckNote />}
 
-        {open && <ScanDetailPanel scanId={scan.id} />}
-
-        {scan.error_message && (
-          <p className="mt-3 rounded-lg border border-critical-border bg-critical-bg px-3 py-2 text-sm text-critical">
-            {scan.error_message}
+      {/* Zero resources reads as a failure and is usually not one. The engine
+          already knows which: a category that errored is recorded in
+          collection_errors, so anything not listed there returned
+          successfully and was simply empty. Saying so separates "nothing to
+          assess" from "could not look", which the counters alone cannot. */}
+      {!running && scan.status !== "FAILED" && scan.resource_count === 0 && (
+        <div className="mt-3 rounded-lg border bg-muted/40 px-3 py-2">
+          <p className="text-xs font-medium text-foreground">{t.scans.nothingFound}</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            {Object.keys(scan.collection_errors).length > 0
+              ? t.scans.nothingFoundPartial
+              : t.scans.nothingFoundHelp}
           </p>
-        )}
+        </div>
+      )}
 
-        {/* A summary, not the full text of every failure. The reasons are
-            sentences long and there is one per subscription per category, which
-            on a tenant-wide scan turns the card into a wall nobody reads. The
-            structured breakdown lives in Details. */}
-        {Object.keys(scan.collection_errors).length > 0 && (
-          <div className="mt-3 rounded-lg border border-medium-border bg-medium-bg px-3 py-2">
-            <p className="text-xs font-medium text-medium">{t.scans.partial}</p>
-            <ul className="mt-1.5 flex flex-col gap-0.5">
-              {Object.entries(scan.collection_errors)
-                .slice(0, 3)
-                .map(([scope, reason]) => (
-                  <li key={scope} className="text-xs text-foreground">
-                    <strong>{scope}</strong>
-                    <span className="text-muted-foreground"> — {firstSentence(reason)}</span>
-                  </li>
-                ))}
-            </ul>
-            {Object.keys(scan.collection_errors).length > 3 && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                and {Object.keys(scan.collection_errors).length - 3} more
-              </p>
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      {replayError && (
+        <p className="mt-3 rounded-lg border border-high-border bg-high-bg px-3 py-2 text-xs text-high">
+          {replayError}
+        </p>
+      )}
+
+      {/* Mounted only while it is being asked, so the count of purgeable
+          findings is fetched for the one scan under the pointer rather than
+          for every run on the page. */}
+      {confirmingDelete && (
+        <DeleteScanConfirm
+          scanId={scan.id}
+          open={confirmingDelete}
+          busy={remove.isPending}
+          onCancel={() => setConfirmingDelete(false)}
+          onConfirm={(purge) => remove.mutate(purge)}
+        />
+      )}
+
+      {scan.error_message && (
+        <p className="mt-3 rounded-lg border border-critical-border bg-critical-bg px-3 py-2 text-sm text-critical">
+          {scan.error_message}
+        </p>
+      )}
+
+      {/* A summary, not the full text of every failure. The reasons are
+          sentences long and there is one per subscription per category, which
+          on a tenant-wide scan turns the row into a wall nobody reads. The
+          structured breakdown lives in Details. */}
+      {Object.keys(scan.collection_errors).length > 0 && (
+        <div className="mt-3 rounded-lg border border-medium-border bg-medium-bg px-3 py-2">
+          <p className="text-xs font-medium text-medium">{t.scans.partial}</p>
+          <ul className="mt-1.5 flex flex-col gap-0.5">
+            {Object.entries(scan.collection_errors)
+              .slice(0, 3)
+              .map(([scope, reason]) => (
+                <li key={scope} className="text-xs text-foreground">
+                  <strong>{scope}</strong>
+                  <span className="text-muted-foreground"> — {firstSentence(reason)}</span>
+                </li>
+              ))}
+          </ul>
+          {Object.keys(scan.collection_errors).length > 3 && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              and {Object.keys(scan.collection_errors).length - 3} more
+            </p>
+          )}
+        </div>
+      )}
+
+      {open && (
+        <div className="mt-3">
+          <ScanDetailPanel scanId={scan.id} />
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -278,7 +301,7 @@ function LiveProgress({ scanId, status }: { scanId: string; status: string }) {
   const stages = detail.data?.stages ?? [];
 
   return (
-    <div className="mb-3 rounded-lg border bg-muted/30 p-3">
+    <div className="rounded-lg border bg-muted/30 p-3">
       {stages.length > 0 ? (
         <ScanProgress stages={stages} />
       ) : (
@@ -311,7 +334,7 @@ function StuckNote() {
   });
 
   return (
-    <div className="mb-3 rounded-lg border border-high-border bg-high-bg px-3 py-2">
+    <div className="mt-3 rounded-lg border border-high-border bg-high-bg px-3 py-2">
       <p className="text-xs font-medium text-high">{t.scans.stuckTitle}</p>
       <p className="mt-1 text-xs leading-relaxed text-foreground">
         {status.data ? status.data.detail : t.scans.stuckDetail}
@@ -327,9 +350,9 @@ function StuckNote() {
 
 function Stat({ label: text, value }: { label: string; value: number | string }) {
   return (
-    <div>
-      <p className="text-xs text-muted-foreground">{text}</p>
-      <p className="font-medium tabular-nums text-foreground">{value}</p>
+    <div className="min-w-14">
+      <dt className="text-[11px] text-muted-foreground">{text}</dt>
+      <dd className="font-medium tabular-nums text-foreground">{value}</dd>
     </div>
   );
 }

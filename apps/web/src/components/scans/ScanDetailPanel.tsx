@@ -113,7 +113,7 @@ export function ScanDetailPanel({ scanId }: { scanId: string }) {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+    <p className="text-[11px] font-medium text-muted-foreground">
       {children}
     </p>
   );

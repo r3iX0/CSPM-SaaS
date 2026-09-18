@@ -2,6 +2,7 @@ import { CheckIcon, InfoIcon } from "lucide-react";
 
 import type { RemediationSpec } from "@/lib/types";
 import { formatEffort } from "@/lib/format";
+import { fillPlaceholders } from "@/lib/remediationFill";
 import { CodeBlock } from "@/components/common/CodeBlock";
 import {
   Card,
@@ -33,6 +34,7 @@ export function RemediationPanel({
   spec,
   effortMinutes,
   footer,
+  fill,
 }: {
   remediation: string;
   spec?: RemediationSpec | null;
@@ -43,10 +45,20 @@ export function RemediationPanel({
    * for, and there is no work to schedule against a rule.
    */
   footer?: React.ReactNode;
+  /**
+   * The resource the finding is about, to fill the CLI's placeholders from.
+   * Absent on the rules catalogue, where there is no resource and the
+   * placeholders are the honest answer.
+   */
+  fill?: { values: Record<string, string>; resourceName: string };
 }) {
   const hasCli = (spec?.cli?.length ?? 0) > 0;
   const hasTerraform = (spec?.terraform?.length ?? 0) > 0;
   const hasPolicy = Boolean(spec?.azure_policy);
+  const commands = (spec?.cli ?? []).map((command) =>
+    fill ? fillPlaceholders(command, fill.values) : { text: command, filled: [] },
+  );
+  const anyFilled = commands.some((command) => command.filled.length > 0);
 
   return (
     <Card>
@@ -91,12 +103,13 @@ export function RemediationPanel({
 
           {hasCli && (
             <TabsContent value="cli" className="flex flex-col gap-2">
-              {spec!.cli.map((command) => (
-                <CodeBlock key={command} code={command} />
+              {commands.map((command) => (
+                <CodeBlock key={command.text} code={command.text} />
               ))}
               <p className="text-xs text-muted-foreground">
-                Placeholders are left in angle brackets on purpose — a command carrying a
-                made-up resource name is a command somebody runs.
+                {anyFilled && fill
+                  ? `Filled in for ${fill.resourceName} from what CloudGuard observed. Anything still in angle brackets is yours to fill — CloudGuard never guesses a value into a command.`
+                  : "Placeholders are left in angle brackets on purpose — a command carrying a made-up resource name is a command somebody runs."}
               </p>
             </TabsContent>
           )}

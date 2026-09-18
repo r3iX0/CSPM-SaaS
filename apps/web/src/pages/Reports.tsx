@@ -167,6 +167,27 @@ export function ReportsPage() {
         />
       )}
 
+      {/* The documents first: producing one is why somebody opened this page,
+          and the options below refine it rather than gate it. */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <ReportCard
+          title={t.reports.executive}
+          detail={t.reports.executiveDetail}
+          busy={busyKind === "executive"}
+          disabled={download.isPending || preview.isPending}
+          onDownload={() => download.mutate("executive")}
+          onPreview={() => preview.mutate("executive")}
+        />
+        <ReportCard
+          title={t.reports.technical}
+          detail={t.reports.technicalDetail}
+          busy={busyKind === "technical"}
+          disabled={download.isPending || preview.isPending}
+          onDownload={() => download.mutate("technical")}
+          onPreview={() => preview.mutate("technical")}
+        />
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle className="text-sm">What to include</CardTitle>
@@ -235,25 +256,6 @@ export function ReportsPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <ReportCard
-          title={t.reports.executive}
-          detail={t.reports.executiveDetail}
-          busy={busyKind === "executive"}
-          disabled={download.isPending || preview.isPending}
-          onDownload={() => download.mutate("executive")}
-          onPreview={() => preview.mutate("executive")}
-        />
-        <ReportCard
-          title={t.reports.technical}
-          detail={t.reports.technicalDetail}
-          busy={busyKind === "technical"}
-          disabled={download.isPending || preview.isPending}
-          onDownload={() => download.mutate("technical")}
-          onPreview={() => preview.mutate("technical")}
-        />
-      </div>
-
       <p className="max-w-3xl text-xs leading-relaxed text-muted-foreground">
         {t.reports.freshNote}
       </p>
@@ -281,13 +283,15 @@ function ReportCard({
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center gap-2">
-          <FileTextIcon className="size-4 text-muted-foreground" aria-hidden />
-          <CardTitle className="text-sm">{title}</CardTitle>
+        <div className="flex items-center gap-3">
+          <span className="flex size-10 items-center justify-center rounded-lg border border-border bg-muted/40 text-muted-foreground">
+            <FileTextIcon className="size-5" aria-hidden />
+          </span>
+          <CardTitle className="text-base">{title}</CardTitle>
         </div>
-        <CardDescription className="leading-relaxed">{detail}</CardDescription>
+        <CardDescription className="mt-2 leading-relaxed">{detail}</CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-wrap gap-2">
+      <CardContent className="mt-auto flex flex-wrap gap-2">
         <Button disabled={disabled} onClick={onDownload}>
           {busy ? <Spinner data-icon="inline-start" /> : <DownloadIcon data-icon="inline-start" />}
           {busy ? t.reports.preparing : t.reports.download}
@@ -296,7 +300,7 @@ function ReportCard({
             whether to send this to a board should be able to read it first
             without a file landing in their downloads folder. */}
         <Button
-          variant="secondary"
+          variant="outline"
           disabled={disabled}
           onClick={onPreview}
           aria-label={`${t.reports.preview}: ${title}`}

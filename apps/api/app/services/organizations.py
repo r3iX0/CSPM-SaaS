@@ -5,6 +5,7 @@ import secrets
 from uuid import UUID
 
 from sqlalchemy import select, text
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import commit_unless_externally_managed
@@ -60,7 +61,9 @@ async def list_memberships(
         select(Organization, OrganizationMember.role)
         .join(OrganizationMember, OrganizationMember.organization_id == Organization.id)
         .where(OrganizationMember.user_id == user.id)
-        .order_by(Organization.created_at)
+        # Own organizations first: the client defaults to the first one, and
+        # the demo is somewhere to look, not somewhere to land.
+        .order_by(Organization.is_demo, Organization.created_at)
     )
     rows = (await session.execute(stmt)).all()
     return [(org, Role(role)) for org, role in rows]
@@ -134,6 +137,43 @@ async def delete_organization(
     organization = await session.get(Organization, organization_id)
     if organization is None:  # pragma: no cover -- membership implies existence
         raise OrganizationNotFound()
+    # Nobody owns the demo, but this is the one path that checks a role without
+    # going through the tenant context, so it says so itself.
+    if organization.is_demo:
+        raise PermissionDenied("The demo organization cannot be deleted. Leave it instead.")
 
     await session.delete(organization)
+    await commit_unless_externally_managed(session)
+
+
+async def join_demo(session: AsyncSession, user: AuthenticatedUser) -> Organization:
+    """Add the caller to the shared demo organization, as VIEWER.
+
+    Through ``app.join_demo_organization``, for the reason creation goes through
+    its own function: the caller is not a member yet, so no membership policy
+    lets them insert themselves -- correctly, for every other organization. The
+    role is fixed inside the function, so nothing the client sends can make
+    somebody more than a viewer of the demo. Joining twice is a no-op.
+    """
+    try:
+        org_id = (
+            await session.execute(text("SELECT app.join_demo_organization() AS id"))
+        ).scalar_one()
+    except DBAPIError as exc:
+        if "no demo organization" in str(exc.orig):
+            raise OrganizationNotFound(
+                "The demo is not available on this deployment yet."
+            ) from exc
+        raise
+    await commit_unless_externally_managed(session)
+
+    org = await session.get(Organization, org_id)
+    if org is None:  # pragma: no cover -- the function just granted visibility
+        raise OrganizationNotFound()
+    return org
+
+
+async def leave_demo(session: AsyncSession) -> None:
+    """Remove the caller's own demo membership, and nothing else."""
+    await session.execute(text("SELECT app.leave_demo_organization()"))
     await commit_unless_externally_managed(session)

@@ -216,7 +216,7 @@ export function ConnectionRow({
         <div className="grid gap-6 border-t border-border px-5 py-5 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <p className="text-xs font-medium text-muted-foreground">
                 {vocabulary.Accounts}
               </p>
               {connection.is_verified && subscriptions.length > 0 && (

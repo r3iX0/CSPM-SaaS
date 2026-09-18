@@ -336,4 +336,6 @@ authenticated user → organization_members → organization_id → requested ro
 
 Never a bare `WHERE organization_id = request.organization_id` trusted from the client — RLS is a database-level boundary independent of application logic. Automated RLS tests confirm Organization A can never read Organization B's rows (see `TESTING.md`).
 
+**The demo organization is the one exception to "members see members".** `organizations.is_demo` marks the single shared demo estate (migration `0036`). Anybody may join it, as `VIEWER` only, through `app.join_demo_organization()`, and leave through `app.leave_demo_organization()`. Because its members are strangers to one another, `member_select` shows a demo member only their own `organization_members` row; in every other organization members still see each other. The API refuses every write in the demo regardless of role (`DECISIONS.md` §99).
+
 Supabase's own guidance is explicit that RLS should be treated as a real security boundary (with grants + policies), and that service-role/secret keys bypass RLS and must remain server-side — that principle governs credential handling throughout, not just this table set.

@@ -23,7 +23,7 @@ from app.core.db import rls_session
 from app.core.enums import Role
 from app.core.errors import NotAuthenticated, OrganizationNotFound, PermissionDenied
 from app.core.security import AuthenticatedUser, decode_token
-from app.models.organization import OrganizationMember
+from app.models.organization import Organization, OrganizationMember
 
 
 async def get_current_user(
@@ -53,15 +53,28 @@ class TenantContext:
     user: AuthenticatedUser
     organization_id: UUID
     role: Role
+    # The shared demo organization. Read-only for everybody, checked here as
+    # well as by role: joining the demo always grants VIEWER, but "nobody can
+    # change the demo" should not rest on every membership row being right.
+    is_demo: bool = False
+
+    def _refuse_demo(self) -> None:
+        if self.is_demo:
+            raise PermissionDenied(
+                "The demo organization is read-only. Create your own organization "
+                "to connect a cloud and act on findings."
+            )
 
     def require_role(self, *roles: Role) -> None:
+        self._refuse_demo()
         if self.role not in roles:
             raise PermissionDenied(
                 f"This action requires one of: {', '.join(sorted(r.value for r in roles))}"
             )
 
     def require_write(self) -> None:
-        """Anyone except VIEWER may change security workflow state."""
+        """Anyone except VIEWER may change security workflow state -- never in the demo."""
+        self._refuse_demo()
         if self.role == Role.VIEWER:
             raise PermissionDenied("Your role is read-only")
 
@@ -78,8 +91,16 @@ async def get_tenant(
     is only honoured when a membership row for this user backs it; otherwise the
     request is rejected rather than silently falling back to another tenant.
     """
-    stmt = select(OrganizationMember).where(OrganizationMember.user_id == user.id)
-    memberships = list((await session.execute(stmt)).scalars().all())
+    # Own organizations before the demo, oldest first: the fallback below takes
+    # the first row, and somebody who has both must land in their own estate,
+    # not in the sample they once opened.
+    stmt = (
+        select(OrganizationMember, Organization.is_demo)
+        .join(Organization, Organization.id == OrganizationMember.organization_id)
+        .where(OrganizationMember.user_id == user.id)
+        .order_by(Organization.is_demo, Organization.created_at)
+    )
+    memberships = list((await session.execute(stmt)).all())
     if not memberships:
         raise OrganizationNotFound("You do not belong to any organization yet")
 
@@ -89,16 +110,21 @@ async def get_tenant(
             wanted = UUID(requested)
         except ValueError as exc:
             raise OrganizationNotFound("Invalid organization id") from exc
-        for m in memberships:
+        for m, is_demo in memberships:
             if m.organization_id == wanted:
-                return TenantContext(user=user, organization_id=wanted, role=Role(m.role))
+                return TenantContext(
+                    user=user, organization_id=wanted, role=Role(m.role), is_demo=is_demo
+                )
         raise OrganizationNotFound("Organization not found")
 
     # Single-organization users -- the overwhelmingly common case -- never have
     # to send the header at all.
-    chosen = memberships[0]
+    chosen, is_demo = memberships[0]
     return TenantContext(
-        user=user, organization_id=chosen.organization_id, role=Role(chosen.role)
+        user=user,
+        organization_id=chosen.organization_id,
+        role=Role(chosen.role),
+        is_demo=is_demo,
     )
 
 

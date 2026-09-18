@@ -6,13 +6,6 @@ import type { Organization } from "@/lib/types";
 import { useT } from "@/i18n";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
@@ -67,25 +60,20 @@ export function OrganizationForm({ organization }: { organization: Organization 
     country !== (organization.country ?? "");
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t.settings.orgTitle}</CardTitle>
-        <CardDescription>{t.settings.orgHelp}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {!editable && (
-          <Alert className="mb-4">
-            <AlertDescription>{t.settings.orgReadOnly}</AlertDescription>
-          </Alert>
-        )}
+    <div className="overflow-hidden rounded-xl border border-border bg-card">
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          save.mutate();
+        }}
+      >
+        <div className="flex flex-col gap-5 p-5 sm:p-6">
+          {!editable && (
+            <Alert>
+              <AlertDescription>{t.settings.orgReadOnly}</AlertDescription>
+            </Alert>
+          )}
 
-        <form
-          className="flex max-w-lg flex-col gap-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            save.mutate();
-          }}
-        >
           <Field>
             <FieldLabel htmlFor="org-name">{t.settings.orgName}</FieldLabel>
             <Input
@@ -95,37 +83,49 @@ export function OrganizationForm({ organization }: { organization: Organization 
               required
               disabled={!editable}
               onChange={(event) => setName(event.target.value)}
+              className="max-w-md"
             />
           </Field>
 
-          <Field>
-            <FieldLabel htmlFor="org-industry">{t.settings.orgIndustry}</FieldLabel>
-            <Input
-              id="org-industry"
-              value={industry}
-              disabled={!editable}
-              onChange={(event) => setIndustry(event.target.value)}
-            />
-          </Field>
+          <div className="grid max-w-md gap-5 sm:grid-cols-[minmax(0,1fr)_7rem]">
+            <Field>
+              <FieldLabel htmlFor="org-industry">{t.settings.orgIndustry}</FieldLabel>
+              <Input
+                id="org-industry"
+                value={industry}
+                disabled={!editable}
+                onChange={(event) => setIndustry(event.target.value)}
+              />
+            </Field>
 
-          <Field>
-            <FieldLabel htmlFor="org-country">{t.settings.orgCountry}</FieldLabel>
-            <Input
-              id="org-country"
-              value={country}
-              maxLength={2}
-              disabled={!editable}
-              onChange={(event) => setCountry(event.target.value)}
-            />
-            <FieldDescription>{t.settings.orgCountryHelp}</FieldDescription>
-          </Field>
+            <Field>
+              <FieldLabel htmlFor="org-country">{t.settings.orgCountry}</FieldLabel>
+              <Input
+                id="org-country"
+                value={country}
+                maxLength={2}
+                disabled={!editable}
+                className="font-mono uppercase"
+                onChange={(event) => setCountry(event.target.value)}
+              />
+            </Field>
+            <FieldDescription className="-mt-2 sm:col-span-2">
+              {t.settings.orgCountryHelp}
+            </FieldDescription>
+          </div>
 
           <Field>
             <FieldLabel htmlFor="org-slug">{t.settings.orgSlug}</FieldLabel>
             {/* Shown but never editable, and the description says why rather
                 than leaving a greyed-out box to imply a missing permission. */}
-            <Input id="org-slug" value={organization.slug} readOnly disabled />
-            <FieldDescription>{t.settings.orgSlugHelp}</FieldDescription>
+            <Input
+              id="org-slug"
+              value={organization.slug}
+              readOnly
+              disabled
+              className="max-w-md font-mono"
+            />
+            <FieldDescription className="max-w-md">{t.settings.orgSlugHelp}</FieldDescription>
           </Field>
 
           {error && (
@@ -133,19 +133,21 @@ export function OrganizationForm({ organization }: { organization: Organization 
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
+        </div>
 
-          {editable && (
-            <div className="flex items-center gap-3">
-              <Button type="submit" disabled={!changed || save.isPending}>
-                {save.isPending ? t.settings.saving : t.settings.save}
-              </Button>
-              {saved && !save.isPending && (
-                <span className="text-xs text-ok">{t.settings.saved}</span>
-              )}
-            </div>
-          )}
-        </form>
-      </CardContent>
-    </Card>
+        {/* The save sits in a footer bar, the one place a reader looks for it
+            on every settings page they have used. */}
+        {editable && (
+          <div className="flex items-center justify-end gap-3 border-t border-border bg-muted/30 px-5 py-3 sm:px-6">
+            {saved && !save.isPending && (
+              <span className="text-xs text-ok">{t.settings.saved}</span>
+            )}
+            <Button type="submit" disabled={!changed || save.isPending}>
+              {save.isPending ? t.settings.saving : t.settings.save}
+            </Button>
+          </div>
+        )}
+      </form>
+    </div>
   );
 }

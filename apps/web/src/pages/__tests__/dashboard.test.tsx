@@ -89,12 +89,8 @@ describe("DashboardPage", () => {
   it("still offers a rescan, which is the primary action", async () => {
     mount(dashboard());
 
-    await waitFor(() =>
-      expect(screen.getByRole("link", { name: /Scan now/ })).toHaveAttribute(
-        "href",
-        "/scans",
-      ),
-    );
+    // A button that opens the scan wizard, not a link to the scans page.
+    expect(await screen.findByRole("button", { name: /Scan now/ })).toBeInTheDocument();
   });
 
   it("offers neither before there is a posture to read or report on", async () => {

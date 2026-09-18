@@ -1,3 +1,4 @@
+import { createElement } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -5,10 +6,11 @@ import type { Level } from "@/lib/types";
 import { useT } from "@/i18n";
 import { StatusPill } from "@/components/security/StatusPill";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
+import { ScoreTile } from "@/components/security/ScoreTile";
 import { formatDateTime } from "@/lib/format";
-import { FACT_ICONS, FACTOR_ICONS } from "@/lib/icons";
+import { FACT_ICONS, FACTOR_ICONS, resourceTypeIcon } from "@/lib/icons";
 import { IconLabel, ResourceTypeLabel } from "@/components/security/IconLabel";
-import type { LucideIcon } from "lucide-react";
+import { ChevronRightIcon, type LucideIcon } from "lucide-react";
 import { Breadcrumbs, DetailSkeleton, ErrorState } from "@/components/common/states";
 import { CodeBlock } from "@/components/common/CodeBlock";
 import {
@@ -87,8 +89,18 @@ export function AssetDetailPage() {
         trail={[{ label: t.assets.title, to: "/assets" }, { label: data.name }]}
       />
 
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{data.name}</h1>
+      <div className="flex items-start gap-4">
+        {/* The asset's kind, as a mark: the same glyph its row carries in the
+            inventory, so the page and the row that opened it are visibly the
+            same thing. */}
+        <span className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground shadow-xs">
+          {createElement(resourceTypeIcon(data.resource_type), {
+            className: "size-5",
+            "aria-hidden": true,
+          })}
+        </span>
+        <div className="min-w-0">
+        <h1 className="truncate text-2xl font-semibold tracking-tight">{data.name}</h1>
         <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
           <ResourceTypeLabel type={data.resource_type} />
           {data.region && <IconLabel icon={FACT_ICONS.region}>{data.region}</IconLabel>}
@@ -96,6 +108,7 @@ export function AssetDetailPage() {
             <IconLabel icon={FACT_ICONS.environment}>{data.environment}</IconLabel>
           )}
         </p>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -156,7 +169,12 @@ export function AssetDetailPage() {
 
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Findings on this asset</CardTitle>
+            <CardTitle>
+              Findings on this asset
+              <span className="ml-2 text-sm font-normal text-muted-foreground tabular-nums">
+                {data.findings.length}
+              </span>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {data.findings.length === 0 ? (
@@ -164,25 +182,41 @@ export function AssetDetailPage() {
                 No findings on this asset.
               </p>
             ) : (
-              <ul className="flex flex-col divide-y">
+              <ul className="-mx-2 flex flex-col">
                 {data.findings.map((finding) => (
-                  <li
-                    key={finding.id}
-                    className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
-                  >
-                    <SeverityBadge level={finding.severity} size="sm" />
+                  <li key={finding.id}>
+                    {/* The row is the link: the target is the whole line, not
+                        the length of the title. */}
                     <Link
                       to={`/findings/${finding.id}`}
-                      className="min-w-0 flex-1 truncate text-sm text-foreground hover:underline"
+                      className="group flex items-center gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
                     >
-                      {finding.title}
+                      {finding.risk_score === null ? (
+                        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-dashed border-border text-xs text-muted-foreground">
+                          —
+                        </span>
+                      ) : (
+                        <ScoreTile
+                          score={Number(finding.risk_score)}
+                          level={finding.severity}
+                          className="size-9 [&>span]:text-sm"
+                        />
+                      )}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium text-foreground">
+                          {finding.title}
+                        </span>
+                        <span className="block font-mono text-[11px] text-muted-foreground">
+                          {finding.rule_id}
+                        </span>
+                      </span>
+                      <SeverityBadge level={finding.severity} size="sm" />
+                      <StatusPill status={finding.status} />
+                      <ChevronRightIcon
+                        className="size-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5"
+                        aria-hidden
+                      />
                     </Link>
-                    <StatusPill status={finding.status} />
-                    <span className="w-10 text-right text-sm font-medium tabular-nums text-muted-foreground">
-                      {finding.risk_score === null
-                        ? "—"
-                        : Number(finding.risk_score).toFixed(0)}
-                    </span>
                   </li>
                 ))}
               </ul>

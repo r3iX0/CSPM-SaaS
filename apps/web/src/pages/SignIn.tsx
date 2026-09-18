@@ -10,6 +10,7 @@ import {
 import { useAuthToken } from "@/lib/useAuth";
 import { useT } from "@/i18n";
 import { ShieldMark } from "@/components/Brand";
+import { ScoreTile } from "@/components/security/ScoreTile";
 
 /**
  * Sign-in and sign-up, via Supabase.
@@ -291,7 +292,7 @@ function Divider({ label }: { label: string }) {
   return (
     <div className="mt-6 flex items-center gap-3" aria-hidden="true">
       <span className="h-px flex-1 bg-border" />
-      <span className="text-xs uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className="text-xs text-muted-foreground">{label}</span>
       <span className="h-px flex-1 bg-border" />
     </div>
   );
@@ -440,33 +441,45 @@ function TextLink({ onClick, children }: { onClick: () => void; children: React.
 function BrandPanel() {
   const t = useT();
   return (
-    <aside className="relative hidden w-[46%] max-w-xl flex-col justify-between overflow-hidden bg-stone-900 p-12 text-white lg:flex">
-      {/* Two soft radial washes give the flat panel some depth without
-          resorting to imagery that would date quickly. */}
+    // `dark` scopes the dark theme's tokens to this panel, so it is drawn from
+    // the same background, border and severity values as the product in dark
+    // mode -- in both themes -- rather than from a palette of its own.
+    <aside className="dark relative hidden w-[48%] max-w-2xl flex-col justify-between overflow-hidden border-r border-border bg-background p-12 text-foreground lg:flex">
+      {/* A faint grid fading out from the top, and one soft wash of light. The
+          texture says "instrument" without imagery that would date. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 opacity-[0.18]"
+        className="pointer-events-none absolute inset-0 opacity-[0.35] [mask-image:radial-gradient(ellipse_at_30%_20%,black,transparent_70%)]"
         style={{
-          background:
-            "radial-gradient(60rem 40rem at 15% 0%, #fff 0%, transparent 55%), radial-gradient(40rem 30rem at 90% 100%, #fff 0%, transparent 50%)",
+          backgroundImage:
+            "linear-gradient(to right, var(--border) 1px, transparent 1px), linear-gradient(to bottom, var(--border) 1px, transparent 1px)",
+          backgroundSize: "44px 44px",
         }}
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-40 -left-40 size-[36rem] rounded-full bg-foreground/[0.06] blur-3xl"
       />
 
       <div className="relative flex items-center gap-2.5">
-        <ShieldMark className="h-8 w-8 text-white" />
+        <ShieldMark className="h-8 w-8 text-foreground" />
         <span className="text-base font-semibold tracking-tight">{t.app.name}</span>
       </div>
 
       <div className="relative">
-        <h2 className="max-w-md text-3xl font-semibold leading-tight tracking-tight">
-          Know what's exposed. Fix what matters.
+        <h2 className="max-w-md text-4xl leading-[1.1] font-semibold tracking-tight">
+          Know what's exposed.
+          <br />
+          <span className="text-muted-foreground">Fix what matters.</span>
         </h2>
-        <p className="mt-4 max-w-md text-sm leading-relaxed text-stone-300">
+        <p className="mt-5 max-w-md text-sm leading-relaxed text-muted-foreground">
           CloudGuard reads your Azure environment, ranks what it finds by real
           business risk, and confirms your fixes actually worked.
         </p>
 
-        <ul className="mt-10 space-y-4">
+        <ProductPreview />
+
+        <ul className="mt-10 space-y-3.5">
           <Assurance>Read-only access. CloudGuard never changes your resources.</Assurance>
           <Assurance>No Azure credential to hand over — consent, not secrets.</Assurance>
           <Assurance>Your data is isolated at the database level, not just in code.</Assurance>
@@ -480,10 +493,57 @@ function BrandPanel() {
   );
 }
 
+/**
+ * What the product looks like, before anyone has signed in.
+ *
+ * A sign-in page is the last screen somebody sees before deciding the product
+ * is worth their credentials, and three sentences of promise are weaker than
+ * one glance at the thing itself. Drawn from the product's own primitives --
+ * the severity tokens, the tinted score tile -- so it cannot drift into a
+ * marketing picture of a product that does not exist. Hidden from assistive
+ * technology: it is an illustration with example values, and read aloud it
+ * would sound like somebody's real findings.
+ */
+function ProductPreview() {
+  const rows = [
+    { score: 98, level: "CRITICAL", title: "Internet → vm-jumpbox → storage account", tag: "Attack path" },
+    { score: 94, level: "CRITICAL", title: "SSH open to the internet on a production VM", tag: "Internet-facing" },
+    { score: 82, level: "HIGH", title: "Service principal holds Owner on a subscription", tag: "Identity" },
+  ];
+
+  return (
+    <div
+      aria-hidden="true"
+      className="mt-10 max-w-md overflow-hidden rounded-xl border border-border bg-card/80 shadow-2xl shadow-black/40 backdrop-blur"
+    >
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <div className="flex items-baseline gap-2">
+          <span className="text-3xl font-semibold tracking-tight text-medium tabular-nums">71</span>
+          <span className="text-xs text-muted-foreground">/ 100 security score</span>
+        </div>
+        <span className="rounded-full border border-ok-border bg-ok-bg px-2 py-0.5 text-[11px] font-medium text-ok">
+          ↑ 5 since last scan
+        </span>
+      </div>
+      <ul className="divide-y divide-border">
+        {rows.map((row) => (
+          <li key={row.title} className="flex items-center gap-3 px-4 py-2.5">
+            <ScoreTile score={row.score} level={row.level} className="size-8 [&>span]:text-xs" />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-xs font-medium text-foreground">{row.title}</span>
+              <span className="block text-[11px] text-muted-foreground">{row.tag}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function Assurance({ children }: { children: React.ReactNode }) {
   return (
-    <li className="flex items-start gap-3 text-sm text-stone-200">
-      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-background/10">
+    <li className="flex items-start gap-3 text-sm text-foreground/85">
+      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ok-bg text-ok">
         <svg viewBox="0 0 16 16" className="h-3 w-3" aria-hidden="true">
           <path
             fill="none"

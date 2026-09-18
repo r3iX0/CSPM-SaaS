@@ -44,7 +44,7 @@ export function AutomaticScanning({
   return (
     <section
       aria-labelledby="automatic-scanning"
-      className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10"
+      className="overflow-hidden rounded-xl border border-border bg-card"
     >
       <header className="flex flex-wrap items-start justify-between gap-3 px-5 py-4">
         <div>
@@ -52,10 +52,7 @@ export function AutomaticScanning({
             Automatic scanning
           </h2>
           <p className="mt-0.5 max-w-2xl text-xs leading-relaxed text-muted-foreground">
-            A posture ages the moment it is measured — cloud environments change
-            daily, and a scan from last month describes an environment that has
-            moved on. This is how often CloudGuard re-reads each one without
-            being asked.
+            How often CloudGuard re-reads each environment without being asked.
           </p>
         </div>
       </header>

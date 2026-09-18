@@ -95,3 +95,4 @@ npm test                         # vitest run
 - AWS's external id is generated server-side, is never client-supplied, and a role is never assumed without one (§73)
 - Compliance frameworks about one cloud are shown only to organizations that use it (§74)
 - Identifiers keep Azure's vocabulary; sentences do not — `app/core/vocabulary.py` and `src/lib/vocabulary.ts` (§78)
+- One shared demo organization (`organizations.is_demo`): joined as VIEWER through a SECURITY DEFINER function, visitors see only their own membership, and every write is refused there by flag as well as role (§99)

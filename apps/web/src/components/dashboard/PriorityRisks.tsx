@@ -1,9 +1,9 @@
 import { Link } from "react-router-dom";
-import { ArrowRightIcon, RouteIcon, ShieldAlertIcon } from "lucide-react";
+import { ArrowRightIcon, RouteIcon } from "lucide-react";
 import { FACTOR_ICONS } from "@/lib/icons";
 
 import type { Dashboard } from "@/lib/types";
-import { RiskScore } from "@/components/security/SecurityScore";
+import { ScoreTile } from "@/components/security/ScoreTile";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -15,7 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { stagger } from "@/lib/motion";
-import { cn, levelStyle } from "@/lib/format";
+import { cn } from "@/lib/format";
 
 type Risk = Dashboard["top_risks"][number];
 
@@ -82,7 +82,11 @@ export function PriorityRisks({ risks }: { risks: Risk[] }) {
                 to={`/risks/${risk.id}`}
                 className="group flex items-center gap-3 border-b px-5 py-3 transition-colors last:border-0 hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
               >
-                <RiskMark risk={risk} />
+                <ScoreTile
+                  score={Number(risk.risk_score)}
+                  level={risk.risk_level}
+                  className="size-10 [&>span]:text-base"
+                />
 
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{risk.title}</p>
@@ -90,7 +94,6 @@ export function PriorityRisks({ risks }: { risks: Risk[] }) {
                 </div>
 
                 <div className="flex shrink-0 items-center gap-2.5">
-                  <RiskScore score={Number(risk.risk_score)} />
                   <SeverityBadge level={risk.risk_level} size="sm" />
                   <ArrowRightIcon
                     className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
@@ -103,29 +106,6 @@ export function PriorityRisks({ risks }: { risks: Risk[] }) {
         </ol>
       )}
     </Card>
-  );
-}
-
-/**
- * The severity-tinted mark a row leads with.
- *
- * It borrows `levelStyle` rather than inventing a second palette, so a row's
- * mark and its badge can never disagree about what CRITICAL looks like. A
- * scenario keeps the route mark it has always had: what the tile says is *what
- * kind of thing this is*, and the tint says how bad.
- */
-function RiskMark({ risk }: { risk: Risk }) {
-  const Icon = risk.kind === "ATTACK_PATH" ? RouteIcon : ShieldAlertIcon;
-  return (
-    <span
-      className={cn(
-        "flex size-9 shrink-0 items-center justify-center rounded-lg border",
-        levelStyle(risk.risk_level),
-      )}
-      aria-hidden
-    >
-      <Icon className="size-4" />
-    </span>
   );
 }
 

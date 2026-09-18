@@ -4754,6 +4754,299 @@ draw the same shape because they make the same claim about coverage, and
 grant lands rather than when a button is pressed, and the one spring is the
 tick on the connected state.
 
+## 93. Lists are lists, actions are on top, labels are sentence case
+
+§92 rebuilt onboarding. The rest of the product had the same habits, and they
+were visible from across the room: every row of every list was its own padded
+card, the one action a page existed for sat at the bottom of it, explanations
+were repeated on every row that needed them once, and small labels shouted in
+tracked capitals. Each habit, and what replaced it:
+
+- **A list of like things is one container with divided rows.** Scans,
+  remediation tasks, rules and the changes feed were stacks of separate cards;
+  they are now `divide-y` rows inside one bordered container. A month of scans
+  or a hundred rules is scanned as a list, and a failure stands out by its
+  status rather than by being one more box. Risks keep a card per row because a
+  scenario carries its route, but the card leads with the score (below).
+- **The score leads the row.** `ScoreTile` (`components/security/`) draws a risk
+  score as a tile tinted by its level with `levelStyle`, so a 96 and a Critical
+  badge beside it are visibly one claim. It replaces a grey number at the far
+  edge of the card, a screen-width from the title it ranked. The level is named
+  in the tile's accessible label, so the tint is never the only signal.
+- **Headline numbers are a strip above the list.** `StatStrip`
+  (`components/common/`) answers how many, how much and how late before the
+  rows: remediation shows open, in progress, effort left and overdue; attack
+  paths show routes, exposed assets and sensitive assets, which were a single
+  line of grey text reading "2 · 3 exposed assets · 4 sensitive assets".
+- **The action is where the eye starts.** A finding's Rescan / Mark in progress
+  / Accept risk moved from a card at the foot of the page to beside the title,
+  and the recommended fix moved up to second place, under why it matters. The
+  finding's history moved below the score and the asset: how bad and where come
+  first, how it got here after.
+- **An explanation is said once.** Each scan row printed three lines on what
+  re-evaluating does. The sentence is now the button's description (`title`
+  and an `aria-describedby` target), so it is read by assistive technology and
+  shown on hover, and the history is a list of runs rather than of paragraphs.
+  Delete became an icon button with its label. Page descriptions under every
+  header were cut to one line; the long versions were arguments for the page's
+  existence, which belong here rather than on the screen.
+- **Settings are two columns.** `SettingsSection` puts the topic and its
+  explanation on the left and the controls on the right, with each form saving
+  from a footer bar. The page was a column of cards whose explanations competed
+  with their fields for width.
+- **Labels are sentence case.** The `uppercase tracking-wide` eyebrow pattern is
+  gone from every page and component; table headers are small muted text on a
+  quiet band (`ui/table.tsx`) rather than bold foreground. Hierarchy comes from
+  size and weight, not from capitals.
+- **Every card that goes somewhere is the link.** Compliance framework cards are
+  wrapped in the `Link` and end on "View controls →". They used to end on an
+  outline `Button render={<Link/>}`, which §31 rules out, and the largest target
+  on the page did nothing when clicked.
+
+`Card` with `CardContent className="p-0"` still carried the card's own vertical
+padding, which is what left the changes feed and the table skeleton floating a
+row's height inside their borders; both pass `py-0` now.
+
+## 94. The dashboard says where to start before it explains itself; sign-in shows the product
+
+**Dashboard.** The page argued well and in the wrong order: score, severity
+counts, then three analytic panels and a coverage essay before the first thing
+a reader could act on. Priority risks and the shortest attack path now sit
+directly under the severity strip, where they are above the fold at a laptop's
+height; the status and risk-band breakdown and the coverage panel follow them,
+as the explanation of the numbers rather than a gate in front of the work.
+
+The breakdown lost its severity-mix bar. The strip above it counts the same four
+numbers, and drawing them twice spent a third of a row repeating one fact. The
+sentence on how the score is deducted moved from a paragraph under the bar to
+the heading's description (`title`): it is read once, and after that it was the
+same sentence on every visit. Priority risks lead each row with the tinted
+`ScoreTile` (§93), so the dashboard ranks risks the way the risks page does.
+
+"Scan now" starts a scan. It was a link to `/scans`, which put the button a
+reader had just pressed on another page to be found and pressed again; it now
+opens the scan wizard (§87) from the header, and is the page's primary button.
+
+**Sign-in.** The brand panel was a dark stone rectangle with a headline and
+three ticks, drawn from Tailwind's stone palette and a raw `#fff` wash. It now
+carries the `dark` class, which scopes the dark theme's tokens to the panel, so
+its background, borders and severity colours are the product's own in both
+themes. It shows a small preview of the product -- a score and three ranked
+risks, built from `ScoreTile` and the severity tokens -- because a glance at the
+thing is a stronger argument than three sentences of promise at the moment
+somebody decides whether to hand over credentials. The preview is
+`aria-hidden`: it holds example values, and read aloud it would sound like
+somebody's real findings.
+
+## 95. Findings and assets: views on screen, rows as targets, links that land where they point
+
+**A dashboard link that did nothing.** The severity strip (§94) links each tile
+to `/findings?severity=CRITICAL`, and the findings page started its severity
+filter at "all" whatever the URL said, so all four tiles opened the same
+unfiltered list. The filter is now seeded from the URL through the router,
+the same way `status`, `rule_id` and `evidence_id` already were, and a test
+holds it there.
+
+**Status is a view, so every view is on screen.** Open is the queue; in
+progress, verified fixed and risk accepted are its history. They were four
+options behind a select, which hid what else there was to look at and made
+switching between two views two clicks each way. `SegmentedFilter`
+(`components/common/`) lays them out as a row of toggles -- buttons with
+`aria-pressed` in a labelled group rather than a tab list, because they narrow
+one table rather than swap panels. Assets' List / Hierarchy switch uses the same
+component, replacing two ad-hoc buttons that looked like a different control.
+
+**The row is the target.** Both tables made only the title clickable. The
+findings title already carried `after:absolute` for a full-row overlay, but
+with no inset and no positioned row it covered nothing; rows are now `relative`
+and the overlay is `inset-0`, so the whole row opens the finding or asset. The
+asset page's list of findings does the same, and leads each row with the tinted
+`ScoreTile` (§93).
+
+**Times read as time.** "Last detected" and "Last seen" are relative ("2 hours
+ago") with the full date on hover. The absolute date was the same for every row
+of a fresh scan, so the column said nothing a glance could use.
+
+**Small things.** A non-zero open-findings count on an asset is a chip, so rows
+with work on them stand out from rows without; it takes no severity colour
+because it is a count, not a verdict. The asset page's header carries the
+resource type's own icon, the glyph its inventory row uses, and the findings
+section title carries its count.
+
+## 96. A framework is filtered by verdict; risks are filtered by kind
+
+**Compliance framework.** Every control was its own card and every failing or
+inconclusive one opened by default, so CIS Azure rendered as a long column of
+boxes with the nine that fail spread among the fifty-eight that pass. A
+`SegmentedFilter` (§95) above the list names each verdict with its count --
+All, Failing, Inconclusive, Passing, Not covered -- and narrows the list to
+one. Filtering hides rows and never reorders them: the controls stay in the
+framework's own section order, which is the order an auditor's spreadsheet is
+in. Each section is now one container of divided rows with its count beside the
+heading, and the default-open rule for failing and inconclusive controls is
+unchanged.
+
+The "What this covers" card is folded into the coverage card's footer. The
+scope note and the source link both qualify the coverage number, and as a third
+box before the controls they pushed the list a screen down.
+
+**Risks.** The kind -- findings, attack paths, escalations -- is the view, so it
+is a `SegmentedFilter` on the left, as status is on the findings page; level,
+status and search stay as refinements on the right. Each risk card is now one
+link (`after:inset-0` on the title over a `relative` card), and the kind badge
+on a scenario carries its `RISK_KIND_ICONS` glyph, which the filter used to
+show and which would otherwise have been left defined and unused.
+
+## 97. A getting-started checklist read entirely from the server's state
+
+A new organization met a dashboard that, before the first scan, was one empty
+state with one button, and after the first scan was a full dashboard with no
+indication of what setting CloudGuard up still involved. Five things decide
+whether a trial turns into a product somebody relies on -- a connected cloud, a
+scan, a verified fix, a schedule, a declaration of what each environment is
+for -- and three of them lived on pages nobody was sent to.
+
+`GettingStarted` (`components/dashboard/`) lists them in that order. **Every
+tick is derived from state the server already holds:** a connection that
+`is_ready_to_scan`, a `last_scan`, a resolved finding
+(`findings_by_status.RESOLVED` or `verified_resolved_last_30_days`), a
+connection with a `scan_interval_hours`, and a context declaration on any
+subscription (read under the same `account-context` cache key the settings form
+uses, so declaring there ticks the step here with no extra request). Nothing is
+recorded when a step is clicked. A checklist that remembered clicks would tick
+"fix a finding" for somebody who opened one and closed it, would be wrong on a
+second device, and would say nothing to a teammate who never saw it; this one is
+right for all three, and a step done somewhere else entirely ticks itself.
+
+Only the next undone step carries a button. The rest keep a quiet link, so they
+stay reachable out of order once a cloud is connected, and a step whose
+prerequisite is not done says "After the step before" instead of offering an
+action that cannot work -- a scan with no connection, a declaration with no
+discovered subscription.
+
+Before the first scan the checklist *is* the dashboard, in place of the empty
+state, and cannot be dismissed into a blank page. After it, it sits compact
+above the score until every step is done, when it disappears, or until it is
+put away. The dismissal is the one thing held in the browser, in `localStorage`
+per organization, because it is a preference about this screen rather than a
+fact about the estate; losing it in a private window costs one click.
+
+## 98. Filters live in the URL, lists answer to the keyboard, and a fix is verified where it is made
+
+**Filters in the URL.** Findings, risks, assets, rules, changes and a
+framework's verdict filter held their filters in component state, so a filtered
+view vanished on reload, the back button lost it, and "look at the critical
+open findings" could not be sent to anybody. It also broke links *into* views:
+the dashboard's risk-band bars link to `/risks?level=CRITICAL` and landed on the
+unfiltered ranking, the same defect §95 fixed for severity on findings.
+`useUrlFilters` (`lib/`) now holds every filter, sort, view and page in the
+query string. A value equal to its default is omitted, so an unfiltered page has
+a clean address. Updates are patches applied in one write, because a filter
+change and a page reset written separately would each start from the same
+snapshot and the second would put back what the first removed. Writes use
+`replace`, so narrowing a list does not fill the history. Search boxes hold what
+is typed locally and write it after a pause; the assets search, which sent a
+request per keystroke, now waits for the pause as well. The assets environment
+filter is built from the environments present instead of a fixed
+"Production / Development", which made staging impossible to filter.
+
+**The keyboard.** `KeyboardShortcuts` in the shell handles `g` then a letter
+(overview, findings, risks, attack paths, assets, remediation, compliance,
+scans), `/` to focus the page's search (pages mark it `data-page-search`), and
+`?` for a sheet listing all of it. `useRowNavigation` gives findings, risks and
+assets `j`/`k`/`Enter`, marking the row with a tint and a leading bar, and
+nothing is marked until the first key. Every shortcut stands down while the
+reader is typing, while a modifier is held, and while a dialog is open. The ⌘K
+palette gained actions -- run a scan, connect a cloud, keyboard shortcuts -- so
+it starts work as well as navigates.
+
+**Verifying a fix.** "Rescan to verify" ended on a toast, and the most
+persuasive moment in the product -- a fix proved by looking again -- happened
+off-screen. The rescan endpoint already returns the `scan_id` it queued;
+`FixVerification` follows that scan on the finding, phase by phase from its real
+status (queued, reading, checking, result), re-reads the finding when it ends,
+and states the finding's verdict: verified fixed, still failing (with "Verify
+again"), or a scan that could not finish and so proves nothing either way.
+Nothing is inferred from elapsed time. The fix panel ends on "Applied the fix?
+Verify it now", so applying and proving are one motion.
+
+The fix panel's CLI fills its placeholders from the resource the finding was
+raised on (`lib/remediationFill.ts`): the resource group, subscription and
+resource id from the provider id, the region, and the resource's own name --
+but only into the placeholder for its own kind (`<account>` on a storage
+account, `<server>` on a SQL server), never into one naming some other object
+the command touches (`<rule>`, `<user>`). Everything else stays in angle
+brackets, which keeps the rule's original promise: a command never carries a
+value CloudGuard made up.
+
+## 99. One shared, read-only demo organization
+
+A new customer met an empty product. Nothing could be shown until a Global
+Administrator consented and somebody deployed a role -- two people, often two
+days -- which is precisely where a trial is abandoned. The pieces for a demo
+already existed: `database/seed/demo_environment.py` runs a recorded capture
+through the real normalizer, rules and risk engine. But it was a development
+tool: it refused production, and it attached the demo to one named user as
+OWNER.
+
+**One organization, joined, not copied.** Migration `0036` adds
+`organizations.is_demo`, unique among true values, so there is at most one. A
+signed-in user joins it with `POST /organizations/demo/join`, through
+`app.join_demo_organization()` -- SECURITY DEFINER, for the reason
+`app.create_organization` is: the caller is not a member, and no membership
+policy lets anybody insert themselves into an organization, which stays true for
+every other one. The function fixes the role at `VIEWER`; nothing the client
+sends can make somebody more than a viewer of the demo. Joining twice is a no-op.
+`POST /organizations/demo/leave` removes only the caller's own row, through
+`app.leave_demo_organization()`, since nobody in the demo holds the OWNER or
+ADMIN that `member_delete` requires. Per-user copies were rejected: a scan per
+sign-up is a cost with no benefit when the estate is the same for everybody.
+
+**Visitors do not see each other.** Every member of an organization could read
+its whole membership list. In the demo the members are strangers -- everybody
+who ever clicked "explore" -- so `member_select` now shows a demo member only
+their own row. Ordinary organizations are unchanged, and an integration test
+holds both.
+
+**Read-only by flag as well as by role.** `TenantContext` carries `is_demo`, and
+`require_write` and `require_role` refuse in the demo whatever the role, with a
+sentence that says to create an organization. Joining always grants VIEWER, so
+this is a second lock -- but "nobody can change the demo" should not rest on
+every membership row in it being right. Deleting an organization checks its role
+outside the tenant context, so it refuses the demo itself.
+
+**Reading the demo calls nothing.** `GET /cloud-connections/{id}` finishes an
+unverified connection's setup by probing the provider, and the seed had stamped
+the demo's grants proven but not its discovery -- so the first visitor to open it
+would have called Azure about a recorded tenant and written the failure into a
+row every visitor reads. The route now skips auto-validation in the demo, and
+the seed stamps discovery done. Scheduled scans, change events and verification
+never touch it: it has no schedule, no subscription and no claim.
+
+**An own organization always wins.** The API's fallback when no organization is
+named, and the list the client defaults from, both order own organizations
+before the demo. Somebody who explored first and signed up after lands in their
+own estate.
+
+**The seed's `--shared` mode** builds or rebuilds it, and runs in production: it
+touches no customer's organization and grants nobody anything. It scans the
+recording twice -- as captured, then with its two headline problems repaired --
+so the demo shows what the product is for: a score that moved and findings a
+later scan proved fixed, by the real lifecycle rather than rows marked resolved.
+A rebuild keeps the organization id and its members, so nobody's list or stored
+selection is broken by it. The per-user mode now skips the demo when it looks for
+a user's organization, since it writes into whatever it finds.
+
+**In the app.** Onboarding and the pre-scan dashboard offer "Explore a demo
+environment". Inside it a banner on every page says it is a recording, with the
+way out on the same line -- back to an own organization, or to creating one --
+because everything in the demo looks real on purpose and a screenshot of it must
+not pass for a customer's estate. Write actions are not drawn there (scan,
+rescan, accept risk, mark done, schedule, connect): the API would refuse them,
+and a button that can only ever answer "read-only" is one that should not exist.
+The getting-started checklist (§97) is hidden in the demo; its setup is not the
+reader's to do. The organization switcher marks the demo with a badge.
+
 ## Settings: the evidence a person supplies
 
 `PATCH /organizations` takes no id in the path. Deleting a *different*

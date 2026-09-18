@@ -11,6 +11,8 @@ import { AccountMenu } from "@/components/AccountMenu";
 import { SidebarNav } from "@/components/layout/Sidebar";
 import { PageTransition } from "@/components/PageTransition";
 import { CommandPalette } from "@/components/layout/CommandPalette";
+import { KeyboardShortcuts } from "@/components/layout/KeyboardShortcuts";
+import { DemoBanner } from "@/components/layout/DemoBanner";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { ScanIndicator } from "@/components/layout/ScanIndicator";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
@@ -150,6 +152,7 @@ export function Shell() {
 
             <div className="ml-auto flex items-center gap-3">
               <CommandPalette />
+              <KeyboardShortcuts />
               <ScanIndicator />
               {/* After the scan indicator and before the settings: what is
                   happening now, then what happened, then how the app looks. */}
@@ -158,6 +161,8 @@ export function Shell() {
               <AccountMenu organizations={orgs ?? []} current={current} />
             </div>
           </header>
+
+          <DemoBanner />
 
           <main className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 lg:py-8">
             {/* Per-page, inside the chrome. A page that throws is one broken

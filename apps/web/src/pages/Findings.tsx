@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
   ArrowDownIcon,
@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/hover-card";
 import { Input } from "@/components/ui/input";
 import { SelectField } from "@/components/common/SelectField";
+import { SegmentedFilter } from "@/components/common/SegmentedFilter";
 import {
   Table,
   TableBody,
@@ -41,8 +42,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Pager } from "@/components/common/Pager";
-import { cn, formatDate } from "@/lib/format";
+import { cn, formatDate, formatRelative } from "@/lib/format";
 import { stagger } from "@/lib/motion";
+import { useUrlFilters } from "@/lib/useUrlFilters";
+import { ROW_ACTIVE, useRowNavigation } from "@/lib/keyboard";
 
 const SEVERITIES = ["CRITICAL", "HIGH", "MEDIUM", "LOW"] as const;
 const PAGE_SIZE = 50;
@@ -74,43 +77,54 @@ type SortKey = "risk" | "severity" | "recent";
  */
 export function FindingsPage() {
   const t = useT();
-  const [severity, setSeverity] = useState("all");
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [sort, setSort] = useState<SortKey>("risk");
-  const [page, setPage] = useState(0);
+  // Every filter lives in the URL (`useUrlFilters`), so a filtered view is a
+  // link: it survives a reload and the back button, can be sent to somebody,
+  // and is the same thing the dashboard's tiles and a control's evidence link
+  // *into*. `status` defaults to OPEN because open is the queue; a link that
+  // scopes the list to one reading sends `status=all`, because "what rested on
+  // this" honestly includes what has since been fixed.
+  const [filters, update] = useUrlFilters({
+    severity: "all",
+    status: "OPEN",
+    q: "",
+    sort: "risk",
+    page: "0",
+    rule_id: "",
+    evidence_id: "",
+  });
+  const severity = (SEVERITIES as readonly string[]).includes(filters.severity)
+    ? filters.severity
+    : "all";
+  const status = filters.status;
+  const sort: SortKey = (["risk", "severity", "recent"] as const).includes(
+    filters.sort as SortKey,
+  )
+    ? (filters.sort as SortKey)
+    : "risk";
+  const page = Math.max(0, Number.parseInt(filters.page, 10) || 0);
+  const ruleId = filters.rule_id;
+  const evidenceId = filters.evidence_id;
+  const debouncedSearch = filters.q;
 
-  // A request per keystroke would be six for "public"; a request per pause is
-  // one. The delay is short enough that a reader who stops typing to look at
-  // the screen has results by the time their eyes arrive.
+  // What is typed is held here and written to the URL after a pause: a request
+  // per keystroke would be six for "public", and a URL rewritten on every key
+  // would be a history nobody could navigate.
+  const [search, setSearch] = useState(filters.q);
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedSearch(search);
-      setPage(0);
+      if (search.trim() !== debouncedSearch) update({ q: search.trim() || null, page: null });
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [search, debouncedSearch, update]);
 
-  // The rule filter lives in the URL rather than in state: it is arrived at
-  // from elsewhere — a compliance control's evidence list, a rule page — so it
-  // has to survive being linked to, shared, and navigated back to.
-  const [searchParams, setSearchParams] = useSearchParams();
-  const ruleId = searchParams.get("rule_id") ?? "";
-  // Seeded from the URL rather than fixed at OPEN, and read through the router
-  // rather than off `window.location` -- the second is empty under a
-  // MemoryRouter and wrong under any router that has navigated.
-  //
-  // A link that scopes the list to one reading arrives asking "what rested on
-  // this", and the honest answer includes the findings that reading raised and
-  // somebody has since fixed. Defaulting to OPEN would land that link on an
-  // empty table, which reads as "nothing rested on it".
-  const [status, setStatus] = useState(
-    () => searchParams.get("status") ?? "OPEN",
-  );
-  // Arrived from a reading on the scans page: "what rests on this". Filtered on
-  // the reading rather than its key, so the count that was clicked and the rows
-  // that come back are the same set.
-  const evidenceId = searchParams.get("evidence_id") ?? "";
+  /** Any filter change re-slices the set, so page 4 of the old one is meaningless. */
+  function refilter(patch: Partial<Record<keyof typeof filters, string | null>>) {
+    update({ ...patch, page: null });
+  }
+
+  function setPage(next: number) {
+    update({ page: String(next) });
+  }
 
   const params = new URLSearchParams();
   if (severity !== "all") params.set("severity", severity);
@@ -122,18 +136,9 @@ export function FindingsPage() {
   params.set("limit", String(PAGE_SIZE));
   params.set("offset", String(page * PAGE_SIZE));
 
-  /**
-   * Drop one or more scoping filters in a single write.
-   *
-   * Variadic rather than called twice: each call builds its next value from the
-   * unchanged `searchParams`, so two in a row would have the second put back
-   * what the first removed -- "Clear filters" leaving a chip on screen.
-   */
-  function clearParamFilters(...names: string[]) {
-    const next = new URLSearchParams(searchParams);
-    for (const name of names) next.delete(name);
-    setSearchParams(next, { replace: true });
-    setPage(0);
+  /** Drop one or more scoping filters -- one write, so none is put back. */
+  function clearParamFilters(...names: ("rule_id" | "evidence_id")[]) {
+    refilter(Object.fromEntries(names.map((name) => [name, null])));
   }
 
   const { data, isLoading, error, refetch } = useQuery({
@@ -161,6 +166,7 @@ export function FindingsPage() {
   // Already filtered and ordered by the database; the page renders what it was
   // sent rather than re-deciding it.
   const rows = data?.findings ?? [];
+  const activeRow = useRowNavigation(rows.map((finding) => `/findings/${finding.id}`));
   const total = data?.total ?? 0;
   const pages = Math.ceil(total / PAGE_SIZE);
 
@@ -171,41 +177,53 @@ export function FindingsPage() {
     !!ruleId ||
     !!evidenceId;
 
-  /** Any filter change re-slices the set, so page 4 of the old one is meaningless. */
-  function refilter(apply: () => void) {
-    apply();
-    setPage(0);
-  }
+
 
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
         icon={ShieldAlertIcon}
         title={t.findings.title}
-        description="Everything CloudGuard has observed and judged wrong, ranked by what it means on the asset it was found on."
+        description="Misconfigurations CloudGuard observed, ranked by what they mean on the asset."
       />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1 sm:max-w-xs">
-          <SearchIcon
-            className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search findings, rules or assets"
-            aria-label="Search findings"
-            className="pl-8"
-          />
-        </div>
+      {/* Which slice, then how to narrow it. Status is the view -- open is
+          the queue, the rest are its history -- so every one of them is named
+          on screen; severity and search refine whichever view is showing. */}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <SegmentedFilter
+          label="Filter by status"
+          value={status}
+          onChange={(value) => refilter({ status: value })}
+          segments={[
+            { value: "OPEN", label: "Open" },
+            { value: "IN_PROGRESS", label: "In progress" },
+            { value: "RESOLVED", label: "Verified fixed" },
+            { value: "ACCEPTED_RISK", label: "Risk accepted" },
+            { value: "all", label: "All" },
+          ]}
+        />
 
         <div className="flex flex-wrap items-center gap-2">
+          <div className="relative w-full sm:w-72">
+            <SearchIcon
+              className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search findings, rules or assets"
+              aria-label="Search findings"
+              data-page-search
+              className="pl-8"
+            />
+          </div>
           {/* A select, like every other filter in the product: the trigger
               names the active severity, so it reads without opening. */}
           <SelectField
             value={severity}
-            onValueChange={(value) => refilter(() => setSeverity(value || "all"))}
+            onValueChange={(value) => refilter({ severity: value || "all" })}
             ariaLabel="Filter by severity"
             className="w-[160px]"
             idleValue="all"
@@ -215,24 +233,6 @@ export function FindingsPage() {
                 value: level,
                 label: level.charAt(0) + level.slice(1).toLowerCase(),
               })),
-            ]}
-          />
-
-          {/* Idle at OPEN rather than "all": open is what the page shows
-              unasked, so the dot appears only when somebody widened or
-              narrowed it. */}
-          <SelectField
-            value={status}
-            onValueChange={(value) => refilter(() => setStatus(value || "all"))}
-            ariaLabel="Filter by status"
-            className="w-[170px]"
-            idleValue="OPEN"
-            options={[
-              { value: "all", label: "All statuses" },
-              { value: "OPEN", label: "Open" },
-              { value: "IN_PROGRESS", label: "In progress" },
-              { value: "RESOLVED", label: "Verified fixed" },
-              { value: "ACCEPTED_RISK", label: "Risk accepted" },
             ]}
           />
         </div>
@@ -298,11 +298,16 @@ export function FindingsPage() {
                 variant="outline"
                 onClick={() => {
                   setSearch("");
-                  setSeverity("all");
-                  setStatus("OPEN");
-                  // Both scoping filters, or "Clear filters" would leave the
-                  // reader on an empty table with a chip still narrowing it.
-                  clearParamFilters("rule_id", "evidence_id");
+                  // Every filter in one write, both scoping ones included, or
+                  // "Clear filters" would leave the reader on an empty table
+                  // with a chip still narrowing it.
+                  refilter({
+                    severity: null,
+                    status: null,
+                    q: null,
+                    rule_id: null,
+                    evidence_id: null,
+                  });
                 }}
               >
                 Clear filters
@@ -331,7 +336,7 @@ export function FindingsPage() {
                       label={t.common.severity}
                       sortKey="severity"
                       active={sort}
-                      onSort={(key) => refilter(() => setSort(key))}
+                      onSort={(key) => refilter({ sort: key })}
                     />
                     <TableHead>{t.findings.asset}</TableHead>
                     <SortableHead
@@ -339,7 +344,7 @@ export function FindingsPage() {
                       sortKey="risk"
                       active={sort}
                       align="right"
-                      onSort={(key) => refilter(() => setSort(key))}
+                      onSort={(key) => refilter({ sort: key })}
                     />
                     <TableHead>{t.common.status}</TableHead>
                     <SortableHead
@@ -347,7 +352,7 @@ export function FindingsPage() {
                       sortKey="recent"
                       active={sort}
                       align="right"
-                      onSort={(key) => refilter(() => setSort(key))}
+                      onSort={(key) => refilter({ sort: key })}
                     />
                   </TableRow>
                 </TableHeader>
@@ -360,8 +365,15 @@ export function FindingsPage() {
                     // so a fifty-row page does not become a slow page.
                     <TableRow
                       key={finding.id}
-                      className="group [animation:cg-rise_260ms_ease-out_both]"
+                      // Relative, so the title link's overlay covers this row
+                      // and no more: the whole row opens the finding.
+                      className={cn(
+                        "group relative cursor-pointer [animation:cg-rise_260ms_ease-out_both]",
+                        ROW_ACTIVE,
+                      )}
                       style={stagger(index)}
+                      data-row-index={index}
+                      data-active={activeRow === index}
                     >
                       <TableCell className="max-w-0">
                         {/* The column truncates, which is right for a table
@@ -376,7 +388,7 @@ export function FindingsPage() {
                             render={
                               <Link
                                 to={`/findings/${finding.id}`}
-                                className="block truncate font-medium text-foreground after:absolute hover:underline"
+                                className="block truncate font-medium text-foreground after:absolute after:inset-0 hover:underline"
                               />
                             }
                           >
@@ -393,12 +405,12 @@ export function FindingsPage() {
                             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                               {finding.description}
                             </p>
-                            <p className="mt-2 text-[11px] uppercase tracking-wide text-muted-foreground">
+                            <p className="mt-2 text-[11px] text-muted-foreground">
                               {finding.rule_id} · v{finding.rule_version}
                             </p>
                           </HoverCardContent>
                         </HoverCard>
-                        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                        <p className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground">
                           {finding.rule_id}
                         </p>
                       </TableCell>
@@ -426,8 +438,11 @@ export function FindingsPage() {
                       <TableCell>
                         <StatusPill status={finding.status} />
                       </TableCell>
-                      <TableCell className="text-right text-muted-foreground">
-                        {formatDate(finding.last_detected_at)}
+                      <TableCell
+                        className="text-right text-muted-foreground tabular-nums"
+                        title={formatDate(finding.last_detected_at)}
+                      >
+                        {formatRelative(finding.last_detected_at)}
                       </TableCell>
                     </TableRow>
                   ))}

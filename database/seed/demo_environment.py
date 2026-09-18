@@ -26,6 +26,15 @@ their user record -- the demo organization is attached to that real account.
 
 ``--fix`` replays the scan with two headline problems repaired, which is how you
 watch a finding auto-resolve and the score move.
+
+``--shared`` is the other mode, and the one that runs in production:
+
+    python /srv/database/seed/demo_environment.py --shared
+
+It builds the one organization flagged ``is_demo`` (migration 0036) -- no owner,
+no members -- which any signed-in user can join read-only from the app. Run it
+again to rebuild it from the recording; members and the organization id are
+kept.
 """
 
 import argparse
@@ -294,6 +303,156 @@ async def resolve_user(email: str) -> uuid.UUID:
     return user_id
 
 
+async def create_connection(session, org_id, provider: Provider, payload: dict):
+    """A verified connection and its one account, as the recording describes.
+
+    The connection is what the trust boundary is read through, so a demo
+    account without one would show every identity check as UNKNOWN -- and the
+    MFA finding is half of what the demo is for.
+
+    Both grants are stamped as proven, and discovery as done. That is honest for
+    a replay -- nothing is being called -- and it is also what keeps a visitor's
+    page load from calling anything: an unverified or undiscovered connection is
+    one the API tries to finish setting up by asking the provider.
+    """
+    aws = provider is Provider.AWS
+    now = datetime.now(UTC)
+    connection = CloudConnection(
+        organization_id=org_id,
+        provider=provider,
+        name="Demo organization" if aws else "Demo tenant",
+        scope_type=ConnectionScope.ORGANIZATION if aws else ConnectionScope.TENANT_ROOT,
+        scope_id=payload["subscription_id"] if aws else None,
+        tenant_id=payload["tenant_id"],
+        role_version=grant_version(provider),
+        provider_ref=(
+            {
+                "role_arn": f"arn:aws:iam::{payload['subscription_id']}:role/CloudGuardScannerRole",
+                "external_id": "cg-demo-recording-not-a-credential",
+            }
+            if aws
+            else {}
+        ),
+        service_principal_object_id=None if aws else "demo-recording",
+        consent_status=ConsentStatus.GRANTED,
+        consented_at=now,
+        rbac_verified_at=now,
+        last_discovery_at=now,
+        status=CloudAccountStatus.ACTIVE,
+    )
+    session.add(connection)
+    await session.flush()
+
+    account = CloudAccount(
+        organization_id=org_id,
+        connection_id=connection.id,
+        provider=provider,
+        account_name="Production Account (demo)" if aws else "Production Subscription (demo)",
+        tenant_id=payload["tenant_id"],
+        subscription_id=payload["subscription_id"],
+        consent_status=ConsentStatus.GRANTED,
+        consented_at=now,
+        rbac_verified_at=now,
+        status=CloudAccountStatus.ACTIVE,
+        status_detail="Demo connection seeded from a recorded snapshot.",
+    )
+    session.add(account)
+    await session.flush()
+    return account.id
+
+
+async def replay_scan(org_id, account_id, payload: dict):
+    """One scan of the recording, driven to completion through the real pipeline."""
+    async with service_session() as session:
+        scan = Scan(organization_id=org_id, cloud_account_id=account_id, status=ScanStatus.QUEUED)
+        session.add(scan)
+        await session.commit()
+        scan_id = scan.id
+
+    # Point the pipeline at the recorded snapshot for this run only.
+    original = scanner_module.get_connector
+    scanner_module.get_connector = lambda _provider, **kw: ReplayConnector(payload, **kw)
+    try:
+        await drive_scan(scan_id)
+    finally:
+        scanner_module.get_connector = original
+    return scan_id
+
+
+SHARED_NAME = "CloudGuard demo"
+SHARED_SLUG = "cloudguard-demo"
+
+
+async def seed_shared(provider: Provider) -> None:
+    """Build, or rebuild, the one demo organization every user can join.
+
+    Unlike the per-user mode this runs in production: it touches no customer's
+    organization, grants nobody anything, and everything it writes is flagged
+    ``is_demo`` and so refused to every writer by the API.
+
+    Two scans, not one: the recording as captured, then again with its two
+    headline problems repaired. That is what makes the demo show the product
+    rather than a list -- a score that moved, and findings a later scan proved
+    fixed -- and it is the real lifecycle doing it, not rows marked resolved.
+
+    A rebuild keeps the organization's id and its members. Everybody who has
+    joined keeps the demo in their list, and a browser that remembers the id
+    still points at something real.
+    """
+    await sync_rules_to_database()
+    payload = json.loads(SNAPSHOTS[provider].read_text())
+
+    async with service_session() as session:
+        existing = (
+            await session.execute(text("SELECT id FROM organizations WHERE is_demo"))
+        ).scalar_one_or_none()
+        members: list = []
+        org_id = existing or uuid.uuid4()
+        if existing is not None:
+            members = list(
+                (
+                    await session.execute(
+                        text(
+                            "SELECT user_id, role FROM organization_members "
+                            "WHERE organization_id = :o"
+                        ),
+                        {"o": existing},
+                    )
+                ).all()
+            )
+            # Only the row flagged is_demo, and everything beneath it by
+            # ON DELETE CASCADE. No other organization is ever touched.
+            await session.execute(
+                text("DELETE FROM organizations WHERE id = :o AND is_demo"), {"o": existing}
+            )
+
+        await session.execute(
+            text(
+                "INSERT INTO organizations (id, name, slug, industry, country, is_demo) "
+                "VALUES (:id, :n, :s, 'Financial services', NULL, true)"
+            ),
+            {"id": org_id, "n": SHARED_NAME, "s": SHARED_SLUG},
+        )
+        for user_id, role in members:
+            await session.execute(
+                text(
+                    "INSERT INTO organization_members (organization_id, user_id, role) "
+                    "VALUES (:o, :u, :r)"
+                ),
+                {"o": org_id, "u": user_id, "r": role},
+            )
+        account_id = await create_connection(session, org_id, provider, payload)
+        await session.commit()
+
+    await replay_scan(org_id, account_id, payload)
+    await replay_scan(org_id, account_id, apply_fixes(payload))
+
+    print(
+        f"{'rebuilt' if existing else 'created'} {SHARED_NAME} ({org_id}) "
+        f"with {len(members)} member(s) kept"
+    )
+
+
 async def seed(email: str, fix: bool, provider: Provider) -> None:
     if settings.is_production:
         raise SystemExit(
@@ -312,7 +471,13 @@ async def seed(email: str, fix: bool, provider: Provider) -> None:
     async with service_session() as session:
         org_id = (
             await session.execute(
-                text("SELECT organization_id FROM organization_members WHERE user_id = :u LIMIT 1"),
+                # Never the shared demo, which a user may also have joined:
+                # this mode writes into whatever it finds.
+                text(
+                    "SELECT m.organization_id FROM organization_members m "
+                    "JOIN organizations o ON o.id = m.organization_id "
+                    "WHERE m.user_id = :u AND NOT o.is_demo LIMIT 1"
+                ),
                 {"u": user_id},
             )
         ).scalar_one_or_none()
@@ -344,79 +509,11 @@ async def seed(email: str, fix: bool, provider: Provider) -> None:
         ).scalar_one_or_none()
 
         if account_id is None:
-            # The connection is what the trust boundary is read through, so a
-            # demo account without one would show every identity check as
-            # UNKNOWN -- and the MFA finding is half of what the demo is for.
-            #
-            # Both grants are stamped as proven. That is honest for a replay:
-            # nothing is being called, and leaving them unset would park the
-            # connection in a setup step the demo is not about.
-            aws = provider is Provider.AWS
-            connection = CloudConnection(
-                organization_id=org_id,
-                provider=provider,
-                name="Demo organization" if aws else "Demo tenant",
-                scope_type=(
-                    ConnectionScope.ORGANIZATION if aws else ConnectionScope.TENANT_ROOT
-                ),
-                scope_id=payload["subscription_id"] if aws else None,
-                tenant_id=payload["tenant_id"],
-                role_version=grant_version(provider),
-                provider_ref=(
-                    {
-                        "role_arn": (
-                            f"arn:aws:iam::{payload['subscription_id']}"
-                            ":role/CloudGuardScannerRole"
-                        ),
-                        "external_id": "cg-demo-recording-not-a-credential",
-                    }
-                    if aws
-                    else {}
-                ),
-                consent_status=ConsentStatus.GRANTED,
-                consented_at=datetime.now(UTC),
-                rbac_verified_at=datetime.now(UTC),
-                status=CloudAccountStatus.ACTIVE,
-            )
-            session.add(connection)
-            await session.flush()
-
-            account = CloudAccount(
-                organization_id=org_id,
-                connection_id=connection.id,
-                provider=provider,
-                account_name=(
-                    "Production Account (demo)" if aws else "Production Subscription (demo)"
-                ),
-                tenant_id=payload["tenant_id"],
-                subscription_id=payload["subscription_id"],
-                consent_status=ConsentStatus.GRANTED,
-                consented_at=datetime.now(UTC),
-                rbac_verified_at=datetime.now(UTC),
-                status=CloudAccountStatus.ACTIVE,
-                status_detail="Demo connection seeded from a recorded snapshot.",
-            )
-            session.add(account)
-            await session.flush()
-            account_id = account.id
+            account_id = await create_connection(session, org_id, provider, payload)
             print("created demo cloud account")
-
-        scan = Scan(
-            organization_id=org_id,
-            cloud_account_id=account_id,
-            status=ScanStatus.QUEUED,
-        )
-        session.add(scan)
         await session.commit()
-        scan_id = scan.id
 
-    # Point the pipeline at the recorded snapshot for this run only.
-    original = scanner_module.get_connector
-    scanner_module.get_connector = lambda _provider, **kw: ReplayConnector(payload, **kw)
-    try:
-        await drive_scan(scan_id)
-    finally:
-        scanner_module.get_connector = original
+    scan_id = await replay_scan(org_id, account_id, payload)
 
     async with service_session() as session:
         row = (
@@ -449,8 +546,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--email",
-        required=True,
-        help="email of an existing Supabase user to attach the demo organization to",
+        help="email of an existing Supabase user to attach a private demo organization to",
+    )
+    parser.add_argument(
+        "--shared",
+        action="store_true",
+        help="build or rebuild the one read-only demo organization every user can join",
     )
     parser.add_argument(
         "--provider",
@@ -464,4 +565,9 @@ if __name__ == "__main__":
         help="replay with two headline exposures repaired, to watch findings auto-resolve",
     )
     args = parser.parse_args()
-    asyncio.run(seed(args.email, args.fix, Provider(args.provider)))
+    if args.shared:
+        asyncio.run(seed_shared(Provider(args.provider)))
+    elif args.email:
+        asyncio.run(seed(args.email, args.fix, Provider(args.provider)))
+    else:
+        parser.error("either --email or --shared is required")

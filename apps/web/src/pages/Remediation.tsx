@@ -5,7 +5,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { WrenchIcon } from "lucide-react";
+import { CheckIcon, WrenchIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { api } from "@/lib/api";
@@ -20,10 +20,11 @@ import {
   PageHeader,
 } from "@/components/common/states";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatStrip } from "@/components/common/StatStrip";
+import { useIsDemo } from "@/lib/useDemo";
 import { Spinner } from "@/components/ui/spinner";
-import { formatDate, formatEffort, resourceTypeLabel } from "@/lib/format";
+import { cn, formatDate, formatEffort, resourceTypeLabel } from "@/lib/format";
 
 /**
  * The work queue.
@@ -99,7 +100,7 @@ export function RemediationPage() {
       <PageHeader
         icon={WrenchIcon}
         title={t.remediation.title}
-        description="Ordered by impact against effort. Marking work done does not close a finding — a scan does."
+        description="Ordered by impact against effort. A finding closes when a scan confirms the fix."
       />
 
       {isLoading && <CardsSkeleton />}
@@ -129,7 +130,17 @@ export function RemediationPage() {
         />
       )}
 
-      <div className="flex flex-col gap-3">
+      {data && data.length > 0 && <QueueSummary tasks={data} />}
+
+      {/* One queue, one container. Divided rows read as a list to work down;
+          a stack of separate cards read as a pile of separate problems. */}
+      <div
+        className={
+          data && data.length > 0
+            ? "divide-y divide-border overflow-hidden rounded-xl border border-border bg-card"
+            : undefined
+        }
+      >
         {data?.map((task) => (
           <TaskCard
             key={task.id}
@@ -163,58 +174,95 @@ function TaskCard({
   marking: boolean;
   onDone: () => void;
 }) {
-  return (
-    <Card>
-      <CardContent className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <SeverityBadge level={task.priority} />
-            <StatusPill status={task.status} />
-          </div>
+  const done = task.status === "DONE" || task.status === "CANCELLED";
+  const isDemo = useIsDemo();
+  const overdue = !done && task.due_date !== null && new Date(task.due_date) < new Date();
 
+  return (
+    <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3.5 transition-colors hover:bg-muted/30 sm:px-5">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        {/* A fixed column, so titles line up whatever the badge says. */}
+        <span className="w-[4.5rem] shrink-0">
+          <SeverityBadge level={task.priority} />
+        </span>
+        <div className="min-w-0">
           {finding ? (
             <Link
               to={`/findings/${task.finding_id}`}
-              className="mt-2 block text-sm font-medium text-foreground hover:underline"
+              className={cn(
+                "block truncate text-sm font-medium hover:underline",
+                done ? "text-muted-foreground line-through decoration-muted-foreground/50" : "text-foreground",
+              )}
             >
               {finding.title}
             </Link>
           ) : (
             // The row keeps its height while the finding arrives, so a queue
             // does not reflow under the reader's cursor.
-            <Skeleton className="mt-2.5 h-4 w-72 max-w-full" />
+            <Skeleton className="h-4 w-72 max-w-full" />
           )}
-
-          <p className="mt-1 truncate text-xs text-muted-foreground">
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">
             {finding?.resource
               ? `${finding.resource.name} · ${resourceTypeLabel(finding.resource.resource_type)}`
               : finding
                 ? "Tenant-wide — no single asset carries this"
-                : " "}
+                : " "}
           </p>
+          {task.notes && (
+            <p className="mt-1 text-xs text-muted-foreground">{task.notes}</p>
+          )}
         </div>
+      </div>
 
-        <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-          <span>{formatEffort(task.estimated_effort_minutes)}</span>
-          {task.due_date && <span>Due {formatDate(task.due_date)}</span>}
-          {task.status !== "DONE" && (
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={marking}
-              onClick={onDone}
-            >
-              {marking && <Spinner data-icon="inline-start" />}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
+        <StatusPill status={task.status} />
+        <span className="w-14 tabular-nums">{formatEffort(task.estimated_effort_minutes)}</span>
+        {task.due_date && (
+          <span className={cn("w-28 tabular-nums", overdue && "font-medium text-critical")}>
+            {overdue ? "Overdue · " : "Due "}
+            {formatDate(task.due_date)}
+          </span>
+        )}
+        <span className="flex w-24 justify-end">
+          {!done && !isDemo && (
+            <Button variant="outline" size="sm" disabled={marking} onClick={onDone}>
+              {marking ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <CheckIcon data-icon="inline-start" aria-hidden />
+              )}
               Mark done
             </Button>
           )}
-        </div>
-      </CardContent>
-      {task.notes && (
-        <CardFooter className="border-t pt-4 text-sm text-muted-foreground">
-          {task.notes}
-        </CardFooter>
-      )}
-    </Card>
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The queue in four numbers, above the queue.
+ *
+ * What is left, what is moving, what it will cost, and what is late -- the
+ * questions somebody opening this page on a Monday is actually asking, which a
+ * list of rows answers only if they are all counted by eye.
+ */
+function QueueSummary({ tasks }: { tasks: RemediationTask[] }) {
+  const open = tasks.filter((task) => task.status === "TODO" || task.status === "IN_PROGRESS");
+  const moving = tasks.filter((task) => task.status === "IN_PROGRESS").length;
+  const minutes = open.reduce((sum, task) => sum + task.estimated_effort_minutes, 0);
+  const late = open.filter(
+    (task) => task.due_date !== null && new Date(task.due_date) < new Date(),
+  ).length;
+
+  return (
+    <StatStrip
+      stats={[
+        { label: "Open", value: open.length },
+        { label: "In progress", value: moving },
+        { label: "Effort left", value: formatEffort(minutes) },
+        { label: "Overdue", value: late, alert: late > 0 },
+      ]}
+    />
   );
 }

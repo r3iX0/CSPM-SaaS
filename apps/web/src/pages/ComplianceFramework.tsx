@@ -11,6 +11,7 @@ import type {
   ControlStatus,
 } from "@/lib/types";
 import { useT } from "@/i18n";
+import { useUrlFilters } from "@/lib/useUrlFilters";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { saveBlob } from "@/lib/download";
 import { formatDateTime, formatPercent, formatRelative } from "@/lib/format";
@@ -28,12 +29,11 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
+import { SegmentedFilter } from "@/components/common/SegmentedFilter";
 import {
   Card,
   CardContent,
   CardFooter,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 
 /**
@@ -46,6 +46,11 @@ import {
 export function ComplianceFrameworkPage() {
   const t = useT();
   const { frameworkId } = useParams<{ frameworkId: string }>();
+  // Which verdicts to list. Filtering keeps the catalogue order within each
+  // section -- it hides rows, it never reorders them.
+  const [filters, update] = useUrlFilters({ verdict: "all" });
+  const verdict = filters.verdict as "all" | ControlStatus;
+  const setVerdict = (value: string) => update({ verdict: value });
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["compliance", frameworkId],
@@ -70,7 +75,19 @@ export function ComplianceFrameworkPage() {
     );
   }
 
-  const groups = groupBySection(data.controls);
+  const groups = groupBySection(
+    verdict === "all"
+      ? data.controls
+      : data.controls.filter((control) => control.status === verdict),
+  );
+  const counts = data.status_counts;
+  const verdicts: { value: "all" | ControlStatus; label: string }[] = [
+    { value: "all", label: `All · ${data.control_count}` },
+    { value: "FAILING", label: `Failing · ${counts.FAILING ?? 0}` },
+    { value: "INCONCLUSIVE", label: `Inconclusive · ${counts.INCONCLUSIVE ?? 0}` },
+    { value: "PASSING", label: `Passing · ${counts.PASSING ?? 0}` },
+    { value: "NOT_COVERED", label: `Not covered · ${counts.NOT_COVERED ?? 0}` },
+  ];
 
   return (
     <div className="flex flex-col gap-5">
@@ -120,7 +137,7 @@ export function ComplianceFrameworkPage() {
               <p className="text-3xl font-semibold tabular-nums tracking-tight text-foreground">
                 {formatPercent(data.coverage_ratio)}
               </p>
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              <p className="text-[11px] text-muted-foreground">
                 {t.compliance.coverage}
               </p>
             </div>
@@ -130,23 +147,17 @@ export function ComplianceFrameworkPage() {
           <p className="text-xs leading-relaxed text-muted-foreground">
             {t.compliance.coverageHelp}
           </p>
-          {!data.assessed && (
-            <p className="text-xs text-muted-foreground">
-              No scan has completed yet, so nothing here has been assessed.
+          {/* What the framework covers, and whose words the titles are, in the
+              same footer rather than a card of its own: both qualify the
+              number above, and a third box before the controls pushed the
+              list a screen down. */}
+          {data.scope_note && (
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              <span className="font-medium text-foreground">{t.compliance.scopeNote}. </span>
+              {data.scope_note}
             </p>
           )}
-        </CardFooter>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{t.compliance.scopeNote}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            {data.scope_note}
-          </p>
-          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+          <p className="text-xs leading-relaxed text-muted-foreground">
             {t.compliance.ownWording}{" "}
             <a
               href={data.url}
@@ -157,13 +168,39 @@ export function ComplianceFrameworkPage() {
               {t.compliance.source} →
             </a>
           </p>
-        </CardContent>
+          {!data.assessed && (
+            <p className="text-xs text-muted-foreground">
+              No scan has completed yet, so nothing here has been assessed.
+            </p>
+          )}
+        </CardFooter>
       </Card>
 
+      {/* Which verdicts, with how many of each, before the list. An auditor
+          opening this page usually wants the failing ones, and scrolling a
+          catalogue of ninety controls to collect nine is the job a filter
+          exists to do. */}
+      <SegmentedFilter
+        label="Filter controls by verdict"
+        value={verdict}
+        onChange={setVerdict}
+        segments={verdicts}
+        className="self-start"
+      />
+
+      {groups.length === 0 && (
+        <p className="rounded-xl border border-dashed border-border px-5 py-8 text-center text-sm text-muted-foreground">
+          No controls have this verdict.
+        </p>
+      )}
+
       {groups.map(([group, controls]) => (
-        <section key={group}>
-          <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <section key={`${verdict}-${group}`}>
+          <h2 className="mb-2 flex items-baseline gap-2 text-sm font-medium text-foreground">
             {group}
+            <span className="text-xs font-normal text-muted-foreground tabular-nums">
+              {controls.length}
+            </span>
           </h2>
           {/* One accordion per section, `multiple` because these are not
               alternatives -- a reader comparing two failing controls should
@@ -180,7 +217,7 @@ export function ComplianceFrameworkPage() {
             defaultValue={controls
               .filter((control) => NEEDS_ATTENTION.has(control.status))
               .map((control) => control.id)}
-            className="flex flex-col gap-2"
+            className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card"
           >
             {controls.map((control) => (
               <ControlRow key={control.id} control={control} />
@@ -213,8 +250,7 @@ function ControlRow({ control }: { control: ComplianceControl }) {
   const t = useT();
 
   return (
-    <Card className="py-4">
-      <CardContent className="px-5">
+    <div className="px-5 py-3.5">
         <AccordionItem value={control.id} className="border-b-0">
           {/* The verdict is in the trigger, never inside the panel: what a
               control says is not something a reader should have to expand to
@@ -223,7 +259,7 @@ function ControlRow({ control }: { control: ComplianceControl }) {
             <div className="flex flex-1 flex-wrap items-start justify-between gap-3 pr-3">
               <div className="flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <code className="text-xs font-medium text-muted-foreground">
+                  <code className="font-mono text-xs font-medium text-muted-foreground">
                     {control.id}
                   </code>
                   {/* Not a status: it says CloudGuard cannot speak to this
@@ -249,7 +285,7 @@ function ControlRow({ control }: { control: ComplianceControl }) {
           <AccordionContent>
         {control.rules.length > 0 ? (
           <div className="mt-3 border-t pt-3">
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+            <p className="text-[11px] text-muted-foreground">
               {t.compliance.evidenceFrom}
             </p>
             <ul className="mt-2 flex flex-col gap-1.5">
@@ -317,8 +353,7 @@ function ControlRow({ control }: { control: ComplianceControl }) {
             <ControlReadings readings={control.readings ?? []} />
           </AccordionContent>
         </AccordionItem>
-      </CardContent>
-    </Card>
+    </div>
   );
 }
 
@@ -398,7 +433,7 @@ function ControlReadings({ readings }: { readings: ControlReading[] }) {
 
   return (
     <div className="mt-3 border-t pt-3">
-      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+      <p className="text-[11px] text-muted-foreground">
         {t.compliance.readFrom}
       </p>
       <ul className="mt-2 flex flex-col gap-1">

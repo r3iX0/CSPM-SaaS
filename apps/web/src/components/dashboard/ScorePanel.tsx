@@ -65,9 +65,13 @@ export function ScorePanel({
     >
       <div className="flex flex-col justify-between gap-5 bg-card p-5">
         <div>
+          {/* How the number is made is the heading's description rather than
+              a paragraph under the bar: it is read once, and after that it
+              is the same sentence on every visit. */}
           <h2
             id="posture-score"
-            className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
+            className="text-xs font-medium text-muted-foreground"
+            title="Deducted against each finding's risk band — what it means on the asset it was found on — not the number of alerts raised."
           >
             Security score
           </h2>
@@ -115,15 +119,12 @@ export function ScorePanel({
             )}
           </div>
 
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            Deducted against each finding's risk band — what it means on the
-            asset it was found on — not the number of alerts raised.
-          </p>
+
         </div>
       </div>
 
       <div className="flex flex-col gap-3 bg-card p-5">
-        <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        <h3 className="text-xs font-medium text-muted-foreground">
           Posture trend
         </h3>
         {/* Sized to the chart it replaces, so nothing moves under the reader

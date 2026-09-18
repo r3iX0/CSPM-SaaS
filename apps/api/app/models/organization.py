@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import ForeignKey, String, UniqueConstraint
+from sqlalchemy import Boolean, ForeignKey, String, UniqueConstraint, false
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -15,6 +15,12 @@ class Organization(UUIDPrimaryKey, Timestamps, Base):
     slug: Mapped[str] = mapped_column(String(200), nullable=False, unique=True, index=True)
     industry: Mapped[str | None] = mapped_column(String(120))
     country: Mapped[str | None] = mapped_column(String(2))
+    # The shared, read-only demo estate (migration 0036). At most one row has
+    # it; every write in it is refused whatever the caller's role
+    # (``TenantContext.require_write``).
+    is_demo: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
 
     members: Mapped[list["OrganizationMember"]] = relationship(
         back_populates="organization", cascade="all, delete-orphan"

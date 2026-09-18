@@ -9,6 +9,7 @@ import { ScanCard } from "@/components/scans/ScanCard";
 import { AutomaticScanning } from "@/components/scans/AutomaticScanning";
 import { useScanWizard } from "@/components/scans/ScanWizardProvider";
 import { IN_FLIGHT } from "@/components/scans/status";
+import { useIsDemo } from "@/lib/useDemo";
 import { CardsSkeleton, EmptyState, PageHeader } from "@/components/common/states";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ import { Button } from "@/components/ui/button";
 export function ScansPage() {
   const t = useT();
   const wizard = useScanWizard();
+  const isDemo = useIsDemo();
   const [error, setError] = useState<string | null>(null);
 
   const scans = useQuery({
@@ -50,10 +52,12 @@ export function ScansPage() {
           title={t.scans.title}
           description="Every time CloudGuard has read your environment, and what it could reach."
         />
-        <Button size="sm" className="shrink-0" onClick={() => wizard.start()}>
+        {!isDemo && (
+        <Button className="shrink-0" onClick={() => wizard.start()}>
           <PlayIcon data-icon="inline-start" />
           {t.scans.runScan}
         </Button>
+        )}
       </div>
 
       {error && (
@@ -66,7 +70,7 @@ export function ScansPage() {
       {/* The clock, above the history it explains: a list of runs with no
           visible cadence makes the gaps between them look like something that
           happened rather than something that was chosen. */}
-      <AutomaticScanning onError={setError} />
+      {!isDemo && <AutomaticScanning onError={setError} />}
 
       {scans.isLoading && <CardsSkeleton />}
 
@@ -78,11 +82,19 @@ export function ScansPage() {
         />
       )}
 
-      <div className="flex flex-col gap-3">
-        {scans.data?.map((scan) => (
-          <ScanCard key={scan.id} scan={scan} />
-        ))}
-      </div>
+      {/* One history, one container: rows divided rather than cards stacked,
+          so a month of runs scans as a list and a failure stands out by its
+          status rather than by being one more box. */}
+      {scans.data && scans.data.length > 0 && (
+        <section>
+          <h2 className="mb-2 text-sm font-medium text-foreground">{t.scans.history}</h2>
+          <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+            {scans.data.map((scan) => (
+              <ScanCard key={scan.id} scan={scan} />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

@@ -210,7 +210,7 @@ export function ErrorState({
  */
 export function TableSkeleton({ rows = 6, columns = 5 }: { rows?: number; columns?: number }) {
   return (
-    <Card>
+    <Card className="py-0">
       <CardContent className="p-0">
         <div className="flex items-center gap-4 border-b px-4 py-3">
           {Array.from({ length: columns }).map((_, i) => (

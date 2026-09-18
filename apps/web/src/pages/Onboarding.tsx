@@ -7,6 +7,8 @@ import type { Organization } from "@/lib/types";
 import { useT } from "@/i18n";
 import { cn } from "@/lib/format";
 import { ShieldMark } from "@/components/Brand";
+import { DEMO_ICON } from "@/lib/icons";
+import { useJoinDemo } from "@/lib/useDemo";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,6 +41,7 @@ export function OnboardingPage() {
   const [country, setCountry] = useState("AL");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const joinDemo = useJoinDemo();
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -172,6 +175,38 @@ export function OnboardingPage() {
               </Button>
             </FieldGroup>
           </form>
+
+          {/* The other way in: see the product before setting anything up.
+              Below the form rather than beside it, because creating an
+              organization is still the path, and the demo is the detour for
+              somebody not ready to take it. */}
+          <div className="mt-6 flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="h-px flex-1 bg-border" />
+            {t.auth.orDivider}
+            <span className="h-px flex-1 bg-border" />
+          </div>
+          <button
+            type="button"
+            onClick={() => joinDemo.mutate()}
+            disabled={joinDemo.isPending}
+            className="group mt-4 flex w-full items-center gap-3 rounded-xl border border-border bg-background p-4 text-left transition-colors hover:border-foreground/25 disabled:opacity-60"
+          >
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-medium-bg text-medium">
+              <DEMO_ICON className="size-4" aria-hidden />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium text-foreground">
+                {joinDemo.isPending ? t.demo.opening : t.demo.explore}
+              </span>
+              <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
+                {joinDemo.isError ? t.demo.unavailable : t.demo.exploreDetail}
+              </span>
+            </span>
+            <ArrowRightIcon
+              className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+              aria-hidden
+            />
+          </button>
         </div>
       </main>
     </div>

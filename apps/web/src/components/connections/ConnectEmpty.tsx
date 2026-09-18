@@ -99,7 +99,7 @@ export function ConnectEmpty({ provider = "azure" }: { provider?: Provider }) {
 
           {showing && (
             <div className="mt-5 rounded-lg border border-border bg-muted/40 px-4 py-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <p className="text-xs font-medium text-muted-foreground">
                 {t.connection.permissionsTitle}
               </p>
 

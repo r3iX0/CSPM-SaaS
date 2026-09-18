@@ -233,11 +233,11 @@ function pagedRisk(index: number) {
 
 let requested: string[] = [];
 
-function renderPagedPage() {
+function renderPagedPage(entry = "/risks") {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[entry]}>
         <RisksPage />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -329,6 +329,20 @@ describe("the risk ranking", () => {
     expect(
       screen.getByRole("combobox", { name: "Filter by risk level" }),
     ).toHaveTextContent("Unknown");
+  });
+
+  it("opens on the band a dashboard risk bar linked to", async () => {
+    // The dashboard's risk-band bars link to `?level=CRITICAL`. The level
+    // used to live in component state and ignore it.
+    renderPagedPage("/risks?level=CRITICAL&kind=ATTACK_PATH");
+    await screen.findByText(/of 80 risks/);
+
+    expect(requested[0]).toContain("risk_level=CRITICAL");
+    expect(requested[0]).toContain("kind=ATTACK_PATH");
+    expect(screen.getByRole("button", { name: "Attack paths" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 
   it("keeps findings and routes in one ranking by default", async () => {

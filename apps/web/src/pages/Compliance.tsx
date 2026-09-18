@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ClipboardCheckIcon } from "lucide-react";
+import { ArrowRightIcon, ClipboardCheckIcon } from "lucide-react";
 
 import { api } from "@/lib/api";
 import type { ComplianceFramework } from "@/lib/types";
@@ -13,7 +13,6 @@ import {
   ErrorState,
   PageHeader,
 } from "@/components/common/states";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -65,7 +64,7 @@ export function CompliancePage() {
         <EmptyState icon={ClipboardCheckIcon} title={t.compliance.empty} />
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {data?.map((framework) => (
           <FrameworkCard key={framework.id} framework={framework} />
         ))}
@@ -79,7 +78,15 @@ function FrameworkCard({ framework }: { framework: ComplianceFramework }) {
   const counts = framework.status_counts;
 
   return (
-    <Card className="flex h-full flex-col">
+    // The whole card is the way in. It used to end on a small outline button,
+    // so the largest target on the page was the one thing that did nothing
+    // when clicked -- and that button was a Link inside a Button, which §31
+    // rules out.
+    <Link
+      to={`/compliance/${encodeURIComponent(framework.id)}`}
+      className="group block rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+    >
+    <Card className="flex h-full flex-col transition-colors group-hover:ring-foreground/25">
       <CardHeader>
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
@@ -92,7 +99,7 @@ function FrameworkCard({ framework }: { framework: ComplianceFramework }) {
             <p className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">
               {formatPercent(framework.coverage_ratio)}
             </p>
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+            <p className="text-[11px] text-muted-foreground">
               {t.compliance.coverage}
             </p>
           </div>
@@ -120,17 +127,16 @@ function FrameworkCard({ framework }: { framework: ComplianceFramework }) {
         </div>
       </CardContent>
 
-      <CardFooter>
-        <Button
-          variant="outline"
-          size="sm"
-          render={
-            <Link to={`/compliance/${encodeURIComponent(framework.id)}`} />
-          }
-        >
+      <CardFooter className="border-t">
+        <span className="flex items-center gap-1 text-sm font-medium text-foreground">
           {t.compliance.viewFramework}
-        </Button>
+          <ArrowRightIcon
+            className="size-3.5 transition-transform group-hover:translate-x-0.5"
+            aria-hidden
+          />
+        </span>
       </CardFooter>
     </Card>
+    </Link>
   );
 }

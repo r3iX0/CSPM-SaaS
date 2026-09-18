@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { RulesPage } from "@/pages/Rules";
@@ -31,7 +32,11 @@ function mount(rules: Rule[]) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <RulesPage />
+      {/* The filters live in the URL, so the page needs a router, as it has
+          in the app. */}
+      <MemoryRouter>
+        <RulesPage />
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 }

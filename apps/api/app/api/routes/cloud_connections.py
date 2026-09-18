@@ -293,8 +293,12 @@ async def get_connection(connection_id: UUID, session: DbSession, tenant: Tenant
     connection, subscriptions = await service.get_connection_with_subscriptions(
         session, tenant, connection_id
     )
-    # Auto-validate during polling — silent failures mean "not deployed yet"
-    connection = await service.try_auto_validate(session, connection)
+    # Auto-validate during polling — silent failures mean "not deployed yet".
+    # Never in the demo: its connection was recorded, not granted, and a probe
+    # would call a real provider about a tenant that is not there -- then write
+    # the failure into a row every visitor reads.
+    if not tenant.is_demo:
+        connection = await service.try_auto_validate(session, connection)
     # Re-fetch subscriptions in case auto-discover just ran
     if connection.last_discovery_at:
         _, subscriptions = await service.get_connection_with_subscriptions(

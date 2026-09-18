@@ -8,6 +8,7 @@ import type { CloudAccount, Organization } from "@/lib/types";
 import { useT } from "@/i18n";
 import { OrganizationForm } from "@/components/settings/OrganizationForm";
 import { ContextDeclarationForm } from "@/components/settings/ContextDeclaration";
+import { SettingsSection } from "@/components/settings/SettingsSection";
 import {
   CardsSkeleton,
   EmptyState,
@@ -16,13 +17,6 @@ import {
 } from "@/components/common/states";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
@@ -71,55 +65,56 @@ export function SettingsPage() {
   if (!current) return null;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       <PageHeader
         icon={SettingsIcon}
         title={t.settings.title}
         description={t.settings.intro}
       />
 
-      {/* Keyed, so switching organization remounts the form with the new
-          values rather than leaving the previous one's name in the boxes. */}
-      <OrganizationForm key={current.id} organization={current} />
+      <div>
+        <SettingsSection title={t.settings.orgTitle} description={t.settings.orgHelp}>
+          {/* Keyed, so switching organization remounts the form with the new
+              values rather than leaving the previous one's name in the boxes. */}
+          <OrganizationForm key={current.id} organization={current} />
+        </SettingsSection>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t.settings.contextTitle}</CardTitle>
-          <CardDescription className="leading-relaxed">
-            {t.settings.contextHelp}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          {accounts.isLoading && <CardsSkeleton count={1} />}
+        <SettingsSection
+          title={t.settings.contextTitle}
+          description={t.settings.contextHelp}
+        >
+          <div className="flex flex-col gap-3">
+            {accounts.isLoading && <CardsSkeleton count={1} />}
 
-          {accounts.data && accounts.data.length === 0 && (
-            <EmptyState
-              icon={BoxesIcon}
-              title={t.settings.contextEmpty}
-              detail={t.settings.contextEmptyDetail}
-            />
-          )}
+            {accounts.data && accounts.data.length === 0 && (
+              <EmptyState
+                icon={BoxesIcon}
+                title={t.settings.contextEmpty}
+                detail={t.settings.contextEmptyDetail}
+              />
+            )}
 
-          {accounts.data?.map((account) => (
-            <ContextDeclarationForm key={account.id} account={account} />
-          ))}
+            {accounts.data?.map((account) => (
+              <ContextDeclarationForm key={account.id} account={account} />
+            ))}
 
-          {accounts.data && accounts.data.length > 0 && (
-            <>
-              {/* Two things the form cannot say for itself, and both change
-                  what a reader expects to happen after they click Save. */}
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                {t.settings.notDeclaredHelp}
-              </p>
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                {t.settings.appliesNext}
-              </p>
-            </>
-          )}
-        </CardContent>
-      </Card>
+            {accounts.data && accounts.data.length > 0 && (
+              <>
+                {/* Two things the form cannot say for itself, and both change
+                    what a reader expects to happen after they click Save. */}
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  {t.settings.notDeclaredHelp}
+                </p>
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  {t.settings.appliesNext}
+                </p>
+              </>
+            )}
+          </div>
+        </SettingsSection>
 
-      <DangerZone organization={current} />
+        <DangerZone organization={current} />
+      </div>
     </div>
   );
 }
@@ -154,20 +149,16 @@ function DangerZone({ organization }: { organization: Organization }) {
   });
 
   return (
-    <Card className="border-critical-border">
-      <CardHeader>
-        <CardTitle className="text-critical">{t.settings.dangerTitle}</CardTitle>
-        <CardDescription className="leading-relaxed">
-          {t.settings.dangerHelp}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+    <SettingsSection
+      title={t.settings.dangerTitle}
+      description={t.settings.dangerHelp}
+      tone="danger"
+    >
+      <div className="rounded-xl border border-critical-border bg-card p-5 sm:p-6">
         {!owner ? (
-          <Alert>
-            <AlertDescription>{t.settings.dangerOwnerOnly}</AlertDescription>
-          </Alert>
+          <p className="text-sm text-muted-foreground">{t.settings.dangerOwnerOnly}</p>
         ) : (
-          <div className="flex max-w-lg flex-col gap-3">
+          <div className="flex max-w-md flex-col gap-3">
             <Field>
               <FieldLabel htmlFor="confirm-name">
                 {t.settings.dangerConfirmLabel}
@@ -196,7 +187,7 @@ function DangerZone({ organization }: { organization: Organization }) {
             </Button>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </SettingsSection>
   );
 }

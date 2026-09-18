@@ -3,10 +3,13 @@ import {
   ArrowRightIcon,
   CheckIcon,
   LoaderIcon,
+  PlayIcon,
   TriangleAlertIcon,
 } from "lucide-react";
 
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { useScanWizard } from "@/components/scans/ScanWizardProvider";
+import { useIsDemo } from "@/lib/useDemo";
 import { cn, formatDateTime } from "@/lib/format";
 
 /** Past this, a reading describes an environment that has since moved on. */
@@ -30,10 +33,14 @@ export function PostureHeader({
   staleHours: number | null;
   scanning: boolean;
 }) {
+  const scanWizard = useScanWizard();
+  // The demo is a recording; there is nothing to scan and the API refuses to.
+  const isDemo = useIsDemo();
+
   return (
     <header className="flex flex-wrap items-start justify-between gap-4">
       <div className="min-w-0">
-        <h1 className="text-xl font-semibold tracking-tight">Overview</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Your cloud security posture, and what CloudGuard could see while
           forming it.
@@ -46,13 +53,19 @@ export function PostureHeader({
           staleHours={staleHours}
           scanning={scanning}
         />
-        <Link to="/scans" className={buttonVariants({ variant: "outline", size: "sm" })}>
-          Scan now
-        </Link>
-        <Link to="/reports" className={buttonVariants({ variant: "ghost", size: "sm" })}>
+        <Link to="/reports" className={buttonVariants({ variant: "ghost" })}>
           Reports
           <ArrowRightIcon data-icon="inline-end" />
         </Link>
+        {/* Starts the scan here, in the wizard the shell mounts, rather than
+            linking to the scans page and leaving the button to be found
+            again there. While one is running, the wizard offers to follow it. */}
+        {!isDemo && (
+          <Button onClick={() => scanWizard.start()}>
+            <PlayIcon data-icon="inline-start" aria-hidden />
+            Scan now
+          </Button>
+        )}
       </div>
     </header>
   );

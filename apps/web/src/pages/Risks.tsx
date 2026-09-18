@@ -1,21 +1,16 @@
-import { useEffect, useState } from "react";
+import { createElement, useEffect, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import { Link } from "react-router-dom";
-import { RadarIcon, SearchIcon } from "lucide-react";
+import { ChevronRightIcon, RadarIcon, SearchIcon } from "lucide-react";
 
 import { api } from "@/lib/api";
 import type { Risk } from "@/lib/types";
 import { useT } from "@/i18n";
 import { StatusPill } from "@/components/security/StatusPill";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
+import { ScoreTile } from "@/components/security/ScoreTile";
 import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-} from "@/components/ui/card";
 import {
   CardsSkeleton,
   EmptyState,
@@ -25,11 +20,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SelectField } from "@/components/common/SelectField";
+import { SegmentedFilter } from "@/components/common/SegmentedFilter";
 import { listContainer, listItem } from "@/lib/motion";
 import { FACTOR_ICONS, RISK_KIND_ICONS } from "@/lib/icons";
 import { IconLabel } from "@/components/security/IconLabel";
 import type { LucideIcon } from "lucide-react";
 import { Pager } from "@/components/common/Pager";
+import { useUrlFilters } from "@/lib/useUrlFilters";
+import { useRowNavigation } from "@/lib/keyboard";
 
 const PAGE_SIZE = 25;
 const SEARCH_DEBOUNCE_MS = 250;
@@ -49,20 +47,31 @@ const SEARCH_DEBOUNCE_MS = 250;
  */
 export function RisksPage() {
   const t = useT();
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [level, setLevel] = useState("all");
-  const [status, setStatus] = useState("all");
-  const [kind, setKind] = useState("all");
-  const [page, setPage] = useState(0);
+  // Filters in the URL, so a filtered ranking is a link -- and so the
+  // dashboard's risk-band bars, which link to `?level=CRITICAL`, land on the
+  // band they name instead of on the whole list.
+  const [filters, update] = useUrlFilters({
+    q: "",
+    level: "all",
+    status: "all",
+    kind: "all",
+    page: "0",
+  });
+  const { level, status, kind } = filters;
+  const debouncedSearch = filters.q;
+  const page = Math.max(0, Number.parseInt(filters.page, 10) || 0);
 
+  const [search, setSearch] = useState(filters.q);
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedSearch(search);
-      setPage(0);
+      if (search.trim() !== debouncedSearch) update({ q: search.trim() || null, page: null });
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [search, debouncedSearch, update]);
+
+  function setPage(next: number) {
+    update({ page: String(next) });
+  }
 
   const params = new URLSearchParams();
   if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
@@ -84,6 +93,7 @@ export function RisksPage() {
   });
 
   const risks = data?.risks ?? [];
+  const activeRow = useRowNavigation(risks.map((risk) => `/risks/${risk.id}`));
   const total = data?.total ?? 0;
   const pages = Math.ceil(total / PAGE_SIZE);
   const filtering =
@@ -92,17 +102,14 @@ export function RisksPage() {
     status !== "all" ||
     kind !== "all";
 
-  function refilter(apply: () => void) {
-    apply();
-    setPage(0);
+  /** A filter change re-slices the set, so the page resets with it. */
+  function refilter(patch: Partial<Record<keyof typeof filters, string | null>>) {
+    update({ ...patch, page: null });
   }
 
   function clearFilters() {
     setSearch("");
-    setLevel("all");
-    setStatus("all");
-    setKind("all");
-    setPage(0);
+    refilter({ q: null, level: null, status: null, kind: null });
   }
 
   return (
@@ -110,32 +117,48 @@ export function RisksPage() {
       <PageHeader
         icon={RadarIcon}
         title={t.risks.title}
-        description="A finding is what we observed. A risk is what it means for this asset, with this data, at this level of exposure."
+        description="What each finding means for this asset, this data and this exposure — worst first."
       />
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-        <div className="relative flex-1 lg:max-w-xs">
-          <SearchIcon
-            className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search risks"
-            aria-label="Search risks"
-            className="pl-8"
-          />
-        </div>
+      {/* The kind is the view -- one list, or one slice of it -- so every
+          kind is named on screen, as the findings page names its statuses.
+          Level, status and search refine whichever view is showing. */}
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+        <SegmentedFilter
+          label="Filter by kind"
+          value={kind}
+          onChange={(value) => refilter({ kind: value })}
+          segments={[
+            { value: "all", label: "All risks" },
+            { value: "FINDING", label: "Findings" },
+            { value: "ATTACK_PATH", label: "Attack paths" },
+            { value: "ESCALATION", label: "Escalations" },
+          ]}
+        />
 
         <div className="flex flex-wrap items-center gap-2">
+          <div className="relative w-full sm:w-64">
+            <SearchIcon
+              className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search risks"
+              aria-label="Search risks"
+              data-page-search
+              className="pl-8"
+            />
+          </div>
+
           {/* A select like every other filter in the product, and the same
               control the findings list filters severity with. */}
           <SelectField
             value={level}
-            onValueChange={(value) => refilter(() => setLevel(value || "all"))}
+            onValueChange={(value) => refilter({ level: value || "all" })}
             ariaLabel="Filter by risk level"
-            className="w-[160px]"
+            className="w-[150px]"
             idleValue="all"
             options={[
               { value: "all", label: "All levels" },
@@ -152,9 +175,9 @@ export function RisksPage() {
 
           <SelectField
             value={status}
-            onValueChange={(value) => refilter(() => setStatus(value || "all"))}
+            onValueChange={(value) => refilter({ status: value || "all" })}
             ariaLabel="Filter by status"
-            className="w-[170px]"
+            className="w-[160px]"
             idleValue="all"
             options={[
               { value: "all", label: "All statuses" },
@@ -162,20 +185,6 @@ export function RisksPage() {
               { value: "IN_PROGRESS", label: "In progress" },
               { value: "ACCEPTED", label: "Accepted" },
               { value: "RESOLVED", label: "Resolved" },
-            ]}
-          />
-
-          <SelectField
-            value={kind}
-            onValueChange={(value) => refilter(() => setKind(value || "all"))}
-            ariaLabel="Filter by kind"
-            className="w-[200px]"
-            idleValue="all"
-            options={[
-              { value: "all", label: "Findings and routes" },
-              { value: "FINDING", label: "Findings only", icon: RISK_KIND_ICONS.FINDING },
-              { value: "ATTACK_PATH", label: "Attack paths", icon: RISK_KIND_ICONS.ATTACK_PATH },
-              { value: "ESCALATION", label: "Escalations", icon: RISK_KIND_ICONS.ESCALATION },
             ]}
           />
         </div>
@@ -218,7 +227,7 @@ export function RisksPage() {
               cards that are actually new animate, which keeps the movement a
               statement that something arrived. */}
           <motion.div
-            className="flex flex-col gap-3"
+            className="flex flex-col gap-2.5"
             variants={listContainer}
             initial="initial"
             animate="animate"
@@ -228,8 +237,14 @@ export function RisksPage() {
                 together — on a page of its own it would be a second opinion
                 nobody compares. The kind filter can separate them; the default
                 does not. */}
-            {risks.map((risk) => (
-              <motion.div key={risk.id} variants={listItem}>
+            {risks.map((risk, index) => (
+              <motion.div
+                key={risk.id}
+                variants={listItem}
+                data-row-index={index}
+                data-active={activeRow === index}
+                className="rounded-xl data-[active=true]:ring-2 data-[active=true]:ring-foreground/60"
+              >
                 {risk.kind === "FINDING" ? (
                   <FindingRiskCard risk={risk} />
                 ) : (
@@ -280,43 +295,15 @@ function ScenarioCard({ risk }: { risk: Risk }) {
   const escalation = risk.kind === "ESCALATION";
 
   return (
-    <Card className="transition-shadow duration-150 hover:shadow-md">
-      <CardHeader>
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <SeverityBadge level={risk.risk_level} />
-              <StatusPill status={risk.status} />
-              {/* Says which formula scored this, so the arithmetic below is
-                  read against the right one. */}
-              <Badge variant="outline">
-                {escalation ? t.risks.escalationBadge : t.risks.scenarioBadge}
-              </Badge>
-            </div>
-            <Link
-              to={`/risks/${risk.id}`}
-              className="mt-2 block text-sm font-medium text-foreground underline-offset-4 hover:underline"
-            >
-              {risk.title}
-            </Link>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {escalation ? t.risks.escalationIntro : t.risks.scenarioIntro}
-            </p>
-          </div>
-          <div className="shrink-0 text-right">
-            <p className="text-3xl font-semibold tabular-nums text-foreground">
-              {Number(risk.risk_score).toFixed(0)}
-            </p>
-            <p className="text-xs text-muted-foreground">risk score</p>
-          </div>
-        </div>
-      </CardHeader>
-
+    <RiskShell>
+      <RiskHead
+        risk={risk}
+        badge={escalation ? t.risks.escalationBadge : t.risks.scenarioBadge}
+        subtitle={escalation ? t.risks.escalationIntro : t.risks.scenarioIntro}
+      />
       {risk.path.length > 0 && (
-        <CardContent className="border-t pt-3">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            {t.risks.routeLabel}
-          </p>
+        <div className="border-t border-border px-4 py-3 sm:pl-20">
+          <p className="text-xs font-medium text-muted-foreground">{t.risks.routeLabel}</p>
           <ol className="mt-2 flex flex-col gap-1.5">
             {risk.path.map((step, index) => (
               <li
@@ -330,13 +317,13 @@ function ScenarioCard({ risk }: { risk: Risk }) {
               </li>
             ))}
           </ol>
-        </CardContent>
+        </div>
       )}
 
       {/* The arithmetic, in the terms the score was actually built from. A
           customer asking why this outranks the finding inside it gets the
           answer rather than a number. */}
-      <CardFooter className="flex flex-wrap gap-x-6 gap-y-2 border-t pt-4 text-xs">
+      <RiskFooter>
         <span className="text-muted-foreground">
           {t.risks.worstMember}{" "}
           <strong className="text-foreground">
@@ -358,44 +345,16 @@ function ScenarioCard({ risk }: { risk: Risk }) {
         {capped && (
           <span className="text-muted-foreground">{t.risks.cappedNote}</span>
         )}
-      </CardFooter>
-    </Card>
+      </RiskFooter>
+    </RiskShell>
   );
 }
 
 function FindingRiskCard({ risk }: { risk: Risk }) {
   return (
-    // The lift is a hundred and twenty milliseconds and one step of shadow --
-    // enough that a pointer moving down the ranking can tell which card it is
-    // over, and not so much that a page of them looks like it is breathing.
-    <Card className="transition-shadow duration-150 hover:shadow-md">
-      <CardHeader>
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <SeverityBadge level={risk.risk_level} />
-              <StatusPill status={risk.status} />
-            </div>
-            <Link
-              to={`/risks/${risk.id}`}
-              className="mt-2 block text-sm font-medium text-foreground underline-offset-4 hover:underline"
-            >
-              {risk.title}
-            </Link>
-            <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-              {risk.description}
-            </p>
-          </div>
-          <div className="shrink-0 text-right">
-            <p className="text-3xl font-semibold tabular-nums text-foreground">
-              {Number(risk.risk_score).toFixed(0)}
-            </p>
-            <p className="text-xs text-muted-foreground">risk score</p>
-          </div>
-        </div>
-      </CardHeader>
-
-      <CardFooter className="flex flex-wrap gap-x-6 gap-y-2 border-t pt-4 text-xs">
+    <RiskShell>
+      <RiskHead risk={risk} subtitle={risk.description} />
+      <RiskFooter>
         <Factor
           icon={FACTOR_ICONS.criticality}
           label="Asset criticality"
@@ -421,8 +380,84 @@ function FindingRiskCard({ risk }: { risk: Risk }) {
           label="Business impact"
           value={<strong className="text-foreground">{risk.business_impact}</strong>}
         />
-      </CardFooter>
-    </Card>
+      </RiskFooter>
+    </RiskShell>
+  );
+}
+
+/**
+ * The frame every ranked risk shares.
+ *
+ * The lift on hover is one border step -- enough that a pointer moving down
+ * the ranking can tell which row it is over, and not so much that a page of
+ * them looks like it is breathing.
+ */
+function RiskShell({ children }: { children: React.ReactNode }) {
+  return (
+    <article className="group relative overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-foreground/20">
+      {children}
+    </article>
+  );
+}
+
+/**
+ * Score first, then what it is. The number is what ranks the list, so it
+ * leads the row as a tile tinted by its level rather than trailing it in
+ * grey at the far edge, where it used to sit a screen-width from its title.
+ */
+function RiskHead({
+  risk,
+  badge,
+  subtitle,
+}: {
+  risk: Risk;
+  badge?: string;
+  subtitle: string;
+}) {
+  return (
+    <div className="flex items-start gap-4 p-4">
+      <ScoreTile score={Number(risk.risk_score)} level={risk.risk_level} />
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <SeverityBadge level={risk.risk_level} />
+          <StatusPill status={risk.status} />
+          {/* Says which formula scored this, so the arithmetic below is read
+              against the right one. */}
+          {badge && (
+            <Badge variant="outline" className="gap-1">
+              {createElement(RISK_KIND_ICONS[risk.kind] ?? RISK_KIND_ICONS.FINDING, {
+                className: "size-3",
+                "aria-hidden": true,
+              })}
+              {badge}
+            </Badge>
+          )}
+        </div>
+        <Link
+          to={`/risks/${risk.id}`}
+          // The overlay makes the whole card the way into the risk; the title
+          // stays the link's accessible name.
+          className="mt-1.5 block text-[15px] font-medium text-foreground underline-offset-4 after:absolute after:inset-0 hover:underline"
+        >
+          {risk.title}
+        </Link>
+        <p className="mt-0.5 line-clamp-2 max-w-3xl text-xs leading-relaxed text-muted-foreground">
+          {subtitle}
+        </p>
+      </div>
+      <ChevronRightIcon
+        className="mt-1 size-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground"
+        aria-hidden
+      />
+    </div>
+  );
+}
+
+function RiskFooter({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex flex-wrap gap-x-6 gap-y-2 border-t border-border bg-muted/30 px-4 py-2.5 text-xs sm:pl-20">
+      {children}
+    </div>
   );
 }
 

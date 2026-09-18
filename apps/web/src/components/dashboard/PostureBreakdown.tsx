@@ -3,7 +3,6 @@ import { lazy, Suspense } from "react";
 import type { Dashboard } from "@/lib/types";
 import { Bars } from "@/components/charts/Bars";
 import { DonutLegend, type Slice } from "@/components/charts/DonutLegend";
-import { StackedBar } from "@/components/charts/StackedBar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { label } from "@/lib/format";
 
@@ -20,37 +19,29 @@ const SEVERITY_TONES: Record<string, string> = {
 };
 
 /**
- * The shape of what is open: how it splits by severity, what became of it, and
- * how it lands in risk bands once each finding is read against its asset.
+ * The shape of what is open: what became of it, and how it lands in risk bands
+ * once each finding is read against its asset.
  *
- * Three readings of one set, and each uses the form its question asks for:
+ * Two readings of one set, and each uses the form its question asks for:
  *
- * * **Severity is a composition**, so it is one stacked bar — five lengths on a
- *   shared line, compared exactly, in 8px of height.
  * * **Status is a whole divided in four**, which is the one case a ring is
  *   genuinely good at, and the accepted-risk slice is the reason it is here:
  *   most products fold "we decided to live with it" into "not open", and this
  *   one refuses to.
  * * **Risk bands are a ranking**, so bars from a common baseline. A band is not
- *   the rule's severity — it is what that finding means on that asset — which is
- *   why the two blocks rarely have the same shape and why both are shown.
+ *   the rule's severity -- it is what that finding means on that asset -- which
+ *   is why it rarely has the severity strip's shape and why both are shown.
+ *
+ * The severity composition that used to sit first is gone: the severity strip
+ * directly above counts the same four numbers.
  */
 export function PostureBreakdown({
-  bySeverity,
   byStatus,
   riskBands,
 }: {
-  bySeverity: Record<string, number>;
   byStatus: Record<string, number>;
   riskBands: Dashboard["risk_bands"];
 }) {
-  const severitySegments = ["CRITICAL", "HIGH", "MEDIUM", "LOW"].map((level) => ({
-    key: level,
-    label: label(level),
-    value: bySeverity[level] ?? 0,
-    tone: SEVERITY_TONES[level],
-  }));
-
   const statusSlices: Slice[] = [
     {
       key: "OPEN",
@@ -103,19 +94,14 @@ export function PostureBreakdown({
   return (
     <section
       aria-labelledby="posture-breakdown"
-      className="grid gap-px overflow-hidden rounded-xl bg-border ring-1 ring-foreground/10 lg:grid-cols-3"
+      className="grid gap-px overflow-hidden rounded-xl bg-border ring-1 ring-foreground/10 lg:grid-cols-2"
     >
       <h2 id="posture-breakdown" className="sr-only">
         What is open, broken down
       </h2>
 
-      <Block title="Severity mix" hint="What the rules judged, in the abstract">
-        <StackedBar
-          segments={severitySegments}
-          ariaLabel="Open findings by severity"
-        />
-      </Block>
-
+      {/* No severity mix here: the strip above counts the same four numbers,
+          and a second drawing of them was a panel spent repeating one fact. */}
       <Block title="Where findings stand" hint="Accepted risk is counted, never absorbed">
         {statusTotal === 0 ? (
           <p className="text-xs text-muted-foreground">
@@ -156,7 +142,7 @@ function Block({
   return (
     <div className="flex flex-col gap-3 bg-card p-5">
       <div>
-        <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        <h3 className="text-xs font-medium text-muted-foreground">
           {title}
         </h3>
         <p className="mt-1 text-xs text-muted-foreground/80">{hint}</p>

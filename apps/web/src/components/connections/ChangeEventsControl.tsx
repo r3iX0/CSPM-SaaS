@@ -176,7 +176,7 @@ export function ChangeEventsControl({
 
               {data.commands.length > 0 && (
                 <div className="mt-3">
-                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  <p className="text-[11px] font-medium text-muted-foreground">
                     {connection.provider === "aws"
                       ? t.connection.changeCommandsLabelAws
                       : t.connection.changeCommandsLabel}

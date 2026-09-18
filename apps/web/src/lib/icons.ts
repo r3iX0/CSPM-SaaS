@@ -17,6 +17,7 @@ import {
   EthernetPortIcon,
   ExternalLinkIcon,
   FolderIcon,
+  FlaskConicalIcon,
   FolderTreeIcon,
   GlobeIcon,
   HardDriveIcon,
@@ -162,6 +163,9 @@ export const SETUP_ICONS = {
   expiry: ClockIcon,
   duration: ClockIcon,
 } as const;
+
+/** The shared demo organization, wherever it is named (DECISIONS.md §99). */
+export const DEMO_ICON = FlaskConicalIcon;
 
 /** The kinds of thing the risks page ranks. */
 export const RISK_KIND_ICONS: Record<string, LucideIcon> = {

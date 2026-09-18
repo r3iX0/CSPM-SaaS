@@ -184,8 +184,13 @@ export function AccountMenu({
                   >
                     <Avatar name={organization.name} />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm text-foreground">
-                        {organization.name}
+                      <span className="flex items-center gap-1.5 text-sm text-foreground">
+                        <span className="truncate">{organization.name}</span>
+                        {organization.is_demo && (
+                          <span className="shrink-0 rounded-full border border-medium-border bg-medium-bg px-1.5 py-px text-[10px] font-medium text-medium">
+                            {t.demo.badge}
+                          </span>
+                        )}
                       </span>
                       {organization.role && (
                         <span className="block text-xs text-muted-foreground">
@@ -234,7 +239,7 @@ export function AccountMenu({
 function Section({ label: text, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="border-b border-border py-2 last:border-b-0">
-      <p className="px-3 pb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+      <p className="px-3 pb-1.5 text-[11px] font-medium text-muted-foreground">
         {text}
       </p>
       {children}

@@ -552,6 +552,29 @@ move.
 The seed refuses to run when `APP_ENV=production`; set that service to
 `staging` while demoing, or skip the seed and connect a real tenant instead.
 
+### The shared demo organization (production)
+
+This is the demo every signed-in user can open from onboarding ("Explore a
+demo environment") and from the empty dashboard. It is one organization, flagged
+`is_demo`, with no owner; anyone who joins it is a `VIEWER`, and the API refuses
+every write in it whatever the role (`DECISIONS.md` §99). Build it once after
+migration `0036` has run, from the API service's shell:
+
+```bash
+python /srv/database/seed/demo_environment.py --shared
+```
+
+It runs the recorded Azure capture through the real pipeline twice — as
+captured, then with two headline problems repaired — so the demo shows a score
+that moved and findings a later scan verified fixed. Unlike the per-user mode it
+runs under `APP_ENV=production`: it touches no customer's organization.
+
+Run the same command again to rebuild it — after a rules change, or when the
+stored evidence has aged out of retention and citations read "No longer
+stored". The organization id and everybody who has joined are kept. Until it
+has been built once, "Explore a demo environment" answers that the demo is not
+available.
+
 ---
 
 ## 6. Redeploying after code changes

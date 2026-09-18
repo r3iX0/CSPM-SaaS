@@ -3,9 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   BoxesIcon,
+  KeyboardIcon,
   LaptopIcon,
   ListChecksIcon,
   MoonIcon,
+  PlayIcon,
+  PlusIcon,
   SearchIcon,
   SunIcon,
 } from "lucide-react";
@@ -14,6 +17,8 @@ import { api } from "@/lib/api";
 import type { Asset, Rule } from "@/lib/types";
 import { NAV_GROUPS } from "@/components/layout/nav";
 import { setThemeChoice, type ThemeChoice } from "@/lib/theme";
+import { SHORTCUTS_EVENT } from "@/lib/keyboard";
+import { useScanWizard } from "@/components/scans/ScanWizardProvider";
 import { ResourceTypeLabel } from "@/components/security/IconLabel";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { Button } from "@/components/ui/button";
@@ -158,6 +163,23 @@ export function CommandPalette() {
       .slice(0, RESULT_LIMIT);
   }, [rules, filtering, trimmed]);
 
+  // Things to do, not only places to go -- the palette is where a keyboard
+  // user starts a scan without first navigating to the button for it.
+  const scanWizard = useScanWizard();
+  const actions = [
+    { id: "scan", label: "Run a scan", icon: PlayIcon, run: () => scanWizard.start() },
+    { id: "connect", label: "Connect a cloud", icon: PlusIcon, to: "/connections/new" },
+    {
+      id: "shortcuts",
+      label: "Keyboard shortcuts",
+      icon: KeyboardIcon,
+      run: () => window.dispatchEvent(new Event(SHORTCUTS_EVENT)),
+    },
+  ];
+  const actionHits = filtering
+    ? actions.filter((action) => matches(action.label, trimmed))
+    : actions;
+
   const themeHits = useMemo(
     () =>
       filtering ? THEME_COMMANDS.filter((c) => matches(c.label, trimmed)) : [],
@@ -175,6 +197,7 @@ export function CommandPalette() {
 
   const assetHits = searching ? (assets ?? []) : [];
   const nothing =
+    actionHits.length === 0 &&
     pages.length === 0 &&
     assetHits.length === 0 &&
     ruleHits.length === 0 &&
@@ -231,6 +254,29 @@ export function CommandPalette() {
                   through their rule or their asset.
                 </span>
               </div>
+            )}
+
+            {actionHits.length > 0 && (
+              <CommandGroup heading="Actions">
+                {actionHits.map((action) => (
+                  <CommandItem
+                    key={action.id}
+                    value={`action-${action.id}`}
+                    onSelect={() => {
+                      if (action.to) {
+                        go(action.to);
+                        return;
+                      }
+                      setOpen(false);
+                      setQuery("");
+                      action.run?.();
+                    }}
+                  >
+                    <action.icon />
+                    {action.label}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
             )}
 
             {pages.length > 0 && (

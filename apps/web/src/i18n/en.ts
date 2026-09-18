@@ -83,6 +83,47 @@ export const en = {
     microsoftHint:
       "Signing in with Microsoft does not give CloudGuard access to your Azure resources \u2014 that is a separate consent step.",
   },
+  // The dashboard's getting-started checklist. Every step is read off state
+  // the server already holds, so the list is right on any device and for any
+  // teammate -- nothing here is remembered by the browser except a dismissal.
+  demo: {
+    explore: "Explore a demo environment",
+    exploreDetail: "A recorded Azure estate, scanned by CloudGuard. Read-only, nothing to set up.",
+    opening: "Opening the demo\u2026",
+    unavailable: "The demo is not available right now.",
+    badge: "Demo",
+    bannerTitle: "You are exploring the CloudGuard demo",
+    bannerDetail:
+      "A recorded Azure estate, scanned by the real product. Everything here is read-only.",
+    createOwn: "Create your organization",
+    backTo: "Back to {name}",
+    leave: "Leave the demo",
+    readOnlyAction: "Read-only in the demo",
+  },
+  gettingStarted: {
+    title: "Get CloudGuard working for you",
+    intro: "Five steps from a connected cloud to a fix you can prove.",
+    progress: "{done} of {total} done",
+    dismiss: "Hide this checklist",
+    connectTitle: "Connect your cloud environment",
+    connectDetail: "Read-only access, granted by your administrator. About three minutes.",
+    connectAction: "Connect a cloud",
+    continueAction: "Continue setup",
+    scanTitle: "Run your first scan",
+    scanDetail: "CloudGuard reads the environment and scores what it finds.",
+    scanAction: "Run a scan",
+    fixTitle: "Fix your top risk and verify it",
+    fixDetail: "Apply the fix, rescan, and watch CloudGuard confirm it is gone.",
+    fixAction: "Open the top risk",
+    fixActionFallback: "Open findings",
+    scheduleTitle: "Turn on automatic scanning",
+    scheduleDetail: "Keep the posture current without anyone remembering to scan.",
+    scheduleAction: "Choose a schedule",
+    contextTitle: "Say what each environment is for",
+    contextDetail: "Criticality and data sensitivity sharpen every risk score.",
+    contextAction: "Declare in Settings",
+    waitingOnPrevious: "After the step before",
+  },
   onboarding: {
     createOrg: "Create your organization",
     orgName: "Organization name",
@@ -118,7 +159,7 @@ export const en = {
   connection: {
     title: "Cloud connections",
     intro:
-      "One connection per trust boundary. Everything beneath it is discovered, not registered by hand \u2014 so an environment created next month gets scanned instead of quietly missed.",
+      "One connection per trust boundary. Everything beneath it is discovered automatically.",
     connectCloud: "Connect a cloud",
     noConnections: "No cloud environment connected yet.",
     noConnectionsHelp:
@@ -639,9 +680,12 @@ export const en = {
       "It may have been deleted with the scan that raised it. The risks list shows everything CloudGuard currently ranks.",
   },
   attackPaths: {
+    routesLabel: "Routes to sensitive data",
+    entryPointsLabel: "Exposed assets",
+    sensitiveTargetsLabel: "Sensitive assets",
     title: "Attack paths",
     intro:
-      "The findings list says what is wrong. This says what is wrong \u2014 together. A jump box, an over-privileged identity and a storage account are three findings; the route between them is one problem, and it has one cheapest fix.",
+      "Routes from something exposed to something worth taking \u2014 and the one link that cuts each.",
     // The empty state has to distinguish three different nothings, because
     // they call for three different actions.
     emptyNoPaths: "Nothing exposed can reach anything sensitive",
@@ -699,6 +743,7 @@ export const en = {
     cancel: "Cancel scan",
     details: "Details",
     hideDetails: "Hide details",
+    history: "History",
     duration: "Duration",
     startedAt: "Started",
     evaluated: "Resources evaluated",
@@ -796,7 +841,7 @@ export const en = {
   compliance: {
     title: "Compliance",
     intro:
-      "What CloudGuard's checks can evidence against the frameworks you report on \u2014 and, just as importantly, what they cannot.",
+      "What CloudGuard's checks can evidence against each framework \u2014 and what they cannot.",
     notALegalClaim:
       "This is evidence, not a compliance verdict. A green control means specific misconfigurations were absent at the last scan; it is not a statement that a requirement is met in law or that an audit would pass.",
     coverage: "Assessable coverage",
@@ -846,7 +891,7 @@ export const en = {
   changes: {
     title: "Changes",
     intro:
-      "The rest of the product says what is true in your environment now. This says what moved. A scan that finds nothing different writes nothing here, so a quiet week reads as a quiet week rather than as a wall of rows saying everything is still where it was.",
+      "What moved between scans: assets that appeared, disappeared, or became more exposed.",
     empty: "Nothing moved in this window",
     emptyDetail:
       "No asset appeared, disappeared, or changed exposure, sensitivity or criticality in the period you are looking at. Widen the window to look further back.",
@@ -886,7 +931,7 @@ export const en = {
   reports: {
     title: "Reports",
     intro:
-      "The screens answer questions as you ask them. A report is the same evidence fixed to a moment, so it can be filed, sent to a board, or handed to an auditor \u2014 which is why every one of them prints when its evidence was collected and what could not be read.",
+      "The same evidence, fixed to a moment \u2014 to file, send to a board or hand to an auditor.",
     executive: "Executive report",
     executiveDetail:
       "For a reader who does not touch Azure: the posture score and where it is going, the worst risks by what they would actually cost, and compliance coverage. Deliberately lists no findings \u2014 a summary that ends in a four-hundred-row table is a technical report with a cover page.",

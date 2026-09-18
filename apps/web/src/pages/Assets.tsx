@@ -1,7 +1,7 @@
-import { Fragment, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Fragment, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { BoxesIcon, ListIcon, NetworkIcon, SearchIcon, XIcon } from "lucide-react";
+import { BoxesIcon, SearchIcon, XIcon } from "lucide-react";
 import { resourceTypeIcon } from "@/lib/icons";
 import { ResourceTypeLabel } from "@/components/security/IconLabel";
 
@@ -16,6 +16,9 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { SelectField } from "@/components/common/SelectField";
+import { SegmentedFilter } from "@/components/common/SegmentedFilter";
+import { useUrlFilters } from "@/lib/useUrlFilters";
+import { ROW_ACTIVE, useRowNavigation } from "@/lib/keyboard";
 import {
   Table,
   TableBody,
@@ -25,11 +28,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Pager } from "@/components/common/Pager";
-import { cn, formatDate, resourceTypeLabel } from "@/lib/format";
+import { cn, formatDate, formatRelative, resourceTypeLabel } from "@/lib/format";
 import { scopeLabel } from "@/lib/scope";
 import { stagger } from "@/lib/motion";
 
 const PAGE_SIZE = 50;
+const SEARCH_DEBOUNCE_MS = 250;
 
 type GroupKey = "none" | "scope" | "resource_type" | "environment";
 
@@ -57,20 +61,41 @@ type View = "list" | "tree";
  */
 export function AssetsPage() {
   const t = useT();
-  const [search, setSearch] = useState("");
-  const [environment, setEnvironment] = useState("all");
-  const [exposure, setExposure] = useState("all");
-  const [type, setType] = useState("all");
-  const [groupBy, setGroupBy] = useState<GroupKey>("scope");
-  const [view, setView] = useState<View>("list");
-  const [page, setPage] = useState(0);
+  // Every filter, the view and the grouping live in the URL, so a filtered
+  // inventory is a link -- and the scope filters the tree links into are the
+  // same mechanism rather than a special case.
+  const [filters, update] = useUrlFilters({
+    q: "",
+    environment: "all",
+    exposure: "all",
+    type: "all",
+    group: "scope",
+    view: "list",
+    page: "0",
+    subscription_id: "",
+    resource_group: "",
+  });
+  const { environment, exposure, type } = filters;
+  const groupBy = filters.group as GroupKey;
+  const view = (filters.view === "tree" ? "tree" : "list") as View;
+  const page = Math.max(0, Number.parseInt(filters.page, 10) || 0);
+  const subscriptionId = filters.subscription_id;
+  const resourceGroup = filters.resource_group;
+  const search = filters.q;
 
-  // The scope filters live in the URL rather than in state: they are arrived
-  // at from the tree, which links into this list, so they have to survive
-  // being shared and navigated back to.
-  const [searchParams, setSearchParams] = useSearchParams();
-  const subscriptionId = searchParams.get("subscription_id") ?? "";
-  const resourceGroup = searchParams.get("resource_group") ?? "";
+  // Typed here, written to the URL after a pause -- a request per keystroke is
+  // what this page used to send.
+  const [typed, setTyped] = useState(filters.q);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (typed.trim() !== search) update({ q: typed.trim() || null, page: null });
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [typed, search, update]);
+
+  function setPage(next: number) {
+    update({ page: String(next) });
+  }
 
   const params = new URLSearchParams();
   if (search) params.set("search", search);
@@ -83,11 +108,7 @@ export function AssetsPage() {
   params.set("offset", String(page * PAGE_SIZE));
 
   function clearScope() {
-    const next = new URLSearchParams(searchParams);
-    next.delete("subscription_id");
-    next.delete("resource_group");
-    setSearchParams(next, { replace: true });
-    setPage(0);
+    update({ subscription_id: null, resource_group: null, page: null });
   }
 
   const { data, isLoading, error, refetch } = useQuery({
@@ -133,6 +154,19 @@ export function AssetsPage() {
     [assets],
   );
 
+  /**
+   * Environments present in this page, plus the one selected. It used to offer
+   * a fixed "Production / Development", so staging -- and anything else a
+   * customer calls theirs -- could not be filtered at all.
+   */
+  const environments = useMemo(() => {
+    const found = new Set(
+      assets.map((a) => a.environment).filter((value): value is string => Boolean(value)),
+    );
+    if (environment !== "all") found.add(environment);
+    return [...found].sort();
+  }, [assets, environment]);
+
   const sorted = useMemo(
     () =>
       [...assets].sort((a, b) => {
@@ -158,6 +192,17 @@ export function AssetsPage() {
     return [...map.entries()].sort((a, b) => b[1].length - a[1].length);
   }, [sorted, groupBy]);
 
+  // Rows in the order they are drawn -- grouped, then within each group -- so
+  // `j` moves down the screen rather than through the fetch order.
+  const drawn = useMemo(() => groups.flatMap(([, rows]) => rows), [groups]);
+  const rowIndex = useMemo(
+    () => new Map(drawn.map((asset, index) => [asset.id, index])),
+    [drawn],
+  );
+  const activeRow = useRowNavigation(
+    view === "list" ? drawn.map((asset) => `/assets/${asset.id}`) : [],
+  );
+
   const filtering =
     search !== "" ||
     environment !== "all" ||
@@ -167,13 +212,9 @@ export function AssetsPage() {
     resourceGroup !== "";
   const pages = Math.ceil(total / PAGE_SIZE);
 
-  function resetTo(setter: (value: string) => void) {
-    return (value: string | null) => {
-      setter(value ?? "all");
-      // A filter change re-slices the whole set, so page 4 of the old result is
-      // meaningless against the new one.
-      setPage(0);
-    };
+  /** A filter change re-slices the whole set, so the page resets with it. */
+  function resetTo(key: "type" | "environment" | "exposure") {
+    return (value: string | null) => update({ [key]: value ?? "all", page: null });
   }
 
   return (
@@ -186,35 +227,22 @@ export function AssetsPage() {
           // Two readings of one inventory: the queue, and the shape. The list
           // ranks by what is wrong; the tree says which part of the estate --
           // and so which owner -- it is wrong in.
-          <div className="flex items-center gap-1 rounded-lg border p-0.5">
-            <Button
-              variant={view === "list" ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setView("list")}
-              aria-pressed={view === "list"}
-            >
-              <ListIcon data-icon="inline-start" />
-              List
-            </Button>
-            <Button
-              variant={view === "tree" ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setView("tree")}
-              aria-pressed={view === "tree"}
-            >
-              <NetworkIcon data-icon="inline-start" />
-              Hierarchy
-            </Button>
-          </div>
+          <SegmentedFilter
+            label="View"
+            value={view}
+            onChange={(value) => update({ view: value })}
+            segments={[
+              { value: "list", label: "List" },
+              { value: "tree", label: "Hierarchy" },
+            ]}
+          />
         }
       />
 
       {view === "tree" && (
         <>
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            Counted over the whole estate rather than over a page, and ordered
-            worst first at both levels. Opening a group lists what is in it;
-            the filters live on the list view.
+          <p className="text-xs text-muted-foreground">
+            The whole estate, worst first. Open a group to list what is in it.
           </p>
           <AssetTree />
         </>
@@ -228,13 +256,11 @@ export function AssetsPage() {
             aria-hidden
           />
           <Input
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(0);
-            }}
+            value={typed}
+            onChange={(e) => setTyped(e.target.value)}
             placeholder="Search by name"
             aria-label="Search assets"
+            data-page-search
             className="pl-8"
           />
         </div>
@@ -242,7 +268,7 @@ export function AssetsPage() {
         <div className="flex flex-wrap items-center gap-2">
           <SelectField
             value={type}
-            onValueChange={resetTo(setType)}
+            onValueChange={resetTo("type")}
             ariaLabel="Filter by type"
             className="w-[190px]"
             idleValue="all"
@@ -258,20 +284,22 @@ export function AssetsPage() {
 
           <SelectField
             value={environment}
-            onValueChange={resetTo(setEnvironment)}
+            onValueChange={resetTo("environment")}
             ariaLabel="Filter by environment"
             className="w-[170px]"
             idleValue="all"
             options={[
               { value: "all", label: "All environments" },
-              { value: "production", label: "Production" },
-              { value: "development", label: "Development" },
+              ...environments.map((value) => ({
+                value,
+                label: value.charAt(0).toUpperCase() + value.slice(1),
+              })),
             ]}
           />
 
           <SelectField
             value={exposure}
-            onValueChange={resetTo(setExposure)}
+            onValueChange={resetTo("exposure")}
             ariaLabel="Filter by exposure"
             className="w-[160px]"
             idleValue="all"
@@ -287,7 +315,7 @@ export function AssetsPage() {
 
           <SelectField
             value={groupBy}
-            onValueChange={(value) => setGroupBy((value as GroupKey) || "none")}
+            onValueChange={(value) => update({ group: value || "none" })}
             ariaLabel="Group assets"
             className="w-[150px]"
             options={[
@@ -349,12 +377,16 @@ export function AssetsPage() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  setSearch("");
-                  setEnvironment("all");
-                  setExposure("all");
-                  setType("all");
-                  clearScope();
-                  setPage(0);
+                  setTyped("");
+                  update({
+                    q: null,
+                    environment: null,
+                    exposure: null,
+                    type: null,
+                    subscription_id: null,
+                    resource_group: null,
+                    page: null,
+                  });
                 }}
               >
                 Clear filters
@@ -411,13 +443,20 @@ export function AssetsPage() {
                       {rows.map((asset, index) => (
                         <TableRow
                           key={asset.id}
-                          className="[animation:cg-rise_260ms_ease-out_both]"
+                          // Relative, so the name's overlay makes the whole
+                          // row the way into the asset.
+                          className={cn(
+                            "relative cursor-pointer [animation:cg-rise_260ms_ease-out_both]",
+                            ROW_ACTIVE,
+                          )}
                           style={stagger(index)}
+                          data-row-index={rowIndex.get(asset.id)}
+                          data-active={activeRow === rowIndex.get(asset.id)}
                         >
                           <TableCell className="max-w-0">
                             <Link
                               to={`/assets/${asset.id}`}
-                              className="block truncate font-medium text-foreground hover:underline"
+                              className="block truncate font-medium text-foreground after:absolute after:inset-0 hover:underline"
                             >
                               {asset.name}
                             </Link>
@@ -438,17 +477,26 @@ export function AssetsPage() {
                             <SeverityBadge level={asset.public_exposure} size="sm" />
                           </TableCell>
                           <TableCell className="text-right">
+                            {/* A count, not a severity, so it gets no severity
+                                colour -- but a non-zero one is drawn as a chip
+                                so the rows with work on them stand out from the
+                                rows without. */}
                             <span
                               className={cn(
-                                "font-medium tabular-nums",
-                                asset.open_findings === 0 && "text-muted-foreground",
+                                "inline-flex min-w-7 justify-center rounded-md px-1.5 py-0.5 font-medium tabular-nums",
+                                asset.open_findings === 0
+                                  ? "text-muted-foreground/60"
+                                  : "bg-muted text-foreground ring-1 ring-border",
                               )}
                             >
                               {asset.open_findings}
                             </span>
                           </TableCell>
-                          <TableCell className="text-right text-muted-foreground">
-                            {formatDate(asset.last_seen_at)}
+                          <TableCell
+                            className="text-right text-muted-foreground tabular-nums"
+                            title={formatDate(asset.last_seen_at)}
+                          >
+                            {formatRelative(asset.last_seen_at)}
                           </TableCell>
                         </TableRow>
                       ))}

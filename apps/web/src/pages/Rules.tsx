@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
+import { useUrlFilters } from "@/lib/useUrlFilters";
 import { useQuery } from "@tanstack/react-query";
-import { ArchiveIcon, ListChecksIcon, SearchIcon } from "lucide-react";
+import { ArchiveIcon, ChevronDownIcon, ListChecksIcon, SearchIcon } from "lucide-react";
 import { api } from "@/lib/api";
 import type { Rule } from "@/lib/types";
 import { useT } from "@/i18n";
@@ -13,13 +14,6 @@ import {
 } from "@/components/common/states";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { SelectField } from "@/components/common/SelectField";
 import { RemediationPanel } from "@/components/security/RemediationPanel";
@@ -37,9 +31,17 @@ const SEVERITIES = ["CRITICAL", "HIGH", "MEDIUM", "LOW"] as const;
  */
 export function RulesPage() {
   const t = useT();
-  const [search, setSearch] = useState("");
-  const [severity, setSeverity] = useState("all");
-  const [showWithdrawn, setShowWithdrawn] = useState(false);
+  // In the URL so a filtered catalogue is a link. The search filters in the
+  // browser -- the whole catalogue arrives in one request -- so writing it on
+  // every key costs no request, and `replace` keeps it out of the history.
+  const [filters, update] = useUrlFilters({ q: "", severity: "all", withdrawn: "" });
+  const search = filters.q;
+  const severity = filters.severity;
+  const showWithdrawn = filters.withdrawn === "1";
+  const setSearch = (value: string) => update({ q: value || null });
+  const setSeverity = (value: string) => update({ severity: value });
+  const setShowWithdrawn = (next: (value: boolean) => boolean) =>
+    update({ withdrawn: next(showWithdrawn) ? "1" : null });
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["rules"],
@@ -77,7 +79,7 @@ export function RulesPage() {
       <PageHeader
         icon={ListChecksIcon}
         title={t.rules.title}
-        description="Every check CloudGuard runs. Rules are deterministic — the same environment always produces the same result."
+        description="Every check CloudGuard runs. Deterministic: the same environment always gives the same result."
       />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -91,6 +93,7 @@ export function RulesPage() {
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search rules"
             aria-label="Search rules"
+            data-page-search
             className="pl-8"
           />
         </div>
@@ -149,8 +152,7 @@ export function RulesPage() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  setSearch("");
-                  setSeverity("all");
+                  update({ q: null, severity: null });
                 }}
               >
                 Clear filters
@@ -162,7 +164,9 @@ export function RulesPage() {
 
       {rules.length > 0 && (
         <>
-          <div className="flex flex-col gap-3">
+          {/* A catalogue, so a list: a hundred-odd rules as separate cards
+              was a page to scroll, not to scan. */}
+          <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
             {rules.map((rule) => (
               <RuleCard key={rule.rule_id} rule={rule} />
             ))}
@@ -180,54 +184,60 @@ export function RulesPage() {
 function RuleCard({ rule }: { rule: Rule }) {
   const t = useT();
   const [open, setOpen] = useState(false);
+  const frameworks = Object.entries(rule.compliance_mappings);
 
   return (
-    <Card className={cn(!rule.enabled && "border-dashed")}>
-      <CardHeader>
-        <div className="flex flex-wrap items-center gap-2">
+    <div className={cn(!rule.enabled && "bg-unknown-bg/40")}>
+      <div className="flex flex-wrap items-start gap-x-4 gap-y-2 px-4 py-3.5 sm:px-5">
+        <span className="w-[4.5rem] shrink-0 pt-0.5">
           <SeverityBadge level={rule.severity} />
-          <code className="text-xs text-muted-foreground">{rule.rule_id}</code>
-          <span className="text-xs text-muted-foreground">v{rule.version}</span>
-          {/* A tenant-wide rule is about the directory rather than any one
-              resource, which is why nothing in the asset list carries it. */}
-          {rule.scope === "aggregate" && (
-            <Badge variant="secondary">Tenant-wide</Badge>
-          )}
-          {/* Dashed and named rather than greyed. A rule that has stopped
-              running is not a quieter rule -- it is one whose severity below
-              describes what it used to check. */}
-          {!rule.enabled && (
-            <span className="inline-flex items-center rounded-full border border-dashed border-unknown-border bg-unknown-bg px-2 py-0.5 text-xs font-medium text-unknown">
-              {t.rules.withdrawn}
-            </span>
-          )}
-        </div>
-        <CardTitle className="text-sm">{rule.name}</CardTitle>
-      </CardHeader>
+        </span>
 
-      <CardContent className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <p className="max-w-3xl flex-1 text-sm text-muted-foreground">
-            {rule.description}
-          </p>
-          <div className="shrink-0 text-right text-xs text-muted-foreground">
-            <p>Exploitability {rule.exploitability}/5</p>
-            <p className="mt-0.5">
-              {formatEffort(rule.estimated_effort_minutes)} to fix
-            </p>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-medium text-foreground">{rule.name}</p>
+            {/* A tenant-wide rule is about the directory rather than any one
+                resource, which is why nothing in the asset list carries it. */}
+            {rule.scope === "aggregate" && <Badge variant="secondary">Tenant-wide</Badge>}
+            {/* Dashed and named rather than greyed. A rule that has stopped
+                running is not a quieter rule -- it is one whose severity
+                describes what it used to check. */}
+            {!rule.enabled && (
+              <span className="inline-flex items-center rounded-full border border-dashed border-unknown-border bg-unknown-bg px-2 py-0.5 text-xs font-medium text-unknown">
+                {t.rules.withdrawn}
+              </span>
+            )}
           </div>
+          <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{rule.description}</p>
+          <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            <code className="font-mono text-[11px]">
+              {rule.rule_id} · v{rule.version}
+            </code>
+            {rule.applies_to.length > 0 && (
+              <span>
+                Applies to{" "}
+                <span className="text-foreground">
+                  {rule.applies_to.map(resourceTypeLabel).join(", ")}
+                </span>
+              </span>
+            )}
+            {frameworks.map(([framework, controls]) => (
+              <span key={framework}>
+                {framework.replace(/_/g, " ")}{" "}
+                <span className="text-foreground">{controls.join(", ")}</span>
+              </span>
+            ))}
+          </p>
         </div>
 
-        {!rule.enabled && (
-          <p className="rounded-lg border border-dashed border-unknown-border bg-unknown-bg px-3 py-2 text-xs leading-relaxed text-foreground">
-            {t.rules.withdrawnHelp}
-          </p>
-        )}
-
-        {/* Everything the catalogue held and never showed. Behind a toggle
-            rather than always open: a page of forty rules each carrying its
-            rationale and four fix formats is a document, not a list. */}
-        <div>
+        <div className="flex shrink-0 items-center gap-4">
+          <div className="hidden text-right text-xs text-muted-foreground tabular-nums md:block">
+            <p>{formatEffort(rule.estimated_effort_minutes)} to fix</p>
+            <p className="mt-0.5">Exploitability {rule.exploitability}/5</p>
+          </div>
+          {/* Everything the catalogue held and never showed. Behind a toggle
+              rather than always open: a page of rules each carrying its
+              rationale and four fix formats is a document, not a list. */}
           <Button
             variant="ghost"
             size="sm"
@@ -235,48 +245,38 @@ function RuleCard({ rule }: { rule: Rule }) {
             onClick={() => setOpen((v) => !v)}
           >
             {open ? t.rules.hideDetail : t.rules.showDetail}
+            <ChevronDownIcon
+              data-icon="inline-end"
+              aria-hidden
+              className={cn("transition-transform", open && "rotate-180")}
+            />
           </Button>
         </div>
+      </div>
 
-        {open && (
-          <div className="flex flex-col gap-4">
-            {rule.rationale && (
-              <div className="rounded-lg border bg-muted/40 p-3">
-                <p className="text-xs font-medium text-muted-foreground">
-                  {t.rules.why}
-                </p>
-                <p className="mt-1 text-sm leading-relaxed text-foreground">
-                  {rule.rationale}
-                </p>
-              </div>
-            )}
-            <RemediationPanel
-              remediation={rule.remediation}
-              spec={rule.remediation_spec}
-              effortMinutes={rule.estimated_effort_minutes}
-            />
-          </div>
-        )}
-      </CardContent>
+      {!rule.enabled && (
+        <p className="mx-4 mb-3 rounded-lg border border-dashed border-unknown-border bg-unknown-bg px-3 py-2 text-xs leading-relaxed text-foreground sm:mx-5">
+          {t.rules.withdrawnHelp}
+        </p>
+      )}
 
-      <CardFooter className="flex flex-wrap gap-x-6 gap-y-2 border-t pt-4 text-xs">
-        {rule.applies_to.length > 0 && (
-          <span className="text-muted-foreground">
-            Applies to{" "}
-            <strong className="text-foreground">
-              {rule.applies_to.map(resourceTypeLabel).join(", ")}
-            </strong>
-          </span>
-        )}
-        {Object.entries(rule.compliance_mappings).map(
-          ([framework, controls]) => (
-            <span key={framework} className="text-muted-foreground">
-              {framework.replace(/_/g, " ")}{" "}
-              <strong className="text-foreground">{controls.join(", ")}</strong>
-            </span>
-          ),
-        )}
-      </CardFooter>
-    </Card>
+      {open && (
+        <div className="flex flex-col gap-4 border-t border-border bg-muted/20 px-4 py-4 sm:px-5 sm:pl-[6.75rem]">
+          {rule.rationale && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground">{t.rules.why}</p>
+              <p className="mt-1 max-w-3xl text-sm leading-relaxed text-foreground">
+                {rule.rationale}
+              </p>
+            </div>
+          )}
+          <RemediationPanel
+            remediation={rule.remediation}
+            spec={rule.remediation_spec}
+            effortMinutes={rule.estimated_effort_minutes}
+          />
+        </div>
+      )}
+    </div>
   );
 }

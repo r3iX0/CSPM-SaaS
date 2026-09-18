@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
@@ -12,6 +11,7 @@ import {
 
 import { api } from "@/lib/api";
 import type { AssetChange, ChangeEvent } from "@/lib/types";
+import { useUrlFilters } from "@/lib/useUrlFilters";
 import { useT } from "@/i18n";
 import { cn, formatDate, formatDateTime } from "@/lib/format";
 import { changeDirection, type Direction } from "@/lib/changes";
@@ -48,9 +48,12 @@ const WINDOWS = [1, 7, 30, 90] as const;
  */
 export function ChangesPage() {
   const t = useT();
-  const [days, setDays] = useState<number>(7);
-  const [kind, setKind] = useState<string>("all");
-  const [page, setPage] = useState(0);
+  // In the URL, so "what moved in the last 30 days" is a link that can be sent.
+  const [filters, update] = useUrlFilters({ days: "7", kind: "all", page: "0" });
+  const days = Number.parseInt(filters.days, 10) || 7;
+  const kind = filters.kind;
+  const page = Math.max(0, Number.parseInt(filters.page, 10) || 0);
+  const setPage = (next: number) => update({ page: String(next) });
 
   const params = new URLSearchParams();
   params.set("days", String(days));
@@ -72,9 +75,9 @@ export function ChangesPage() {
   // page against. A full page is the only honest signal that more exists.
   const hasMore = events.length === PAGE_SIZE;
 
-  function rewindow(apply: () => void) {
-    apply();
-    setPage(0);
+  /** A new window or kind is a new set, so the page resets with it. */
+  function rewindow(patch: { days?: string; kind?: string }) {
+    update({ ...patch, page: null });
   }
 
   return (
@@ -88,7 +91,7 @@ export function ChangesPage() {
       <div className="flex flex-wrap items-center gap-2">
         <SelectField
           value={String(days)}
-          onValueChange={(value) => rewindow(() => setDays(Number(value)))}
+          onValueChange={(value) => rewindow({ days: String(value) })}
           ariaLabel={t.changes.windowLabel}
           className="w-[170px]"
           options={WINDOWS.map((window) => ({
@@ -99,7 +102,7 @@ export function ChangesPage() {
 
         <SelectField
           value={kind}
-          onValueChange={(value) => rewindow(() => setKind(value || "all"))}
+          onValueChange={(value) => rewindow({ kind: value || "all" })}
           ariaLabel={t.changes.kindLabel}
           className="w-[230px]"
           idleValue="all"
@@ -136,7 +139,7 @@ export function ChangesPage() {
             kind !== "all" ? (
               <Button
                 variant="outline"
-                onClick={() => rewindow(() => setKind("all"))}
+                onClick={() => rewindow({ kind: "all" })}
               >
                 Show all changes
               </Button>
@@ -153,10 +156,10 @@ export function ChangesPage() {
               from timestamps. */}
           {groupByDay(events).map(([day, rows]) => (
             <section key={day} className="flex flex-col gap-2">
-              <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <h2 className="text-xs font-medium text-muted-foreground">
                 {formatDate(day)}
               </h2>
-              <Card>
+              <Card className="py-0">
                 <CardContent className="p-0">
                   <ul>
                     {rows.map((event) => (

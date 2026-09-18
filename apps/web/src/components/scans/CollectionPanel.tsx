@@ -34,7 +34,7 @@ export function CollectionPanel({ scanId }: { scanId: string }) {
 
   return (
     <div>
-      <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+      <p className="text-[11px] font-medium text-muted-foreground">
         {t.scans.collectionTitle}
       </p>
 

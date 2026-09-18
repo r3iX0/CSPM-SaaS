@@ -53,7 +53,7 @@ export function AccessPanel({
 
   return (
     <div className="rounded-xl border border-border bg-muted/30 p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+      <p className="text-xs font-medium text-muted-foreground">
         {t.connection.accessTitle}
       </p>
 

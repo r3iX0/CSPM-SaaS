@@ -4,6 +4,7 @@ import { RouteIcon, ScissorsIcon } from "lucide-react";
 import { api } from "@/lib/api";
 import type { AttackPath, AttackPathMeta, ChokePoint } from "@/lib/types";
 import { useT } from "@/i18n";
+import { StatStrip } from "@/components/common/StatStrip";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { AttackPathRoute } from "@/components/graph/AttackPathRoute";
 import {
@@ -71,11 +72,13 @@ export function AttackPathsPage() {
 
       {data && data.paths.length > 0 && (
         <>
-          <p className="text-xs text-muted-foreground">
-            {data.meta.total} · {data.meta.entry_points}{" "}
-            {t.attackPaths.entryPoints} · {data.meta.sensitive_targets}{" "}
-            {t.attackPaths.sensitiveTargets}
-          </p>
+          <StatStrip
+            stats={[
+              { label: t.attackPaths.routesLabel, value: data.meta.total, alert: data.meta.total > 0 },
+              { label: t.attackPaths.entryPointsLabel, value: data.meta.entry_points },
+              { label: t.attackPaths.sensitiveTargetsLabel, value: data.meta.sensitive_targets },
+            ]}
+          />
 
           {/* Before the list, because it is what to do about the list. */}
           <ChokePoints chokes={chokes.data} />
@@ -252,7 +255,7 @@ function PathCard({ path }: { path: AttackPath }) {
 
       <CardContent>
         <div className="border-t pt-3">
-          <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+          <p className="text-[11px] font-medium text-muted-foreground">
             {t.attackPaths.route}
           </p>
           <AttackPathRoute

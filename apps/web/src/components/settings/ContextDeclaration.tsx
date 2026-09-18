@@ -119,19 +119,20 @@ function DeclarationFields({
   const declared = Boolean(declaration);
 
   return (
-    <div className="rounded-lg border p-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
+    <div className="overflow-hidden rounded-xl border border-border bg-card">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border px-5 py-3">
         <p className="text-sm font-medium text-foreground">{account.account_name}</p>
         <code className="text-[11px] text-muted-foreground">{account.subscription_id}</code>
       </div>
 
       <form
-        className="mt-3 flex flex-col gap-3"
+        className="flex flex-col"
         onSubmit={(event) => {
           event.preventDefault();
           save.mutate();
         }}
       >
+        <div className="flex flex-col gap-4 p-5">
         <div className="grid gap-3 sm:grid-cols-3">
           <Field>
             <FieldLabel htmlFor={`env-${account.id}`}>{t.settings.environment}</FieldLabel>
@@ -175,9 +176,10 @@ function DeclarationFields({
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
+        </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <Button type="submit" size="sm" disabled={save.isPending}>
+        <div className="flex flex-row-reverse flex-wrap items-center gap-3 border-t border-border bg-muted/30 px-5 py-3">
+          <Button type="submit" disabled={save.isPending}>
             {save.isPending ? t.settings.saving : t.settings.declare}
           </Button>
           {/* Only offered where there is something to withdraw. On an
@@ -198,7 +200,7 @@ function DeclarationFields({
             <span className="text-xs text-ok">{t.settings.saved}</span>
           )}
           {declared && declaration && (
-            <span className="text-xs text-muted-foreground">
+            <span className="mr-auto text-xs text-muted-foreground">
               {t.settings.declaredBy} {formatDateTime(declaration.declared_at)}
             </span>
           )}

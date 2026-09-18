@@ -50,6 +50,7 @@ class OrganizationOut(BaseModel):
     industry: str | None = None
     country: str | None = None
     created_at: datetime
+    is_demo: bool = False
 
 
 class MembershipOut(BaseModel):

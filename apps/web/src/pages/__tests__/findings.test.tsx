@@ -187,4 +187,28 @@ describe("the findings list", () => {
     await waitFor(() => expect(requested.length).toBeGreaterThan(0));
     expect(requested[requested.length - 1]).toContain("status=OPEN");
   });
+
+  it("opens on the severity a dashboard tile linked to", async () => {
+    // The dashboard's severity strip links to `?severity=CRITICAL`. Ignoring
+    // it sent every tile to the same unfiltered list.
+    renderPage("/findings?severity=CRITICAL");
+
+    await waitFor(() => expect(requested.length).toBeGreaterThan(0));
+    expect(requested[requested.length - 1]).toContain("severity=CRITICAL");
+  });
+
+  it("switches status from the view toggles, one click each", async () => {
+    renderPage();
+    await screen.findByText(/of 120 findings/);
+
+    fireEvent.click(screen.getByRole("button", { name: "Verified fixed" }));
+
+    await waitFor(() =>
+      expect(requested[requested.length - 1]).toContain("status=RESOLVED"),
+    );
+    expect(screen.getByRole("button", { name: "Verified fixed" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
 });

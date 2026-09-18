@@ -23,6 +23,27 @@ async def create_organization(
     return envelope(OrganizationOut.model_validate(org).model_dump(mode="json"))
 
 
+@router.post("/demo/join")
+async def join_demo(user: CurrentUser, session: DbSession) -> dict:
+    """Open the shared demo organization, read-only.
+
+    A recorded estate run through the real pipeline, so a new customer sees
+    what CloudGuard does before connecting anything. The caller becomes a
+    VIEWER, and every write in the demo is refused whatever the role.
+    """
+    org = await service.join_demo(session, user)
+    return envelope(
+        {**OrganizationOut.model_validate(org).model_dump(mode="json"), "role": "VIEWER"}
+    )
+
+
+@router.post("/demo/leave")
+async def leave_demo(user: CurrentUser, session: DbSession) -> dict:
+    """Take the demo out of the caller's organization list."""
+    await service.leave_demo(session)
+    return envelope({"left": True})
+
+
 @router.get("")
 async def list_organizations(user: CurrentUser, session: DbSession) -> dict:
     memberships = await service.list_memberships(session, user)

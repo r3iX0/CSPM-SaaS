@@ -6,6 +6,7 @@ import { api, ApiError } from "@/lib/api";
 import type { RiskDetail } from "@/lib/types";
 import { useT } from "@/i18n";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
+import { ScoreTile } from "@/components/security/ScoreTile";
 import { StatusPill } from "@/components/security/StatusPill";
 import { AttackPathRoute } from "@/components/graph/AttackPathRoute";
 import {
@@ -128,10 +129,12 @@ export function RiskDetailPage() {
               {data.description}
             </p>
           </div>
-          <div className="shrink-0 text-right">
-            <p className="text-4xl font-semibold tabular-nums text-foreground">
-              {Number(data.risk_score).toFixed(0)}
-            </p>
+          <div className="flex shrink-0 flex-col items-center gap-1.5">
+            <ScoreTile
+              score={Number(data.risk_score)}
+              level={data.risk_level}
+              className="size-16 [&>span]:text-2xl"
+            />
             <p className="text-xs text-muted-foreground">risk score</p>
           </div>
         </div>

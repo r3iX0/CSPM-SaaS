@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
-import { CloudIcon } from "lucide-react";
+import { CloudIcon, PlusIcon } from "lucide-react";
 
 import { api } from "@/lib/api";
 import type { CloudConnection } from "@/lib/types";
@@ -11,6 +11,7 @@ import { CardsSkeleton, PageHeader } from "@/components/common/states";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/format";
+import { useIsDemo } from "@/lib/useDemo";
 
 /**
  * The connections page: one row per connection, opened for the detail.
@@ -46,6 +47,7 @@ export function ConnectPage() {
   }
 
   const rows = connections.data ?? [];
+  const isDemo = useIsDemo();
 
   return (
     <div className="flex flex-col gap-6">
@@ -54,8 +56,9 @@ export function ConnectPage() {
         title={t.connection.title}
         description={t.connection.intro}
         actions={
-          rows.length > 0 ? (
+          rows.length > 0 && !isDemo ? (
             <Link to="/connections/new" className={cn(buttonVariants())}>
+              <PlusIcon data-icon="inline-start" aria-hidden />
               {t.connection.connectCloud}
             </Link>
           ) : undefined
@@ -86,7 +89,7 @@ export function ConnectPage() {
               narrow screens, where each row stacks and carries its own. */}
           <div
             aria-hidden
-            className="hidden px-5 py-2.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground md:grid md:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_auto] md:gap-4"
+            className="hidden px-5 py-2.5 text-[11px] font-medium text-muted-foreground md:grid md:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_auto] md:gap-4"
           >
             <span>{t.connection.columnConnection}</span>
             <span>{t.connection.columnStatus}</span>

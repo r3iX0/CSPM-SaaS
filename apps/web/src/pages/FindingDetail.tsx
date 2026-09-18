@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { CircleCheckIcon, type LucideIcon } from "lucide-react";
+import { CircleCheckIcon, RotateCcwIcon, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -38,6 +38,9 @@ import { Spinner } from "@/components/ui/spinner";
 import { AttackPathRoute } from "@/components/graph/AttackPathRoute";
 import { RemediationPanel } from "@/components/security/RemediationPanel";
 import { TrackFix } from "@/components/security/TrackFix";
+import { FixVerification } from "@/components/security/FixVerification";
+import { placeholderValues } from "@/lib/remediationFill";
+import { useIsDemo } from "@/lib/useDemo";
 import { VerificationPanel } from "@/components/security/VerificationPanel";
 import { FindingTimeline } from "@/components/security/FindingTimeline";
 import {
@@ -61,6 +64,9 @@ export function FindingDetailPage() {
   const queryClient = useQueryClient();
   const [acceptReason, setAcceptReason] = useState("");
   const [showAccept, setShowAccept] = useState(false);
+  // The scan a "verify" queued, followed on this page until it concludes.
+  const [verifyScanId, setVerifyScanId] = useState<string | null>(null);
+  const isDemo = useIsDemo();
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["finding", findingId],
@@ -105,6 +111,23 @@ export function FindingDetailPage() {
     retry: false,
   });
 
+  /**
+   * The resource's provider id, which states its subscription and resource
+   * group -- what fills the fix command's placeholders. Under the asset page's
+   * own cache key, so opening the asset afterwards costs nothing. Only asked for
+   * when there is a command to fill.
+   */
+  const asset = useQuery({
+    queryKey: ["asset", data?.resource?.id],
+    queryFn: () =>
+      api
+        .get<{ provider_resource_id: string }>(`/api/v1/assets/${data?.resource?.id}`)
+        .then((r) => r.data),
+    enabled: Boolean(data?.resource && (data.remediation_spec?.cli?.length ?? 0) > 0),
+    retry: false,
+    staleTime: 60_000,
+  });
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["finding", findingId] });
     queryClient.invalidateQueries({ queryKey: ["findings"] });
@@ -117,9 +140,11 @@ export function FindingDetailPage() {
   // record and left the reader looking at an unchanged screen.
   const rescan = useMutation({
     mutationFn: () =>
-      api.post<{ message: string }>(`/api/v1/findings/${findingId}/rescan`),
+      api.post<{ message: string; scan_id: string }>(`/api/v1/findings/${findingId}/rescan`),
+    // No toast: the verification panel follows this scan on the page and says
+    // what it found, which a toast that vanished in four seconds could not.
     onSuccess: ({ data }) => {
-      toast.success("Rescan requested", { description: data.message });
+      setVerifyScanId(data.scan_id);
       invalidate();
     },
     onError: (err) =>
@@ -190,26 +215,118 @@ export function FindingDetailPage() {
         ]}
       />
 
-      {/* WHAT */}
-      <div>
-        <div className="flex flex-wrap items-center gap-3">
-          <SeverityBadge level={data.severity} />
-          <StatusPill status={data.status} />
-          <span className="text-xs text-muted-foreground">
-            {data.rule_id} · v{data.rule_version}
-          </span>
+      {/* WHAT, and what to do about it. The actions sit beside the title
+          rather than at the foot of the page: they are the reason most people
+          open a finding, and a reader should not have to scroll past the
+          evidence, the provenance and the attack paths to reach them. */}
+      <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-4">
+        <div className="min-w-0 max-w-3xl flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <SeverityBadge level={data.severity} />
+            <StatusPill status={data.status} />
+            <span className="font-mono text-xs text-muted-foreground">
+              {data.rule_id} · v{data.rule_version}
+            </span>
+          </div>
+          <h1 className="mt-3 text-2xl font-semibold tracking-tight text-foreground">
+            {data.title}
+          </h1>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            {data.description}
+          </p>
         </div>
-        <h1 className="mt-3 text-2xl font-semibold tracking-tight text-foreground">
-          {data.title}
-        </h1>
-        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-          {data.description}
-        </p>
+
+        {/* Not in the demo: its findings are a recording, and every action
+            here is one the API would refuse there. */}
+        {!isDemo && (
+        <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+          <div className="flex flex-wrap gap-2">
+            {data.status !== "ACCEPTED_RISK" && data.status !== "RESOLVED" && (
+              <Button variant="ghost" onClick={() => setShowAccept((v) => !v)}>
+                {t.findings.acceptRisk}
+              </Button>
+            )}
+            {data.status === "OPEN" && (
+              <Button
+                variant="outline"
+                disabled={markInProgress.isPending}
+                onClick={() => markInProgress.mutate()}
+              >
+                {t.findings.markInProgress}
+              </Button>
+            )}
+            <Button onClick={() => rescan.mutate()} disabled={rescan.isPending}>
+              {rescan.isPending ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <RotateCcwIcon data-icon="inline-start" aria-hidden />
+              )}
+              {rescan.isPending ? t.common.loading : t.findings.rescan}
+            </Button>
+          </div>
+          <p className="max-w-xs text-xs text-muted-foreground sm:text-right">
+            {t.findings.cannotResolveManually}
+          </p>
+        </div>
+        )}
       </div>
+
+      {verifyScanId && (
+        <FixVerification
+          scanId={verifyScanId}
+          findingId={data.id}
+          findingStatus={data.status}
+          resourceName={data.resource?.name ?? null}
+          retrying={rescan.isPending}
+          onRetry={() => rescan.mutate()}
+          onClose={() => setVerifyScanId(null)}
+        />
+      )}
+
+      {showAccept && (
+        <Card>
+          <CardContent>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                accept.mutate();
+              }}
+            >
+              <Field>
+                <FieldLabel htmlFor="accept-reason">{t.findings.acceptReason}</FieldLabel>
+                <Input
+                  id="accept-reason"
+                  required
+                  autoFocus
+                  minLength={10}
+                  value={acceptReason}
+                  onChange={(e) => setAcceptReason(e.target.value)}
+                  placeholder="Compensating control in place: WAF restricts source addresses"
+                />
+                <FieldDescription>
+                  Recorded in the audit log. Accepted risks stay visible — they are
+                  never hidden.
+                </FieldDescription>
+              </Field>
+              <div className="mt-3 flex gap-2">
+                <Button type="submit" variant="destructive" disabled={accept.isPending}>
+                  {accept.isPending && <Spinner data-icon="inline-start" />}
+                  {t.findings.confirm}
+                </Button>
+                <Button type="button" variant="ghost" onClick={() => setShowAccept(false)}>
+                  {t.findings.cancel}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Not a generic success: it names the scan date, because "verified"
           here means an instrument looked again and not that somebody said so. */}
-      {data.status === "RESOLVED" && (
+      {/* Not while the verification panel is showing: it has just said the
+          same thing, about the same scan, one box up. */}
+      {data.status === "RESOLVED" && !verifyScanId && (
         <Alert className="border-ok-border bg-ok-bg text-ok">
           <CircleCheckIcon />
           <AlertTitle>Verified fixed</AlertTitle>
@@ -236,6 +353,54 @@ export function FindingDetailPage() {
             </Card>
           )}
 
+          {/* HOW TO FIX -- second, because it is what a reader came for. */}
+          <RemediationPanel
+            remediation={data.remediation}
+            spec={data.remediation_spec}
+            effortMinutes={data.estimated_effort_minutes}
+            fill={
+              data.resource
+                ? {
+                    values: placeholderValues(data.resource, asset.data?.provider_resource_id),
+                    resourceName: data.resource.name,
+                  }
+                : undefined
+            }
+            footer={
+              <div className="flex flex-col gap-4">
+                <TrackFix
+                  findingId={data.id}
+                  status={data.status}
+                  effortMinutes={data.estimated_effort_minutes}
+                />
+                {/* The end of the fix, where the fix is: applying it and
+                    proving it are one motion, not two places on the page. */}
+                {data.status !== "RESOLVED" && data.resource && !isDemo && (
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
+                    <p className="text-sm text-foreground">Applied the fix?</p>
+                    <Button
+                      size="sm"
+                      onClick={() => rescan.mutate()}
+                      disabled={rescan.isPending || verifyScanId !== null}
+                    >
+                      {rescan.isPending ? (
+                        <Spinner data-icon="inline-start" />
+                      ) : (
+                        <RotateCcwIcon data-icon="inline-start" aria-hidden />
+                      )}
+                      Verify it now
+                    </Button>
+                  </div>
+                )}
+              </div>
+            }
+          />
+
+          {/* DID IT WORK — only once somebody has claimed it did. */}
+          {data.verification && (
+            <VerificationPanel verification={data.verification} />
+          )}
+
           {/* WHAT IS ALREADY IN THE WAY */}
           <ControlsPanel controls={data.evidence.compensating_controls} />
 
@@ -255,114 +420,9 @@ export function FindingDetailPage() {
             hasAsset={Boolean(data.resource)}
           />
 
-          {/* HOW TO FIX */}
-          <RemediationPanel
-            remediation={data.remediation}
-            spec={data.remediation_spec}
-            effortMinutes={data.estimated_effort_minutes}
-            footer={
-              <TrackFix
-                findingId={data.id}
-                status={data.status}
-                effortMinutes={data.estimated_effort_minutes}
-              />
-            }
-          />
-
-          {/* DID IT WORK — only once somebody has claimed it did. */}
-          {data.verification && (
-            <VerificationPanel verification={data.verification} />
-          )}
-
-          {/* DID THE FIX WORK */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Verify the fix</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                {t.findings.cannotResolveManually}
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Button
-                  onClick={() => rescan.mutate()}
-                  disabled={rescan.isPending}
-                >
-                  {rescan.isPending && <Spinner data-icon="inline-start" />}
-                  {rescan.isPending ? t.common.loading : t.findings.rescan}
-                </Button>
-                {data.status === "OPEN" && (
-                  <Button
-                    variant="secondary"
-                    disabled={markInProgress.isPending}
-                    onClick={() => markInProgress.mutate()}
-                  >
-                    {t.findings.markInProgress}
-                  </Button>
-                )}
-                {data.status !== "ACCEPTED_RISK" &&
-                  data.status !== "RESOLVED" && (
-                    <Button
-                      variant="ghost"
-                      onClick={() => setShowAccept((v) => !v)}
-                    >
-                      {t.findings.acceptRisk}
-                    </Button>
-                  )}
-              </div>
-
-              {showAccept && (
-                <form
-                  className="mt-4 border-t pt-4"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    accept.mutate();
-                  }}
-                >
-                  <Field>
-                    <FieldLabel htmlFor="accept-reason">
-                      {t.findings.acceptReason}
-                    </FieldLabel>
-                    <Input
-                      id="accept-reason"
-                      required
-                      minLength={10}
-                      value={acceptReason}
-                      onChange={(e) => setAcceptReason(e.target.value)}
-                      placeholder="Compensating control in place: WAF restricts source addresses"
-                    />
-                    <FieldDescription>
-                      Recorded in the audit log. Accepted risks stay visible —
-                      they are never hidden.
-                    </FieldDescription>
-                  </Field>
-                  <div className="mt-3 flex gap-2">
-                    <Button
-                      type="submit"
-                      variant="destructive"
-                      disabled={accept.isPending}
-                    >
-                      {accept.isPending && <Spinner data-icon="inline-start" />}
-                      {t.findings.confirm}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => setShowAccept(false)}
-                    >
-                      {t.findings.cancel}
-                    </Button>
-                  </div>
-                </form>
-              )}
-            </CardContent>
-          </Card>
         </div>
 
         <div className="flex flex-col gap-6">
-          {data.timeline && data.timeline.length > 0 && (
-            <FindingTimeline events={data.timeline} />
-          )}
           {/* HOW BAD */}
           {data.risk && (
             <Card>
@@ -465,6 +525,11 @@ export function FindingDetailPage() {
             </Card>
           )}
 
+          {/* History under the score and the asset: how bad and where come
+              first, how it got here after. */}
+          {data.timeline && data.timeline.length > 0 && (
+            <FindingTimeline events={data.timeline} />
+          )}
           <Card>
             <CardHeader>
               <CardTitle>Timeline</CardTitle>

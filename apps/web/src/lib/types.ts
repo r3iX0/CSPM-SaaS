@@ -15,6 +15,8 @@ export interface Organization {
   country: string | null;
   created_at: string;
   role?: string;
+  /** The shared, read-only demo estate (DECISIONS.md §99). */
+  is_demo?: boolean;
 }
 
 /**
