@@ -9,6 +9,8 @@ import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { ScoreTile } from "@/components/security/ScoreTile";
 import { StatusPill } from "@/components/security/StatusPill";
 import { AttackPathRoute } from "@/components/graph/AttackPathRoute";
+import { OpenInGraph } from "@/components/graph/OpenInGraph";
+import { routeKeyOf } from "@/components/graph/routeKeys";
 import {
   Breadcrumbs,
   DetailSkeleton,
@@ -154,6 +156,22 @@ export function RiskDetailPage() {
               </CardHeader>
               <CardContent>
                 <AttackPathRoute steps={data.path} />
+                <div className="mt-3">
+                  {/* An escalation ends at a scope rather than at data, so it
+                      is not one of the attack paths the graph traces; it opens
+                      around the entry point untraced. */}
+                  <OpenInGraph
+                    entryId={data.path[0].source_id}
+                    traceKey={
+                      data.kind === "ATTACK_PATH"
+                        ? routeKeyOf(
+                            data.path[0].source_id,
+                            data.path[data.path.length - 1].target_id,
+                          )
+                        : undefined
+                    }
+                  />
+                </div>
                 {/* A route is a claim about how an environment is wired as of
                     a reading. Without this, one that survived the latest scan
                     and one nothing has re-checked since Tuesday look the same. */}

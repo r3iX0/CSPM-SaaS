@@ -9,17 +9,19 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, useLocation } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
+import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AssetNeighborhood } from "@/components/graph/AssetNeighborhood";
+import { OpenInGraph } from "@/components/graph/OpenInGraph";
 import {
   COLUMN_GAP,
   layoutNeighborhood,
   stepFrom,
 } from "@/components/graph/neighborhoodLayout";
 import { api } from "@/lib/api";
-import type { AttackPath, Neighborhood, NeighborhoodNode } from "@/lib/types";
+import type { AttackPath, Neighborhood, NeighborhoodNode, WhatIf } from "@/lib/types";
 
 function vertex(id: string, layer: number, type = "virtual_machine"): NeighborhoodNode {
   return {
@@ -153,6 +155,22 @@ function box(id: string): HTMLElement {
   return found;
 }
 
+const WHAT_IF: WhatIf = {
+  description: "vm runs as mi",
+  relationship: "has_identity",
+  source_id: "vm",
+  target_id: "mi",
+  closes: [
+    {
+      entry: { id: "vm", name: "vm" },
+      target: { id: "data", name: "data", data_sensitivity: "HIGH" },
+      hops: 3,
+    },
+  ],
+  before: 4,
+  after: 3,
+};
+
 function Where() {
   const location = useLocation();
   return <output data-testid="where">{location.search}</output>;
@@ -162,12 +180,17 @@ function mount(
   neighborhood: Neighborhood | ((url: string) => Neighborhood),
   meta: Record<string, unknown> = {},
   at = "/assets/row-vm",
+  whatIf: (url: string) => WhatIf = () => WHAT_IF,
 ) {
   const get = vi.spyOn(api, "get").mockImplementation((url: string) =>
-    Promise.resolve({
-      data: typeof neighborhood === "function" ? neighborhood(url) : neighborhood,
-      meta: { depth: 2, truncated: false, max_nodes: 150, fan_out: 12, ...meta },
-    }) as never,
+    Promise.resolve(
+      url.includes("/what-if")
+        ? { data: whatIf(url), meta: {} }
+        : {
+            data: typeof neighborhood === "function" ? neighborhood(url) : neighborhood,
+            meta: { depth: 2, truncated: false, max_nodes: 150, fan_out: 12, ...meta },
+          },
+    ) as never,
   );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
@@ -409,7 +432,8 @@ describe("the routes through an asset", () => {
     await userEvent.click(pick);
 
     expect(pick).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByText("mi can act over sub")).toBeInTheDocument();
+    // Once in the line, once as a link to try cutting.
+    expect(screen.getAllByText("mi can act over sub")).toHaveLength(2);
     expect(screen.getByText("Cutting this link severs the route")).toBeInTheDocument();
   });
 
@@ -441,5 +465,108 @@ describe("the routes through an asset", () => {
     await userEvent.click(screen.getByRole("button", { name: /draw the graph/i }));
 
     expect(await screen.findByText(/showing the 1 shortest of 31/i)).toBeInTheDocument();
+  });
+
+  it("says what cutting the route's cheapest break would close, across the organization", async () => {
+    const get = mount({ ...AROUND_VM, routes: [ROUTE] }, { routes_total: 1 });
+
+    await userEvent.click(screen.getByRole("button", { name: /draw the graph/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /vm → data/ }));
+
+    expect(await screen.findByText(/attack paths in the organization/)).toHaveTextContent(
+      "Closes 1 of 4 attack paths in the organization, leaving 3.",
+    );
+    expect(get).toHaveBeenCalledWith(
+      expect.stringContaining("/what-if?source=vm&relationship=has_identity&target=mi"),
+    );
+    expect(screen.getByRole("button", { name: "vm runs as mi" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("tries another link when picked, and says plainly when there is a way round", async () => {
+    const get = mount({ ...AROUND_VM, routes: [ROUTE] }, { routes_total: 1 }, undefined, (url) =>
+      url.includes("grants_role")
+        ? {
+            ...WHAT_IF,
+            description: "mi can act over sub",
+            relationship: "grants_role",
+            source_id: "mi",
+            target_id: "sub",
+            closes: [],
+            after: 4,
+          }
+        : WHAT_IF,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: /draw the graph/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /vm → data/ }));
+    await userEvent.click(screen.getByRole("button", { name: "mi can act over sub" }));
+
+    expect(await screen.findByText(/closes nothing/i)).toHaveTextContent(
+      "Every route through this link has another way round",
+    );
+    expect(get).toHaveBeenLastCalledWith(expect.stringContaining("relationship=grants_role"));
+    // Containment is where things live: never offered as a cut.
+    expect(screen.queryByRole("button", { name: "sub contains data" })).not.toBeInTheDocument();
+  });
+
+  it("arrives with a route traced when sent from the attack paths page", async () => {
+    mount(
+      { ...AROUND_VM, routes: [ROUTE] },
+      { routes_total: 1 },
+      `/assets/row-vm?trace=${encodeURIComponent("vm|data")}`,
+    );
+
+    // No "draw" press, and the route already picked.
+    expect(await screen.findByRole("button", { name: /vm → data/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+});
+
+describe("exploring a route in the graph", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function mountButton() {
+    render(
+      <MemoryRouter initialEntries={["/attack-paths"]}>
+        <Routes>
+          <Route path="/attack-paths" element={<OpenInGraph entryId="/vm/jump" traceKey="a|b" />} />
+          <Route path="/assets/:assetId" element={<Where />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+  }
+
+  it("opens the entry point's page with the route to trace", async () => {
+    const get = vi
+      .spyOn(api, "get")
+      .mockResolvedValue({ data: { id: "row-7" }, meta: {} } as never);
+    mountButton();
+
+    await userEvent.click(screen.getByRole("button", { name: /explore in graph/i }));
+
+    expect(get).toHaveBeenCalledWith(
+      `/api/v1/assets/resolve?provider_resource_id=${encodeURIComponent("/vm/jump")}`,
+    );
+    expect(await screen.findByTestId("where")).toHaveTextContent(
+      `?trace=${encodeURIComponent("a|b")}`,
+    );
+  });
+
+  it("says so when the asset is no longer in the graph, and stays put", async () => {
+    vi.spyOn(api, "get").mockRejectedValue(new Error("404"));
+    const error = vi.spyOn(toast, "error").mockImplementation(() => "id");
+    mountButton();
+
+    await userEvent.click(screen.getByRole("button", { name: /explore in graph/i }));
+
+    await waitFor(() => expect(error).toHaveBeenCalled());
+    expect(screen.getByRole("button", { name: /explore in graph/i })).toBeEnabled();
   });
 });

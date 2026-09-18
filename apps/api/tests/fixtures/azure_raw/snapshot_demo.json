@@ -1,0 +1,1754 @@
+{
+  "provider": "azure",
+  "tenant_id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+  "subscription_id": "00000000-0000-0000-0000-000000000001",
+  "version": "1.0",
+  "errors": {},
+  "data": {
+    "network_security_groups": [
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-prod/providers/Microsoft.Network/networkSecurityGroups/nsg-jumpbox",
+        "name": "nsg-jumpbox",
+        "location": "westeurope",
+        "tags": {
+          "environment": "production"
+        },
+        "properties": {
+          "securityRules": [
+            {
+              "name": "AllowRDP",
+              "properties": {
+                "direction": "Inbound",
+                "access": "Allow",
+                "protocol": "Tcp",
+                "sourceAddressPrefix": "*",
+                "destinationPortRange": "3389",
+                "priority": 100
+              }
+            },
+            {
+              "name": "AllowHTTPS",
+              "properties": {
+                "direction": "Inbound",
+                "access": "Allow",
+                "protocol": "Tcp",
+                "sourceAddressPrefix": "Internet",
+                "destinationPortRanges": [
+                  "443"
+                ],
+                "priority": 200
+              }
+            }
+          ],
+          "defaultSecurityRules": [
+            {
+              "name": "DenyAllInBound"
+            }
+          ],
+          "networkInterfaces": [
+            {
+              "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-prod/providers/Microsoft.Network/networkInterfaces/nic-jumpbox"
+            }
+          ]
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-build/providers/Microsoft.Network/networkSecurityGroups/nsg-build-agent",
+        "name": "nsg-build-agent",
+        "location": "westeurope",
+        "tags": {
+          "environment": "production"
+        },
+        "properties": {
+          "securityRules": [
+            {
+              "name": "AllowSSH",
+              "properties": {
+                "direction": "Inbound",
+                "access": "Allow",
+                "protocol": "Tcp",
+                "sourceAddressPrefix": "*",
+                "destinationPortRange": "22",
+                "priority": 100
+              }
+            }
+          ],
+          "defaultSecurityRules": [
+            {
+              "name": "DenyAllInBound"
+            }
+          ],
+          "networkInterfaces": [
+            {
+              "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-build/providers/Microsoft.Network/networkInterfaces/nic-build-agent"
+            }
+          ]
+        }
+      }
+    ],
+    "network_interfaces": [
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-prod/providers/Microsoft.Network/networkInterfaces/nic-jumpbox",
+        "name": "nic-jumpbox",
+        "properties": {
+          "networkSecurityGroup": {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-prod/providers/Microsoft.Network/networkSecurityGroups/nsg-jumpbox"
+          },
+          "ipConfigurations": [
+            {
+              "name": "ipconfig1",
+              "properties": {
+                "publicIPAddress": {
+                  "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-prod/providers/Microsoft.Network/publicIPAddresses/pip-jumpbox"
+                },
+                "subnet": {
+                  "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-prod/providers/Microsoft.Network/virtualNetworks/vnet/subnets/default"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-build/providers/Microsoft.Network/networkInterfaces/nic-build-agent",
+        "name": "nic-build-agent",
+        "properties": {
+          "networkSecurityGroup": {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-build/providers/Microsoft.Network/networkSecurityGroups/nsg-build-agent"
+          },
+          "ipConfigurations": [
+            {
+              "name": "ipconfig1",
+              "properties": {
+                "publicIPAddress": {
+                  "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-build/providers/Microsoft.Network/publicIPAddresses/pip-build-agent"
+                },
+                "subnet": {
+                  "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-build/providers/Microsoft.Network/virtualNetworks/vnet-build/subnets/agents"
+                }
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "public_ip_addresses": [
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-prod/providers/Microsoft.Network/publicIPAddresses/pip-jumpbox",
+        "name": "pip-jumpbox",
+        "properties": {
+          "ipAddress": "20.50.10.10"
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-build/providers/Microsoft.Network/publicIPAddresses/pip-build-agent",
+        "name": "pip-build-agent",
+        "properties": {
+          "ipAddress": "20.50.10.20"
+        }
+      }
+    ],
+    "virtual_machines": [
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-prod/providers/Microsoft.Compute/virtualMachines/vm-jumpbox",
+        "name": "vm-jumpbox",
+        "location": "westeurope",
+        "tags": {
+          "environment": "production",
+          "criticality": "high"
+        },
+        "properties": {
+          "hardwareProfile": {
+            "vmSize": "Standard_D2s_v3"
+          },
+          "storageProfile": {
+            "osDisk": {
+              "osType": "Windows",
+              "managedDisk": {
+                "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-prod/providers/Microsoft.Compute/disks/vm-jumpbox-osdisk",
+                "storageAccountType": "Premium_LRS"
+              }
+            }
+          },
+          "networkProfile": {
+            "networkInterfaces": [
+              {
+                "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-prod/providers/Microsoft.Network/networkInterfaces/nic-jumpbox"
+              }
+            ]
+          }
+        },
+        "identity": {
+          "type": "SystemAssigned",
+          "principalId": "11111111-2222-3333-4444-555555555555",
+          "tenantId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-build/providers/Microsoft.Compute/virtualMachines/vm-build-agent",
+        "name": "vm-build-agent",
+        "location": "westeurope",
+        "tags": {
+          "environment": "production",
+          "criticality": "medium"
+        },
+        "properties": {
+          "hardwareProfile": {
+            "vmSize": "Standard_D4s_v5"
+          },
+          "storageProfile": {
+            "osDisk": {
+              "osType": "Linux",
+              "managedDisk": {
+                "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-build/providers/Microsoft.Compute/disks/vm-build-agent-os",
+                "storageAccountType": "Premium_LRS"
+              }
+            }
+          },
+          "networkProfile": {
+            "networkInterfaces": [
+              {
+                "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-build/providers/Microsoft.Network/networkInterfaces/nic-build-agent"
+              }
+            ]
+          }
+        },
+        "identity": {
+          "type": "SystemAssigned",
+          "principalId": "33333333-0000-0000-0000-000000000001",
+          "tenantId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+        }
+      }
+    ],
+    "storage_accounts": [
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-prod/providers/Microsoft.Storage/storageAccounts/stgpublic",
+        "name": "stgpublic",
+        "location": "westeurope",
+        "tags": {},
+        "properties": {
+          "allowBlobPublicAccess": true,
+          "supportsHttpsTrafficOnly": true,
+          "minimumTlsVersion": "TLS1_2",
+          "allowSharedKeyAccess": true,
+          "publicNetworkAccess": "Enabled",
+          "networkAcls": {
+            "defaultAction": "Allow",
+            "ipRules": [],
+            "virtualNetworkRules": []
+          },
+          "encryption": {
+            "requireInfrastructureEncryption": false
+          }
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-payments/providers/Microsoft.Storage/storageAccounts/stpaymentsledger",
+        "name": "stpaymentsledger",
+        "location": "westeurope",
+        "tags": {
+          "environment": "production",
+          "data_classification": "confidential"
+        },
+        "properties": {
+          "allowBlobPublicAccess": false,
+          "supportsHttpsTrafficOnly": true,
+          "minimumTlsVersion": "TLS1_2",
+          "allowSharedKeyAccess": false,
+          "allowCrossTenantReplication": false,
+          "publicNetworkAccess": "Disabled",
+          "networkAcls": {
+            "defaultAction": "Deny",
+            "ipRules": [],
+            "virtualNetworkRules": []
+          },
+          "encryption": {
+            "requireInfrastructureEncryption": true
+          }
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/stcustomerrecords",
+        "name": "stcustomerrecords",
+        "location": "westeurope",
+        "tags": {
+          "environment": "production",
+          "data_classification": "restricted"
+        },
+        "properties": {
+          "allowBlobPublicAccess": false,
+          "supportsHttpsTrafficOnly": true,
+          "minimumTlsVersion": "TLS1_2",
+          "allowSharedKeyAccess": false,
+          "allowCrossTenantReplication": false,
+          "publicNetworkAccess": "Disabled",
+          "networkAcls": {
+            "defaultAction": "Deny",
+            "ipRules": [],
+            "virtualNetworkRules": []
+          },
+          "encryption": {
+            "requireInfrastructureEncryption": true
+          }
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive01",
+        "name": "starchive01",
+        "location": "westeurope",
+        "tags": {
+          "environment": "production",
+          "data_classification": "internal"
+        },
+        "properties": {
+          "allowBlobPublicAccess": false,
+          "supportsHttpsTrafficOnly": true,
+          "minimumTlsVersion": "TLS1_2",
+          "allowSharedKeyAccess": false,
+          "allowCrossTenantReplication": false,
+          "publicNetworkAccess": "Disabled",
+          "networkAcls": {
+            "defaultAction": "Deny",
+            "ipRules": [],
+            "virtualNetworkRules": []
+          },
+          "encryption": {
+            "requireInfrastructureEncryption": true
+          }
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive02",
+        "name": "starchive02",
+        "location": "westeurope",
+        "tags": {
+          "environment": "production",
+          "data_classification": "internal"
+        },
+        "properties": {
+          "allowBlobPublicAccess": false,
+          "supportsHttpsTrafficOnly": true,
+          "minimumTlsVersion": "TLS1_2",
+          "allowSharedKeyAccess": false,
+          "allowCrossTenantReplication": false,
+          "publicNetworkAccess": "Disabled",
+          "networkAcls": {
+            "defaultAction": "Deny",
+            "ipRules": [],
+            "virtualNetworkRules": []
+          },
+          "encryption": {
+            "requireInfrastructureEncryption": true
+          }
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive03",
+        "name": "starchive03",
+        "location": "westeurope",
+        "tags": {
+          "environment": "production",
+          "data_classification": "internal"
+        },
+        "properties": {
+          "allowBlobPublicAccess": false,
+          "supportsHttpsTrafficOnly": true,
+          "minimumTlsVersion": "TLS1_2",
+          "allowSharedKeyAccess": false,
+          "allowCrossTenantReplication": false,
+          "publicNetworkAccess": "Disabled",
+          "networkAcls": {
+            "defaultAction": "Deny",
+            "ipRules": [],
+            "virtualNetworkRules": []
+          },
+          "encryption": {
+            "requireInfrastructureEncryption": true
+          }
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive04",
+        "name": "starchive04",
+        "location": "westeurope",
+        "tags": {
+          "environment": "production",
+          "data_classification": "internal"
+        },
+        "properties": {
+          "allowBlobPublicAccess": false,
+          "supportsHttpsTrafficOnly": true,
+          "minimumTlsVersion": "TLS1_2",
+          "allowSharedKeyAccess": false,
+          "allowCrossTenantReplication": false,
+          "publicNetworkAccess": "Disabled",
+          "networkAcls": {
+            "defaultAction": "Deny",
+            "ipRules": [],
+            "virtualNetworkRules": []
+          },
+          "encryption": {
+            "requireInfrastructureEncryption": true
+          }
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive05",
+        "name": "starchive05",
+        "location": "westeurope",
+        "tags": {
+          "environment": "production",
+          "data_classification": "internal"
+        },
+        "properties": {
+          "allowBlobPublicAccess": false,
+          "supportsHttpsTrafficOnly": true,
+          "minimumTlsVersion": "TLS1_2",
+          "allowSharedKeyAccess": false,
+          "allowCrossTenantReplication": false,
+          "publicNetworkAccess": "Disabled",
+          "networkAcls": {
+            "defaultAction": "Deny",
+            "ipRules": [],
+            "virtualNetworkRules": []
+          },
+          "encryption": {
+            "requireInfrastructureEncryption": true
+          }
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive06",
+        "name": "starchive06",
+        "location": "westeurope",
+        "tags": {
+          "environment": "production",
+          "data_classification": "internal"
+        },
+        "properties": {
+          "allowBlobPublicAccess": false,
+          "supportsHttpsTrafficOnly": true,
+          "minimumTlsVersion": "TLS1_2",
+          "allowSharedKeyAccess": false,
+          "allowCrossTenantReplication": false,
+          "publicNetworkAccess": "Disabled",
+          "networkAcls": {
+            "defaultAction": "Deny",
+            "ipRules": [],
+            "virtualNetworkRules": []
+          },
+          "encryption": {
+            "requireInfrastructureEncryption": true
+          }
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive07",
+        "name": "starchive07",
+        "location": "westeurope",
+        "tags": {
+          "environment": "production",
+          "data_classification": "internal"
+        },
+        "properties": {
+          "allowBlobPublicAccess": false,
+          "supportsHttpsTrafficOnly": true,
+          "minimumTlsVersion": "TLS1_2",
+          "allowSharedKeyAccess": false,
+          "allowCrossTenantReplication": false,
+          "publicNetworkAccess": "Disabled",
+          "networkAcls": {
+            "defaultAction": "Deny",
+            "ipRules": [],
+            "virtualNetworkRules": []
+          },
+          "encryption": {
+            "requireInfrastructureEncryption": true
+          }
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive08",
+        "name": "starchive08",
+        "location": "westeurope",
+        "tags": {
+          "environment": "production",
+          "data_classification": "internal"
+        },
+        "properties": {
+          "allowBlobPublicAccess": false,
+          "supportsHttpsTrafficOnly": true,
+          "minimumTlsVersion": "TLS1_2",
+          "allowSharedKeyAccess": false,
+          "allowCrossTenantReplication": false,
+          "publicNetworkAccess": "Disabled",
+          "networkAcls": {
+            "defaultAction": "Deny",
+            "ipRules": [],
+            "virtualNetworkRules": []
+          },
+          "encryption": {
+            "requireInfrastructureEncryption": true
+          }
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive09",
+        "name": "starchive09",
+        "location": "westeurope",
+        "tags": {
+          "environment": "production",
+          "data_classification": "internal"
+        },
+        "properties": {
+          "allowBlobPublicAccess": false,
+          "supportsHttpsTrafficOnly": true,
+          "minimumTlsVersion": "TLS1_2",
+          "allowSharedKeyAccess": false,
+          "allowCrossTenantReplication": false,
+          "publicNetworkAccess": "Disabled",
+          "networkAcls": {
+            "defaultAction": "Deny",
+            "ipRules": [],
+            "virtualNetworkRules": []
+          },
+          "encryption": {
+            "requireInfrastructureEncryption": true
+          }
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive10",
+        "name": "starchive10",
+        "location": "westeurope",
+        "tags": {
+          "environment": "production",
+          "data_classification": "internal"
+        },
+        "properties": {
+          "allowBlobPublicAccess": false,
+          "supportsHttpsTrafficOnly": true,
+          "minimumTlsVersion": "TLS1_2",
+          "allowSharedKeyAccess": false,
+          "allowCrossTenantReplication": false,
+          "publicNetworkAccess": "Disabled",
+          "networkAcls": {
+            "defaultAction": "Deny",
+            "ipRules": [],
+            "virtualNetworkRules": []
+          },
+          "encryption": {
+            "requireInfrastructureEncryption": true
+          }
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive11",
+        "name": "starchive11",
+        "location": "westeurope",
+        "tags": {
+          "environment": "production",
+          "data_classification": "internal"
+        },
+        "properties": {
+          "allowBlobPublicAccess": false,
+          "supportsHttpsTrafficOnly": true,
+          "minimumTlsVersion": "TLS1_2",
+          "allowSharedKeyAccess": false,
+          "allowCrossTenantReplication": false,
+          "publicNetworkAccess": "Disabled",
+          "networkAcls": {
+            "defaultAction": "Deny",
+            "ipRules": [],
+            "virtualNetworkRules": []
+          },
+          "encryption": {
+            "requireInfrastructureEncryption": true
+          }
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive12",
+        "name": "starchive12",
+        "location": "westeurope",
+        "tags": {
+          "environment": "production",
+          "data_classification": "internal"
+        },
+        "properties": {
+          "allowBlobPublicAccess": false,
+          "supportsHttpsTrafficOnly": true,
+          "minimumTlsVersion": "TLS1_2",
+          "allowSharedKeyAccess": false,
+          "allowCrossTenantReplication": false,
+          "publicNetworkAccess": "Disabled",
+          "networkAcls": {
+            "defaultAction": "Deny",
+            "ipRules": [],
+            "virtualNetworkRules": []
+          },
+          "encryption": {
+            "requireInfrastructureEncryption": true
+          }
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive13",
+        "name": "starchive13",
+        "location": "westeurope",
+        "tags": {
+          "environment": "production",
+          "data_classification": "internal"
+        },
+        "properties": {
+          "allowBlobPublicAccess": false,
+          "supportsHttpsTrafficOnly": true,
+          "minimumTlsVersion": "TLS1_2",
+          "allowSharedKeyAccess": false,
+          "allowCrossTenantReplication": false,
+          "publicNetworkAccess": "Disabled",
+          "networkAcls": {
+            "defaultAction": "Deny",
+            "ipRules": [],
+            "virtualNetworkRules": []
+          },
+          "encryption": {
+            "requireInfrastructureEncryption": true
+          }
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive14",
+        "name": "starchive14",
+        "location": "westeurope",
+        "tags": {
+          "environment": "production",
+          "data_classification": "internal"
+        },
+        "properties": {
+          "allowBlobPublicAccess": false,
+          "supportsHttpsTrafficOnly": true,
+          "minimumTlsVersion": "TLS1_2",
+          "allowSharedKeyAccess": false,
+          "allowCrossTenantReplication": false,
+          "publicNetworkAccess": "Disabled",
+          "networkAcls": {
+            "defaultAction": "Deny",
+            "ipRules": [],
+            "virtualNetworkRules": []
+          },
+          "encryption": {
+            "requireInfrastructureEncryption": true
+          }
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive15",
+        "name": "starchive15",
+        "location": "westeurope",
+        "tags": {
+          "environment": "production",
+          "data_classification": "internal"
+        },
+        "properties": {
+          "allowBlobPublicAccess": false,
+          "supportsHttpsTrafficOnly": true,
+          "minimumTlsVersion": "TLS1_2",
+          "allowSharedKeyAccess": false,
+          "allowCrossTenantReplication": false,
+          "publicNetworkAccess": "Disabled",
+          "networkAcls": {
+            "defaultAction": "Deny",
+            "ipRules": [],
+            "virtualNetworkRules": []
+          },
+          "encryption": {
+            "requireInfrastructureEncryption": true
+          }
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive16",
+        "name": "starchive16",
+        "location": "westeurope",
+        "tags": {
+          "environment": "production",
+          "data_classification": "internal"
+        },
+        "properties": {
+          "allowBlobPublicAccess": false,
+          "supportsHttpsTrafficOnly": true,
+          "minimumTlsVersion": "TLS1_2",
+          "allowSharedKeyAccess": false,
+          "allowCrossTenantReplication": false,
+          "publicNetworkAccess": "Disabled",
+          "networkAcls": {
+            "defaultAction": "Deny",
+            "ipRules": [],
+            "virtualNetworkRules": []
+          },
+          "encryption": {
+            "requireInfrastructureEncryption": true
+          }
+        }
+      }
+    ],
+    "sql_servers": [
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-prod/providers/Microsoft.Sql/servers/sql-prod-01",
+        "name": "sql-prod-01",
+        "location": "westeurope",
+        "tags": {
+          "env": "prod"
+        },
+        "properties": {
+          "publicNetworkAccess": "Enabled",
+          "version": "12.0",
+          "administratorLogin": "sqladmin",
+          "privateEndpointConnections": [],
+          "minimalTlsVersion": "1.2"
+        },
+        "_firewall_rules": [
+          {
+            "name": "AllowAll",
+            "properties": {
+              "startIpAddress": "0.0.0.0",
+              "endIpAddress": "255.255.255.255"
+            }
+          }
+        ]
+      }
+    ],
+    "postgresql_servers": [],
+    "diagnostic_settings": {
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-prod/providers/Microsoft.Storage/storageAccounts/stgpublic": [],
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-prod/providers/Microsoft.Sql/servers/sql-prod-01": [
+        {
+          "name": "audit",
+          "properties": {
+            "workspaceId": "/ws/1"
+          }
+        }
+      ],
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-payments/providers/Microsoft.Storage/storageAccounts/stpaymentsledger": [
+        {
+          "name": "to-workspace",
+          "properties": {
+            "workspaceId": "/ws/1"
+          }
+        }
+      ],
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/stcustomerrecords": [
+        {
+          "name": "to-workspace",
+          "properties": {
+            "workspaceId": "/ws/1"
+          }
+        }
+      ],
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive01": [
+        {
+          "name": "to-workspace",
+          "properties": {
+            "workspaceId": "/ws/1"
+          }
+        }
+      ],
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive02": [
+        {
+          "name": "to-workspace",
+          "properties": {
+            "workspaceId": "/ws/1"
+          }
+        }
+      ],
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive03": [
+        {
+          "name": "to-workspace",
+          "properties": {
+            "workspaceId": "/ws/1"
+          }
+        }
+      ],
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive04": [
+        {
+          "name": "to-workspace",
+          "properties": {
+            "workspaceId": "/ws/1"
+          }
+        }
+      ],
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive05": [
+        {
+          "name": "to-workspace",
+          "properties": {
+            "workspaceId": "/ws/1"
+          }
+        }
+      ],
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive06": [
+        {
+          "name": "to-workspace",
+          "properties": {
+            "workspaceId": "/ws/1"
+          }
+        }
+      ],
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive07": [
+        {
+          "name": "to-workspace",
+          "properties": {
+            "workspaceId": "/ws/1"
+          }
+        }
+      ],
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive08": [
+        {
+          "name": "to-workspace",
+          "properties": {
+            "workspaceId": "/ws/1"
+          }
+        }
+      ],
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive09": [
+        {
+          "name": "to-workspace",
+          "properties": {
+            "workspaceId": "/ws/1"
+          }
+        }
+      ],
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive10": [
+        {
+          "name": "to-workspace",
+          "properties": {
+            "workspaceId": "/ws/1"
+          }
+        }
+      ],
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive11": [
+        {
+          "name": "to-workspace",
+          "properties": {
+            "workspaceId": "/ws/1"
+          }
+        }
+      ],
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive12": [
+        {
+          "name": "to-workspace",
+          "properties": {
+            "workspaceId": "/ws/1"
+          }
+        }
+      ],
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive13": [
+        {
+          "name": "to-workspace",
+          "properties": {
+            "workspaceId": "/ws/1"
+          }
+        }
+      ],
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive14": [
+        {
+          "name": "to-workspace",
+          "properties": {
+            "workspaceId": "/ws/1"
+          }
+        }
+      ],
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive15": [
+        {
+          "name": "to-workspace",
+          "properties": {
+            "workspaceId": "/ws/1"
+          }
+        }
+      ],
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive16": [
+        {
+          "name": "to-workspace",
+          "properties": {
+            "workspaceId": "/ws/1"
+          }
+        }
+      ],
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-build/providers/Microsoft.Network/networkSecurityGroups/nsg-build-agent": [
+        {
+          "name": "to-workspace",
+          "properties": {
+            "workspaceId": "/ws/1"
+          }
+        }
+      ],
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments": [
+        {
+          "name": "to-workspace",
+          "properties": {
+            "workspaceId": "/ws/1"
+          }
+        }
+      ]
+    },
+    "users": [
+      {
+        "id": "u-admin",
+        "displayName": "Arben K",
+        "userPrincipalName": "arben@contoso.com",
+        "accountEnabled": true
+      },
+      {
+        "id": "u-normal",
+        "displayName": "Normal User",
+        "userPrincipalName": "normal@contoso.com",
+        "accountEnabled": true
+      }
+    ],
+    "directory_roles": [
+      {
+        "id": "r-ga",
+        "displayName": "Global Administrator"
+      }
+    ],
+    "user_role_map": {
+      "u-admin": [
+        "Global Administrator"
+      ]
+    },
+    "authentication_methods": {
+      "u-admin": [
+        {
+          "@odata.type": "#microsoft.graph.passwordAuthenticationMethod"
+        }
+      ]
+    },
+    "role_assignments": [
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Authorization/roleAssignments/aaaa",
+        "name": "aaaa",
+        "type": "Microsoft.Authorization/roleAssignments",
+        "properties": {
+          "roleDefinitionId": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c",
+          "principalId": "11111111-2222-3333-4444-555555555555",
+          "principalType": "ServicePrincipal",
+          "scope": "/subscriptions/00000000-0000-0000-0000-000000000001"
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Authorization/roleAssignments/pay-ledger",
+        "name": "pay-ledger",
+        "type": "Microsoft.Authorization/roleAssignments",
+        "properties": {
+          "roleDefinitionId": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Authorization/roleDefinitions/ba92f5b4-2d11-453d-a403-e96b0029c9fe",
+          "principalId": "22222222-0000-0000-0000-000000000001",
+          "principalType": "ServicePrincipal",
+          "scope": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-payments/providers/Microsoft.Storage/storageAccounts/stpaymentsledger"
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Authorization/roleAssignments/pay-vault",
+        "name": "pay-vault",
+        "type": "Microsoft.Authorization/roleAssignments",
+        "properties": {
+          "roleDefinitionId": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Authorization/roleDefinitions/4633458b-17de-408a-b874-0445c86b69e6",
+          "principalId": "22222222-0000-0000-0000-000000000001",
+          "principalType": "ServicePrincipal",
+          "scope": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments"
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Authorization/roleAssignments/pay-records",
+        "name": "pay-records",
+        "type": "Microsoft.Authorization/roleAssignments",
+        "properties": {
+          "roleDefinitionId": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Authorization/roleDefinitions/2a2b9908-6ea1-4ae2-8e65-a410df84e7d1",
+          "principalId": "22222222-0000-0000-0000-000000000001",
+          "principalType": "ServicePrincipal",
+          "scope": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data"
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Authorization/roleAssignments/build-uaa",
+        "name": "build-uaa",
+        "type": "Microsoft.Authorization/roleAssignments",
+        "properties": {
+          "roleDefinitionId": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Authorization/roleDefinitions/18d7d88d-d35e-4fb5-a5c3-7773c20a72d9",
+          "principalId": "33333333-0000-0000-0000-000000000001",
+          "principalType": "ServicePrincipal",
+          "scope": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-payments"
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Authorization/roleAssignments/reporting-reader",
+        "name": "reporting-reader",
+        "type": "Microsoft.Authorization/roleAssignments",
+        "properties": {
+          "roleDefinitionId": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7",
+          "principalId": "44444444-0000-0000-0000-000000000001",
+          "principalType": "ServicePrincipal",
+          "scope": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data"
+        }
+      }
+    ],
+    "role_definitions": [
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c",
+        "name": "b24988ac-6180-42a0-ab88-20f7382dd24c",
+        "properties": {
+          "roleName": "Contributor",
+          "type": "BuiltInRole",
+          "permissions": [
+            {
+              "actions": [
+                "*"
+              ],
+              "notActions": [
+                "Microsoft.Authorization/*/Delete",
+                "Microsoft.Authorization/*/Write",
+                "Microsoft.Authorization/elevateAccess/Action",
+                "Microsoft.Blueprint/blueprintAssignments/write",
+                "Microsoft.Blueprint/blueprintAssignments/delete"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Authorization/roleDefinitions/ba92f5b4-2d11-453d-a403-e96b0029c9fe",
+        "name": "ba92f5b4-2d11-453d-a403-e96b0029c9fe",
+        "properties": {
+          "roleName": "Storage Blob Data Contributor",
+          "type": "BuiltInRole",
+          "permissions": [
+            {
+              "actions": [
+                "Microsoft.Storage/storageAccounts/blobServices/containers/delete",
+                "Microsoft.Storage/storageAccounts/blobServices/containers/read",
+                "Microsoft.Storage/storageAccounts/blobServices/containers/write",
+                "Microsoft.Storage/storageAccounts/blobServices/generateUserDelegationKey/action"
+              ],
+              "notActions": []
+            }
+          ]
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Authorization/roleDefinitions/2a2b9908-6ea1-4ae2-8e65-a410df84e7d1",
+        "name": "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1",
+        "properties": {
+          "roleName": "Storage Blob Data Reader",
+          "type": "BuiltInRole",
+          "permissions": [
+            {
+              "actions": [
+                "Microsoft.Storage/storageAccounts/blobServices/containers/read",
+                "Microsoft.Storage/storageAccounts/blobServices/generateUserDelegationKey/action"
+              ],
+              "notActions": []
+            }
+          ]
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Authorization/roleDefinitions/4633458b-17de-408a-b874-0445c86b69e6",
+        "name": "4633458b-17de-408a-b874-0445c86b69e6",
+        "properties": {
+          "roleName": "Key Vault Secrets User",
+          "type": "BuiltInRole",
+          "permissions": [
+            {
+              "actions": [],
+              "notActions": []
+            }
+          ]
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Authorization/roleDefinitions/18d7d88d-d35e-4fb5-a5c3-7773c20a72d9",
+        "name": "18d7d88d-d35e-4fb5-a5c3-7773c20a72d9",
+        "properties": {
+          "roleName": "User Access Administrator",
+          "type": "BuiltInRole",
+          "permissions": [
+            {
+              "actions": [
+                "*/read",
+                "Microsoft.Authorization/*",
+                "Microsoft.Support/*"
+              ],
+              "notActions": []
+            }
+          ]
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7",
+        "name": "acdd72a7-3385-48ef-bd42-f606fba81ae7",
+        "properties": {
+          "roleName": "Reader",
+          "type": "BuiltInRole",
+          "permissions": [
+            {
+              "actions": [
+                "*/read"
+              ],
+              "notActions": []
+            }
+          ]
+        }
+      }
+    ],
+    "sql_administrators": {
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-prod/providers/Microsoft.Sql/servers/sql-prod-01": []
+    },
+    "storage_blob_services": {
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-prod/providers/Microsoft.Storage/storageAccounts/stgpublic": {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-prod/providers/Microsoft.Storage/storageAccounts/stgpublic/blobServices/default",
+        "name": "default",
+        "type": "Microsoft.Storage/storageAccounts/blobServices",
+        "properties": {
+          "deleteRetentionPolicy": {
+            "enabled": true,
+            "days": 7
+          },
+          "containerDeleteRetentionPolicy": {
+            "enabled": true,
+            "days": 7
+          },
+          "isVersioningEnabled": false
+        }
+      },
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-payments/providers/Microsoft.Storage/storageAccounts/stpaymentsledger": {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-payments/providers/Microsoft.Storage/storageAccounts/stpaymentsledger/blobServices/default",
+        "name": "default",
+        "type": "Microsoft.Storage/storageAccounts/blobServices",
+        "properties": {
+          "deleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "containerDeleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "isVersioningEnabled": true
+        }
+      },
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/stcustomerrecords": {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/stcustomerrecords/blobServices/default",
+        "name": "default",
+        "type": "Microsoft.Storage/storageAccounts/blobServices",
+        "properties": {
+          "deleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "containerDeleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "isVersioningEnabled": true
+        }
+      },
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive01": {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive01/blobServices/default",
+        "name": "default",
+        "type": "Microsoft.Storage/storageAccounts/blobServices",
+        "properties": {
+          "deleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "containerDeleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "isVersioningEnabled": true
+        }
+      },
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive02": {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive02/blobServices/default",
+        "name": "default",
+        "type": "Microsoft.Storage/storageAccounts/blobServices",
+        "properties": {
+          "deleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "containerDeleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "isVersioningEnabled": true
+        }
+      },
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive03": {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive03/blobServices/default",
+        "name": "default",
+        "type": "Microsoft.Storage/storageAccounts/blobServices",
+        "properties": {
+          "deleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "containerDeleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "isVersioningEnabled": true
+        }
+      },
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive04": {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive04/blobServices/default",
+        "name": "default",
+        "type": "Microsoft.Storage/storageAccounts/blobServices",
+        "properties": {
+          "deleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "containerDeleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "isVersioningEnabled": true
+        }
+      },
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive05": {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive05/blobServices/default",
+        "name": "default",
+        "type": "Microsoft.Storage/storageAccounts/blobServices",
+        "properties": {
+          "deleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "containerDeleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "isVersioningEnabled": true
+        }
+      },
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive06": {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive06/blobServices/default",
+        "name": "default",
+        "type": "Microsoft.Storage/storageAccounts/blobServices",
+        "properties": {
+          "deleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "containerDeleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "isVersioningEnabled": true
+        }
+      },
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive07": {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive07/blobServices/default",
+        "name": "default",
+        "type": "Microsoft.Storage/storageAccounts/blobServices",
+        "properties": {
+          "deleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "containerDeleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "isVersioningEnabled": true
+        }
+      },
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive08": {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive08/blobServices/default",
+        "name": "default",
+        "type": "Microsoft.Storage/storageAccounts/blobServices",
+        "properties": {
+          "deleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "containerDeleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "isVersioningEnabled": true
+        }
+      },
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive09": {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive09/blobServices/default",
+        "name": "default",
+        "type": "Microsoft.Storage/storageAccounts/blobServices",
+        "properties": {
+          "deleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "containerDeleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "isVersioningEnabled": true
+        }
+      },
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive10": {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive10/blobServices/default",
+        "name": "default",
+        "type": "Microsoft.Storage/storageAccounts/blobServices",
+        "properties": {
+          "deleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "containerDeleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "isVersioningEnabled": true
+        }
+      },
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive11": {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive11/blobServices/default",
+        "name": "default",
+        "type": "Microsoft.Storage/storageAccounts/blobServices",
+        "properties": {
+          "deleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "containerDeleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "isVersioningEnabled": true
+        }
+      },
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive12": {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive12/blobServices/default",
+        "name": "default",
+        "type": "Microsoft.Storage/storageAccounts/blobServices",
+        "properties": {
+          "deleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "containerDeleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "isVersioningEnabled": true
+        }
+      },
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive13": {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive13/blobServices/default",
+        "name": "default",
+        "type": "Microsoft.Storage/storageAccounts/blobServices",
+        "properties": {
+          "deleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "containerDeleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "isVersioningEnabled": true
+        }
+      },
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive14": {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive14/blobServices/default",
+        "name": "default",
+        "type": "Microsoft.Storage/storageAccounts/blobServices",
+        "properties": {
+          "deleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "containerDeleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "isVersioningEnabled": true
+        }
+      },
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive15": {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive15/blobServices/default",
+        "name": "default",
+        "type": "Microsoft.Storage/storageAccounts/blobServices",
+        "properties": {
+          "deleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "containerDeleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "isVersioningEnabled": true
+        }
+      },
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive16": {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive16/blobServices/default",
+        "name": "default",
+        "type": "Microsoft.Storage/storageAccounts/blobServices",
+        "properties": {
+          "deleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "containerDeleteRetentionPolicy": {
+            "enabled": true,
+            "days": 14
+          },
+          "isVersioningEnabled": true
+        }
+      }
+    },
+    "postgresql_configurations": {},
+    "defender_plans": [
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Security/pricings/VirtualMachines",
+        "name": "VirtualMachines",
+        "type": "Microsoft.Security/pricings",
+        "properties": {
+          "pricingTier": "Free"
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Security/pricings/SqlServers",
+        "name": "SqlServers",
+        "type": "Microsoft.Security/pricings",
+        "properties": {
+          "pricingTier": "Standard"
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Security/pricings/AppServices",
+        "name": "AppServices",
+        "type": "Microsoft.Security/pricings",
+        "properties": {
+          "pricingTier": "Standard"
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Security/pricings/StorageAccounts",
+        "name": "StorageAccounts",
+        "type": "Microsoft.Security/pricings",
+        "properties": {
+          "pricingTier": "Standard"
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Security/pricings/KeyVaults",
+        "name": "KeyVaults",
+        "type": "Microsoft.Security/pricings",
+        "properties": {
+          "pricingTier": "Standard"
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Security/pricings/Arm",
+        "name": "Arm",
+        "type": "Microsoft.Security/pricings",
+        "properties": {
+          "pricingTier": "Standard"
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Security/pricings/OpenSourceRelationalDatabases",
+        "name": "OpenSourceRelationalDatabases",
+        "type": "Microsoft.Security/pricings",
+        "properties": {
+          "pricingTier": "Standard"
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Security/pricings/SqlServerVirtualMachines",
+        "name": "SqlServerVirtualMachines",
+        "type": "Microsoft.Security/pricings",
+        "properties": {
+          "pricingTier": "Standard"
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Security/pricings/Containers",
+        "name": "Containers",
+        "type": "Microsoft.Security/pricings",
+        "properties": {
+          "pricingTier": "Standard"
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Security/pricings/CosmosDbs",
+        "name": "CosmosDbs",
+        "type": "Microsoft.Security/pricings",
+        "properties": {
+          "pricingTier": "Standard"
+        }
+      }
+    ],
+    "app_services": [
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-prod/providers/Microsoft.Web/sites/app-portal",
+        "name": "app-portal",
+        "type": "Microsoft.Web/sites",
+        "kind": "app,linux",
+        "location": "westeurope",
+        "tags": {
+          "environment": "production"
+        },
+        "properties": {
+          "httpsOnly": true,
+          "clientCertEnabled": false,
+          "publicNetworkAccess": "Enabled",
+          "state": "Running"
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-payments/providers/Microsoft.Web/sites/app-payments-api",
+        "name": "app-payments-api",
+        "type": "Microsoft.Web/sites",
+        "kind": "app,linux",
+        "location": "westeurope",
+        "tags": {
+          "environment": "production",
+          "criticality": "critical"
+        },
+        "properties": {
+          "httpsOnly": true,
+          "clientCertEnabled": false,
+          "publicNetworkAccess": "Enabled",
+          "state": "Running"
+        },
+        "identity": {
+          "type": "SystemAssigned",
+          "principalId": "22222222-0000-0000-0000-000000000001",
+          "tenantId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+        }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Web/sites/app-reporting",
+        "name": "app-reporting",
+        "type": "Microsoft.Web/sites",
+        "kind": "app,linux",
+        "location": "westeurope",
+        "tags": {
+          "environment": "production"
+        },
+        "properties": {
+          "httpsOnly": true,
+          "clientCertEnabled": false,
+          "publicNetworkAccess": "Disabled",
+          "state": "Running"
+        },
+        "identity": {
+          "type": "SystemAssigned",
+          "principalId": "44444444-0000-0000-0000-000000000001",
+          "tenantId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+        }
+      }
+    ],
+    "app_service_configs": {
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-prod/providers/Microsoft.Web/sites/app-portal": {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-prod/providers/Microsoft.Web/sites/app-portal/config/web",
+        "name": "web",
+        "type": "Microsoft.Web/sites/config",
+        "properties": {
+          "minTlsVersion": "1.2",
+          "scmMinTlsVersion": "1.2",
+          "ftpsState": "FtpsOnly",
+          "remoteDebuggingEnabled": false,
+          "http20Enabled": true
+        }
+      },
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-payments/providers/Microsoft.Web/sites/app-payments-api": {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-payments/providers/Microsoft.Web/sites/app-payments-api/config/web",
+        "name": "web",
+        "type": "Microsoft.Web/sites/config",
+        "properties": {
+          "minTlsVersion": "1.2",
+          "scmMinTlsVersion": "1.2",
+          "ftpsState": "Disabled",
+          "remoteDebuggingEnabled": false,
+          "http20Enabled": true
+        }
+      },
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Web/sites/app-reporting": {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Web/sites/app-reporting/config/web",
+        "name": "web",
+        "type": "Microsoft.Web/sites/config",
+        "properties": {
+          "minTlsVersion": "1.2",
+          "scmMinTlsVersion": "1.2",
+          "ftpsState": "Disabled",
+          "remoteDebuggingEnabled": false,
+          "http20Enabled": true
+        }
+      }
+    },
+    "subscription": {
+      "id": "/subscriptions/00000000-0000-0000-0000-000000000001",
+      "subscriptionId": "00000000-0000-0000-0000-000000000001",
+      "tenantId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      "displayName": "Production",
+      "state": "Enabled"
+    },
+    "key_vaults": [
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments",
+        "name": "kv-payments",
+        "location": "westeurope",
+        "tags": {
+          "environment": "production"
+        },
+        "properties": {
+          "enablePurgeProtection": true,
+          "enableSoftDelete": true,
+          "softDeleteRetentionInDays": 90,
+          "publicNetworkAccess": "Disabled",
+          "networkAcls": {
+            "defaultAction": "Deny",
+            "ipRules": [],
+            "virtualNetworkRules": []
+          },
+          "enableRbacAuthorization": true,
+          "accessPolicies": []
+        }
+      }
+    ]
+  },
+  "coverage": {
+    "network_security_groups": {
+      "category": "network",
+      "outcome": "COMPLETE",
+      "detail": "",
+      "item_count": 2
+    },
+    "network_interfaces": {
+      "category": "network",
+      "outcome": "COMPLETE",
+      "detail": "",
+      "item_count": 2
+    },
+    "public_ip_addresses": {
+      "category": "network",
+      "outcome": "COMPLETE",
+      "detail": "",
+      "item_count": 2
+    },
+    "virtual_machines": {
+      "category": "compute",
+      "outcome": "COMPLETE",
+      "detail": "",
+      "item_count": 2
+    },
+    "storage_accounts": {
+      "category": "storage",
+      "outcome": "COMPLETE",
+      "detail": "",
+      "item_count": 19
+    },
+    "sql_servers": {
+      "category": "database",
+      "outcome": "COMPLETE",
+      "detail": "",
+      "item_count": 1
+    },
+    "postgresql_servers": {
+      "category": "database",
+      "outcome": "COMPLETE",
+      "detail": "",
+      "item_count": 0
+    },
+    "diagnostic_settings": {
+      "category": "logging",
+      "outcome": "COMPLETE",
+      "detail": "",
+      "item_count": 2
+    },
+    "users": {
+      "category": "identity",
+      "outcome": "COMPLETE",
+      "detail": "",
+      "item_count": 2
+    },
+    "directory_roles": {
+      "category": "identity",
+      "outcome": "COMPLETE",
+      "detail": "",
+      "item_count": 1
+    },
+    "user_role_map": {
+      "category": "identity",
+      "outcome": "COMPLETE",
+      "detail": "",
+      "item_count": 2
+    },
+    "role_assignments": {
+      "category": "authorization",
+      "outcome": "COMPLETE",
+      "detail": "",
+      "item_count": 6,
+      "permissions": []
+    },
+    "role_definitions": {
+      "category": "authorization",
+      "outcome": "COMPLETE",
+      "detail": "",
+      "item_count": 6,
+      "permissions": []
+    },
+    "sql_administrators": {
+      "category": "database",
+      "outcome": "COMPLETE",
+      "detail": "",
+      "item_count": 1
+    },
+    "storage_blob_services": {
+      "category": "storage",
+      "outcome": "COMPLETE",
+      "detail": "",
+      "item_count": 1
+    },
+    "postgresql_configurations": {
+      "category": "database",
+      "outcome": "COMPLETE",
+      "detail": "",
+      "item_count": 0
+    },
+    "defender_plans": {
+      "category": "posture",
+      "outcome": "COMPLETE",
+      "detail": "",
+      "item_count": 10
+    },
+    "app_services": {
+      "category": "compute",
+      "outcome": "COMPLETE",
+      "detail": "",
+      "item_count": 3
+    },
+    "app_service_configs": {
+      "category": "compute",
+      "outcome": "COMPLETE",
+      "detail": "",
+      "item_count": 1
+    },
+    "key_vaults": {
+      "category": "secrets",
+      "outcome": "COMPLETE",
+      "detail": "",
+      "item_count": 1
+    },
+    "subscription": {
+      "category": "resources",
+      "outcome": "COMPLETE",
+      "detail": "",
+      "item_count": 1
+    }
+  }
+}

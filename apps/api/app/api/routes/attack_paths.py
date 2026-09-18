@@ -11,6 +11,7 @@ severs it.
 from fastapi import APIRouter, Query
 
 from app.core.deps import DbSession, Tenant
+from app.core.enums import RelationshipType
 from app.core.errors import NotFound, envelope
 from app.graph.model import NEIGHBOURHOOD_FAN_OUT, NEIGHBOURHOOD_MAX_NODES
 from app.services import graph as graph_service
@@ -149,4 +150,49 @@ async def neighborhood(
             "max_nodes": NEIGHBOURHOOD_MAX_NODES,
             "fan_out": NEIGHBOURHOOD_FAN_OUT,
         },
+    )
+
+
+@router.get("/what-if")
+async def what_if(
+    session: DbSession,
+    tenant: Tenant,
+    source: str = Query(min_length=1, max_length=2048),
+    relationship: RelationshipType = Query(),
+    target: str = Query(min_length=1, max_length=2048),
+) -> dict:
+    """What closes if one link is removed, across the organization.
+
+    For the graph view's traced route: pick a hop, see what cutting it would
+    do before anybody changes a role assignment. A full re-traversal, the same
+    cost as one choke-point check, so it is asked per link rather than for
+    every link on every route.
+    """
+    graph = await graph_service.load_graph(session, tenant.organization_id)
+    outcome = graph.cut(source, relationship, target)
+    if outcome is None:
+        raise NotFound("No link here that can be removed")
+
+    return envelope(
+        {
+            "description": outcome.step.describe(),
+            "relationship": outcome.step.relationship.value,
+            "source_id": source,
+            "target_id": target,
+            # Named, because a count is a claim and these are its working.
+            "closes": [
+                {
+                    "entry": {"id": p.entry.provider_resource_id, "name": p.entry.name},
+                    "target": {
+                        "id": p.target.provider_resource_id,
+                        "name": p.target.name,
+                        "data_sensitivity": p.target.data_sensitivity.value,
+                    },
+                    "hops": p.hops,
+                }
+                for p in outcome.closed
+            ],
+            "before": outcome.before,
+            "after": outcome.after,
+        }
     )

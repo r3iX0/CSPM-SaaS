@@ -291,6 +291,38 @@ async def asset_hierarchy(session: DbSession, tenant: Tenant) -> dict:
     )
 
 
+@router.get("/resolve")
+async def resolve_asset(
+    session: DbSession,
+    tenant: Tenant,
+    provider_resource_id: str = Query(min_length=1, max_length=2048),
+) -> dict:
+    """The row id behind a provider id, for opening that asset's page.
+
+    Routes and graphs are statements about provider ids -- the cloud's own
+    names -- and the asset page is addressed by row id. A page holding only a
+    provider id asks here once, when somebody follows it, rather than every
+    route list carrying a surrogate key it rarely needs.
+
+    Present assets only, like the graph: a route through something a later
+    scan no longer found should not open a page describing it as current.
+    """
+    asset_id = (
+        await session.execute(
+            select(ResourceRecord.id)
+            .where(
+                ResourceRecord.organization_id == tenant.organization_id,
+                ResourceRecord.provider_resource_id == provider_resource_id,
+                ResourceRecord.absent_since.is_(None),
+            )
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if asset_id is None:
+        raise NotFound("No such asset in this organization")
+    return envelope({"id": str(asset_id)})
+
+
 @router.get("/{asset_id}")
 async def get_asset(asset_id: UUID, session: DbSession, tenant: Tenant) -> dict:
     asset = (

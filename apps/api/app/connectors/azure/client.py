@@ -418,6 +418,16 @@ class ArmClient(_BaseClient):
     async def list_subscriptions(self) -> list[dict[str, Any]]:
         return await self.get_all("/subscriptions?api-version=2022-12-01")
 
+    async def get_subscription(self, subscription_id: str) -> dict[str, Any]:
+        """The subscription itself: its display name and state.
+
+        Read so the subscription can be called what its owners call it. Every
+        role assignment over "the subscription" lands on this node, so on a
+        graph or a route it is often the most-connected thing on the screen,
+        and a GUID there is a name nobody recognizes.
+        """
+        return await self.get(f"/subscriptions/{subscription_id}?api-version=2022-12-01")
+
     async def list_resources(self, subscription_id: str) -> list[dict[str, Any]]:
         return await self.get_all(
             f"/subscriptions/{subscription_id}/resources?api-version=2021-04-01"

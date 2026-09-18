@@ -7,6 +7,8 @@ import { useT } from "@/i18n";
 import { StatStrip } from "@/components/common/StatStrip";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { AttackPathRoute } from "@/components/graph/AttackPathRoute";
+import { OpenInGraph } from "@/components/graph/OpenInGraph";
+import { routeKey } from "@/components/graph/routeKeys";
 import {
   CardsSkeleton,
   EmptyState,
@@ -284,6 +286,12 @@ function PathCard({ path }: { path: AttackPath }) {
             </AlertDescription>
           </Alert>
         )}
+
+        {/* From the line to what is around it: the entry point's graph, with
+            this route traced (DECISIONS.md §101). */}
+        <div className="mt-4">
+          <OpenInGraph entryId={path.entry.id} traceKey={routeKey(path)} />
+        </div>
       </CardContent>
     </Card>
   );

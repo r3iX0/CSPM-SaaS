@@ -1,11 +1,16 @@
 import { lazy, Suspense, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { WorkflowIcon } from "lucide-react";
 
 import { api } from "@/lib/api";
-import type { AttackPath, Neighborhood, NeighborhoodMeta } from "@/lib/types";
-import { RISK_KIND_ICONS } from "@/lib/icons";
+import type {
+  AttackPath,
+  AttackPathStep,
+  Neighborhood,
+  NeighborhoodMeta,
+  WhatIf,
+} from "@/lib/types";
+import { GRAPH_ICON, RISK_KIND_ICONS } from "@/lib/icons";
 import { cn } from "@/lib/format";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -19,6 +24,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AttackPathRoute } from "./AttackPathRoute";
 import { hopKey, routeKey } from "./routeKeys";
 
+const GraphIcon = GRAPH_ICON;
+
 // React Flow is loaded only when somebody asks for the graph.
 const NeighborhoodCanvas = lazy(() => import("./NeighborhoodCanvas"));
 
@@ -26,6 +33,37 @@ const DEPTHS = [1, 2, 3] as const;
 
 /** The query parameter holding the asset the graph is centred on. */
 const AROUND = "around";
+/**
+ * A route to trace on arrival, by its route key. Set by "Explore in graph" on
+ * the attack paths and risk pages; read once, when the card first draws.
+ */
+const TRACE = "trace";
+
+/** Links on a route that could be removed: containment is where things live. */
+const removable = (route: AttackPath) =>
+  route.steps.filter((step) => step.relationship !== "contains");
+
+/** The hop to try cutting on a route: the one chosen for it, else its cheapest break. */
+function chosenStep(
+  route: AttackPath,
+  chosen: { route: string; hop: string } | null,
+): AttackPathStep | null {
+  const pick =
+    chosen && chosen.route === routeKey(route)
+      ? chosen.hop
+      : route.cheapest_break
+        ? hopKey(
+            route.cheapest_break.source_id,
+            route.cheapest_break.relationship,
+            route.cheapest_break.target_id,
+          )
+        : null;
+  return (
+    removable(route).find(
+      (step) => hopKey(step.source_id, step.relationship, step.target_id) === pick,
+    ) ?? null
+  );
+}
 
 /** One drawn picture: a centre, a depth and the folds opened around it. */
 const canvasKey = (focus: string, depth: number, folds: string[]) =>
@@ -61,11 +99,17 @@ export function AssetNeighborhood({
   const around = params.get(AROUND) ?? providerResourceId;
   const elsewhere = around !== providerResourceId;
 
-  const [asked, setAsked] = useState(elsewhere);
-  const [depth, setDepth] = useState<number>(2);
+  const arrivingWith = params.get(TRACE);
+  const [asked, setAsked] = useState(elsewhere || arrivingWith !== null);
+  // Three hops when arriving to trace a route: most routes are three or four
+  // long, and two would cut the one the reader came to see in half.
+  const [depth, setDepth] = useState<number>(arrivingWith ? 3 : 2);
   // By key rather than by object, so a refetch at another depth keeps the
   // same route traced.
-  const [tracedKey, setTracedKey] = useState<string | null>(null);
+  const [tracedKey, setTracedKey] = useState<string | null>(arrivingWith);
+  // The hop somebody chose to try cutting, for one traced route. Unset means
+  // the route's cheapest break, which is the one worth trying first.
+  const [chosenCut, setChosenCut] = useState<{ route: string; hop: string } | null>(null);
   const [opened, setOpened] = useState<{ around: string; folds: string[] }>({
     around,
     folds: [],
@@ -108,6 +152,23 @@ export function AssetNeighborhood({
     neighborhood.groups.length === 0;
   const routes = neighborhood?.routes ?? [];
   const traced = routes.find((route) => routeKey(route) === tracedKey) ?? null;
+  const cutStep = traced ? chosenStep(traced, chosenCut) : null;
+
+  const whatIf = useQuery({
+    queryKey: ["what-if", cutStep?.source_id, cutStep?.relationship, cutStep?.target_id],
+    queryFn: () =>
+      api
+        .get<WhatIf>(
+          `/api/v1/attack-paths/what-if?${new URLSearchParams({
+            source: cutStep!.source_id,
+            relationship: cutStep!.relationship,
+            target: cutStep!.target_id,
+          })}`,
+        )
+        .then((r) => r.data),
+    enabled: cutStep !== null,
+    retry: false,
+  });
 
   function recenter(id: string) {
     if (id === around) return;
@@ -116,6 +177,8 @@ export function AssetNeighborhood({
       const next = new URLSearchParams(previous);
       if (id === providerResourceId) next.delete(AROUND);
       else next.set(AROUND, id);
+      // The route it arrived to trace belongs to where it arrived.
+      next.delete(TRACE);
       return next;
     });
   }
@@ -138,7 +201,7 @@ export function AssetNeighborhood({
         {!asked && (
           <div>
             <Button variant="outline" size="sm" onClick={() => setAsked(true)}>
-              <WorkflowIcon data-icon="inline-start" />
+              <GraphIcon data-icon="inline-start" />
               Draw the graph
             </Button>
           </div>
@@ -221,6 +284,7 @@ export function AssetNeighborhood({
                   key={canvasKey(neighborhood.focus, depth, folds)}
                   neighborhood={neighborhood}
                   traced={traced}
+                  cut={cutStep}
                   pageAsset={providerResourceId}
                   onRecenter={recenter}
                   onOpenGroup={openGroup}
@@ -261,6 +325,16 @@ export function AssetNeighborhood({
               }
               drawn={neighborhood}
               depth={depth}
+              cutStep={cutStep}
+              onChooseCut={(step) =>
+                traced &&
+                setChosenCut({
+                  route: routeKey(traced),
+                  hop: hopKey(step.source_id, step.relationship, step.target_id),
+                })
+              }
+              whatIf={whatIf.data}
+              whatIfState={whatIf.isError ? "error" : whatIf.isFetching ? "checking" : "ready"}
             />
           </>
         )}
@@ -286,6 +360,10 @@ function RoutesThrough({
   onTrace,
   drawn,
   depth,
+  cutStep,
+  onChooseCut,
+  whatIf,
+  whatIfState,
 }: {
   name: string;
   routes: AttackPath[];
@@ -294,6 +372,10 @@ function RoutesThrough({
   onTrace: (route: AttackPath | null) => void;
   drawn: Neighborhood;
   depth: number;
+  cutStep: AttackPathStep | null;
+  onChooseCut: (step: AttackPathStep) => void;
+  whatIf: WhatIf | undefined;
+  whatIfState: "checking" | "error" | "ready";
 }) {
   const RouteMark = RISK_KIND_ICONS.ATTACK_PATH;
 
@@ -362,15 +444,109 @@ function RoutesThrough({
           )}
           <AttackPathRoute
             steps={traced.steps}
-            cutIndex={traced.steps.findIndex(
-              (step) =>
-                traced.cheapest_break?.source_id === step.source_id &&
-                traced.cheapest_break?.relationship === step.relationship &&
-                traced.cheapest_break?.target_id === step.target_id,
-            )}
+            cutIndex={cutStep ? traced.steps.indexOf(cutStep) : -1}
+          />
+          <WhatIfCut
+            route={traced}
+            cutStep={cutStep}
+            onChooseCut={onChooseCut}
+            whatIf={whatIf}
+            state={whatIfState}
           />
         </div>
       )}
+    </section>
+  );
+}
+
+/**
+ * What cutting a link on the traced route would close, before anybody cuts it.
+ *
+ * Starts on the route's cheapest break and lets the reader try the others.
+ * The answer is about the whole organization, not this route alone: a link
+ * can end this route and leave its target reachable another way, and the
+ * reader deciding which role assignment to remove needs to know that before
+ * removing it. A cut that closes nothing is said plainly, with the way round
+ * as the reason.
+ */
+function WhatIfCut({
+  route,
+  cutStep,
+  onChooseCut,
+  whatIf,
+  state,
+}: {
+  route: AttackPath;
+  cutStep: AttackPathStep | null;
+  onChooseCut: (step: AttackPathStep) => void;
+  whatIf: WhatIf | undefined;
+  state: "checking" | "error" | "ready";
+}) {
+  const options = removable(route);
+  if (options.length === 0) return null;
+
+  const current =
+    whatIf !== undefined &&
+    cutStep !== null &&
+    whatIf.source_id === cutStep.source_id &&
+    whatIf.relationship === cutStep.relationship &&
+    whatIf.target_id === cutStep.target_id;
+
+  return (
+    <section aria-labelledby="what-if-cut" className="flex flex-col gap-2 border-t pt-3">
+      <h4 id="what-if-cut" className="text-xs font-medium text-muted-foreground">
+        What if you cut…
+      </h4>
+      <div className="flex flex-wrap gap-1.5">
+        {options.map((step) => {
+          const active = step === cutStep;
+          return (
+            <Button
+              key={hopKey(step.source_id, step.relationship, step.target_id)}
+              variant={active ? "secondary" : "outline"}
+              size="sm"
+              aria-pressed={active}
+              onClick={() => onChooseCut(step)}
+              className="h-auto py-1 text-left whitespace-normal"
+            >
+              {step.description}
+            </Button>
+          );
+        })}
+      </div>
+      <div aria-live="polite" className="text-sm">
+        {state === "error" && (
+          <p className="text-muted-foreground">
+            CloudGuard could not check this cut. The graph may have changed since it was drawn.
+          </p>
+        )}
+        {state !== "error" && !current && (
+          <p className="text-muted-foreground">Checking every route in the organization…</p>
+        )}
+        {state !== "error" && current && whatIf.closes.length === 0 && (
+          <p>
+            Closes nothing. Every route through this link has another way round, so{" "}
+            <span className="tabular-nums">{whatIf.after}</span> attack paths would remain.
+          </p>
+        )}
+        {state !== "error" && current && whatIf.closes.length > 0 && (
+          <>
+            <p>
+              Closes{" "}
+              <span className="font-medium tabular-nums">{whatIf.closes.length}</span> of{" "}
+              <span className="tabular-nums">{whatIf.before}</span> attack paths in the
+              organization, leaving <span className="tabular-nums">{whatIf.after}</span>.
+            </p>
+            <ul className="mt-1 flex flex-col gap-0.5 text-xs text-muted-foreground">
+              {whatIf.closes.map((closed) => (
+                <li key={`${closed.entry.id}|${closed.target.id}`}>
+                  {closed.entry.name} → {closed.target.name}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </div>
     </section>
   );
 }

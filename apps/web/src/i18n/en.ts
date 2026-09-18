@@ -1014,6 +1014,12 @@ export const en = {
     dangerOwnerOnly: "Only an owner can delete an organization.",
   },
   remediation: { title: "Remediation", empty: "No remediation tasks yet." },
+  graph: {
+    explore: "Explore in graph",
+    opening: "Opening\u2026",
+    gone: "This asset is not in the current graph",
+    goneDetail: "A later scan no longer found it, so there is no graph to open around it.",
+  },
   common: {
     loading: "Loading…",
     error: "Something went wrong",

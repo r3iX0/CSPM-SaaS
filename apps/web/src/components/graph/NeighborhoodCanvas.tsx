@@ -44,6 +44,9 @@ import { hopKey } from "./routeKeys";
 
 // `Pick` to a mapped type: React Flow wants node data to be a record, and an
 // interface is never assignable to one, however plain its fields are.
+/** One hop, named by its ends and its relationship. */
+type Hop = { source_id: string; relationship: string; target_id: string };
+
 type AssetFlowNode = Node<
   Pick<NeighborhoodNode, keyof NeighborhoodNode> & { focus: boolean; dimmed: boolean },
   "asset"
@@ -112,6 +115,8 @@ interface CanvasProps {
   neighborhood: Neighborhood;
   /** A route to trace: its hops drawn strong, its cut marked, the rest faded. */
   traced?: AttackPath | null;
+  /** The hop to draw as cut, when somebody picked one other than the cheapest. */
+  cut?: Hop | null;
   pageAsset: string;
   onRecenter: (id: string) => void;
   onOpenGroup: (id: string) => void;
@@ -122,14 +127,15 @@ interface CanvasProps {
 function Canvas({
   neighborhood,
   traced = null,
+  cut = null,
   pageAsset,
   onRecenter,
   onOpenGroup,
   takeFocus = false,
 }: CanvasProps) {
   const { nodes, edges, at } = useMemo(
-    () => toFlow(neighborhood, traced),
-    [neighborhood, traced],
+    () => toFlow(neighborhood, traced, cut),
+    [neighborhood, traced, cut],
   );
   const [active, setActive] = useState(neighborhood.focus);
   const frame = useRef<HTMLDivElement>(null);
@@ -250,6 +256,7 @@ const FLOW_TOKENS = {
 function toFlow(
   neighborhood: Neighborhood,
   traced: AttackPath | null,
+  chosenCut: Hop | null,
 ): { nodes: Node[]; edges: Edge[]; at: Map<string, { x: number; y: number }> } {
   const at = layoutNeighborhood(neighborhood);
   const origin = { x: 0, y: 0 };
@@ -267,13 +274,8 @@ function toFlow(
   const tracedNodes = traced
     ? new Set(traced.steps.flatMap((step) => [step.source_id, step.target_id]))
     : null;
-  const cut = traced?.cheapest_break
-    ? hopKey(
-        traced.cheapest_break.source_id,
-        traced.cheapest_break.relationship,
-        traced.cheapest_break.target_id,
-      )
-    : null;
+  const cutHop = traced ? (chosenCut ?? traced.cheapest_break) : null;
+  const cut = cutHop ? hopKey(cutHop.source_id, cutHop.relationship, cutHop.target_id) : null;
 
   const nodes: Node[] = [
     ...neighborhood.nodes.map(

@@ -41,7 +41,7 @@ POST   /scans/{id}/replay                  POST   /scans/{id}/cancel
 GET    /scans/worker-status
 
 GET    /assets                             GET    /assets/{id}
-GET    /assets/hierarchy
+GET    /assets/hierarchy                   GET    /assets/resolve?provider_resource_id=
 GET    /changes
 GET    /findings                           GET    /findings/{id}
 GET    /risks                              GET    /risks/{id}
@@ -55,6 +55,7 @@ GET    /findings/{id}/attack-paths         GET    /findings/{id}/provenance
 GET    /attack-paths                       GET    /attack-paths/choke-points
 GET    /attack-paths/blast-radius/{resource_id}
 GET    /attack-paths/neighborhood/{resource_id}?depth=1..3&expand=<fold id>
+GET    /attack-paths/what-if?source=&relationship=&target=
 
 GET    /rules                              GET    /rules/{rule_id}
 GET    /compliance                         GET    /compliance/{framework_id}

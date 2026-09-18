@@ -851,6 +851,27 @@ export interface NeighborhoodMeta {
   fan_out: number;
 }
 
+/**
+ * What removing one link would close, across the organization.
+ *
+ * `closes` are the routes with no way round left; `before` and `after` count
+ * every route, so a cut that closes nothing still shows what it was checked
+ * against.
+ */
+export interface WhatIf {
+  description: string;
+  relationship: string;
+  source_id: string;
+  target_id: string;
+  closes: {
+    entry: { id: string; name: string };
+    target: { id: string; name: string; data_sensitivity: Level };
+    hops: number;
+  }[];
+  before: number;
+  after: number;
+}
+
 export interface RevocationStep {
   title: string;
   detail: string;

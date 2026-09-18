@@ -408,3 +408,20 @@ async def test_encryption_waits_for_the_servers_it_reads() -> None:
     )
 
     assert AzureEvidence.SQL_SERVERS in task.depends_on
+
+
+async def test_the_subscription_record_is_read_for_its_name() -> None:
+    """Collected under the permission every role version already grants, so
+    naming the subscription costs no customer a role redeploy."""
+    from app.connectors.azure.plan import AzurePlanBuilder
+
+    snapshot = await collect()
+
+    assert "subscription" in snapshot.data
+    assert snapshot.coverage["subscription"]["outcome"] == "COMPLETE"
+    builder = AzurePlanBuilder(
+        tokens=FakeTokens(), subscription_id="sub-1", http_client=azure()
+    )
+    task = next(t for t in builder.build_account_plan() if t.key.value == "subscription")
+    assert task.actions == ("Microsoft.Resources/subscriptions/read",)
+

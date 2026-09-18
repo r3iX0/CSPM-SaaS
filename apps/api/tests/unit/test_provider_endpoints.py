@@ -69,12 +69,18 @@ def test_every_declared_path_matches_a_call() -> None:
     by the same person on the same day.
     """
     for name, endpoint in DECLARED:
-        tail = endpoint.path.rstrip("/").split("/")[-1]
+        segments = endpoint.path.rstrip("/").split("/")
+        tail = segments[-1]
         if tail.startswith("{"):
-            # A template whose last segment is a placeholder -- there are none
-            # today, and one appearing should be looked at rather than skipped
-            # silently.
-            raise AssertionError(f"{name} ends in a placeholder: {endpoint.path}")
+            # A read of one thing by its id -- the subscription's own record --
+            # ends in the id. Matched on the segment before it, followed by an
+            # interpolated value and the query string, which is the only way
+            # the client can have built that call.
+            parent = segments[-2]
+            assert re.search(rf"/{re.escape(parent)}/\{{[a-z_]+\}}\?api-version=", CLIENT), (
+                f"{name} declares a read of one /{parent}/<id>, which client.py never calls"
+            )
+            continue
         assert re.search(rf"/{re.escape(tail)}\b", CLIENT), (
             f"{name} declares a path ending /{tail}, which client.py never calls"
         )

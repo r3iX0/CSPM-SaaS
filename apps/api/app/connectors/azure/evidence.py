@@ -26,6 +26,9 @@ class AzureEvidence(EvidenceKey):
 
     # Resource Graph inventory: everything in the subscription, unjudged.
     RESOURCES = "resources"
+    # The subscription's own record: its display name. Unjudged too; it names
+    # the node every subscription-wide role assignment points at.
+    SUBSCRIPTION = "subscription"
 
     NETWORK_SECURITY_GROUPS = "network_security_groups"
     NETWORK_INTERFACES = "network_interfaces"
@@ -153,6 +156,7 @@ class AzureEvidence(EvidenceKey):
 
 _CATEGORIES: dict[AzureEvidence, EvidenceCategory] = {
     AzureEvidence.RESOURCES: EvidenceCategory.RESOURCES,
+    AzureEvidence.SUBSCRIPTION: EvidenceCategory.RESOURCES,
     AzureEvidence.NETWORK_SECURITY_GROUPS: EvidenceCategory.NETWORK,
     AzureEvidence.NETWORK_INTERFACES: EvidenceCategory.NETWORK,
     AzureEvidence.PUBLIC_IP_ADDRESSES: EvidenceCategory.NETWORK,
@@ -224,6 +228,11 @@ if _missing:  # pragma: no cover - import-time guard
 BASELINE_EVIDENCE: frozenset[AzureEvidence] = frozenset(
     {
         AzureEvidence.RESOURCES,
+        # The subscription's display name. No verdict rests on what a
+        # subscription is called, and a failed read costs only the name: the
+        # node falls back to its id. It is collected because a graph whose most
+        # connected node is a GUID is a graph nobody can read.
+        AzureEvidence.SUBSCRIPTION,
         AzureEvidence.ROLE_ASSIGNMENTS,
         AzureEvidence.ROLE_DEFINITIONS,
         # The two control readings. No rule *requires* them -- a rule that did

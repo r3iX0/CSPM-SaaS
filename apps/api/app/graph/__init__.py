@@ -32,10 +32,19 @@ a fiction.
 from app.graph.model import (
     AssetGraph,
     ChokePoint,
+    CutOutcome,
     FoldedGroup,
     Neighborhood,
     Path,
     PathStep,
 )
 
-__all__ = ["AssetGraph", "ChokePoint", "FoldedGroup", "Neighborhood", "Path", "PathStep"]
+__all__ = [
+    "AssetGraph",
+    "ChokePoint",
+    "CutOutcome",
+    "FoldedGroup",
+    "Neighborhood",
+    "Path",
+    "PathStep",
+]

@@ -153,6 +153,7 @@ ARM_READ_ACTIONS: tuple[str, ...] = (
 # Keys are method names on app.connectors.azure.client.ArmClient.
 CLIENT_ACTIONS: dict[str, tuple[str, ...]] = {
     "list_subscriptions": ("Microsoft.Resources/subscriptions/read",),
+    "get_subscription": ("Microsoft.Resources/subscriptions/read",),
     "list_resources": ("Microsoft.Resources/subscriptions/resources/read",),
     "list_inventory": (
         "Microsoft.Resources/subscriptions/resources/read",

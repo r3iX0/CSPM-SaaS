@@ -1760,6 +1760,42 @@ class TestAssetNeighborhood:
         assert response.status_code == 200, response.text
         assert len(response.json()["data"]["nodes"]) == 3
 
+    async def test_cutting_the_only_link_closes_the_route(self, client, cleanup_orgs) -> None:
+        from urllib.parse import urlencode
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Graph Ltd"))
+        cleanup_orgs.append(org_id)
+        await self._estate(org_id)
+
+        query = urlencode(
+            {"source": self.VM, "relationship": "has_identity", "target": self.IDENTITY}
+        )
+        response = await client.get(
+            f"/api/v1/attack-paths/what-if?{query}", headers=auth_header(user)
+        )
+
+        assert response.status_code == 200, response.text
+        body = response.json()["data"]
+        assert (body["before"], body["after"]) == (1, 0)
+        assert body["closes"][0]["target"]["id"] == self.STORAGE
+
+    async def test_a_provider_id_resolves_to_the_asset_page(self, client, cleanup_orgs) -> None:
+        from urllib.parse import urlencode
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Graph Ltd"))
+        cleanup_orgs.append(org_id)
+        vm_row = await self._estate(org_id)
+
+        response = await client.get(
+            f"/api/v1/assets/resolve?{urlencode({'provider_resource_id': self.VM})}",
+            headers=auth_header(user),
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["data"]["id"] == str(vm_row)
+
     async def test_another_organization_cannot_draw_it(self, client, cleanup_orgs) -> None:
         owner, stranger = uuid.uuid4(), uuid.uuid4()
         org_id = uuid.UUID(await make_org(client, owner, "Graph Ltd"))

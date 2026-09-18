@@ -74,7 +74,9 @@ from app.services.rule_sync import sync_rules_to_database
 from app.services.scanner import ScanPipeline
 
 SNAPSHOTS = {
-    Provider.AZURE: Path("/srv/apps/api/tests/fixtures/azure_raw/snapshot_mixed.json"),
+    # The mixed recording with an estate built around it, so the graph view has
+    # routes, an escalation and a fold to show (build_snapshot_demo.py).
+    Provider.AZURE: Path("/srv/apps/api/tests/fixtures/azure_raw/snapshot_demo.json"),
     Provider.AWS: Path("/srv/apps/api/tests/fixtures/aws_raw/snapshot_mixed.json"),
 }
 DEMO_ORG = "Banka Kombetare (demo)"

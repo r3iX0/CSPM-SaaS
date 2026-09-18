@@ -42,6 +42,7 @@ import {
   UserCogIcon,
   UserIcon,
   WaypointsIcon,
+  WorkflowIcon,
   type LucideIcon,
 } from "lucide-react";
 
@@ -163,6 +164,9 @@ export const SETUP_ICONS = {
   expiry: ClockIcon,
   duration: ClockIcon,
 } as const;
+
+/** The graph around an asset: drawing it, and opening it from a route (§101). */
+export const GRAPH_ICON = WorkflowIcon;
 
 /** The shared demo organization, wherever it is named (DECISIONS.md §99). */
 export const DEMO_ICON = FlaskConicalIcon;

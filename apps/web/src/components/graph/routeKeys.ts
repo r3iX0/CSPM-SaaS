@@ -10,4 +10,6 @@ export const hopKey = (source: string, relationship: string, target: string) =>
   `${source}|${relationship}|${target}`;
 
 /** One route. It is the shortest from its entry to its target, so the pair names it. */
-export const routeKey = (route: AttackPath) => `${route.entry.id}|${route.target.id}`;
+export const routeKeyOf = (entryId: string, targetId: string) => `${entryId}|${targetId}`;
+
+export const routeKey = (route: AttackPath) => routeKeyOf(route.entry.id, route.target.id);

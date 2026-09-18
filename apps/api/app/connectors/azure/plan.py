@@ -148,6 +148,9 @@ APP_SERVICES_ENDPOINT = ProviderEndpoint(
 APP_SERVICE_CONFIG_ENDPOINT = ProviderEndpoint(
     f"{ARM}/{{siteId}}/config/web", "2022-09-01"
 )
+SUBSCRIPTION_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/subscriptions/{{subscriptionId}}", "2022-12-01"
+)
 DEFENDER_PLANS_ENDPOINT = ProviderEndpoint(
     f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Security/pricings",
     "2024-01-01",
@@ -356,6 +359,9 @@ class AzurePlanBuilder:
         async def app_services(arm: ArmClient) -> dict[str, Any]:
             return {"app_services": await arm.list_app_services(sub)}
 
+        async def subscription(arm: ArmClient) -> dict[str, Any]:
+            return {"subscription": await arm.get_subscription(sub)}
+
         async def defender_plans(arm: ArmClient) -> dict[str, Any]:
             return {"defender_plans": await arm.list_defender_plans(sub)}
 
@@ -486,6 +492,12 @@ class AzurePlanBuilder:
                 ("Microsoft.Web/sites/read",),
                 app_services,
                 endpoints=(APP_SERVICES_ENDPOINT,),
+            ),
+            self._arm_task(
+                AzureEvidence.SUBSCRIPTION,
+                ("Microsoft.Resources/subscriptions/read",),
+                subscription,
+                endpoints=(SUBSCRIPTION_ENDPOINT,),
             ),
             self._arm_task(
                 AzureEvidence.DEFENDER_PLANS,

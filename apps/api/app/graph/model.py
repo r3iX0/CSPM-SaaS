@@ -141,6 +141,23 @@ class ChokePoint:
 
 
 @dataclass(frozen=True)
+class CutOutcome:
+    """What happens to the attack paths if one link is removed.
+
+    Asked of one link somebody picked, rather than ranked like
+    :class:`ChokePoint`: the question is "what if I do this", and a link that
+    closes nothing is a real answer to it -- the way round is the finding.
+    """
+
+    step: PathStep
+    #: Routes that no longer exist without the link.
+    closed: tuple[Path, ...]
+    #: How many routes exist before and after, across the organization.
+    before: int
+    after: int
+
+
+@dataclass(frozen=True)
 class FoldedGroup:
     """Neighbours of one asset that were counted rather than drawn.
 
@@ -443,6 +460,44 @@ class AssetGraph:
             )
 
         return sorted(found, key=lambda c: (-c.severs, c.describe()))[:limit]
+
+    def cut(
+        self,
+        source: str,
+        relationship: RelationshipType,
+        target: str,
+        max_depth: int = MAX_DEPTH,
+    ) -> CutOutcome | None:
+        """Remove one link and re-ask the whole question.
+
+        The same check :meth:`choke_points` makes of its candidates, for a link
+        somebody chose. None for a link that is not there, and for one nobody
+        can remove: containment is where a resource lives, so offering to cut
+        it would be a recommendation nobody can take (the rule
+        :meth:`Path.cheapest_break` and :meth:`choke_points` already follow).
+
+        A route closes only when no route between the same two ends remains.
+        One that merely moves to another way round is not closed, and counting
+        it as closed would promise a customer a result they will not get.
+        """
+        if relationship is RelationshipType.CONTAINS or not relationship.is_capability:
+            return None
+        if (relationship, target) not in self._out.get(source, []):
+            return None
+
+        before = self.attack_paths(max_depth)
+        after = self._without((source, relationship.value, target)).attack_paths(max_depth)
+        still = {(p.entry.provider_resource_id, p.target.provider_resource_id) for p in after}
+        return CutOutcome(
+            step=PathStep(self.nodes[source], relationship, self.nodes[target]),
+            closed=tuple(
+                p
+                for p in before
+                if (p.entry.provider_resource_id, p.target.provider_resource_id) not in still
+            ),
+            before=len(before),
+            after=len(after),
+        )
 
     def _without(self, edge: tuple[str, str, str]) -> "AssetGraph":
         """This graph with one link removed, for asking what it was holding up.

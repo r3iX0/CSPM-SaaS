@@ -236,6 +236,36 @@ class TestGraphFromRecordedAzure:
         assert ResourceType.RESOURCE_GROUP in by_type
         assert by_type[ResourceType.RESOURCE_GROUP].name == "rg-prod"
 
+    def test_the_subscription_is_called_what_its_owners_call_it(self) -> None:
+        snapshot = load_snapshot("snapshot_mixed")
+        snapshot.data["subscription"] = {
+            "subscriptionId": snapshot.subscription_id,
+            "displayName": "Production",
+        }
+        node = next(
+            r
+            for r in AzureNormalizer().normalize(snapshot).resources
+            if r.resource_type == ResourceType.SUBSCRIPTION
+        )
+        assert node.name == "Production"
+        assert node.get("subscription_id") == snapshot.subscription_id
+
+    def test_a_subscription_whose_record_was_not_read_keeps_its_id(self) -> None:
+        """An older capture, a refused read, or a record with no name: the id is
+        always true, so it is what stands in."""
+        for record in (None, [], {"displayName": ""}, {"state": "Enabled"}):
+            snapshot = load_snapshot("snapshot_mixed")
+            if record is None:
+                snapshot.data.pop("subscription", None)
+            else:
+                snapshot.data["subscription"] = record
+            node = next(
+                r
+                for r in AzureNormalizer().normalize(snapshot).resources
+                if r.resource_type == ResourceType.SUBSCRIPTION
+            )
+            assert node.name == snapshot.subscription_id
+
     def test_a_managed_identity_becomes_a_principal(self, state) -> None:
         principals = [
             r for r in state.resources
@@ -243,6 +273,26 @@ class TestGraphFromRecordedAzure:
         ]
         assert len(principals) == 1
         assert principals[0].get("principal_type") in ("ServicePrincipal", "ManagedIdentity")
+
+    def test_a_system_assigned_identity_is_named_after_its_workload(self, state) -> None:
+        """Azure names a system-assigned identity after the resource it serves.
+        Calling it "ServicePrincipal" made every identity on a route read the
+        same."""
+        principal = next(
+            r for r in state.resources if r.resource_type == ResourceType.SERVICE_PRINCIPAL
+        )
+        assert principal.name == "vm-jumpbox (managed identity)"
+
+    def test_a_principal_with_no_workload_keeps_its_type_as_a_name(self) -> None:
+        snapshot = load_snapshot("snapshot_mixed")
+        for vm in snapshot.data["virtual_machines"]:
+            vm["identity"] = {"type": "UserAssigned", "principalId": vm["identity"]["principalId"]}
+        principal = next(
+            r
+            for r in AzureNormalizer().normalize(snapshot).resources
+            if r.resource_type == ResourceType.SERVICE_PRINCIPAL
+        )
+        assert principal.name == "ServicePrincipal"
 
     def test_the_vm_runs_as_that_identity(self, state) -> None:
         edges = {

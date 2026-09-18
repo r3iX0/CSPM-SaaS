@@ -453,17 +453,23 @@ class AzureNormalizer:
             return [], []
 
         subscription_node = f"/subscriptions/{subscription_id}"
+        # What its owners call it, from the subscription's own record. The id
+        # where that record was not read -- an older capture, or a refused
+        # read -- because the id is always true and a name is only a nicety.
+        record = snapshot.data.get("subscription")
+        display_name = record.get("displayName") if isinstance(record, dict) else None
         nodes = [
             CloudResource(
                 provider_resource_id=subscription_node,
                 resource_type=ResourceType.SUBSCRIPTION,
-                name=subscription_id,
+                name=str(display_name) if display_name else subscription_id,
                 provider=Provider.AZURE,
                 # A subscription is exactly as exposed and as sensitive as
                 # whatever it contains, and the graph is what works that out.
                 # Claiming a level here would double-count it.
                 metadata={
                     "subscription_id": subscription_id,
+                    "display_name": display_name or None,
                     # Which Defender for Cloud plans this subscription is on.
                     # None where the pricing listing was never read, which is
                     # not a subscription with every plan off.
@@ -564,6 +570,22 @@ class AzureNormalizer:
         }
         by_id = {r.provider_resource_id: r for r in resources}
         known = set(by_id)
+        workloads = [*data.get("virtual_machines", []), *data.get("app_services", [])]
+
+        # What to call a principal CloudGuard mints. A system-assigned identity
+        # is created by Azure for one resource and named after it in the
+        # directory, so the workload's name is the principal's real name --
+        # not a guess. Without it every identity on the graph read
+        # "ServicePrincipal", and a route through three of them could not be
+        # told apart. A user-assigned identity is its own resource with its own
+        # name, which this payload does not carry, so it keeps the generic one.
+        system_assigned: dict[str, str] = {}
+        for workload in workloads:
+            identity = workload.get("identity") or {}
+            if "systemassigned" in str(identity.get("type", "")).lower().replace(" ", "") and (
+                identity.get("principalId") and workload.get("name")
+            ):
+                system_assigned[identity["principalId"]] = f"{workload['name']} (managed identity)"
 
         nodes: dict[str, CloudResource] = {}
         edges: list[tuple[str, RelationshipType, str]] = []
@@ -584,7 +606,9 @@ class AzureNormalizer:
                 nodes[principal_node] = CloudResource(
                     provider_resource_id=principal_node,
                     resource_type=ResourceType.SERVICE_PRINCIPAL,
-                    name=props.get("principalType") or "Principal",
+                    name=system_assigned.get(principal_id)
+                    or props.get("principalType")
+                    or "Principal",
                     provider=Provider.AZURE,
                     metadata={
                         "principal_id": principal_id,
@@ -628,7 +652,7 @@ class AzureNormalizer:
         # Resources that run as an identity. The first hop of the path. A web
         # app is a workload exactly as a machine is, and a taken app acts as its
         # identity the same way.
-        for vm in [*data.get("virtual_machines", []), *data.get("app_services", [])]:
+        for vm in workloads:
             identity = vm.get("identity") or {}
             principal_id = identity.get("principalId")
             if not principal_id or not vm.get("id"):
@@ -638,7 +662,7 @@ class AzureNormalizer:
                 nodes[principal_node] = CloudResource(
                     provider_resource_id=principal_node,
                     resource_type=ResourceType.SERVICE_PRINCIPAL,
-                    name="Managed identity",
+                    name=system_assigned.get(principal_id, "Managed identity"),
                     provider=Provider.AZURE,
                     metadata={
                         "principal_id": principal_id,
