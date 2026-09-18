@@ -5395,6 +5395,13 @@ sides) or is reach with nothing misconfigured on it.
 why a route refused one; §104 enforces it. Grouping the queue by asset, rule or route, and a side panel for triage
 without leaving the list, wait until the queue is in use.
 
+**Shipped broken, and why nothing local caught it.** The first deploy returned
+500 on every `/risks` request: `dict(result.tuples())` fails because a SQLAlchemy
+result has a `.keys()` method, so `dict()` takes it for a mapping and indexes it.
+The type checker accepts it and the unit tests never build a real result, so
+only CI's integration tests (and production) could see it. Results are now
+materialised with `.tuples().all()` before `dict()`, as `graph.py` already did.
+
 ## 104. An acceptance ends when its date passes
 
 **The date was a promise nothing kept.** `accept-risk` has always taken an

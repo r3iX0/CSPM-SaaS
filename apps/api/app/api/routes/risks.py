@@ -180,7 +180,7 @@ async def _counts(
                 )
                 .group_by(RiskFinding.risk_id)
             )
-        ).tuples()
+        ).tuples().all()
     )
     # Routes that share a member finding with this risk. Counted for finding
     # risks only: a route sharing findings with another route is overlap, not
@@ -203,7 +203,7 @@ async def _counts(
                 )
                 .group_by(own.risk_id)
             )
-        ).tuples()
+        ).tuples().all()
     )
     return findings, routes
 

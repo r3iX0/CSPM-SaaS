@@ -1611,7 +1611,7 @@ class TestRiskTriage:
             rows = await session.execute(
                 select(Finding.id, Finding.status).where(Finding.id.in_(finding_ids))
             )
-            return dict(rows.tuples())
+            return dict(rows.tuples().all())
 
     async def test_accepting_a_group_accepts_every_open_member(
         self, client, cleanup_orgs
