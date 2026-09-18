@@ -5180,9 +5180,45 @@ Organization-wide choke points are not shown on the canvas. They cost a full
 re-traversal per candidate (§100), and the per-route cut answers the question
 this view is asked.
 
-What this does not do yet: groups cannot be expanded in place, and the focus
-cannot change without leaving the page. The blast-radius list stays on the page
-as the text form of the same reach.
+**Walked without leaving the page.** Pressing a box centres the graph on it
+instead of opening its page: the canvas is for walking the estate, and a click
+that left the page ended the walk after one step. The centre is kept in the URL
+as `?around=<provider id>`, written as a new history entry rather than
+replacing the current one — unlike list filters (§98), where narrowing a list
+should not fill the history, each re-centre is a step somebody took, so Back
+retraces it. A link to a re-centred view opens with the graph already drawn.
+While centred elsewhere, the centre box is a link to that asset's page, and a
+strip above the canvas names it and offers the way back. Folds that were opened
+belong to one centre and are forgotten when it moves.
+
+**Folds open in place.** Pressing a dashed group sends its id back as
+`expand=`; the id is the fold's own identity (`group:<layer>:<relationship>:<parent>`),
+not a counter, so it means the same thing on the next request and at another
+depth. Opened members are drawn whatever the fan-out and walked on from like
+any other asset, but the node cap still applies: opening a fold of four thousand
+draws up to the cap and says it stopped. An id that names no fold — a stale page,
+a hand-edited URL — is ignored rather than refused, because drawing the graph
+without it is the correct answer to it. At most twenty folds are accepted per
+request.
+
+**One tab stop, then arrow keys.** A canvas where every box is a tab stop is a
+wall between the reader and the route list under it. The canvas takes one stop
+(a roving `tabIndex`) and arrow keys move it: left and right to the nearest box
+in the next column, up and down within a column, worked from the drawn positions
+so the keys follow what the reader sees. The view pans to the marked box. Enter
+does what a click does. When a keyboard press re-centres the graph or opens a
+fold, the redrawn canvas takes focus back onto its centre; a depth change or a
+Back press does not pull focus off the page, because the request to take it is
+tied to the exact picture it was made for. React Flow's own node wrappers are
+not focusable, so no box carries two stops.
+
+A new centre, depth or opened fold remounts the canvas rather than updating it,
+so the new picture is fitted to the frame rather than left under the old
+viewport. Tracing a route does not remount.
+
+What this does not do yet: there is no "what if I cut this" on the canvas, and
+the Attack paths and Risk pages have no graph toggle. The blast-radius list
+stays on the page as the text form of the same reach.
 
 ## Settings: the evidence a person supplies
 

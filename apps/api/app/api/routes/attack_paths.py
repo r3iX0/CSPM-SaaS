@@ -22,6 +22,10 @@ router = APIRouter(prefix="/attack-paths", tags=["attack-paths"])
 # canvas, and past this many the list stops being read.
 ROUTE_LIMIT = 20
 
+# Folds one request may ask to open. Each is an id of a few hundred characters
+# in the query string, and the node cap bounds the drawing long before this.
+EXPAND_LIMIT = 20
+
 
 @router.get("")
 async def list_attack_paths(
@@ -108,6 +112,7 @@ async def neighborhood(
     session: DbSession,
     tenant: Tenant,
     depth: int = Query(default=2, ge=1, le=3),
+    expand: list[str] = Query(default=[], max_length=EXPAND_LIMIT),
 ) -> dict:
     """The assets around one, what reaches it and what it reaches.
 
@@ -117,7 +122,10 @@ async def neighborhood(
     hops end to end, and a neighbourhood that deep either way already spans it.
     """
     graph = await graph_service.load_graph(session, tenant.organization_id)
-    around = graph.neighborhood(resource_id, depth)
+    opened = frozenset(
+        fold for fold in map(graph_service.parse_fold_id, expand) if fold is not None
+    )
+    around = graph.neighborhood(resource_id, depth, expand=opened)
     if around is None:
         raise NotFound("No such asset in this organization")
 

@@ -1744,6 +1744,22 @@ class TestAssetNeighborhood:
         assert body["meta"]["routes_total"] == 1
         assert body["data"]["routes"][0]["target"]["id"] == self.STORAGE
 
+    async def test_a_stale_fold_to_open_is_ignored_rather_than_refused(
+        self, client, cleanup_orgs
+    ) -> None:
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Graph Ltd"))
+        cleanup_orgs.append(org_id)
+        await self._estate(org_id)
+
+        response = await client.get(
+            self._url(self.IDENTITY, "?expand=group:1:contains:/gone&expand=nonsense"),
+            headers=auth_header(user),
+        )
+
+        assert response.status_code == 200, response.text
+        assert len(response.json()["data"]["nodes"]) == 3
+
     async def test_another_organization_cannot_draw_it(self, client, cleanup_orgs) -> None:
         owner, stranger = uuid.uuid4(), uuid.uuid4()
         org_id = uuid.UUID(await make_org(client, owner, "Graph Ltd"))

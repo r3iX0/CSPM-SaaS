@@ -7,13 +7,17 @@
  * there is nothing to draw, and that a fold or a cap is admitted in words.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AssetNeighborhood } from "@/components/graph/AssetNeighborhood";
-import { COLUMN_GAP, layoutNeighborhood } from "@/components/graph/neighborhoodLayout";
+import {
+  COLUMN_GAP,
+  layoutNeighborhood,
+  stepFrom,
+} from "@/components/graph/neighborhoodLayout";
 import { api } from "@/lib/api";
 import type { AttackPath, Neighborhood, NeighborhoodNode } from "@/lib/types";
 
@@ -104,6 +108,30 @@ describe("the neighbourhood layout", () => {
     expect(at.get("z-child")!.y).toBeLessThan(at.get("a-child")!.y);
   });
 
+  it("moves across to the nearest box in the next column, and back", () => {
+    const at = layoutNeighborhood(AROUND_VM);
+
+    expect(stepFrom(at, "vm", "right")).toBe("mi");
+    expect(stepFrom(at, "mi", "right")).toBe("sub");
+    expect(stepFrom(at, "vm", "left")).toBe("rg");
+    expect(stepFrom(at, "rg", "right")).toBe("vm");
+    expect(stepFrom(at, "rg", "left")).toBeNull();
+  });
+
+  it("moves up and down only within a column", () => {
+    const at = layoutNeighborhood({
+      focus: "f",
+      nodes: [vertex("f", 0), vertex("a", 1), vertex("b", 1)],
+      groups: [],
+      routes: [],
+      edges: [edge("f", "a"), edge("f", "b")],
+    });
+
+    expect(stepFrom(at, "a", "down")).toBe("b");
+    expect(stepFrom(at, "b", "up")).toBe("a");
+    expect(stepFrom(at, "f", "down")).toBeNull();
+  });
+
   it("centres each column on the focus", () => {
     const at = layoutNeighborhood({
       focus: "f",
@@ -118,16 +146,35 @@ describe("the neighbourhood layout", () => {
   });
 });
 
-function mount(neighborhood: Neighborhood, meta: Record<string, unknown> = {}) {
-  const get = vi.spyOn(api, "get").mockResolvedValue({
-    data: neighborhood,
-    meta: { depth: 2, truncated: false, max_nodes: 150, fan_out: 12, ...meta },
-  } as never);
+/** A drawn box, by the id the canvas keys it on. */
+function box(id: string): HTMLElement {
+  const found = document.querySelector<HTMLElement>(`[data-graph-node="${id}"]`);
+  if (!found) throw new Error(`no box for ${id}`);
+  return found;
+}
+
+function Where() {
+  const location = useLocation();
+  return <output data-testid="where">{location.search}</output>;
+}
+
+function mount(
+  neighborhood: Neighborhood | ((url: string) => Neighborhood),
+  meta: Record<string, unknown> = {},
+  at = "/assets/row-vm",
+) {
+  const get = vi.spyOn(api, "get").mockImplementation((url: string) =>
+    Promise.resolve({
+      data: typeof neighborhood === "function" ? neighborhood(url) : neighborhood,
+      meta: { depth: 2, truncated: false, max_nodes: 150, fan_out: 12, ...meta },
+    }) as never,
+  );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
-      <MemoryRouter>
-        <AssetNeighborhood providerResourceId="/subscriptions/s/vm" name="jump-01" />
+      <MemoryRouter initialEntries={[at]}>
+        <AssetNeighborhood providerResourceId="vm" name="vm" />
+        <Where />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -145,7 +192,7 @@ describe("the neighbourhood card", () => {
     expect(get).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole("button", { name: /draw the graph/i }));
     expect(get).toHaveBeenCalledWith(
-      expect.stringContaining("/attack-paths/neighborhood/%2Fsubscriptions%2Fs%2Fvm?depth=2"),
+      expect.stringContaining("/attack-paths/neighborhood/vm?depth=2"),
     );
   });
 
@@ -164,20 +211,91 @@ describe("the neighbourhood card", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /draw the graph/i }));
 
-    expect(await screen.findByText(/nothing reaches jump-01/i)).toBeInTheDocument();
+    expect(await screen.findByText(/nothing reaches vm/i)).toBeInTheDocument();
   });
 
-  it("draws the assets, each one a link to its own page", async () => {
+  it("centres the graph on a box when it is pressed, in the URL", async () => {
+    const get = mount(AROUND_VM);
+
+    await userEvent.click(screen.getByRole("button", { name: /draw the graph/i }));
+    // Found by text rather than role: React Flow keeps a node hidden until it
+    // has measured it, and jsdom measures nothing.
+    // fireEvent rather than userEvent for the same reason: a hidden node
+    // refuses pointer events.
+    await screen.findByText("mi");
+    fireEvent.click(box("mi"));
+
+    expect(screen.getByTestId("where")).toHaveTextContent("?around=mi");
+    await waitFor(() =>
+      expect(get).toHaveBeenLastCalledWith(expect.stringContaining("/neighborhood/mi?")),
+    );
+  });
+
+  it("opens drawn when the URL is already centred elsewhere, with a way back", async () => {
+    mount({ ...AROUND_VM, focus: "mi" }, {}, "/assets/row-vm?around=mi");
+
+    // No "draw" press needed: a link to a re-centred view is a request for it.
+    await waitFor(() =>
+      expect(screen.getByText(/centred on/i)).toHaveTextContent("Centred on mi"),
+    );
+    expect(screen.getByRole("link", { name: /open its page/i })).toHaveAttribute(
+      "href",
+      "/assets/row-mi",
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: /back to vm/i }));
+    expect(screen.getByTestId("where")).toBeEmptyDOMElement();
+  });
+
+  it("makes a re-centred centre a link to its page", async () => {
+    mount({ ...AROUND_VM, focus: "mi" }, {}, "/assets/row-vm?around=mi");
+
+    await waitFor(() => expect(box("mi")).toHaveAttribute("href", "/assets/row-mi"));
+    // The page's own asset, drawn off-centre, is a box to centre on again.
+    expect(box("vm").tagName).toBe("BUTTON");
+  });
+
+  it("gives the canvas one tab stop and moves it with the arrow keys", async () => {
     mount(AROUND_VM);
 
     await userEvent.click(screen.getByRole("button", { name: /draw the graph/i }));
+    await screen.findByText("mi");
+    const stops = () =>
+      [...document.querySelectorAll<HTMLElement>("[data-graph-node]")].filter(
+        (box) => box.tabIndex === 0,
+      );
+    expect(stops().map((box) => box.dataset.graphNode)).toEqual(["vm"]);
 
-    // Found by text rather than role: React Flow keeps a node hidden until it
-    // has measured it, and jsdom measures nothing.
-    const identity = (await screen.findByText("mi")).closest("a");
-    expect(identity).toHaveAttribute("href", "/assets/row-mi");
-    // The focus is where the reader already is, so it is not a link.
-    expect(screen.getByText("vm").closest("a")).toBeNull();
+    fireEvent.keyDown(stops()[0], { key: "ArrowRight" });
+
+    expect(stops().map((box) => box.dataset.graphNode)).toEqual(["mi"]);
+    expect(document.activeElement).toBe(stops()[0]);
+  });
+
+  it("draws a fold's members when it is pressed", async () => {
+    const get = mount({
+      ...AROUND_VM,
+      groups: [
+        {
+          id: "group:3:contains:sub",
+          parent: "sub",
+          relationship: "contains",
+          layer: 3,
+          count: 40,
+          by_type: { resource_group: 40 },
+        },
+      ],
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /draw the graph/i }));
+    await screen.findByText(/40 more/);
+    fireEvent.click(box("group:3:contains:sub"));
+
+    await waitFor(() =>
+      expect(get).toHaveBeenLastCalledWith(
+        expect.stringContaining(`expand=${encodeURIComponent("group:3:contains:sub")}`),
+      ),
+    );
   });
 
   it("admits a fold and a cap in words", async () => {
@@ -278,7 +396,7 @@ describe("the routes through an asset", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /draw the graph/i }));
 
-    expect(await screen.findByText(/no attack path passes through jump-01/i)).toBeInTheDocument();
+    expect(await screen.findByText(/no attack path passes through vm/i)).toBeInTheDocument();
   });
 
   it("traces a route: the whole line, and the link to cut", async () => {

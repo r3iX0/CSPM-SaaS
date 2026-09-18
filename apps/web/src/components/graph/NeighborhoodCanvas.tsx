@@ -1,4 +1,14 @@
-import { createElement, useMemo, type CSSProperties } from "react";
+import {
+  createContext,
+  createElement,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+} from "react";
 import { Link } from "react-router-dom";
 import {
   Background,
@@ -8,6 +18,7 @@ import {
   Panel,
   Position,
   ReactFlow,
+  ReactFlowProvider,
   useReactFlow,
   type Edge,
   type Node,
@@ -27,7 +38,8 @@ import type {
 import { cn, levelStyle, resourceTypeLabel } from "@/lib/format";
 import { FACTOR_ICONS, resourceTypeIcon } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
-import { layoutNeighborhood } from "./neighborhoodLayout";
+import { DURATION, usePrefersReducedMotion } from "@/lib/motion";
+import { layoutNeighborhood, stepFrom, type Direction } from "./neighborhoodLayout";
 import { hopKey } from "./routeKeys";
 
 // `Pick` to a mapped type: React Flow wants node data to be a record, and an
@@ -42,53 +54,166 @@ type GroupFlowNode = Node<
 >;
 
 /**
+ * What a box can do, handed to the nodes through context rather than through
+ * each node's data, so moving the keyboard mark does not rebuild every node.
+ */
+interface CanvasActions {
+  /** The box that holds the single tab stop into the canvas. */
+  active: string;
+  setActive: (id: string) => void;
+  recenter: (id: string) => void;
+  openGroup: (id: string) => void;
+  /** The asset whose page this is: its box is where the reader already is. */
+  pageAsset: string;
+}
+
+const Actions = createContext<CanvasActions | null>(null);
+
+function useActions(): CanvasActions {
+  const actions = useContext(Actions);
+  if (!actions) throw new Error("A graph node rendered outside NeighborhoodCanvas");
+  return actions;
+}
+
+const ARROWS: Record<string, Direction> = {
+  ArrowLeft: "left",
+  ArrowRight: "right",
+  ArrowUp: "up",
+  ArrowDown: "down",
+};
+
+/**
  * The canvas behind the graph view: React Flow, drawn with CloudGuard's tokens.
  *
  * Its own module so it can be a lazy chunk -- React Flow is the heaviest thing
  * on the asset page and most visits never open the graph. The default export is
  * what `lazy()` loads.
  *
- * Read-only on purpose. Nothing can be dragged, connected or selected: the
- * positions come from `layoutNeighborhood`, and a box a person had moved would
- * be a picture of their arrangement rather than of the estate.
+ * Nothing can be dragged, connected or selected: the positions come from
+ * `layoutNeighborhood`, and a box a person had moved would be a picture of
+ * their arrangement rather than of the estate. What a box does is move the
+ * question: pressing one centres the graph on it, pressing a folded group
+ * draws its members.
+ *
+ * One tab stop, then arrow keys. Tabbing through a hundred boxes to reach the
+ * route list below would make the canvas a wall; a single stop with arrows
+ * inside is how a grid of controls is reached everywhere else, and Enter on
+ * the marked box does what a click would.
  */
-export default function NeighborhoodCanvas({
-  neighborhood,
-  traced = null,
-}: {
+export default function NeighborhoodCanvas(props: CanvasProps) {
+  return (
+    <ReactFlowProvider>
+      <Canvas {...props} />
+    </ReactFlowProvider>
+  );
+}
+
+interface CanvasProps {
   neighborhood: Neighborhood;
   /** A route to trace: its hops drawn strong, its cut marked, the rest faded. */
   traced?: AttackPath | null;
-}) {
-  const { nodes, edges } = useMemo(
+  pageAsset: string;
+  onRecenter: (id: string) => void;
+  onOpenGroup: (id: string) => void;
+  /** Put the keyboard on the focus box once drawn -- after a recentre made by key. */
+  takeFocus?: boolean;
+}
+
+function Canvas({
+  neighborhood,
+  traced = null,
+  pageAsset,
+  onRecenter,
+  onOpenGroup,
+  takeFocus = false,
+}: CanvasProps) {
+  const { nodes, edges, at } = useMemo(
     () => toFlow(neighborhood, traced),
     [neighborhood, traced],
   );
+  const [active, setActive] = useState(neighborhood.focus);
+  const frame = useRef<HTMLDivElement>(null);
+  const flow = useReactFlow();
+  const reduced = usePrefersReducedMotion();
+  // The mark belongs to a box that exists: after a fold opens or the focus
+  // moves, a mark on a box that is gone would leave no tab stop at all.
+  const marked = at.has(active) ? active : neighborhood.focus;
+
+  const focusBox = (id: string) =>
+    frame.current
+      ?.querySelector<HTMLElement>(`[data-graph-node="${CSS.escape(id)}"]`)
+      ?.focus({ preventScroll: true });
+
+  useEffect(() => {
+    if (!takeFocus) return;
+    // React Flow draws its nodes a frame after it mounts.
+    const frameId = requestAnimationFrame(() => focusBox(neighborhood.focus));
+    return () => cancelAnimationFrame(frameId);
+    // Once per canvas: the card remounts it for every new focus.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    const direction = ARROWS[event.key];
+    if (!direction || event.altKey || event.ctrlKey || event.metaKey) return;
+    event.preventDefault();
+    const next = stepFrom(at, marked, direction);
+    if (!next) return;
+    setActive(next);
+    focusBox(next);
+    const to = at.get(next)!;
+    // Brought into view rather than left for the reader to pan to: a mark
+    // that moves off-screen is a mark nobody can see.
+    void flow.setCenter(to.x + BOX_WIDTH / 2, to.y + BOX_HEIGHT / 2, {
+      zoom: flow.getZoom(),
+      duration: reduced ? 0 : DURATION.quick,
+    });
+  }
+
+  const actions: CanvasActions = {
+    active: marked,
+    setActive,
+    recenter: onRecenter,
+    openGroup: onOpenGroup,
+    pageAsset,
+  };
 
   return (
-    <ReactFlow
-      nodes={nodes}
-      edges={edges}
-      nodeTypes={NODE_TYPES}
-      style={FLOW_TOKENS}
-      fitView
-      fitViewOptions={FIT}
-      minZoom={0.25}
-      maxZoom={1.5}
-      nodesDraggable={false}
-      nodesConnectable={false}
-      elementsSelectable={false}
-      // The canvas sits in a scrolling page. A wheel that zoomed the graph
-      // would trap somebody scrolling past it; zoom is on the buttons and on a
-      // pinch instead.
-      zoomOnScroll={false}
-      preventScrolling={false}
-    >
-      <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="var(--border)" />
-      <ZoomButtons />
-    </ReactFlow>
+    <Actions.Provider value={actions}>
+      <div ref={frame} className="size-full" onKeyDown={onKeyDown}>
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={NODE_TYPES}
+          style={FLOW_TOKENS}
+          fitView
+          fitViewOptions={FIT}
+          minZoom={0.25}
+          maxZoom={1.5}
+          nodesDraggable={false}
+          nodesConnectable={false}
+          elementsSelectable={false}
+          // The box inside each node is the tab stop; React Flow's own node
+          // wrapper being one too would put two stops on every box.
+          nodesFocusable={false}
+          edgesFocusable={false}
+          // The canvas sits in a scrolling page. A wheel that zoomed the graph
+          // would trap somebody scrolling past it; zoom is on the buttons and on
+          // a pinch instead.
+          zoomOnScroll={false}
+          preventScrolling={false}
+        >
+          <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="var(--border)" />
+          <ZoomButtons />
+        </ReactFlow>
+      </div>
+    </Actions.Provider>
   );
 }
+
+/** The drawn size of a box, for centring the view on one. */
+const BOX_WIDTH = 220;
+const BOX_HEIGHT = 44;
 
 const FIT = { padding: 0.15 };
 
@@ -125,7 +250,7 @@ const FLOW_TOKENS = {
 function toFlow(
   neighborhood: Neighborhood,
   traced: AttackPath | null,
-): { nodes: Node[]; edges: Edge[] } {
+): { nodes: Node[]; edges: Edge[]; at: Map<string, { x: number; y: number }> } {
   const at = layoutNeighborhood(neighborhood);
   const origin = { x: 0, y: 0 };
 
@@ -230,12 +355,13 @@ function toFlow(
     };
   });
 
-  return { nodes, edges };
+  return { nodes, edges, at };
 }
 
 const HIDDEN_HANDLE: CSSProperties = { opacity: 0, pointerEvents: "none" };
 
-function AssetNode({ data }: NodeProps<AssetFlowNode>) {
+function AssetNode({ id, data }: NodeProps<AssetFlowNode>) {
+  const actions = useActions();
   const body = (
     <>
       <span className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground">
@@ -255,30 +381,55 @@ function AssetNode({ data }: NodeProps<AssetFlowNode>) {
   );
   const frame = cn(
     "flex w-[220px] items-center gap-2 rounded-lg border bg-card px-2 py-1.5 text-left transition-opacity",
+    "nopan focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
     data.focus ? "border-foreground shadow-sm ring-3 ring-ring/20" : "border-border",
     data.dimmed && "opacity-30",
   );
+  const stop = {
+    "data-graph-node": id,
+    tabIndex: actions.active === id ? 0 : -1,
+    onFocus: () => actions.setActive(id),
+  };
+
+  let box;
+  if (!data.focus) {
+    // Every other box re-centres the graph on itself: the canvas is for
+    // walking the estate, and a click that left the page would end the walk.
+    box = (
+      <button
+        type="button"
+        {...stop}
+        onClick={() => actions.recenter(id)}
+        className={cn(frame, "cursor-pointer hover:bg-muted/60")}
+      >
+        {body}
+        <span className="sr-only">. Centre the graph here</span>
+      </button>
+    );
+  } else if (id !== actions.pageAsset && data.asset_id) {
+    // The centre, when it is somewhere else: the one step left is its page.
+    box = (
+      <Link
+        to={`/assets/${data.asset_id}`}
+        {...stop}
+        className={cn(frame, "hover:bg-muted/60")}
+      >
+        {body}
+        <span className="sr-only">. Open its page</span>
+      </Link>
+    );
+  } else {
+    box = (
+      <div {...stop} aria-current="true" className={frame}>
+        {body}
+      </div>
+    );
+  }
 
   return (
     <>
       <Handle type="target" position={Position.Left} isConnectable={false} style={HIDDEN_HANDLE} />
-      {data.focus || !data.asset_id ? (
-        <div className={frame} aria-current={data.focus ? "true" : undefined}>
-          {body}
-        </div>
-      ) : (
-        // `nopan` so a click opens the asset rather than starting a drag of
-        // the canvas underneath it.
-        <Link
-          to={`/assets/${data.asset_id}`}
-          className={cn(
-            frame,
-            "nopan transition-colors hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
-          )}
-        >
-          {body}
-        </Link>
-      )}
+      {box}
       <Handle type="source" position={Position.Right} isConnectable={false} style={HIDDEN_HANDLE} />
     </>
   );
@@ -344,25 +495,31 @@ function Markers({ node }: { node: AssetFlowNode["data"] }) {
  * Neighbours that were counted rather than drawn. Dashed, the way every gap in
  * what CloudGuard shows is drawn, so it cannot pass for one more asset.
  */
-function GroupNode({ data }: NodeProps<GroupFlowNode>) {
+function GroupNode({ id, data }: NodeProps<GroupFlowNode>) {
+  const actions = useActions();
   const kinds = Object.entries(data.by_type).slice(0, 2);
   return (
     <>
       <Handle type="target" position={Position.Left} isConnectable={false} style={HIDDEN_HANDLE} />
-      <div
+      <button
+        type="button"
+        data-graph-node={id}
+        tabIndex={actions.active === id ? 0 : -1}
+        onFocus={() => actions.setActive(id)}
+        onClick={() => actions.openGroup(id)}
         className={cn(
-          "w-[220px] rounded-lg border border-dashed border-border bg-background px-2 py-1.5 transition-opacity",
+          "nopan block w-[220px] cursor-pointer rounded-lg border border-dashed border-border bg-background px-2 py-1.5 text-left transition-opacity hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
           data.dimmed && "opacity-30",
         )}
       >
         <span className="block text-xs font-medium text-foreground tabular-nums">
-          {data.count} more
+          {data.count} more <span className="font-normal text-muted-foreground">· show them</span>
         </span>
         <span className="block truncate text-[11px] text-muted-foreground">
           {kinds.map(([type, count]) => `${resourceTypeLabel(type)} · ${count}`).join(", ")}
           {Object.keys(data.by_type).length > kinds.length && ", …"}
         </span>
-      </div>
+      </button>
       <Handle type="source" position={Position.Right} isConnectable={false} style={HIDDEN_HANDLE} />
     </>
   );

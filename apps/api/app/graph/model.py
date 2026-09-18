@@ -471,6 +471,7 @@ class AssetGraph:
         *,
         fan_out: int = NEIGHBOURHOOD_FAN_OUT,
         max_nodes: int = NEIGHBOURHOOD_MAX_NODES,
+        expand: frozenset[tuple[str, RelationshipType, int]] = frozenset(),
     ) -> Neighborhood | None:
         """The assets around one, for drawing rather than for ranking.
 
@@ -487,6 +488,12 @@ class AssetGraph:
         "412 resources" hides the one that matters, "3 sensitive of 412" does
         not. Past ``max_nodes`` every remaining neighbour is folded and the walk
         stops, and ``truncated`` says the far side went unread.
+
+        ``expand`` names folds somebody asked to open, as ``(parent,
+        relationship, layer)`` -- the same triple a :class:`FoldedGroup`
+        carries. Their members are drawn whatever ``fan_out`` says and walked
+        on from like any other asset; only ``max_nodes`` still applies, because
+        opening a fold of four thousand must not draw four thousand boxes.
         """
         if focus not in self.nodes:
             return None
@@ -509,9 +516,11 @@ class AssetGraph:
                         },
                         key=lambda edge: self._drawing_order(edge[1]),
                     )
-                    drawn = fresh if len(fresh) <= fan_out else [
-                        edge for edge in fresh if self._is_notable(edge[1])
-                    ][:fan_out]
+                    opened = [e for e in fresh if (current, e[0], layer) in expand]
+                    folding = [e for e in fresh if (current, e[0], layer) not in expand]
+                    if len(folding) > fan_out:
+                        folding = [e for e in folding if self._is_notable(e[1])][:fan_out]
+                    drawn = set(opened) | set(folding)
                     for relationship, other in fresh:
                         if other in layers:
                             continue

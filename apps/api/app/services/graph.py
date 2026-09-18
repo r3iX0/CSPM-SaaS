@@ -337,6 +337,32 @@ async def open_findings(
     return found
 
 
+def fold_id(parent: str, relationship: RelationshipType, layer: int) -> str:
+    """A folded group's id, which is also how the page asks to open it.
+
+    Built from the fold's own identity rather than numbered, so it survives a
+    refetch at another depth and means the same thing on the next request.
+    The parent goes last because it is the only part that may contain ``:``.
+    """
+    return f"group:{layer}:{relationship.value}:{parent}"
+
+
+def parse_fold_id(value: str) -> tuple[str, RelationshipType, int] | None:
+    """The fold a page asked to open, or None for anything that is not one.
+
+    None rather than an error: an id from a stale page names a fold that may
+    no longer exist, and drawing the graph without opening it is the right
+    answer to that, not a 422.
+    """
+    parts = value.split(":", 3)
+    if len(parts) != 4 or parts[0] != "group":
+        return None
+    try:
+        return parts[3], RelationshipType(parts[2]), int(parts[1])
+    except ValueError:
+        return None
+
+
 def serialize_neighborhood(
     graph: AssetGraph,
     around: Neighborhood,
@@ -390,7 +416,7 @@ def serialize_neighborhood(
 
     groups = []
     for group in around.groups:
-        group_id = f"group:{group.layer}:{group.relationship.value}:{group.parent}"
+        group_id = fold_id(group.parent, group.relationship, group.layer)
         by_type: dict[str, int] = {}
         for member in group.members:
             by_type[member.resource_type.value] = by_type.get(member.resource_type.value, 0) + 1

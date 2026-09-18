@@ -14,7 +14,7 @@ import uuid
 from app.core.enums import Level, RelationshipType, ResourceType
 from app.domain.resource import CloudResource
 from app.graph import AssetGraph
-from app.services.graph import serialize_neighborhood
+from app.services.graph import fold_id, parse_fold_id, serialize_neighborhood
 
 SUB = "/subscriptions/sub-1"
 GROUP = f"{SUB}/resourceGroups/prod"
@@ -296,3 +296,65 @@ def test_the_routes_through_the_focus_travel_with_it() -> None:
     assert route["target"]["id"] == STORAGE
     # The cut is a capability hop, never containment.
     assert route["cheapest_break"]["relationship"] == "has_identity"
+
+
+# -------------------------------------------------------------------- opening
+def test_an_opened_fold_draws_every_member() -> None:
+    graph = wide_subscription(40)
+    folded = graph.neighborhood(ADMIN, depth=2)
+    assert folded is not None
+    group = folded.groups[0]
+
+    opened = graph.neighborhood(
+        ADMIN, depth=2, expand=frozenset({(group.parent, group.relationship, group.layer)})
+    )
+
+    assert opened is not None
+    assert opened.groups == ()
+    assert sum(1 for n in opened.layers if n.startswith(f"{SUB}/")) == 40
+
+
+def test_an_opened_fold_still_stops_at_the_node_cap() -> None:
+    """Opening four thousand must not draw four thousand boxes."""
+    graph = wide_subscription(40)
+    opened = graph.neighborhood(
+        ADMIN,
+        depth=2,
+        max_nodes=10,
+        expand=frozenset({(SUB, RelationshipType.CONTAINS, 2)}),
+    )
+
+    assert opened is not None
+    assert len(opened.layers) == 10
+    assert opened.truncated
+    assert len(opened.layers) - 2 + sum(len(g.members) for g in opened.groups) == 40
+
+
+def test_opening_a_fold_that_does_not_exist_changes_nothing() -> None:
+    graph = environment()
+    expected = graph.neighborhood(VM, depth=2)
+
+    assert graph.neighborhood(
+        VM, depth=2, expand=frozenset({("/nowhere", RelationshipType.CONTAINS, 1)})
+    ) == expected
+
+
+def test_a_fold_id_names_the_same_fold_on_the_way_back() -> None:
+    parent = f"{SUB}/resourceGroups/rg:with:colons"
+    value = fold_id(parent, RelationshipType.CONTAINS, -2)
+
+    assert parse_fold_id(value) == (parent, RelationshipType.CONTAINS, -2)
+
+
+def test_a_stale_or_forged_fold_id_is_ignored_not_refused() -> None:
+    for junk in ["", "group", "group:x:contains:/a", "group:1:teleports:/a", "node:1:contains:/a"]:
+        assert parse_fold_id(junk) is None
+
+
+def test_the_payload_uses_the_fold_id_a_page_can_send_back() -> None:
+    graph = wide_subscription(40)
+    around = graph.neighborhood(ADMIN, depth=2)
+    assert around is not None
+
+    group = serialize_neighborhood(graph, around, {})["groups"][0]
+    assert parse_fold_id(group["id"]) == (SUB, RelationshipType.CONTAINS, 2)

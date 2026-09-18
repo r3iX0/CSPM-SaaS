@@ -107,3 +107,45 @@ export function layoutNeighborhood(
 function byCodeUnit(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
+
+export type Direction = "left" | "right" | "up" | "down";
+
+/**
+ * The box an arrow key moves to, or null when there is none that way.
+ *
+ * Left and right cross to the nearest column in that direction and land on
+ * the box closest in height, so moving across and back returns to where it
+ * started whenever the columns line up. Up and down stay in the column. Worked
+ * from the drawn positions rather than from edges, so the keys follow what the
+ * reader sees rather than a structure they cannot.
+ */
+export function stepFrom(
+  positions: Map<string, { x: number; y: number }>,
+  from: string,
+  direction: Direction,
+): string | null {
+  const here = positions.get(from);
+  if (!here) return null;
+
+  const across = direction === "left" || direction === "right";
+  const sign = direction === "left" || direction === "up" ? -1 : 1;
+  let best: { id: string; primary: number; secondary: number } | null = null;
+
+  for (const [id, at] of positions) {
+    if (id === from) continue;
+    const along = across ? at.x - here.x : at.y - here.y;
+    if (along * sign <= 0) continue;
+    if (!across && at.x !== here.x) continue;
+    const primary = Math.abs(along);
+    const secondary = across ? Math.abs(at.y - here.y) : 0;
+    if (
+      best === null ||
+      primary < best.primary ||
+      (primary === best.primary && secondary < best.secondary) ||
+      (primary === best.primary && secondary === best.secondary && id < best.id)
+    ) {
+      best = { id, primary, secondary };
+    }
+  }
+  return best?.id ?? null;
+}
