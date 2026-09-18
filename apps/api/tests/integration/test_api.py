@@ -1532,6 +1532,552 @@ class TestLiveRisks:
         ]
 
 
+class TestRiskTriage:
+    """Deciding about a risk from the queue (DECISIONS.md §103).
+
+    A finding risk writes through to its findings, which stay the record
+    compliance cites; a route keeps a status of its own.
+    """
+
+    async def _seed(self, org_id, *, members, route: bool = False):
+        """A finding risk over ``members`` finding statuses, and optionally a
+        route sharing its first finding. Returns (risk id, finding ids, route id).
+        """
+        from app.core.db import service_session
+        from app.core.enums import Level, RiskKind, RiskStatus, Severity
+        from app.models.finding import Finding
+        from app.models.risk import Risk, RiskFinding
+
+        def _risk(kind, title):
+            return Risk(
+                organization_id=org_id,
+                kind=kind,
+                title=title,
+                description="",
+                risk_score=80,
+                risk_level=Level.HIGH,
+                status=RiskStatus.OPEN,
+                severity="HIGH",
+                asset_criticality=Level.HIGH,
+                data_sensitivity=Level.HIGH,
+                internet_exposure=Level.HIGH,
+            )
+
+        async with service_session() as session:
+            risk = _risk(RiskKind.FINDING, "Accounts without MFA")
+            session.add(risk)
+            findings = []
+            for i, finding_status in enumerate(members):
+                finding = Finding(
+                    organization_id=org_id,
+                    rule_id=f"AZ-T-{uuid.uuid4().hex[:8]}",
+                    severity=Severity.HIGH,
+                    status=finding_status,
+                    title=f"Account {i} has no MFA",
+                    description="",
+                    remediation="",
+                    rule_version="1.0",
+                    first_detected_at=datetime.now(UTC),
+                    last_detected_at=datetime.now(UTC),
+                )
+                session.add(finding)
+                findings.append(finding)
+            route_risk = (
+                _risk(RiskKind.ATTACK_PATH, "Jump box can reach payroll") if route else None
+            )
+            if route_risk is not None:
+                session.add(route_risk)
+            await session.flush()
+            for finding in findings:
+                session.add(
+                    RiskFinding(organization_id=org_id, risk_id=risk.id, finding_id=finding.id)
+                )
+            if route_risk is not None:
+                session.add(
+                    RiskFinding(
+                        organization_id=org_id, risk_id=route_risk.id, finding_id=findings[0].id
+                    )
+                )
+            await session.commit()
+            return risk.id, [f.id for f in findings], route_risk.id if route_risk else None
+
+    async def _statuses(self, finding_ids):
+        from sqlalchemy import select
+
+        from app.core.db import service_session
+        from app.models.finding import Finding
+
+        async with service_session() as session:
+            rows = await session.execute(
+                select(Finding.id, Finding.status).where(Finding.id.in_(finding_ids))
+            )
+            return dict(rows.tuples())
+
+    async def test_accepting_a_group_accepts_every_open_member(
+        self, client, cleanup_orgs
+    ) -> None:
+        from sqlalchemy import func, select
+
+        from app.core.db import service_session
+        from app.core.enums import FindingStatus
+        from app.models.remediation import RiskException
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Triage Accept Ltd"))
+        cleanup_orgs.append(org_id)
+        risk_id, finding_ids, _ = await self._seed(
+            org_id,
+            members=[FindingStatus.OPEN, FindingStatus.IN_PROGRESS, FindingStatus.RESOLVED],
+        )
+
+        response = await client.post(
+            f"/api/v1/risks/{risk_id}/status",
+            json={"status": "ACCEPTED", "reason": "Break-glass accounts, reviewed quarterly"},
+            headers=auth_header(user),
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["data"]["status"] == "ACCEPTED"
+        statuses = await self._statuses(finding_ids)
+        assert [statuses[f] for f in finding_ids] == [
+            FindingStatus.ACCEPTED_RISK,
+            FindingStatus.ACCEPTED_RISK,
+            # Over already; a decision about the group does not re-decide it.
+            FindingStatus.RESOLVED,
+        ]
+        async with service_session() as session:
+            exceptions = (
+                await session.execute(
+                    select(func.count())
+                    .select_from(RiskException)
+                    .where(RiskException.finding_id.in_(finding_ids))
+                )
+            ).scalar_one()
+        assert exceptions == 2
+
+    async def test_reopening_revokes_the_acceptance(self, client, cleanup_orgs) -> None:
+        from sqlalchemy import select
+
+        from app.core.db import service_session
+        from app.core.enums import ExceptionStatus, FindingStatus
+        from app.models.remediation import RiskException
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Triage Reopen Ltd"))
+        cleanup_orgs.append(org_id)
+        risk_id, finding_ids, _ = await self._seed(org_id, members=[FindingStatus.OPEN])
+
+        await client.post(
+            f"/api/v1/risks/{risk_id}/status",
+            json={"status": "ACCEPTED", "reason": "Accepted for the migration window"},
+            headers=auth_header(user),
+        )
+        response = await client.post(
+            f"/api/v1/risks/{risk_id}/status",
+            json={"status": "OPEN"},
+            headers=auth_header(user),
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["data"]["status"] == "OPEN"
+        assert (await self._statuses(finding_ids))[finding_ids[0]] == FindingStatus.OPEN
+        async with service_session() as session:
+            exception_status = (
+                await session.execute(
+                    select(RiskException.status).where(
+                        RiskException.finding_id == finding_ids[0]
+                    )
+                )
+            ).scalar_one()
+        assert exception_status == ExceptionStatus.REVOKED
+
+    async def test_a_route_keeps_its_own_status_and_end_date(
+        self, client, cleanup_orgs
+    ) -> None:
+        from app.core.enums import FindingStatus
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Triage Route Ltd"))
+        cleanup_orgs.append(org_id)
+        _, finding_ids, route_id = await self._seed(
+            org_id, members=[FindingStatus.OPEN], route=True
+        )
+
+        until = datetime.now(UTC) + timedelta(days=30)
+        dated = await client.post(
+            f"/api/v1/risks/{route_id}/status",
+            json={
+                "status": "ACCEPTED",
+                "reason": "The jump box is the documented way in",
+                "expires_at": until.isoformat(),
+            },
+            headers=auth_header(user),
+        )
+        assert dated.status_code == 200, dated.text
+        assert datetime.fromisoformat(dated.json()["data"]["accepted_until"]) == until
+
+        # Reopening clears the date, so a later acceptance with no end is not
+        # ended by this one's (DECISIONS.md §104).
+        await client.post(
+            f"/api/v1/risks/{route_id}/status",
+            json={"status": "OPEN"},
+            headers=auth_header(user),
+        )
+        response = await client.post(
+            f"/api/v1/risks/{route_id}/status",
+            json={"status": "ACCEPTED", "reason": "The jump box is the documented way in"},
+            headers=auth_header(user),
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["data"]["status"] == "ACCEPTED"
+        assert response.json()["data"]["accepted_until"] is None
+        # Accepting the reach is not accepting the finding along it.
+        assert (await self._statuses(finding_ids))[finding_ids[0]] == FindingStatus.OPEN
+
+    async def test_nothing_is_resolved_by_hand(self, client, cleanup_orgs) -> None:
+        from app.core.enums import FindingStatus
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Triage Resolve Ltd"))
+        cleanup_orgs.append(org_id)
+        risk_id, _, _ = await self._seed(org_id, members=[FindingStatus.OPEN])
+
+        response = await client.post(
+            f"/api/v1/risks/{risk_id}/status",
+            json={"status": "RESOLVED"},
+            headers=auth_header(user),
+        )
+
+        assert response.status_code == 422
+
+    async def test_a_bulk_decision_is_all_or_nothing(self, client, cleanup_orgs) -> None:
+        from app.core.enums import FindingStatus
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Triage Bulk Ltd"))
+        cleanup_orgs.append(org_id)
+        open_risk, open_findings, _ = await self._seed(org_id, members=[FindingStatus.OPEN])
+        settled_risk, _, _ = await self._seed(org_id, members=[FindingStatus.RESOLVED])
+
+        response = await client.post(
+            "/api/v1/risks/status",
+            json={"risk_ids": [str(open_risk), str(settled_risk)], "status": "IN_PROGRESS"},
+            headers=auth_header(user),
+        )
+
+        assert response.status_code == 422
+        assert (await self._statuses(open_findings))[open_findings[0]] == FindingStatus.OPEN
+
+    async def test_the_list_says_what_a_row_covers(self, client, cleanup_orgs) -> None:
+        from app.core.enums import FindingStatus
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Triage Counts Ltd"))
+        cleanup_orgs.append(org_id)
+        risk_id, _, route_id = await self._seed(
+            org_id,
+            members=[FindingStatus.OPEN, FindingStatus.OPEN, FindingStatus.RESOLVED],
+            route=True,
+        )
+
+        response = await client.get("/api/v1/risks", headers=auth_header(user))
+
+        assert response.status_code == 200, response.text
+        rows = {row["id"]: row for row in response.json()["data"]}
+        assert rows[str(risk_id)]["finding_count"] == 2
+        assert rows[str(risk_id)]["route_count"] == 1
+        assert rows[str(route_id)]["finding_count"] == 1
+        assert rows[str(route_id)]["route_count"] == 0
+
+    async def test_a_viewer_cannot_decide(self, client, cleanup_orgs) -> None:
+        from app.core.enums import FindingStatus
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Triage Viewer Ltd"))
+        cleanup_orgs.append(org_id)
+        risk_id, _, _ = await self._seed(org_id, members=[FindingStatus.OPEN])
+        viewer = uuid.uuid4()
+        from app.core.db import service_session
+
+        async with service_session() as session:
+            await session.execute(
+                text(
+                    "INSERT INTO organization_members (organization_id, user_id, role) "
+                    "VALUES (:org, :user, 'VIEWER')"
+                ),
+                {"org": org_id, "user": viewer},
+            )
+            await session.commit()
+
+        response = await client.post(
+            f"/api/v1/risks/{risk_id}/status",
+            json={"status": "IN_PROGRESS"},
+            headers=auth_header(viewer),
+        )
+
+        assert response.status_code == 403
+
+
+    async def test_an_end_date_already_past_is_refused(self, client, cleanup_orgs) -> None:
+        from app.core.enums import FindingStatus
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Triage Past Ltd"))
+        cleanup_orgs.append(org_id)
+        risk_id, finding_ids, _ = await self._seed(org_id, members=[FindingStatus.OPEN])
+
+        response = await client.post(
+            f"/api/v1/risks/{risk_id}/status",
+            json={
+                "status": "ACCEPTED",
+                "reason": "Accepted for the migration window",
+                "expires_at": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
+            },
+            headers=auth_header(user),
+        )
+
+        assert response.status_code == 422
+        assert (await self._statuses(finding_ids))[finding_ids[0]] == FindingStatus.OPEN
+
+    async def test_the_list_says_when_an_acceptance_runs_out(
+        self, client, cleanup_orgs
+    ) -> None:
+        from app.core.enums import FindingStatus
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Triage Until Ltd"))
+        cleanup_orgs.append(org_id)
+        risk_id, _, _ = await self._seed(org_id, members=[FindingStatus.OPEN])
+        until = datetime.now(UTC) + timedelta(days=90)
+
+        await client.post(
+            f"/api/v1/risks/{risk_id}/status",
+            json={
+                "status": "ACCEPTED",
+                "reason": "Accepted for the migration window",
+                "expires_at": until.isoformat(),
+            },
+            headers=auth_header(user),
+        )
+        response = await client.get("/api/v1/risks?status=ACCEPTED", headers=auth_header(user))
+
+        assert response.status_code == 200, response.text
+        [row] = response.json()["data"]
+        assert datetime.fromisoformat(row["accepted_until"]) == until
+
+
+class TestAcceptanceExpiry:
+    """The sweep that ends acceptances whose date has passed (DECISIONS.md §104).
+
+    Driven through the service with a clock moved forward rather than by
+    waiting: the API refuses an end date in the past, so "later" is the only
+    way to reach one.
+    """
+
+    async def _accept(self, client, user, risk_id, *, days: int) -> None:
+        response = await client.post(
+            f"/api/v1/risks/{risk_id}/status",
+            json={
+                "status": "ACCEPTED",
+                "reason": "Accepted for the migration window",
+                "expires_at": (datetime.now(UTC) + timedelta(days=days)).isoformat(),
+            },
+            headers=auth_header(user),
+        )
+        assert response.status_code == 200, response.text
+
+    async def _sweep(self, org_id, *, days_from_now: int) -> int:
+        from app.core.db import service_session
+        from app.services import acceptance
+
+        later = datetime.now(UTC) + timedelta(days=days_from_now)
+        async with service_session() as session:
+            assert org_id in await acceptance.organizations_due(session, later)
+            expired = await acceptance.expire_due(session, org_id, later)
+            await session.commit()
+        return expired
+
+    async def _sweep_count(self, org_id, *, days_from_now: int) -> int:
+        from app.core.db import service_session
+        from app.services import acceptance
+
+        async with service_session() as session:
+            expired = await acceptance.expire_due(
+                session, org_id, datetime.now(UTC) + timedelta(days=days_from_now)
+            )
+            await session.commit()
+        return expired
+
+    async def test_a_lapsed_acceptance_puts_the_risk_back_in_the_queue(
+        self, client, cleanup_orgs
+    ) -> None:
+        from sqlalchemy import select
+
+        from app.core.db import service_session
+        from app.core.enums import ExceptionStatus, FindingStatus, RiskStatus
+        from app.models.history import FindingEventRecord
+        from app.models.remediation import RiskException
+        from app.models.risk import Risk
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Expiry Finding Ltd"))
+        cleanup_orgs.append(org_id)
+        seed = TestRiskTriage()
+        risk_id, finding_ids, _ = await seed._seed(
+            org_id, members=[FindingStatus.OPEN, FindingStatus.OPEN]
+        )
+        await self._accept(client, user, risk_id, days=30)
+
+        assert await self._sweep(org_id, days_from_now=31) == 2
+
+        statuses = await seed._statuses(finding_ids)
+        assert set(statuses.values()) == {FindingStatus.OPEN}
+        async with service_session() as session:
+            risk = (await session.execute(select(Risk).where(Risk.id == risk_id))).scalar_one()
+            exceptions = (
+                await session.execute(
+                    select(RiskException.status).where(RiskException.finding_id.in_(finding_ids))
+                )
+            ).scalars().all()
+            events = (
+                await session.execute(
+                    select(FindingEventRecord).where(
+                        FindingEventRecord.finding_id == finding_ids[0],
+                        FindingEventRecord.previous_status == FindingStatus.ACCEPTED_RISK,
+                        FindingEventRecord.current_status == FindingStatus.OPEN,
+                    )
+                )
+            ).scalars().all()
+        assert risk.status == RiskStatus.OPEN
+        assert set(exceptions) == {ExceptionStatus.EXPIRED}
+        # The sweep acted, not a person, and the timeline says why.
+        [event] = events
+        assert event.user_id is None
+        assert "Accepted for the migration window" in (event.detail or "")
+
+    async def test_an_acceptance_with_time_left_is_untouched(
+        self, client, cleanup_orgs
+    ) -> None:
+        from app.core.db import service_session
+        from app.core.enums import FindingStatus
+        from app.services import acceptance
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Expiry Early Ltd"))
+        cleanup_orgs.append(org_id)
+        seed = TestRiskTriage()
+        risk_id, finding_ids, _ = await seed._seed(org_id, members=[FindingStatus.OPEN])
+        await self._accept(client, user, risk_id, days=30)
+
+        async with service_session() as session:
+            later = datetime.now(UTC) + timedelta(days=29)
+            assert org_id not in await acceptance.organizations_due(session, later)
+            assert await acceptance.expire_due(session, org_id, later) == 0
+            await session.commit()
+
+        assert (await seed._statuses(finding_ids))[finding_ids[0]] == FindingStatus.ACCEPTED_RISK
+
+    async def test_accepting_again_replaces_the_earlier_end_date(
+        self, client, cleanup_orgs
+    ) -> None:
+        from sqlalchemy import select
+
+        from app.core.db import service_session
+        from app.core.enums import ExceptionStatus, FindingStatus
+        from app.models.remediation import RiskException
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Expiry Extend Ltd"))
+        cleanup_orgs.append(org_id)
+        seed = TestRiskTriage()
+        risk_id, finding_ids, _ = await seed._seed(org_id, members=[FindingStatus.OPEN])
+        # Accepted, then accepted again for longer -- an extension, with no
+        # reopening in between.
+        await self._accept(client, user, risk_id, days=30)
+        await self._accept(client, user, risk_id, days=90)
+
+        async with service_session() as session:
+            statuses = (
+                await session.execute(
+                    select(RiskException.status).where(RiskException.finding_id == finding_ids[0])
+                )
+            ).scalars().all()
+        # One running acceptance, never two: the older date must not end the
+        # newer decision.
+        assert sorted(statuses) == [ExceptionStatus.ACTIVE, ExceptionStatus.REVOKED]
+        assert await self._sweep_count(org_id, days_from_now=31) == 0
+        assert (await seed._statuses(finding_ids))[finding_ids[0]] == FindingStatus.ACCEPTED_RISK
+
+    async def test_the_finding_page_says_when_its_acceptance_ends(
+        self, client, cleanup_orgs
+    ) -> None:
+        from app.core.enums import FindingStatus
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Expiry Detail Ltd"))
+        cleanup_orgs.append(org_id)
+        _, finding_ids, _ = await TestRiskTriage()._seed(org_id, members=[FindingStatus.OPEN])
+        until = datetime.now(UTC) + timedelta(days=60)
+
+        accepted = await client.post(
+            f"/api/v1/findings/{finding_ids[0]}/accept-risk",
+            json={"reason": "Accepted for the migration window", "expires_at": until.isoformat()},
+            headers=auth_header(user),
+        )
+        assert accepted.status_code == 200, accepted.text
+        response = await client.get(
+            f"/api/v1/findings/{finding_ids[0]}", headers=auth_header(user)
+        )
+
+        assert response.status_code == 200, response.text
+        assert datetime.fromisoformat(response.json()["data"]["accepted_until"]) == until
+
+    async def test_the_finding_endpoint_refuses_a_past_end_date(
+        self, client, cleanup_orgs
+    ) -> None:
+        from app.core.enums import FindingStatus
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Expiry Past Ltd"))
+        cleanup_orgs.append(org_id)
+        _, finding_ids, _ = await TestRiskTriage()._seed(org_id, members=[FindingStatus.OPEN])
+
+        response = await client.post(
+            f"/api/v1/findings/{finding_ids[0]}/accept-risk",
+            json={
+                "reason": "Accepted for the migration window",
+                "expires_at": (datetime.now(UTC) - timedelta(hours=1)).isoformat(),
+            },
+            headers=auth_header(user),
+        )
+
+        assert response.status_code == 422
+
+    async def test_a_lapsed_route_acceptance_reopens_the_route(
+        self, client, cleanup_orgs
+    ) -> None:
+        from sqlalchemy import select
+
+        from app.core.db import service_session
+        from app.core.enums import FindingStatus, RiskStatus
+        from app.models.risk import Risk
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Expiry Route Ltd"))
+        cleanup_orgs.append(org_id)
+        seed = TestRiskTriage()
+        _, _, route_id = await seed._seed(org_id, members=[FindingStatus.OPEN], route=True)
+        await self._accept(client, user, route_id, days=7)
+
+        assert await self._sweep(org_id, days_from_now=8) == 1
+
+        async with service_session() as session:
+            route = (await session.execute(select(Risk).where(Risk.id == route_id))).scalar_one()
+        assert route.status == RiskStatus.OPEN
+        assert route.accepted_until is None
+
+
 class TestRiskSearch:
     async def test_search_matches_a_risk_by_title(self, client, cleanup_orgs) -> None:
         from app.core.db import service_session

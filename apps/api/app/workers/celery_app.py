@@ -91,6 +91,14 @@ celery_app.conf.beat_schedule = {
         "task": "cloudguard.derive_notifications",
         "schedule": 300.0,
     },
+    # Five minutes. An acceptance ends on a date somebody chose, and the risk
+    # coming back to the queue within minutes of it is what makes the date
+    # mean something. The sweep asks one indexed question across tenants and
+    # usually finds nobody (DECISIONS.md §104).
+    "expire-acceptances": {
+        "task": "cloudguard.expire_acceptances",
+        "schedule": 300.0,
+    },
     # Daily, and the only thing here measured in hours. Retention is a decision
     # about months; running it often would spend a full table scan per tenant to
     # reclaim what a day's scans added, and there is nothing waiting on the

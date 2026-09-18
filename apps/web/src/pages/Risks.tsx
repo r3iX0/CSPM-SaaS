@@ -2,10 +2,10 @@ import { createElement, useEffect, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import { Link } from "react-router-dom";
-import { ChevronRightIcon, RadarIcon, SearchIcon } from "lucide-react";
+import { ChevronRightIcon, RadarIcon, ScissorsIcon, SearchIcon } from "lucide-react";
 
 import { api } from "@/lib/api";
-import type { Risk } from "@/lib/types";
+import type { ChokePoint, Risk } from "@/lib/types";
 import { useT } from "@/i18n";
 import { StatusPill } from "@/components/security/StatusPill";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
@@ -27,13 +27,23 @@ import { IconLabel } from "@/components/security/IconLabel";
 import type { LucideIcon } from "lucide-react";
 import { Pager } from "@/components/common/Pager";
 import { useUrlFilters } from "@/lib/useUrlFilters";
-import { useRowNavigation } from "@/lib/keyboard";
+import { dialogOpen, isTypingTarget, plainKey, useRowNavigation } from "@/lib/keyboard";
+import { useIsDemo } from "@/lib/useDemo";
+import { formatDate } from "@/lib/format";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RiskTriageBar } from "@/components/security/RiskTriage";
 
 const PAGE_SIZE = 25;
 const SEARCH_DEBOUNCE_MS = 250;
 
 /**
- * What the findings mean, ranked.
+ * The triage queue: what the findings mean, ranked, and what to do about each.
+ *
+ * Findings, routes and escalations used to be read on three pages and decided
+ * about on one of them. This list already ranked all three together; it now
+ * decides about them too -- select rows, then mark them in progress, accept or
+ * reopen them (DECISIONS.md §103). The findings list stays, as the evidence a
+ * risk is built from, and leaves the navigation.
  *
  * This page had the same silent truncation the findings list had: it asked for
  * risks with no `limit`, took the API's default hundred and rendered them as
@@ -94,6 +104,41 @@ export function RisksPage() {
 
   const risks = data?.risks ?? [];
   const activeRow = useRowNavigation(risks.map((risk) => `/risks/${risk.id}`));
+  const isDemo = useIsDemo();
+
+  // Ids rather than rows, so a refetch after a decision shows each selected
+  // risk's new status. Only the rows on screen count: a selection is what the
+  // reader can see, and a page turn must not carry off rows they cannot.
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
+  const selected = risks.filter((risk) => selectedIds.has(risk.id));
+  function toggle(id: string) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  // `x` selects the row `j`/`k` has marked -- the pair that makes the queue
+  // workable without a pointer. Not in the demo, where nothing can be decided.
+  useEffect(() => {
+    if (isDemo) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (!plainKey(event) || isTypingTarget(event.target) || dialogOpen()) return;
+      const row = data?.risks[activeRow];
+      if (event.key !== "x" || !row) return;
+      event.preventDefault();
+      toggle(row.id);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [activeRow, data, isDemo]);
+
+  // What to cut, above what to read -- only on the unfiltered first page, and
+  // only once the list holds a route, since the answer costs a re-traversal per
+  // candidate on the server.
+  const hasRoutes = risks.some((risk) => risk.kind !== "FINDING");
   const total = data?.total ?? 0;
   const pages = Math.ceil(total / PAGE_SIZE);
   const filtering =
@@ -107,6 +152,13 @@ export function RisksPage() {
     update({ ...patch, page: null });
   }
 
+  const chokes = useQuery({
+    queryKey: ["attack-paths", "choke-points"],
+    enabled: hasRoutes && page === 0 && !filtering,
+    queryFn: () =>
+      api.get<ChokePoint[]>("/api/v1/attack-paths/choke-points").then((r) => r.data),
+  });
+
   function clearFilters() {
     setSearch("");
     refilter({ q: null, level: null, status: null, kind: null });
@@ -117,8 +169,10 @@ export function RisksPage() {
       <PageHeader
         icon={RadarIcon}
         title={t.risks.title}
-        description="What each finding means for this asset, this data and this exposure — worst first."
+        description="Everything worth deciding about — findings, attack paths and escalations — worst first. Select rows to mark them in progress, accept them or reopen them."
       />
+
+      {chokes.data && chokes.data.length > 0 && <TopFixes chokes={chokes.data} />}
 
       {/* The kind is the view -- one list, or one slice of it -- so every
           kind is named on screen, as the findings page names its statuses.
@@ -181,7 +235,8 @@ export function RisksPage() {
             idleValue="all"
             options={[
               { value: "all", label: "All statuses" },
-              { value: "OPEN", label: "Open" },
+              // OPEN is the queue's own view: nobody has decided about these.
+              { value: "OPEN", label: "Needs triage" },
               { value: "IN_PROGRESS", label: "In progress" },
               { value: "ACCEPTED", label: "Accepted" },
               { value: "RESOLVED", label: "Resolved" },
@@ -222,6 +277,9 @@ export function RisksPage() {
 
       {data && risks.length > 0 && (
         <>
+          {!isDemo && (
+            <RiskTriageBar selected={selected} onDone={() => setSelectedIds(new Set())} />
+          )}
           {/* The ranking arrives a card at a time. Keyed by risk id, so a
               poll that returns the same ranking does not replay it -- only
               cards that are actually new animate, which keeps the movement a
@@ -246,9 +304,31 @@ export function RisksPage() {
                 className="rounded-xl data-[active=true]:ring-2 data-[active=true]:ring-foreground/60"
               >
                 {risk.kind === "FINDING" ? (
-                  <FindingRiskCard risk={risk} />
+                  <FindingRiskCard
+                    risk={risk}
+                    select={
+                      isDemo ? undefined : (
+                        <SelectRow
+                          risk={risk}
+                          checked={selectedIds.has(risk.id)}
+                          onToggle={() => toggle(risk.id)}
+                        />
+                      )
+                    }
+                  />
                 ) : (
-                  <ScenarioCard risk={risk} />
+                  <ScenarioCard
+                    risk={risk}
+                    select={
+                      isDemo ? undefined : (
+                        <SelectRow
+                          risk={risk}
+                          checked={selectedIds.has(risk.id)}
+                          onToggle={() => toggle(risk.id)}
+                        />
+                      )
+                    }
+                  />
                 )}
               </motion.div>
             ))}
@@ -288,7 +368,7 @@ export function RisksPage() {
  * formula, so a new template added later shows honest arithmetic rather than
  * falling through to a card that would display components nobody computed.
  */
-function ScenarioCard({ risk }: { risk: Risk }) {
+function ScenarioCard({ risk, select }: { risk: Risk; select?: React.ReactNode }) {
   const t = useT();
   const breakdown = risk.score_breakdown;
   const capped = (breakdown.uncapped ?? 0) > 100;
@@ -298,6 +378,7 @@ function ScenarioCard({ risk }: { risk: Risk }) {
     <RiskShell>
       <RiskHead
         risk={risk}
+        select={select}
         badge={escalation ? t.risks.escalationBadge : t.risks.scenarioBadge}
         subtitle={escalation ? t.risks.escalationIntro : t.risks.scenarioIntro}
       />
@@ -350,10 +431,10 @@ function ScenarioCard({ risk }: { risk: Risk }) {
   );
 }
 
-function FindingRiskCard({ risk }: { risk: Risk }) {
+function FindingRiskCard({ risk, select }: { risk: Risk; select?: React.ReactNode }) {
   return (
     <RiskShell>
-      <RiskHead risk={risk} subtitle={risk.description} />
+      <RiskHead risk={risk} select={select} subtitle={risk.description} />
       <RiskFooter>
         <Factor
           icon={FACTOR_ICONS.criticality}
@@ -407,15 +488,20 @@ function RiskShell({ children }: { children: React.ReactNode }) {
  */
 function RiskHead({
   risk,
+  select,
   badge,
   subtitle,
 }: {
   risk: Risk;
+  select?: React.ReactNode;
   badge?: string;
   subtitle: string;
 }) {
+  const findings = risk.finding_count ?? 0;
+  const routes = risk.route_count ?? 0;
   return (
     <div className="flex items-start gap-4 p-4">
+      {select}
       <ScoreTile score={Number(risk.risk_score)} level={risk.risk_level} />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
@@ -430,6 +516,26 @@ function RiskHead({
                 "aria-hidden": true,
               })}
               {badge}
+            </Badge>
+          )}
+          {/* What deciding about this row decides about. A grouped risk is
+              every asset failing the check, and a finding on a route is worth
+              more than its own score says. */}
+          {/* When an acceptance comes back to the queue. Without it an
+              accepted row reads as settled for good. */}
+          {risk.status === "ACCEPTED" && risk.accepted_until && (
+            <Badge variant="outline">Accepted until {formatDate(risk.accepted_until)}</Badge>
+          )}
+          {risk.kind === "FINDING" && findings > 1 && (
+            <Badge variant="outline">{findings} findings</Badge>
+          )}
+          {routes > 0 && (
+            <Badge variant="outline" className="gap-1">
+              {createElement(RISK_KIND_ICONS.ATTACK_PATH, {
+                className: "size-3",
+                "aria-hidden": true,
+              })}
+              On {routes} route{routes === 1 ? "" : "s"}
             </Badge>
           )}
         </div>
@@ -480,5 +586,74 @@ function Factor({
       <IconLabel icon={icon}>{label}</IconLabel>
       {value}
     </span>
+  );
+}
+
+/**
+ * The row's checkbox. Raised above the card's link overlay, which otherwise
+ * takes every click on the card -- a box that opened the risk instead of
+ * selecting it would be the queue's first surprise.
+ */
+function SelectRow({
+  risk,
+  checked,
+  onToggle,
+}: {
+  risk: Risk;
+  checked: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <Checkbox
+      className="relative z-10 mt-1"
+      checked={checked}
+      onCheckedChange={onToggle}
+      aria-label={`Select ${risk.title}`}
+    />
+  );
+}
+
+/**
+ * The links that close the most routes, above the list that ranks them.
+ *
+ * A fix is not a row in the queue -- it has no status and nothing can be
+ * accepted about it -- but it is often the best answer to several rows at once,
+ * so the three strongest are named here and the attack paths page has the rest
+ * (DECISIONS.md §103).
+ */
+function TopFixes({ chokes }: { chokes: ChokePoint[] }) {
+  return (
+    <section
+      aria-label="Top fixes"
+      className="rounded-xl border border-ok-border bg-ok-bg px-4 py-3"
+    >
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="flex items-center gap-2 text-sm font-medium text-ok">
+          <ScissorsIcon className="size-4" aria-hidden />
+          Top fixes
+        </h2>
+        <Link
+          to="/attack-paths"
+          className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+        >
+          All routes and fixes
+        </Link>
+      </div>
+      <ul className="mt-2 flex flex-col gap-1.5">
+        {chokes.slice(0, 3).map((choke) => (
+          <li
+            key={`${choke.source.id}-${choke.relationship}-${choke.target.id}`}
+            className="flex flex-wrap items-baseline justify-between gap-x-4 text-xs"
+          >
+            <span className="font-mono text-foreground">{choke.description}</span>
+            <span className="text-muted-foreground">
+              closes{" "}
+              <strong className="tabular-nums text-foreground">{choke.severs}</strong> of{" "}
+              {choke.total_routes} route{choke.total_routes === 1 ? "" : "s"}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

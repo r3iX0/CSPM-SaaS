@@ -152,6 +152,9 @@ risks
                              -- route is not when it appeared but whether
                              -- anything has looked since. SET NULL on a pruned
                              -- scan: risks outlive scans, as findings do
+  accepted_until             -- when an accepted route or escalation returns
+                             -- to the queue; NULL on finding risks, whose end
+                             -- dates live on each member's exception
   owner_id, due_date, resolved_at, created_at, updated_at
   -- kind: FINDING / ATTACK_PATH / ESCALATION. A scenario risk is several
   --       findings seen as one route and is scored by a different formula
@@ -177,6 +180,9 @@ remediation_tasks
 
 exceptions
   id, organization_id, finding_id, approved_by, reason, expires_at, status, created_at
+  -- status: ACTIVE / EXPIRED / REVOKED. At most one ACTIVE per finding:
+  -- accepting again or reopening revokes the running one, and the
+  -- expire-acceptances sweep expires it once expires_at passes
 
 audit_logs
   id, organization_id, user_id, action, resource_type, resource_id

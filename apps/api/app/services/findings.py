@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import commit_unless_externally_managed
@@ -13,7 +13,6 @@ from app.core.enums import (
     FindingEvent,
     FindingStatus,
     RiskKind,
-    RiskStatus,
 )
 from app.core.errors import FindingNotFound, ValidationFailed
 from app.models.finding import Finding, FindingEvidence
@@ -26,6 +25,7 @@ from app.models.scan import Evidence, EvidenceBlob
 from app.models.verification import RemediationVerification
 from app.remediation import Comparison, ExpectedState, azure_policy, terraform_hints
 from app.risk.scorer import default_scorer
+from app.risk.triage import acceptance_expiry, finding_risk_status
 from app.rules.registry import get_rule
 from app.services import verification as verification_service
 
@@ -99,6 +99,22 @@ async def accept_risk(
     """
     if finding.status == FindingStatus.RESOLVED:
         raise ValidationFailed("This finding is already resolved")
+    try:
+        expires_at = acceptance_expiry(expires_at, datetime.now(UTC))
+    except ValueError as exc:
+        raise ValidationFailed(str(exc)) from exc
+
+    # One acceptance at a time. A finding accepted again used to keep the first
+    # exception ACTIVE beside the second, and once expiry was enforced the older
+    # date would have reopened a finding the newer decision still covered.
+    await session.execute(
+        update(RiskException)
+        .where(
+            RiskException.finding_id == finding.id,
+            RiskException.status == ExceptionStatus.ACTIVE,
+        )
+        .values(status=ExceptionStatus.REVOKED)
+    )
 
     _record_event(
         session,
@@ -132,9 +148,7 @@ async def accept_risk(
         )
     )
 
-    risk = await own_risk(session, finding)
-    if risk:
-        risk.status = RiskStatus.ACCEPTED
+    await resync_own_risk(session, finding)
 
     await record_audit(
         session,
@@ -166,7 +180,20 @@ async def set_status(
         )
 
     _record_event(session, tenant, finding, FindingEvent.STATUS_CHANGED, status)
+    if finding.status == FindingStatus.ACCEPTED_RISK and status != FindingStatus.ACCEPTED_RISK:
+        # Taking an acceptance back ends it. Left ACTIVE, the exception kept
+        # saying the organization had decided to live with a finding that was
+        # back in the queue asking for a decision.
+        await session.execute(
+            update(RiskException)
+            .where(
+                RiskException.finding_id == finding.id,
+                RiskException.status == ExceptionStatus.ACTIVE,
+            )
+            .values(status=ExceptionStatus.REVOKED)
+        )
     finding.status = status
+    await resync_own_risk(session, finding)
     await record_audit(
         session,
         tenant,
@@ -274,6 +301,42 @@ async def own_risk(session: AsyncSession, finding: Finding) -> Risk | None:
             )
         )
     ).scalar_one_or_none()
+
+
+async def accepted_until(session: AsyncSession, finding: Finding) -> datetime | None:
+    """The end date of the acceptance running on this finding, if it has one."""
+    if finding.status != FindingStatus.ACCEPTED_RISK:
+        return None
+    return (
+        await session.execute(
+            select(RiskException.expires_at)
+            .where(
+                RiskException.finding_id == finding.id,
+                RiskException.status == ExceptionStatus.ACTIVE,
+            )
+            .order_by(RiskException.created_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+
+async def resync_own_risk(session: AsyncSession, finding: Finding) -> None:
+    """Bring the finding's own risk into line with every member it has.
+
+    Written through rather than set: a grouped risk is forty findings, and
+    accepting one of them is not accepting the risk (``finding_risk_status``).
+    """
+    risk = await own_risk(session, finding)
+    if risk is None:
+        return
+    members = (
+        await session.execute(
+            select(Finding.status)
+            .join(RiskFinding, RiskFinding.finding_id == Finding.id)
+            .where(RiskFinding.risk_id == risk.id)
+        )
+    ).scalars()
+    risk.status = finding_risk_status(members, risk.status)
 
 
 async def record_audit(

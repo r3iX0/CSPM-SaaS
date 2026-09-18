@@ -1,14 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
-import { RouteIcon, ScissorsIcon } from "lucide-react";
+import { Link } from "react-router-dom";
+import { RadarIcon, RouteIcon, ScissorsIcon } from "lucide-react";
 
 import { api } from "@/lib/api";
-import type { AttackPath, AttackPathMeta, ChokePoint } from "@/lib/types";
+import type { AttackPath, AttackPathMeta, ChokePoint, Risk } from "@/lib/types";
 import { useT } from "@/i18n";
 import { StatStrip } from "@/components/common/StatStrip";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { AttackPathRoute } from "@/components/graph/AttackPathRoute";
 import { OpenInGraph } from "@/components/graph/OpenInGraph";
-import { routeKey } from "@/components/graph/routeKeys";
+import { routeKey, routeKeyOf } from "@/components/graph/routeKeys";
 import {
   CardsSkeleton,
   EmptyState,
@@ -51,6 +52,27 @@ export function AttackPathsPage() {
       api.get<ChokePoint[]>("/api/v1/attack-paths/choke-points").then((r) => r.data),
   });
 
+  // Which of these routes the risks queue is tracking. This page rebuilds
+  // routes live from the graph; the queue holds the ones with something
+  // misconfigured on them, with a status somebody can set. Matched by their
+  // ends, which is what names a route on both sides (DECISIONS.md §103).
+  const tracked = useQuery({
+    queryKey: ["risks", "tracked-routes"],
+    enabled: Boolean(data && data.paths.length > 0),
+    queryFn: () =>
+      api
+        .get<Risk[]>("/api/v1/risks?kind=ATTACK_PATH&limit=500")
+        .then((r) => {
+          const byRoute = new Map<string, Risk>();
+          for (const risk of r.data) {
+            const first = risk.path[0];
+            const last = risk.path[risk.path.length - 1];
+            if (first && last) byRoute.set(routeKeyOf(first.source_id, last.target_id), risk);
+          }
+          return byRoute;
+        }),
+  });
+
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
@@ -89,6 +111,8 @@ export function AttackPathsPage() {
               <PathCard
                 key={`${path.entry.id}->${path.target.id}`}
                 path={path}
+                risk={tracked.data?.get(routeKey(path))}
+                trackingKnown={tracked.isSuccess}
               />
             ))}
           </div>
@@ -221,7 +245,15 @@ function NothingFound({ meta }: { meta: AttackPathMeta }) {
   );
 }
 
-function PathCard({ path }: { path: AttackPath }) {
+function PathCard({
+  path,
+  risk,
+  trackingKnown,
+}: {
+  path: AttackPath;
+  risk?: Risk;
+  trackingKnown: boolean;
+}) {
   const t = useT();
 
   return (
@@ -289,8 +321,26 @@ function PathCard({ path }: { path: AttackPath }) {
 
         {/* From the line to what is around it: the entry point's graph, with
             this route traced (DECISIONS.md §101). */}
-        <div className="mt-4">
+        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
           <OpenInGraph entryId={path.entry.id} traceKey={routeKey(path)} />
+          {/* Where this route is decided about. Untracked means no rule
+              objected to anything on it: real reach, and nothing to accept or
+              mark in progress. Said only once the answer is known. */}
+          {risk ? (
+            <Link
+              to={`/risks/${risk.id}`}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            >
+              <RadarIcon className="size-3.5" aria-hidden />
+              Tracked as a risk
+            </Link>
+          ) : (
+            trackingKnown && (
+              <span className="text-xs text-muted-foreground">
+                Not a risk: nothing on this route fails a check
+              </span>
+            )
+          )}
         </div>
       </CardContent>
     </Card>

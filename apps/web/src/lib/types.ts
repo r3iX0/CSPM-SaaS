@@ -143,6 +143,19 @@ export interface Risk {
     uncapped?: number;
     total?: number;
   };
+  /**
+   * List rows only. How many open findings deciding about this row decides
+   * about -- forty on a grouped risk -- and, on a finding risk, how many open
+   * routes run through it (DECISIONS.md §103).
+   */
+  finding_count?: number;
+  route_count?: number;
+  /**
+   * When an accepted risk comes back to the queue: the earliest end date among
+   * a finding risk's running acceptances, or a route's own. `null` when not
+   * accepted, or accepted with no end date (DECISIONS.md §104).
+   */
+  accepted_until?: string | null;
 }
 
 /**
@@ -250,6 +263,11 @@ export interface RemediationSpec {
 }
 
 export interface FindingDetail extends Finding {
+  /**
+   * When an accepted finding comes back to the queue. `null` when it is not
+   * accepted, or accepted with no end date (DECISIONS.md §104).
+   */
+  accepted_until?: string | null;
   rule_name?: string;
   rationale?: string;
   category?: string;

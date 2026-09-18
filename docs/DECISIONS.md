@@ -5310,6 +5310,137 @@ ending in a placeholder, now checks such a path by the segment before it
 followed by an interpolated id, which is the only way the client can build the
 call.
 
+## 103. The risks list becomes the triage queue, and a risk can be decided about
+
+**Three pages were one question.** Findings, Risks and Attack paths each listed
+some of "what should we deal with first", and the data model had already merged
+them: `Risk` is `FINDING`, `ATTACK_PATH` or `ESCALATION`, findings are linked
+through `risk_findings`, and a grouping rule folds forty failures into one risk
+(§44). What the risks list lacked was the ability to act. Every triage action
+lived on the finding, `risks.py` had only reads, and `Risk.owner_id` and
+`Risk.due_date` existed with nothing writing them.
+
+**Decisions taken, and the ones rejected.**
+
+- *The unit of the queue is the risk.* It is scored, deduplicated, and ranks a
+  route above its parts. A union of findings and routes at the API was rejected
+  -- two score scales and a route counted twice, as itself and as its hops. A
+  fix-first queue ("cut this link and four routes close") was rejected as the
+  row: a fix has no identity and no status, so nothing can be accepted or
+  tracked against it. It becomes a view over the queue, from the choke points.
+- *The page keeps the name Risks and the URL `/risks`.* "Risk" is already the
+  product's word for exactly this merged object -- the score, the dashboard and
+  RISK_ENGINE.md use it -- and "Issues" would have been a third word for it.
+- *Status stays where the fact is.* A finding risk writes a decision through to
+  its findings, because the finding is what compliance cites and what an
+  exception hangs off; moving the status onto the risk would have broken both
+  and needed a migration of every accepted finding. A route or an escalation
+  has no finding of its own, so its status is its own -- and accepting one says
+  "this reach is by design", which is a different claim from accepting any
+  finding along it. A false positive stays per finding: it says the rule was
+  wrong about that asset, which is never true of a group.
+- *Ownership stays on the remediation task,* which already has `assigned_to`
+  and `due_date` and is keyed on the finding. `Risk.owner_id` and
+  `Risk.due_date` are left unwritten and should be dropped.
+- *Remediation stays a page of its own.* Triage (deciding) and remediation
+  (doing) are different jobs, often different people, and merging them puts
+  the engineer back in the undecided queue.
+- *Attack paths stays, as analysis rather than a list to work.* It is the only
+  place a route with nothing misconfigured on it is visible -- real reach that
+  the scanner deliberately mints no risk for, since no rule objected to it --
+  along with choke points, what-if and blast radius.
+- *The findings list leaves the navigation and keeps its URL:* compliance links
+  to `/findings?rule_id=`, and `/findings/{id}` is the evidence page.
+
+**What this change does.** The backend half:
+
+- `POST /risks/{id}/status` and `POST /risks/status` (bulk, at most 100, all or
+  none, every refusal checked before anything is written). `RESOLVED` is
+  refused, as it is for findings. A finding risk's decision goes through
+  `findings.accept_risk` and `findings.set_status` for each open, in-progress or
+  accepted member, so it leaves the same events, audit rows and exceptions the
+  finding page would. A route refused `expires_at` rather than storing a date
+  nothing acted on -- until §104.
+- `/risks` rows carry `finding_count` and `route_count`, so a row says what
+  deciding about it decides about.
+
+**Two bugs the queue would have made visible.** `Risk.status` did not mean one
+thing. The scanner set a finding risk OPEN whenever its finding was open *or in
+progress*, so a risk somebody had picked up was untriaged again by the next
+scan; accepting one finding of a group marked the whole group accepted; and
+every scan that saw a route set it back to OPEN, undoing an acceptance the
+moment the next reading arrived. Both rules now live in `app/risk/triage.py`
+and every writer uses them: a finding risk's status is its least-settled live
+member (open, then in progress, then accepted), and a route seen again is
+reopened only if it had closed. Separately, taking an acceptance back left its
+exception ACTIVE; moving a finding out of ACCEPTED_RISK now revokes it.
+
+**The queue.** The risks page decides as well as ranks. A checkbox per row
+(raised above the card's link overlay, which otherwise took the click) and `x`
+on the row `j`/`k` has marked select; a bar over the list offers Mark in
+progress, Accept… and Reopen, each only when it would change one of the
+selected rows. The accept dialog says how far the decision reaches -- "40 open
+findings, each recorded as an accepted risk", "1 route marked as by design --
+the findings along it stay open" -- because forty accounts is one click here and
+has to be visible before it rather than discovered after. Rows carry "40
+findings" and "On 2 routes". The status filter's OPEN is labelled *Needs
+triage*, which is what it means in a queue. Top fixes -- the three strongest
+choke points -- sit above the list on its unfiltered first page, and only once
+a route is listed, since each costs a re-traversal. Findings left the
+navigation; Attack paths stays beside Risks, and each route card says whether
+the queue tracks it (matched by entry and target, which name a route on both
+sides) or is reach with nothing misconfigured on it.
+
+**Not done here.** Exception expiry was recorded and never enforced, which is
+why a route refused one; §104 enforces it. Grouping the queue by asset, rule or route, and a side panel for triage
+without leaving the list, wait until the queue is in use.
+
+## 104. An acceptance ends when its date passes
+
+**The date was a promise nothing kept.** `accept-risk` has always taken an
+`expires_at` and written it to the exception row, and nothing ever read it
+again: a finding accepted "until the migration finishes" stayed accepted for
+ever, the queue had no way to say when anything would come back, and the risk
+triage endpoint had to refuse an end date on a route because there was nowhere
+to keep one and nothing to act on it.
+
+**A sweep, every five minutes.** `cloudguard.expire_acceptances` asks one
+question across tenants on the owner session -- which organizations have an
+ACTIVE exception or an accepted route past its date -- and works each of those
+inside its own `scan_session`, as the other sweeps do. For a finding it marks
+the exception EXPIRED and, if the finding is still ACCEPTED_RISK, moves it to
+OPEN with a timeline event (no user, and a sentence naming the date and the
+reason it had been accepted for) and an audit row, then re-reads its risk's
+status from the members (§103). For a route or escalation it sets OPEN and
+clears `risks.accepted_until`, the one new column (migration 0037).
+
+**OPEN, not IN_PROGRESS and not RESOLVED.** Nobody has decided anything since
+the acceptance ran out, and nothing about the environment was observed to
+change. The finding is exactly as failing as it was, so it goes back to where
+undecided things live -- Needs triage.
+
+**One running acceptance per finding.** Accepting again used to add a second
+ACTIVE exception beside the first; with expiry enforced, the older date would
+have reopened a finding the newer decision still covered. Accepting now revokes
+the running exception first (reopening already did, §103), and the sweep skips a
+finding another unexpired acceptance still covers, for rows written before this.
+Accepting an accepted risk from the queue is therefore how an end date is
+extended or removed, so Accept… is offered on accepted rows too.
+
+**Refused if already past.** A date at or before now is a 422 on both the finding
+and the risk endpoints: stored, it would be expired by the next sweep, and the
+person accepting would see their decision undone minutes later with no idea
+why. A naive timestamp is read as UTC.
+
+**On screen.** The accept dialog takes an optional day, sent as the end of that
+day in the reader's timezone, and says what happens after it. An accepted row
+shows "Accepted until …" -- the earliest end date among a group's members,
+because one member coming back is enough to put the row back in the queue. The
+finding page's accept form takes the same optional day, and the page shows
+"until …" beside an accepted finding's status, read from `GET /findings/{id}`'s
+`accepted_until` -- so an acceptance can be given an end on whichever page it
+is made, and seen on both.
+
 ## Settings: the evidence a person supplies
 
 `PATCH /organizations` takes no id in the path. Deleting a *different*

@@ -107,6 +107,7 @@ export function KeyboardShortcuts() {
             <Shortcut keys={["j"]} label="Next row" />
             <Shortcut keys={["k"]} label="Previous row" />
             <Shortcut keys={["Enter"]} label="Open the row" />
+            <Shortcut keys={["x"]} label="Select the row, on Risks" />
           </ShortcutGroup>
           <ShortcutGroup title="Go to" className="sm:col-span-2">
             <div className="grid gap-x-6 gap-y-2 sm:grid-cols-2">

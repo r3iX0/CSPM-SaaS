@@ -10,6 +10,7 @@ from app.core.enums import (
     Priority,
     RemediationStatus,
     RiskKind,
+    RiskStatus,
     RuleState,
     Severity,
     TaskOutcome,
@@ -76,6 +77,10 @@ class RiskOut(BaseModel):
     #: is about one asset and takes its reading from the finding, and on a route
     #: recorded before this was tracked.
     observed_scan_id: UUID | None = None
+    #: When an accepted risk comes back to the queue. For a finding risk the
+    #: earliest end date among its members' running acceptances, for a route
+    #: its own. ``None`` when not accepted, or accepted with no end date.
+    accepted_until: datetime | None = None
     due_date: date | None = None
 
 
@@ -95,6 +100,23 @@ class FindingDetail(FindingOut):
 class AcceptRiskRequest(BaseModel):
     reason: str = Field(min_length=10, max_length=2000)
     expires_at: datetime | None = None
+
+
+class RiskStatusRequest(BaseModel):
+    """A decision about a risk. ``reason`` is required to accept one."""
+
+    status: RiskStatus
+    reason: str | None = Field(default=None, min_length=10, max_length=2000)
+    # When the acceptance runs out. A finding risk's goes to each member's
+    # exception, a route's to the risk itself; the expiry sweep reopens either
+    # once it passes (DECISIONS.md §104). Only with ACCEPTED, and never past.
+    expires_at: datetime | None = None
+
+
+class BulkRiskStatusRequest(RiskStatusRequest):
+    # Bounded: a queue page, not the estate. Each finding risk writes an event,
+    # an audit row and possibly an exception per member.
+    risk_ids: list[UUID] = Field(min_length=1, max_length=100)
 
 
 class RemediationCreate(BaseModel):

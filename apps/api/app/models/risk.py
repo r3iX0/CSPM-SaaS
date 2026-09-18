@@ -92,6 +92,11 @@ class Risk(UUIDPrimaryKey, TenantOwned, Timestamps, Base):
     observed_scan_id: Mapped[uuid.UUID | None] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("scans.id", ondelete="SET NULL")
     )
+    # When a route's acceptance runs out. A finding risk keeps its expiry on
+    # each member's exception row instead, and leaves this NULL; a route has no
+    # finding of its own to hang one on (DECISIONS.md §104). NULL on an accepted
+    # route means accepted with no end date.
+    accepted_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     owner_id: Mapped[uuid.UUID | None] = mapped_column(PGUUID(as_uuid=True))
     due_date: Mapped[date | None] = mapped_column(Date)
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

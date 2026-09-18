@@ -205,3 +205,21 @@ const COLLECTION_CATEGORY_LABELS: Record<string, string> = {
 
 export const collectionCategoryLabel = (category: string) =>
   COLLECTION_CATEGORY_LABELS[category] ?? resourceTypeLabel(category);
+
+/**
+ * The end of a picked day, in the reader's timezone, as an instant the API
+ * takes. People accept "until the end of the quarter"; sent as that day's last
+ * second, the risk comes back the morning after the date they picked rather
+ * than the evening before (DECISIONS.md §104).
+ */
+export function endOfDayIso(day: string): string {
+  return new Date(`${day}T23:59:59`).toISOString();
+}
+
+/** Tomorrow as a date input's value: the earliest day an acceptance may end on. */
+export function tomorrowDay(): string {
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}

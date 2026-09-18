@@ -82,8 +82,21 @@ function scenarioRisk(overrides: Partial<Risk> = {}): Risk {
   } as Risk;
 }
 
-function mount(risks: Risk[]) {
-  vi.spyOn(api, "get").mockResolvedValue({ data: risks, meta: {} });
+function mount(
+  risks: Risk[],
+  { chokes = [], demo = false }: { chokes?: unknown[]; demo?: boolean } = {},
+) {
+  // Answered by URL: the page also asks which organization it is in (the demo
+  // takes the actions away) and, once a route is listed, what to cut.
+  vi.spyOn(api, "get").mockImplementation((url: string) =>
+    Promise.resolve(
+      url.includes("/choke-points")
+        ? { data: chokes, meta: {} }
+        : url.includes("/organizations")
+          ? { data: [{ id: "org-1", name: "Contoso", is_demo: demo }], meta: {} }
+          : { data: risks, meta: {} },
+    ) as never,
+  );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
@@ -97,6 +110,155 @@ function mount(risks: Risk[]) {
 describe("RisksPage", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it("says what deciding about a row decides about", async () => {
+    // A grouped risk is every asset failing the check, and a finding on a
+    // route is worth more than its own score says (DECISIONS.md §103).
+    mount([findingRisk({ finding_count: 40, route_count: 2 })]);
+
+    expect(await screen.findByText("40 findings")).toBeInTheDocument();
+    expect(screen.getByText("On 2 routes")).toBeInTheDocument();
+  });
+
+  it("does not count a lone finding as a group", async () => {
+    mount([findingRisk({ finding_count: 1, route_count: 0 })]);
+
+    await screen.findByText("Public blob access on customerdata");
+    expect(screen.queryByText(/findings$/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^On \d+ route/)).not.toBeInTheDocument();
+  });
+
+  it("decides about the selected rows in one request", async () => {
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: [], meta: {} } as never);
+    mount([scenarioRisk(), findingRisk()]);
+
+    await userEvent.click(
+      await screen.findByRole("checkbox", { name: "Select Public blob access on customerdata" }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Mark in progress" }));
+
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith("/api/v1/risks/status", {
+        risk_ids: ["r-finding"],
+        status: "IN_PROGRESS",
+      }),
+    );
+  });
+
+  it("asks for a reason, and says how far an acceptance reaches", async () => {
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: [], meta: {} } as never);
+    mount([findingRisk({ finding_count: 40 })]);
+
+    await userEvent.click(
+      await screen.findByRole("checkbox", { name: "Select Public blob access on customerdata" }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Accept…" }));
+
+    expect(
+      await screen.findByText(/40 open findings, each recorded as an accepted risk/),
+    ).toBeInTheDocument();
+    const confirm = screen.getByRole("button", { name: "Accept" });
+    expect(confirm).toBeDisabled();
+
+    await userEvent.type(
+      screen.getByLabelText("Why is this acceptable?"),
+      "Break-glass accounts, reviewed quarterly",
+    );
+    await userEvent.click(confirm);
+
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith("/api/v1/risks/status", {
+        risk_ids: ["r-finding"],
+        status: "ACCEPTED",
+        reason: "Break-glass accounts, reviewed quarterly",
+      }),
+    );
+  });
+
+  it("offers only the decisions that would change something", async () => {
+    mount([findingRisk({ status: "ACCEPTED" })]);
+
+    await userEvent.click(
+      await screen.findByRole("checkbox", { name: "Select Public blob access on customerdata" }),
+    );
+
+    expect(screen.getByRole("button", { name: "Reopen" })).toBeInTheDocument();
+    // Offered again: accepting again is how an end date is moved (§104).
+    expect(screen.getByRole("button", { name: "Accept…" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Mark in progress" })).not.toBeInTheDocument();
+  });
+
+  it("sends an end date as the end of the picked day", async () => {
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: [], meta: {} } as never);
+    mount([findingRisk()]);
+
+    await userEvent.click(
+      await screen.findByRole("checkbox", { name: "Select Public blob access on customerdata" }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Accept…" }));
+    await userEvent.type(
+      screen.getByLabelText("Why is this acceptable?"),
+      "Accepted for the migration window",
+    );
+    fireEvent.change(screen.getByLabelText("Until (optional)"), {
+      target: { value: "2099-03-31" },
+    });
+    expect(screen.getByText(/comes back to Needs triage on its own/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Accept" }));
+
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith("/api/v1/risks/status", {
+        risk_ids: ["r-finding"],
+        status: "ACCEPTED",
+        reason: "Accepted for the migration window",
+        expires_at: new Date("2099-03-31T23:59:59").toISOString(),
+      }),
+    );
+  });
+
+  it("says when an accepted risk comes back", async () => {
+    mount([findingRisk({ status: "ACCEPTED", accepted_until: "2099-03-31T12:00:00Z" })]);
+
+    expect(await screen.findByText(/^Accepted until /)).toBeInTheDocument();
+  });
+
+  it("selects the marked row with x", async () => {
+    mount([findingRisk()]);
+    await screen.findByText("Public blob access on customerdata");
+
+    await userEvent.keyboard("jx");
+
+    expect(await screen.findByText("selected")).toBeInTheDocument();
+  });
+
+  it("offers no decisions in the demo", async () => {
+    mount([findingRisk()], { demo: true });
+
+    await screen.findByText("Public blob access on customerdata");
+    // The organization arrives after the list; give it the chance to.
+    await waitFor(() => expect(screen.queryByRole("checkbox")).not.toBeInTheDocument());
+  });
+
+  it("names the links that close the most routes above the list", async () => {
+    mount([scenarioRisk()], {
+      chokes: [
+        {
+          description: "mi-jump-01 can act over sub-1",
+          relationship: "grants_role",
+          source: { id: "mi", name: "mi-jump-01", resource_type: "managed_identity" },
+          target: { id: "sub", name: "sub-1", resource_type: "subscription" },
+          severs: 4,
+          on_routes: 4,
+          total_routes: 6,
+          closes: [],
+        },
+      ],
+    });
+
+    const fixes = await screen.findByRole("region", { name: "Top fixes" });
+    expect(fixes).toHaveTextContent("mi-jump-01 can act over sub-1");
+    expect(fixes).toHaveTextContent("closes 4 of 6 routes");
   });
 
   it("shows a scenario's route, hop by hop", async () => {

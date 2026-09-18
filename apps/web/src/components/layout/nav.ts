@@ -10,7 +10,6 @@ import {
   RadarIcon,
   RouteIcon,
   SettingsIcon,
-  ShieldAlertIcon,
   WrenchIcon,
 } from "lucide-react";
 
@@ -43,7 +42,11 @@ export const NAV_GROUPS = [
   {
     label: "Exposure",
     items: [
-      { to: "/findings", label: "Findings", icon: ShieldAlertIcon },
+      // One queue. Findings are what a risk is built from, reached from the
+      // risk, a rule or a compliance control, and no longer a destination of
+      // their own; attack paths stay as the analysis behind the routes the
+      // queue ranks -- including the ones nothing is misconfigured on, which
+      // are real reach and never a row (DECISIONS.md §103).
       { to: "/risks", label: "Risks", icon: RadarIcon },
       { to: "/attack-paths", label: "Attack paths", icon: RouteIcon },
       { to: "/assets", label: "Assets", icon: BoxesIcon },

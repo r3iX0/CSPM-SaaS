@@ -1,15 +1,22 @@
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Query
 from sqlalchemy import func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.core.deps import DbSession, Tenant
-from app.core.enums import FindingStatus, Level, RiskKind, RiskStatus
+from app.core.enums import ExceptionStatus, FindingStatus, Level, RiskKind, RiskStatus
 from app.core.errors import NotFound, envelope
 from app.models.finding import Finding
+from app.models.remediation import RiskException
 from app.models.risk import Risk, RiskFinding
 from app.models.scan import Scan
-from app.schemas.finding import RiskOut
+from app.schemas.finding import BulkRiskStatusRequest, RiskOut, RiskStatusRequest
+from app.services import risks as service
+
+_OPEN_FINDINGS = (FindingStatus.OPEN, FindingStatus.IN_PROGRESS)
 
 router = APIRouter(prefix="/risks", tags=["risks"])
 
@@ -55,7 +62,7 @@ async def list_risks(
             .join(Finding, Finding.id == RiskFinding.finding_id)
             .where(
                 RiskFinding.organization_id == tenant.organization_id,
-                Finding.status.in_([FindingStatus.OPEN, FindingStatus.IN_PROGRESS]),
+                Finding.status.in_(_OPEN_FINDINGS),
             )
         )
         stmt = stmt.where(
@@ -100,16 +107,140 @@ async def list_risks(
         .all()
     )
 
+    finding_counts, route_counts = await _counts(session, [r.id for r in rows])
+    expiries = await _member_expiries(session, [r.id for r in rows])
     return envelope(
         [
             {
-                **RiskOut.model_validate(r).model_dump(mode="json"),
-                "status": r.status,
+                **_risk_out(r, expiries),
+                "finding_count": finding_counts.get(r.id, 0),
+                "route_count": route_counts.get(r.id, 0),
             }
             for r in rows
         ],
         {"total": total, "limit": limit, "offset": offset},
     )
+
+
+def _risk_out(risk: Risk, expiries: dict[UUID, datetime]) -> dict:
+    """A risk as the API shows it, with a finding risk's expiry read from its members."""
+    out = RiskOut.model_validate(risk)
+    out.status = risk.status
+    if risk.kind == RiskKind.FINDING:
+        out.accepted_until = expiries.get(risk.id)
+    return out.model_dump(mode="json")
+
+
+async def _member_expiries(
+    session: AsyncSession, risk_ids: list[UUID]
+) -> dict[UUID, datetime]:
+    """The earliest running acceptance's end date among each risk's accepted findings.
+
+    The earliest, because that is when the risk next needs a decision: one
+    member coming back is enough to put the row back in the queue.
+    """
+    if not risk_ids:
+        return {}
+    rows = (
+        await session.execute(
+            select(RiskFinding.risk_id, func.min(RiskException.expires_at))
+            .join(Finding, Finding.id == RiskFinding.finding_id)
+            .join(RiskException, RiskException.finding_id == Finding.id)
+            .where(
+                RiskFinding.risk_id.in_(risk_ids),
+                Finding.status == FindingStatus.ACCEPTED_RISK,
+                RiskException.status == ExceptionStatus.ACTIVE,
+                RiskException.expires_at.is_not(None),
+            )
+            .group_by(RiskFinding.risk_id)
+        )
+    ).tuples()
+    return {risk_id: until for risk_id, until in rows if until is not None}
+
+
+async def _counts(
+    session: AsyncSession, risk_ids: list[UUID]
+) -> tuple[dict[UUID, int], dict[UUID, int]]:
+    """How many open findings each risk covers, and how many open routes it is on.
+
+    Both for the queue, where a row has to say what deciding about it would
+    decide: a grouped risk is forty accounts, and a finding on two routes is
+    worth more than its own score says. A page at a time, two grouped queries.
+    """
+    if not risk_ids:
+        return {}, {}
+    findings = dict(
+        (
+            await session.execute(
+                select(RiskFinding.risk_id, func.count(func.distinct(Finding.id)))
+                .join(Finding, Finding.id == RiskFinding.finding_id)
+                .where(
+                    RiskFinding.risk_id.in_(risk_ids),
+                    Finding.status.in_(_OPEN_FINDINGS),
+                )
+                .group_by(RiskFinding.risk_id)
+            )
+        ).tuples()
+    )
+    # Routes that share a member finding with this risk. Counted for finding
+    # risks only: a route sharing findings with another route is overlap, not
+    # a fact about either of them.
+    own, other = aliased(RiskFinding), aliased(RiskFinding)
+    route = aliased(Risk)
+    subject = aliased(Risk)
+    routes = dict(
+        (
+            await session.execute(
+                select(own.risk_id, func.count(func.distinct(route.id)))
+                .join(subject, subject.id == own.risk_id)
+                .join(other, other.finding_id == own.finding_id)
+                .join(route, route.id == other.risk_id)
+                .where(
+                    own.risk_id.in_(risk_ids),
+                    subject.kind == RiskKind.FINDING,
+                    route.kind != RiskKind.FINDING,
+                    route.status != RiskStatus.RESOLVED,
+                )
+                .group_by(own.risk_id)
+            )
+        ).tuples()
+    )
+    return findings, routes
+
+
+@router.post("/status")
+async def set_risks_status(
+    payload: BulkRiskStatusRequest, session: DbSession, tenant: Tenant
+) -> dict:
+    """One decision about several risks, applied to all of them or to none."""
+    tenant.require_write()
+    risks = await service.get_risks(session, tenant, payload.risk_ids)
+    risks = await service.set_status(
+        session,
+        tenant,
+        risks,
+        payload.status,
+        reason=payload.reason,
+        expires_at=payload.expires_at,
+    )
+    return envelope([{"id": str(r.id), "status": r.status} for r in risks])
+
+
+@router.post("/{risk_id}/status")
+async def set_risk_status(
+    risk_id: UUID, payload: RiskStatusRequest, session: DbSession, tenant: Tenant
+) -> dict:
+    tenant.require_write()
+    risks = await service.get_risks(session, tenant, [risk_id])
+    [risk] = await service.set_status(
+        session,
+        tenant,
+        risks,
+        payload.status,
+        reason=payload.reason,
+        expires_at=payload.expires_at,
+    )
+    return envelope(_risk_out(risk, await _member_expiries(session, [risk.id])))
 
 
 @router.get("/{risk_id}")
@@ -153,8 +284,7 @@ async def get_risk(risk_id: UUID, session: DbSession, tenant: Tenant) -> dict:
 
     return envelope(
         {
-            **RiskOut.model_validate(risk).model_dump(mode="json"),
-            "status": risk.status,
+            **_risk_out(risk, await _member_expiries(session, [risk.id])),
             # ``None`` where a route predates this being tracked, or where the
             # scan that saw it has been pruned. Both mean "we cannot say when",
             # which the page must not render as "just now".

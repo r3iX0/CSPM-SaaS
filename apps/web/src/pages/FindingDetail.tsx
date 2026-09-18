@@ -45,10 +45,13 @@ import { VerificationPanel } from "@/components/security/VerificationPanel";
 import { FindingTimeline } from "@/components/security/FindingTimeline";
 import {
   cn,
+  endOfDayIso,
+  formatDate,
   formatDateTime,
   formatRelative,
   outcomeStyle,
   resourceTypeLabel,
+  tomorrowDay,
 } from "@/lib/format";
 import { FACT_ICONS, FACTOR_ICONS, resourceTypeIcon } from "@/lib/icons";
 import { IconLabel } from "@/components/security/IconLabel";
@@ -63,6 +66,9 @@ export function FindingDetailPage() {
   const { findingId } = useParams();
   const queryClient = useQueryClient();
   const [acceptReason, setAcceptReason] = useState("");
+  // Optional, a day rather than an instant -- the same field the risks queue
+  // offers, so an acceptance can end whichever page it was made on (§104).
+  const [acceptUntil, setAcceptUntil] = useState("");
   const [showAccept, setShowAccept] = useState(false);
   // The scan a "verify" queued, followed on this page until it concludes.
   const [verifyScanId, setVerifyScanId] = useState<string | null>(null);
@@ -175,10 +181,12 @@ export function FindingDetailPage() {
     mutationFn: () =>
       api.post(`/api/v1/findings/${findingId}/accept-risk`, {
         reason: acceptReason,
+        ...(acceptUntil ? { expires_at: endOfDayIso(acceptUntil) } : {}),
       }),
     onSuccess: () => {
       setShowAccept(false);
       setAcceptReason("");
+      setAcceptUntil("");
       toast.success("Risk accepted", {
         description:
           "Recorded in the audit log with your reason. It stays visible and is counted in its own right, never as a fix.",
@@ -224,6 +232,11 @@ export function FindingDetailPage() {
           <div className="flex flex-wrap items-center gap-2">
             <SeverityBadge level={data.severity} />
             <StatusPill status={data.status} />
+            {data.accepted_until && (
+              <span className="text-xs text-muted-foreground">
+                until {formatDate(data.accepted_until)}
+              </span>
+            )}
             <span className="font-mono text-xs text-muted-foreground">
               {data.rule_id} · v{data.rule_version}
             </span>
@@ -306,6 +319,22 @@ export function FindingDetailPage() {
                 <FieldDescription>
                   Recorded in the audit log. Accepted risks stay visible — they are
                   never hidden.
+                </FieldDescription>
+              </Field>
+              <Field className="mt-3">
+                <FieldLabel htmlFor="accept-until">Until (optional)</FieldLabel>
+                <Input
+                  id="accept-until"
+                  type="date"
+                  min={tomorrowDay()}
+                  value={acceptUntil}
+                  onChange={(e) => setAcceptUntil(e.target.value)}
+                  className="w-fit"
+                />
+                <FieldDescription>
+                  {acceptUntil
+                    ? "After this date the finding comes back to Needs triage on its own, and its timeline says why."
+                    : "With no date, it stays accepted until somebody reopens it."}
                 </FieldDescription>
               </Field>
               <div className="mt-3 flex gap-2">

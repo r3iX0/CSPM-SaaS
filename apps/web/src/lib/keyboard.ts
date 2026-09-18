@@ -19,7 +19,7 @@ export function isTypingTarget(target: EventTarget | null): boolean {
 }
 
 /** Whether a modal is up -- its own keys win, and the page behind it is inert. */
-function dialogOpen(): boolean {
+export function dialogOpen(): boolean {
   return document.querySelector('[role="dialog"], [role="alertdialog"]') !== null;
 }
 

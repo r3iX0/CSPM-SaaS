@@ -84,6 +84,7 @@ from app.models.scan import (
 )
 from app.models.verification import RemediationVerification
 from app.risk.scorer import RiskInputs, ScoredRisk, default_scorer
+from app.risk.triage import finding_risk_status, route_status_on_observation
 from app.rules.base import RuleContext, RuleResult, SecurityRule
 from app.rules.engine import EvaluatedResult, EvaluationReport, RuleEngine
 from app.services import orchestrator
@@ -2729,6 +2730,10 @@ class ScanPipeline:
             existing,
         )
         risk.scenario_key = group_key
+        # Every member has a say, not only the worst one the row was scored from.
+        risk.status = finding_risk_status(
+            [finding.status for finding, *_ in members], risk.status
+        )
 
         # A risk being inserted has no id yet, so every member needs a link.
         # An existing one keeps the links it already has.
@@ -2911,8 +2916,11 @@ class ScanPipeline:
             for key, value in values.items():
                 setattr(risk, key, value)
 
+        # From the finding rather than forced to OPEN. Every scan used to reset
+        # this whenever the finding was open *or in progress*, so a risk marked
+        # in progress was back in the untriaged queue the next morning.
+        risk.status = finding_risk_status([finding.status], risk.status)
         if finding.status.is_open:
-            risk.status = RiskStatus.OPEN
             risk.resolved_at = None
 
         return risk
@@ -3233,7 +3241,9 @@ class ScanPipeline:
             risk.exploitability = 0
             risk.business_impact = scored.business_impact
             risk.score_breakdown = scored.breakdown
-            risk.status = RiskStatus.OPEN
+            # Reopened if it had closed, and otherwise left as somebody decided.
+            # Forcing OPEN here undid every acceptance on the next scan.
+            risk.status = route_status_on_observation(risk.status)
             risk.resolved_at = None
             # Which reading saw it. Written on every observation rather than
             # only at creation: the useful question about a route is not when it

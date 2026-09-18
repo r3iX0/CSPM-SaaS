@@ -273,6 +273,10 @@ async def get_finding(finding_id: UUID, session: DbSession, tenant: Tenant) -> d
         if detail["verification"]
         else None
     )
+    # When an accepted finding comes back to the queue. ``None`` when it is not
+    # accepted, or accepted with no end date (DECISIONS.md §104).
+    until = await service.accepted_until(session, finding)
+    payload["accepted_until"] = until.isoformat() if until else None
     payload.update(service.rule_metadata(finding.rule_id))
     return envelope(payload)
 

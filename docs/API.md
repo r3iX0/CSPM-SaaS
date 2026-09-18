@@ -45,6 +45,7 @@ GET    /assets/hierarchy                   GET    /assets/resolve?provider_resou
 GET    /changes
 GET    /findings                           GET    /findings/{id}
 GET    /risks                              GET    /risks/{id}
+POST   /risks/{id}/status                  POST   /risks/status
 
 POST   /remediation                        GET    /remediation
 PATCH  /remediation/{id}
@@ -381,6 +382,28 @@ finding it was scored from, and listing every row ever raised made the page
 disagree with the dashboard about the same estate on the same day. The rule is
 settled rather than strict — a risk linked to no finding at all is still
 listed, because the absence of a link is not evidence that a risk is over.
+
+Each `/risks` row carries `finding_count` (open findings it covers) and, on a
+finding risk, `route_count` (open routes and escalations sharing one of its
+findings).
+
+`POST /risks/{id}/status` and `POST /risks/status` (`risk_ids`, at most 100) take
+`status` (`OPEN`, `IN_PROGRESS` or `ACCEPTED`), `reason` (required to accept) and
+`expires_at`. `RESOLVED` is refused: a scan resolves a risk, never a person. A
+finding risk writes the decision to each open, in-progress or accepted member
+through the finding's own actions — events, audit rows and exceptions exactly as
+on the finding page — and reads its status back from them, least-settled member
+first. A route or escalation keeps a status of its own, and its end date on the
+risk. `expires_at` is taken only with `ACCEPTED` and refused if already past;
+accepting an accepted risk again replaces its end date. The bulk form checks
+every risk before writing anything and applies to all or to none.
+
+Once `expires_at` passes, the `expire-acceptances` sweep (every five minutes)
+reopens the risk as `OPEN`, writing a timeline event and an audit row with no
+user. `/risks` rows carry `accepted_until`: the earliest running end date among
+a finding risk's accepted members, or a route's own. `GET /findings/{id}` carries
+`accepted_until` too: the running acceptance's end date, `null` when the finding
+is not accepted or has no end date.
 
 `GET /risks/{id}` returns `observed_at` on a scenario: when the route was last
 seen, resolved from the scan that saw it. `null` where that scan has been pruned

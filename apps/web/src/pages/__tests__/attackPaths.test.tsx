@@ -21,7 +21,7 @@ import { MemoryRouter } from "react-router-dom";
 
 import { AttackPathsPage } from "../AttackPaths";
 import { api } from "@/lib/api";
-import type { AttackPath, ChokePoint } from "@/lib/types";
+import type { AttackPath, ChokePoint, Risk } from "@/lib/types";
 
 const PATH: AttackPath = {
   entry: {
@@ -83,12 +83,15 @@ function mount(
   paths: AttackPath[],
   meta: Record<string, number>,
   chokes: ChokePoint[] = [],
+  risks: Partial<Risk>[] = [],
 ) {
   vi.spyOn(api, "get").mockImplementation((url: string) =>
     Promise.resolve(
       url.includes("/choke-points")
         ? { data: chokes, meta: { total_routes: meta.total } }
-        : { data: paths, meta },
+        : url.includes("/risks")
+          ? { data: risks, meta: {} }
+          : { data: paths, meta },
     ) as never,
   );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -104,6 +107,32 @@ function mount(
 describe("AttackPathsPage", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it("links a route to the risk that tracks it", async () => {
+    // Matched by its ends, which name a route on both pages (DECISIONS.md §103).
+    mount([PATH], { total: 1, entry_points: 1, sensitive_targets: 1 }, [], [
+      {
+        id: "r-route",
+        kind: "ATTACK_PATH",
+        path: [
+          { ...PATH.steps[0], source_id: PATH.entry.id },
+          { ...PATH.steps[3], target_id: PATH.target.id },
+        ],
+      },
+    ]);
+
+    expect(
+      await screen.findByRole("link", { name: "Tracked as a risk" }),
+    ).toHaveAttribute("href", "/risks/r-route");
+  });
+
+  it("says when a route is reach rather than a risk", async () => {
+    mount([PATH], { total: 1, entry_points: 1, sensitive_targets: 1 });
+
+    expect(
+      await screen.findByText("Not a risk: nothing on this route fails a check"),
+    ).toBeInTheDocument();
   });
 
   it("shows the route, not just where it starts and ends", async () => {

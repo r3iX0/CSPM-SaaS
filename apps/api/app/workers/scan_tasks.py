@@ -27,6 +27,7 @@ from app.models.cloud_account import CloudAccount
 from app.models.cloud_connection import CloudConnection
 from app.models.organization import Organization
 from app.models.scan import Scan
+from app.services import acceptance as acceptance_service
 from app.services import change_events as change_service
 from app.services import notifications as notifications_service
 from app.services import orchestrator
@@ -255,6 +256,20 @@ def prune_evidence(self: object) -> dict:
             blobs=totals["blobs"],
         )
     return totals
+
+
+@celery_app.task(name="cloudguard.expire_acceptances", bind=True, max_retries=0)
+def expire_acceptances(self: object) -> dict:
+    """Put accepted risks whose end date has passed back in the queue.
+
+    The date was recorded on every acceptance and read by nothing, so an
+    acceptance "for the quarter" lasted for ever (DECISIONS.md §104).
+    """
+    configure_logging()
+    expired = asyncio.run(_expire_all_acceptances())
+    if expired:
+        log.info("acceptance.expired", count=expired)
+    return {"expired": expired}
 
 
 @celery_app.task(name="cloudguard.derive_notifications", bind=True, max_retries=0)
@@ -620,6 +635,31 @@ async def _derive_all_notifications() -> int:
                 log.exception(
                     "notifications.derive_failed", organization_id=str(org_id)
                 )
+        return total
+    finally:
+        await dispose_engines()
+
+
+async def _expire_all_acceptances() -> int:
+    """Each organization with something due, in its own transaction.
+
+    Only those: which organizations have an acceptance past its date is the
+    single question asked across tenants, and the work itself runs under each
+    one's own scoped session, like the other sweeps.
+    """
+    total = 0
+    now = datetime.now(UTC)
+    try:
+        async with service_session() as session:
+            org_ids = await acceptance_service.organizations_due(session, now)
+
+        for org_id in org_ids:
+            try:
+                async with scan_session(org_id) as session:
+                    total += await acceptance_service.expire_due(session, org_id, now)
+                    await session.commit()
+            except Exception:  # pragma: no cover - one tenant must not stop the rest
+                log.exception("acceptance.expire_failed", organization_id=str(org_id))
         return total
     finally:
         await dispose_engines()

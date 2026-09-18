@@ -64,7 +64,7 @@ describe("the application shell", () => {
         screen.getByRole("button", { name: "Expand navigation" }),
       ).toBeInTheDocument(),
     );
-    expect(screen.getAllByRole("link", { name: "Findings" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: "Risks" }).length).toBeGreaterThan(0);
 
     unmount();
     renderShell();
