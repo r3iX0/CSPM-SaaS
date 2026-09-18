@@ -28,9 +28,11 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.enums import RelationshipType
+from app.core.enums import FindingStatus, RelationshipType, Severity
 from app.domain.resource import CloudResource
-from app.graph import AssetGraph, ChokePoint, Path
+from app.graph import AssetGraph, ChokePoint, Neighborhood, Path
+from app.graph.model import ENTRY_EXPOSURE, RELATIONSHIP_VERBS, SENSITIVE_DATA
+from app.models.finding import Finding
 from app.models.resource import ResourceRecord, ResourceRelationship
 
 # Graphs held in memory, keyed by tenant, each remembered with the version of
@@ -270,4 +272,152 @@ def serialize_path(path: Path) -> dict:
             if step
             else None
         ),
+    }
+
+
+async def asset_ids(
+    session: AsyncSession, organization_id: UUID, provider_ids: list[str]
+) -> dict[str, UUID]:
+    """The row id behind each provider id, for linking a vertex to its page.
+
+    The graph works in provider ids and the asset page is addressed by row id,
+    so a canvas whose boxes open their assets needs the mapping. One query for
+    the handful drawn, rather than carrying a surrogate key through the graph.
+    """
+    if not provider_ids:
+        return {}
+    rows = await session.execute(
+        select(ResourceRecord.provider_resource_id, ResourceRecord.id).where(
+            ResourceRecord.organization_id == organization_id,
+            ResourceRecord.absent_since.is_(None),
+            ResourceRecord.provider_resource_id.in_(provider_ids),
+        )
+    )
+    return dict(rows.tuples().all())
+
+
+# Worst first, for naming the most severe open finding on an asset.
+_SEVERITY_RANK = {
+    Severity.CRITICAL: 0,
+    Severity.HIGH: 1,
+    Severity.MEDIUM: 2,
+    Severity.LOW: 3,
+}
+
+
+async def open_findings(
+    session: AsyncSession, organization_id: UUID, row_ids: list[UUID]
+) -> dict[UUID, dict]:
+    """How many open findings each drawn asset carries, and the worst of them.
+
+    One grouped query for the assets on the canvas. Open means what it means
+    on the security score -- OPEN or IN_PROGRESS -- so the number on a box and
+    the number on the asset's own page never disagree.
+    """
+    if not row_ids:
+        return {}
+    rows = await session.execute(
+        select(Finding.resource_id, Finding.severity, func.count(Finding.id))
+        .where(
+            Finding.organization_id == organization_id,
+            Finding.resource_id.in_(row_ids),
+            Finding.status.in_([FindingStatus.OPEN, FindingStatus.IN_PROGRESS]),
+        )
+        .group_by(Finding.resource_id, Finding.severity)
+    )
+    found: dict[UUID, dict] = {}
+    for resource_id, severity, count in rows.tuples().all():
+        if resource_id is None:
+            continue
+        entry = found.setdefault(resource_id, {"open": 0, "worst": None})
+        entry["open"] += int(count)
+        worst = entry["worst"]
+        if worst is None or _SEVERITY_RANK[severity] < _SEVERITY_RANK[Severity(worst)]:
+            entry["worst"] = severity.value
+    return found
+
+
+def serialize_neighborhood(
+    graph: AssetGraph,
+    around: Neighborhood,
+    ids: dict[str, UUID],
+    findings: dict[UUID, dict] | None = None,
+    routes: list[Path] | None = None,
+) -> dict:
+    """Vertices, folded groups, the edges between them, and the routes through
+    the focus, ready to draw.
+
+    Group edges are emitted beside the real ones, pointing the way reach runs,
+    so the canvas draws one list of edges and never has to know that a group is
+    not an asset.
+
+    ``entry`` and ``sensitive`` are the graph's own predicates, sent rather than
+    re-derived from the levels in the browser, so a box marked as a way in is
+    exactly an asset a route may start from. UNKNOWN exposure is never an entry
+    point: a gap in collection is not a door.
+    """
+    findings = findings or {}
+    nodes = []
+    for node_id, layer in sorted(around.layers.items(), key=lambda item: (item[1], item[0])):
+        resource = graph.nodes[node_id]
+        asset_id = ids.get(node_id)
+        nodes.append(
+            {
+                "id": node_id,
+                "asset_id": str(asset_id) if asset_id else None,
+                "name": resource.name,
+                "resource_type": resource.resource_type.value,
+                "provider": resource.provider.value,
+                "layer": layer,
+                "public_exposure": resource.public_exposure.value,
+                "data_sensitivity": resource.data_sensitivity.value,
+                "entry": resource.public_exposure in ENTRY_EXPOSURE,
+                "sensitive": resource.data_sensitivity in SENSITIVE_DATA,
+                "findings": (findings.get(asset_id) if asset_id else None)
+                or {"open": 0, "worst": None},
+            }
+        )
+
+    edges = [
+        {
+            "source": source,
+            "target": target,
+            "relationship": relationship.value,
+            "label": RELATIONSHIP_VERBS.get(relationship, relationship.value),
+        }
+        for source, relationship, target in around.edges
+    ]
+
+    groups = []
+    for group in around.groups:
+        group_id = f"group:{group.layer}:{group.relationship.value}:{group.parent}"
+        by_type: dict[str, int] = {}
+        for member in group.members:
+            by_type[member.resource_type.value] = by_type.get(member.resource_type.value, 0) + 1
+        groups.append(
+            {
+                "id": group_id,
+                "parent": group.parent,
+                "relationship": group.relationship.value,
+                "layer": group.layer,
+                "count": len(group.members),
+                "by_type": dict(sorted(by_type.items(), key=lambda item: (-item[1], item[0]))),
+            }
+        )
+        downstream = group.layer > 0
+        edges.append(
+            {
+                "source": group.parent if downstream else group_id,
+                "target": group_id if downstream else group.parent,
+                "relationship": group.relationship.value,
+                "label": RELATIONSHIP_VERBS.get(group.relationship, group.relationship.value),
+            }
+        )
+
+    return {
+        "focus": around.focus,
+        "nodes": nodes,
+        "groups": groups,
+        "edges": edges,
+        "routes": [serialize_path(path) for path in routes or []],
     }

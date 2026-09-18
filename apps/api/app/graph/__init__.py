@@ -29,6 +29,13 @@ per asset, so an entry point is a predicate over nodes rather than an edge from
 a fiction.
 """
 
-from app.graph.model import AssetGraph, ChokePoint, Path, PathStep
+from app.graph.model import (
+    AssetGraph,
+    ChokePoint,
+    FoldedGroup,
+    Neighborhood,
+    Path,
+    PathStep,
+)
 
-__all__ = ["AssetGraph", "ChokePoint", "Path", "PathStep"]
+__all__ = ["AssetGraph", "ChokePoint", "FoldedGroup", "Neighborhood", "Path", "PathStep"]

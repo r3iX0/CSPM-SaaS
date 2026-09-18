@@ -498,3 +498,53 @@ def test_removing_a_link_leaves_the_graph_it_was_asked_about_alone() -> None:
     graph.choke_points()
 
     assert len(graph.attack_paths()) == before
+
+
+def redundant_then_real() -> AssetGraph:
+    """Five routes with a way round every link, and one route with none.
+
+    One host runs as two identities that each hold a role over the same five
+    stores, so no single link on those routes closes anything. A second host has
+    exactly one way to its store. The redundant links sit on more routes and
+    sort first -- which is what used to exhaust the checks before the one real
+    choke point was reached.
+    """
+    resources = [
+        node("a-host", ResourceType.VIRTUAL_MACHINE, exposure=Level.HIGH),
+        node("a-id1", ResourceType.SERVICE_PRINCIPAL),
+        node("a-id2", ResourceType.SERVICE_PRINCIPAL),
+        node("z-host", ResourceType.VIRTUAL_MACHINE, exposure=Level.HIGH),
+        node("z-id", ResourceType.SERVICE_PRINCIPAL),
+        node("z-store", ResourceType.STORAGE_ACCOUNT, sensitivity=Level.HIGH),
+    ]
+    edges = [
+        ("a-host", RelationshipType.HAS_IDENTITY, "a-id1"),
+        ("a-host", RelationshipType.HAS_IDENTITY, "a-id2"),
+        ("z-host", RelationshipType.HAS_IDENTITY, "z-id"),
+        ("z-id", RelationshipType.GRANTS_ROLE, "z-store"),
+    ]
+    for i in range(5):
+        store = f"a-store{i}"
+        resources.append(node(store, ResourceType.STORAGE_ACCOUNT, sensitivity=Level.HIGH))
+        edges += [
+            ("a-id1", RelationshipType.GRANTS_ROLE, store),
+            ("a-id2", RelationshipType.GRANTS_ROLE, store),
+        ]
+    return AssetGraph.build(resources, edges)
+
+
+def test_links_with_a_way_round_do_not_use_up_the_checks() -> None:
+    """A link that closes nothing is dropped, and the next candidate is checked
+    in its place -- otherwise a page of redundant links hides the one cut that
+    works, and the panel says there is nothing to cut."""
+    chokes = redundant_then_real().choke_points(limit=5)
+
+    assert {c.describe() for c in chokes} == {
+        "z-host runs as z-id",
+        "z-id can act over z-store",
+    }
+    assert all(c.severs == 1 for c in chokes)
+
+
+def test_the_limit_still_bounds_the_answer() -> None:
+    assert len(redundant_then_real().choke_points(limit=1)) == 1

@@ -1687,7 +1687,15 @@ class ScanPipeline:
             # them: the worst member is the floor a route is scored from, and
             # a route assembled before its members would have nothing to stand
             # on.
-            await self._correlate_paths(session, org_id, scan, merged, id_map)
+            await self._correlate_paths(
+                session,
+                org_id,
+                scan,
+                merged,
+                id_map,
+                account_ids=account_ids,
+                connection_id=connection_id,
+            )
             # Last, because it is a reading of everything above it: the
             # findings this scan wrote, the risks they were scored into, and
             # the routes correlation found between them.
@@ -3036,6 +3044,9 @@ class ScanPipeline:
         scan: Scan,
         merged: NormalizedState,
         id_map: dict[str, UUID],
+        *,
+        account_ids: list[UUID],
+        connection_id: UUID | None,
     ) -> None:
         """Turn each route through this environment into one risk.
 
@@ -3057,22 +3068,22 @@ class ScanPipeline:
         """
         graph = AssetGraph.build(merged.resources, merged.relationships)
 
-        open_findings = {
-            (finding.resource_id): finding
-            for finding in (
-                await session.execute(
-                    select(Finding).where(
-                        Finding.organization_id == org_id,
-                        Finding.status.in_(
-                            [FindingStatus.OPEN, FindingStatus.IN_PROGRESS]
-                        ),
-                    )
+        # Every open finding on each asset, not one of them. Keyed by asset
+        # alone, a host with five failing checks kept whichever row the database
+        # returned last, so the route was scored from an arbitrary member and
+        # could move between scans without anything in the environment moving.
+        open_findings: dict[UUID, list[Finding]] = {}
+        for finding in (
+            await session.execute(
+                select(Finding).where(
+                    Finding.organization_id == org_id,
+                    Finding.status.in_([FindingStatus.OPEN, FindingStatus.IN_PROGRESS]),
+                    Finding.resource_id.is_not(None),
                 )
             )
-            .scalars()
-            .all()
-            if finding.resource_id is not None
-        }
+        ).scalars():
+            if finding.resource_id is not None:
+                open_findings.setdefault(finding.resource_id, []).append(finding)
 
         await self._correlate_template(
             session,
@@ -3083,6 +3094,8 @@ class ScanPipeline:
             kind=RiskKind.ATTACK_PATH,
             paths=graph.attack_paths(),
             scan=scan,
+            account_ids=account_ids,
+            connection_id=connection_id,
         )
         # The second template. A route to an identity that can hand out roles is
         # a different question from a route to data -- not what an attacker
@@ -3097,6 +3110,8 @@ class ScanPipeline:
             kind=RiskKind.ESCALATION,
             paths=graph.escalation_chains(),
             scan=scan,
+            account_ids=account_ids,
+            connection_id=connection_id,
         )
         await session.commit()
 
@@ -3106,11 +3121,13 @@ class ScanPipeline:
         org_id: UUID,
         graph: AssetGraph,
         id_map: dict[str, UUID],
-        open_findings: dict[UUID, Finding],
+        open_findings: dict[UUID, list[Finding]],
         *,
         kind: RiskKind,
         paths: list[Path],
         scan: Scan,
+        account_ids: list[UUID],
+        connection_id: UUID | None,
     ) -> None:
         """One correlation template: routes of a kind, in and out of existence.
 
@@ -3231,11 +3248,78 @@ class ScanPipeline:
         # Routes that are gone. Resolved rather than deleted: a scenario that
         # was closed is the record of a fix, exactly as a resolved finding is,
         # and deleting it would erase the evidence that the remediation worked.
+        #
+        # Only routes this scan could have seen. The risks above are the whole
+        # organization's, while the graph is this scan's scope -- so a rescan of
+        # one subscription used to close every route in every other one, and
+        # the next full scan opened them again, leaving a fix in the history
+        # that nobody made.
+        unseen = [
+            risk
+            for key, risk in existing.items()
+            if key not in seen and risk.status != RiskStatus.RESOLVED
+        ]
+        outside = await self._outside_scope(
+            session,
+            org_id,
+            {node for risk in unseen for node in self._route_nodes(risk)},
+            account_ids=account_ids,
+            connection_id=connection_id,
+        )
         now = datetime.now(UTC)
-        for key, risk in existing.items():
-            if key not in seen and risk.status != RiskStatus.RESOLVED:
-                risk.status = RiskStatus.RESOLVED
-                risk.resolved_at = now
+        for risk in unseen:
+            if outside is None or outside & self._route_nodes(risk):
+                continue
+            risk.status = RiskStatus.RESOLVED
+            risk.resolved_at = now
+
+    @staticmethod
+    def _route_nodes(risk: Risk) -> set[str]:
+        """Every asset a stored route passes through, by provider id."""
+        nodes: set[str] = set()
+        for step in risk.path or []:
+            nodes.update(
+                str(step[end]) for end in ("source_id", "target_id") if step.get(end)
+            )
+        return nodes
+
+    async def _outside_scope(
+        self,
+        session: AsyncSession,
+        org_id: UUID,
+        nodes: set[str],
+        *,
+        account_ids: list[UUID],
+        connection_id: UUID | None,
+    ) -> set[str] | None:
+        """The assets among these that belong to a scope this scan did not read.
+
+        A route with any such asset on it is not this scan's to close: its
+        absence from this graph says only that the graph never contained that
+        part of the estate. An asset with no row left at all is inside by
+        default, because it is gone, and so is every route through it.
+
+        ``None`` when the scan covers nothing, which can close nothing.
+        """
+        scope = self._asset_scope(account_ids, connection_id)
+        if scope is None:
+            return None
+        if not nodes:
+            return set()
+        inside: set[str] = set()
+        known: set[str] = set()
+        for provider_id, in_scope in (
+            await session.execute(
+                select(ResourceRecord.provider_resource_id, scope).where(
+                    ResourceRecord.organization_id == org_id,
+                    ResourceRecord.provider_resource_id.in_(nodes),
+                )
+            )
+        ).all():
+            known.add(provider_id)
+            if in_scope:
+                inside.add(provider_id)
+        return known - inside
 
     @staticmethod
     def _scenario_key(kind: RiskKind, path: Path) -> str:
@@ -3270,7 +3354,7 @@ class ScanPipeline:
     def _members_on(
         self,
         path: "Path",
-        open_findings: dict[UUID, Finding],
+        open_findings: dict[UUID, list[Finding]],
         id_map: dict[str, UUID],
     ) -> list[Finding]:
         """The open findings sitting on any asset this route passes through.
@@ -3288,9 +3372,8 @@ class ScanPipeline:
         members: list[Finding] = []
         for provider_id in node_ids:
             resource_uuid = id_map.get(provider_id)
-            finding = open_findings.get(resource_uuid) if resource_uuid else None
-            if finding is not None:
-                members.append(finding)
+            if resource_uuid is not None:
+                members.extend(open_findings.get(resource_uuid, []))
         return members
 
     async def _link_members(

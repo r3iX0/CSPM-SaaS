@@ -54,6 +54,7 @@ GET    /findings/{id}/attack-paths         GET    /findings/{id}/provenance
 
 GET    /attack-paths                       GET    /attack-paths/choke-points
 GET    /attack-paths/blast-radius/{resource_id}
+GET    /attack-paths/neighborhood/{resource_id}?depth=1..3
 
 GET    /rules                              GET    /rules/{rule_id}
 GET    /compliance                         GET    /compliance/{framework_id}

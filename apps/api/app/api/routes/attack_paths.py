@@ -12,10 +12,15 @@ from fastapi import APIRouter, Query
 
 from app.core.deps import DbSession, Tenant
 from app.core.errors import NotFound, envelope
+from app.graph.model import NEIGHBOURHOOD_FAN_OUT, NEIGHBOURHOOD_MAX_NODES
 from app.services import graph as graph_service
 from app.services.graph import serialize_path
 
 router = APIRouter(prefix="/attack-paths", tags=["attack-paths"])
+
+# Routes returned with a neighbourhood. Each is a line in a list beside the
+# canvas, and past this many the list stops being read.
+ROUTE_LIMIT = 20
 
 
 @router.get("")
@@ -94,4 +99,46 @@ async def blast_radius(
             for resource in reached
         ],
         {"total": len(reached)},
+    )
+
+
+@router.get("/neighborhood/{resource_id:path}")
+async def neighborhood(
+    resource_id: str,
+    session: DbSession,
+    tenant: Tenant,
+    depth: int = Query(default=2, ge=1, le=3),
+) -> dict:
+    """The assets around one, what reaches it and what it reaches.
+
+    For the graph view on an asset's page. The route list stays the answer to
+    "which link do I cut"; this is for looking around (DECISIONS.md section 101).
+    Capped at three hops: every route this graph can express is three or four
+    hops end to end, and a neighbourhood that deep either way already spans it.
+    """
+    graph = await graph_service.load_graph(session, tenant.organization_id)
+    around = graph.neighborhood(resource_id, depth)
+    if around is None:
+        raise NotFound("No such asset in this organization")
+
+    ids = await graph_service.asset_ids(
+        session, tenant.organization_id, list(around.layers)
+    )
+    findings = await graph_service.open_findings(
+        session, tenant.organization_id, list(ids.values())
+    )
+    # Every route the asset is on, wherever on it it sits -- the same question
+    # the finding page asks. Capped for the payload, counted in full.
+    routes = graph.paths_through(resource_id)
+    return envelope(
+        graph_service.serialize_neighborhood(
+            graph, around, ids, findings, routes[:ROUTE_LIMIT]
+        ),
+        {
+            "routes_total": len(routes),
+            "depth": depth,
+            "truncated": around.truncated,
+            "max_nodes": NEIGHBOURHOOD_MAX_NODES,
+            "fan_out": NEIGHBOURHOOD_FAN_OUT,
+        },
     )

@@ -32,6 +32,24 @@ SENSITIVE_DATA = {Level.HIGH, Level.CRITICAL}
 # walked for its own sake.
 MAX_DEPTH = 6
 
+# How one hop reads in a sentence. Shared by a route's steps and by the edges of
+# a neighbourhood, so a link is worded the same way in the list and on the canvas.
+RELATIONSHIP_VERBS = {
+    RelationshipType.HAS_IDENTITY: "runs as",
+    RelationshipType.GRANTS_ROLE: "can act over",
+    RelationshipType.CAN_GRANT_ROLES: "can grant itself any role over",
+    RelationshipType.CONTAINS: "contains",
+}
+
+# How many neighbours one asset may contribute to a neighbourhood before the
+# rest are folded into a counted group. A subscription contains every resource
+# group under it, and drawing four hundred of them as boxes answers nothing.
+NEIGHBOURHOOD_FAN_OUT = 12
+
+# How many assets one neighbourhood may draw. Past this the canvas stops being
+# something a person reads, and the traversal stops rather than growing it.
+NEIGHBOURHOOD_MAX_NODES = 150
+
 
 @dataclass(frozen=True)
 class PathStep:
@@ -42,12 +60,7 @@ class PathStep:
     target: CloudResource
 
     def describe(self) -> str:
-        verb = {
-            RelationshipType.HAS_IDENTITY: "runs as",
-            RelationshipType.GRANTS_ROLE: "can act over",
-            RelationshipType.CAN_GRANT_ROLES: "can grant itself any role over",
-            RelationshipType.CONTAINS: "contains",
-        }.get(self.relationship, self.relationship.value)
+        verb = RELATIONSHIP_VERBS.get(self.relationship, self.relationship.value)
         return f"{self.source.name} {verb} {self.target.name}"
 
 
@@ -127,6 +140,41 @@ class ChokePoint:
         return self.step.describe()
 
 
+@dataclass(frozen=True)
+class FoldedGroup:
+    """Neighbours of one asset that were counted rather than drawn.
+
+    Folded rather than dropped. A canvas that silently stopped at twelve would
+    say an identity reaches twelve things when it reaches four hundred -- the
+    same overclaim as a PASS nobody earned, pointed at the size of the answer.
+    """
+
+    parent: str
+    relationship: RelationshipType
+    #: Where the group sits: positive when the parent reaches its members,
+    #: negative when the members reach the parent.
+    layer: int
+    members: tuple[CloudResource, ...]
+
+
+@dataclass(frozen=True)
+class Neighborhood:
+    """One asset, what reaches it, and what it reaches, a few hops each way."""
+
+    focus: str
+    #: Provider id to layer: 0 for the focus, negative for what reaches it,
+    #: positive for what it reaches. Each asset sits once, at its shortest
+    #: distance, downstream on a tie -- reach from the focus is the question the
+    #: canvas is opened to ask.
+    layers: dict[str, int]
+    edges: tuple[tuple[str, RelationshipType, str], ...]
+    groups: tuple[FoldedGroup, ...]
+    #: Whether the node cap stopped the walk before ``depth`` was reached. The
+    #: neighbours it had in hand are folded, not lost; the assets beyond them
+    #: were never looked at, and the canvas has to say so.
+    truncated: bool
+
+
 @dataclass
 class AssetGraph:
     """Assets and the edges between them, for one scan.
@@ -139,6 +187,11 @@ class AssetGraph:
 
     nodes: dict[str, CloudResource] = field(default_factory=dict)
     _out: dict[str, list[tuple[RelationshipType, str]]] = field(
+        default_factory=dict, repr=False
+    )
+    # The same edges indexed by target, for asking what reaches a node rather
+    # than what it reaches. Only the neighbourhood reads it.
+    _in: dict[str, list[tuple[RelationshipType, str]]] = field(
         default_factory=dict, repr=False
     )
 
@@ -156,6 +209,7 @@ class AssetGraph:
             # support.
             if source in graph.nodes and target in graph.nodes:
                 graph._out.setdefault(source, []).append((relationship, target))
+                graph._in.setdefault(target, []).append((relationship, source))
         return graph
 
     # ---------------------------------------------------------------- queries
@@ -309,10 +363,12 @@ class AssetGraph:
         removing the link and re-asking the whole question -- the only way to
         know that a route is gone rather than merely re-routed.
 
-        Verified for the top few rather than for every candidate, because each
-        check is a full re-traversal. The ordering that selects them is
-        containment, which is an upper bound on severance, so a link that could
-        sever more than a checked one is always itself checked first.
+        Verified in order of containment, and only until no unchecked link could
+        make the list, because each check is a full re-traversal. Containment is
+        an upper bound on severance, so once ``limit`` links are kept, a link
+        sitting on fewer routes than the weakest of them cannot displace it. A
+        link that closes nothing is not kept and does not count towards
+        ``limit`` -- the next candidate is checked in its place.
 
         Structural links are not candidates. A storage account has to live
         somewhere, so ``CONTAINS`` cannot be removed and offering it would be a
@@ -354,7 +410,16 @@ class AssetGraph:
         )
 
         found: list[ChokePoint] = []
-        for key, on in ranked[:limit]:
+        for key, on in ranked:
+            # Stop once no unchecked link could make the list. Containment bounds
+            # severance, so a link sitting on fewer routes than the weakest one
+            # already kept cannot displace it. Stopping after a fixed number of
+            # checks instead let links with a way round use up every check, and
+            # a real choke point further down was never looked at.
+            if len(found) >= limit:
+                weakest = sorted(c.severs for c in found)[-limit]
+                if len(on) < weakest:
+                    break
             still = {
                 (p.entry.provider_resource_id, p.target.provider_resource_id)
                 for p in self._without(key).attack_paths(max_depth)
@@ -377,14 +442,15 @@ class AssetGraph:
                 )
             )
 
-        return sorted(found, key=lambda c: (-c.severs, c.describe()))
+        return sorted(found, key=lambda c: (-c.severs, c.describe()))[:limit]
 
     def _without(self, edge: tuple[str, str, str]) -> "AssetGraph":
         """This graph with one link removed, for asking what it was holding up.
 
         A shallow copy: the nodes are shared, because nothing here mutates them
         and copying an estate's worth of resources per candidate would make the
-        analysis cost more than the answer is worth.
+        analysis cost more than the answer is worth. Forward edges only: it is
+        asked for routes, never for a neighbourhood.
         """
         source, relationship, target = edge
         pruned = AssetGraph(nodes=self.nodes)
@@ -397,6 +463,105 @@ class AssetGraph:
             if kept:
                 pruned._out[node] = kept
         return pruned
+
+    def neighborhood(
+        self,
+        focus: str,
+        depth: int = 2,
+        *,
+        fan_out: int = NEIGHBOURHOOD_FAN_OUT,
+        max_nodes: int = NEIGHBOURHOOD_MAX_NODES,
+    ) -> Neighborhood | None:
+        """The assets around one, for drawing rather than for ranking.
+
+        Walks capability edges both ways from the focus -- forward for what it
+        reaches, backward for what reaches it -- one hop at a time, alternating,
+        so an asset lands at its shortest distance whichever side that is on.
+        Only the edges :meth:`reachable_from` follows: an NSG protecting a VM is
+        configuration, and drawing it beside a role assignment would make it
+        read as reach.
+
+        Bounded twice, and both bounds fold rather than drop. More than
+        ``fan_out`` new neighbours of one asset are counted into a group, except
+        that entry points and sensitive assets among them are drawn first --
+        "412 resources" hides the one that matters, "3 sensitive of 412" does
+        not. Past ``max_nodes`` every remaining neighbour is folded and the walk
+        stops, and ``truncated`` says the far side went unread.
+        """
+        if focus not in self.nodes:
+            return None
+
+        layers: dict[str, int] = {focus: 0}
+        folded: dict[tuple[str, RelationshipType, int], list[str]] = {}
+        truncated = False
+        frontiers = {1: [focus], -1: [focus]}
+
+        for hop in range(1, depth + 1):
+            for sign, adjacency in ((1, self._out), (-1, self._in)):
+                layer = sign * hop
+                reached: list[str] = []
+                for current in frontiers[sign]:
+                    fresh = sorted(
+                        {
+                            (relationship, other)
+                            for relationship, other in adjacency.get(current, [])
+                            if relationship.is_capability and other not in layers
+                        },
+                        key=lambda edge: self._drawing_order(edge[1]),
+                    )
+                    drawn = fresh if len(fresh) <= fan_out else [
+                        edge for edge in fresh if self._is_notable(edge[1])
+                    ][:fan_out]
+                    for relationship, other in fresh:
+                        if other in layers:
+                            continue
+                        if (relationship, other) in drawn and len(layers) < max_nodes:
+                            layers[other] = layer
+                            reached.append(other)
+                            continue
+                        if len(layers) >= max_nodes:
+                            truncated = True
+                        folded.setdefault((current, relationship, layer), []).append(other)
+                frontiers[sign] = reached
+
+        groups = []
+        for (parent, relationship, layer), candidates in sorted(
+            folded.items(), key=lambda item: (item[0][2], item[0][0], item[0][1].value)
+        ):
+            # A neighbour folded here may have been drawn anyway, reached by
+            # another route; counting it twice would inflate the group.
+            members = tuple(
+                self.nodes[other]
+                for other in dict.fromkeys(candidates)
+                if other not in layers
+            )
+            if members:
+                groups.append(FoldedGroup(parent, relationship, layer, members))
+
+        edges = sorted(
+            (source, relationship, target)
+            for source in layers
+            for relationship, target in self._out.get(source, [])
+            if relationship.is_capability and target in layers
+        )
+        return Neighborhood(
+            focus=focus,
+            layers=layers,
+            edges=tuple(edges),
+            groups=tuple(groups),
+            truncated=truncated,
+        )
+
+    def _is_notable(self, node_id: str) -> bool:
+        node = self.nodes[node_id]
+        return (
+            node.public_exposure in ENTRY_EXPOSURE or node.data_sensitivity in SENSITIVE_DATA
+        )
+
+    def _drawing_order(self, node_id: str) -> tuple[bool, str, str, str]:
+        """Notable assets first, then by kind and name, so a fold is stable."""
+        node = self.nodes[node_id]
+        return (not self._is_notable(node_id), node.resource_type.value, node.name, node_id)
 
     def contained_by(self, scope_id: str, max_depth: int = MAX_DEPTH) -> list[CloudResource]:
         """Everything that sits under a scope.

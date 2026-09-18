@@ -1706,10 +1706,11 @@ and re-running the entire traversal, comparing which (entry, target) pairs are
 still reachable. That is the only way to distinguish a route that is gone from
 one that has merely been made longer.
 
-Verified for the top few rather than for every candidate, because each check is
-a full re-traversal. Containment is an upper bound on severance, so the ordering
-that selects candidates can never skip a link that would sever more than a
-checked one.
+Verified in order of containment, and only until no unchecked link could make
+the list, because each check is a full re-traversal. Containment is an upper
+bound on severance, so once `limit` links are kept, one sitting on fewer routes
+than the weakest of them cannot displace it. A link that closes nothing does not
+count towards `limit` — see §100 for why a fixed number of checks was wrong.
 
 Both numbers are reported. `severs` is what closes and `on_routes` is what it
 sits on, and where they differ the UI says so — a customer told four routes
@@ -5046,6 +5047,142 @@ rescan, accept risk, mark done, schedule, connect): the API would refuse them,
 and a button that can only ever answer "read-only" is one that should not exist.
 The getting-started checklist (§97) is hidden in the demo; its setup is not the
 reader's to do. The organization switcher marks the demo with a badge.
+
+## 100. Scenario correlation: every member, only what the scan could see, and choke points past the redundant ones
+
+Three defects in how routes become risks and cuts, found by checking the attack
+paths end to end.
+
+**Every open finding on an asset is a member.** `_correlate_paths` collected
+open findings into a dict keyed by asset, so a host with five failing checks
+kept whichever row the database returned last. The route was scored from an
+arbitrary member and could move between scans with nothing in the environment moving. It is now a list per asset.
+
+**A scan closes only routes it could have seen.** The existing scenario risks
+are read for the whole organization, but the graph is built from this scan's
+scope. A rescan of one subscription therefore resolved every route in every
+other subscription — and in the organization's other connections — and the next
+full scan raised them again, leaving a fix in the history that nobody made. A
+route missing from this graph is now resolved only if none of the assets on its
+stored path belongs to a scope this scan did not read (`_asset_scope`, the same
+predicate the rest of the pipeline uses). An asset with no row left at all
+counts as inside, because it is gone and so is every route through it.
+
+What this does not do: a scan of one subscription still cannot *create* a route
+that crosses into another (an identity here holding a role over a subscription
+there), because its graph never contains the far end. It no longer closes one
+either; the next scan whose scope covers the whole route decides. Building the
+correlation graph from the database rather than the scan's state would answer
+both, and is the change to make if single-subscription scans become the common
+case.
+
+**Choke points check past links with a way round.** `choke_points` verified the
+top `limit` candidates by containment and dropped those that severed nothing —
+so five redundant links, each on many routes, used up every check and a real
+choke point further down was never looked at. The panel then said there was
+nothing to cut. It now keeps checking in containment order until no unchecked
+link could make the list: containment bounds severance, so a link sitting on
+fewer routes than the weakest one kept cannot displace it. Worst case is a check
+per removable link, which is what an honest answer to the question costs.
+
+## 101. A graph around one asset, beside the route rather than instead of it
+
+Attack routes stay drawn as a straight line (`AttackPathRoute`). A route answers
+"which link do I cut", and a chain with a visible spine answers that faster than
+a canvas of nodes does. What the line cannot answer is "what is around this
+asset" — what can reach it, what it can reach, and how the two meet — and that
+is the question the graph view on the asset page is for. It is for exploring,
+not for acting, so it is an addition on the asset page and nowhere replaces a
+route.
+
+**One asset at a time, never the whole tenant.** `GET
+/attack-paths/neighborhood/{resource_id}?depth=1..3` walks the cached asset
+graph (`load_graph`) both ways from the asset: forward along `_out` for what it
+reaches, backward along a new `_in` index for what reaches it. The walk
+alternates by hop, so each asset lands at its shortest distance, and on a tie it
+sits downstream — reach from the asset is what the view is opened to ask about.
+A canvas of the whole tenant is the picture every CSPM demo shows and nobody can
+read; a bounded neighbourhood can be read.
+
+**Only reach is drawn.** The walk follows `is_capability` edges — the same ones
+`reachable_from` follows — and nothing else. A network security group
+protecting a VM is configuration, and drawing it beside a role assignment would
+make it look like reach. Containment is reach here (a role over a subscription
+reaches what the subscription holds), but it is drawn faint and unlabelled,
+because it is never the link somebody cuts; the identity hops are drawn strong
+and named with the same verbs a route uses (`RELATIONSHIP_VERBS`).
+
+**Bounded, and every bound folds rather than drops.** A subscription contains
+every resource group under it, and four hundred boxes answer nothing. Past
+`NEIGHBOURHOOD_FAN_OUT` (12) new neighbours of one asset, the rest are counted
+into a dashed group box — except entry points and sensitive assets, which are
+drawn first, because "412 resources" hides the one that matters. Past
+`NEIGHBOURHOOD_MAX_NODES` (150), every remaining neighbour is folded, the walk
+goes no further, and `meta.truncated` makes the card say that what lies beyond
+was not read. A canvas that silently stopped at twelve would claim an identity
+reaches twelve things when it reaches four hundred — the same overclaim as a
+PASS nobody earned.
+
+**Laid out by hop, not by simulation.** The frontend places each box in the
+column its hop count names — what reaches the asset to the left, what it
+reaches to the right — and orders each column by the average height of the
+boxes it joins one hop nearer the focus, breaking ties by kind, type, name and
+id. The same estate therefore draws the same picture on every visit, whatever
+order the database returned the rows in, and two people looking at one asset
+are looking at the same thing. A force-directed layout settles somewhere new
+each run; that is the property this avoids.
+
+**React Flow for the canvas.** `@xyflow/react` provides pan, zoom, edge
+routing and node virtualisation, which a hand-written SVG would have to rebuild.
+It is a canvas kit rather than a UI or chart kit, so it does not compete with
+shadcn or Recharts. It loads only `base.css`, the structural stylesheet; its
+theme stylesheet is not imported, and edges, labels and background are coloured
+from the tokens in `index.css`, so dark mode and the severity scale are
+untouched. It sits in its own lazy chunk (about 57 kB gzipped) that loads only
+when somebody asks for the graph, and the endpoint is called only then too, for
+the same cost reason as the blast radius beside it. The canvas is read-only:
+nothing can be dragged, connected or selected, because a box somebody had moved
+would be a picture of their arrangement rather than of the estate. A wheel does
+not zoom it, so a person scrolling the page past it is not trapped; zoom is on
+buttons and on a pinch. Each box other than the focus is a link to that asset's
+page, which is how somebody looks further.
+
+**What a box carries.** Each box marks what makes it matter on a route: a
+globe for an entry point, a cylinder for sensitive data, both coloured by level,
+and a count of open findings tinted by the worst of them. `entry` and
+`sensitive` are the graph's own predicates (`ENTRY_EXPOSURE`, `SENSITIVE_DATA`),
+sent by the API rather than re-derived from the levels in the browser, so a box
+marked as a way in is exactly an asset a route may start from. Exposure
+CloudGuard could not work out gets a muted globe of its own: UNKNOWN is never an
+entry point, and drawing nothing would make "do not know" look like "not
+exposed". Open findings means OPEN or IN_PROGRESS, as on the security score, so
+the number on a box and the number on the asset's page agree. Every marker also
+carries its meaning as screen-reader text, which is what a box's link is named
+from.
+
+**Routes are traced, not drawn instead.** The endpoint returns the attack paths
+the asset sits on (`paths_through`, the same question the finding page asks),
+the shortest twenty with the full count in `meta.routes_total`. With nothing
+picked, hops on any of those routes are drawn darker than reach that leads
+nowhere sensitive. Picking a route from the list beside the canvas traces it:
+its hops go strong, everything else fades, and its cheapest break is drawn
+dashed in the "this makes it better" colour — the same way `AttackPathRoute`
+draws a severed link. The route is then drawn again under the canvas as the
+straight line, because the canvas shows where a route runs through the
+neighbourhood and the line shows which link to cut. The canvas holds only what
+lies within the chosen hops, so when part of a traced route is off it, the card
+says so and points at the line as the whole route. Hops are keyed by source,
+relationship and target, because one pair can be joined twice — a role over a
+scope and the right to grant roles over it — and tracing one must not light up
+the other.
+
+Organization-wide choke points are not shown on the canvas. They cost a full
+re-traversal per candidate (§100), and the per-route cut answers the question
+this view is asked.
+
+What this does not do yet: groups cannot be expanded in place, and the focus
+cannot change without leaving the page. The blast-radius list stays on the page
+as the text form of the same reach.
 
 ## Settings: the evidence a person supplies
 

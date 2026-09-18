@@ -25,6 +25,7 @@ import {
   ContextRow,
   type ContextFact,
 } from "@/components/security/ContextProvenance";
+import { AssetNeighborhood } from "@/components/graph/AssetNeighborhood";
 import { BlastRadius } from "@/components/graph/BlastRadius";
 
 interface AssetDetail {
@@ -224,6 +225,11 @@ export function AssetDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      <AssetNeighborhood
+        providerResourceId={data.provider_resource_id}
+        name={data.name}
+      />
 
       <BlastRadius
         providerResourceId={data.provider_resource_id}

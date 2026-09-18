@@ -1603,6 +1603,162 @@ class TestFindingAttackPaths:
         assert response.status_code == 404, response.text
 
 
+class TestAssetNeighborhood:
+    """The graph view's endpoint, over real rows and row-level security."""
+
+    GROUP = "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/prod"
+    VM = f"{GROUP}/providers/Microsoft.Compute/virtualMachines/jump-01"
+    IDENTITY = "/principals/mi-jump-01"
+    STORAGE = f"{GROUP}/providers/Microsoft.Storage/storageAccounts/payroll"
+
+    def _url(self, provider_id: str, query: str = "") -> str:
+        # Encoded whole, the way the browser sends it.
+        from urllib.parse import quote
+
+        return f"/api/v1/attack-paths/neighborhood/{quote(provider_id, safe='')}{query}"
+
+    async def _estate(self, org_id: uuid.UUID) -> uuid.UUID:
+        """An exposed jump box whose identity can act over the payroll account.
+
+        Returns the jump box's row id, which carries one open finding.
+        """
+        from app.core.db import service_session
+        from app.core.enums import (
+            CloudAccountStatus,
+            ConnectionScope,
+            ConsentStatus,
+            FindingStatus,
+            Level,
+            Provider,
+            RelationshipType,
+            ResourceType,
+            Severity,
+        )
+        from app.models.cloud_account import CloudAccount
+        from app.models.cloud_connection import CloudConnection
+        from app.models.finding import Finding
+        from app.models.resource import ResourceRecord, ResourceRelationship
+
+        now = datetime.now(UTC)
+        async with service_session() as session:
+            connection = CloudConnection(
+                organization_id=org_id,
+                provider=Provider.AZURE,
+                name="prod",
+                scope_type=ConnectionScope.TENANT_ROOT,
+                role_version="v2",
+                tenant_id="aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+                consent_status=ConsentStatus.GRANTED,
+                rbac_verified_at=now,
+                status=CloudAccountStatus.ACTIVE,
+            )
+            session.add(connection)
+            await session.flush()
+            account = CloudAccount(
+                organization_id=org_id,
+                connection_id=connection.id,
+                provider=Provider.AZURE,
+                account_name="Production",
+                tenant_id="aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+                subscription_id="00000000-0000-0000-0000-000000000001",
+                consent_status=ConsentStatus.GRANTED,
+                rbac_verified_at=now,
+                status=CloudAccountStatus.ACTIVE,
+            )
+            session.add(account)
+            await session.flush()
+
+            def asset(provider_id: str, kind: ResourceType, **levels: Level) -> ResourceRecord:
+                return ResourceRecord(
+                    organization_id=org_id,
+                    cloud_account_id=account.id,
+                    connection_id=connection.id,
+                    provider=Provider.AZURE,
+                    provider_resource_id=provider_id,
+                    resource_type=kind,
+                    name=provider_id.rsplit("/", 1)[-1],
+                    first_seen_at=now,
+                    last_seen_at=now,
+                    **levels,
+                )
+
+            vm = asset(self.VM, ResourceType.VIRTUAL_MACHINE, public_exposure=Level.CRITICAL)
+            identity = asset(self.IDENTITY, ResourceType.SERVICE_PRINCIPAL)
+            storage = asset(
+                self.STORAGE, ResourceType.STORAGE_ACCOUNT, data_sensitivity=Level.HIGH
+            )
+            session.add_all([vm, identity, storage])
+            await session.flush()
+            session.add_all(
+                [
+                    ResourceRelationship(
+                        organization_id=org_id,
+                        source_resource_id=vm.id,
+                        target_resource_id=identity.id,
+                        relationship_type=RelationshipType.HAS_IDENTITY,
+                    ),
+                    ResourceRelationship(
+                        organization_id=org_id,
+                        source_resource_id=identity.id,
+                        target_resource_id=storage.id,
+                        relationship_type=RelationshipType.GRANTS_ROLE,
+                    ),
+                    Finding(
+                        organization_id=org_id,
+                        resource_id=vm.id,
+                        rule_id="AZ-NET-002",
+                        severity=Severity.CRITICAL,
+                        status=FindingStatus.OPEN,
+                        title="Network security group permits inbound SSH",
+                        description="",
+                        first_detected_at=now,
+                        last_detected_at=now,
+                    ),
+                ]
+            )
+            await session.commit()
+            return vm.id
+
+    async def test_the_identity_is_drawn_with_the_route_through_it(
+        self, client, cleanup_orgs
+    ) -> None:
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Graph Ltd"))
+        cleanup_orgs.append(org_id)
+        vm_row = await self._estate(org_id)
+
+        response = await client.get(
+            self._url(self.IDENTITY, "?depth=1"),
+            headers=auth_header(user),
+        )
+
+        assert response.status_code == 200, response.text
+        body = response.json()
+        by_id = {n["id"]: n for n in body["data"]["nodes"]}
+        assert by_id[self.VM]["layer"] == -1
+        assert by_id[self.STORAGE]["layer"] == 1
+        assert by_id[self.VM]["entry"] is True
+        assert by_id[self.VM]["asset_id"] == str(vm_row)
+        assert by_id[self.VM]["findings"] == {"open": 1, "worst": "CRITICAL"}
+        assert by_id[self.STORAGE]["sensitive"] is True
+        assert body["meta"]["routes_total"] == 1
+        assert body["data"]["routes"][0]["target"]["id"] == self.STORAGE
+
+    async def test_another_organization_cannot_draw_it(self, client, cleanup_orgs) -> None:
+        owner, stranger = uuid.uuid4(), uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, owner, "Graph Ltd"))
+        cleanup_orgs.append(org_id)
+        cleanup_orgs.append(uuid.UUID(await make_org(client, stranger, "Elsewhere")))
+        await self._estate(org_id)
+
+        response = await client.get(
+            self._url(self.IDENTITY),
+            headers=auth_header(stranger),
+        )
+
+        assert response.status_code == 404, response.text
+
+
 class TestReports:
     """The report endpoints, over the real dependency chain.
 

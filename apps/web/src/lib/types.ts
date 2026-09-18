@@ -790,6 +790,67 @@ export interface ChokePoint {
   }[];
 }
 
+/**
+ * The assets around one, for the graph view on an asset's page.
+ *
+ * `layer` is where a vertex sits: 0 for the focus, negative for what reaches
+ * it, positive for what it reaches. Only reach edges are included; a network
+ * security group protecting a VM is configuration and is not drawn.
+ */
+export interface NeighborhoodNode {
+  id: string;
+  /** Row id, for linking to the asset's page. Null if the row is gone. */
+  asset_id: string | null;
+  name: string;
+  resource_type: string;
+  provider: string;
+  layer: number;
+  public_exposure: Level;
+  data_sensitivity: Level;
+  /** Somewhere a route may start: HIGH or CRITICAL exposure, never UNKNOWN. */
+  entry: boolean;
+  /** Somewhere a route may end: HIGH or CRITICAL data sensitivity. */
+  sensitive: boolean;
+  /** Open means OPEN or IN_PROGRESS, as on the security score. */
+  findings: { open: number; worst: Severity | null };
+}
+
+/** Neighbours of one vertex that were counted rather than drawn. */
+export interface NeighborhoodGroup {
+  id: string;
+  parent: string;
+  relationship: string;
+  layer: number;
+  count: number;
+  by_type: Record<string, number>;
+}
+
+export interface NeighborhoodEdge {
+  source: string;
+  target: string;
+  relationship: string;
+  label: string;
+}
+
+export interface Neighborhood {
+  focus: string;
+  nodes: NeighborhoodNode[];
+  groups: NeighborhoodGroup[];
+  edges: NeighborhoodEdge[];
+  /** Attack paths the focus sits on, wherever on them; capped, see meta. */
+  routes: AttackPath[];
+}
+
+export interface NeighborhoodMeta {
+  /** Every route through the focus, of which `routes` carries the first few. */
+  routes_total: number;
+  depth: number;
+  /** The node cap stopped the walk; assets past it were never read. */
+  truncated: boolean;
+  max_nodes: number;
+  fan_out: number;
+}
+
 export interface RevocationStep {
   title: string;
   detail: string;

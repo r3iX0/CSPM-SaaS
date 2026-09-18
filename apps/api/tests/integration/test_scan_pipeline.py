@@ -3354,6 +3354,55 @@ class TestScenarioRisk:
         assert scenarios, "the record of the closed route survives"
         assert all(row[3] == "RESOLVED" for row in scenarios)
 
+    async def test_a_rescan_of_one_subscription_leaves_anothers_routes_open(
+        self, replay, connected_account
+    ) -> None:
+        """A scan closes only the routes it could have seen.
+
+        The risks are the organization's and the graph is the scan's, so a
+        rescan of subscription B used to resolve every route in subscription A
+        -- a fix in the history nobody made, undone by the next full scan.
+        """
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+        first = "00000000-0000-0000-0000-000000000001"
+        assert await self._routes_in(org_id, first, "OPEN")
+
+        async with service_session() as session:
+            existing = await session.get(CloudAccount, account_id)
+            assert existing is not None
+            other = CloudAccount(
+                organization_id=org_id,
+                connection_id=existing.connection_id,
+                provider=Provider.AZURE,
+                account_name="Staging Subscription",
+                tenant_id=existing.tenant_id,
+                subscription_id="00000000-0000-0000-0000-000000000002",
+                consent_status=ConsentStatus.GRANTED,
+                rbac_verified_at=datetime.now(UTC),
+                status=CloudAccountStatus.ACTIVE,
+            )
+            session.add(other)
+            await session.commit()
+            other_id = other.id
+
+        # The same estate under the second subscription's id: its own assets,
+        # its own routes, and none of the first subscription's.
+        replay["payload"] = json.loads(
+            json.dumps(load_raw()).replace(first, "00000000-0000-0000-0000-000000000002")
+        )
+        await run_scan(org_id, other_id)
+
+        assert await self._routes_in(org_id, first, "OPEN")
+        assert not await self._routes_in(org_id, first, "RESOLVED")
+
+    async def _routes_in(self, org_id: uuid.UUID, subscription: str, status: str) -> list:
+        return await fetch(
+            "SELECT id FROM risks WHERE organization_id = :o AND kind = 'ATTACK_PATH' "
+            "AND status = :s AND scenario_key LIKE :k",
+            {"o": org_id, "s": status, "k": f"%/subscriptions/{subscription}/%"},
+        )
+
 
 def _with_rdp_closed() -> dict:
     """The recorded environment with its headline problem repaired.
