@@ -605,19 +605,24 @@ async def _derive_all_notifications() -> int:
     for everybody before the one that broke.
     """
     total = 0
-    async with service_session() as session:
-        org_ids = list(
-            (await session.execute(select(Organization.id))).scalars().all()
-        )
+    try:
+        async with service_session() as session:
+            org_ids = list(
+                (await session.execute(select(Organization.id))).scalars().all()
+            )
 
-    for org_id in org_ids:
-        try:
-            async with scan_session(org_id) as session:
-                total += await notifications_service.derive(session, org_id)
-                await session.commit()
-        except Exception:  # pragma: no cover - one tenant must not stop the rest
-            log.exception("notifications.derive_failed", organization_id=str(org_id))
-    return total
+        for org_id in org_ids:
+            try:
+                async with scan_session(org_id) as session:
+                    total += await notifications_service.derive(session, org_id)
+                    await session.commit()
+            except Exception:  # pragma: no cover - one tenant must not stop the rest
+                log.exception(
+                    "notifications.derive_failed", organization_id=str(org_id)
+                )
+        return total
+    finally:
+        await dispose_engines()
 
 
 async def _prune_all_evidence() -> dict[str, int]:
@@ -628,26 +633,29 @@ async def _prune_all_evidence() -> dict[str, int]:
     space it had correctly reclaimed for everybody before the one that broke.
     """
     totals = {"snapshots": 0, "blobs": 0}
-    async with service_session() as session:
-        org_ids = list(
-            (await session.execute(select(Organization.id))).scalars().all()
-        )
+    try:
+        async with service_session() as session:
+            org_ids = list(
+                (await session.execute(select(Organization.id))).scalars().all()
+            )
 
-    for org_id in org_ids:
-        try:
-            async with scan_session(org_id) as session:
-                result = await retention_service.prune(
-                    session,
-                    org_id,
-                    snapshot_days=settings.snapshot_retention_days,
-                    evidence_days=settings.evidence_retention_days,
-                    snapshot_max_per_scope=(
-                        settings.snapshot_retention_max_per_scope
-                    ),
-                )
-                await session.commit()
-            totals["snapshots"] += result["snapshots"]
-            totals["blobs"] += result["blobs"]
-        except Exception:  # pragma: no cover - one tenant must not stop the rest
-            log.exception("retention.prune_failed", organization_id=str(org_id))
-    return totals
+        for org_id in org_ids:
+            try:
+                async with scan_session(org_id) as session:
+                    result = await retention_service.prune(
+                        session,
+                        org_id,
+                        snapshot_days=settings.snapshot_retention_days,
+                        evidence_days=settings.evidence_retention_days,
+                        snapshot_max_per_scope=(
+                            settings.snapshot_retention_max_per_scope
+                        ),
+                    )
+                    await session.commit()
+                totals["snapshots"] += result["snapshots"]
+                totals["blobs"] += result["blobs"]
+            except Exception:  # pragma: no cover - one tenant must not stop the rest
+                log.exception("retention.prune_failed", organization_id=str(org_id))
+        return totals
+    finally:
+        await dispose_engines()

@@ -4623,6 +4623,41 @@ minimum TLS version, so no new rule is blind on it. Four fail there on purpose:
 an SQL server with no Entra administrator, the Servers plan off, an older storage
 account permitting cross-tenant replication, and a web app with no identity.
 
+## 90. The beat sweeps release their connections too, and the test now reads the call sites
+
+Every Celery task enters async code through its own `asyncio.run`, while the
+engines in `app/core/db.py` are cached for the life of the process. asyncpg
+binds a connection to the loop that opened it, so a task that ends without
+calling `dispose_engines()` leaves its child holding connections belonging to a
+loop that no longer exists. The next task that child picks up dies at the first
+pool checkout:
+
+    RuntimeError: got Future attached to a different loop
+    RuntimeError: Event loop is closed
+
+That rule is stated in `scan_tasks.py`'s internals comment and was applied to
+the five scan entrypoints. The two beat sweeps added later -- `_derive_all_notifications` and
+`_prune_all_evidence` -- were not, and neither was the test, which compared
+against a list of names typed by hand rather than against the code. Staging
+shows the consequence with the clarity of a clock: the notification sweep runs
+every five minutes, and in the same minute that it ran, the reaper and the
+change-event sweep failed on the same fork worker -- 23:46 derive, 23:47
+`reap_abandoned_scans` raised; 23:51 derive, 23:52 raised; 23:56 derive and
+`scan_changed_environments` raised inside the same second.
+
+Both sweeps now dispose in a `finally`, like everything else reached through
+`asyncio.run`. The invariant test walks the module's AST for `asyncio.run(...)`
+call sites and checks the coroutine each one names, so a task added tomorrow is
+covered by the test the day it is written rather than the day somebody
+remembers to extend a list. A hand-maintained list is what let this ship.
+
+The failure is cheap to misread and that is the reason it lasted. Each miss
+costs exactly one task, because the failing checkout empties the stale
+connection out of the pool and the following task opens a fresh one on its own
+loop -- so the logs show a beat task failing, then succeeding, then failing,
+which reads like an intermittent database problem rather than a certainty with
+a period of five minutes.
+
 ## Settings: the evidence a person supplies
 
 `PATCH /organizations` takes no id in the path. Deleting a *different*

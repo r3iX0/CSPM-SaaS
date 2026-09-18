@@ -95,20 +95,36 @@ def test_consecutive_tasks_each_get_a_fresh_loop(instrumented) -> None:
 def test_every_task_internal_releases_its_connections() -> None:
     """The invariant applies to all of them, not just the one tested above.
 
-    A scan is now several tasks rather than one, so the number of places that
-    could forget this went from two to five -- and forgetting it in any of them
-    reproduces the same failure: the first task in a worker child succeeds and
-    every later one dies on a closed loop.
+    Read from the ``asyncio.run`` call sites rather than from a list written
+    here, because a hand-written list is what let the two beat sweeps --
+    notifications and evidence pruning -- ship without disposal. They ran every
+    five and every sixty minutes, and each one left a child holding connections
+    from a dead loop, so the next task that child picked up died on it: in
+    staging the reaper and the change-event sweep failed within the same minute
+    as every notification sweep.
     """
+    import ast
     import inspect
 
-    for name in (
-        "_start",
-        "_advance",
-        "_run_step",
-        "_reap_and_release",
-        "_replay_and_release",
-    ):
+    entrypoints: set[str] = set()
+    for node in ast.walk(ast.parse(inspect.getsource(scan_tasks))):
+        if not isinstance(node, ast.Call) or not node.args:
+            continue
+        run = node.func
+        if not (
+            isinstance(run, ast.Attribute)
+            and run.attr == "run"
+            and isinstance(run.value, ast.Name)
+            and run.value.id == "asyncio"
+        ):
+            continue
+        awaited = node.args[0]
+        if isinstance(awaited, ast.Call) and isinstance(awaited.func, ast.Name):
+            entrypoints.add(awaited.func.id)
+
+    assert len(entrypoints) >= 8, "no asyncio.run call sites found to check"
+
+    for name in sorted(entrypoints):
         source = inspect.getsource(getattr(scan_tasks, name))
         assert "finally:" in source and "dispose_engines()" in source, (
             f"{name} does not release its connections inside its own loop"
