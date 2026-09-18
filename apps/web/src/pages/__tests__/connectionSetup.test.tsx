@@ -1,12 +1,20 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ConnectionSetupPage } from "@/pages/ConnectionSetup";
+import { useScanWizard } from "@/components/scans/ScanWizardProvider";
 import { api } from "@/lib/api";
 import type { CloudConnection } from "@/lib/types";
+
+// The scan wizard lives in the shell, which these tests do not mount. Stubbed
+// so the last step can be checked for opening it, not merely for rendering.
+vi.mock("@/components/scans/ScanWizardProvider", () => {
+  const controls = { start: vi.fn(), watch: vi.fn() };
+  return { useScanWizard: () => controls };
+});
 
 function connection(overrides: Partial<CloudConnection> = {}): CloudConnection {
   return {
@@ -133,12 +141,10 @@ describe("the connection wizard", () => {
       } as Partial<CloudConnection>),
     );
 
-    await waitFor(() =>
-      expect(screen.getByRole("link", { name: /run a scan/i })).toHaveAttribute(
-        "href",
-        "/scans",
-      ),
-    );
+    // The button starts the scan wizard on this connection, rather than
+    // linking to the page where scans live and leaving the reader to find it.
+    await userEvent.click(await screen.findByRole("button", { name: /run the first scan/i }));
+    expect(useScanWizard().start).toHaveBeenCalledWith("c1");
   });
 
   it("lets a waiting step be left without abandoning it", async () => {

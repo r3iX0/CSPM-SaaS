@@ -105,7 +105,7 @@ Create organization
   → 2. Entra admin consent                   (Entra reports the tenant id)
   → 3. Run the generated access artifact     (CLI / Bicep / Terraform)
   → 4. Verify — both grants proven by use
-  → 5. Confirm discovered subscriptions      → first scan → Dashboard
+  → 5. Confirm discovered subscriptions      → first scan (opens the scan wizard) → Dashboard
 ```
 
 **Nothing is asked for that can be derived.** The consent link targets

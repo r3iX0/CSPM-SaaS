@@ -90,6 +90,13 @@ export const en = {
     country: "Country",
     create: "Create organization",
     step: "Step",
+    intro:
+      "The workspace every finding, scan and report belongs to. It takes a few seconds; connecting a cloud comes next.",
+    stepOrganization: "Organization",
+    stepCloud: "Connect a cloud",
+    orgNameHelp: "Everything CloudGuard discovers is separated by organization.",
+    optional: "Optional",
+    countryHelp: "Two-letter code, used for compliance context.",
   },
   connect: {
     title: "Connect your Azure environment",
@@ -338,6 +345,50 @@ export const en = {
     stepAccountsDetail:
       "Every subscription beneath the scope is discovered and kept in step \u2014 including the ones created after today.",
 
+    // The wizard's frame: the header's facts, the rail's heading, the footer.
+    // Short on purpose -- each one states a fact the intro used to spend a
+    // sentence on, so the page can be scanned rather than read.
+    railHeading: "Setup",
+    metaDuration: "About 3 minutes",
+    metaReadOnly: "Read-only access",
+    metaNoCredentials: "No credentials to hand over",
+    footerPromise: "Read-only. CloudGuard never changes your resources.",
+
+    // Step one, as cards rather than paragraphs.
+    providerDetailAzure: "Entra ID consent and a read-only Azure role",
+    providerDetailAws: "A read-only IAM role, deployed with CloudFormation",
+    providerUnavailable: "Unavailable",
+    nameHelp: "Shown on every finding, report and scan from this environment.",
+    scopeTagWidest: "Full coverage",
+    scopeTagNarrowest: "Quickest",
+    permissionNeeded: "Permission needed",
+    beforeYouStart: "Before you start",
+    needFirstTitle: "A Global Administrator",
+    needFirstDetail:
+      "Approves admin consent once. It has to be a work or school account \u2014 a personal Microsoft account cannot grant it, even one that owns the subscription.",
+    needSecondTitle: "Owner at the scope you choose",
+    needSecondDetail:
+      "Or User Access Administrator, to assign CloudGuard\u2019s read-only role. Often a different person from the first.",
+    noIdsNeeded:
+      "No tenant id, subscription id or secret. Entra reports the tenant when consent is granted.",
+
+    // The two steps that leave for the provider, and come back on their own.
+    opensInNewTab: "Opens in a new tab",
+    detectedAutomatically:
+      "Detected automatically. You can close this page \u2014 setup carries on where it stopped.",
+    deployHowTitle: "What happens next",
+    deployHow1: "Open Azure Portal",
+    deployHow1Detail: "Signed in as an Owner at the scope you chose.",
+    deployHow2: "Review and create",
+    deployHow2Detail: "The template is pre-filled. There is nothing to type.",
+    deployHow3: "CloudGuard picks it up",
+    deployHow3Detail: "Usually within a minute of the deployment finishing.",
+
+    // The last step, once something can be scanned.
+    doneHeadline: "{name} is connected",
+    doneSummary: "{inScope} of {total} {accounts} in scope \u00b7 nothing is read until the first scan",
+    runFirstScan: "Run the first scan",
+
     // AWS says the same four things in its own words, and one fewer of them.
     // Held as an override rather than as a second copy of the whole block:
     // most of setup is identical, and two full sets would drift.
@@ -354,6 +405,20 @@ export const en = {
       stepAccounts: "Then CloudGuard finds the rest",
       stepAccountsDetail:
         "Every account in the organization is discovered and kept in step \u2014 including the ones opened after today.",
+      metaDuration: "About 2 minutes",
+      needFirstTitle: "Access to the account",
+      needFirstDetail:
+        "Permission to create a CloudFormation stack and an IAM role in the account you name.",
+      needSecondTitle: "The account id",
+      needSecondDetail:
+        "Twelve digits, from the account menu in the top-right corner of the AWS console.",
+      noIdsNeeded:
+        "No access key and no secret. CloudGuard assumes the role you deploy, and only with the external id it generates.",
+      deployHow1: "Open CloudFormation",
+      deployHow1Detail: "Signed in to the account you named.",
+      deployHow2: "Acknowledge and create",
+      deployHow2Detail: "Tick the IAM acknowledgement, then create the stack.",
+      deployHow3Detail: "Usually within a minute of the stack reaching CREATE_COMPLETE.",
       deployTitle: "Deploy the scanner stack",
       deployBody:
         "This creates one IAM role in your account. Every permission on it is a read of configuration \u2014 nothing it grants can read the contents of a bucket, a database or a secret.",

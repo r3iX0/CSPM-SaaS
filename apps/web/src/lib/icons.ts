@@ -5,6 +5,7 @@ import {
   BrickWallIcon,
   BriefcaseBusinessIcon,
   BugIcon,
+  Building2Icon,
   CalendarPlusIcon,
   CircleCheckIcon,
   CircleDashedIcon,
@@ -14,11 +15,14 @@ import {
   CrownIcon,
   DatabaseIcon,
   EthernetPortIcon,
+  ExternalLinkIcon,
   FolderIcon,
+  FolderTreeIcon,
   GlobeIcon,
   HardDriveIcon,
   KeyRoundIcon,
   LayersIcon,
+  LockIcon,
   MapPinIcon,
   MinusIcon,
   NetworkIcon,
@@ -26,18 +30,21 @@ import {
   PlusIcon,
   RouteIcon,
   ScrollTextIcon,
+  SendIcon,
   ServerIcon,
   ShieldAlertIcon,
+  ShieldCheckIcon,
   TableIcon,
   TagIcon,
   TrendingUpIcon,
+  TriangleAlertIcon,
   UserCogIcon,
   UserIcon,
   WaypointsIcon,
   type LucideIcon,
 } from "lucide-react";
 
-import type { AssetChange } from "./types";
+import type { AssetChange, ConnectionScope } from "./types";
 
 /**
  * Every icon that carries meaning, defined once.
@@ -123,6 +130,38 @@ export const CHANGE_KIND_ICONS: Record<AssetChange, LucideIcon> = {
   SENSITIVITY_CHANGED: FACTOR_ICONS.dataSensitivity,
   CRITICALITY_CHANGED: FACTOR_ICONS.criticality,
 };
+
+/**
+ * How much of a cloud a connection covers, widest first.
+ *
+ * Keyed by the scope rather than by the provider's word for it, so an AWS
+ * organization and an Azure tenant draw the same shape: they make the same
+ * claim about coverage. The narrowest reuses the subscription's own glyph,
+ * because that is exactly what it is.
+ */
+export const SCOPE_ICONS: Record<ConnectionScope, LucideIcon> = {
+  TENANT_ROOT: Building2Icon,
+  ORGANIZATION: Building2Icon,
+  MANAGEMENT_GROUP: FolderTreeIcon,
+  ORGANIZATIONAL_UNIT: FolderTreeIcon,
+  SUBSCRIPTION: LayersIcon,
+  ACCOUNT: LayersIcon,
+};
+
+/**
+ * The connection wizard's marks: the two grants setup may need, and the
+ * states a step that waits on somebody else can be in.
+ */
+export const SETUP_ICONS = {
+  approver: ShieldCheckIcon,
+  permission: KeyRoundIcon,
+  readOnly: LockIcon,
+  leavesApp: ExternalLinkIcon,
+  stalled: TriangleAlertIcon,
+  handoff: SendIcon,
+  expiry: ClockIcon,
+  duration: ClockIcon,
+} as const;
 
 /** The kinds of thing the risks page ranks. */
 export const RISK_KIND_ICONS: Record<string, LucideIcon> = {

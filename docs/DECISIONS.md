@@ -4701,6 +4701,59 @@ enterprise application had been deleted and recreated three times, the failure
 moved from "no service principal" to an HTML 403 as it went, and the logs
 carried the same six words throughout.
 
+## 92. Onboarding reads as a product, not as a document
+
+The connection wizard was correct and hard to move through. Every scope option
+carried two paragraphs, the rail repeated four more, and a "who you will need"
+block under the form added a third wall of prose, so the first screen a new
+customer met was something to study before anything could be chosen. The
+radio cards shrank to their own content -- the field primitive's label is
+`w-fit` -- so three options in one group were three different widths, the
+single clearest sign of a screen nobody had looked at. The only way forward was
+a small button below all of it.
+
+Nothing the flow *says* was cut; where each sentence sits changed.
+
+- **Choices are cards, requirements are shown once.** Cloud and scope are
+  full-width card groups (`ChoiceCard` in `StepScope`): an icon, a name, one
+  line of what it covers, and a tag on the widest ("Full coverage") and the
+  narrowest ("Quickest"). The permission a scope takes to *finish* -- the fact
+  that decides whether setup will succeed -- is printed once, for the scope that
+  is selected, directly beneath the group. The reasoning in the old comment
+  still holds; it is enforced by position now rather than by repetition.
+- **"Who you will need" is a checklist.** Two rows, each an icon, the person,
+  one sentence; AWS overrides the same two keys with its own two facts.
+- **The way forward is always on screen.** The first step's footer is sticky and
+  carries the primary action with the read-only promise beside it. Every step's
+  primary action is a large button; the two that leave the application carry an
+  external-link mark and say so.
+- **The rail says where you are, not everything.** Only the current row shows
+  its detail; finished rows are ticked and joined by a connector that fills, and
+  a bar with "Step n of m" sits on top. Below `lg` only the bar and the current
+  row are drawn, so on a phone the step itself is above the fold.
+- **Waiting looks like listening.** `WaitingNote` is a pulsing dot with a second
+  line saying the page does not have to stay open, rather than a spinner that
+  implies a request in flight.
+- **Leaving is in the header.** "Finish later" and "Cancel setup" moved from a
+  footer under the panel to the page header, where they are visible on every
+  waiting step without competing with that step's own action.
+- **The wizard ends on the scan itself.** "Run the first scan" calls
+  `useScanWizard().start(connection.id)`, opening the scan wizard (§87) on this
+  connection's review step. It used to link to `/scans`, which left one more
+  page to find the button on at the moment the customer was most ready to use
+  it.
+- **The organization step names what follows it.** Two labelled segments --
+  Organization, Connect a cloud -- replace "Step 1 / 2", and industry and
+  country share a row with industry marked optional.
+
+The icons the flow uses are in `lib/icons.ts` like every other meaningful icon
+(§86): `SCOPE_ICONS` keyed by scope, so an AWS organization and an Azure tenant
+draw the same shape because they make the same claim about coverage, and
+`SETUP_ICONS` for the two grants and the waiting states. Motion stays inside
+§84's vocabulary -- the panel slides on a stage change, which happens when a
+grant lands rather than when a button is pressed, and the one spring is the
+tick on the connected state.
+
 ## Settings: the evidence a person supplies
 
 `PATCH /organizations` takes no id in the path. Deleting a *different*
