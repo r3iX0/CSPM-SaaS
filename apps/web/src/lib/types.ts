@@ -617,6 +617,13 @@ export interface CloudConnection {
   service_principal_object_id: string | null;
   consent_status: "PENDING" | "GRANTED" | "REVOKED";
   consented_at: string | null;
+  /**
+   * What consent left out, read from the grant itself. `null` is "not
+   * checked"; an empty list is "nothing missing". `consent_status` alone is only
+   * the provider's word that an administrator clicked, and it said GRANTED over
+   * a tenant whose consent had granted no directory permission at all.
+   */
+  missing_permissions?: string[] | null;
   rbac_verified_at: string | null;
   status: "PENDING" | "ACTIVE" | "ERROR" | "DISABLED";
   status_detail: string | null;

@@ -98,6 +98,11 @@ class CloudConnection(Base, UUIDPrimaryKey, TenantOwned, Timestamps):
         StrEnumType(ConsentStatus, 16), nullable=False, default=ConsentStatus.PENDING
     )
     consented_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # What the consent left out, as the provider's own permission names, read
+    # from the grant rather than from the callback. NULL is "not checked", an
+    # empty list is "nothing missing": a GRANTED callback is Entra saying the
+    # administrator clicked, not that anything was granted.
+    missing_permissions: Mapped[list[str] | None] = mapped_column(JSONB)
 
     # Proof the RBAC grant works, from a live call -- never from the customer
     # telling us they did it.

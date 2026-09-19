@@ -134,6 +134,36 @@ _TAGS = re.compile(r"<[^>]+>")
 DETAIL_LIMIT = 400
 
 
+_UNREGISTERED = re.compile(
+    r"MissingSubscriptionRegistration|SubscriptionNotRegistered|Subscription Not Registered",
+    re.IGNORECASE,
+)
+_NAMESPACE_IN_MESSAGE = re.compile(r"namespace '([A-Za-z0-9.]+)'")
+_NAMESPACE_IN_URL = re.compile(r"/providers/([A-Za-z0-9]+\.[A-Za-z0-9.]+)/")
+
+
+def _registration_hint(detail: str, url: str) -> str:
+    """The command that fixes a subscription with a resource provider switched off.
+
+    Defender's plans answer 404 "Subscription Not Registered" on a subscription
+    that has never registered ``Microsoft.Security``, which reads like missing
+    access and is nothing of the kind. CloudGuard holds no write action by
+    design, so it cannot register the provider itself; the most it can do is
+    hand the customer the one line that does.
+    """
+    if not _UNREGISTERED.search(detail):
+        return ""
+    found = _NAMESPACE_IN_MESSAGE.search(detail) or _NAMESPACE_IN_URL.search(url)
+    if not found:
+        return ""
+    return (
+        f" The subscription has not registered the {found.group(1)} resource "
+        "provider. CloudGuard cannot register it, because it holds no write "
+        "permission; someone with Contributor on the subscription can run "
+        f"`az provider register -n {found.group(1)}`."
+    )
+
+
 def _readable(body: str) -> str:
     """One line of whatever the provider sent, tags and padding removed."""
     return " ".join(_TAGS.sub(" ", body or "").split())[:DETAIL_LIMIT]
@@ -257,8 +287,10 @@ class _BaseClient:
                 f"Azure is throttling requests (retry after {retry_after}s)", status_code=429
             )
         if response.status_code >= 400:
+            detail = self._detail(response)
             raise AzureApiError(
-                f"Azure API returned {response.status_code}: {self._detail(response)}",
+                f"Azure API returned {response.status_code}: {detail}"
+                f"{_registration_hint(detail, full_url)}",
                 status_code=response.status_code,
             )
 

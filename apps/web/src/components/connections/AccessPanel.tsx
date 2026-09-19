@@ -30,6 +30,13 @@ import { collectionCategoryLabel, formatDate } from "@/lib/format";
  * repainted the answer already on screen, including a role version nothing had
  * looked at since the row was created.
  *
+ * The consent line had to stop lying for the same reason. It read
+ * `consent_status`, which is Entra's redirect saying an administrator clicked,
+ * and it said "Granted" in green over a tenant whose consent had granted no
+ * directory permission at all -- the registration declared them as delegated,
+ * and a scanner has no signed-in user to exercise those. What consent actually
+ * left out is read from the grant and named here.
+ *
  * The reader role line is the one that had to stop lying. A deployed role older
  * than the one CloudGuard needs was printed in the same green as a current one,
  * because the version was rendered and never compared -- so a customer whose
@@ -50,6 +57,9 @@ export function AccessPanel({
   rechecking: boolean;
 }) {
   const t = useT();
+  // Only a list says something. `null` is a grant nobody has checked yet, which
+  // is not evidence of a gap and must not be painted as one.
+  const missing = connection.missing_permissions ?? [];
 
   return (
     <div className="rounded-xl border border-border bg-muted/30 p-4">
@@ -60,7 +70,9 @@ export function AccessPanel({
       <dl className="mt-3 space-y-2 text-sm">
         {hasConsentStep(connection.provider) && (
           <Line label={t.connection.consentSignal}>
-            {connection.consent_status === "GRANTED" ? (
+            {connection.consent_status === "GRANTED" && missing.length > 0 ? (
+              <span className="text-high">{t.connection.consentIncomplete}</span>
+            ) : connection.consent_status === "GRANTED" ? (
               <span className="text-ok">
                 {t.connection.granted}
                 {connection.consented_at && ` ${formatDate(connection.consented_at)}`}
@@ -104,6 +116,22 @@ export function AccessPanel({
         )}
         <Line label={t.connection.writePermission}>{t.connection.noneByDesign}</Line>
       </dl>
+
+      {connection.consent_status === "GRANTED" && missing.length > 0 && (
+        <Alert className="mt-4 border-high-border bg-high-bg text-high">
+          <AlertTitle>{t.connection.permissionsMissingTitle}</AlertTitle>
+          <AlertDescription className="text-foreground">
+            {t.connection.permissionsMissingBody}
+            <ul className="mt-2 space-y-0.5">
+              {missing.map((permission) => (
+                <li key={permission}>
+                  <code className="font-mono text-xs">{permission}</code>
+                </li>
+              ))}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {connection.role_upgrade_available && (
         <Alert className="mt-4 border-medium-border bg-medium-bg text-medium">

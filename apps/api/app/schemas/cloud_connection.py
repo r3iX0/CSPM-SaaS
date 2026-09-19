@@ -43,6 +43,10 @@ class CloudConnectionOut(BaseModel):
     service_principal_object_id: str | None = None
     consent_status: ConsentStatus
     consented_at: datetime | None = None
+    # What consent left out, read from the grant. NULL is "not checked", and an
+    # empty list is "nothing missing" -- ``consent_status`` alone is only
+    # Entra's word that an administrator clicked.
+    missing_permissions: list[str] | None = None
     rbac_verified_at: datetime | None = None
     status: CloudAccountStatus
     status_detail: str | None = None

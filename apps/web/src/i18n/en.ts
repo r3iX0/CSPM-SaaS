@@ -277,6 +277,15 @@ export const en = {
       + "rather than passing \u2014 CloudGuard will not tell you something is "
       + "fine when it could not look.",
     roleUpgradeAffects: "Affected checks",
+    consentIncomplete: "Granted, incomplete",
+    permissionsMissingTitle: "Identity checks cannot run until consent is complete",
+    permissionsMissingBody:
+      "Admin consent completed, but it did not grant these directory "
+      + "permissions. Subscription scanning is unaffected. CloudGuard's app "
+      + "registration must declare them as application permissions \u2014 "
+      + "delegated ones never reach a scanner \u2014 and a Global "
+      + "Administrator must then consent again, because consent covers only what "
+      + "the registration declared when it was granted.",
     roleUpgradeAction: "Redeploy the role",
     writePermission: "Write permission",
     noneByDesign: "None, by design",

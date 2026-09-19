@@ -364,3 +364,49 @@ def test_a_throttled_call_is_logged_too() -> None:
     (failure,) = logs_from(429, text="slow down")
 
     assert failure["status"] == 429
+
+
+# ------------------------------------------------- a provider switched off
+async def test_an_unregistered_provider_hands_over_the_command() -> None:
+    """Seen on a real subscription: Defender's plans answer 404 "Subscription
+    Not Registered" until ``Microsoft.Security`` is registered, which read as a
+    permission problem and is not one."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            404,
+            json={"error": {"code": "SubscriptionNotRegistered",
+                            "message": "Subscription Not Registered"}},
+        )
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    async with ArmClient(FakeTokens(), client) as api:
+        with pytest.raises(AzureApiError) as raised:
+            await api.get(
+                "/subscriptions/s/providers/Microsoft.Security/pricings"
+                "?api-version=2024-01-01"
+            )
+
+    message = str(raised.value)
+    assert "az provider register -n Microsoft.Security" in message
+    assert raised.value.azure_status_code == 404
+
+
+async def test_the_namespace_azure_names_wins_over_the_url() -> None:
+    message = str(
+        await error_from(
+            ArmClient,
+            409,
+            {"error": {"code": "MissingSubscriptionRegistration",
+                       "message": "The subscription is not registered to use "
+                                  "namespace 'Microsoft.Insights'."}},
+        )
+    )
+    assert "az provider register -n Microsoft.Insights" in message
+
+
+async def test_an_ordinary_404_gets_no_registration_advice() -> None:
+    message = str(
+        await error_from(ArmClient, 404, {"error": {"code": "ResourceNotFound"}})
+    )
+    assert "provider register" not in message

@@ -184,3 +184,33 @@ async def test_an_unreadable_token_adds_nothing() -> None:
     report = await run_identity("not-a-jwt", graph_denying())
 
     assert "did not grant" not in report.results["users"].detail
+
+
+# ------------------------------------------------------- what gets recorded
+async def missing(conn: CloudConnection) -> list[str] | None:
+    from app.services.cloud_connections import flow
+
+    return await flow(conn).missing_grants(conn)
+
+
+async def test_a_grant_of_nothing_records_every_permission(tokens, monkeypatch) -> None:
+    """What the connection page states, instead of "Admin consent: Granted"
+    over a token with no roles in it."""
+    monkeypatch.setattr(tokens, "token", token_granting())
+    assert await missing(connection()) == list(REQUIRED_GRAPH_PERMISSIONS)
+
+
+async def test_a_complete_grant_records_nothing_missing(tokens, monkeypatch) -> None:
+    monkeypatch.setattr(tokens, "token", token_granting(*REQUIRED_GRAPH_PERMISSIONS))
+    assert await missing(connection()) == []
+
+
+async def test_an_unreadable_grant_records_not_checked(tokens, monkeypatch) -> None:
+    """``None``, not ``[]``: an empty list would claim a complete grant that
+    nothing looked at, which is the lie this column exists to end."""
+    monkeypatch.setattr(tokens, "fails", True)
+    assert await missing(connection()) is None
+
+    monkeypatch.setattr(tokens, "fails", False)
+    monkeypatch.setattr(tokens, "token", "not-a-jwt")
+    assert await missing(connection()) is None

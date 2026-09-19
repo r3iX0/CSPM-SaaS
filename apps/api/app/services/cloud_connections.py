@@ -315,6 +315,7 @@ async def record_consent(
         gap = await onboarding.grant_problem(connection)
         if gap:
             connection.status_detail = gap
+        connection.missing_permissions = await onboarding.missing_grants(connection)
 
     await commit_unless_externally_managed(session)
     return connection
@@ -554,6 +555,15 @@ async def recheck_access(
         await commit_unless_externally_managed(session)
 
     await refresh_grant_version(session, connection)
+
+    # Asked again, because the grant can change without CloudGuard seeing it:
+    # an administrator who re-runs consent, or assigns the permissions to the
+    # service principal by hand, never passes through the callback. Left alone
+    # when it cannot be read -- one failed token is not news about the grant.
+    missing = await onboarding.missing_grants(connection)
+    if missing is not None and missing != connection.missing_permissions:
+        connection.missing_permissions = missing
+        await commit_unless_externally_managed(session)
 
     # A connection verified by this call has never discovered anything, and the
     # page it answers stops polling as soon as it reports itself ready.

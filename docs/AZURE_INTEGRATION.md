@@ -50,6 +50,16 @@ one reads customers' environments. Separate trust boundaries, separate apps.
    no customer will ever be asked to grant, and the rules that need it degrade
    to UNKNOWN with nothing on the consent screen to explain why.
 
+   Check the **Type** column afterwards: every row must say **Application**.
+   A new registration arrives holding delegated `User.Read` and nothing else,
+   and that is exactly what a customer's tenant ends up with if this step is
+   skipped or done under *Delegated permissions* — consent completes, the
+   callback reports GRANTED, and the scanner's token carries no roles at all.
+   The connection page reads the grant back from the token and says
+   "Granted, incomplete" with the missing names (DECISIONS.md §114).
+   `GET /cloud-connections/azure/app-registration` returns the manifest and an
+   `az ad app update` command that applies it by client id.
+
 3. **Certificates & secrets → New client secret.** Copy the *value*
    immediately; the portal will not show it again.
 

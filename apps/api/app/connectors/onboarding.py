@@ -155,6 +155,16 @@ class ProviderOnboarding(ABC):
         """
         return None, None
 
+    async def missing_grants(self, connection: CloudConnection) -> list[str] | None:
+        """The permissions the grant left out, by the provider's own names.
+
+        ``None`` when it cannot be established -- including for every cloud
+        whose grant cannot succeed while covering less than was asked for,
+        where there is nothing to check. An empty list is the other answer, and
+        means the grant covered everything.
+        """
+        return None
+
     async def grant_problem(self, connection: CloudConnection) -> str | None:
         """What the grant failed to cover, named, or ``None`` when it covered
         everything.

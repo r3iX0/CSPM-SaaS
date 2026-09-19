@@ -126,4 +126,34 @@ describe("the access panel", () => {
 
     expect(screen.getByText(/none, by design/i)).toBeInTheDocument();
   });
+
+  // Seen on a live tenant: the registration declared its directory
+  // permissions as delegated, so consent granted nothing a scanner can use,
+  // and this line said "Granted" in green over it.
+  it("does not call a consent that granted nothing complete", () => {
+    mount({
+      provider: "azure",
+      missing_permissions: ["Directory.Read.All", "Policy.Read.All"],
+    });
+
+    expect(screen.getByText(/granted, incomplete/i)).toBeInTheDocument();
+    expect(screen.getByText("Directory.Read.All")).toBeInTheDocument();
+    expect(screen.getByText("Policy.Read.All")).toBeInTheDocument();
+    expect(
+      screen.getByText(/identity checks cannot run until consent is complete/i),
+    ).toBeInTheDocument();
+  });
+
+  it("calls a complete consent granted", () => {
+    mount({ provider: "azure", missing_permissions: [] });
+
+    expect(screen.queryByText(/incomplete/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/^granted/i)).toBeInTheDocument();
+  });
+
+  it("does not invent a gap on a consent nobody has checked", () => {
+    mount({ provider: "azure", missing_permissions: null });
+
+    expect(screen.queryByText(/incomplete/i)).not.toBeInTheDocument();
+  });
 });

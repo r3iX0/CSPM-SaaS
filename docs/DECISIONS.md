@@ -6002,6 +6002,67 @@ region with the most assets (North Europe, the archives) is not the one with
 the most wrong. Only the `location` strings changed, and no rule reads
 location, so every finding the demo showed is unchanged.
 
+## 114. "Consent granted" is read from the grant, not from the callback
+
+**What happened.** A live tenant connected cleanly. Admin consent completed,
+the callback recorded GRANTED, and the access panel said "Admin consent:
+Granted" in green. Every identity category then failed with "Applications
+without a signed-in user are not allowed". The tenant's Cloud Guard
+enterprise app held one grant, delegated `User.Read`, which is the permission
+a new app registration starts with. The nine Graph permissions had never been
+declared on the registration as *application* permissions. Consent to
+`/.default` granted what the registration declared, which was nothing a
+scanner can exercise.
+
+**What was already right.** The manifest declares all nine as `type: "Role"`
+(`app_registration_manifest()`), and the consent link is the v2.0
+`/adminconsent` endpoint with Graph's `/.default`. Neither needed changing.
+The registration is configured by whoever operates CloudGuard, and no code in
+this repository can do that step for them.
+
+**What was wrong is what the product said about it.** `grant_problem()`
+already read the token's `roles` claim at the callback and wrote the gap into
+`status_detail`. The next status change overwrote it ("Connection verified."),
+and the panel never read it. The consent line looked only at
+`consent_status`, and that value is Entra saying an administrator clicked.
+
+**The change.**
+
+- `cloud_connections.missing_permissions` (JSONB, migration 0038) records what
+  consent left out, by name. NULL means not checked, and an empty list means
+  nothing is missing. The two stay distinct, because an unreadable token must
+  not be shown as a complete grant or as nine missing ones.
+- It is written at the consent callback, and again on every "Re-check
+  access". That covers a grant changed outside the callback: an administrator
+  who consents again, or one who assigns the app roles to the service
+  principal by hand (`POST /servicePrincipals/{id}/appRoleAssignments`, the
+  per-tenant hotfix used on the tenant that surfaced this).
+- `ProviderOnboarding.missing_grants()` is the seam. Azure reads the token's
+  `roles` claim, and every other cloud answers `None` because its grant cannot
+  succeed partially.
+- The panel says "Granted, incomplete" in the high colour, and lists the
+  missing names with what to do about them.
+
+**Why the token and not `appRoleAssignments`.** Listing the service
+principal's app-role assignments needs `Application.Read.All`, one of the
+permissions whose absence is being diagnosed. The `roles` claim needs nothing,
+and it is also what Graph enforces against.
+
+**Two smaller fixes from the same tenant.**
+
+- The app-registration endpoint's lookup command searched for the display name
+  `CloudGuard`. The live registration was named "Cloud Guard", so `APP_ID` came
+  back empty and the update after it failed without naming either. The
+  command now sets `APP_ID` to the configured client id, and falls back to
+  the name search only when there is no client id.
+- ARM answers a subscription that has never registered a resource provider
+  with 404 "Subscription Not Registered" (Defender's plans without
+  `Microsoft.Security`), or with 409 `MissingSubscriptionRegistration`. That
+  read like missing access. The error now names the namespace and gives the
+  `az provider register -n <namespace>` command. CloudGuard holds no write
+  permission, so it cannot run that command itself; this is the same stance
+  as change events.
+
 ## Open items carried forward
 
 **Data residency is not built (§113).** An organization setting for allowed

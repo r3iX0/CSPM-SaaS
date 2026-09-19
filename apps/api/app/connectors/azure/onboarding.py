@@ -124,6 +124,31 @@ class AzureOnboarding(ProviderOnboarding):
             )
             return None, f"Could not build a consent link: {exc}"
 
+    async def missing_grants(self, connection: CloudConnection) -> list[str] | None:
+        """The directory permissions this tenant's consent did not grant.
+
+        Read from a freshly issued token's ``roles`` claim, which is the grant
+        itself rather than the callback announcing it. ``None`` when no token
+        could be had or read: that is not evidence of a missing grant, and a
+        tenant that cannot issue a token has a different problem, which the
+        probes report.
+        """
+        if not connection.tenant_id:
+            return None
+        try:
+            tokens = auth.TokenProvider(connection.tenant_id)
+            granted = auth.granted_permissions(tokens.graph_token())
+        except Exception as exc:
+            log.warning(
+                "azure.grant_check_failed",
+                connection_id=str(connection.id),
+                error=str(exc),
+            )
+            return None
+        if granted is None:
+            return None
+        return [p for p in auth.REQUIRED_GRAPH_PERMISSIONS if p not in granted]
+
     async def grant_problem(self, connection: CloudConnection) -> str | None:
         """What consent failed to grant, named, or None when it granted
         everything.
@@ -142,22 +167,7 @@ class AzureOnboarding(ProviderOnboarding):
         The token answers it before any call is made. Read for diagnosis only
         -- Microsoft stays the enforcer.
         """
-        if not connection.tenant_id:
-            return None
-
-        try:
-            tokens = auth.TokenProvider(connection.tenant_id)
-            absent = auth.missing_permissions(tokens.graph_token())
-        except Exception as exc:
-            # Not evidence of a missing grant. A tenant that cannot issue a
-            # token has a different problem, and the probes report that one.
-            log.warning(
-                "azure.grant_check_failed",
-                connection_id=str(connection.id),
-                error=str(exc),
-            )
-            return None
-
+        absent = await self.missing_grants(connection)
         if not absent:
             return None
 
@@ -553,8 +563,15 @@ class AzureOnboarding(ProviderOnboarding):
             # fails with "No such file or directory" and names the placeholder
             # as the missing file -- an error that says nothing about what went
             # wrong.
+            #
+            # The id this deployment authenticates as, not a search by name.
+            # The registration a live deployment used was called "Cloud Guard",
+            # so ``--display-name CloudGuard`` matched nothing, APP_ID came back
+            # empty, and the update after it failed naming neither.
             "lookup_command": (
-                'APP_ID=$(az ad app list --display-name CloudGuard '
+                f"APP_ID={settings.azure_client_id}"
+                if settings.azure_client_id
+                else 'APP_ID=$(az ad app list --display-name CloudGuard '
                 '--query "[0].appId" -o tsv)'
             ),
             "apply_command": (

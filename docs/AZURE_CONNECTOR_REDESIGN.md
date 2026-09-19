@@ -54,6 +54,8 @@ Microsoft redirects to CloudGuard's consent callback. The callback:
 - Acquires a Graph token and reads back CloudGuard's service principal
   object ID via `find_service_principal()`
 - Sets `consent_status = GRANTED`
+- Reads the Graph token's `roles` claim and records what consent left out in
+  `missing_permissions` (DECISIONS.md §114); re-checking access reads it again
 - Redirects the customer to the Connect page
 
 ### Phase 2 — Deploy Scanner Role
@@ -251,6 +253,8 @@ role_version                VARCHAR(16) — the deployed role, read back from
 
 consent_status              VARCHAR(16) — PENDING / GRANTED / REVOKED
 consented_at                TIMESTAMP
+missing_permissions         JSONB — NULL until checked; the directory
+                            permissions consent did not grant (§114)
 
 rbac_verified_at            TIMESTAMP — NULL until ARM probe passes
 
