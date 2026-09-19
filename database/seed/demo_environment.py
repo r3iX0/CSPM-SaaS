@@ -69,9 +69,10 @@ from app.models.cloud_account import CloudAccount
 from app.models.cloud_connection import CloudConnection
 from app.models.scan import Scan
 from app.services import orchestrator
-from app.services import scanner as scanner_module
 from app.services.rule_sync import sync_rules_to_database
-from app.services.scanner import ScanPipeline
+from app.services.scan import ScanPipeline
+from app.services.scan import capture as capture_module
+from app.services.scan import collection as collection_module
 
 SNAPSHOTS = {
     # The mixed recording with an estate built around it, so the graph view has
@@ -371,13 +372,17 @@ async def replay_scan(org_id, account_id, payload: dict):
         await session.commit()
         scan_id = scan.id
 
-    # Point the pipeline at the recorded snapshot for this run only.
-    original = scanner_module.get_connector
-    scanner_module.get_connector = lambda _provider, **kw: ReplayConnector(payload, **kw)
+    # Point the pipeline at the recorded snapshot for this run only. Both
+    # halves build a connector: collection to read, capture to re-normalize.
+    modules = (collection_module, capture_module)
+    originals = [module.get_connector for module in modules]
+    for module in modules:
+        module.get_connector = lambda _provider, **kw: ReplayConnector(payload, **kw)
     try:
         await drive_scan(scan_id)
     finally:
-        scanner_module.get_connector = original
+        for module, original in zip(modules, originals, strict=True):
+            module.get_connector = original
     return scan_id
 
 

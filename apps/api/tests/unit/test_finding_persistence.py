@@ -15,6 +15,7 @@ row for a key the first had already claimed.
 
 import uuid
 from datetime import UTC, datetime
+from types import SimpleNamespace
 
 import pytest
 
@@ -29,7 +30,9 @@ from app.rules.base import RuleResult
 from app.rules.controls import Control
 from app.rules.engine import EvaluatedResult, EvaluationReport
 from app.rules.registry import RULE_REGISTRY
-from app.services.scanner import ScanPipeline
+from app.services.scan.context import AnalyzeContext
+from app.services.scan.findings import persist_findings
+from app.services.scan.writer import ScanWriter
 
 
 class FakeResult:
@@ -45,9 +48,14 @@ class FakeSession:
 
     def __init__(self) -> None:
         self.added: list[object] = []
+        # (table, row) for every row ``ScanWriter`` sent in bulk.
+        self.inserted: list[tuple[object, dict]] = []
         self.deleted: list[object] = []
 
-    async def execute(self, statement: object) -> FakeResult:
+    async def execute(self, statement: object, params: object = None) -> FakeResult:
+        if isinstance(params, list):
+            table = statement.table  # type: ignore[attr-defined]
+            self.inserted.extend((table, row) for row in params)
         return FakeResult()
 
     def add(self, obj: object) -> None:
@@ -67,7 +75,40 @@ class FakeSession:
         self.deleted.append(obj)
 
     def of_type(self, kind: type) -> list:
-        return [o for o in self.added if isinstance(o, kind)]
+        """What reached the session as this kind, through either door.
+
+        ORM objects handed to ``add``, plus the rows ``ScanWriter`` sent as
+        one ``executemany`` -- read back as attribute bags, so a test asks
+        ``link.risk_id`` of either.
+        """
+        bulk = [
+            SimpleNamespace(**row)
+            for table, row in self.inserted
+            if table is getattr(kind, "__table__", None)
+        ]
+        return [o for o in self.added if isinstance(o, kind)] + bulk
+
+def context(
+    session: object,
+    scan: Scan,
+    *,
+    observed_at: datetime | None = None,
+    account_ids: list[uuid.UUID] | None = None,
+    account_of: dict[str, uuid.UUID] | None = None,
+) -> AnalyzeContext:
+    """One analysis over the fake session, with nothing fenced.
+
+    The fake answers every query the same way whatever is asked of it, so the
+    scope is inert here. It is set because a real scan always has one.
+    """
+    return AnalyzeContext(
+        writer=ScanWriter(session, scan.organization_id),  # type: ignore[arg-type]
+        scan=scan,
+        observed_at=observed_at or datetime.now(UTC),
+        account_ids=account_ids if account_ids is not None else [uuid.uuid4()],
+        account_of=account_of or {},
+    )
+
 
 
 def resource() -> CloudResource:
@@ -101,24 +142,14 @@ def report_naming(target: CloudResource, times: int) -> EvaluationReport:
 async def persist(times: int) -> tuple[FakeSession, int]:
     target = resource()
     session = FakeSession()
-    pipeline = ScanPipeline(uuid.uuid4())
     org_id = uuid.uuid4()
     scan = Scan(organization_id=org_id, status="QUEUED")  # type: ignore[arg-type]
     scan.id = uuid.uuid4()
 
-    count = await pipeline._persist_findings(
-        session,  # type: ignore[arg-type]
-        org_id,
-        scan,
+    count = await persist_findings(
+        context(session, scan),
         report_naming(target, times),
         {target.provider_resource_id: uuid.uuid4()},
-        datetime.now(UTC),
-        # The fake session answers every query with the same list whatever is
-        # asked of it, so the scope is inert here. Passed because the signature
-        # requires it, and because a real scan always has one.
-        account_ids=[uuid.uuid4()],
-        connection_id=None,
-        account_of={},
     )
     return session, count
 
@@ -171,21 +202,14 @@ async def test_the_junction_row_carries_both_ids() -> None:
 
 async def test_nothing_is_written_when_nothing_failed() -> None:
     session = FakeSession()
-    pipeline = ScanPipeline(uuid.uuid4())
     org_id = uuid.uuid4()
     scan = Scan(organization_id=org_id, status="QUEUED")  # type: ignore[arg-type]
     scan.id = uuid.uuid4()
 
-    count = await pipeline._persist_findings(
-        session,  # type: ignore[arg-type]
-        org_id,
-        scan,
+    count = await persist_findings(
+        context(session, scan),
         EvaluationReport(rules_run=1),
         {},
-        datetime.now(UTC),
-        account_ids=[uuid.uuid4()],
-        connection_id=None,
-        account_of={},
     )
 
     assert count == 0
@@ -226,15 +250,12 @@ async def persist_mfa(count: int) -> FakeSession:
     rule = AzureMfaRule()
     accounts = [user(f"admin-{i}") for i in range(count)]
     session = FakeSession()
-    pipeline = ScanPipeline(uuid.uuid4())
     org_id = uuid.uuid4()
     scan = Scan(organization_id=org_id, status="QUEUED")  # type: ignore[arg-type]
     scan.id = uuid.uuid4()
 
-    await pipeline._persist_findings(
-        session,  # type: ignore[arg-type]
-        org_id,
-        scan,
+    await persist_findings(
+        context(session, scan),
         EvaluationReport(
             failures=[
                 EvaluatedResult(rule=rule, result=RuleResult.failed(), resource=account)
@@ -243,10 +264,6 @@ async def persist_mfa(count: int) -> FakeSession:
             rules_run=1,
         ),
         {account.provider_resource_id: uuid.uuid4() for account in accounts},
-        datetime.now(UTC),
-        account_ids=[uuid.uuid4()],
-        connection_id=None,
-        account_of={},
     )
     return session
 
@@ -319,15 +336,12 @@ async def test_a_stepped_down_exploitability_reaches_the_score() -> None:
     rule = AzureExposedComputeRule()
     target = resource()
     session = FakeSession()
-    pipeline = ScanPipeline(uuid.uuid4())
     org_id = uuid.uuid4()
     scan = Scan(organization_id=org_id, status="QUEUED")  # type: ignore[arg-type]
     scan.id = uuid.uuid4()
 
-    await pipeline._persist_findings(
-        session,  # type: ignore[arg-type]
-        org_id,
-        scan,
+    await persist_findings(
+        context(session, scan),
         EvaluationReport(
             failures=[
                 EvaluatedResult(
@@ -339,10 +353,6 @@ async def test_a_stepped_down_exploitability_reaches_the_score() -> None:
             rules_run=1,
         ),
         {target.provider_resource_id: uuid.uuid4()},
-        datetime.now(UTC),
-        account_ids=[uuid.uuid4()],
-        connection_id=None,
-        account_of={},
     )
 
     risk = session.of_type(Risk)[0]
@@ -358,15 +368,12 @@ async def test_a_compensating_control_is_recorded_on_the_finding() -> None:
     cannot see."""
     target = resource()
     session = FakeSession()
-    pipeline = ScanPipeline(uuid.uuid4())
     org_id = uuid.uuid4()
     scan = Scan(organization_id=org_id, status="QUEUED")  # type: ignore[arg-type]
     scan.id = uuid.uuid4()
 
-    await pipeline._persist_findings(
-        session,  # type: ignore[arg-type]
-        org_id,
-        scan,
+    await persist_findings(
+        context(session, scan),
         EvaluationReport(
             failures=[
                 EvaluatedResult(
@@ -388,10 +395,6 @@ async def test_a_compensating_control_is_recorded_on_the_finding() -> None:
             rules_run=1,
         ),
         {target.provider_resource_id: uuid.uuid4()},
-        datetime.now(UTC),
-        account_ids=[uuid.uuid4()],
-        connection_id=None,
-        account_of={},
     )
 
     finding = session.of_type(Finding)[0]

@@ -5514,6 +5514,93 @@ person decides, not a removal of the finding's own record of it. A false
 positive, if one is ever offered in the UI, belongs on the finding -- it says
 the rule was wrong about that asset, which is never true of a group.
 
+## 108. The scan pipeline is a package, and every step commits through one fenced writer
+
+**`scanner.py` had become the pipeline's only unit.** 3,700 lines, one class,
+sixty methods, and five jobs that share nothing but the class: driving steps,
+collecting, storing and rebuilding captures, ordering the analysis, and writing
+every table a scan touches. The stages passed the same six to nine arguments --
+session, organization, scan, reading time, subscriptions, connection, which
+subscription each asset came from -- through every helper by hand, and a test
+of one stage had to build the whole pipeline to reach a private method on it.
+
+It is now `app/services/scan/`, split along the seams the file already had:
+
+| Module | Holds |
+|---|---|
+| `pipeline.py` | `ScanPipeline`: claim, run and settle a step; `plan`, `collect`, `analyze`, `replay` |
+| `errors.py`, `lease.py` | the step errors; `LeaseKeeper`, the heartbeat and phase callbacks, `StepFence` |
+| `collection.py` | reading a subscription or the directory, evidence rows, blobs, role drift |
+| `capture.py` | the manifest a capture is stored as, and the reconstruction ANALYZE and replay share |
+| `analyze.py` | `evaluate`: the order of the stages, and nothing else |
+| `assets.py`, `coverage.py`, `findings.py`, `risks.py`, `remediations.py`, `correlation.py`, `posture.py` | one stage each |
+| `scope.py`, `context.py`, `writer.py` | the scope predicates, `AnalyzeContext`, `ScanWriter` |
+
+`AnalyzeContext` is the argument list said once. The comments came across
+verbatim -- they are the reasons, and the move is not a reason to lose them.
+Callers import from `app.services.scan`; nothing re-exports the old path, so
+there is one name for each thing. Two places monkeypatched `get_connector` on
+the old module (the integration suite's replay fixture and the demo seed); both
+now patch `collection` and `capture`, the two modules that build a connector.
+
+**The fence covered the step row and nothing the step wrote (§65).** A step is
+fenced on the attempt it was claimed under: its renewals, its phase marks and
+its settle all refuse to land once the row carries a later attempt. Its *work*
+was not fenced at all. `LeaseKeeper` learns a step was taken on a clock, a third
+of a lease at a time, and ANALYZE commits a dozen times on its way through --
+so a worker that lost its step kept committing findings, risks, resolutions and
+posture until the next renewal noticed, beside the worker that had taken over.
+The lease was designed to make that window rare; nothing made it harmless.
+
+`ScanWriter.commit` closes it. Every commit a step makes -- PLAN's, COLLECT's,
+and each of ANALYZE's -- goes through the writer, which flushes, then asks
+`orchestrator.hold` whether the step row is still RUNNING at this attempt, and
+rolls back and raises `StepLeaseLost` when it is not. The question is asked
+inside the transaction about to commit, and asked with `SELECT … FOR SHARE`: the
+reaper returning the step to PENDING and the next claim raising its attempt are
+both updates of that row, so neither can land between the check and the commit
+-- they wait for it, and the attempt that takes over starts from what this one
+committed. It is asked last, after every write, so the row is locked for the
+length of a commit rather than of a stage; the renewal beside it waits that
+long and no longer. A replay is one task rather than a claimed step, has no
+attempt for anyone to take, and commits unfenced. `test_scan_writer.py` holds
+the package to this: the only commits in it are `ScanWriter.commit` and a
+replay recording its own failure.
+
+**Rows nothing reads back go in bulk.** Change events, finding events, coverage
+rows, evaluation gaps, evidence rows, citations, edges and risk links are
+appended and never looked up before the commit. They were ORM objects all the
+same -- each one in the identity map, through the unit of work, tens of
+thousands of them on a large tenant's first scan. The writer takes them as
+plain rows and sends each table as one `executemany` at the next flush, after
+flushing the ORM so the rows can name the findings and risks they point at.
+Rows are grouped by the columns they set, because one `executemany` compiles
+one statement and a row leaving a column to its default must not be sent an
+explicit NULL for it. The writer stamps each row's `organization_id` and
+refuses one naming another tenant, and refuses any table outside
+`APPEND_ONLY` -- two doors for one table is how a row gets written twice.
+
+Edges and risk links are facts, recorded or not, and are inserted with `ON
+CONFLICT DO NOTHING`. That retires two reads whose only purpose was avoiding a
+unique violation: the edge read in `_persist_relationships`, and the per-route
+read of existing links in `_link_members`. A new route's risk is given its id
+as it is built, so its links are queued without the flush each route used to
+cost. Everything else fails on a duplicate, as it should: a finding event
+written twice is a scan that did one thing twice.
+
+**What stays on the ORM, and why.** Assets, findings, risks, posture entries,
+verifications and captures are read back and changed in place -- a finding is
+reopened, a risk's status is derived from its members, the next stage needs an
+asset's id -- and the unit of work is the right tool for that. An upsert of the
+asset inventory was considered and not done. The existing rows have to be read
+regardless, because a change event records the value before the change and an
+asset's `absent_since` is a transition; directory assets conflict on a
+different (partial) unique index from subscription assets, so it would be two
+statements with two conflict targets; and the ORM already batches the updates
+it emits. It would save the identity map and nothing else, and nothing has
+measured that as the cost. The writer is where that change would go if a
+profile ever says so.
+
 ## Settings: the evidence a person supplies
 
 `PATCH /organizations` takes no id in the path. Deleting a *different*

@@ -14,6 +14,7 @@ strength of data collected before anyone knew the rule existed -- nothing was
 looked at, so nothing may be resolved.
 """
 
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 import pytest
@@ -25,7 +26,9 @@ from app.models.scan import Scan
 from app.rules.base import RuleResult
 from app.rules.engine import EvaluatedResult, EvaluationReport, RuleCoverage
 from app.rules.registry import RULE_REGISTRY
-from app.services.scanner import ScanPipeline
+from app.services.scan import analyze
+from app.services.scan.capture import _scoped_key
+from app.services.scan.writer import ScanWriter
 
 
 # ------------------------------------------------------------- round tripping
@@ -77,10 +80,13 @@ def test_a_snapshot_stored_before_optional_fields_existed_still_loads() -> None:
 
 # ----------------------------------------------------------------- the fakes
 class FakeSession:
-    """Enough session to run ``_evaluate`` with every persistence step stubbed."""
+    """Enough session to run ``evaluate`` with every persistence step stubbed."""
 
     def __init__(self) -> None:
         self.commits = 0
+
+    async def flush(self) -> None:
+        return None
 
     async def commit(self) -> None:
         self.commits += 1
@@ -102,19 +108,40 @@ class FakeEngine:
         return self.report
 
 
+@dataclass
+class Harness:
+    """The analysis driver with every stage it calls recorded, not performed."""
+
+    engine: FakeEngine
+    calls: list[str] = field(default_factory=list)
+
+    async def evaluate(
+        self,
+        session: FakeSession,
+        scan: Scan,
+        account_state: list,
+        merged: NormalizedState,
+        **kwargs: object,
+    ) -> None:
+        await analyze.evaluate(
+            ScanWriter(session, scan.organization_id),  # type: ignore[arg-type]
+            scan,
+            self.engine,  # type: ignore[arg-type]
+            account_state,
+            merged,
+            **kwargs,  # type: ignore[arg-type]
+        )
+
+
 @pytest.fixture
-def pipeline(monkeypatch: pytest.MonkeyPatch) -> ScanPipeline:
-    """A pipeline whose every write is recorded rather than performed.
+def pipeline(monkeypatch: pytest.MonkeyPatch) -> Harness:
+    """The driver, with every stage it calls recorded rather than performed.
 
-    Stubbing the four persistence steps leaves exactly the decision under test:
-    which of them ``_evaluate`` chooses to run.
+    Stubbing the stages leaves exactly the decision under test: which of them
+    ``evaluate`` chooses to run.
     """
-    import uuid
-
-    pipe = ScanPipeline(uuid.uuid4())
-    pipe.engine = FakeEngine(failures=3)
-    calls: list[str] = []
-    pipe.calls = calls
+    harness = Harness(engine=FakeEngine(failures=3))
+    calls = harness.calls
 
     def recorder(name: str, result: object = None):
         async def record(*args: object, **kwargs: object) -> object:
@@ -123,17 +150,17 @@ def pipeline(monkeypatch: pytest.MonkeyPatch) -> ScanPipeline:
 
         return record
 
-    monkeypatch.setattr(pipe, "_persist_resources", recorder("resources", {}))
-    monkeypatch.setattr(pipe, "_existing_resource_ids", recorder("read_resources", {}))
-    monkeypatch.setattr(pipe, "_persist_coverage", recorder("coverage"))
-    monkeypatch.setattr(pipe, "_persist_findings", recorder("findings", 7))
-    monkeypatch.setattr(pipe, "_verify_remediations", recorder("verify"))
+    monkeypatch.setattr(analyze, "persist_resources", recorder("resources", {}))
+    monkeypatch.setattr(analyze, "existing_resource_ids", recorder("read_resources", {}))
+    monkeypatch.setattr(analyze, "persist_coverage", recorder("coverage"))
+    monkeypatch.setattr(analyze, "persist_findings", recorder("findings", 7))
+    monkeypatch.setattr(analyze, "verify_remediations", recorder("verify"))
     # Correlation is a persistence step like the others: it reads this
     # organization's open findings and writes the routes between them.
-    monkeypatch.setattr(pipe, "_correlate_paths", recorder("correlate"))
-    monkeypatch.setattr(pipe, "_record_posture", recorder("posture"))
-    monkeypatch.setattr(pipe, "_would_be_open_count", recorder("would_be_open", 2))
-    return pipe
+    monkeypatch.setattr(analyze, "correlate_paths", recorder("correlate"))
+    monkeypatch.setattr(analyze, "record_posture", recorder("posture"))
+    monkeypatch.setattr(analyze, "would_be_open_count", recorder("would_be_open", 2))
+    return harness
 
 
 def make_scan() -> Scan:
@@ -162,10 +189,10 @@ def make_account() -> CloudAccount:
 
 # ------------------------------------------------------------- the interlock
 async def test_a_current_snapshot_writes_findings_and_verifies_fixes(
-    pipeline: ScanPipeline,
+    pipeline: Harness,
 ) -> None:
     scan = make_scan()
-    await pipeline._evaluate(
+    await pipeline.evaluate(
         FakeSession(),
         scan,
         [(make_account(), NormalizedState())],
@@ -182,13 +209,13 @@ async def test_a_current_snapshot_writes_findings_and_verifies_fixes(
 
 
 async def test_a_stale_snapshot_writes_no_findings_and_resolves_nothing(
-    pipeline: ScanPipeline,
+    pipeline: Harness,
 ) -> None:
     """The interlock. Coverage is still recorded -- what the rules could and
     could not determine about that capture is true regardless of its age -- but
     nothing is created, reopened or resolved."""
     scan = make_scan()
-    await pipeline._evaluate(
+    await pipeline.evaluate(
         FakeSession(),
         scan,
         [(make_account(), NormalizedState())],
@@ -207,10 +234,10 @@ async def test_a_stale_snapshot_writes_no_findings_and_resolves_nothing(
 
 
 async def test_a_replay_of_a_partial_snapshot_stays_partial(
-    pipeline: ScanPipeline,
+    pipeline: Harness,
 ) -> None:
     scan = make_scan()
-    await pipeline._evaluate(
+    await pipeline.evaluate(
         FakeSession(),
         scan,
         [(make_account(), NormalizedState())],
@@ -225,7 +252,7 @@ async def test_a_replay_of_a_partial_snapshot_stays_partial(
 
 
 async def test_a_stale_snapshot_does_not_touch_the_asset_inventory(
-    pipeline: ScanPipeline,
+    pipeline: Harness,
 ) -> None:
     """``evaluation_only`` means the run changes nothing, and the asset
     inventory is part of nothing.
@@ -236,7 +263,7 @@ async def test_a_stale_snapshot_does_not_touch_the_asset_inventory(
     ids still have to be resolved for the coverage ledger, so they are read
     rather than written.
     """
-    await pipeline._evaluate(
+    await pipeline.evaluate(
         FakeSession(),
         make_scan(),
         [(make_account(), NormalizedState())],
@@ -251,13 +278,13 @@ async def test_a_stale_snapshot_does_not_touch_the_asset_inventory(
 
 
 async def test_the_reported_count_uses_the_same_rule_as_a_real_scan(
-    pipeline: ScanPipeline,
+    pipeline: Harness,
 ) -> None:
     """``len(report.failures)`` would have counted findings someone has already
     accepted, so an unchanged environment would report more findings on replay
     than on the scan it replayed, in the same column."""
     scan = make_scan()
-    await pipeline._evaluate(
+    await pipeline.evaluate(
         FakeSession(),
         scan,
         [(make_account(), NormalizedState())],
@@ -277,40 +304,31 @@ async def test_the_reported_count_uses_the_same_rule_as_a_real_scan(
 def test_a_single_subscription_scan_keeps_bare_category_names() -> None:
     """One subscription, so there is nothing to disambiguate and a prefix would
     only add noise to the message a customer reads."""
-    import uuid
-
-    pipe = ScanPipeline(uuid.uuid4())
     account = make_account()
     account.display_name = "Production"
 
-    assert pipe._scoped_key(account, "storage", 1) == "storage"
+    assert _scoped_key(account, "storage", 1) == "storage"
 
 
 def test_several_subscriptions_qualify_the_category_by_name() -> None:
     """Two subscriptions can both fail to read storage, and "storage: timeout"
     twice over says nothing about which one to go and look at."""
-    import uuid
-
-    pipe = ScanPipeline(uuid.uuid4())
     account = make_account()
     account.display_name = "Production"
 
-    assert pipe._scoped_key(account, "storage", 3) == "Production: storage"
+    assert _scoped_key(account, "storage", 3) == "Production: storage"
 
 
 def test_a_subscription_with_no_display_name_falls_back_to_its_id() -> None:
-    import uuid
-
-    pipe = ScanPipeline(uuid.uuid4())
     account = make_account()
     account.display_name = None
 
-    assert pipe._scoped_key(account, "storage", 2).endswith(": storage")
-    assert account.subscription_id in pipe._scoped_key(account, "storage", 2)
+    assert _scoped_key(account, "storage", 2).endswith(": storage")
+    assert account.subscription_id in _scoped_key(account, "storage", 2)
 
 
 async def test_resources_from_every_subscription_reach_one_evaluation(
-    pipeline: ScanPipeline,
+    pipeline: Harness,
 ) -> None:
     """The point of the change: a rule sees the tenant, not one slice of it."""
     from app.core.enums import Level, ResourceType
@@ -331,7 +349,7 @@ async def test_resources_from_every_subscription_reach_one_evaluation(
     merged = NormalizedState(resources=[resource("a"), resource("b")])
     scan = make_scan()
 
-    await pipeline._evaluate(
+    await pipeline.evaluate(
         FakeSession(),
         scan,
         [(make_account(), NormalizedState()), (make_account(), NormalizedState())],

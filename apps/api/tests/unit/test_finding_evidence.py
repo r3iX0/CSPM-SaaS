@@ -18,6 +18,7 @@ finding raised before this table existed.
 
 import uuid
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 
 from app.core.enums import Level, Provider, ResourceType, TaskOutcome
 from app.domain.resource import CloudResource
@@ -27,7 +28,9 @@ from app.rules.azure.identity.mfa import AzureMfaRule
 from app.rules.azure.storage.public_access import AzurePublicStorageRule
 from app.rules.base import RuleResult
 from app.rules.engine import EvaluatedResult, EvaluationReport
-from app.services.scanner import ScanPipeline
+from app.services.scan.context import AnalyzeContext
+from app.services.scan.findings import persist_findings
+from app.services.scan.writer import ScanWriter
 
 NOW = datetime(2026, 9, 2, 12, 0, tzinfo=UTC)
 SUB_A = uuid.uuid4()
@@ -55,11 +58,19 @@ class FakeSession:
 
     def __init__(self, evidence: list[Evidence] | None = None) -> None:
         self.added: list[object] = []
+        # (table, row) for every row ``ScanWriter`` sent in bulk.
+        self.inserted: list[tuple[object, dict]] = []
         self.statements: list[object] = []
         self._evidence = evidence or []
 
-    async def execute(self, statement: object) -> EvidenceResult:
+    async def execute(
+        self, statement: object, params: object = None
+    ) -> EvidenceResult:
         self.statements.append(statement)
+        if isinstance(params, list):
+            table = statement.table  # type: ignore[attr-defined]
+            self.inserted.extend((table, row) for row in params)
+            return EvidenceResult([])
         # Matched on the FROM clause, not on the word: ``findings`` has an
         # ``evidence`` column of its own, so a looser test answers the findings
         # query with evidence rows and fails several layers away from the cause.
@@ -94,7 +105,40 @@ class FakeSession:
         return None
 
     def of_type(self, kind: type) -> list:
-        return [o for o in self.added if isinstance(o, kind)]
+        """What reached the session as this kind, through either door.
+
+        ORM objects handed to ``add``, plus the rows ``ScanWriter`` sent as
+        one ``executemany`` -- read back as attribute bags, so a test asks
+        ``link.risk_id`` of either.
+        """
+        bulk = [
+            SimpleNamespace(**row)
+            for table, row in self.inserted
+            if table is getattr(kind, "__table__", None)
+        ]
+        return [o for o in self.added if isinstance(o, kind)] + bulk
+
+def context(
+    session: object,
+    scan: Scan,
+    *,
+    observed_at: datetime | None = None,
+    account_ids: list[uuid.UUID] | None = None,
+    account_of: dict[str, uuid.UUID] | None = None,
+) -> AnalyzeContext:
+    """One analysis over the fake session, with nothing fenced.
+
+    The fake answers every query the same way whatever is asked of it, so the
+    scope is inert here. It is set because a real scan always has one.
+    """
+    return AnalyzeContext(
+        writer=ScanWriter(session, scan.organization_id),  # type: ignore[arg-type]
+        scan=scan,
+        observed_at=observed_at or datetime.now(UTC),
+        account_ids=account_ids if account_ids is not None else [uuid.uuid4()],
+        account_of=account_of or {},
+    )
+
 
 
 def reading(
@@ -145,8 +189,6 @@ async def link(
     rule: object | None = None,
 ) -> FakeSession:
     session = FakeSession(evidence)
-    pipeline = ScanPipeline(uuid.uuid4())
-    org_id = uuid.uuid4()
     chosen = rule or AzurePublicStorageRule()
     report = EvaluationReport(
         failures=[
@@ -154,16 +196,10 @@ async def link(
         ],
         rules_run=1,
     )
-    await pipeline._persist_findings(
-        session,  # type: ignore[arg-type]
-        org_id,
-        scan,
+    await persist_findings(
+        context(session, scan, observed_at=NOW, account_ids=[SUB_A], account_of=account_of),
         report,
         {resource.provider_resource_id: uuid.uuid4()} if resource else {},
-        NOW,
-        account_ids=[SUB_A],
-        connection_id=None,
-        account_of=account_of,
     )
     return session
 
@@ -399,10 +435,20 @@ async def test_links_are_cleared_before_being_rewritten() -> None:
         scan=scan,
     )
 
+    texts = [str(s).lstrip().upper() for s in session.statements]
     deletes = [
-        str(s) for s in session.statements if str(s).lstrip().upper().startswith("DELETE")
+        i for i, text in enumerate(texts)
+        if text.startswith("DELETE") and "FINDING_EVIDENCE" in text
     ]
-    assert any("finding_evidence" in text for text in deletes)
+    inserts = [
+        i for i, text in enumerate(texts)
+        if text.startswith("INSERT") and "FINDING_EVIDENCE" in text
+    ]
+    assert deletes, "the old citations are cleared"
+    # And cleared first. The new citations are queued on the writer and sent
+    # at the commit; a writer that sent them before the delete ran would have
+    # them deleted along with the ones they replace.
+    assert inserts and deletes[0] < inserts[0]
 
 
 async def test_a_rule_declaring_no_evidence_cites_nothing() -> None:

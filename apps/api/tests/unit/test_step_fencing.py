@@ -24,7 +24,8 @@ import pytest
 from app.core.enums import ScanStepKind, ScanStepStatus
 from app.models.scan import ScanStep
 from app.services import orchestrator
-from app.services.scanner import LeaseKeeper, StepLeaseLost, _StepHeartbeat
+from app.services.scan.errors import StepLeaseLost
+from app.services.scan.lease import LeaseKeeper, _StepHeartbeat
 
 
 class Result:

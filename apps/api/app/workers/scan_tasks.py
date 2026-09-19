@@ -34,7 +34,7 @@ from app.services import orchestrator
 from app.services import retention as retention_service
 from app.services import scans as scans_service
 from app.services import verification as verification_service
-from app.services.scanner import ScanPipeline
+from app.services.scan import ScanPipeline
 from app.workers.celery_app import (
     ANALYZE_QUEUE,
     COLLECT_QUEUE,

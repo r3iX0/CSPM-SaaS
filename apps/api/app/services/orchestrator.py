@@ -270,6 +270,37 @@ async def renew(session: AsyncSession, step_id: UUID, attempt: int) -> bool:
     return bool(updated.rowcount)
 
 
+async def hold(session: AsyncSession, step_id: UUID, attempt: int) -> bool:
+    """Lock a running step for the rest of this transaction, if it is still ours.
+
+    The fence for a step's *work*, where :func:`renew` and :func:`finish` fence
+    its bookkeeping. A worker that lost its lease between two heartbeats kept
+    committing findings until the next one noticed, so the attempt number
+    guarded the step row and nothing the step wrote. Asked inside the
+    transaction about to commit, the question has no such window.
+
+    ``FOR SHARE`` is what makes the answer hold until the commit. The reaper
+    returning the step to PENDING and the next claim raising its attempt are
+    both updates of this row, so neither can land between this check and the
+    commit it guards -- they wait for it instead, and the worker that then takes
+    the step over starts from what this one committed. A shared lock rather than
+    an exclusive one, because nothing here changes the row; the lease renewal
+    beside it is an update, and waits only as long as the commit does.
+    """
+    held = (
+        await session.execute(
+            select(ScanStep.id)
+            .where(
+                ScanStep.id == step_id,
+                ScanStep.status == ScanStepStatus.RUNNING,
+                ScanStep.attempt == attempt,
+            )
+            .with_for_update(read=True)
+        )
+    ).scalar_one_or_none()
+    return held is not None
+
+
 async def set_phase(
     session: AsyncSession, step_id: UUID, attempt: int, phase: AnalyzePhase
 ) -> bool:

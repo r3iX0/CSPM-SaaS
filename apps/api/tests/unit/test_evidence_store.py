@@ -26,7 +26,7 @@ from app.connectors.evidence import EvidenceCategory
 from app.core.enums import TaskOutcome
 from app.core.errors import SnapshotUnavailable
 from app.core.payloads import compress, decompress, digest
-from app.services.scanner import _rebuild_capture
+from app.services.scan.capture import rebuild_capture
 
 
 def result(key: AzureEvidence, outcome: TaskOutcome = TaskOutcome.COMPLETE) -> TaskResult:
@@ -227,7 +227,7 @@ def test_the_payloads_stay_out_of_the_serialized_coverage() -> None:
 
 
 class StubBlob:
-    """The stored row as ``_rebuild_capture`` uses it: a hash and its bytes."""
+    """The stored row as ``rebuild_capture`` uses it: a hash and its bytes."""
 
     def __init__(self, content_hash: str, payload: dict) -> None:
         self.content_hash = content_hash
@@ -279,7 +279,7 @@ async def test_a_capture_with_a_manifest_is_never_read_as_inline_data() -> None:
     )
     session = StubSession([StubBlob(content_hash, payload)])
 
-    rebuilt = await _rebuild_capture(session, uuid4(), row)  # type: ignore[arg-type]
+    rebuilt = await rebuild_capture(session, uuid4(), row)  # type: ignore[arg-type]
 
     assert rebuilt["provider"] == "azure"
     assert rebuilt["data"] == payload
@@ -295,7 +295,7 @@ async def test_a_capture_with_neither_form_is_refused() -> None:
     row = SimpleNamespace(manifest=None, data=None)
 
     with pytest.raises(SnapshotUnavailable):
-        await _rebuild_capture(None, uuid4(), row)  # type: ignore[arg-type]
+        await rebuild_capture(None, uuid4(), row)  # type: ignore[arg-type]
 
 
 async def test_a_capture_written_before_the_manifest_still_reads_inline() -> None:
@@ -303,7 +303,7 @@ async def test_a_capture_written_before_the_manifest_still_reads_inline() -> Non
     inline and must go on being replayable."""
     row = SimpleNamespace(manifest=None, data={"provider": "azure", "data": {"vms": []}})
 
-    rebuilt = await _rebuild_capture(None, uuid4(), row)  # type: ignore[arg-type]
+    rebuilt = await rebuild_capture(None, uuid4(), row)  # type: ignore[arg-type]
 
     assert rebuilt["data"] == {"vms": []}
 
@@ -333,7 +333,7 @@ async def test_a_rebuild_given_its_readings_asks_the_database_for_nothing() -> N
         async def execute(self, _statement: object) -> None:
             raise AssertionError("a rebuild handed its readings must not query")
 
-    rebuilt = await _rebuild_capture(
+    rebuilt = await rebuild_capture(
         Exploding(),  # type: ignore[arg-type]
         uuid4(),
         row,
@@ -353,11 +353,11 @@ async def test_a_reading_missing_from_the_batch_is_still_refused() -> None:
     )
 
     with pytest.raises(SnapshotUnavailable):
-        await _rebuild_capture(None, uuid4(), row, {})  # type: ignore[arg-type]
+        await rebuild_capture(None, uuid4(), row, {})  # type: ignore[arg-type]
 
 
 def test_the_batch_asks_for_every_hash_every_capture_names() -> None:
-    from app.services.scanner import _manifest_hashes
+    from app.services.scan.capture import manifest_hashes
 
     captures = [
         SimpleNamespace(manifest={"payload_hashes": {"vms": "a" * 64}}),
@@ -368,4 +368,4 @@ def test_the_batch_asks_for_every_hash_every_capture_names() -> None:
         SimpleNamespace(manifest=None),
     ]
 
-    assert _manifest_hashes(captures) == {"a" * 64, "b" * 64}
+    assert manifest_hashes(captures) == {"a" * 64, "b" * 64}

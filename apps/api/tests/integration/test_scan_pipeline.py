@@ -47,10 +47,11 @@ from app.models.scan import Scan, ScanStep
 from app.models.verification import RemediationVerification
 from app.rules.registry import RULE_REGISTRY
 from app.services import orchestrator
-from app.services import scanner as scanner_module
 from app.services import scans as scans_service
 from app.services import verification as verification_service
-from app.services.scanner import ScanPipeline
+from app.services.scan import ScanPipeline
+from app.services.scan import capture as capture_module
+from app.services.scan import collection as collection_module
 from app.services.scans import DIRECTORY_LABEL
 from tests.integration.conftest import create_org_as
 
@@ -197,7 +198,10 @@ def replay(monkeypatch):
     def _factory(_provider, **kwargs):
         return ReplayConnector(holder["payload"], **kwargs)
 
-    monkeypatch.setattr(scanner_module, "get_connector", _factory)
+    # Both halves that build a connector: collection reads through one, and
+    # capture re-normalizes a stored reading through one.
+    monkeypatch.setattr(collection_module, "get_connector", _factory)
+    monkeypatch.setattr(capture_module, "get_connector", _factory)
     return holder
 
 

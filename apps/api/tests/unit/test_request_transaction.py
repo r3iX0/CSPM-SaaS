@@ -34,12 +34,18 @@ SERVICES = Path(__file__).resolve().parents[2] / "app" / "services"
 # Each entry is here because it is unreachable from a request, not because a
 # commit in it was inconvenient to remove.
 WORKER_OWNED = {
-    # The pipeline and its orchestrator run under ``scan_session``, which
-    # deliberately does not own its transaction: a scan commits per phase so
-    # collection is durable before evaluation starts, and re-declares its claim
-    # on every transaction through an ``after_begin`` listener.
-    "scanner.py": None,
+    # The orchestrator runs under ``scan_session``, which deliberately does not
+    # own its transaction: a scan commits per phase so collection is durable
+    # before evaluation starts, and re-declares its claim on every transaction
+    # through an ``after_begin`` listener.
     "orchestrator.py": None,
+    # The pipeline runs under ``scan_session`` too, but is *not* exempt: every
+    # commit a step makes goes through ``ScanWriter.commit``, which is fenced on
+    # the step's attempt, and a bare ``session.commit()`` anywhere in the
+    # package would be a write the fence never saw. The one exception is a
+    # replay recording its own failure -- a replay is no claimed step, so there
+    # is no attempt to fence on.
+    "scan/pipeline.py": {"_fail"},
     # Opens its own ``service_session``; called from the app's lifespan.
     "rule_sync.py": {"sync_rules_to_database"},
     # The abandoned-scan reaper, called by the Celery beat task under
@@ -72,7 +78,13 @@ def committing_functions(path: Path) -> list[str]:
     return found
 
 
-@pytest.mark.parametrize("module", sorted(p.name for p in SERVICES.glob("*.py")))
+@pytest.mark.parametrize(
+    "module",
+    # Recursive, so a service moved into a package is still held to this. The
+    # scan pipeline became one, and a non-recursive glob stopped looking at it
+    # without anything failing.
+    sorted(str(p.relative_to(SERVICES)) for p in SERVICES.rglob("*.py")),
+)
 def test_a_service_does_not_commit_a_transaction_it_may_not_own(module: str) -> None:
     """``commit_unless_externally_managed`` is the only way to commit here.
 

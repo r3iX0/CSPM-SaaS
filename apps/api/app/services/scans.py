@@ -1,6 +1,6 @@
 """Scan detail, and removing scan history.
 
-The pipeline itself lives in ``app.services.scanner``. This is what the scans
+The pipeline itself lives in ``app.services.scan``. This is what the scans
 page needs *around* a run: where it pointed, who asked for it, what it found,
 and how to get rid of it afterwards.
 """

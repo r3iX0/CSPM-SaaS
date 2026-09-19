@@ -43,9 +43,9 @@ npm test                         # vitest run
 
 **Request flow**: React → FastAPI (Supabase JWT auth) → Supabase PostgreSQL (with RLS) → Celery worker (Redis) → Azure APIs (MSAL).
 
-**Scanner pipeline** (`app/services/scanner.py`): Collect raw Azure JSON → store snapshot → normalize to `CloudResource` → evaluate rules → score risk → persist findings. Raw JSON is stored verbatim for later re-evaluation against new rules.
+**Scanner pipeline** (`app/services/scan/`): Collect raw Azure JSON → store snapshot → normalize to `CloudResource` → evaluate rules → score risk → persist findings. Raw JSON is stored verbatim for later re-evaluation against new rules. `pipeline.py` drives the steps, `analyze.py` orders the stages, and each stage is its own module taking one `AnalyzeContext` (DECISIONS.md §108).
 
-**Scan execution** (`app/services/orchestrator.py`): a scan is durable `scan_steps` — PLAN, one COLLECT per subscription plus one for the tenant directory, then ANALYZE — claimed under a lease and routed to the `collect`/`analyze` queues. Every write a running step makes is fenced on the attempt it was claimed under.
+**Scan execution** (`app/services/orchestrator.py`): a scan is durable `scan_steps` — PLAN, one COLLECT per subscription plus one for the tenant directory, then ANALYZE — claimed under a lease and routed to the `collect`/`analyze` queues. Every write a running step makes is fenced on the attempt it was claimed under: a step commits only through `ScanWriter.commit` (`app/services/scan/writer.py`), which checks the step row `FOR SHARE` inside the transaction and rolls back if the step was taken. Never call `session.commit()` in the scan package; append-only rows (events, coverage, citations, edges, links) go through `writer.add` and are sent in bulk (§108).
 
 **Multi-tenancy**: Dual-enforced. App layer derives `organization_id` from JWT. PostgreSQL RLS policies enforce row-level isolation via the `cloudguard_app` role.
 

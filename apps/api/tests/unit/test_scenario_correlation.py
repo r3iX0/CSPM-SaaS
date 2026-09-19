@@ -7,6 +7,7 @@ because it needs the database the scope is read from.
 """
 
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 from app.core.enums import Level, RelationshipType, ResourceType
@@ -15,7 +16,10 @@ from app.graph import Path
 from app.graph.model import PathStep
 from app.models.finding import Finding
 from app.models.risk import Risk
-from app.services.scanner import ScanPipeline
+from app.models.scan import Scan
+from app.services.scan.context import AnalyzeContext
+from app.services.scan.correlation import _members_on, _outside_scope, _route_nodes
+from app.services.scan.writer import ScanWriter
 
 
 def node(resource_id: str, kind: ResourceType) -> CloudResource:
@@ -54,7 +58,7 @@ def test_every_open_finding_on_an_asset_is_a_member() -> None:
     on_host = [finding(host_id, f"rule-{n}") for n in range(3)]
     on_store = [finding(store_id, "rule-store")]
 
-    members = ScanPipeline(uuid.uuid4())._members_on(
+    members = _members_on(
         ROUTE,
         {host_id: on_host, store_id: on_store},
         {"host": host_id, "store": store_id},
@@ -64,7 +68,7 @@ def test_every_open_finding_on_an_asset_is_a_member() -> None:
 
 
 def test_an_asset_with_no_open_findings_adds_none() -> None:
-    members = ScanPipeline(uuid.uuid4())._members_on(
+    members = _members_on(
         ROUTE, {}, {"host": uuid.uuid4(), "identity": uuid.uuid4()}
     )
     assert members == []
@@ -78,7 +82,7 @@ def test_a_stored_route_names_every_asset_on_it() -> None:
             {"source_id": "identity", "target_id": "store"},
         ]
     )
-    assert ScanPipeline._route_nodes(risk) == {"host", "identity", "store"}
+    assert _route_nodes(risk) == {"host", "identity", "store"}
 
 
 class _Rows:
@@ -99,14 +103,19 @@ class _Session:
         return _Rows(self.rows)
 
 
-async def outside(rows: list[tuple[str, bool]], nodes: set[str]) -> set[str] | None:
-    return await ScanPipeline(uuid.uuid4())._outside_scope(
-        _Session(rows),  # type: ignore[arg-type]
-        uuid.uuid4(),
-        nodes,
-        account_ids=[uuid.uuid4()],
-        connection_id=None,
+def scoped(session: _Session, account_ids: list[uuid.UUID]) -> AnalyzeContext:
+    """An analysis covering these subscriptions, over the fake session."""
+    organization_id = uuid.uuid4()
+    return AnalyzeContext(
+        writer=ScanWriter(session, organization_id),  # type: ignore[arg-type]
+        scan=Scan(organization_id=organization_id),
+        observed_at=datetime.now(UTC),
+        account_ids=account_ids,
     )
+
+
+async def outside(rows: list[tuple[str, bool]], nodes: set[str]) -> set[str] | None:
+    return await _outside_scope(scoped(_Session(rows), [uuid.uuid4()]), nodes)
 
 
 async def test_an_asset_in_another_subscription_is_outside() -> None:
@@ -123,11 +132,5 @@ async def test_an_asset_with_no_row_left_is_inside() -> None:
 
 
 async def test_a_scan_that_covers_nothing_closes_nothing() -> None:
-    result = await ScanPipeline(uuid.uuid4())._outside_scope(
-        _Session([]),  # type: ignore[arg-type]
-        uuid.uuid4(),
-        {"host"},
-        account_ids=[],
-        connection_id=None,
-    )
+    result = await _outside_scope(scoped(_Session([]), []), {"host"})
     assert result is None

@@ -5,6 +5,11 @@ Written against the repository rather than against a plan: every claim about
 what exists names the file it lives in, and every claim about what is missing
 was checked before it was made.
 
+Written when the pipeline was one file, `app/services/scanner.py`. It is now the
+`app/services/scan/` package (DECISIONS.md §108); the method names below are
+that file's, and each lives on as a function in the stage module of the same
+concern.
+
 `DECISIONS.md` records the choices already taken and why. This document is the
 opposite direction — what those choices imply next, what they cannot absorb,
 and which of them are load-bearing enough that nothing should be allowed to
