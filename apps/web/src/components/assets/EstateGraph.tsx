@@ -1,19 +1,22 @@
-import { lazy, Suspense, useRef, useState, type ReactNode } from "react";
-import { useSearchParams } from "react-router-dom";
+import { createElement, lazy, Suspense, useRef, useState, type ReactNode } from "react";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { ChevronRightIcon } from "lucide-react";
+import { ChevronRightIcon, CircleHelpIcon, MoveRightIcon } from "lucide-react";
 
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import type { EstateBox, EstateMap, EstateMeta } from "@/lib/types";
-import { GRAPH_ICON } from "@/lib/icons";
+import { FACTOR_ICONS, GRAPH_ICON, RISK_KIND_ICONS } from "@/lib/icons";
 import { words } from "@/lib/vocabulary";
-import { EmptyState } from "@/components/common/states";
+import { cn } from "@/lib/format";
+import { EmptyState, ErrorState } from "@/components/common/states";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
-import { boxLabel, edgeLabel } from "@/components/graph/estateNames";
+import { boxHref, boxIcon, boxLabel, edgeLabel } from "@/components/graph/estateNames";
+import { Markers } from "@/components/graph/estateMarkers";
 
-// React Flow is loaded only when somebody opens the graph view.
+// React Flow is loaded only when somebody opens the map.
 const EstateCanvas = lazy(() => import("@/components/graph/EstateCanvas"));
 
 /** Links listed under the canvas before the list says how many more. */
@@ -23,9 +26,10 @@ const LISTED_LINKS = 12;
 const lensKey = (scope: string | null, group: string | null) => `${scope ?? ""}|${group ?? ""}`;
 
 /**
- * The estate as a graph: subscriptions, then the groups in one, then the
- * assets in one of those, with the reach that crosses between them
- * (DECISIONS.md §111).
+ * The estate as a map: subscriptions, then the groups in one, then the assets
+ * in one of those, with the reach that crosses between them (DECISIONS.md
+ * §111), and the same boxes again as a ranked list -- which is what the
+ * hierarchy view was, and why it is gone (§112).
  *
  * The neighbourhood on an asset's page answers "what is around this asset"
  * and never draws the whole tenant. This answers the question before it --
@@ -47,8 +51,11 @@ export function EstateGraph({ scopeId, group }: { scopeId: string; group: string
   // The picture whose canvas should take the keyboard when it draws: the one
   // a press inside the canvas asked for, never one reached by Back.
   const [focusFor, setFocusFor] = useState<string | null>(null);
+  // The arrow picked from the list of reach, remembered with the picture it
+  // belongs to so that opening another box forgets it.
+  const [picked, setPicked] = useState<{ lens: string; edge: string } | null>(null);
 
-  const { data, isLoading, isFetching, error } = useQuery({
+  const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ["estate", scope, opened],
     queryFn: () => {
       const query = new URLSearchParams();
@@ -89,6 +96,19 @@ export function EstateGraph({ scopeId, group }: { scopeId: string; group: string
   if (isLoading) return <Skeleton className="h-[32rem] w-full rounded-xl" />;
 
   if (error) {
+    // Only a 404 means the scope is not there. Anything else -- a timeout, a
+    // 500 -- is CloudGuard failing to answer, and saying "nothing is there"
+    // would present an outage as an empty estate (§66).
+    if (!(error instanceof ApiError) || error.status !== 404) {
+      return (
+        <ErrorState
+          title="Could not draw your estate"
+          detail="CloudGuard could not reach its own API to read the map."
+          impact="Nothing about your environment has changed — this is a problem displaying it."
+          onRetry={() => refetch()}
+        />
+      );
+    }
     return (
       <Card>
         <CardContent className="flex flex-col items-start gap-3">
@@ -123,6 +143,7 @@ export function EstateGraph({ scopeId, group }: { scopeId: string; group: string
   // stays up while the next loads, and the canvas must remount -- and refit --
   // when the new one arrives, not when it was asked for.
   const key = lensKey(map.lens.scope_id, map.lens.group);
+  const highlight = picked?.lens === key ? picked.edge : null;
   // The estate's own nouns: a subscription on Azure, an account on AWS (§78).
   const w = words(map.boxes.find((box) => box.provider)?.provider);
   const titled = new Map(map.boxes.map((box) => [box.id, boxLabel(box).title]));
@@ -133,31 +154,34 @@ export function EstateGraph({ scopeId, group }: { scopeId: string; group: string
 
   return (
     <div className="flex flex-col gap-3">
-      <nav aria-label="Where the map is opened" className="flex flex-wrap items-center gap-1 text-sm">
-        <Crumb current={!scope} onClick={() => open({ scope: null, group: null })}>
-          Estate
-        </Crumb>
-        {scope && (
-          <>
-            <ChevronRightIcon className="size-3.5 text-muted-foreground" aria-hidden />
-            <Crumb current={!opened} onClick={() => open({ scope, group: null })}>
-              {scopeName}
-            </Crumb>
-          </>
-        )}
-        {opened && (
-          <>
-            <ChevronRightIcon className="size-3.5 text-muted-foreground" aria-hidden />
-            <Crumb current>{groupName}</Crumb>
-          </>
-        )}
-        {isFetching && <span className="ml-2 text-xs text-muted-foreground">Updating…</span>}
-      </nav>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <nav aria-label="Where the map is opened" className="flex flex-wrap items-center gap-1 text-sm">
+          <Crumb current={!scope} onClick={() => open({ scope: null, group: null })}>
+            Estate
+          </Crumb>
+          {scope && (
+            <>
+              <ChevronRightIcon className="size-3.5 text-muted-foreground" aria-hidden />
+              <Crumb current={!opened} onClick={() => open({ scope, group: null })}>
+                {scopeName}
+              </Crumb>
+            </>
+          )}
+          {opened && (
+            <>
+              <ChevronRightIcon className="size-3.5 text-muted-foreground" aria-hidden />
+              <Crumb current>{groupName}</Crumb>
+            </>
+          )}
+          {isFetching && <span className="ml-2 text-xs text-muted-foreground">Updating…</span>}
+        </nav>
+        <Legend accounts={w.accounts} />
+      </div>
 
       <div
         ref={frame}
         role="group"
-        aria-label={`Graph of ${opened ? groupName : scope ? scopeName : "the estate"}`}
+        aria-label={`Map of ${opened ? groupName : scope ? scopeName : "the estate"}`}
         className="h-[32rem] w-full overflow-hidden rounded-xl border border-border bg-card"
       >
         <Suspense fallback={<Skeleton className="size-full" />}>
@@ -168,60 +192,220 @@ export function EstateGraph({ scopeId, group }: { scopeId: string; group: string
             map={map}
             onOpen={openBox}
             takeFocus={focusFor === key}
+            highlight={highlight}
           />
         </Suspense>
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        Boxes are {w.accounts}, the directory, resource groups and assets; arrows are reach
-        that crosses between them — the identity a resource runs as, a role held over another
-        scope. Reach runs left to right, from the boxes holding something reachable from the
-        internet, and a role over a box reaches everything inside it. A globe counts assets
-        reachable from the internet, a cylinder assets holding sensitive data, the route mark
-        attack paths through the box, and the number its open findings. Darker arrows are on an
-        attack path. Pressing one of the {w.accounts} or groups opens it here; pressing an asset
-        opens the graph around it. In the graph, arrow keys move between boxes.
-        {meta && meta.folded_with_reach > 0 && (
-          <>
-            {" "}
-            Past {meta.max_assets} assets the rest are counted in the dashed box;{" "}
-            {meta.folded_with_reach} of them hold reach, drawn from that box.
-          </>
-        )}
-      </p>
-
-      {reach.length > 0 && (
-        <Card>
-          <CardContent>
-            <h3 className="text-sm font-medium">
-              Reach across boundaries
-              {meta && (
-                <span className="ml-2 font-normal text-muted-foreground tabular-nums">
-                  {meta.routes_total} attack path{meta.routes_total === 1 ? "" : "s"} through
-                  here
-                </span>
-              )}
-            </h3>
-            <ul className="mt-2 flex flex-col gap-1 text-sm">
-              {reach.slice(0, LISTED_LINKS).map((edge) => (
-                <li key={`${edge.source}|${edge.target}`} className="flex flex-wrap gap-x-1.5">
-                  <span className="font-medium">{titled.get(edge.source)}</span>
-                  <span className="text-muted-foreground">{edgeLabel(edge.links)}</span>
-                  <span className="font-medium">{titled.get(edge.target)}</span>
-                  {edge.on_route && (
-                    <span className="text-xs text-muted-foreground">· on an attack path</span>
-                  )}
-                </li>
-              ))}
-            </ul>
-            {reach.length > LISTED_LINKS && (
-              <p className="mt-2 text-xs text-muted-foreground">
-                And {reach.length - LISTED_LINKS} more on the graph.
-              </p>
-            )}
-          </CardContent>
-        </Card>
+      {meta && meta.folded_with_reach > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Past {meta.max_assets} assets the rest are counted in the dashed box;{" "}
+          {meta.folded_with_reach} of them hold reach, drawn from that box.
+        </p>
       )}
+
+      <div className="grid gap-3 lg:grid-cols-2">
+        <Contents map={map} accounts={w.accounts} onOpen={openBox} />
+
+        {reach.length > 0 && (
+          <Card className="self-start">
+            <CardContent>
+              <h3 className="text-sm font-medium">
+                Reach across boundaries
+                {meta && (
+                  <span className="ml-2 font-normal text-muted-foreground tabular-nums">
+                    {meta.routes_total} attack path{meta.routes_total === 1 ? "" : "s"} through
+                    here
+                  </span>
+                )}
+              </h3>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Pick one to find it on the map.
+              </p>
+              <ul className="-mx-2 mt-2 flex flex-col">
+                {reach.slice(0, LISTED_LINKS).map((edge) => {
+                  const id = `${edge.source}|${edge.target}`;
+                  const on = highlight === id;
+                  return (
+                    <li key={id}>
+                      <button
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => setPicked(on ? null : { lens: key, edge: id })}
+                        className={cn(
+                          "flex w-full flex-wrap gap-x-1.5 rounded-md px-2 py-1 text-left text-sm transition-colors hover:bg-muted/60",
+                          "focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+                          on && "bg-muted",
+                        )}
+                      >
+                        <span className="font-medium">{titled.get(edge.source)}</span>
+                        <span className="text-muted-foreground">{edgeLabel(edge.links)}</span>
+                        <span className="font-medium">{titled.get(edge.target)}</span>
+                        {edge.on_route && (
+                          <span className="text-xs text-muted-foreground">· on an attack path</span>
+                        )}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              {reach.length > LISTED_LINKS && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  And {reach.length - LISTED_LINKS} more on the map.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * What is inside the opened box, worst first, as rows.
+ *
+ * This is the hierarchy view, folded into the map (§112): at the top the
+ * subscriptions, opened the groups, opened again the assets -- each with the
+ * same counts the boxes carry, ranked by what is wrong rather than laid out by
+ * reach. It is also the map's text form, which a canvas alone does not have.
+ */
+function Contents({
+  map,
+  accounts,
+  onOpen,
+}: {
+  map: EstateMap;
+  accounts: string;
+  onOpen: (box: EstateBox) => void;
+}) {
+  const location = useLocation();
+  const from = `${location.pathname}${location.search}`;
+  const rows = map.boxes
+    .filter((box) => box.inside)
+    .sort(
+      (a, b) =>
+        // The fold is a remainder, so it always goes last.
+        Number(a.kind === "fold") - Number(b.kind === "fold") ||
+        b.findings.open - a.findings.open ||
+        b.routes - a.routes ||
+        b.assets - a.assets ||
+        boxLabel(a).title.localeCompare(boxLabel(b).title),
+    );
+  const heading = map.lens.group
+    ? "In this resource group"
+    : map.lens.scope_id
+      ? "In this scope"
+      : `Your ${accounts}`;
+
+  return (
+    <Card className="self-start py-0">
+      <CardContent className="px-0">
+        <h3 className="px-4 pt-4 text-sm font-medium">
+          {heading}
+          <span className="ml-2 font-normal text-muted-foreground">worst first</span>
+        </h3>
+        <ul className="mt-2 flex flex-col pb-2">
+          {rows.map((box) => {
+            const { title, detail } = boxLabel(box);
+            const body = (
+              <>
+                {box.kind !== "fold" ? (
+                  createElement(boxIcon(box), {
+                    className: "size-4 shrink-0 text-muted-foreground",
+                    "aria-hidden": true,
+                  })
+                ) : (
+                  <span className="size-4 shrink-0" aria-hidden />
+                )}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">{title}</span>
+                  <span className="block truncate text-xs text-muted-foreground">{detail}</span>
+                </span>
+                <Markers box={box} className="text-xs" />
+                <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground/60" aria-hidden />
+              </>
+            );
+            const row =
+              "flex w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none";
+            const href = boxHref(box);
+            return (
+              <li key={box.id}>
+                {box.kind === "scope" || box.kind === "group" ? (
+                  <button type="button" onClick={() => onOpen(box)} className={row}>
+                    {body}
+                  </button>
+                ) : href ? (
+                  <Link to={href} state={{ from }} className={row}>
+                    {body}
+                  </Link>
+                ) : (
+                  <div className={row}>{body}</div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * The marks, each once, with its word -- and the rest of how to read the map
+ * behind a question mark. It was a paragraph under the canvas, which is the
+ * one place a legend is not read.
+ */
+function Legend({ accounts }: { accounts: string }) {
+  const Exposure = FACTOR_ICONS.exposure;
+  const Sensitive = FACTOR_ICONS.dataSensitivity;
+  const Route = RISK_KIND_ICONS.ATTACK_PATH;
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+      <span className="flex items-center gap-1">
+        <Exposure className="size-3.5 text-high" aria-hidden />
+        Reachable from the internet
+      </span>
+      <span className="flex items-center gap-1">
+        <Sensitive className="size-3.5 text-high" aria-hidden />
+        Sensitive data
+      </span>
+      <span className="flex items-center gap-1">
+        <Route className="size-3.5 text-foreground" aria-hidden />
+        Attack paths
+      </span>
+      <span className="flex items-center gap-1">
+        <span className="rounded border px-1 leading-4 font-medium">3</span>
+        Open findings
+      </span>
+      <span className="flex items-center gap-1">
+        <MoveRightIcon className="size-3.5 text-foreground" aria-hidden />
+        On an attack path
+      </span>
+      <Popover>
+        <PopoverTrigger
+          render={
+            <Button variant="ghost" size="icon-sm" aria-label="How to read the map">
+              <CircleHelpIcon />
+            </Button>
+          }
+        />
+        <PopoverContent align="end" className="w-80 text-xs leading-relaxed">
+          <p>
+            Boxes are {accounts}, the directory, resource groups and assets. Arrows are reach
+            that crosses between them: the identity a resource runs as, or a role held over
+            another scope. A role over a box reaches everything inside it.
+          </p>
+          <p>
+            Reach runs left to right, starting from the boxes that hold something reachable
+            from the internet. Darker arrows are on an attack path.
+          </p>
+          <p>
+            Pressing one of the {accounts} or groups opens it here; pressing an asset opens
+            the graph around it. In the map, arrow keys move between boxes.
+          </p>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }

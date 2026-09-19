@@ -95,10 +95,21 @@ async def blast_radius(
         raise NotFound("No such asset in this organization")
 
     reached = graph.blast_radius(resource_id)
+    # The row id behind each, so the list can open what it names.
+    ids = await graph_service.asset_ids(
+        session,
+        tenant.organization_id,
+        [resource.provider_resource_id for resource in reached],
+    )
     return envelope(
         [
             {
                 "id": resource.provider_resource_id,
+                "asset_id": (
+                    str(ids[resource.provider_resource_id])
+                    if resource.provider_resource_id in ids
+                    else None
+                ),
                 "name": resource.name,
                 "resource_type": resource.resource_type.value,
                 "data_sensitivity": resource.data_sensitivity.value,

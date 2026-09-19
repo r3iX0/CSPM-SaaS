@@ -252,7 +252,9 @@ again" are the same open finding and three different pieces of news. Cancelling
 the task, or accepting the risk, withdraws the question rather than leaving it
 pending.
 
-`/assets/hierarchy` returns the estate as it is organised — subscriptions (and
+`/assets/hierarchy` is no longer read by the web app, whose hierarchy view is now
+the estate map's contents list (DECISIONS.md §112). It stays for API clients.
+It returns the estate as it is organised — subscriptions (and
 the directory, which belongs to no subscription) each holding their resource
 groups, with asset and open-finding counts at both levels, worst first. The
 resource group is read out of the ARM id's fifth segment in the database rather
@@ -278,6 +280,28 @@ per page its assets straddled, each time with a fraction of its findings.
 can drill in — `subscription_id=directory` is the tenant-scoped set, and
 `resource_group` compares case-insensitively because ARM treats `Prod` and
 `prod` as the same place.
+
+`/assets` also takes `entry_point`, `sensitive` and `on_attack_path` (booleans).
+They filter to what the estate map marks: exposure HIGH or CRITICAL, data
+sensitivity HIGH or CRITICAL, and membership of any attack path. The first two
+are the graph's own predicates over two columns. The third is read from the
+tenant's cached graph. Every row carries `on_attack_path`. An asset that a
+later scan no longer found is never on one, because the graph holds only
+present assets.
+
+`GET /assets/{id}` also returns:
+
+* `placement`: `{scope_id, scope_name, resource_group}`, the same lens the
+  estate map and the list's scope filter take. `scope_id` is `directory` for a
+  tenant-scoped asset.
+* `tenant_id`: the directory the asset lives in, for a portal link that opens
+  in the right tenant.
+* `absent_since`: set once a later scan looked for the asset and did not find
+  it.
+* `open_findings`: OPEN and IN_PROGRESS findings, counted by the server.
+
+`/attack-paths/blast-radius/{id}` rows carry `asset_id`, so each row can link to
+the asset's page. It is null for a vertex with no row.
 
 `/assets` is ordered on the server — most open findings first, then name, then
 id so that an offset always lands on the same row. It is a queue rather than a

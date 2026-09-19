@@ -84,29 +84,10 @@ export interface Asset extends ResourceSummary {
    */
   azure_type: string | null;
   open_findings: number;
+  /** On at least one attack path, wherever on it (DECISIONS.md §112). */
+  on_attack_path?: boolean;
   first_seen_at: string;
   last_seen_at: string;
-}
-
-/**
- * The estate as it is organised, counted over the whole of it.
- *
- * Subscriptions (and the directory, which belongs to no subscription) each
- * holding their resource groups. A group's `name` is null where the asset sits
- * directly in the subscription rather than in a group — left null rather than
- * called "Ungrouped", which would read as somebody's oversight.
- */
-export interface AssetScopeNode {
-  id: string;
-  name: string;
-  kind: "SUBSCRIPTION" | "DIRECTORY";
-  asset_count: number;
-  open_findings: number;
-  groups: {
-    name: string | null;
-    asset_count: number;
-    open_findings: number;
-  }[];
 }
 
 export interface Risk {

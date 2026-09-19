@@ -8,7 +8,7 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   Background,
   BackgroundVariant,
@@ -26,13 +26,13 @@ import {
 import "@xyflow/react/dist/base.css";
 
 import type { EstateBox, EstateMap } from "@/lib/types";
-import { cn, levelStyle } from "@/lib/format";
-import { DIRECTORY_ICON, FACTOR_ICONS, RISK_KIND_ICONS, resourceTypeIcon } from "@/lib/icons";
+import { cn } from "@/lib/format";
 import { DURATION, usePrefersReducedMotion } from "@/lib/motion";
 import { ARROWS, FIT, FLOW_TOKENS, HIDDEN_HANDLE } from "./flowChrome";
 import { ZoomButtons } from "./ZoomButtons";
 import { layoutEstate } from "./estateLayout";
-import { boxHref, boxLabel, edgeLabel } from "./estateNames";
+import { boxHref, boxIcon, boxLabel, edgeLabel } from "./estateNames";
+import { Markers } from "./estateMarkers";
 import { stepFrom } from "./neighborhoodLayout";
 
 // `Pick` to a mapped type: React Flow wants node data to be a record.
@@ -44,6 +44,10 @@ interface CanvasActions {
   setActive: (id: string) => void;
   /** Open a scope or a group: the map redraws with its contents. */
   open: (box: EstateBox) => void;
+  /** The two ends of the arrow picked from the list under the map, if any. */
+  lit: ReadonlySet<string> | null;
+  /** Where an asset's page trail should lead back to: this map, as opened. */
+  from: string;
 }
 
 const Actions = createContext<CanvasActions | null>(null);
@@ -83,12 +87,49 @@ export default function EstateCanvas(props: CanvasProps) {
 interface CanvasProps {
   map: EstateMap;
   onOpen: (box: EstateBox) => void;
+  /**
+   * One arrow, `source|target`, to pick out of the picture: it and its two
+   * boxes stay, everything else fades. Chosen from the list of reach under
+   * the map, which is where a person reads the arrows one at a time.
+   */
+  highlight?: string | null;
   /** Put the keyboard on the first box once drawn -- after opening one by key. */
   takeFocus?: boolean;
 }
 
-function Canvas({ map, onOpen, takeFocus = false }: CanvasProps) {
-  const { nodes, edges, at, first } = useMemo(() => toFlow(map), [map]);
+function Canvas({ map, onOpen, takeFocus = false, highlight = null }: CanvasProps) {
+  const { nodes, edges: drawn, at, first } = useMemo(() => toFlow(map), [map]);
+  const location = useLocation();
+  // A picked arrow fades the rest rather than hiding it: the arrow still has
+  // to be read in its place in the estate, not on its own.
+  const picked = highlight ? drawn.find((edge) => edge.id === highlight) : undefined;
+  const lit = useMemo(
+    () => (picked ? new Set([picked.source, picked.target]) : null),
+    [picked],
+  );
+  const edges = useMemo(
+    () =>
+      picked
+        ? drawn.map((edge) =>
+            edge.id === picked.id
+              ? {
+                  ...edge,
+                  style: {
+                    ...edge.style,
+                    stroke: "var(--foreground)",
+                    strokeWidth: Number(edge.style?.strokeWidth ?? 1.5) + 1,
+                  },
+                  zIndex: 1,
+                }
+              : {
+                  ...edge,
+                  style: { ...edge.style, opacity: 0.15 },
+                  labelStyle: { ...edge.labelStyle, opacity: 0.15 },
+                },
+          )
+        : drawn,
+    [drawn, picked],
+  );
   const [active, setActive] = useState(first);
   const frame = useRef<HTMLDivElement>(null);
   const flow = useReactFlow();
@@ -125,7 +166,15 @@ function Canvas({ map, onOpen, takeFocus = false }: CanvasProps) {
   }
 
   return (
-    <Actions.Provider value={{ active: marked, setActive, open: onOpen }}>
+    <Actions.Provider
+      value={{
+        active: marked,
+        setActive,
+        open: onOpen,
+        lit,
+        from: `${location.pathname}${location.search}`,
+      }}
+    >
       <div ref={frame} className="size-full" onKeyDown={onKeyDown}>
         <ReactFlow
           nodes={nodes}
@@ -207,15 +256,6 @@ function toFlow(map: EstateMap): {
   return { nodes, edges, at, first };
 }
 
-function boxIcon(box: EstateBox) {
-  if (box.kind === "asset") return resourceTypeIcon(box.resource_type ?? "unknown");
-  // A scope, or what sits directly in one, is drawn as the scope.
-  if (box.kind === "scope" || (box.kind === "group" && box.group === null)) {
-    return box.scope_id === "directory" ? DIRECTORY_ICON : resourceTypeIcon("subscription");
-  }
-  return resourceTypeIcon("resource_group");
-}
-
 function BoxNode({ id, data }: NodeProps<BoxFlowNode>) {
   const actions = useActions();
   const { title, detail } = boxLabel(data);
@@ -227,6 +267,8 @@ function BoxNode({ id, data }: NodeProps<BoxFlowNode>) {
     fold && "border-dashed border-border bg-background",
     !fold && (data.inside ? "border-border bg-card" : "border-border bg-muted/40"),
     !fold && data.routes > 0 && "border-foreground/40",
+    "transition-opacity",
+    actions.lit && !actions.lit.has(id) && "opacity-30",
   );
   const stop = {
     "data-graph-node": id,
@@ -271,7 +313,12 @@ function BoxNode({ id, data }: NodeProps<BoxFlowNode>) {
     );
   } else if (href) {
     box = (
-      <Link to={href} {...stop} className={cn(frame, "hover:bg-muted/60")}>
+      <Link
+        to={href}
+        state={{ from: actions.from }}
+        {...stop}
+        className={cn(frame, "hover:bg-muted/60")}
+      >
         {body}
         <span className="sr-only">{fold ? ". List them" : ". Open its page"}</span>
       </Link>
@@ -290,82 +337,6 @@ function BoxNode({ id, data }: NodeProps<BoxFlowNode>) {
       {box}
       <Handle type="source" position={Position.Right} isConnectable={false} style={HIDDEN_HANDLE} />
     </>
-  );
-}
-
-const LEVEL_TEXT: Record<string, string> = {
-  CRITICAL: "text-critical",
-  HIGH: "text-high",
-};
-
-/**
- * Ways in, sensitive data, attack paths and open findings, counted.
- *
- * The neighbourhood's markers, with a number wherever a box holds more than
- * one asset: a globe for assets a route may start from, a cylinder for ones it
- * may end at, the route glyph for attack paths passing through, and open
- * findings tinted by the worst. Each carries its meaning as screen-reader
- * text, which is also what a box's link is named from.
- */
-function Markers({ box }: { box: EstateBox }) {
-  const Exposure = FACTOR_ICONS.exposure;
-  const Sensitive = FACTOR_ICONS.dataSensitivity;
-  const Route = RISK_KIND_ICONS.ATTACK_PATH;
-  const single = box.kind === "asset";
-  const { open, worst } = box.findings;
-
-  return (
-    <span className="flex shrink-0 items-center gap-1.5 text-[10px] text-muted-foreground">
-      {box.entry > 0 && (
-        <span className="flex items-center gap-0.5" title="Reachable from the internet">
-          <Exposure
-            className={cn(
-              "size-3.5",
-              single ? LEVEL_TEXT[box.public_exposure ?? ""] : "text-high",
-            )}
-            aria-hidden
-          />
-          {!single && <span className="tabular-nums">{box.entry}</span>}
-          <span className="sr-only">
-            {single ? ", reachable from the internet" : " reachable from the internet"}
-          </span>
-        </span>
-      )}
-      {box.sensitive > 0 && (
-        <span className="flex items-center gap-0.5" title="Holds sensitive data">
-          <Sensitive
-            className={cn(
-              "size-3.5",
-              single ? LEVEL_TEXT[box.data_sensitivity ?? ""] : "text-high",
-            )}
-            aria-hidden
-          />
-          {!single && <span className="tabular-nums">{box.sensitive}</span>}
-          <span className="sr-only">
-            {single ? ", holds sensitive data" : " holding sensitive data"}
-          </span>
-        </span>
-      )}
-      {box.routes > 0 && (
-        <span className="flex items-center gap-0.5 text-foreground" title="On attack paths">
-          <Route className="size-3.5" aria-hidden />
-          <span className="tabular-nums">{box.routes}</span>
-          <span className="sr-only"> attack path{box.routes === 1 ? "" : "s"}</span>
-        </span>
-      )}
-      {open > 0 && (
-        <span
-          title={`${open} open finding${open === 1 ? "" : "s"}, worst ${worst?.toLowerCase()}`}
-          className={cn(
-            "rounded border px-1 leading-4 font-medium tabular-nums",
-            levelStyle(worst ?? "UNKNOWN"),
-          )}
-        >
-          {open}
-          <span className="sr-only"> open finding{open === 1 ? "" : "s"}</span>
-        </span>
-      )}
-    </span>
   );
 }
 

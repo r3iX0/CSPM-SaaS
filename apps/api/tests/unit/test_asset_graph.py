@@ -112,6 +112,25 @@ def test_the_cheapest_break_is_a_capability_hop() -> None:
 
 
 # --------------------------------------------------------------- what it is not
+def test_route_members_are_every_asset_on_any_route() -> None:
+    """What the asset list marks "on an attack path": the whole route, not its ends."""
+    members = environment().route_members()
+
+    assert {VM, IDENTITY, STORAGE} <= members
+    assert QUIET_VM not in members
+
+
+def test_the_routes_are_worked_out_once_and_handed_out_as_copies() -> None:
+    """The list asks for them on every page, so they are kept on the graph --
+    and a caller trimming its answer must not trim the next caller's."""
+    graph = environment()
+    first = graph.attack_paths()
+    first.clear()
+
+    assert graph.attack_paths(), "a caller's copy is not the graph's list"
+    assert graph.attack_paths() == graph.attack_paths()
+
+
 def test_an_unexposed_host_is_not_an_entry_point() -> None:
     """Otherwise every asset in the tenant is the start of an attack path, and
     the answer stops meaning anything."""

@@ -212,6 +212,13 @@ class AssetGraph:
     _in: dict[str, list[tuple[RelationshipType, str]]] = field(
         default_factory=dict, repr=False
     )
+    # Attack paths by depth, worked out once per graph. A graph is cached per
+    # tenant (``services/graph.py``) and never changed after it is built --
+    # ``_without`` makes a new one -- so the routes are a fixed property of it,
+    # and the asset list asks for them on every page it serves.
+    _paths: dict[int, list["Path"]] = field(
+        default_factory=dict, repr=False, compare=False
+    )
 
     @classmethod
     def build(
@@ -296,6 +303,13 @@ class AssetGraph:
         explain than a five-hop one, and a list that buried it under longer
         routes would be a worse answer to the same question.
         """
+        if max_depth not in self._paths:
+            self._paths[max_depth] = self._find_attack_paths(max_depth)
+        # A copy, so a caller that sorts or trims its answer cannot change the
+        # next caller's.
+        return list(self._paths[max_depth])
+
+    def _find_attack_paths(self, max_depth: int) -> list[Path]:
         targets = {t.provider_resource_id for t in self.sensitive_targets()}
         if not targets:
             return []
@@ -308,6 +322,12 @@ class AssetGraph:
                     paths.append(path)
 
         return sorted(paths, key=lambda p: (p.hops, p.target.name))
+
+    def route_members(self, max_depth: int = MAX_DEPTH) -> frozenset[str]:
+        """Every asset on at least one attack path, wherever on it."""
+        return frozenset(
+            node for path in self.attack_paths(max_depth) for node in path.node_ids()
+        )
 
     def paths_through(
         self, resource_id: str, max_depth: int = MAX_DEPTH

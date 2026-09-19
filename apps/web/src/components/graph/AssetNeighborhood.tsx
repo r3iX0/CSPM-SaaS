@@ -2,7 +2,7 @@ import { lazy, Suspense, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import type {
   AttackPath,
   AttackPathStep,
@@ -21,6 +21,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ErrorState } from "@/components/common/states";
 import { AttackPathRoute } from "./AttackPathRoute";
 import { hopKey, routeKey } from "./routeKeys";
 
@@ -91,9 +92,16 @@ const canvasKey = (focus: string, depth: number, folds: string[]) =>
 export function AssetNeighborhood({
   providerResourceId,
   name,
+  drawNow = false,
 }: {
   providerResourceId: string;
   name: string;
+  /**
+   * Draw on mount rather than behind a button. Set where opening the view is
+   * itself the request -- the asset page's Connections tab -- so the reader
+   * is not asked twice.
+   */
+  drawNow?: boolean;
 }) {
   const [params, setParams] = useSearchParams();
   const around = params.get(AROUND) ?? providerResourceId;
@@ -103,7 +111,9 @@ export function AssetNeighborhood({
   // Drawn on arrival whenever the link names a centre, even this asset: the
   // estate map's asset boxes link here with `?around=` set to the asset itself,
   // because the graph is what the reader was looking at when they followed it.
-  const [asked, setAsked] = useState(params.has(AROUND) || arrivingWith !== null);
+  const [asked, setAsked] = useState(
+    drawNow || params.has(AROUND) || arrivingWith !== null,
+  );
   // Three hops when arriving to trace a route: most routes are three or four
   // long, and two would cut the one the reader came to see in half.
   const [depth, setDepth] = useState<number>(arrivingWith ? 3 : 2);
@@ -126,7 +136,7 @@ export function AssetNeighborhood({
   const keyboardInCanvas = () =>
     frame.current?.contains(document.activeElement) ?? false;
 
-  const { data, isLoading, isFetching, error } = useQuery({
+  const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ["neighborhood", providerResourceId, around, depth, folds],
     queryFn: () => {
       const query = new URLSearchParams({ depth: String(depth) });
@@ -258,11 +268,22 @@ export function AssetNeighborhood({
 
         {asked && isLoading && <Skeleton className="h-[28rem] w-full" />}
 
-        {asked && error && (
+        {/* Only a 404 means the asset is not in the graph. Anything else is
+            CloudGuard failing to answer, and "not in the graph" would present
+            an outage as a fact about the estate (§66). */}
+        {asked && error && (error instanceof ApiError && error.status === 404) && (
           <p className="text-sm text-muted-foreground">
             This asset is not a vertex in the current graph — it may not have been in the
             most recent scan.
           </p>
+        )}
+        {asked && error && !(error instanceof ApiError && error.status === 404) && (
+          <ErrorState
+            title="Could not draw the graph"
+            detail="CloudGuard could not reach its own API to read the graph."
+            impact="Nothing about your environment has changed — this is a problem displaying it."
+            onRetry={() => refetch()}
+          />
         )}
 
         {alone && (

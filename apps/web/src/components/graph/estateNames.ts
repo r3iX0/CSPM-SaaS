@@ -1,5 +1,6 @@
 import type { EstateBox, EstateEdge } from "@/lib/types";
 import { resourceTypeLabel } from "@/lib/format";
+import { DIRECTORY_ICON, resourceTypeIcon } from "@/lib/icons";
 
 const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
 
@@ -73,4 +74,14 @@ export function edgeLabel(links: EstateEdge["links"]): string | undefined {
   return named
     .map((link) => (link.count > 1 ? `${link.label} ×${link.count}` : link.label))
     .join(" · ");
+}
+
+/** The glyph a box is drawn with, on the canvas and in the contents list. */
+export function boxIcon(box: EstateBox) {
+  if (box.kind === "asset") return resourceTypeIcon(box.resource_type ?? "unknown");
+  // A scope, or what sits directly in one, is drawn as the scope.
+  if (box.kind === "scope" || (box.kind === "group" && box.group === null)) {
+    return box.scope_id === "directory" ? DIRECTORY_ICON : resourceTypeIcon("subscription");
+  }
+  return resourceTypeIcon("resource_group");
 }

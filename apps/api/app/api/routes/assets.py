@@ -2,15 +2,18 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Query
-from sqlalchemy import ColumnElement, func, select
+from sqlalchemy import ColumnElement, false, func, select
 from sqlalchemy.orm import InstrumentedAttribute
 
 from app.core.deps import DbSession, Tenant
 from app.core.enums import ContextSource, FindingStatus, Level, ResourceType
 from app.core.errors import NotFound, envelope
+from app.graph.model import ENTRY_EXPOSURE, SENSITIVE_DATA
 from app.models.cloud_account import CloudAccount
+from app.models.cloud_connection import CloudConnection
 from app.models.finding import Finding
 from app.models.resource import ResourceRecord
+from app.services import graph as graph_service
 from app.services.placement import DIRECTORY_SCOPE, RESOURCE_GROUP
 
 router = APIRouter(prefix="/assets", tags=["assets"])
@@ -40,6 +43,13 @@ async def list_assets(
     criticality: Level | None = None,
     exposure: Level | None = None,
     search: str | None = None,
+    # The three things the graph marks an asset with, so the list can be
+    # narrowed to what the estate map draws a globe, a cylinder or a route on.
+    # The first two are the graph's own predicates over two columns; the third
+    # is membership of a route, which only the graph can say.
+    entry_point: bool = False,
+    sensitive: bool = False,
+    on_attack_path: bool = False,
     # Where the asset sits, which is how the hierarchy view drills into it.
     # `subscription_id="directory"` is the tenant-scoped set -- users, service
     # principals -- which belongs to no subscription at all and would otherwise
@@ -77,6 +87,19 @@ async def list_assets(
         conditions["exposure"] = ResourceRecord.public_exposure == exposure
     if search:
         conditions["search"] = ResourceRecord.name.ilike(f"%{search}%")
+    if entry_point:
+        conditions["entry_point"] = ResourceRecord.public_exposure.in_(ENTRY_EXPOSURE)
+    if sensitive:
+        conditions["sensitive"] = ResourceRecord.data_sensitivity.in_(SENSITIVE_DATA)
+
+    # Cached per tenant against the data's version, with its routes worked out
+    # once, so asking on every list request costs a version check.
+    graph = await graph_service.load_graph(session, tenant.organization_id)
+    on_route = graph.route_members()
+    if on_attack_path:
+        conditions["on_attack_path"] = (
+            ResourceRecord.provider_resource_id.in_(sorted(on_route)) if on_route else false()
+        )
     if subscription_id == DIRECTORY_SCOPE:
         conditions["subscription"] = ResourceRecord.cloud_account_id.is_(None)
     elif subscription_id:
@@ -173,6 +196,11 @@ async def list_assets(
                 "data_sensitivity": r.data_sensitivity,
                 "public_exposure": r.public_exposure,
                 "open_findings": int(count),
+                # On at least one attack path, as the graph finds them now. An
+                # asset the last scan no longer found is on none: the graph
+                # holds only what is still there.
+                "on_attack_path": r.absent_since is None
+                and r.provider_resource_id in on_route,
                 "first_seen_at": r.first_seen_at.isoformat(),
                 "last_seen_at": r.last_seen_at.isoformat(),
             }
@@ -345,6 +373,24 @@ async def get_asset(asset_id: UUID, session: DbSession, tenant: Tenant) -> dict:
     if asset is None:
         raise NotFound("Asset not found")
 
+    # Where it sits, for the page's trail into the estate map: the same
+    # subscription id and resource group the map's lens and the list's scope
+    # filter take, read the same way (``services/placement.py``).
+    account = (
+        await session.get(CloudAccount, asset.cloud_account_id)
+        if asset.cloud_account_id
+        else None
+    )
+    connection = (
+        await session.get(CloudConnection, asset.connection_id)
+        if asset.connection_id
+        else None
+    )
+    group = (
+        await session.execute(select(RESOURCE_GROUP).where(ResourceRecord.id == asset.id))
+    ).scalar_one_or_none()
+    scope_id = account.subscription_id if account and account.subscription_id else None
+
     findings = (
         (
             await session.execute(
@@ -391,6 +437,26 @@ async def get_asset(asset_id: UUID, session: DbSession, tenant: Tenant) -> dict:
             "metadata": asset.resource_metadata,
             "first_seen_at": asset.first_seen_at.isoformat(),
             "last_seen_at": asset.last_seen_at.isoformat(),
+            # Set when a later scan looked for the asset and did not find it.
+            # The row stays so its findings stay history; the page has to say
+            # the asset is gone rather than present it as live.
+            "absent_since": asset.absent_since.isoformat() if asset.absent_since else None,
+            "placement": {
+                "scope_id": scope_id or DIRECTORY_SCOPE,
+                "scope_name": (
+                    (account.display_name or account.account_name or scope_id)
+                    if account and scope_id
+                    else "Directory"
+                ),
+                "resource_group": group or None,
+            },
+            # The directory the asset lives in. A portal link without it opens
+            # in the viewer's default directory, where a resource in any other
+            # tenant -- every one an MSP manages -- reads as "not found".
+            "tenant_id": (account.tenant_id if account else None)
+            or (connection.tenant_id if connection else None),
+            # Counted here so no client has to decide which statuses are open.
+            "open_findings": sum(1 for f in findings if f.status.is_open),
             "findings": [
                 {
                     "id": str(f.id),

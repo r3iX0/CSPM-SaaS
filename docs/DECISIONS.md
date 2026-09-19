@@ -5813,6 +5813,121 @@ neighbourhood.
   says why). It waits for the per-scan `attack_paths` table that module
   describes.
 
+## 112. The asset page answers "is this in trouble" first, and the hierarchy is the map's list
+
+**The asset page made the reader do the work.** The header named the asset and
+nothing about its state: whether anything was wrong had to be counted off the
+findings list. That list mixed resolved findings in with open ones. The page
+was one long scroll: two cards, a neighbourhood graph 28rem tall, blast radius,
+then the raw configuration. The two graphs each sat behind their own button
+("Draw the graph", "Work out reach"), so the page looked half loaded. The
+breadcrumb went to a bare `/assets`, so a reader who had filtered the list to
+one subscription's exposed assets lost all of that by going back. The provider
+id sat in grey type in a card footer with nothing to copy it with.
+
+**What the page is now.**
+
+* **The trail returns to where the reader was.** Every link into an asset from
+  the list, the map, or the map's contents list carries the page's own URL in
+  router state. The "Assets" crumb goes back to exactly that: filters, page,
+  grouping, or the map as it was opened. Arriving any other way, it goes to
+  `/assets`. After it come the subscription and the resource group, each
+  linking to the map opened at that level. The map is the one view that shows
+  a group as a place.
+* **The header gives the facts a person acts on.** Type, region, environment,
+  first seen and last scanned sit under the name. **Copy ID** copies the whole
+  provider id. **Open in Azure** appears for ARM ids only, and its URL names the
+  tenant (`portal.azure.com/#@{tenant}/resource{id}`). Without the tenant, the
+  portal opens in the viewer's default directory, where a resource in another
+  tenant (every tenant an MSP manages) reads as "not found". Directory objects
+  get no link, because they live under a different Entra blade, and AWS gets
+  none because AWS is not in the UI.
+* **A summary strip answers "is this in trouble".** It shows open findings with
+  counts by severity, then criticality, data sensitivity and exposure. The
+  first two keep their "where this came from" tooltip, and a caption says what
+  none of these screens said before: these three multiply the risk of every
+  finding on the asset. There is no asset-level score. Scores belong to
+  findings and risks, and a third kind of score would be one more number for a
+  customer to reconcile.
+* **A banner for an asset that is gone.** `absent_since` is now on the detail
+  response. When it is set, the page says the asset was not found by the last
+  scan, that its findings are frozen as of the last scan that saw it, and that
+  it is on no attack path.
+* **Tabs, and opening a tab is the request.** The tabs are Findings,
+  Connections and Configuration, kept in `?tab=`. The graph and blast radius
+  sat behind buttons for a reason: blast radius works over the tenant's whole
+  graph. A tab keeps that reason, since nothing is asked for until
+  Connections is opened, and the extra click is gone. A long single page could
+  not express "only when asked" without a button. A link carrying `?around=`
+  or `?trace=` came for the graph (the map's asset boxes and a finding's route
+  both send one), so it opens on Connections.
+* **Open findings first, and two different empty states.** Closed findings
+  (resolved, accepted, false positive) are one press away, and the switch
+  appears only when there are any. With nothing open, a modelled resource type
+  says "No open findings. Last scanned …". A type CloudGuard has no rules for
+  says it has no checks for that kind of resource yet. "No findings" on a
+  resource nothing was checked against would present the absence of a check
+  as a clean bill of health, which is what the list's "unchecked" count exists
+  to prevent.
+* **Blast-radius rows open their asset.** The endpoint now returns each row's
+  `asset_id`.
+
+**The hierarchy view is the map's contents list.** After §111, Assets had three
+views. Hierarchy and Graph answered the same question: subscription, then
+group, then what is in it, with counts. Three view buttons is one decision too
+many. The view switch is now **List** and **Map**. Under the canvas, the boxes
+inside the opened lens are listed worst first: open findings, then attack
+paths, then size. Each row carries the same marks as its box. Pressing a
+subscription or group row opens it on the map, just as pressing the box does.
+That list is what the tree was, and it is also the map's text form, which a
+canvas alone does not have. The hierarchy's treemap went with it, because the
+boxes carry the same counts. `AssetTree` and `EstateTreemap` are deleted. The
+web app no longer reads `/assets/hierarchy`, but the endpoint stays for API
+clients. An old `?view=tree` link opens the map rather than falling back to
+the list.
+
+**The map, made readable.**
+
+* The paragraph-long legend under the canvas is now a row of chips (globe,
+  cylinder, route, findings count, darker arrow), with the rest of how to read
+  the map in a popover behind a question mark.
+* Each sentence in "Reach across boundaries" is now a toggle. Picking one
+  fades every box and arrow except that arrow and its two ends. The arrow is
+  still shown in its place in the estate rather than on its own.
+* When the list's search, type, environment, exposure or signal filters are
+  set, the map says they apply to the list only and offers to clear them. The
+  map draws everything in the opened scope. If it silently ignored a filter
+  that is visible in the URL, it would read as having applied it.
+* The list's own request no longer runs while the map is open.
+* The markers moved to `estateMarkers.tsx` so the contents list can use them
+  without importing `EstateCanvas`, which is the lazy chunk holding React Flow.
+
+**Only a 404 means "nothing is there".** The map, the neighbourhood and blast
+radius each said the scope or asset was not in the graph whenever their
+request failed, including on a 500 or a timeout. That presented an outage as a
+fact about the customer's estate, the misleading kind of error §66 exists to
+prevent. Each now checks `ApiError.status === 404`. Any other failure shows the
+standard error state with a retry.
+
+**The list says what the map marks.**
+
+* **Filter.** A new list filter narrows to what the map marks: reachable from
+  the internet, holds sensitive data, or on an attack path. On the API these
+  are `entry_point`, `sensitive` and `on_attack_path`. The first two are the
+  graph's own predicates (`ENTRY_EXPOSURE`, `SENSITIVE_DATA`) applied as column
+  filters. So a box that counts "2 reachable from the internet" and the list
+  filtered to entry points agree by construction, not by two definitions
+  staying in step.
+* **Row mark.** Every row carries `on_attack_path`, and a row that is on one
+  shows a small route mark. That is the strongest thing an inventory row can
+  say. It is a mark rather than a column, so rows that are not on a path stay
+  quiet.
+* **Cost.** Membership comes from the tenant's cached graph. The list now asks
+  for attack paths on every page, so `AssetGraph` keeps them once per graph
+  (`_paths`) and hands out copies. The cached graph is never changed after it
+  is built, and `_without` builds a new graph, so its answer cannot go stale
+  within one graph.
+
 ## Open items carried forward
 
 **Phase 9 (reports) is built, generated on request rather than stored.**

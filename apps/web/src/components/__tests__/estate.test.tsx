@@ -17,7 +17,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { EstateGraph } from "@/components/assets/EstateGraph";
 import { ESTATE_COLUMN_GAP, QUIET_ROWS, layoutEstate } from "@/components/graph/estateLayout";
 import { boxHref, boxLabel, edgeLabel } from "@/components/graph/estateNames";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import type { EstateBox, EstateEdge, EstateMap } from "@/lib/types";
 
 function scope(id: string, extra: Partial<EstateBox> = {}): EstateBox {
@@ -193,8 +193,11 @@ describe("the estate map", () => {
 
     expect(await screen.findByText("Reach across boundaries")).toBeInTheDocument();
     expect(get).toHaveBeenCalledWith("/api/v1/attack-paths/estate?");
-    // The text form of the arrows, reach on a route first.
-    const items = screen.getAllByRole("listitem").map((li) => li.textContent ?? "");
+    // The text form of the arrows, reach on a route first. Each is a toggle
+    // that picks its arrow out on the canvas.
+    const items = screen
+      .getAllByRole("button", { pressed: false })
+      .map((row) => row.textContent ?? "");
     expect(items[0]).toContain("Sub web");
     expect(items[0]).toContain("runs as");
     expect(items.some((text) => text.includes("can act over ×3"))).toBe(true);
@@ -225,7 +228,7 @@ describe("the estate map", () => {
   });
 
   it("offers the whole estate when the lens names nothing", async () => {
-    mount(() => new Error("404"), "/assets?view=graph&subscription_id=gone", {
+    mount(() => new ApiError("NOT_FOUND", "gone", 404), "/assets?view=graph&subscription_id=gone", {
       scopeId: "gone",
       group: "",
     });
@@ -251,5 +254,44 @@ describe("the estate map", () => {
 
     fireEvent.keyDown(stops()[0], { key: "ArrowRight" });
     expect(stops().map((b) => b.dataset.graphNode)).toEqual(["scope:directory"]);
+  });
+
+  it("says CloudGuard failed, not that the estate is empty, when the API does", async () => {
+    // Only a 404 means the scope is not there. A 500 read as "nothing is
+    // there" would present an outage as a fact about the estate.
+    mount(() => new ApiError("INTERNAL", "boom", 500));
+
+    expect(await screen.findByText("Could not draw your estate")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /draw the whole estate/i })).toBeNull();
+  });
+
+  it("lists what the map holds worst first, and opens a row as the box would", async () => {
+    // The hierarchy view, folded into the map: the same boxes as rows.
+    mount(() => ESTATE);
+
+    const heading = await screen.findByText("Your subscriptions");
+    const rows = [...heading.closest("div")!.querySelectorAll("li")].map(
+      (li) => li.textContent ?? "",
+    );
+    expect(rows[0]).toContain("Sub web");
+    await userEvent.click(
+      screen.getAllByRole("button").find((b) => b.textContent?.startsWith("Sub prod"))!,
+    );
+    expect(screen.getByTestId("where")).toHaveTextContent("subscription_id=prod");
+  });
+
+  it("picks an arrow out on the map from its sentence", async () => {
+    mount(() => ESTATE);
+    await waitFor(() => box("scope:web"));
+
+    const row = screen
+      .getAllByRole("button", { pressed: false })
+      .find((b) => b.textContent?.includes("runs as"))!;
+    await userEvent.click(row);
+
+    expect(row).toHaveAttribute("aria-pressed", "true");
+    // Its two ends stay; everything else fades.
+    expect(box("scope:quiet").className).toContain("opacity-30");
+    expect(box("scope:web").className).not.toContain("opacity-30");
   });
 });

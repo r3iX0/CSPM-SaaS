@@ -1,44 +1,18 @@
 /**
  * The inventory's two readings.
  *
- * The list is a queue: what is wrong, worst first. The tree is the estate's
- * shape — subscription, then resource group — which is the reading that leads
- * to an owner, because a resource group usually has one.
- *
- * The counts on the tree come from the server over the whole estate rather
- * than from a page of the list. A tree assembled in the browser from fifty
- * rows would show a resource group twice, once on each page its assets
- * straddled, with a fraction of its findings each time.
+ * The list is a queue: what is wrong, worst first. The map is the estate's
+ * shape — subscription, then resource group — with the reach between them;
+ * it replaced the hierarchy view, whose rows are now the map's contents list
+ * (DECISIONS.md §112). The map's own behaviour is in estate.test.tsx.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AssetsPage } from "@/pages/Assets";
-
-const HIERARCHY = [
-  {
-    id: "sub-1",
-    name: "Production",
-    kind: "SUBSCRIPTION",
-    asset_count: 60,
-    open_findings: 9,
-    groups: [
-      { name: "prod-rg", asset_count: 40, open_findings: 9 },
-      { name: null, asset_count: 20, open_findings: 0 },
-    ],
-  },
-  {
-    id: "directory",
-    name: "Directory",
-    kind: "DIRECTORY",
-    asset_count: 12,
-    open_findings: 0,
-    groups: [{ name: null, asset_count: 12, open_findings: 0 }],
-  },
-];
 
 const ASSET: Record<string, unknown> = {
   id: "asset-1",
@@ -80,7 +54,9 @@ function mount(
     vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       requested.push(url);
-      const data = url.includes("/assets/hierarchy") ? HIERARCHY : assets;
+      const data = url.includes("/attack-paths/estate")
+        ? { lens: { scope_id: null, group: null }, boxes: [], edges: [] }
+        : assets;
       return {
         ok: true,
         status: 200,
@@ -108,54 +84,6 @@ describe("the assets page", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
-  });
-
-  it("lays the estate out as subscriptions and their groups", async () => {
-    mount();
-
-    fireEvent.click(screen.getByRole("button", { name: /Hierarchy/ }));
-
-    expect(await screen.findByText("Production")).toBeInTheDocument();
-    // Counted over the estate, not over a page of it.
-    expect(screen.getByText("60 assets")).toBeInTheDocument();
-    // Twice: the subscription's nine, and the group inside it they all come
-    // from — which is the point of the level.
-    expect(screen.getAllByText("9 open findings")).toHaveLength(2);
-    // A subscription with something wrong opens itself, so the reader does not
-    // click to discover what the page already knew.
-    expect(await screen.findByText("prod-rg")).toBeInTheDocument();
-  });
-
-  it("asks for a group's assets only when the group is opened", async () => {
-    mount();
-
-    fireEvent.click(screen.getByRole("button", { name: /Hierarchy/ }));
-    await screen.findByText("prod-rg");
-
-    expect(requested.some((url) => url.includes("resource_group="))).toBe(false);
-
-    fireEvent.click(screen.getByRole("button", { name: /prod-rg/ }));
-
-    expect(await screen.findByText("payroll")).toBeInTheDocument();
-    expect(
-      requested.some(
-        (url) =>
-          url.includes("subscription_id=sub-1") &&
-          url.includes("resource_group=prod-rg"),
-      ),
-    ).toBe(true);
-  });
-
-  it("names assets that sit in no group as what they are", async () => {
-    // Not "Ungrouped", which reads as somebody's tagging oversight rather than
-    // as where the asset actually is.
-    mount();
-
-    fireEvent.click(screen.getByRole("button", { name: /Hierarchy/ }));
-
-    expect(
-      await screen.findByText("Directly in the subscription"),
-    ).toBeInTheDocument();
   });
 
   it("narrows the list to the group a link arrived with", async () => {
@@ -267,5 +195,85 @@ describe("the assets page", () => {
       .map((link) => link.textContent)
       .filter((text) => text === "first-by-server" || text === "payroll");
     expect(names).toEqual(["first-by-server", "payroll"]);
+  });
+
+  it("opens an old link to the hierarchy on the map", async () => {
+    /** The hierarchy is the map's contents list now; a bookmark to it should
+     * land on the map rather than fall back to the list. */
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        requested.push(String(input));
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            data: { lens: { scope_id: null, group: null }, boxes: [], edges: [] },
+            error: null,
+            meta: {},
+          }),
+        } as Response;
+      }),
+    );
+    requested = [];
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={["/assets?view=tree"]}>
+          <AssetsPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText(/nothing discovered yet/i)).toBeInTheDocument();
+    expect(requested.some((url) => url.includes("/attack-paths/estate"))).toBe(true);
+    expect(screen.queryByRole("button", { name: /Hierarchy/ })).not.toBeInTheDocument();
+  });
+
+  it("marks an asset on an attack path, and only that one", async () => {
+    mount([{ ...ASSET, on_attack_path: true }, { ...UNCHECKED, on_attack_path: false }], {
+      total: 2,
+    });
+
+    await screen.findByText("payroll");
+    expect(screen.getAllByTitle("On an attack path")).toHaveLength(1);
+  });
+
+  it("narrows the list to what the map marks", async () => {
+    const user = userEvent.setup();
+    mount([ASSET], { total: 1 });
+    await screen.findByText("payroll");
+
+    await user.click(screen.getByRole("combobox", { name: "Filter by what the map marks" }));
+    await user.click(await screen.findByRole("option", { name: "On an attack path" }));
+
+    await waitFor(() =>
+      expect(requested.some((url) => url.includes("on_attack_path=true"))).toBe(true),
+    );
+  });
+
+  it("says the map ignores the list's filters rather than seeming to apply them", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          data: { lens: { scope_id: null, group: null }, boxes: [], edges: [] },
+          error: null,
+          meta: {},
+        }),
+      })) as unknown as typeof fetch,
+    );
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={["/assets?view=graph&exposure=HIGH"]}>
+          <AssetsPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText(/apply to the list only/)).toHaveTextContent("exposure");
   });
 });

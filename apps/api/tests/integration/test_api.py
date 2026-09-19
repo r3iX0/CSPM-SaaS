@@ -2420,6 +2420,93 @@ class TestAssetNeighborhood:
             await session.commit()
             return vm.id
 
+    async def test_the_list_marks_and_narrows_to_what_the_graph_marks(
+        self, client, cleanup_orgs
+    ) -> None:
+        """The globe, the cylinder and the route, as list filters and a row flag.
+
+        The same predicates the map counts with, so a box saying "1 reachable
+        from the internet" and the list filtered to entry points agree.
+        """
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Signals Ltd"))
+        cleanup_orgs.append(org_id)
+        await self._estate(org_id)
+
+        async def names(query: str) -> set[str]:
+            response = await client.get(f"/api/v1/assets{query}", headers=auth_header(user))
+            assert response.status_code == 200, response.text
+            return {a["name"] for a in response.json()["data"]}
+
+        everything = await client.get("/api/v1/assets", headers=auth_header(user))
+        flagged = {a["name"]: a["on_attack_path"] for a in everything.json()["data"]}
+        assert flagged == {"jump-01": True, "mi-jump-01": True, "payroll": True}
+        assert await names("?entry_point=true") == {"jump-01"}
+        assert await names("?sensitive=true") == {"payroll"}
+        assert await names("?on_attack_path=true") == {"jump-01", "mi-jump-01", "payroll"}
+
+    async def test_an_asset_page_says_where_the_asset_sits_and_what_is_open(
+        self, client, cleanup_orgs
+    ) -> None:
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Placed Ltd"))
+        cleanup_orgs.append(org_id)
+        vm_row = await self._estate(org_id)
+
+        response = await client.get(f"/api/v1/assets/{vm_row}", headers=auth_header(user))
+
+        assert response.status_code == 200, response.text
+        body = response.json()["data"]
+        assert body["placement"] == {
+            "scope_id": "00000000-0000-0000-0000-000000000001",
+            "scope_name": "Production",
+            "resource_group": "prod",
+        }
+        # The portal link needs the directory, or it opens in the wrong one.
+        assert body["tenant_id"] == "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+        assert body["absent_since"] is None
+        assert body["open_findings"] == 1
+
+    async def test_a_directory_asset_sits_in_the_directory(
+        self, client, cleanup_orgs
+    ) -> None:
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Directory Ltd"))
+        cleanup_orgs.append(org_id)
+        await self._estate(org_id)
+        listed = await client.get(
+            "/api/v1/assets?search=mi-jump", headers=auth_header(user)
+        )
+        [identity] = listed.json()["data"]
+
+        response = await client.get(
+            f"/api/v1/assets/{identity['id']}", headers=auth_header(user)
+        )
+
+        # The fixture hangs the identity off the account, so it is placed by
+        # the account; a group is never invented from a principal id.
+        assert response.json()["data"]["placement"]["resource_group"] is None
+
+    async def test_what_a_blast_radius_reaches_can_be_opened(
+        self, client, cleanup_orgs
+    ) -> None:
+        from urllib.parse import quote
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Reach Ltd"))
+        cleanup_orgs.append(org_id)
+        await self._estate(org_id)
+
+        response = await client.get(
+            f"/api/v1/attack-paths/blast-radius/{quote(self.IDENTITY, safe='')}",
+            headers=auth_header(user),
+        )
+
+        assert response.status_code == 200, response.text
+        [reached] = response.json()["data"]
+        assert reached["id"] == self.STORAGE
+        assert uuid.UUID(reached["asset_id"])
+
     async def test_the_identity_is_drawn_with_the_route_through_it(
         self, client, cleanup_orgs
     ) -> None:

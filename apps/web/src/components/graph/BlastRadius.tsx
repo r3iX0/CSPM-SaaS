@@ -1,8 +1,9 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { RadarIcon } from "lucide-react";
 
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,10 +14,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ErrorState } from "@/components/common/states";
 import { ResourceTypeLabel } from "@/components/security/IconLabel";
 
 interface Reached {
   id: string;
+  /** The row id, for opening it; null for a vertex with no row. */
+  asset_id?: string | null;
   name: string;
   resource_type: string;
   data_sensitivity: string;
@@ -36,13 +40,20 @@ interface Reached {
 export function BlastRadius({
   providerResourceId,
   name,
+  drawNow = false,
 }: {
   providerResourceId: string;
   name: string;
+  /**
+   * Draw on mount rather than behind a button. Set where opening the view is
+   * itself the request -- the asset page's Connections tab -- so the reader
+   * is not asked twice.
+   */
+  drawNow?: boolean;
 }) {
-  const [asked, setAsked] = useState(false);
+  const [asked, setAsked] = useState(drawNow);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["blast-radius", providerResourceId],
     queryFn: () =>
       api
@@ -77,11 +88,19 @@ export function BlastRadius({
           </div>
         )}
 
-        {asked && error && (
+        {asked && error && (error instanceof ApiError && error.status === 404) && (
           <p className="text-sm text-muted-foreground">
             This asset is not a vertex in the current graph — it may not have been in the
             most recent scan.
           </p>
+        )}
+        {asked && error && !(error instanceof ApiError && error.status === 404) && (
+          <ErrorState
+            title="Could not work out its reach"
+            detail="CloudGuard could not reach its own API to read the graph."
+            impact="Nothing about your environment has changed — this is a problem displaying it."
+            onRetry={() => refetch()}
+          />
         )}
 
         {data && data.length === 0 && (
@@ -98,7 +117,16 @@ export function BlastRadius({
                 key={reached.id}
                 className="flex items-center gap-3 py-2 text-sm first:pt-0 last:pb-0"
               >
-                <span className="min-w-0 flex-1 truncate">{reached.name}</span>
+                {reached.asset_id ? (
+                  <Link
+                    to={`/assets/${reached.asset_id}`}
+                    className="min-w-0 flex-1 truncate hover:underline"
+                  >
+                    {reached.name}
+                  </Link>
+                ) : (
+                  <span className="min-w-0 flex-1 truncate">{reached.name}</span>
+                )}
                 <ResourceTypeLabel
                   type={reached.resource_type}
                   className="shrink-0 text-xs text-muted-foreground"

@@ -1,15 +1,14 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { BoxesIcon, SearchIcon, XIcon } from "lucide-react";
-import { resourceTypeIcon } from "@/lib/icons";
+import { RISK_KIND_ICONS, resourceTypeIcon } from "@/lib/icons";
 import { ResourceTypeLabel } from "@/components/security/IconLabel";
 
 import { api } from "@/lib/api";
 import type { Asset } from "@/lib/types";
 import { useT } from "@/i18n";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
-import { AssetTree } from "@/components/assets/AssetTree";
 import { EstateGraph } from "@/components/assets/EstateGraph";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState, ErrorState, PageHeader, TableSkeleton } from "@/components/common/states";
@@ -38,7 +37,14 @@ const SEARCH_DEBOUNCE_MS = 250;
 
 type GroupKey = "none" | "scope" | "resource_type" | "environment";
 
-type View = "list" | "tree" | "graph";
+type View = "list" | "graph";
+
+/** What the map marks an asset with, as one list filter (DECISIONS.md §112). */
+const SIGNAL_PARAM: Record<string, string> = {
+  entry: "entry_point",
+  sensitive: "sensitive",
+  route: "on_attack_path",
+};
 
 /**
  * The inventory, and what is worth knowing about each thing in it.
@@ -69,6 +75,7 @@ export function AssetsPage() {
     q: "",
     environment: "all",
     exposure: "all",
+    signal: "all",
     type: "all",
     group: "scope",
     view: "list",
@@ -76,10 +83,16 @@ export function AssetsPage() {
     subscription_id: "",
     resource_group: "",
   });
-  const { environment, exposure, type } = filters;
+  const { environment, exposure, type, signal } = filters;
+  const location = useLocation();
+  // Carried into an asset's page, so its trail returns to this exact list --
+  // filters, page and grouping -- rather than to a bare inventory.
+  const returnTo = { from: `${location.pathname}${location.search}` };
   const groupBy = filters.group as GroupKey;
+  // `tree` was the hierarchy view, which the map now is (§112): an old link to
+  // it opens the map rather than falling back to the list.
   const view: View =
-    filters.view === "tree" || filters.view === "graph" ? filters.view : "list";
+    filters.view === "graph" || filters.view === "tree" ? "graph" : "list";
   const page = Math.max(0, Number.parseInt(filters.page, 10) || 0);
   const subscriptionId = filters.subscription_id;
   const resourceGroup = filters.resource_group;
@@ -104,6 +117,7 @@ export function AssetsPage() {
   if (environment !== "all") params.set("environment", environment);
   if (exposure !== "all") params.set("exposure", exposure);
   if (type !== "all") params.set("resource_type", type);
+  if (SIGNAL_PARAM[signal]) params.set(SIGNAL_PARAM[signal], "true");
   if (subscriptionId) params.set("subscription_id", subscriptionId);
   if (resourceGroup) params.set("resource_group", resourceGroup);
   params.set("limit", String(PAGE_SIZE));
@@ -120,6 +134,7 @@ export function AssetsPage() {
       environment,
       exposure,
       type,
+      signal,
       subscriptionId,
       resourceGroup,
       page,
@@ -149,6 +164,9 @@ export function AssetsPage() {
     // Paging without this blanks the table on every page turn, which reads as
     // the data having gone rather than as a page loading.
     placeholderData: keepPreviousData,
+    // The map reads its own endpoint; a page of the list behind it is a
+    // request nobody sees.
+    enabled: view === "list",
   });
 
   // Memoised rather than `data?.assets ?? []`, which minted a new array every
@@ -213,12 +231,13 @@ export function AssetsPage() {
     environment !== "all" ||
     exposure !== "all" ||
     type !== "all" ||
+    signal !== "all" ||
     subscriptionId !== "" ||
     resourceGroup !== "";
   const pages = Math.ceil(total / PAGE_SIZE);
 
   /** A filter change re-slices the whole set, so the page resets with it. */
-  function resetTo(key: "type" | "environment" | "exposure") {
+  function resetTo(key: "type" | "environment" | "exposure" | "signal") {
     return (value: string | null) => update({ [key]: value ?? "all", page: null });
   }
 
@@ -229,30 +248,37 @@ export function AssetsPage() {
         title={t.assets.title}
         description="Everything CloudGuard has discovered, with what it is worth and how exposed it is."
         actions={
-          // Three readings of one inventory: the queue, the shape, and the
-          // wiring. The list ranks by what is wrong; the tree says which part
-          // of the estate -- and so which owner -- it is wrong in; the graph
-          // says how those parts reach each other (DECISIONS.md §111).
+          // Two readings of one inventory: the queue and the map. The list
+          // ranks by what is wrong; the map says which part of the estate --
+          // and so which owner -- it is wrong in, and how those parts reach
+          // each other. The hierarchy was a third reading of the second
+          // question, and is now the map's own contents list (§111, §112).
           <SegmentedFilter
             label="View"
             value={view}
             onChange={(value) => update({ view: value })}
             segments={[
               { value: "list", label: "List" },
-              { value: "tree", label: "Hierarchy" },
-              { value: "graph", label: "Graph" },
+              { value: "graph", label: "Map" },
             ]}
           />
         }
       />
 
-      {view === "tree" && (
-        <>
-          <p className="text-xs text-muted-foreground">
-            The whole estate, worst first. Open a group to list what is in it.
-          </p>
-          <AssetTree />
-        </>
+      {view === "graph" && (
+        <MapIgnoresFilters
+          active={[
+            search && "search",
+            type !== "all" && "type",
+            environment !== "all" && "environment",
+            exposure !== "all" && "exposure",
+            signal !== "all" && "signal",
+          ].filter((name): name is string => Boolean(name))}
+          onClear={() => {
+            setTyped("");
+            update({ q: null, type: null, environment: null, exposure: null, signal: null });
+          }}
+        />
       )}
 
       {view === "graph" && <EstateGraph scopeId={subscriptionId} group={resourceGroup} />}
@@ -319,6 +345,24 @@ export function AssetsPage() {
               { value: "MEDIUM", label: "Medium" },
               { value: "LOW", label: "Low" },
               { value: "UNKNOWN", label: "Unknown" },
+            ]}
+          />
+
+          {/* The map's three marks, as a filter: what it draws a globe, a
+              cylinder or a route on. Counted with the graph's own predicates,
+              so a box saying "2 reachable from the internet" and this list
+              agree. */}
+          <SelectField
+            value={signal}
+            onValueChange={resetTo("signal")}
+            ariaLabel="Filter by what the map marks"
+            className="w-[190px]"
+            idleValue="all"
+            options={[
+              { value: "all", label: "Any asset" },
+              { value: "entry", label: "Reachable from the internet" },
+              { value: "sensitive", label: "Holds sensitive data" },
+              { value: "route", label: "On an attack path" },
             ]}
           />
 
@@ -391,6 +435,7 @@ export function AssetsPage() {
                     q: null,
                     environment: null,
                     exposure: null,
+                    signal: null,
                     type: null,
                     subscription_id: null,
                     resource_group: null,
@@ -463,12 +508,20 @@ export function AssetsPage() {
                           data-active={activeRow === rowIndex.get(asset.id)}
                         >
                           <TableCell className="max-w-0">
-                            <Link
-                              to={`/assets/${asset.id}`}
-                              className="block truncate font-medium text-foreground after:absolute after:inset-0 hover:underline"
-                            >
-                              {asset.name}
-                            </Link>
+                            <span className="flex min-w-0 items-center gap-1.5">
+                              <Link
+                                to={`/assets/${asset.id}`}
+                                state={returnTo}
+                                className="block truncate font-medium text-foreground after:absolute after:inset-0 hover:underline"
+                              >
+                                {asset.name}
+                              </Link>
+                              {/* The strongest thing a row can say: this asset
+                                  is on a route from the internet to something
+                                  sensitive. A mark rather than a column, so a
+                                  row that is not stays quiet. */}
+                              {asset.on_attack_path && <OnRouteMark />}
+                            </span>
                           </TableCell>
                           <TableCell className="text-muted-foreground">
                             <ResourceTypeLabel
@@ -546,5 +599,45 @@ export function AssetsPage() {
         </>
       )}
     </div>
+  );
+}
+
+function OnRouteMark() {
+  const Route = RISK_KIND_ICONS.ATTACK_PATH;
+  return (
+    <span
+      title="On an attack path"
+      className="inline-flex shrink-0 items-center gap-1 rounded-md border border-foreground/30 px-1 py-px text-[11px] font-medium text-foreground"
+    >
+      <Route className="size-3" aria-hidden />
+      <span className="sr-only">On an attack path</span>
+      <span aria-hidden>Path</span>
+    </span>
+  );
+}
+
+/**
+ * Said, when the list's filters are set and the map is open. The map draws
+ * every asset in the scope it has opened -- it is the estate's shape, and a
+ * shape with holes cut by a search would be a wrong one -- so the filters stay
+ * in the URL for the list and do nothing here. Unsaid, a map that ignored a
+ * visible filter would read as a map that had applied it.
+ */
+function MapIgnoresFilters({
+  active,
+  onClear,
+}: {
+  active: string[];
+  onClear: () => void;
+}) {
+  if (active.length === 0) return null;
+  return (
+    <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+      The map shows everything in the scope it has open. Your list filters ({active.join(", ")})
+      apply to the list only.
+      <Button variant="ghost" size="sm" onClick={onClear}>
+        Clear them
+      </Button>
+    </p>
   );
 }
