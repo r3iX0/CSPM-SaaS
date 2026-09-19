@@ -6,35 +6,38 @@
   scan observing the check pass. Summing them would let the claim inflate the
   proof, which is the one arithmetic this product refuses everywhere else.
 #}
-<h2>Remediation progress</h2>
+<h2 class="section-title" id="remediation">Remediation progress</h2>
 
-<table>
-  <tbody>
-    <tr>
-      <td>Open remediation tasks</td>
-      <td class="num">{{ report.remediation.open_tasks }}</td>
-    </tr>
-    <tr>
-      <td>Tasks marked done in the last {{ report.window_days }} days</td>
-      <td class="num">{{ report.remediation.completed_in_window }}</td>
-    </tr>
-    <tr>
-      <td>Findings verified fixed in the last {{ report.window_days }} days</td>
-      <td class="num">{{ report.posture.verified_resolved_in_window }}</td>
-    </tr>
-    <tr>
-      <td>Share of findings ever raised that are now verified fixed</td>
-      <td class="num">{{ (report.remediation.remediation_rate * 100) | round(0) | int }}%</td>
-    </tr>
-    {% if report.remediation.cancelled_tasks %}
-    <tr>
-      <td>Tasks cancelled</td>
-      <td class="num">{{ report.remediation.cancelled_tasks }}</td>
-    </tr>
-    {% endif %}
-  </tbody>
+<table class="kpis">
+  <tr>
+    <td><div class="kpi">
+      <span class="kpi-tag">In flight</span>
+      <span class="kpi-value">{{ report.remediation.open_tasks }}</span>
+      <span class="kpi-label">Open remediation tasks</span>
+    </div></td>
+    <td><div class="kpi">
+      <span class="kpi-tag">Claimed</span>
+      <span class="kpi-value">{{ report.remediation.completed_in_window }}</span>
+      <span class="kpi-label">Tasks marked done in the last {{ report.window_days }} days</span>
+    </div></td>
+    <td><div class="kpi">
+      <span class="kpi-tag">Observed</span>
+      <span class="kpi-value">{{ report.posture.verified_resolved_in_window }}</span>
+      <span class="kpi-label">Findings verified fixed in the last {{ report.window_days }} days</span>
+    </div></td>
+    <td><div class="kpi">
+      <span class="kpi-tag">Overall</span>
+      <span class="kpi-value">{{ (report.remediation.remediation_rate * 100) | round(0) | int }}%</span>
+      <span class="kpi-label">Share of findings ever raised that are now verified fixed</span>
+    </div></td>
+  </tr>
 </table>
+{% if report.remediation.cancelled_tasks %}
 <p class="small muted">
+  {{ report.remediation.cancelled_tasks }} task{{ '' if report.remediation.cancelled_tasks == 1 else 's' }} cancelled.
+</p>
+{% endif %}
+<p class="footnote">
   Work marked done is a claim; a verified fix is an observation. Where the
   first number exceeds the second, the difference is work whose effect
   CloudGuard has not yet seen in the environment — either because no scan has

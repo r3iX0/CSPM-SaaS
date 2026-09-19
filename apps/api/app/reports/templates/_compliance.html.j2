@@ -1,13 +1,15 @@
-<h2>Compliance coverage</h2>
+<h2 class="section-title" id="compliance">Compliance coverage</h2>
 
-<p class="small muted">{{ report.compliance.disclaimer }}</p>
+<div class="note">
+  <p class="small">{{ report.compliance.disclaimer }}</p>
+</div>
 
-<table>
+<table class="data">
   <thead>
     <tr>
       <th>Framework</th>
       <th class="num">Controls</th>
-      <th class="num">Assessable coverage</th>
+      <th class="score-col">Assessable coverage</th>
       <th class="num">Open findings</th>
     </tr>
   </thead>
@@ -15,17 +17,30 @@
     {% for framework in report.compliance.frameworks %}
     <tr>
       <td>
-        {{ framework.short_name }}
+        <strong>{{ framework.short_name }}</strong>
         <span class="muted small">{{ framework.version }}</span>
       </td>
       <td class="num">{{ framework.control_count }}</td>
       {# Null is not zero. A framework nothing has been assessed against yet
-         has no ratio, and printing 0% would read as total failure. #}
-      <td class="num">
+         has no ratio and no bar, and printing 0% would read as total
+         failure. #}
+      <td class="score-col">
         {% if framework.coverage_ratio is none %}
-          —
+          <span class="muted">— not yet assessed</span>
         {% else %}
-          {{ (framework.coverage_ratio * 100) | round(0) | int }}%
+          {% set covered = (framework.coverage_ratio * 100) | round(0) | int %}
+          <table class="meter">
+            <tr>
+              <td>
+                <div class="track">
+                  {% if covered > 0 %}
+                  <div class="fill" style="width: {{ covered }}%"></div>
+                  {% endif %}
+                </div>
+              </td>
+              <td class="meter-value">{{ covered }}%</td>
+            </tr>
+          </table>
         {% endif %}
       </td>
       <td class="num">{{ framework.open_finding_count }}</td>
@@ -33,7 +48,7 @@
     {% endfor %}
   </tbody>
 </table>
-<p class="small muted">
+<p class="footnote">
   Coverage counts the controls CloudGuard reached a conclusion on — pass or
   fail. Controls nothing checks, and controls it could not read, are excluded
   rather than counted as met.

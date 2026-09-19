@@ -1,64 +1,403 @@
 /* Print styling for CloudGuard reports.
 
-   Deliberately plain and self-contained: no web fonts, no images, no external
-   anything. A report has to render identically on a server with no network,
-   and every byte a customer's resource name could cause to be fetched is a
-   byte that leaves their estate. */
+   Self-contained: no web fonts, no images, no external anything. A report has
+   to render identically on a server with no network, and every byte a
+   customer's resource name could cause to be fetched is a byte that leaves
+   their estate. DejaVu Sans is what the API image's fontconfig already brings.
+
+   Neutral ink for the document's own chrome; colour is reserved for severity,
+   so the only red on a page is a finding that earned it. The severity hues
+   are the print equivalents of the product's --sev-* tokens. */
 
 @page {
   size: A4;
-  margin: 18mm 16mm 20mm 16mm;
-  @bottom-left { content: "CloudGuard — confidential"; font-size: 8pt; color: #78716c; }
-  @bottom-right { content: counter(page) " / " counter(pages); font-size: 8pt; color: #78716c; }
+  margin: 24mm 16mm 20mm 16mm;
+  /* Margin boxes inherit from the page, not from body. */
+  font-family: "DejaVu Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+
+  @top-left {
+    content: string(doctitle);
+    font-size: 7.5pt; color: #78716c;
+    vertical-align: bottom; padding-bottom: 3mm;
+  }
+  @top-right {
+    content: string(orgname);
+    font-size: 7.5pt; color: #78716c; font-weight: 700;
+    vertical-align: bottom; padding-bottom: 3mm;
+  }
+  @bottom-left {
+    content: "CloudGuard  ·  Confidential";
+    font-size: 7.5pt; color: #78716c;
+    vertical-align: top; padding-top: 3mm;
+  }
+  @bottom-right {
+    content: "Page " counter(page) " of " counter(pages);
+    font-size: 7.5pt; color: #78716c;
+    vertical-align: top; padding-top: 3mm;
+  }
 }
+
+/* The cover bleeds to the edge and carries no running header: it is the
+   header. */
+@page :first {
+  margin: 0;
+  @top-left { content: none; }
+  @top-right { content: none; }
+  @bottom-left { content: none; }
+  @bottom-right { content: none; }
+}
+
+* { box-sizing: border-box; }
+
+html { background: #ffffff; }
 
 body {
+  margin: 0;
   font-family: "DejaVu Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  font-size: 9.5pt;
-  line-height: 1.45;
+  font-size: 9pt;
+  line-height: 1.5;
   color: #1c1917;
+  counter-reset: section;
 }
 
-h1 { font-size: 20pt; margin: 0 0 2mm; }
-h2 { font-size: 12pt; margin: 8mm 0 2mm; border-bottom: 0.4pt solid #d6d3d1; padding-bottom: 1mm; }
-h3 { font-size: 10pt; margin: 4mm 0 1mm; }
-p  { margin: 0 0 2mm; }
+h1, h2, h3 { line-height: 1.2; break-after: avoid; }
+p { margin: 0 0 2mm; }
+strong { font-weight: 700; }
 
 .muted { color: #57534e; }
-.small { font-size: 8pt; }
+.small { font-size: 7.8pt; }
+.num { font-variant-numeric: tabular-nums; }
 
-.cover { margin-bottom: 6mm; }
-.cover .org { font-size: 11pt; font-weight: 600; }
+.eyebrow {
+  font-size: 7pt;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #78716c;
+  margin: 0 0 2mm;
+}
 
-.score { font-size: 34pt; font-weight: 700; line-height: 1; }
-.score-row { display: flex; gap: 8mm; align-items: baseline; margin: 3mm 0; }
+/* --- cover ------------------------------------------------------------- */
 
-table { width: 100%; border-collapse: collapse; margin: 2mm 0 3mm; }
-th, td { text-align: left; padding: 1.4mm 2mm; border-bottom: 0.4pt solid #e7e5e4; vertical-align: top; }
-th { font-size: 8pt; text-transform: uppercase; letter-spacing: 0.04em; color: #57534e; }
-td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.cover-band {
+  background: #1c1917;
+  color: #fafaf9;
+  padding: 16mm 18mm 14mm;
+  min-height: 112mm;
+}
 
-/* Severity, in the same order of seriousness the product uses everywhere.
-   UNKNOWN is dashed rather than merely grey: a check that reached no verdict
-   must not be able to pass for one that came back clean, and a reader
-   photocopying this in black and white still has to see the difference. */
-.sev { display: inline-block; padding: 0.2mm 1.6mm; border-radius: 2mm; font-size: 7.5pt; font-weight: 600; border: 0.4pt solid; }
-.sev-CRITICAL { color: #991b1b; background: #fef2f2; border-color: #fecaca; }
-.sev-HIGH     { color: #9a3412; background: #fff7ed; border-color: #fed7aa; }
-.sev-MEDIUM   { color: #854d0e; background: #fefce8; border-color: #fde68a; }
-.sev-LOW      { color: #3f6212; background: #f7fee7; border-color: #d9f99d; }
-.sev-UNKNOWN  { color: #44403c; background: #fafaf9; border-color: #a8a29e; border-style: dashed; }
+.cover-top { width: 100%; border-collapse: collapse; margin: 0 0 40mm; }
+.cover-top td { padding: 0; border: 0; vertical-align: middle; }
 
-/* The sparkline. Sized in mm so it prints at a known width rather than
-   inheriting whatever the page happens to be. */
-.trend { width: 100%; height: 24mm; display: block; margin: 2mm 0 1mm; }
+.brand { font-size: 11pt; font-weight: 700; letter-spacing: 0.01em; }
+.brand svg { width: 7mm; height: 7mm; vertical-align: middle; margin-right: 2mm; color: #fafaf9; }
 
-.note { border: 0.4pt solid #d6d3d1; background: #fafaf9; padding: 2.5mm 3mm; margin: 3mm 0; }
-.note-warn { border-color: #fde68a; background: #fefce8; }
-.note-title { font-weight: 600; margin-bottom: 1mm; }
+.classification {
+  text-align: right;
+  font-size: 7pt; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  color: #d6d3d1;
+}
+.classification span { border: 0.6pt solid #78716c; padding: 1mm 2.4mm; border-radius: 1mm; }
 
-.finding { break-inside: avoid; padding: 2mm 0; border-bottom: 0.4pt solid #e7e5e4; }
-.finding-head { display: flex; gap: 3mm; align-items: baseline; }
-.finding-title { font-weight: 600; }
+.cover-band .eyebrow { color: #a8a29e; margin-bottom: 4mm; }
+.cover-band h1 {
+  font-size: 30pt; font-weight: 700; letter-spacing: -0.01em;
+  margin: 0 0 5mm;
+  string-set: doctitle content();
+}
+.cover-band .org {
+  font-size: 13pt; color: #e7e5e4; margin: 0;
+  string-set: orgname content();
+}
+.cover-band .accent { width: 18mm; height: 1.2mm; background: #fafaf9; margin: 0 0 6mm; }
+
+.cover-body { padding: 10mm 18mm 16mm; }
+
+.meta { width: 100%; border-collapse: collapse; margin: 0 0 8mm; }
+.meta td {
+  width: 22%;
+  padding: 0 4mm 0 0; border: 0; vertical-align: top;
+}
+.meta .label {
+  display: block;
+  font-size: 6.8pt; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: #78716c; margin-bottom: 1mm;
+}
+.meta td.wide { width: 34%; }
+.meta .value { font-size: 8.6pt; }
+
+.read-first { margin: 0 0 8mm; }
+.read-first h2 { font-size: 11pt; margin: 0 0 3mm; }
+
+/* Numbered to match the section headings, which count the same way. */
+.contents { break-inside: avoid; }
+.contents ul { list-style: none; margin: 0; padding: 0; counter-reset: toc; }
+.contents li {
+  counter-increment: toc;
+  padding: 1.8mm 0;
+  border-bottom: 0.4pt solid #e7e5e4;
+  font-size: 9pt;
+}
+.contents li::before {
+  content: counter(toc, decimal-leading-zero);
+  display: inline-block; width: 11mm;
+  font-size: 7.5pt; font-weight: 700; color: #a8a29e;
+}
+.contents a { color: #1c1917; text-decoration: none; }
+.contents a::after {
+  content: leader(" ") target-counter(attr(href), page);
+  color: #57534e; font-variant-numeric: tabular-nums;
+}
+
+/* --- sections ------------------------------------------------------------ */
+
+.body-start { break-before: page; }
+
+h2.section-title {
+  counter-increment: section;
+  font-size: 15pt;
+  font-weight: 700;
+  margin: 10mm 0 4mm;
+  padding: 0 0 2.4mm;
+  border-bottom: 1.2pt solid #1c1917;
+}
+h2.section-title::before {
+  content: counter(section, decimal-leading-zero);
+  display: inline-block;
+  width: 11mm;
+  font-size: 9pt;
+  color: #a8a29e;
+  vertical-align: 0.25em;
+}
+.body-start > h2.section-title:first-child,
+.section > h2.section-title:first-child,
+.about > h2.section-title:first-child { margin-top: 0; }
+
+h3 { font-size: 9.5pt; margin: 5mm 0 2mm; }
+
+.lede { font-size: 8.4pt; color: #57534e; margin: 0 0 4mm; }
 
 .section { break-before: page; }
+
+/* --- posture ------------------------------------------------------------- */
+
+.posture-hero { width: 100%; border-collapse: collapse; margin: 0 0 5mm; }
+.posture-hero > tbody > tr > td { border: 0; padding: 0; vertical-align: middle; }
+.posture-hero .ring-cell { width: 50mm; text-align: center; padding-right: 8mm; }
+.ring { width: 38mm; height: 38mm; display: block; margin: 0 auto 2mm; }
+
+.delta {
+  display: inline-block;
+  font-size: 7.5pt; font-weight: 700;
+  padding: 0.6mm 2.2mm; border-radius: 3mm;
+  background: #f5f5f4; color: #44403c;
+}
+.delta-none { font-weight: 400; color: #57534e; }
+
+.bars { width: 100%; border-collapse: collapse; }
+.bars td { border: 0; padding: 1.4mm 0; vertical-align: middle; }
+.bars .bar-label { width: 22mm; }
+.bars .bar-count { width: 12mm; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.track { height: 3.2mm; background: #f5f5f4; border-radius: 1.6mm; margin: 0 3mm; }
+.fill { height: 3.2mm; border-radius: 1.6mm; background: #57534e; }
+
+/* Gutters are cell padding around an inner card rather than border-spacing,
+   which would inset the outer edges from the text column. */
+.kpis { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 0 0 4mm; }
+.kpis > tbody > tr > td { border: 0; padding: 0 1.4mm; vertical-align: top; }
+.kpis > tbody > tr > td:first-child { padding-left: 0; }
+.kpis > tbody > tr > td:last-child { padding-right: 0; }
+.kpi {
+  border: 0.6pt solid #e7e5e4;
+  border-radius: 1.6mm;
+  padding: 3.2mm 3.6mm;
+  background: #fafaf9;
+  min-height: 24mm;
+}
+.kpi-value { display: block; font-size: 17pt; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.kpi-label { display: block; font-size: 7.4pt; color: #57534e; margin-top: 1.4mm; line-height: 1.35; }
+.kpi-tag {
+  display: block;
+  font-size: 6.4pt; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: #a8a29e; margin-bottom: 1.4mm;
+}
+
+.card {
+  border: 0.6pt solid #e7e5e4;
+  border-radius: 1.6mm;
+  padding: 3.6mm 4mm 3mm;
+  margin: 0 0 4mm;
+  break-inside: avoid;
+}
+.card-head { width: 100%; border-collapse: collapse; margin: 0 0 1mm; }
+.card-head td { border: 0; padding: 0; }
+.card-head .right { text-align: right; }
+.card-title { font-size: 8.6pt; font-weight: 700; }
+
+.trend { width: 100%; height: 24mm; display: block; margin: 1mm 0 1.5mm; }
+.scale { width: 100%; border-collapse: collapse; }
+.scale td { border: 0; padding: 0; font-size: 6.8pt; color: #a8a29e; }
+.scale .right { text-align: right; }
+
+.footnote { font-size: 7.4pt; color: #57534e; margin: 1mm 0 4mm; }
+
+/* --- tables -------------------------------------------------------------- */
+
+table.data { width: 100%; border-collapse: collapse; margin: 0 0 3mm; }
+table.data th {
+  text-align: left;
+  font-size: 6.8pt; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: #57534e;
+  background: #f5f5f4;
+  padding: 2mm 2.4mm;
+  border-bottom: 0.6pt solid #d6d3d1;
+  white-space: nowrap;
+}
+table.data td {
+  padding: 2.2mm 2.4mm;
+  border-bottom: 0.4pt solid #e7e5e4;
+  vertical-align: middle;
+}
+table.data tr { break-inside: avoid; }
+table.data th.num, table.data td.num { text-align: right; font-variant-numeric: tabular-nums; }
+table.data .rank { width: 8mm; color: #a8a29e; font-weight: 700; font-variant-numeric: tabular-nums; }
+table.data .sev-col { width: 22mm; }
+table.data .score-col { width: 34mm; }
+
+.meter { width: 100%; border-collapse: collapse; }
+table.data .meter td, .meter td { border: 0; padding: 0; vertical-align: middle; }
+.meter .meter-value { width: 9mm; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.meter .track { margin: 0 2mm 0 0; height: 2.2mm; }
+.meter .fill { height: 2.2mm; background: #44403c; }
+
+/* --- severity ------------------------------------------------------------ */
+
+/* The same order of seriousness the product uses everywhere. UNKNOWN is
+   dashed rather than merely grey: a check that reached no verdict must not be
+   able to pass for one that came back clean, and a reader photocopying this in
+   black and white still has to see the difference. */
+.sev {
+  display: inline-block;
+  padding: 0.3mm 1.8mm;
+  border-radius: 1mm;
+  font-size: 6.8pt; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  border: 0.5pt solid;
+  white-space: nowrap;
+}
+.sev-CRITICAL { color: #b42318; background: #fef3f2; border-color: #fecdca; }
+.sev-HIGH     { color: #b54708; background: #fff6ed; border-color: #fddcab; }
+.sev-MEDIUM   { color: #8a5a00; background: #fefbe8; border-color: #f3dd8b; }
+.sev-LOW      { color: #2a4fd0; background: #eff4ff; border-color: #c7d7fe; }
+.sev-UNKNOWN  { color: #57534e; background: #fafaf9; border-color: #a8a29e; border-style: dashed; }
+
+.fill-CRITICAL { background: #b42318; }
+.fill-HIGH     { background: #d9621c; }
+.fill-MEDIUM   { background: #d4a106; }
+.fill-LOW      { background: #2a4fd0; }
+
+.finding.edge-CRITICAL { border-left-color: #b42318; }
+.finding.edge-HIGH     { border-left-color: #d9621c; }
+.finding.edge-MEDIUM   { border-left-color: #d4a106; }
+.finding.edge-LOW      { border-left-color: #2a4fd0; }
+.finding.edge-UNKNOWN  { border-left-color: #a8a29e; border-left-style: dashed; }
+
+/* --- notes ---------------------------------------------------------------- */
+
+.note {
+  border: 0.6pt solid #e7e5e4;
+  border-left: 1.2mm solid #a8a29e;
+  background: #fafaf9;
+  border-radius: 0 1.2mm 1.2mm 0;
+  padding: 3mm 4mm;
+  margin: 0 0 3mm;
+  break-inside: avoid;
+}
+.note-warn { border-color: #f3dd8b; border-left-color: #d4a106; background: #fefbe8; }
+.note-title { font-weight: 700; margin-bottom: 1mm; }
+.note p:last-child { margin-bottom: 0; }
+.note table.data { margin: 2mm 0 0; }
+.note table.data th { background: transparent; }
+
+/* --- attack paths -------------------------------------------------------- */
+
+.path { padding: 4mm 4.4mm 3.4mm; }
+.path-route { font-size: 10pt; font-weight: 700; }
+.hops {
+  display: inline-block;
+  font-size: 6.8pt; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: #57534e; border: 0.5pt solid #d6d3d1; border-radius: 1mm; padding: 0.3mm 1.8mm;
+}
+ol.steps { list-style: none; margin: 3mm 0 3mm; padding: 0; counter-reset: step; }
+ol.steps li {
+  counter-increment: step;
+  position: relative;
+  padding: 0 0 2mm 8mm;
+  font-size: 8.2pt;
+}
+ol.steps li::before {
+  content: counter(step);
+  position: absolute; left: 0; top: 0.2mm;
+  width: 4.6mm; height: 4.6mm; line-height: 4.6mm;
+  border-radius: 2.3mm;
+  background: #1c1917; color: #fafaf9;
+  font-size: 6.4pt; font-weight: 700; text-align: center;
+}
+ol.steps li::after {
+  content: "";
+  position: absolute; left: 2.2mm; top: 5.2mm; bottom: 0;
+  border-left: 0.6pt solid #d6d3d1;
+}
+ol.steps li:last-child::after { content: none; }
+
+.cut {
+  border-top: 0.6pt dashed #d6d3d1;
+  padding-top: 2.4mm;
+  font-size: 8.2pt;
+}
+.cut strong { color: #b42318; }
+
+/* --- findings ------------------------------------------------------------- */
+
+.finding {
+  break-inside: avoid;
+  border: 0.6pt solid #e7e5e4;
+  border-left: 1.2mm solid #a8a29e;
+  border-radius: 0 1.2mm 1.2mm 0;
+  padding: 3mm 4mm;
+  margin: 0 0 3mm;
+}
+.finding-head { width: 100%; border-collapse: collapse; }
+.finding-head td { border: 0; padding: 0; vertical-align: top; }
+.finding-head .badge-cell { width: 22mm; }
+.finding-head .risk-cell { width: 20mm; text-align: right; }
+.finding-title { font-weight: 700; font-size: 9pt; }
+.risk-score { font-size: 12pt; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+.risk-label { display: block; font-size: 6.4pt; letter-spacing: 0.1em; text-transform: uppercase; color: #a8a29e; }
+.finding-meta { font-size: 7.4pt; color: #57534e; margin: 1.4mm 0 0; }
+.rule-id {
+  font-family: "DejaVu Sans Mono", Menlo, monospace;
+  font-size: 7pt;
+  color: #44403c;
+}
+.fix {
+  margin: 2.4mm 0 0;
+  padding: 2mm 3mm;
+  background: #f5f5f4;
+  border-radius: 1mm;
+  font-size: 7.8pt;
+}
+.fix-label {
+  display: block;
+  font-size: 6.4pt; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: #78716c; margin-bottom: 0.6mm;
+}
+
+/* --- about ----------------------------------------------------------------- */
+
+.about { break-before: page; }
+.legend { width: 100%; border-collapse: collapse; margin: 0 0 4mm; }
+.legend td { border-bottom: 0.4pt solid #e7e5e4; padding: 2.2mm 2.4mm; vertical-align: top; font-size: 8pt; }
+.legend td:first-child { width: 26mm; }
+dl.terms { margin: 0; }
+dl.terms dt { font-weight: 700; margin: 3mm 0 0.6mm; font-size: 8.4pt; }
+dl.terms dd { margin: 0; font-size: 8pt; color: #44403c; }

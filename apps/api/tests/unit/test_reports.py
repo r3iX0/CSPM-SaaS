@@ -16,7 +16,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from app.reports.chart import VIEW_HEIGHT, score_trend_svg
+from app.reports.chart import VIEW_HEIGHT, score_ring_svg, score_trend_svg
 from app.reports.render import render_html
 from app.services.reports import OPTIONAL_SECTIONS, _evidence, _posture
 
@@ -245,7 +245,9 @@ def test_a_framework_with_nothing_assessed_is_not_reported_as_zero_percent():
         )
     )
 
-    compliance = body(html).split("Compliance coverage", 1)[-1]
+    # From the heading, not the first mention: the cover's contents list
+    # names the section too.
+    compliance = body(html).split("Compliance coverage</h2>", 1)[-1]
     assert "0%" not in compliance
     # An em dash, meaning "nothing assessed" — which is not a failing grade.
     assert "—" in compliance
@@ -430,7 +432,7 @@ def test_a_score_outside_the_scale_is_clamped_rather_than_drawn_off_the_chart():
 def test_the_report_draws_the_trend_when_there_is_one():
     html = render_html(report(dashboard={"history": readings(60, 72, 84)}))
 
-    assert "<svg" in html
+    assert 'class="trend"' in html
     assert "across the 3 readings" in html
     # The window is named beside the count, because a line drawn over the last
     # 30 days and one drawn over the last year are different claims.
@@ -453,7 +455,9 @@ def test_the_trend_is_cut_to_the_window_it_was_asked_for():
 def test_the_report_draws_no_trend_from_a_single_reading():
     html = render_html(report(dashboard={"history": readings(84)}))
 
-    assert "<svg" not in html
+    # The score ring and the brand mark are SVG too, so this looks for the
+    # trend itself rather than for any drawing at all.
+    assert 'class="trend"' not in html
 
 
 # --- accepted risk ---------------------------------------------------------
@@ -532,3 +536,42 @@ def test_an_empty_attack_path_section_is_not_an_all_clear():
     normalized = " ".join(html.split())
     assert "not by itself an all-clear" in normalized
     assert "No route was found" in normalized
+
+
+# --- the document itself -----------------------------------------------------
+
+
+def test_the_stylesheet_is_not_html_escaped():
+    # Escaped, the quotes in the CSS become entities a <style> element never
+    # decodes, and every quoted value -- the font stack, the running footer --
+    # is silently dropped. The PDF then prints in the renderer's default serif.
+    html = render_html(report())
+    style = html.split("<style>", 1)[1].split("</style>", 1)[0]
+
+    assert '"DejaVu Sans"' in style
+    assert "&#34;" not in style
+
+
+def test_the_score_ring_is_bounded_and_draws_nothing_for_nothing():
+    assert 'aria-label="Security score 100 out of 100"' in score_ring_svg(140)
+    assert 'aria-label="Security score 0 out of 100"' in score_ring_svg(-5)
+    # A zero-length arc with round caps would paint a dot that reads as a
+    # score of one or two.
+    assert "stroke-dasharray" not in score_ring_svg(0)
+    assert score_ring_svg(None) == ""
+
+
+def test_the_contents_name_only_the_sections_the_document_contains():
+    html = render_html(
+        report(sections=["top_risks"], omitted_sections=["compliance coverage"])
+    )
+    contents = body(html).split('class="contents"', 1)[1].split("</ul>", 1)[0]
+
+    assert 'href="#posture"' in contents
+    assert 'href="#top-risks"' in contents
+    assert 'href="#compliance"' not in contents
+    # The executive report has no findings list to point at.
+    assert 'href="#findings"' not in contents
+    # Every entry points at a heading that exists.
+    for anchor in ("posture", "top-risks", "about"):
+        assert f'id="{anchor}"' in html

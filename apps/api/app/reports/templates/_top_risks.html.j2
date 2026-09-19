@@ -1,0 +1,53 @@
+{#
+  The ranked risks, shared by both reports. Ranked by risk score rather than
+  severity, and the table says so under itself: the order is the argument.
+#}
+<h2 class="section-title" id="top-risks">What is worst right now</h2>
+{% if report.top_risks %}
+<p class="lede">
+  The open risks CloudGuard ranks highest, worst first. Each is scored from the
+  finding's severity and the asset it sits on: how critical it is, how
+  sensitive its data, and how exposed.
+</p>
+<table class="data">
+  <thead>
+    <tr>
+      <th class="rank">#</th>
+      <th>Risk</th>
+      <th class="sev-col">Level</th>
+      <th class="score-col num">Risk score</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for risk in report.top_risks %}
+    {% set score = risk.risk_score | round(0) | int %}
+    <tr>
+      <td class="rank">{{ loop.index }}</td>
+      <td>{{ risk.title }}</td>
+      <td class="sev-col"><span class="sev sev-{{ risk.risk_level }}">{{ risk.risk_level | title }}</span></td>
+      <td class="score-col">
+        <table class="meter">
+          <tr>
+            <td>
+              <div class="track">
+                {% if score > 0 %}
+                <div class="fill" style="width: {{ [score, 100] | min }}%"></div>
+                {% endif %}
+              </div>
+            </td>
+            <td class="meter-value">{{ score }}</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<p class="footnote">
+  A finding is what CloudGuard observed. A risk is what that observation means
+  for this asset, with this data, at this level of exposure — which is why the
+  order here is not the order of severity alone.
+</p>
+{% else %}
+<p class="muted">No risks are currently ranked for this organization.</p>
+{% endif %}

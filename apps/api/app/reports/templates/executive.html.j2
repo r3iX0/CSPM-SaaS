@@ -14,32 +14,7 @@
 {% include "_posture.html.j2" %}
 
 {% if 'top_risks' in report.sections %}
-<h2>What is worst right now</h2>
-{% if report.top_risks %}
-<table>
-  <thead>
-    <tr><th>Risk</th><th class="num">Score</th></tr>
-  </thead>
-  <tbody>
-    {% for risk in report.top_risks %}
-    <tr>
-      <td>
-        <span class="sev sev-{{ risk.risk_level }}">{{ risk.risk_level | title }}</span>
-        {{ risk.title }}
-      </td>
-      <td class="num">{{ risk.risk_score | round(0) | int }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-<p class="small muted">
-  A finding is what CloudGuard observed. A risk is what that observation means
-  for this asset, with this data, at this level of exposure — which is why the
-  order here is not the order of severity alone.
-</p>
-{% else %}
-<p class="muted">No risks are currently ranked for this organization.</p>
-{% endif %}
+{% include "_top_risks.html.j2" %}
 {% endif %}
 
 {% if 'attack_paths' in report.sections %}

@@ -9,67 +9,118 @@
 <head>
 <meta charset="utf-8">
 <title>{{ title }} — {{ report.organization.name }}</title>
-<style>{{ css }}</style>
+{# `safe` because the stylesheet is this package's own file. Escaped, its
+   quotes become entities a <style> element never decodes, and every quoted
+   value -- the font stack, the running footer -- is silently dropped. #}
+<style>{{ css | safe }}</style>
 </head>
-<body>
+<body class="report-{{ report.kind }}">
 
 <div class="cover">
-  <h1>{{ title }}</h1>
-  <p class="org">{{ report.organization.name }}</p>
-  <p class="muted small">
-    Generated {{ report.generated_at | datetime }}
-    {% if report.evidence.newest_reading_at %}
-      · evidence collected {{ report.evidence.oldest_reading_at | datetime }}
-      to {{ report.evidence.newest_reading_at | datetime }}
-    {% endif %}
-  </p>
-</div>
+  <div class="cover-band">
+    <table class="cover-top">
+      <tr>
+        <td class="brand">
+          {# The product's shield mark, drawn inline: a report carries no
+             image anything has to fetch. #}
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="currentColor" opacity="0.18" d="M12 2 4 5.5v6c0 4.6 3.2 8.9 8 10.5 4.8-1.6 8-5.9 8-10.5v-6L12 2Z" />
+            <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" d="M12 2.9 4.8 6.1v5.4c0 4.2 2.9 8.1 7.2 9.6 4.3-1.5 7.2-5.4 7.2-9.6V6.1L12 2.9Z" />
+            <path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="m8.8 12.2 2.2 2.2 4.2-4.4" />
+          </svg>CloudGuard
+        </td>
+        <td class="classification"><span>Confidential</span></td>
+      </tr>
+    </table>
+
+    <p class="eyebrow">Cloud security posture assessment</p>
+    <div class="accent"></div>
+    <h1>{{ title }}</h1>
+    <p class="org">{{ report.organization.name }}</p>
+  </div>
+
+  <div class="cover-body">
+    <table class="meta">
+      <tr>
+        <td>
+          <span class="label">Prepared for</span>
+          <span class="value">{{ report.organization.name }}</span>
+        </td>
+        <td>
+          <span class="label">Generated</span>
+          <span class="value">{{ report.generated_at | datetime }}</span>
+        </td>
+        <td class="wide">
+          <span class="label">Evidence collected</span>
+          <span class="value">
+          {% if report.evidence.newest_reading_at %}
+            {{ report.evidence.oldest_reading_at | datetime }} to
+            {{ report.evidence.newest_reading_at | datetime }}
+          {% else %}
+            —
+          {% endif %}
+          </span>
+        </td>
+        <td>
+          <span class="label">Activity window</span>
+          <span class="value">Last {{ report.window_days }} days</span>
+        </td>
+      </tr>
+    </table>
 
 {#
   Said before any number, not after them. A posture is a reading of a moment,
   and a report that leads with 84/100 and mentions three-week-old evidence in
   an appendix has already been believed by then.
 #}
-{% if report.evidence.stale_hours and report.evidence.stale_hours > 48 %}
-<div class="note note-warn">
-  <p class="note-title">This report describes an environment that has not been read recently</p>
-  <p class="small">
-    The oldest reading behind these numbers is
-    {{ report.evidence.stale_hours | round(0) | int }} hours old. Anything changed
-    in your cloud since then is not represented here.
-  </p>
-</div>
+{% set stale = report.evidence.stale_hours and report.evidence.stale_hours > 48 %}
+{% set partial = report.evidence.coverage_ratio is not none and report.evidence.unknown > 0 %}
+{% if stale or partial or report.evidence.unclassified_risks > 0
+      or report.omitted_sections or report.evidence.collection_errors %}
+    <div class="read-first">
+      <p class="eyebrow">Read this first</p>
+      <h2>What these numbers are worth</h2>
+
+{% if stale %}
+      <div class="note note-warn">
+        <p class="note-title">This report describes an environment that has not been read recently</p>
+        <p class="small">
+          The oldest reading behind these numbers is
+          {{ report.evidence.stale_hours | round(0) | int }} hours old. Anything changed
+          in your cloud since then is not represented here.
+        </p>
+      </div>
 {% endif %}
 
-{% if report.evidence.coverage_ratio is not none and report.evidence.unknown > 0 %}
-<div class="note">
-  <p class="note-title">
-    {{ (report.evidence.coverage_ratio * 100) | round(0) | int }}% of checks reached a verdict
-  </p>
-  <p class="small">
-    {{ report.evidence.unknown }} check{{ '' if report.evidence.unknown == 1 else 's' }}
-    could not be evaluated — CloudGuard could not collect what they read.
-    An unevaluated check is never counted as a pass, so it is neither a problem
-    reported here nor a clean result.
-  </p>
-</div>
+{% if partial %}
+      <div class="note">
+        <p class="note-title">
+          {{ (report.evidence.coverage_ratio * 100) | round(0) | int }}% of checks reached a verdict
+        </p>
+        <p class="small">
+          {{ report.evidence.unknown }} check{{ '' if report.evidence.unknown == 1 else 's' }}
+          could not be evaluated — CloudGuard could not collect what they read.
+          An unevaluated check is never counted as a pass, so it is neither a problem
+          reported here nor a clean result.
+        </p>
+      </div>
 {% endif %}
 
 {% if report.evidence.unclassified_risks > 0 %}
-<div class="note">
-  <p class="note-title">
-    {{ report.evidence.unclassified_risks }} of
-    {{ report.evidence.unclassified_risks + report.evidence.classified_risks }}
-    open risks sit on assets of unknown business context
-  </p>
-  <p class="small">
-    CloudGuard could not establish how critical those assets are or how
-    sensitive the data they hold. They are ranked here as though they matter, so
-    nothing important is hidden behind a missing label — but the security score
-    is charged only for what was established, and it will move once these
-    environments are described.
-  </p>
-</div>
+      <div class="note">
+        <p class="note-title">
+          {{ report.evidence.unclassified_risks }} of
+          {{ report.evidence.unclassified_risks + report.evidence.classified_risks }}
+          open risks sit on assets of unknown business context
+        </p>
+        <p class="small">
+          CloudGuard could not establish how critical those assets are or how
+          sensitive the data they hold. They are ranked here as though they matter, so
+          nothing important is hidden behind a missing label — but the security score
+          is charged only for what was established, and it will move once these
+          environments are described.
+        </p>
+      </div>
 {% endif %}
 
 {#
@@ -79,31 +130,112 @@
   like an absence of evidence once the PDF is forwarded.
 #}
 {% if report.omitted_sections %}
-<div class="note">
-  <p class="note-title">Sections excluded from this report</p>
-  <p class="small">
-    {{ report.omitted_sections | join(', ') | capitalize }}.
-    They were not included when this document was generated; nothing here says
-    anything about them either way.
-  </p>
-</div>
+      <div class="note">
+        <p class="note-title">Sections excluded from this report</p>
+        <p class="small">
+          {{ report.omitted_sections | join(', ') | capitalize }}.
+          They were not included when this document was generated; nothing here says
+          anything about them either way.
+        </p>
+      </div>
 {% endif %}
 
 {% if report.evidence.collection_errors %}
-<div class="note note-warn">
-  <p class="note-title">Part of the environment could not be read</p>
-  <table>
-    <thead><tr><th>Scope</th><th>Reason</th></tr></thead>
-    <tbody>
-      {% for scope, reason in report.evidence.collection_errors.items() %}
-      <tr><td>{{ scope }}</td><td class="small">{{ reason }}</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
+      <div class="note note-warn">
+        <p class="note-title">Part of the environment could not be read</p>
+        <table class="data">
+          <thead><tr><th>Scope</th><th>Reason</th></tr></thead>
+          <tbody>
+            {% for scope, reason in report.evidence.collection_errors.items() %}
+            <tr><td>{{ scope }}</td><td class="small">{{ reason }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+{% endif %}
+    </div>
 {% endif %}
 
+{#
+  What is in this document, with the page each part starts on. Listed from the
+  same conditions the body branches on, so the contents can never promise a
+  section the reader then cannot find.
+#}
+    <div class="contents">
+      <p class="eyebrow">Contents</p>
+      <ul>
+        <li><a href="#posture">Security posture</a></li>
+        {% if 'top_risks' in report.sections and (report.kind == 'executive' or report.top_risks) %}
+        <li><a href="#top-risks">What is worst right now</a></li>
+        {% endif %}
+        {% if 'attack_paths' in report.sections %}
+        <li><a href="#attack-paths">Attack paths</a></li>
+        {% endif %}
+        {% if 'remediation' in report.sections %}
+        <li><a href="#remediation">Remediation progress</a></li>
+        {% endif %}
+        {% if 'compliance' in report.sections %}
+        <li><a href="#compliance">Compliance coverage</a></li>
+        {% endif %}
+        {% if report.kind == 'technical' and 'findings' in report.sections %}
+        <li><a href="#findings">Open findings</a></li>
+        {% endif %}
+        <li><a href="#about">How to read this report</a></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="body-start">
 {% block body %}{% endblock %}
+</div>
+
+{#
+  How to read the document, printed in it. A PDF is read by people who have
+  never opened CloudGuard, and the distinctions this product insists on --
+  finding against risk, claimed against verified, no verdict against a pass --
+  are exactly the ones a reader would otherwise guess at. Nothing here is a
+  number: every figure is in the sections above, measured.
+#}
+<div class="about">
+  <h2 class="section-title" id="about">How to read this report</h2>
+
+  <dl class="terms">
+    <dt>Security score</dt>
+    <dd>
+      A reading of the environment at its last scan, from 0 to 100, higher being
+      better. It starts at 100 and every open risk takes something off, the worst
+      the most: two open critical risks alone leave 60. It is never flat, so every
+      verified fix moves it.
+    </dd>
+    <dt>Finding and risk</dt>
+    <dd>
+      A finding is what CloudGuard observed. A risk is what that observation
+      means for this asset, with this data, at this level of exposure — which is
+      why risks are ranked by score rather than by severity alone.
+    </dd>
+    <dt>Verified fixed</dt>
+    <dd>
+      A later scan observed the check passing. CloudGuard never closes a finding
+      because somebody said it was fixed.
+    </dd>
+    <dt>Accepted risk</dt>
+    <dd>
+      A decision to live with a finding. It is still present in the environment,
+      and is counted neither as open nor as fixed.
+    </dd>
+    <dt>No verdict</dt>
+    <dd>
+      <span class="sev sev-UNKNOWN">Unknown</span> — the check could not read what
+      it needed. It is never a pass, and never counted as one.
+    </dd>
+    <dt>Attack path</dt>
+    <dd>
+      A route from something reachable from the internet to something sensitive,
+      built from what CloudGuard observed. Fewer hops is worse.
+    </dd>
+  </dl>
+</div>
 
 </body>
 </html>

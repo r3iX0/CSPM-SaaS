@@ -5621,6 +5621,61 @@ Declarations are not retroactive and the screen says so. A risk score is what a
 scan concluded; rewriting stored scores from a form would leave findings
 carrying numbers no observation ever produced.
 
+## 109. A report is laid out as a document, and its stylesheet is no longer escaped
+
+**Every quoted value in the report stylesheet had been silently dropped.** The
+templates render with autoescape on, which is right for everything a customer's
+cloud can name -- and `base.html.j2` passed the stylesheet through the same
+`{{ css }}`. Escaped, `"DejaVu Sans"` became `&#34;DejaVu Sans&#34;` inside
+`<style>`, which is raw text: nothing decodes the entity, the declaration is
+invalid, and the renderer discards it. So every PDF printed in the renderer's
+default serif, and the running footer (`content: "CloudGuard — confidential"`)
+never appeared. The stylesheet is this package's own file, so it is now marked
+`safe`, and `test_the_stylesheet_is_not_html_escaped` pins it. Nothing a
+customer controls reaches it.
+
+**The document is laid out like one.** The report had been a styled web page
+printed onto A4. It is now:
+
+* **A cover.** A full-bleed band with the product mark, the report's name and
+  the organization, then when it was generated, when the evidence was
+  collected and the activity window. The caveats sit on the cover under "Read
+  this first", before any number, as §32 and the Phase 9 note require -- the
+  staleness warning still precedes the score in the HTML, and a test still
+  says so.
+* **A contents list** with page numbers (`target-counter`), built from the same
+  conditions the body branches on so it can never name a section the document
+  leaves out. Sections are numbered by a CSS counter, so the numbers in the
+  contents and on the headings cannot disagree.
+* **Running headers and footers** on every page after the cover: report name,
+  organization, "Confidential", page *n* of *m*.
+* **The posture as a picture as well as numbers.** The score is a ring filled to
+  its share of 100 (`score_ring_svg`, beside `score_trend_svg`: inline SVG
+  from a bounded integer, no `xmlns`, so the document still contains no URL at
+  all). The ring is ink, not a severity colour -- a score is not a finding.
+  Open findings by severity are bars scaled to the largest count; the headline
+  counts are cards. Top risks and compliance coverage carry a meter beside the
+  figure; a framework nothing has assessed gets no bar and says "not yet
+  assessed", because a 0% bar would read as total failure. Attack paths number
+  their steps and set the link to cut apart; findings are cards edged in their
+  severity, with remediation in its own block.
+* **"How to read this report"** closes both documents: the score, finding
+  against risk, verified fixed, accepted risk, no verdict, attack path. A PDF
+  is read by people who have never opened CloudGuard, and those are the
+  distinctions they would otherwise guess at. It states no figure the body
+  does not measure.
+
+Colour is reserved for severity; the document's own chrome is neutral ink.
+The severity hues are the print equivalents of the `--sev-*` tokens, so low is
+blue in the PDF as it is on screen, where it had been green. Attack paths no
+longer force a page break, which had left a page mostly empty after top risks;
+the findings list still starts on its own page. Two tests that asserted `<svg`
+was absent without a trend now look for the trend itself, since the ring and the
+mark are SVG too.
+
+Checked by rendering both reports through WeasyPrint 63.1 in a container built
+with the API image's apt packages, which is also where DejaVu comes from.
+
 ## Open items carried forward
 
 **Phase 9 (reports) is built, generated on request rather than stored.**
