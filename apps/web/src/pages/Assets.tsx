@@ -30,6 +30,7 @@ import {
 import { Pager } from "@/components/common/Pager";
 import { cn, formatDate, formatRelative, resourceTypeLabel } from "@/lib/format";
 import { scopeLabel } from "@/lib/scope";
+import { NO_REGION, regionLabel } from "@/lib/geo/regions";
 import { stagger } from "@/lib/motion";
 
 const PAGE_SIZE = 50;
@@ -77,13 +78,14 @@ export function AssetsPage() {
     exposure: "all",
     signal: "all",
     type: "all",
+    region: "all",
     group: "scope",
     view: "list",
     page: "0",
     subscription_id: "",
     resource_group: "",
   });
-  const { environment, exposure, type, signal } = filters;
+  const { environment, exposure, type, signal, region } = filters;
   const location = useLocation();
   // Carried into an asset's page, so its trail returns to this exact list --
   // filters, page and grouping -- rather than to a bare inventory.
@@ -117,6 +119,7 @@ export function AssetsPage() {
   if (environment !== "all") params.set("environment", environment);
   if (exposure !== "all") params.set("exposure", exposure);
   if (type !== "all") params.set("resource_type", type);
+  if (region !== "all") params.set("region", region);
   if (SIGNAL_PARAM[signal]) params.set(SIGNAL_PARAM[signal], "true");
   if (subscriptionId) params.set("subscription_id", subscriptionId);
   if (resourceGroup) params.set("resource_group", resourceGroup);
@@ -134,6 +137,7 @@ export function AssetsPage() {
       environment,
       exposure,
       type,
+      region,
       signal,
       subscriptionId,
       resourceGroup,
@@ -150,6 +154,7 @@ export function AssetsPage() {
                 facets?: {
                   resource_type?: Record<string, number>;
                   environment?: Record<string, number>;
+                  region?: Record<string, number>;
                 };
               }
             | undefined;
@@ -195,6 +200,15 @@ export function AssetsPage() {
     if (environment !== "all") found.add(environment);
     return [...found].sort();
   }, [facets, environment]);
+  // By name rather than code, with the unplaced ones last: "not tied to a
+  // region" is not a place, so it does not sort among them.
+  const regions = useMemo(() => {
+    const found = new Set(Object.keys(facets?.region ?? {}));
+    if (region !== "all") found.add(region);
+    return [...found].sort((a, b) =>
+      a === NO_REGION ? 1 : b === NO_REGION ? -1 : regionLabel(a).localeCompare(regionLabel(b)),
+    );
+  }, [facets, region]);
 
 
   // `assets` arrives in queue order -- most open findings first, across the
@@ -231,13 +245,14 @@ export function AssetsPage() {
     environment !== "all" ||
     exposure !== "all" ||
     type !== "all" ||
+    region !== "all" ||
     signal !== "all" ||
     subscriptionId !== "" ||
     resourceGroup !== "";
   const pages = Math.ceil(total / PAGE_SIZE);
 
   /** A filter change re-slices the whole set, so the page resets with it. */
-  function resetTo(key: "type" | "environment" | "exposure" | "signal") {
+  function resetTo(key: "type" | "environment" | "exposure" | "signal" | "region") {
     return (value: string | null) => update({ [key]: value ?? "all", page: null });
   }
 
@@ -271,12 +286,20 @@ export function AssetsPage() {
             search && "search",
             type !== "all" && "type",
             environment !== "all" && "environment",
+            region !== "all" && "region",
             exposure !== "all" && "exposure",
             signal !== "all" && "signal",
           ].filter((name): name is string => Boolean(name))}
           onClear={() => {
             setTyped("");
-            update({ q: null, type: null, environment: null, exposure: null, signal: null });
+            update({
+              q: null,
+              type: null,
+              environment: null,
+              region: null,
+              exposure: null,
+              signal: null,
+            });
           }}
         />
       )}
@@ -331,6 +354,22 @@ export function AssetsPage() {
               })),
             ]}
           />
+
+          {/* Where it runs, which is how the dashboard's region map drills in.
+              Offered only once there is more than one answer to choose between. */}
+          {(regions.length > 1 || region !== "all") && (
+            <SelectField
+              value={region}
+              onValueChange={resetTo("region")}
+              ariaLabel="Filter by region"
+              className="w-[190px]"
+              idleValue="all"
+              options={[
+                { value: "all", label: "All regions" },
+                ...regions.map((value) => ({ value, label: regionLabel(value) })),
+              ]}
+            />
+          )}
 
           <SelectField
             value={exposure}
@@ -434,6 +473,7 @@ export function AssetsPage() {
                   update({
                     q: null,
                     environment: null,
+                    region: null,
                     exposure: null,
                     signal: null,
                     type: null,

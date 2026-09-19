@@ -307,9 +307,16 @@ the asset's page. It is null for a vertex with no row.
 id so that an offset always lands on the same row. It is a queue rather than a
 directory, and a page cannot rank what it does not hold. `meta.facets` carries
 the options the list's filters can offer, counted over the whole filtered set:
-`{"resource_type": {type: count}, "environment": {name: count}}`. Each dimension
-is counted under every filter except its own, so filtering to one type still
-offers the others. An asset with no environment is not listed as an option.
+`{"resource_type": {type: count}, "environment": {name: count}, "region": {code: count}}`.
+Each dimension is counted under every filter except its own, so filtering to one
+type still offers the others. An asset with no environment is not listed as an
+option.
+
+`/assets` takes `region`, compared in one spelling (lower case, no spaces, so
+`West Europe` finds `westeurope`). `region=none` finds the assets tied to no
+region: the directory, and anything ARM calls `global`. The `region` facet lists
+those under `none`, because the dashboard's region map links to them
+(DECISIONS.md §113).
 
 `/attack-paths/choke-points` answers a different question from the list: not
 which routes exist but which single change closes the most of them. `severs` is
@@ -406,6 +413,15 @@ truncated listing cannot support "none of them are public" — so a reader is to
 from (`internet_exposure`, `data_sensitivity`, `asset_criticality`), which are
 already columns on the row and cost no extra query; they let a rank be read as a
 reason rather than as an assertion.
+
+`regions[]` is where the estate runs, one row per provider and region code:
+`{region, provider, assets, open_findings, by_severity, readings, unread}`,
+ordered by what is open there, severity by severity from critical down. Every
+asset and finding tied to no region is one row with `region` and `provider`
+both null, and that row always comes last. `readings` and `unread` count only
+the last scan's readings that were taken in a region, which no Azure reading
+is. Coordinates are not in the payload; the web app holds them
+(DECISIONS.md §113).
 
 `remediation_activity` is eight weeks of findings raised, verified fixed and
 reopened, grouped from the finding-event log rather than from the findings

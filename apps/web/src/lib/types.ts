@@ -312,6 +312,25 @@ export interface PostureReading {
   attack_path_count: number;
 }
 
+/**
+ * One region the estate runs in, with what is wrong there (DECISIONS.md §113).
+ *
+ * `region` is the provider's code, lower case with no spaces, or `null` for
+ * everything tied to no region — the directory, anything ARM calls `global`,
+ * and findings about the tenant rather than an asset. `readings` and `unread`
+ * count only readings that were *of* a region, which no Azure reading is: a
+ * region with nothing wrong and an unread reading has not been seen clean.
+ */
+export interface DashboardRegion {
+  region: string | null;
+  provider: Provider | null;
+  assets: number;
+  open_findings: number;
+  by_severity: Partial<Record<Severity, number>>;
+  readings: number;
+  unread: number;
+}
+
 export interface Dashboard {
   security_score: number;
   /**
@@ -389,6 +408,8 @@ export interface Dashboard {
     stale_hours: number | null;
     unusable: number;
   } | null;
+  /** Where the estate runs, worst first; see `DashboardRegion`. */
+  regions?: DashboardRegion[];
   last_scan: {
     id: string;
     status: string;

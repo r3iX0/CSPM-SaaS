@@ -14,7 +14,13 @@ from app.models.cloud_connection import CloudConnection
 from app.models.finding import Finding
 from app.models.resource import ResourceRecord
 from app.services import graph as graph_service
-from app.services.placement import DIRECTORY_SCOPE, RESOURCE_GROUP
+from app.services.placement import (
+    DIRECTORY_SCOPE,
+    NO_REGION,
+    REGION,
+    RESOURCE_GROUP,
+    region_key,
+)
 
 router = APIRouter(prefix="/assets", tags=["assets"])
 
@@ -56,6 +62,10 @@ async def list_assets(
     # be unreachable from a tree keyed by one.
     subscription_id: str | None = None,
     resource_group: str | None = None,
+    # The region it runs in, which is how the dashboard's region map drills in.
+    # `none` is the assets tied to no region -- the directory, and anything ARM
+    # calls `global` -- which a query string cannot spell as NULL.
+    region: str | None = None,
     limit: int = Query(default=100, le=500),
     offset: int = 0,
 ) -> dict:
@@ -113,6 +123,11 @@ async def list_assets(
         # Compared case-insensitively because ARM is: a group named `Prod` and
         # a link that says `prod` name the same place.
         conditions["resource_group"] = func.lower(RESOURCE_GROUP) == resource_group.lower()
+    if region:
+        # Not-distinct, so `none` -- and `global`, which is spelled as none --
+        # finds the NULLs rather than nothing.
+        key = None if region == NO_REGION else region_key(region)
+        conditions["region"] = REGION.is_not_distinct_from(key)
 
     stmt = (
         select(ResourceRecord, open_findings)
@@ -155,9 +170,22 @@ async def list_assets(
         )
         return {str(value): int(n) for value, n in counted.all() if value is not None}
 
+    # Regions are counted with the unplaced ones kept, under the name a link
+    # uses for them, so the menu can offer "not tied to a region" when the
+    # dashboard has sent somebody there.
+    region_rows = await session.execute(
+        select(REGION, func.count())
+        .where(*[c for key, c in conditions.items() if key != "region"])
+        .group_by(REGION)
+    )
+
     facets = {
         "resource_type": await facet(ResourceRecord.resource_type, "resource_type"),
         "environment": await facet(ResourceRecord.environment, "environment"),
+        "region": {
+            (value if value is not None else NO_REGION): int(n)
+            for value, n in region_rows.all()
+        },
     }
 
     # A queue, not a directory: the asset with the most open findings comes

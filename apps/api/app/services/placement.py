@@ -15,7 +15,37 @@ from app.graph.estate import DIRECTORY_SCOPE, Placement
 from app.models.cloud_account import CloudAccount
 from app.models.resource import ResourceRecord
 
-__all__ = ["DIRECTORY_SCOPE", "RESOURCE_GROUP", "Placements", "load_placements"]
+__all__ = [
+    "DIRECTORY_SCOPE",
+    "NO_REGION",
+    "REGION",
+    "RESOURCE_GROUP",
+    "Placements",
+    "load_placements",
+    "region_key",
+]
+
+# The region an asset runs in, spelled one way.
+#
+# ARM hands back `westeurope` from a listing and `West Europe` from some detail
+# calls, and both name one place; a map that drew them as two dots would be
+# wrong about the one thing it says. `global` is how ARM marks a resource that
+# has no region at all -- a DNS zone, Front Door -- and it is folded into NULL
+# with the directory's assets, because plotting "global" anywhere would invent
+# a location for something that has none (DECISIONS.md §113).
+REGION = func.nullif(
+    func.nullif(func.lower(func.replace(ResourceRecord.region, " ", "")), "global"),
+    "",
+)
+
+# What a link says for "not tied to a region", which a URL cannot say as NULL.
+NO_REGION = "none"
+
+
+def region_key(value: str | None) -> str | None:
+    """The same spelling as :data:`REGION`, for a value that did not come from SQL."""
+    key = (value or "").replace(" ", "").lower()
+    return None if key in ("", "global") else key
 
 # The resource group, read out of the provider's own identifier.
 #

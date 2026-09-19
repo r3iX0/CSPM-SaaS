@@ -19,6 +19,7 @@ import { SeverityStrip } from "@/components/dashboard/SeverityStrip";
 import { PostureBreakdown } from "@/components/dashboard/PostureBreakdown";
 import { ComplianceSummary } from "@/components/dashboard/ComplianceSummary";
 import { CoveragePanel } from "@/components/dashboard/CoveragePanel";
+import { RegionPanel } from "@/components/dashboard/RegionPanel";
 import { PriorityRisks } from "@/components/dashboard/PriorityRisks";
 import { AttackPathPanel } from "@/components/dashboard/AttackPathPanel";
 import { RemediationProgress } from "@/components/dashboard/RemediationProgress";
@@ -45,6 +46,7 @@ const RUNNING = new Set([
  *   where the posture stands, and which way it is moving      (score, trend)
  *   what that number is made of                               (severity)
  *   how much of the estate the opinion was formed from        (coverage)
+ *   and where in the world that estate, and its faults, run   (regions)
  *   what to deal with, and what those faults form together    (risks, path)
  *   whether any of it is actually getting fixed               (remediation)
  *   what moved while you were away                            (changes)
@@ -222,6 +224,15 @@ export function DashboardPage() {
           freshness={data.evidence_freshness ?? null}
         />
       </motion.div>
+
+      {/* 4c — where it runs, and where what is wrong with it runs. Beside
+          coverage because they finish one sentence: how much was seen, and
+          where. Absent until something is tied to a region. */}
+      {data.regions?.some((region) => region.region !== null) && (
+        <motion.div variants={listItem}>
+          <RegionPanel regions={data.regions} />
+        </motion.div>
+      )}
 
       {/* 5 — whether any of it is being fixed, and what moved meanwhile */}
       <motion.div variants={listItem} className="grid gap-4 lg:grid-cols-2">

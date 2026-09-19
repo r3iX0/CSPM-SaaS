@@ -55,7 +55,7 @@
       {
         "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-build/providers/Microsoft.Network/networkSecurityGroups/nsg-build-agent",
         "name": "nsg-build-agent",
-        "location": "westeurope",
+        "location": "eastus",
         "tags": {
           "environment": "production"
         },
@@ -187,7 +187,7 @@
       {
         "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-build/providers/Microsoft.Compute/virtualMachines/vm-build-agent",
         "name": "vm-build-agent",
-        "location": "westeurope",
+        "location": "eastus",
         "tags": {
           "environment": "production",
           "criticality": "medium"
@@ -295,7 +295,7 @@
       {
         "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive01",
         "name": "starchive01",
-        "location": "westeurope",
+        "location": "northeurope",
         "tags": {
           "environment": "production",
           "data_classification": "internal"
@@ -320,7 +320,7 @@
       {
         "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive02",
         "name": "starchive02",
-        "location": "westeurope",
+        "location": "northeurope",
         "tags": {
           "environment": "production",
           "data_classification": "internal"
@@ -345,7 +345,7 @@
       {
         "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive03",
         "name": "starchive03",
-        "location": "westeurope",
+        "location": "northeurope",
         "tags": {
           "environment": "production",
           "data_classification": "internal"
@@ -370,7 +370,7 @@
       {
         "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive04",
         "name": "starchive04",
-        "location": "westeurope",
+        "location": "northeurope",
         "tags": {
           "environment": "production",
           "data_classification": "internal"
@@ -395,7 +395,7 @@
       {
         "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive05",
         "name": "starchive05",
-        "location": "westeurope",
+        "location": "northeurope",
         "tags": {
           "environment": "production",
           "data_classification": "internal"
@@ -420,7 +420,7 @@
       {
         "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive06",
         "name": "starchive06",
-        "location": "westeurope",
+        "location": "northeurope",
         "tags": {
           "environment": "production",
           "data_classification": "internal"
@@ -445,7 +445,7 @@
       {
         "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive07",
         "name": "starchive07",
-        "location": "westeurope",
+        "location": "northeurope",
         "tags": {
           "environment": "production",
           "data_classification": "internal"
@@ -470,7 +470,7 @@
       {
         "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive08",
         "name": "starchive08",
-        "location": "westeurope",
+        "location": "northeurope",
         "tags": {
           "environment": "production",
           "data_classification": "internal"
@@ -495,7 +495,7 @@
       {
         "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive09",
         "name": "starchive09",
-        "location": "westeurope",
+        "location": "northeurope",
         "tags": {
           "environment": "production",
           "data_classification": "internal"
@@ -520,7 +520,7 @@
       {
         "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive10",
         "name": "starchive10",
-        "location": "westeurope",
+        "location": "northeurope",
         "tags": {
           "environment": "production",
           "data_classification": "internal"
@@ -545,7 +545,7 @@
       {
         "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive11",
         "name": "starchive11",
-        "location": "westeurope",
+        "location": "northeurope",
         "tags": {
           "environment": "production",
           "data_classification": "internal"
@@ -570,7 +570,7 @@
       {
         "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive12",
         "name": "starchive12",
-        "location": "westeurope",
+        "location": "northeurope",
         "tags": {
           "environment": "production",
           "data_classification": "internal"
@@ -595,7 +595,7 @@
       {
         "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive13",
         "name": "starchive13",
-        "location": "westeurope",
+        "location": "northeurope",
         "tags": {
           "environment": "production",
           "data_classification": "internal"
@@ -620,7 +620,7 @@
       {
         "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive14",
         "name": "starchive14",
-        "location": "westeurope",
+        "location": "northeurope",
         "tags": {
           "environment": "production",
           "data_classification": "internal"
@@ -645,7 +645,7 @@
       {
         "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive15",
         "name": "starchive15",
-        "location": "westeurope",
+        "location": "northeurope",
         "tags": {
           "environment": "production",
           "data_classification": "internal"
@@ -670,7 +670,7 @@
       {
         "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/starchive16",
         "name": "starchive16",
-        "location": "westeurope",
+        "location": "northeurope",
         "tags": {
           "environment": "production",
           "data_classification": "internal"

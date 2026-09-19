@@ -24,6 +24,12 @@ Overview                            ✓ Assessed 31 Aug 01:51  [Scan now] [Repor
  ASSESSMENT COVERAGE                       75%  · oldest reading 22h
  ✓ Network  ✓ Storage  ⚠ Identity
 
+ WHERE IT RUNS
+ ░░░░●░░░░░░░●◌░░░░░░░    ● East US       Virginia · 3 assets     4 open
+ ░░░░░░░░░░░░░░░░░░░░░    ● West Europe   Netherlands · 9 assets  7 open
+                          ● North Europe  Ireland · 16 assets     nothing open
+                          ─ 5 assets not tied to a region, 2 open
+
 ┌────────────────────────┬────────────────────────────────────┐
 │ PRIORITY RISKS         │ SHORTEST ATTACK PATH               │
 │ ▣ Public database      │ vm-jump-01 → prodstorage           │
@@ -49,6 +55,17 @@ different claim from the same number over all of it, and a reader who has
 already acted on the risks below has been told too late. It is never phrased as
 a security percentage: 75% coverage is the share of checks that reached a
 verdict, not 75% secure.
+
+**Where it runs follows coverage**, because the two finish one sentence: how
+much was seen, and where (DECISIONS.md §113). A dot-grid world map (hand-drawn
+SVG, no map library) places each region at its metro. The dot is coloured by
+the worst open severity there and sized gently by asset count, and a region
+with nothing open is drawn muted, so the largest clean estate is never the
+loudest mark. The ranked list beside it is the content: every row links to
+the asset list filtered to that region, and the map is hidden from assistive
+technology. What has no region is a line under the list, never a point. A
+region the last scan could not fully read is ringed and marked unread. The
+panel is absent until something is tied to a region.
 
 **UNKNOWN sits in the severity strip**, at the end and labelled "no verdict". It
 is not a fifth severity and it is never a pass, but a reader tallying what is

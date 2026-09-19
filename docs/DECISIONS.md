@@ -5931,7 +5931,83 @@ standard error state with a retry.
   is built, and `_without` builds a new graph, so its answer cannot go stale
   within one graph.
 
+## 113. The dashboard shows where the estate runs, coloured by what is wrong there
+
+**The question.** Where do my services run, and where is the trouble? The
+data was already there: `cloud_resources.region` comes from Azure's `location`
+and from the region an AWS reading was taken in. It was shown only as one fact
+on an asset's page, so nothing answered "which regions am I in, and which of
+them is the problem".
+
+**Why it is on the dashboard, and in which form.** The dashboard carries no
+inventory figures as headlines (UI.md §1), and a map of where assets run is
+inventory. What earns it a place is the second half of the sentence. Each
+region is coloured by the worst open severity on the assets in it. The list is
+ranked severity by severity from the top, so one critical outranks any number
+of lows. Size shows how much runs there, scaled gently (square root), and a
+region with nothing open is drawn muted. A panel sized by asset count alone
+made the biggest clean region the loudest mark on a page about what is wrong.
+It sits after coverage because the two finish one sentence: how much was seen,
+and where.
+
+**What was considered and not built.**
+
+* *A map library* (react-simple-maps, d3-geo, Leaflet/MapLibre). Tile maps
+  fetch third-party tiles, which a CSP and a no-cookies product do not want.
+  A projection library is a second visual kit for the job of placing about
+  thirty points. The map is a hand-drawn SVG, like `ScoreRing`: an
+  equirectangular 2° grid of land cells (`lib/geo/worldDots.ts`, 3.9 KB),
+  generated once by `apps/web/scripts/build-world-dots.mjs` from Natural
+  Earth's public-domain 1:110m land. The script's three packages are not app
+  dependencies. The land is drawn as a dot pattern revealed through a mask of
+  horizontal runs, a few hundred rectangles rather than 2,700 circles.
+* *Data residency* ("these three resources are outside the regions you
+  allow"). It is the most CSPM-shaped use of a region, and it needs an
+  organization setting, a rule and a compliance mapping, so it is a feature of
+  its own and not part of a map. It is listed under open items below.
+* *Coordinates from the API.* A coordinate is a drawing concern. The API
+  returns what the provider said, the region code, and the web app's
+  `lib/geo/regions.ts` holds display names and metro coordinates for Azure's
+  and AWS's public regions. The two clouds' codes cannot collide (AWS codes
+  always contain hyphens, Azure's never do).
+
+**The rules the panel keeps.**
+
+* **One spelling.** ARM returns `westeurope` from a listing and `West Europe`
+  from some detail calls. `placement.REGION` lower-cases the value and strips
+  spaces in SQL, and `region_key` does the same in Python. The map groups with
+  the first and the asset list's `?region=` filter uses the second, so a dot
+  and the list it opens always contain the same assets.
+* **"Global" is not a place.** The directory, anything ARM calls `global`, and
+  findings about the tenant rather than an asset form one bucket with
+  `region: null`. It appears as a line under the list and never as a point on
+  the map. A link reaches it as `?region=none`.
+* **An unknown code is listed, not guessed.** A region missing from the
+  catalogue is listed by its code and left off the map. A dot in the wrong
+  country is worse than no dot.
+* **Unread is not clean.** `readings` and `unread` count only readings that
+  were *of* a region, so every Azure reading is excluded (all are global),
+  while each AWS region is read separately. An unread region gets a dashed ring
+  and the words "could not be fully read". Nothing open in a region nobody
+  could look at is not a clean bill of health (§69).
+* **The list is the content.** The SVG is `aria-hidden` and out of the tab
+  order. Every region it draws is a link in the list, which is what a keyboard
+  reaches, the same split the estate map makes (§112). Clicking a dot is a
+  shortcut for mouse users.
+
+**The demo spans three regions.** `build_snapshot_demo.py` puts the sixteen log
+archives in North Europe (West Europe's paired region) and the build agent in
+East US. The panel then draws an estate rather than a single dot, and the
+region with the most assets (North Europe, the archives) is not the one with
+the most wrong. Only the `location` strings changed, and no rule reads
+location, so every finding the demo showed is unchanged.
+
 ## Open items carried forward
+
+**Data residency is not built (§113).** An organization setting for allowed
+regions, a rule over `CloudResource.region` per provider (never one rule that
+branches on provider, §74), and a mapping to the controls that ask for it. The
+region map and `?region=` filter are what it would link into.
 
 **Phase 9 (reports) is built, generated on request rather than stored.**
 Jinja2 renders the report to HTML and WeasyPrint prints that HTML — the stack

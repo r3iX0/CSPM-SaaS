@@ -638,6 +638,8 @@ class TestDashboard:
             "classified": 0,
             "ratio": 1.0,
         }
+        # Nor about where anything runs.
+        assert data["regions"] == []
 
 
 class TestChangeFeed:
@@ -1258,9 +1260,17 @@ class TestAssetList:
         assert "total" in response.json()["meta"]
 
     async def _estate(
-        self, org_id: uuid.UUID, assets: list[tuple[str, str, str | None, int]]
+        self,
+        org_id: uuid.UUID,
+        assets: list[tuple[str, str, str | None, int]],
+        regions: dict[str, str] | None = None,
+        severity: dict[str, str] | None = None,
     ) -> None:
-        """Several assets in one subscription: (name, type, environment, open findings)."""
+        """Several assets in one subscription: (name, type, environment, open findings).
+
+        ``regions`` and ``severity`` are keyed by asset name, for the tests that
+        care where an asset runs and how bad what is open on it is.
+        """
         from datetime import UTC, datetime
 
         from app.core.db import service_session
@@ -1322,6 +1332,7 @@ class TestAssetList:
                     ),
                     resource_type=ResourceType(resource_type),
                     name=name,
+                    region=(regions or {}).get(name),
                     environment=environment,
                     criticality=Level.MEDIUM,
                     data_sensitivity=Level.MEDIUM,
@@ -1336,7 +1347,7 @@ class TestAssetList:
                         organization_id=org_id,
                         resource_id=resource.id,
                         rule_id=f"AZ-TEST-{index:03d}",
-                        severity=Severity.MEDIUM,
+                        severity=Severity((severity or {}).get(name, "MEDIUM")),
                         status=FindingStatus.OPEN,
                         title=f"Finding {index} on {name}",
                         description="",
@@ -1407,10 +1418,102 @@ class TestAssetList:
             "resource_type": {"storage_account": 2, "virtual_machine": 2},
             # An asset with no environment is not an option to filter to.
             "environment": {"prod": 2, "staging": 1},
+            # Where it runs, by contrast, keeps its unplaced assets under the
+            # name a link uses for them.
+            "region": {"none": 4},
         }
         facets = narrowed.json()["meta"]["facets"]
         assert facets["resource_type"] == {"storage_account": 2, "virtual_machine": 2}
         assert facets["environment"] == {"prod": 1}
+
+
+    async def test_region_is_one_spelling_and_global_is_nowhere(
+        self, client, cleanup_orgs
+    ) -> None:
+        """`West Europe` and `westeurope` are one region; `global` is none (§113).
+
+        The dashboard's region map links here with the code, so the filter has
+        to find the asset ARM spelled with a space, and `none` has to find the
+        assets the map lists as not tied to a region.
+        """
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Region Ltd"))
+        cleanup_orgs.append(org_id)
+        await self._estate(
+            org_id,
+            [
+                ("listed", "storage_account", "prod", 0),
+                ("detailed", "virtual_machine", "prod", 0),
+                ("elsewhere", "virtual_machine", "prod", 0),
+                ("dns", "storage_account", "prod", 0),
+                ("nowhere", "storage_account", "prod", 0),
+            ],
+            regions={
+                "listed": "westeurope",
+                "detailed": "West Europe",
+                "elsewhere": "eastus",
+                "dns": "global",
+            },
+        )
+
+        everything = await client.get("/api/v1/assets", headers=auth_header(user))
+        europe = await client.get(
+            "/api/v1/assets?region=West%20Europe", headers=auth_header(user)
+        )
+        unplaced = await client.get("/api/v1/assets?region=none", headers=auth_header(user))
+
+        assert everything.json()["meta"]["facets"]["region"] == {
+            "westeurope": 2,
+            "eastus": 1,
+            "none": 2,
+        }
+        assert sorted(a["name"] for a in europe.json()["data"]) == ["detailed", "listed"]
+        assert sorted(a["name"] for a in unplaced.json()["data"]) == ["dns", "nowhere"]
+        # Its own filter does not narrow its own menu.
+        assert europe.json()["meta"]["facets"]["region"]["eastus"] == 1
+
+    async def test_the_dashboard_ranks_regions_by_what_is_open_there(
+        self, client, cleanup_orgs
+    ) -> None:
+        """One critical outranks any number of mediums; the unplaced go last.
+
+        `eastus` holds one asset with one critical finding and `westeurope`
+        three assets with four mediums between them. The map is about what is
+        wrong, so East US leads -- and the bucket with no region trails both
+        whatever it holds.
+        """
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Map Ltd"))
+        cleanup_orgs.append(org_id)
+        await self._estate(
+            org_id,
+            [
+                ("a", "storage_account", "prod", 2),
+                ("b", "storage_account", "prod", 2),
+                ("c", "storage_account", "prod", 0),
+                ("vm", "virtual_machine", "prod", 1),
+                ("dir", "storage_account", "prod", 3),
+            ],
+            regions={"a": "westeurope", "b": "West Europe", "c": "westeurope", "vm": "eastus"},
+            severity={"vm": "CRITICAL", "dir": "HIGH"},
+        )
+
+        data = (await client.get("/api/v1/dashboard", headers=auth_header(user))).json()["data"]
+
+        assert [(r["region"], r["provider"]) for r in data["regions"]] == [
+            ("eastus", "azure"),
+            ("westeurope", "azure"),
+            (None, None),
+        ]
+        east, west, unplaced = data["regions"]
+        assert east["assets"] == 1
+        assert east["by_severity"] == {"CRITICAL": 1}
+        assert west["assets"] == 3
+        assert west["open_findings"] == 4
+        assert unplaced["by_severity"] == {"HIGH": 3}
+        # No reading here was of a region -- none ever is on Azure -- so no
+        # region can be called unread.
+        assert all(r["readings"] == 0 and r["unread"] == 0 for r in data["regions"])
 
 
 class TestFindingSearchAndSort:

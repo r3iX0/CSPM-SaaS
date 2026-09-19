@@ -26,6 +26,10 @@ What it adds, and which part of the graph view each piece exercises:
   points reach it, so no single cut closes every way to it -- which is what
   makes the choke points worth asking about.
 
+The payments service and customer records run in West Europe with the mixed
+recording's assets; the archives and the build agent do not (see
+``ARCHIVE_LOCATION``), so the estate spans three regions.
+
 Every asset the mixed recording already had is kept unchanged, so the demo's
 ``--fix`` replay and every finding it used to show still apply.
 """
@@ -41,6 +45,12 @@ TARGET = HERE / "snapshot_demo.json"
 
 SUB = "/subscriptions/00000000-0000-0000-0000-000000000001"
 LOCATION = "westeurope"
+# The log archives sit in West Europe's paired region, which is where a team
+# keeping copies away from production would put them; the build agent is in
+# East US, the region somebody picked once and nobody meant to keep. Three
+# regions, so the dashboard's region map draws an estate rather than a dot.
+ARCHIVE_LOCATION = "northeurope"
+BUILD_LOCATION = "eastus"
 
 # Built-in role definitions, with their real ids and permissions. The graph
 # only needs the id to resolve; the permissions are what decide whether a role
@@ -102,12 +112,14 @@ def role_assignment(key: str, principal_id: str, role_id: str, scope: str) -> di
     }
 
 
-def storage_account(group: str, name: str, tags: dict[str, str]) -> dict[str, Any]:
+def storage_account(
+    group: str, name: str, tags: dict[str, str], location: str = LOCATION
+) -> dict[str, Any]:
     """A storage account closed to the internet: sensitive or not, never a way in."""
     return {
         "id": arm(group, "Microsoft.Storage", f"storageAccounts/{name}"),
         "name": name,
-        "location": LOCATION,
+        "location": location,
         "tags": tags,
         "properties": {
             "allowBlobPublicAccess": False,
@@ -191,7 +203,7 @@ def build() -> dict[str, Any]:
     build_agent = {
         "id": arm("rg-build", "Microsoft.Compute", "virtualMachines/vm-build-agent"),
         "name": "vm-build-agent",
-        "location": LOCATION,
+        "location": BUILD_LOCATION,
         "tags": {"environment": "production", "criticality": "medium"},
         "properties": {
             "hardwareProfile": {"vmSize": "Standard_D4s_v5"},
@@ -219,6 +231,7 @@ def build() -> dict[str, Any]:
             "rg-data",
             f"starchive{index:02d}",
             {"environment": "production", "data_classification": "internal"},
+            ARCHIVE_LOCATION,
         )
         for index in range(1, 17)
     ]
@@ -283,7 +296,7 @@ def build() -> dict[str, Any]:
         {
             "id": build_nsg_id,
             "name": "nsg-build-agent",
-            "location": LOCATION,
+            "location": BUILD_LOCATION,
             "tags": {"environment": "production"},
             "properties": {
                 "securityRules": [

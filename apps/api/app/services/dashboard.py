@@ -19,6 +19,7 @@ from app.core.enums import (
     RiskKind,
     RiskStatus,
     ScanStatus,
+    Severity,
     TaskOutcome,
 )
 from app.models.finding import Finding
@@ -27,6 +28,7 @@ from app.models.resource import ResourceRecord
 from app.models.risk import Risk, RiskFinding, RiskHistory
 from app.models.scan import Evidence, Scan, ScanRuleResult
 from app.risk.scorer import default_scorer
+from app.services.placement import REGION
 
 
 async def build_dashboard(session: AsyncSession, organization_id: UUID) -> dict:
@@ -216,6 +218,8 @@ async def build_dashboard(session: AsyncSession, organization_id: UUID) -> dict:
         # provider was asked -- and a posture can be fully covered and three
         # weeks out of date.
         "evidence_freshness": await _evidence_freshness(session, organization_id),
+        # Where the estate runs, and where what is wrong with it runs.
+        "regions": await _regions(session, organization_id, last_scan),
         "last_scan": (
             {
                 "id": str(last_scan.id),
@@ -512,6 +516,109 @@ async def _context_coverage(session: AsyncSession, organization_id: UUID) -> dic
         "classified": classified,
         "ratio": round(classified / total, 4) if total else 1.0,
     }
+
+
+RegionBucket = tuple[str | None, str | None]
+
+
+async def _regions(
+    session: AsyncSession, organization_id: UUID, last_scan: Scan | None
+) -> list[dict]:
+    """Where the estate runs, ranked by what is wrong there (DECISIONS.md §113).
+
+    Three facts per region, and the map needs all three to say anything honest.
+    How many assets run there is the denominator. How many open findings sit on
+    them, by severity, is the point: the page does not carry inventory as a
+    headline, and a region is on it because of what is wrong in it. And whether
+    the last scan could read it -- a provider that reads per region can fail in
+    one, and a region with nothing wrong in it and a failed reading is not a
+    clean region, it is an unread one.
+
+    Keyed by provider as well as region, because `eastus` and `us-east-1` are
+    different codes for places a customer may use both of. Everything with no
+    region -- the directory, anything ARM calls `global`, a finding raised about
+    the tenant rather than an asset -- is one bucket with neither, because it is
+    one sentence on the page: "not tied to a region".
+    """
+    open_statuses = [FindingStatus.OPEN, FindingStatus.IN_PROGRESS]
+    buckets: dict[RegionBucket, dict] = {}
+
+    def bucket(provider: object, region: str | None) -> dict:
+        key: RegionBucket = (str(provider), region) if region else (None, None)
+        return buckets.setdefault(
+            key,
+            {
+                "region": key[1],
+                "provider": key[0],
+                "assets": 0,
+                "open_findings": 0,
+                "by_severity": {},
+                "readings": 0,
+                "unread": 0,
+            },
+        )
+
+    asset_rows = await session.execute(
+        select(ResourceRecord.provider, REGION, func.count())
+        .where(ResourceRecord.organization_id == organization_id)
+        .group_by(ResourceRecord.provider, REGION)
+    )
+    for provider, region, count in asset_rows.all():
+        bucket(provider, region)["assets"] += int(count)
+
+    # Outer, so a finding about the tenant rather than an asset still counts --
+    # in the bucket that has no region, which is where it belongs.
+    finding_rows = await session.execute(
+        select(ResourceRecord.provider, REGION, Finding.severity, func.count())
+        .select_from(Finding)
+        .outerjoin(ResourceRecord, ResourceRecord.id == Finding.resource_id)
+        .where(
+            Finding.organization_id == organization_id,
+            Finding.status.in_(open_statuses),
+        )
+        .group_by(ResourceRecord.provider, REGION, Finding.severity)
+    )
+    for provider, region, severity, count in finding_rows.all():
+        entry = bucket(provider, region)
+        entry["open_findings"] += int(count)
+        entry["by_severity"][str(severity)] = entry["by_severity"].get(str(severity), 0) + int(
+            count
+        )
+
+    # Only readings that were *of* a region. Every Azure listing is global and
+    # says nothing about where anything runs; an AWS region read and found
+    # empty is still worth drawing, because "we looked there" is a fact.
+    if last_scan is not None:
+        reading_rows = await session.execute(
+            select(
+                Evidence.provider,
+                func.lower(Evidence.region),
+                func.count(),
+                func.count().filter(Evidence.outcome != TaskOutcome.COMPLETE),
+            )
+            .where(Evidence.scan_id == last_scan.id, Evidence.region.is_not(None))
+            .group_by(Evidence.provider, func.lower(Evidence.region))
+        )
+        for provider, region, readings, unread in reading_rows.all():
+            entry = bucket(provider, region)
+            entry["readings"] += int(readings)
+            entry["unread"] += int(unread)
+
+    # Worst first, compared severity by severity from the top, so one critical
+    # outranks any number of lows. What is not tied to a region goes last: it
+    # is a footnote to the map, not a place on it.
+    order = [Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM, Severity.LOW]
+    return sorted(
+        buckets.values(),
+        key=lambda entry: (
+            entry["region"] is None,
+            [-entry["by_severity"].get(level.value, 0) for level in order],
+            -entry["unread"],
+            -entry["assets"],
+            entry["provider"] or "",
+            entry["region"] or "",
+        ),
+    )
 
 
 async def _coverage_categories(session: AsyncSession, last_scan: Scan) -> list[dict]:
