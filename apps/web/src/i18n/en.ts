@@ -701,7 +701,20 @@ export const en = {
     // they call for three different actions.
     emptyNoPaths: "Nothing exposed can reach anything sensitive",
     emptyNoPathsDetail:
-      "CloudGuard found assets reachable from the internet and assets holding sensitive data, and no route between them.",
+      "CloudGuard found assets reachable from the internet and assets holding sensitive data, and no route between them. Below is where each way in stops.",
+    exposedCount: "Exposed",
+    sensitiveCount: "Sensitive",
+    deadEndsTitle: "Where each way in stops",
+    deadEndsMore: (n: number) => `and ${n} more`,
+    deadEndReachesNothing: (type: string) =>
+      type === "user" || type === "service_principal"
+        ? "Holds no role over anything CloudGuard scanned."
+        : "Runs as no identity, and no other machine on its network lets it in.",
+    deadEndIdentityWithoutRole: "Runs as an identity that holds no role over anything CloudGuard scanned.",
+    deadEndNothingSensitive: (n: number) =>
+      `Reaches ${n} ${n === 1 ? "asset" : "assets"}, none of them classified as sensitive.`,
+    onlyAccountsSensitive:
+      "The only assets classified as sensitive are accounts. Tag your storage, databases and vaults with a data classification so CloudGuard knows what a route to them would cost.",
     emptyNoEntry: "Nothing is reachable from the internet",
     emptyNoEntryDetail:
       "A route has to start somewhere. No asset in this environment is exposed enough to be an entry point, so there is nothing for a path to begin from.",

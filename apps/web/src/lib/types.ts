@@ -791,6 +791,27 @@ export interface AttackPathMeta {
   total: number;
   entry_points: number;
   sensitive_targets: number;
+  /** The same counts by resource type: every directory account is an entry
+   * point and every administrator a sensitive one, so the totals alone can be
+   * all people and no machines. */
+  entry_point_types?: Record<string, number>;
+  sensitive_target_types?: Record<string, number>;
+  /** Where each way in stops. Present only when there are ways in, sensitive
+   * assets, and no route between them; capped, `dead_ends_total` is the count. */
+  dead_ends?: DeadEnd[];
+  dead_ends_total?: number;
+}
+
+/** A way in with no route out of it, and where it stops. */
+export interface DeadEnd {
+  id: string;
+  asset_id: string | null;
+  name: string;
+  resource_type: string;
+  public_exposure: string;
+  reason: "reaches_nothing" | "identity_without_role" | "nothing_sensitive";
+  /** How many assets it does reach. */
+  reached: number;
 }
 
 /**

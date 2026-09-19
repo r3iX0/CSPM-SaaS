@@ -9,6 +9,7 @@ route through an environment nobody looked at in one go.
 from collections import deque
 from collections.abc import Iterator
 from dataclasses import dataclass, field
+from enum import StrEnum
 
 from app.core.enums import Level, RelationshipType, ResourceType
 from app.domain.resource import CloudResource
@@ -28,9 +29,9 @@ ENTRY_EXPOSURE = {Level.HIGH, Level.CRITICAL}
 SENSITIVE_DATA = {Level.HIGH, Level.CRITICAL}
 
 # How far a path may run before it stops being a description of anything.
-# Every real Azure path this graph can express is three or four hops -- host,
-# identity, scope, resource -- and a longer one is a containment chain being
-# walked for its own sake.
+# Every real Azure path this graph can express is three to five hops -- host,
+# perhaps the host beside it, identity, scope, resource -- and a longer one is
+# a containment chain being walked for its own sake.
 MAX_DEPTH = 6
 
 # How one hop reads in a sentence. Shared by a route's steps and by the edges of
@@ -40,6 +41,7 @@ RELATIONSHIP_VERBS = {
     RelationshipType.GRANTS_ROLE: "can act over",
     RelationshipType.CAN_GRANT_ROLES: "can grant itself any role over",
     RelationshipType.CONTAINS: "contains",
+    RelationshipType.NETWORK_ACCESS: "can reach over the network",
 }
 
 # How many neighbours one asset may contribute to a neighbourhood before the
@@ -98,19 +100,47 @@ class Path:
         """The hop to cut first.
 
         The capability hops, in preference to the structural ones: removing a
-        role assignment or detaching an identity severs the route, while
+        role assignment, detaching an identity or closing a network security
+        group between two machines severs the route, while
         "contains" describes where a resource lives and cannot be removed at
         all. Among those, the earliest -- closing the way in beats containing
         what someone reaches once inside.
         """
         for step in self.steps:
             if step.relationship in {
+                RelationshipType.NETWORK_ACCESS,
                 RelationshipType.HAS_IDENTITY,
                 RelationshipType.GRANTS_ROLE,
                 RelationshipType.CAN_GRANT_ROLES,
             }:
                 return step
         return None
+
+
+class DeadEndReason(StrEnum):
+    """Why a way in leads nowhere worth reaching. Each asks for a different fix."""
+
+    # Nothing leads out of it at all: a machine that runs as no identity and
+    # reaches no other machine, a user or principal holding no role over
+    # anything this scan saw.
+    REACHES_NOTHING = "reaches_nothing"
+    # It runs as an identity, and the identity holds no role over anything this
+    # scan saw.
+    IDENTITY_WITHOUT_ROLE = "identity_without_role"
+    # It reaches assets, and none of them is classified as sensitive. The one
+    # case where the answer may be wrong rather than reassuring, because
+    # sensitivity is only what tags and names declare.
+    NOTHING_SENSITIVE = "nothing_sensitive"
+
+
+@dataclass(frozen=True)
+class DeadEnd:
+    """A way in with no route out of it, and where it stops."""
+
+    entry: CloudResource
+    reason: DeadEndReason
+    #: How many assets it does reach, for the nothing-sensitive case.
+    reached: int
 
 
 @dataclass(frozen=True)
@@ -322,6 +352,42 @@ class AssetGraph:
                     paths.append(path)
 
         return sorted(paths, key=lambda p: (p.hops, p.target.name))
+
+    def dead_ends(self, max_depth: int = MAX_DEPTH) -> list[DeadEnd]:
+        """Every way in that no route leaves, and why.
+
+        The answer to an empty attack-path list. "Nothing exposed can reach
+        anything sensitive" is a verdict a customer cannot check; "vm-web runs
+        as no identity" and "vm-api reaches four assets, none classified" are
+        things they can look at and disagree with. Machines and apps first, then
+        people, because an estate has far more accounts than machines and the
+        machines are what the customer came to ask about.
+        """
+        targets = {t.provider_resource_id for t in self.sensitive_targets()}
+        identities = {ResourceType.SERVICE_PRINCIPAL, ResourceType.USER}
+        ends: list[DeadEnd] = []
+        for entry in self.entry_points():
+            start = entry.provider_resource_id
+            reached = self.reachable_from(start, max_depth)
+            if any(node in targets for node in reached if node != start):
+                continue
+            if not reached:
+                reason = DeadEndReason.REACHES_NOTHING
+            elif entry.resource_type not in identities and all(
+                self.nodes[node].resource_type in identities for node in reached
+            ):
+                reason = DeadEndReason.IDENTITY_WITHOUT_ROLE
+            else:
+                reason = DeadEndReason.NOTHING_SENSITIVE
+            ends.append(DeadEnd(entry=entry, reason=reason, reached=len(reached)))
+        return sorted(
+            ends,
+            key=lambda end: (
+                end.entry.resource_type in identities,
+                end.entry.resource_type.value,
+                end.entry.name,
+            ),
+        )
 
     def route_members(self, max_depth: int = MAX_DEPTH) -> frozenset[str]:
         """Every asset on at least one attack path, wherever on it."""

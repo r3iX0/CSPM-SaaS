@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { BoxesIcon, SearchIcon, XIcon } from "lucide-react";
@@ -30,7 +30,7 @@ import {
 import { Pager } from "@/components/common/Pager";
 import { cn, formatDate, formatRelative, resourceTypeLabel } from "@/lib/format";
 import { scopeLabel } from "@/lib/scope";
-import { NO_REGION, regionLabel } from "@/lib/geo/regions";
+import { regionLabel } from "@/lib/geo/regions";
 import { stagger } from "@/lib/motion";
 
 const PAGE_SIZE = 50;
@@ -182,7 +182,7 @@ export function AssetsPage() {
   const unchecked = data?.unchecked ?? 0;
 
   /**
-   * The types and environments the filters offer, counted by the API over the
+   * The types the filter offers, counted by the API over the
    * whole filtered set -- each without its own filter, so choosing one still
    * offers the rest. These used to be read off the fifty rows on the page, so
    * a type that happened to sort onto page two could not be chosen at all.
@@ -195,21 +195,6 @@ export function AssetsPage() {
     if (type !== "all") found.add(type);
     return [...found].sort();
   }, [facets, type]);
-  const environments = useMemo(() => {
-    const found = new Set(Object.keys(facets?.environment ?? {}));
-    if (environment !== "all") found.add(environment);
-    return [...found].sort();
-  }, [facets, environment]);
-  // By name rather than code, with the unplaced ones last: "not tied to a
-  // region" is not a place, so it does not sort among them.
-  const regions = useMemo(() => {
-    const found = new Set(Object.keys(facets?.region ?? {}));
-    if (region !== "all") found.add(region);
-    return [...found].sort((a, b) =>
-      a === NO_REGION ? 1 : b === NO_REGION ? -1 : regionLabel(a).localeCompare(regionLabel(b)),
-    );
-  }, [facets, region]);
-
 
   // `assets` arrives in queue order -- most open findings first, across the
   // whole set. The API sorts, because a page can only re-sort the rows it
@@ -341,37 +326,6 @@ export function AssetsPage() {
           />
 
           <SelectField
-            value={environment}
-            onValueChange={resetTo("environment")}
-            ariaLabel="Filter by environment"
-            className="w-[170px]"
-            idleValue="all"
-            options={[
-              { value: "all", label: "All environments" },
-              ...environments.map((value) => ({
-                value,
-                label: value.charAt(0).toUpperCase() + value.slice(1),
-              })),
-            ]}
-          />
-
-          {/* Where it runs, which is how the dashboard's region map drills in.
-              Offered only once there is more than one answer to choose between. */}
-          {(regions.length > 1 || region !== "all") && (
-            <SelectField
-              value={region}
-              onValueChange={resetTo("region")}
-              ariaLabel="Filter by region"
-              className="w-[190px]"
-              idleValue="all"
-              options={[
-                { value: "all", label: "All regions" },
-                ...regions.map((value) => ({ value, label: regionLabel(value) })),
-              ]}
-            />
-          )}
-
-          <SelectField
             value={exposure}
             onValueChange={resetTo("exposure")}
             ariaLabel="Filter by exposure"
@@ -421,26 +375,42 @@ export function AssetsPage() {
       </div>
       )}
 
-      {view === "list" && (subscriptionId || resourceGroup) && (
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="gap-1.5 font-normal">
-            {resourceGroup ? (
-              <>
-                Resource group <code className="font-medium">{resourceGroup}</code>
-              </>
-            ) : (
-              <>
-                Subscription <code className="font-medium">{subscriptionId}</code>
-              </>
-            )}
-            <button
-              onClick={clearScope}
-              aria-label="Clear scope filter"
-              className="rounded-full text-muted-foreground transition-colors hover:text-foreground"
+      {/* Region and environment are no longer dropdowns: they narrow the list
+          less than type, exposure or what the map marks, and seven controls
+          buried those. They still arrive by link -- the dashboard's region map
+          drills in with `?region=` -- and show here, where they can be removed. */}
+      {view === "list" &&
+        (subscriptionId || resourceGroup || region !== "all" || environment !== "all") && (
+        <div className="flex flex-wrap items-center gap-2">
+          {(subscriptionId || resourceGroup) && (
+            <FilterChip onClear={clearScope} clearLabel="Clear scope filter">
+              {resourceGroup ? (
+                <>
+                  Resource group <code className="font-medium">{resourceGroup}</code>
+                </>
+              ) : (
+                <>
+                  Subscription <code className="font-medium">{subscriptionId}</code>
+                </>
+              )}
+            </FilterChip>
+          )}
+          {region !== "all" && (
+            <FilterChip onClear={() => resetTo("region")(null)} clearLabel="Clear region filter">
+              Region <span className="font-medium">{regionLabel(region)}</span>
+            </FilterChip>
+          )}
+          {environment !== "all" && (
+            <FilterChip
+              onClear={() => resetTo("environment")(null)}
+              clearLabel="Clear environment filter"
             >
-              <XIcon className="size-3" />
-            </button>
-          </Badge>
+              Environment{" "}
+              <span className="font-medium">
+                {environment.charAt(0).toUpperCase() + environment.slice(1)}
+              </span>
+            </FilterChip>
+          )}
         </div>
       )}
 
@@ -653,6 +623,30 @@ function OnRouteMark() {
       <span className="sr-only">On an attack path</span>
       <span aria-hidden>Path</span>
     </span>
+  );
+}
+
+/** One filter set by a link rather than a menu, with a way to drop it. */
+function FilterChip({
+  children,
+  onClear,
+  clearLabel,
+}: {
+  children: ReactNode;
+  onClear: () => void;
+  clearLabel: string;
+}) {
+  return (
+    <Badge variant="secondary" className="gap-1.5 font-normal">
+      {children}
+      <button
+        onClick={onClear}
+        aria-label={clearLabel}
+        className="rounded-full text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <XIcon className="size-3" />
+      </button>
+    </Badge>
   );
 }
 

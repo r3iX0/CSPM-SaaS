@@ -2548,6 +2548,48 @@ class TestAssetNeighborhood:
         assert await names("?sensitive=true") == {"payroll"}
         assert await names("?on_attack_path=true") == {"jump-01", "mi-jump-01", "payroll"}
 
+    async def test_an_empty_answer_says_where_each_way_in_stops(
+        self, client, cleanup_orgs
+    ) -> None:
+        """No route, and the page names the open machine and why (section 119)."""
+        from sqlalchemy import delete
+
+        from app.core.db import service_session
+        from app.core.enums import RelationshipType
+        from app.models.resource import ResourceRelationship
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Roleless Ltd"))
+        cleanup_orgs.append(org_id)
+        vm_row = await self._estate(org_id)
+        async with service_session() as session:
+            await session.execute(
+                delete(ResourceRelationship).where(
+                    ResourceRelationship.organization_id == org_id,
+                    ResourceRelationship.relationship_type == RelationshipType.GRANTS_ROLE,
+                )
+            )
+            await session.commit()
+
+        response = await client.get("/api/v1/attack-paths", headers=auth_header(user))
+        assert response.status_code == 200, response.text
+        meta = response.json()["meta"]
+        assert meta["total"] == 0
+        assert meta["entry_point_types"] == {"virtual_machine": 1}
+        assert meta["sensitive_target_types"] == {"storage_account": 1}
+        assert meta["dead_ends_total"] == 1
+        assert meta["dead_ends"] == [
+            {
+                "id": self.VM,
+                "asset_id": str(vm_row),
+                "name": "jump-01",
+                "resource_type": "virtual_machine",
+                "public_exposure": "CRITICAL",
+                "reason": "identity_without_role",
+                "reached": 1,
+            }
+        ]
+
     async def test_an_asset_page_says_where_the_asset_sits_and_what_is_open(
         self, client, cleanup_orgs
     ) -> None:

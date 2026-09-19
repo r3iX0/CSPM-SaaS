@@ -30,7 +30,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.enums import FindingStatus, RelationshipType, Severity
 from app.domain.resource import CloudResource
-from app.graph import AssetGraph, ChokePoint, Neighborhood, Path
+from app.graph import AssetGraph, ChokePoint, DeadEnd, Neighborhood, Path
 from app.graph.estate import EstateMap
 from app.graph.model import ENTRY_EXPOSURE, RELATIONSHIP_VERBS, SENSITIVE_DATA
 from app.models.finding import Finding
@@ -274,6 +274,24 @@ def serialize_path(path: Path) -> dict:
             if step
             else None
         ),
+    }
+
+
+def serialize_dead_end(end: DeadEnd, ids: dict[str, UUID]) -> dict:
+    """One way in with no route out, and where it stops."""
+    entry = end.entry
+    return {
+        "id": entry.provider_resource_id,
+        "asset_id": (
+            str(ids[entry.provider_resource_id])
+            if entry.provider_resource_id in ids
+            else None
+        ),
+        "name": entry.name,
+        "resource_type": entry.resource_type.value,
+        "public_exposure": entry.public_exposure.value,
+        "reason": end.reason.value,
+        "reached": end.reached,
     }
 
 

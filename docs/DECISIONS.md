@@ -6146,6 +6146,109 @@ The fix does not unblock anything. If the block persists, the deployment
 needs a different outbound address (Railway's static egress IPs, or another
 region) or a ticket with Microsoft quoting the references.
 
+## 118. The asset list keeps the filters that narrow a queue
+
+The list's toolbar had grown to a search box and six menus, and they did not
+all do equal work. Type, exposure and what the map marks (reachable from the
+internet, holds sensitive data, on an attack path) each answer "which of these
+should I look at first". Environment and region mostly answer "where is it".
+Environment depends on a tag many estates never set, and region already has
+its own view, the dashboard's map (§113). The menus now are search, type,
+exposure, map marks and grouping. Grouping by environment stays available.
+
+The two parameters are still supported. `?region=` is how a dot on the
+dashboard map opens the list, and `?environment=` may be in links people have
+saved. When either is set it shows as a removable chip beside the scope chip,
+so a narrowed list says it is narrowed. The API and its facets are unchanged.
+
+## 119. An open machine reaches the machine beside it, and an empty attack-path page says where each way in stops
+
+**A lab tenant with internet-facing virtual machines showed "Nothing exposed can
+reach anything sensitive".** Reading the graph code against that estate found
+four ways a real route went missing, and one way the empty page misled.
+
+**ARM ids were joined case-sensitively in three places.** ARM treats ids as
+case-insensitive and does not keep one casing: a machine's own record routinely
+spells its resource group `LAB-RG` while the interface listing, the network
+security group and the storage account beside it say `lab-rg`.
+
+- The machine-to-interface join missed, so the machine's exposure was UNKNOWN.
+  UNKNOWN is deliberately not an entry point (the graph refuses to start a route
+  from a gap in collection), so an open machine was never where a route began.
+  The interface and public IP lookups are now keyed by the lower-cased id.
+- The resource-group nodes were keyed by exact spelling, so one group became two
+  nodes, and a role over the group reached only the half whose casing matched
+  the assignment. Groups are now keyed by lower-cased name, one node each.
+- A role assignment's scope, and the ends of every other edge, had to match a
+  node exactly or the edge was dropped as dangling. Scopes are now looked up by
+  any casing, and a last pass in the normalizer rewrites every edge's ends to
+  the spelling of the asset they name (`_canonical_edges`).
+
+**User-assigned identities were ignored.** Only `identity.principalId` was read,
+and Azure sets it only for a system-assigned identity. A user-assigned identity
+sits under `identity.userAssignedIdentities`, keyed by its resource id, with its
+principal inside. A workload running only as one had no "runs as" edge, so every
+route through it was missing. Both kinds are read now
+(`_workload_identities`), and a user-assigned principal is named after its
+resource, "app-id (user-assigned identity)".
+
+**There was no network hop.** Routes only followed identity, role and
+containment edges, so an open machine without an identity was a dead end even
+when the machine beside it ran as an identity with Contributor. The new
+capability edge `NETWORK_ACCESS` ("can reach over the network") runs from an
+internet-facing machine to every other machine in the same virtual network
+whose network security groups let some traffic through
+(`connectors/azure/network.py`). It is deliberately narrow, because a false edge
+is a route through an estate that does not have it:
+
+- Machine to machine only. Reaching a storage account or a database over the
+  network is not reaching its data, which still takes a key or a role, and the
+  role is already an edge. Reaching another machine is a second foothold that
+  runs as that machine's identity.
+- Same virtual network only. Peering is not collected, so a machine in a peered
+  network is not reached rather than guessed at.
+- Drawn only from machines with a public address. Every pair in a network would
+  be quadratic in its size, and a hop between two internal machines matters only
+  after a foothold, which is where these edges start.
+- The groups are evaluated with Azure's own defaults beneath them
+  (`AllowVnetInBound` and `AllowVnetOutBound` at 65000, deny-all at 65500):
+  outbound on every group guarding the source, inbound on every group guarding
+  the target. The question is whether *some* traffic gets through, not whether
+  a given port is open. A deny on port 3389 leaves the rest answering. A deny
+  covering every port and protocol closes the hop. Address prefixes are matched
+  against the machines' private addresses.
+- Unknown is no edge. A guarding group the scan did not collect, a machine whose
+  interfaces were not resolved, or an all-ports deny naming an application
+  security group this reading cannot resolve all produce nothing.
+
+The hop is a capability edge like the others. It is walked by traversal, is
+the preferred cut on a route that starts with it (tighten the group between the
+two machines), and appears in choke points and in the estate map's reach.
+
+**The empty page misled.** Every directory user is internet-exposed by design,
+and every user holding a directory role is sensitive. So a tenant with one
+administrator showed both counts above zero, and the page said "CloudGuard found
+assets reachable from the internet and assets holding sensitive data" when both
+were accounts rather than machines or data. `GET /attack-paths` now also returns
+the counts by resource type (`entry_point_types`, `sensitive_target_types`).
+When there are ways in, sensitive assets and no route, it adds `dead_ends`,
+each way in with the reason it stops (`AssetGraph.dead_ends`):
+
+- `reaches_nothing`: a machine with no identity and no neighbour it can reach,
+  or an account with no role over anything scanned.
+- `identity_without_role`: it runs as an identity that holds no role.
+- `nothing_sensitive`: it reaches N assets, none classified as sensitive.
+
+The list is capped at 25, with machines and apps sorted before people. The page
+lists them under "Where each way in stops". Where every sensitive asset is an
+account, it adds that storage, databases and vaults need a data classification
+tag. A verdict nobody could check becomes a list of statements somebody can
+open and disagree with.
+
+**What this does not change.** Sensitivity is still only what tags, names and
+type floors declare. An untagged lab storage account is still not a target, and
+the page now says so rather than calling the estate clean.
+
 ## Open items carried forward
 
 **Data residency is not built (§113).** An organization setting for allowed

@@ -18,6 +18,7 @@ import re
 from datetime import UTC, datetime
 from typing import Any
 
+from app.connectors.azure.network import network_access
 from app.connectors.azure.rbac import action_matches
 from app.connectors.base import NormalizedState, RawSnapshot
 from app.context import AssetContext, infer
@@ -91,6 +92,69 @@ def _resource_group_of(resource_id: str) -> str | None:
         if part.lower() == "resourcegroups" and index + 1 < len(parts):
             return parts[index + 1]
     return None
+
+
+def _canonical_edges(
+    resources: list[CloudResource],
+    edges: list[tuple[str, RelationshipType, str]],
+) -> list[tuple[str, RelationshipType, str]]:
+    """Every edge's ends spelled the way the asset they name spells itself.
+
+    ARM ids are case-insensitive and ARM is not consistent about their case: a
+    network security group names the machine it protects, and a role assignment
+    the scope it covers, in whatever casing that API chose, which is often not
+    the casing of the asset's own record. The graph joins on exact strings and
+    drops an edge whose end is not a node, so an edge in the other casing
+    vanished -- a route lost to capitalisation. Duplicates the rewrite creates
+    are dropped with it.
+    """
+    canonical: dict[str, str] = {}
+    for resource in resources:
+        canonical.setdefault(resource.provider_resource_id.lower(), resource.provider_resource_id)
+    return list(
+        dict.fromkeys(
+            (canonical.get(source.lower(), source), rel, canonical.get(target.lower(), target))
+            for source, rel, target in edges
+        )
+    )
+
+
+def _workload_identities(workload: dict[str, Any]) -> list[tuple[str, str | None]]:
+    """Every identity a machine or web app runs as: (principal id, name).
+
+    Two places in the payload, and reading only the first lost the second. A
+    system-assigned identity's principal is ``identity.principalId``; a
+    user-assigned one is a resource of its own, listed under
+    ``identity.userAssignedIdentities`` keyed by its id, with its principal
+    inside -- and a workload that runs only as one of those has no top-level
+    ``principalId`` at all, so it read as running as nothing and every route
+    through it was missing.
+
+    The name is the directory's own where the payload states it: a
+    system-assigned identity is named after its workload, and a user-assigned
+    one after the resource the key names. ``None`` where neither holds.
+    """
+    identity = workload.get("identity") or {}
+    found: list[tuple[str, str | None]] = []
+    principal_id = identity.get("principalId")
+    if principal_id:
+        system = "systemassigned" in str(identity.get("type", "")).lower().replace(" ", "")
+        found.append(
+            (
+                str(principal_id),
+                f"{workload['name']} (managed identity)"
+                if system and workload.get("name")
+                else None,
+            )
+        )
+    assigned = identity.get("userAssignedIdentities") or {}
+    if isinstance(assigned, dict):
+        for resource_id, details in assigned.items():
+            user_principal = (details or {}).get("principalId")
+            if user_principal and user_principal != principal_id:
+                name = str(resource_id).rstrip("/").rsplit("/", 1)[-1]
+                found.append((str(user_principal), f"{name} (user-assigned identity)"))
+    return found
 
 
 def _principal_node(principal_id: str, known: set[str]) -> str:
@@ -173,9 +237,16 @@ class AzureNormalizer:
         assessments = self._assessments_by_resource(data)
 
         # Index NIC -> public IP and NIC -> NSG before walking VMs, so a VM's
-        # exposure can be resolved by following its interfaces.
-        nics = {n["id"]: n for n in data.get("network_interfaces", []) if n.get("id")}
-        public_ips = {p["id"]: p for p in data.get("public_ip_addresses", []) if p.get("id")}
+        # exposure can be resolved by following its interfaces. Keyed by the
+        # lower-cased id, because ARM is case-insensitive and inconsistent
+        # about it: a machine's own record routinely spells its interface's
+        # resource group ``LAB-RG`` while the interface listing says
+        # ``lab-rg``, and an exact join left every such machine's exposure
+        # UNKNOWN -- which is not an entry point, so no route began there.
+        nics = {n["id"].lower(): n for n in data.get("network_interfaces", []) if n.get("id")}
+        public_ips = {
+            p["id"].lower(): p for p in data.get("public_ip_addresses", []) if p.get("id")
+        }
 
         state.resources.extend(self._normalize_nsgs(data, diagnostics))
         state.resources.extend(self._normalize_storage(data, diagnostics))
@@ -186,6 +257,17 @@ class AzureNormalizer:
         vms, vm_edges = self._normalize_vms(data, nics, public_ips)
         state.resources.extend(vms)
         state.relationships.extend(vm_edges)
+        # Which machine can reach which across the network they share. Only a
+        # graph fact, not a finding: an open box beside a box that runs as an
+        # identity is a route, and neither box is wrong on its own
+        # (DECISIONS.md section 119).
+        groups = {
+            n["id"].lower(): n for n in data.get("network_security_groups", []) if n.get("id")
+        }
+        state.relationships.extend(
+            (source, RelationshipType.NETWORK_ACCESS, target)
+            for source, target in network_access(vms, groups)
+        )
 
         state.resources.extend(self._normalize_users(data, snapshot.collected_at))
         state.resources.extend(
@@ -216,6 +298,7 @@ class AzureNormalizer:
         )
         state.resources.extend(principals)
         state.relationships.extend(identity_edges)
+        state.relationships = _canonical_edges(state.resources, state.relationships)
 
         # Defences, which are not assets and are not findings. Kept out of
         # ``resources`` deliberately: a Conditional Access policy is not a thing
@@ -492,6 +575,12 @@ class AzureNormalizer:
             )
         ]
         edges: list[tuple[str, RelationshipType, str]] = []
+        # Group node by lower-cased name. Azure keeps one resource group per
+        # name whatever the case, while the ids it hands out spell that name
+        # in more than one: a machine's record says ``LAB-RG`` and the storage
+        # account beside it ``lab-rg``. Keyed by the exact spelling, the one
+        # group became two nodes, and a role over it reached only the half
+        # that matched the assignment's casing.
         groups: dict[str, str] = {}
 
         for resource in resources:
@@ -500,7 +589,9 @@ class AzureNormalizer:
                 # No resource group in the id. Either a directory asset -- a
                 # user does not live in a resource group -- or something scoped
                 # directly to the subscription, which is contained by it.
-                if resource.provider_resource_id.startswith(f"{subscription_node}/"):
+                if resource.provider_resource_id.lower().startswith(
+                    f"{subscription_node}/".lower()
+                ):
                     edges.append(
                         (
                             subscription_node,
@@ -510,9 +601,10 @@ class AzureNormalizer:
                     )
                 continue
 
-            group_node = f"{subscription_node}/resourceGroups/{group}"
-            if group_node not in groups:
-                groups[group_node] = group
+            group_node = groups.get(group.lower())
+            if group_node is None:
+                group_node = f"{subscription_node}/resourceGroups/{group}"
+                groups[group.lower()] = group_node
                 nodes.append(
                     CloudResource(
                         provider_resource_id=group_node,
@@ -570,22 +662,22 @@ class AzureNormalizer:
         }
         by_id = {r.provider_resource_id: r for r in resources}
         known = set(by_id)
+        # A scope as the asset spells it, looked up by any casing. A role
+        # assignment's scope is written by whoever made the assignment, and
+        # ``resourcegroups/lab-rg`` over a group whose id says
+        # ``resourceGroups/LAB-RG`` is the same scope.
+        scopes = {r.lower(): r for r in known}
         workloads = [*data.get("virtual_machines", []), *data.get("app_services", [])]
 
-        # What to call a principal CloudGuard mints. A system-assigned identity
-        # is created by Azure for one resource and named after it in the
-        # directory, so the workload's name is the principal's real name --
-        # not a guess. Without it every identity on the graph read
-        # "ServicePrincipal", and a route through three of them could not be
-        # told apart. A user-assigned identity is its own resource with its own
-        # name, which this payload does not carry, so it keeps the generic one.
-        system_assigned: dict[str, str] = {}
+        # What to call a principal CloudGuard mints: the name the directory
+        # knows it by, where the payload carries it (``_workload_identities``).
+        # Without it every identity on the graph read "ServicePrincipal", and a
+        # route through three of them could not be told apart.
+        identity_names: dict[str, str] = {}
         for workload in workloads:
-            identity = workload.get("identity") or {}
-            if "systemassigned" in str(identity.get("type", "")).lower().replace(" ", "") and (
-                identity.get("principalId") and workload.get("name")
-            ):
-                system_assigned[identity["principalId"]] = f"{workload['name']} (managed identity)"
+            for workload_principal, name in _workload_identities(workload):
+                if name:
+                    identity_names.setdefault(workload_principal, name)
 
         nodes: dict[str, CloudResource] = {}
         edges: list[tuple[str, RelationshipType, str]] = []
@@ -611,7 +703,7 @@ class AzureNormalizer:
                     # forty rows of "Identity can grant itself any role — User".
                     # The start of the object id is what a person can look up in
                     # Entra, and it tells the rows apart.
-                    name=system_assigned.get(principal_id)
+                    name=identity_names.get(principal_id)
                     or f"{props.get('principalType') or 'Principal'} {principal_id[:8]}",
                     provider=Provider.AZURE,
                     metadata={
@@ -624,14 +716,15 @@ class AzureNormalizer:
             # subscription -- at a management group CloudGuard cannot see -- is
             # real and is not a reach we can describe, and inventing an edge to
             # a node that does not exist would be describing it anyway.
-            if scope in known or scope in nodes:
-                edges.append((principal_node, RelationshipType.GRANTS_ROLE, scope))
+            target = scopes.get(str(scope).lower()) or (scope if scope in nodes else None)
+            if target is not None:
+                edges.append((principal_node, RelationshipType.GRANTS_ROLE, target))
                 # Beside it, never instead of it. The reach is the same pair of
                 # nodes; this says the reach has no ceiling, because the holder
                 # can grant itself whatever it does not already have.
                 if escalates:
                     edges.append(
-                        (principal_node, RelationshipType.CAN_GRANT_ROLES, scope)
+                        (principal_node, RelationshipType.CAN_GRANT_ROLES, target)
                     )
 
             # Recorded on whichever node holds this principal -- one minted
@@ -655,25 +748,25 @@ class AzureNormalizer:
 
         # Resources that run as an identity. The first hop of the path. A web
         # app is a workload exactly as a machine is, and a taken app acts as its
-        # identity the same way.
+        # identity the same way -- as every identity it has, system-assigned
+        # and user-assigned alike.
         for vm in workloads:
-            identity = vm.get("identity") or {}
-            principal_id = identity.get("principalId")
-            if not principal_id or not vm.get("id"):
+            if not vm.get("id"):
                 continue
-            principal_node = _principal_node(principal_id, known)
-            if principal_node not in known and principal_node not in nodes:
-                nodes[principal_node] = CloudResource(
-                    provider_resource_id=principal_node,
-                    resource_type=ResourceType.SERVICE_PRINCIPAL,
-                    name=system_assigned.get(principal_id, "Managed identity"),
-                    provider=Provider.AZURE,
-                    metadata={
-                        "principal_id": principal_id,
-                        "principal_type": "ManagedIdentity",
-                    },
-                )
-            edges.append((vm["id"], RelationshipType.HAS_IDENTITY, principal_node))
+            for principal_id, _name in _workload_identities(vm):
+                principal_node = _principal_node(principal_id, known)
+                if principal_node not in known and principal_node not in nodes:
+                    nodes[principal_node] = CloudResource(
+                        provider_resource_id=principal_node,
+                        resource_type=ResourceType.SERVICE_PRINCIPAL,
+                        name=identity_names.get(principal_id, "Managed identity"),
+                        provider=Provider.AZURE,
+                        metadata={
+                            "principal_id": principal_id,
+                            "principal_type": "ManagedIdentity",
+                        },
+                    )
+                edges.append((vm["id"], RelationshipType.HAS_IDENTITY, principal_node))
 
         return list(nodes.values()), edges
 
@@ -1150,10 +1243,12 @@ class AzureNormalizer:
 
             vm_public_ips: list[str] = []
             guarding_nsgs: set[str] = set()
+            subnets: set[str] = set()
+            private_ips: list[str] = []
             resolved_any_nic = False
 
             for nic_id in attached_nic_ids:
-                nic = nics.get(nic_id)
+                nic = nics.get(str(nic_id).lower())
                 if nic is None:
                     continue
                 resolved_any_nic = True
@@ -1172,9 +1267,16 @@ class AzureNormalizer:
                     if subnet_nsg:
                         guarding_nsgs.add(subnet_nsg)
 
+                    subnet_id = _first(ip_props, "subnet", "id")
+                    if subnet_id:
+                        subnets.add(str(subnet_id))
+                    private_ip = ip_props.get("privateIPAddress")
+                    if private_ip:
+                        private_ips.append(str(private_ip))
+
                     pip_id = _first(ip_props, "publicIPAddress", "id")
                     if pip_id:
-                        pip = public_ips.get(pip_id)
+                        pip = public_ips.get(str(pip_id).lower())
                         address = _first(pip or {}, "properties", "ipAddress")
                         vm_public_ips.append(address or pip_id)
 
@@ -1212,6 +1314,11 @@ class AzureNormalizer:
                         "vm_size": _first(props, "hardwareProfile", "vmSize"),
                         "network_interfaces": attached_nic_ids,
                         "guarding_nsgs": sorted(guarding_nsgs),
+                        # Where the machine sits on its network, for working
+                        # out which machines it can reach
+                        # (``connectors/azure/network.py``).
+                        "subnets": sorted(subnets),
+                        "private_ips": private_ips,
                         "tags": vm.get("tags") or {},
                     },
                 )

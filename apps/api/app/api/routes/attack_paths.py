@@ -8,6 +8,8 @@ few hops separate the internet from customer data, and name the one change that
 severs it.
 """
 
+from collections import Counter
+
 from fastapi import APIRouter, Query
 
 from app.core.deps import DbSession, Tenant
@@ -24,6 +26,10 @@ router = APIRouter(prefix="/attack-paths", tags=["attack-paths"])
 # Routes returned with a neighbourhood. Each is a line in a list beside the
 # canvas, and past this many the list stops being read.
 ROUTE_LIMIT = 20
+
+# Ways in explained on an empty page. Past this many the rest are counted: an
+# estate's accounts are all entry points, and the machines sort first.
+DEAD_END_LIMIT = 25
 
 # Folds one request may ask to open. Each is an id of a few hundred characters
 # in the query string, and the node cap bounds the drawing long before this.
@@ -44,19 +50,40 @@ async def list_attack_paths(
     """
     graph = await graph_service.load_graph(session, tenant.organization_id)
     paths = graph.attack_paths()
+    entries = graph.entry_points()
+    targets = graph.sensitive_targets()
 
-    return envelope(
-        [serialize_path(path) for path in paths[:limit]],
-        {
-            "total": len(paths),
-            # Both counts are the honest denominator for an empty answer. No
-            # paths because nothing is exposed is a different thing from no
-            # paths because nothing was classified as sensitive, and a customer
-            # reading "0" deserves to know which.
-            "entry_points": len(graph.entry_points()),
-            "sensitive_targets": len(graph.sensitive_targets()),
-        },
-    )
+    meta: dict = {
+        "total": len(paths),
+        # Both counts are the honest denominator for an empty answer. No
+        # paths because nothing is exposed is a different thing from no
+        # paths because nothing was classified as sensitive, and a customer
+        # reading "0" deserves to know which.
+        "entry_points": len(entries),
+        "sensitive_targets": len(targets),
+        # And what they are. Every directory account is an entry point and
+        # every administrator a sensitive one, so a tenant with one admin
+        # showed both counts above zero -- and "CloudGuard found exposed and
+        # sensitive assets" read as a statement about the machines when it
+        # was about the people (DECISIONS.md section 119).
+        "entry_point_types": dict(Counter(r.resource_type.value for r in entries)),
+        "sensitive_target_types": dict(Counter(r.resource_type.value for r in targets)),
+    }
+    if not paths and entries and targets:
+        # Where each way in stops. Only when there is no route, which is the
+        # one time the page has nothing else to say.
+        ends = graph.dead_ends()
+        ids = await graph_service.asset_ids(
+            session,
+            tenant.organization_id,
+            [end.entry.provider_resource_id for end in ends[:DEAD_END_LIMIT]],
+        )
+        meta["dead_ends"] = [
+            graph_service.serialize_dead_end(end, ids) for end in ends[:DEAD_END_LIMIT]
+        ]
+        meta["dead_ends_total"] = len(ends)
+
+    return envelope([serialize_path(path) for path in paths[:limit]], meta)
 
 
 @router.get("/choke-points")

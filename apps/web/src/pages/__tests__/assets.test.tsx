@@ -47,6 +47,7 @@ let requested: string[] = [];
 function mount(
   assets: object[] = [ASSET],
   meta: Record<string, unknown> = { total: 40 },
+  path = "/assets",
 ) {
   requested = [];
   vi.stubGlobal(
@@ -70,7 +71,7 @@ function mount(
   });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={["/assets"]}>
+      <MemoryRouter initialEntries={[path]}>
         <AssetsPage />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -175,11 +176,24 @@ describe("the assets page", () => {
     await user.click(screen.getByRole("combobox", { name: "Filter by type" }));
     const types = (await screen.findAllByRole("option")).map((o) => o.textContent);
     expect(types.some((label) => /virtual machine/i.test(label ?? ""))).toBe(true);
-    await user.keyboard("{Escape}");
+  });
 
-    await user.click(screen.getByRole("combobox", { name: "Filter by environment" }));
-    const environments = (await screen.findAllByRole("option")).map((o) => o.textContent);
-    expect(environments).toContain("Staging");
+  it("shows a region set by a link as a chip, and drops it on clear", async () => {
+    /** Region and environment are not menus any more, but the dashboard's
+     * region map still drills in with `?region=`. The list has to say it is
+     * narrowed, and let it be undone. */
+    const user = userEvent.setup();
+    mount([ASSET], { total: 1 }, "/assets?region=westeurope");
+    await screen.findByText("payroll");
+
+    expect(screen.queryByRole("combobox", { name: "Filter by region" })).toBeNull();
+    expect(screen.queryByRole("combobox", { name: "Filter by environment" })).toBeNull();
+    expect(requested.some((url) => url.includes("region=westeurope"))).toBe(true);
+
+    await user.click(screen.getByRole("button", { name: "Clear region filter" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Clear region filter" })).toBeNull(),
+    );
   });
 
   it("keeps the order the API sent rather than re-sorting the page", async () => {

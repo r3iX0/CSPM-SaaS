@@ -21,7 +21,7 @@ import { MemoryRouter } from "react-router-dom";
 
 import { AttackPathsPage } from "../AttackPaths";
 import { api } from "@/lib/api";
-import type { AttackPath, ChokePoint, Risk } from "@/lib/types";
+import type { AttackPath, AttackPathMeta, ChokePoint, Risk } from "@/lib/types";
 
 const PATH: AttackPath = {
   entry: {
@@ -81,7 +81,7 @@ const PATH: AttackPath = {
 
 function mount(
   paths: AttackPath[],
-  meta: Record<string, number>,
+  meta: Partial<AttackPathMeta> & { total: number },
   chokes: ChokePoint[] = [],
   risks: Partial<Risk>[] = [],
 ) {
@@ -201,6 +201,55 @@ describe("AttackPathsPage", () => {
         screen.getByText("Nothing exposed can reach anything sensitive"),
       ).toBeInTheDocument(),
     );
+  });
+
+  it("says where each way in stops, and which assets the counts are", async () => {
+    // A tenant whose only sensitive assets are its administrators meets the
+    // "nothing reaches anything sensitive" condition with no machine in it.
+    // The page has to say that, and say why each open machine leads nowhere.
+    mount([], {
+      total: 0,
+      entry_points: 3,
+      sensitive_targets: 1,
+      entry_point_types: { virtual_machine: 2, user: 1 },
+      sensitive_target_types: { user: 1 },
+      dead_ends: [
+        {
+          id: "/vm/web",
+          asset_id: "a-1",
+          name: "vm-web",
+          resource_type: "virtual_machine",
+          public_exposure: "HIGH",
+          reason: "reaches_nothing",
+          reached: 0,
+        },
+        {
+          id: "/vm/api",
+          asset_id: null,
+          name: "vm-api",
+          resource_type: "virtual_machine",
+          public_exposure: "HIGH",
+          reason: "identity_without_role",
+          reached: 1,
+        },
+      ],
+      dead_ends_total: 3,
+    });
+
+    await waitFor(() =>
+      expect(screen.getByText("Where each way in stops")).toBeInTheDocument(),
+    );
+    expect(screen.getByRole("link", { name: "vm-web" })).toHaveAttribute("href", "/assets/a-1");
+    expect(
+      screen.getByText("Runs as no identity, and no other machine on its network lets it in."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Runs as an identity that holds no role over anything CloudGuard scanned.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/The only assets classified as sensitive are accounts/)).toBeInTheDocument();
+    expect(screen.getByText("and 1 more")).toBeInTheDocument();
   });
 
   it("leads with the one change that closes the most routes", async () => {

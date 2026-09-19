@@ -3,10 +3,11 @@ import { Link } from "react-router-dom";
 import { RadarIcon, RouteIcon, ScissorsIcon } from "lucide-react";
 
 import { api } from "@/lib/api";
-import type { AttackPath, AttackPathMeta, ChokePoint, Risk } from "@/lib/types";
+import type { AttackPath, AttackPathMeta, ChokePoint, DeadEnd, Risk } from "@/lib/types";
 import { useT } from "@/i18n";
 import { StatStrip } from "@/components/common/StatStrip";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
+import { ResourceTypeLabel } from "@/components/security/IconLabel";
 import { AttackPathRoute } from "@/components/graph/AttackPathRoute";
 import { OpenInGraph } from "@/components/graph/OpenInGraph";
 import { routeKey, routeKeyOf } from "@/components/graph/routeKeys";
@@ -237,11 +238,104 @@ function NothingFound({ meta }: { meta: AttackPathMeta }) {
     );
   }
   return (
-    <EmptyState
-      icon={RouteIcon}
-      title={t.attackPaths.emptyNoPaths}
-      detail={t.attackPaths.emptyNoPathsDetail}
-    />
+    <div className="flex flex-col gap-4">
+      <EmptyState
+        icon={RouteIcon}
+        title={t.attackPaths.emptyNoPaths}
+        detail={t.attackPaths.emptyNoPathsDetail}
+      />
+      <DeadEnds meta={meta} />
+    </div>
+  );
+}
+
+const IDENTITY_TYPES = new Set(["user", "service_principal"]);
+
+/**
+ * Why there is no route, one way in at a time.
+ *
+ * "Nothing exposed can reach anything sensitive" alone is a verdict nobody can
+ * check, and it was often a statement about people: every directory account is
+ * an entry point and every administrator a sensitive one, so a tenant with one
+ * admin met the condition with no machine in it (DECISIONS.md §119). The counts
+ * by type say which assets the verdict is about; each way in then says where it
+ * stops, which is something a person can look at and disagree with.
+ */
+function DeadEnds({ meta }: { meta: AttackPathMeta }) {
+  const t = useT();
+  const ends = meta.dead_ends ?? [];
+  const sensitive = Object.keys(meta.sensitive_target_types ?? {});
+  const onlyAccounts =
+    sensitive.length > 0 && sensitive.every((type) => IDENTITY_TYPES.has(type));
+  const more = (meta.dead_ends_total ?? ends.length) - ends.length;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm">{t.attackPaths.deadEndsTitle}</CardTitle>
+        <div className="mt-1.5 flex flex-col gap-1.5 text-xs text-muted-foreground">
+          <TypeCounts label={t.attackPaths.exposedCount} counts={meta.entry_point_types} />
+          <TypeCounts label={t.attackPaths.sensitiveCount} counts={meta.sensitive_target_types} />
+        </div>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        {onlyAccounts && (
+          <Alert>
+            <AlertDescription>{t.attackPaths.onlyAccountsSensitive}</AlertDescription>
+          </Alert>
+        )}
+        <ul className="divide-y">
+          {ends.map((end) => (
+            <li key={end.id} className="flex flex-col gap-0.5 py-2 first:pt-0 last:pb-0">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                {end.asset_id ? (
+                  <Link
+                    to={`/assets/${end.asset_id}`}
+                    className="text-sm font-medium underline-offset-4 hover:underline"
+                  >
+                    {end.name}
+                  </Link>
+                ) : (
+                  <span className="text-sm font-medium">{end.name}</span>
+                )}
+                <ResourceTypeLabel type={end.resource_type} className="text-xs text-muted-foreground" />
+              </div>
+              <p className="text-xs text-muted-foreground">{deadEndReason(t, end)}</p>
+            </li>
+          ))}
+        </ul>
+        {more > 0 && (
+          <p className="text-xs text-muted-foreground">{t.attackPaths.deadEndsMore(more)}</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function deadEndReason(t: ReturnType<typeof useT>, end: DeadEnd): string {
+  switch (end.reason) {
+    case "reaches_nothing":
+      return t.attackPaths.deadEndReachesNothing(end.resource_type);
+    case "identity_without_role":
+      return t.attackPaths.deadEndIdentityWithoutRole;
+    case "nothing_sensitive":
+      return t.attackPaths.deadEndNothingSensitive(end.reached);
+  }
+}
+
+function TypeCounts({ label, counts }: { label: string; counts?: Record<string, number> }) {
+  const entries = Object.entries(counts ?? {}).sort((a, b) => b[1] - a[1]);
+  if (entries.length === 0) return null;
+  return (
+    <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      <span className="font-medium text-foreground">{label}</span>
+      {entries.map(([type, count]) => (
+        <span key={type} className="flex items-center gap-1">
+          <ResourceTypeLabel type={type} />
+          <span className="tabular-nums">{count}</span>
+        </span>
+      ))}
+    </p>
   );
 }
 

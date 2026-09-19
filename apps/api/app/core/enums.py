@@ -582,6 +582,12 @@ class RelationshipType(StrEnum):
     # claim about the same pair: the first says what the principal may do now,
     # the second says the ceiling is whatever it decides to give itself.
     CAN_GRANT_ROLES = "can_grant_roles"
+    # This machine can open a connection to that one across the virtual
+    # network they share: nothing on either side's network security groups
+    # stops it. The hop that turns a foothold on one box into a foothold on
+    # the box beside it -- which may be the one running as an identity
+    # (DECISIONS.md section 119).
+    NETWORK_ACCESS = "network_access"
 
     @property
     def is_capability(self) -> bool:
@@ -596,4 +602,5 @@ class RelationshipType(StrEnum):
             RelationshipType.GRANTS_ROLE,
             RelationshipType.CAN_GRANT_ROLES,
             RelationshipType.CONTAINS,
+            RelationshipType.NETWORK_ACCESS,
         }
