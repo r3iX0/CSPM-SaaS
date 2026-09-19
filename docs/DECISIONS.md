@@ -5860,7 +5860,10 @@ id sat in grey type in a card footer with nothing to copy it with.
   Connections is opened, and the extra click is gone. A long single page could
   not express "only when asked" without a button. A link carrying `?around=`
   or `?trace=` came for the graph (the map's asset boxes and a finding's route
-  both send one), so it opens on Connections.
+  both send one), so it opens on Connections. The tabs are underlined, span the page, and
+  each carries an icon (`ASSET_TAB_ICONS`), with the open-findings count in a
+  neutral chip. They were first a segmented pill, which reads as a filter on
+  the panel below rather than as a switch between sections of the page.
 * **Open findings first, and two different empty states.** Closed findings
   (resolved, accepted, false positive) are one press away, and the switch
   appears only when there are any. With nothing open, a modelled resource type

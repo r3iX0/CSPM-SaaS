@@ -2,6 +2,7 @@ import {
   AppWindowIcon,
   BotIcon,
   BoxIcon,
+  BracesIcon,
   BrickWallIcon,
   BriefcaseBusinessIcon,
   BugIcon,
@@ -185,3 +186,14 @@ export const RISK_KIND_ICONS: Record<string, LucideIcon> = {
   ATTACK_PATH: RouteIcon,
   ESCALATION: TrendingUpIcon,
 };
+
+/**
+ * The asset page's tabs (DECISIONS.md §112). Findings and Connections reuse
+ * the glyphs those things carry everywhere else -- a finding, the graph -- so
+ * a tab looks like what it opens.
+ */
+export const ASSET_TAB_ICONS = {
+  findings: ShieldAlertIcon,
+  connections: WorkflowIcon,
+  configuration: BracesIcon,
+} as const;

@@ -10,7 +10,7 @@ import { StatusPill } from "@/components/security/StatusPill";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { ScoreTile } from "@/components/security/ScoreTile";
 import { cn, formatDate, formatDateTime, formatRelative } from "@/lib/format";
-import { FACT_ICONS, FACTOR_ICONS, resourceTypeIcon } from "@/lib/icons";
+import { ASSET_TAB_ICONS, FACT_ICONS, FACTOR_ICONS, resourceTypeIcon } from "@/lib/icons";
 import { portalUrl } from "@/lib/portal";
 import { IconLabel, ResourceTypeLabel } from "@/components/security/IconLabel";
 import { Breadcrumbs, DetailSkeleton, ErrorState } from "@/components/common/states";
@@ -164,13 +164,23 @@ export function AssetDetailPage() {
       <Summary asset={data} open={open} openCount={openCount} />
 
       <Tabs value={tab} onValueChange={(value) => selectTab(value as Tab)}>
-        <TabsList>
-          <TabsTrigger value="findings">
+        {/* Underlined tabs across the page rather than a segmented pill:
+            these switch between sections of one page, and a pill control
+            reads as a filter on the section below it. Every tab carries an
+            icon, so none looks like the odd one out. */}
+        <TabsList
+          variant="line"
+          className="h-auto w-full justify-start gap-6 rounded-none border-b border-border p-0"
+        >
+          <PageTab value="findings" icon={ASSET_TAB_ICONS.findings} count={openCount}>
             Findings
-            <span className="tabular-nums text-muted-foreground">{openCount}</span>
-          </TabsTrigger>
-          <TabsTrigger value="connections">Connections</TabsTrigger>
-          <TabsTrigger value="configuration">Configuration</TabsTrigger>
+          </PageTab>
+          <PageTab value="connections" icon={ASSET_TAB_ICONS.connections}>
+            Connections
+          </PageTab>
+          <PageTab value="configuration" icon={ASSET_TAB_ICONS.configuration}>
+            Configuration
+          </PageTab>
         </TabsList>
 
         <TabsContent value="findings" className="pt-2">
@@ -206,6 +216,38 @@ export function AssetDetailPage() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+/**
+ * One section tab: icon, name, and a count where the section has one. The
+ * count is a neutral chip rather than a severity colour -- it is how many,
+ * not how bad; the summary strip says how bad.
+ */
+function PageTab({
+  value,
+  icon,
+  count,
+  children,
+}: {
+  value: Tab;
+  icon: LucideIcon;
+  count?: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <TabsTrigger
+      value={value}
+      className="h-auto flex-none gap-2 px-0.5 pt-1 pb-2.5 group-data-[orientation=horizontal]/tabs:after:bottom-[-1px]"
+    >
+      {createElement(icon, { "aria-hidden": true })}
+      {children}
+      {count !== undefined && (
+        <span className="min-w-5 rounded-full bg-muted px-1.5 text-center text-xs font-medium tabular-nums text-muted-foreground">
+          {count}
+        </span>
+      )}
+    </TabsTrigger>
   );
 }
 
