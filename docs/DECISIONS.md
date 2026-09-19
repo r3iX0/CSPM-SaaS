@@ -6085,6 +6085,33 @@ When the window closes, the reason is shown unchanged. A registration with no
 application permissions never publishes a lookup that works, so after three
 minutes the fault is shown for what it is (§114).
 
+## 116. The demo seed replays through the pipeline the scanner has now
+
+**The shared demo showed an empty estate** -- score 100, every count zero, "one
+scan so far". Nothing was wrong with the recording or the rules. The seed's
+`ReplayConnector` had stopped matching the connector seam twice over. The
+pipeline began passing a `CollectionPlan` to `collect` (§ "Decide what a scan
+collects before it collects it"), and the replay's `collect(on_progress)` took
+no plan, so every COLLECT raised a `TypeError`. And a capture became a manifest
+of payload hashes that ANALYZE rebuilds from `snapshot.payloads`; the replay
+handed over `data` and no payloads, so even a collect that ran stored a
+manifest naming nothing. The directory half fails soft by design, the account
+half left an estate with no readings, and the rules judged nothing and passed.
+
+The integration suite's replay had been kept up with both changes; the seed's
+had not, because nothing ran it. So the seed's replay now takes the plan and
+ignores it (a recording has nothing to narrow), builds one payload per coverage
+entry -- `authentication_methods` folded into `user_role_map`, as the real
+task produces it -- and answers `baseline_evidence` and `evidence_keys_in` with
+the provider's own answers rather than the base class's empty ones. A unit test
+calls it the way `collection.py` does and rebuilds its capture the way ANALYZE
+does, and holds that the rebuild adds back up to the recording, so the next
+change to the seam fails a test rather than the demo.
+
+The demo already built in production is still the empty one: rerun
+`demo_environment.py --shared` on the API service after deploying. It keeps
+the organization id and its members.
+
 ## Open items carried forward
 
 **Data residency is not built (§113).** An organization setting for allowed

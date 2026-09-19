@@ -164,3 +164,45 @@ def test_the_seed_replays_this_recording_and_its_fixes_still_apply() -> None:
         server["properties"]["publicNetworkAccess"] == "Disabled"
         for server in fixed["data"]["sql_servers"]
     )
+
+
+async def test_the_seed_replay_answers_the_pipeline_and_its_capture_adds_back_up() -> None:
+    """The seed's replay must survive what the pipeline actually asks of it.
+
+    It drifted once: the pipeline began passing a collection plan and storing a
+    capture as a manifest of payload hashes, the replay took no plan and
+    produced no payloads, and the shared demo was analyzed as an empty estate --
+    score 100, no findings. So this calls it the way ``collection.py`` does and
+    rebuilds the capture the way ANALYZE does.
+    """
+    from types import SimpleNamespace
+
+    from app.connectors.azure.connector import AzureConnector
+    from app.core.payloads import digest
+    from app.services.scan.capture import manifest, rebuild_capture
+
+    seed = load(
+        "demo_environment",
+        pathlib.Path(__file__).resolve().parents[4] / "database" / "seed" / "demo_environment.py",
+    )
+    payload = json.loads((RAW / "snapshot_demo.json").read_text())
+    replay = seed.ReplayConnector(payload)
+
+    assert replay.baseline_evidence() == AzureConnector.baseline_evidence()
+
+    async def heartbeat(done: int, total: int) -> None:
+        return None
+
+    rebuilt: dict = {}
+    for snapshot in (
+        await replay.collect(heartbeat, None),
+        await replay.collect_directory(heartbeat, None),
+    ):
+        held = {digest(p)[0]: p for p in snapshot.payloads.values()}
+        row = SimpleNamespace(manifest=manifest(snapshot), data=None)
+        capture = await rebuild_capture(None, None, row, held)  # type: ignore[arg-type]
+        assert capture["data"] == snapshot.data
+        assert set(snapshot.coverage) <= set(snapshot.payloads)
+        rebuilt.update(capture["data"])
+
+    assert rebuilt == payload["data"]

@@ -51,10 +51,10 @@ sys.path.insert(0, "/srv/apps/api")
 from sqlalchemy import text
 
 from app.connectors.aws.normalizer import AwsNormalizer
-from app.connectors.azure.evidence import keys_in
 from app.connectors.azure.normalizer import AzureNormalizer
 from app.connectors.base import CloudConnector, NormalizedState, RawSnapshot
 from app.connectors.evidence import EvidenceCategory
+from app.connectors.registry import get_connector_class
 from app.core.config import settings
 from app.core.db import service_session
 from app.core.enums import (
@@ -83,6 +83,12 @@ SNAPSHOTS = {
 DEMO_ORG = "Banka Kombetare (demo)"
 
 NORMALIZERS = {Provider.AZURE: AzureNormalizer, Provider.AWS: AwsNormalizer}
+
+# Which payload keys a reading owns beyond its own name. A real task returns its
+# own output; the recording is one merged blob, so the replay has to say how to
+# cut it up again. The directory's role-map task also reads the users'
+# authentication methods, and has no task of its own for them.
+OWNED_PAYLOAD_KEYS = {"user_role_map": ("user_role_map", "authentication_methods")}
 
 
 # The recording is one file, but a scan reads two scopes: the account and the
@@ -114,14 +120,34 @@ class ReplayConnector(CloudConnector):
         self.provider = Provider(payload["provider"])
         self._normalizer = NORMALIZERS[self.provider]()
         self._directory_keys = DIRECTORY_KEYS[self.provider]
+        self._real = get_connector_class(self.provider)
 
     async def validate_connection(self):
         raise NotImplementedError
 
-    async def collect(self, on_progress=None) -> RawSnapshot:
+    # The provider's own answers, not the base class's empty ones. The pipeline
+    # asks the connector it was handed which keys to plan and which a category
+    # error degrades; a replay that answered "none" would plan a scan that
+    # collects nothing the product is built from.
+    def baseline_evidence(self):
+        return self._real.baseline_evidence()
+
+    def evidence_keys_in(self, category: EvidenceCategory):
+        return self._real.evidence_keys_in(category)
+
+    # The plan is accepted and ignored: a recording has already been collected,
+    # so there is nothing to narrow and nothing to carry. What the replay must
+    # do is take the argument, because the pipeline passes one to every
+    # connector -- without it every COLLECT failed on a TypeError and the demo
+    # was analyzed as an empty estate.
+    async def collect(self, on_progress=None, plan=None) -> RawSnapshot:
+        if on_progress:
+            await on_progress(1, 1)
         return self._slice(directory=False)
 
-    async def collect_directory(self, on_progress=None) -> RawSnapshot:
+    async def collect_directory(self, on_progress=None, plan=None) -> RawSnapshot:
+        if on_progress:
+            await on_progress(1, 1)
         return self._slice(directory=True)
 
     def _slice(self, *, directory: bool) -> RawSnapshot:
@@ -131,6 +157,16 @@ class ReplayConnector(CloudConnector):
         per-subscription read, which is the shape that produced one asset per
         subscription for every user in the tenant.
         """
+        data = {
+            key: copy.deepcopy(value)
+            for key, value in self.payload["data"].items()
+            if (key in self._directory_keys) is directory
+        }
+        coverage = {
+            key: dict(entry)
+            for key, entry in (self.payload.get("coverage") or {}).items()
+            if (entry.get("category") == "identity") is directory
+        }
         return RawSnapshot(
             provider=self.provider,
             tenant_id=self.payload["tenant_id"],
@@ -141,11 +177,9 @@ class ReplayConnector(CloudConnector):
                 CollectionScope.DIRECTORY if directory else CollectionScope.ACCOUNT
             ),
             version=self.payload["version"],
-            data={
-                key: copy.deepcopy(value)
-                for key, value in self.payload["data"].items()
-                if (key in self._directory_keys) is directory
-            },
+            data=data,
+            coverage=coverage,
+            payloads=self._payloads(data, coverage),
             errors={
                 category: reason
                 for category, reason in self.payload["errors"].items()
@@ -159,23 +193,31 @@ class ReplayConnector(CloudConnector):
                 key.value: reason
                 for category, reason in self.payload["errors"].items()
                 if (category == "identity") is directory
-                for key in self._keys_in(EvidenceCategory(category))
+                for key in self.evidence_keys_in(EvidenceCategory(category))
             },
         )
 
-    def _keys_in(self, category: EvidenceCategory):
-        """Which evidence keys a recorded category error should degrade.
+    def _payloads(self, data: dict, coverage: dict) -> dict[str, dict]:
+        """The recording cut back into the readings a real run records.
 
-        Asked of the provider rather than of Azure's enum. A recorded error is
-        stored per category and the rules degrade per key, so getting this wrong
-        would show a degraded banner over rules that passed regardless -- the
-        contradiction the coverage ledger exists to prevent.
+        The pipeline no longer stores ``data``: a capture is a manifest of
+        payload hashes, and ANALYZE rebuilds the estate by merging the payloads
+        those hashes name. A replay that handed over data and no payloads stored
+        a manifest naming nothing, and every rule then judged an empty estate --
+        score 100, no findings, a demo with nothing in it.
+
+        One payload per coverage entry, owning its data keys; any data key no
+        entry names (a recording without coverage, or a key a task reads beside
+        its own, like ``authentication_methods``) is folded into its owner or
+        kept as a reading of its own, so the rebuild adds back up to ``data``.
         """
-        if self.provider is Provider.AZURE:
-            return keys_in(category)
-        from app.connectors.aws.evidence import keys_in as aws_keys_in
-
-        return aws_keys_in(category)
+        payloads = {key: {key: data[key]} for key in coverage if key in data}
+        for key, value in data.items():
+            owner = next(
+                (k for k, owned in OWNED_PAYLOAD_KEYS.items() if key in owned), key
+            )
+            payloads.setdefault(owner, {})[key] = value
+        return payloads
 
     def normalize(self, snapshot: RawSnapshot) -> NormalizedState:
         return self._normalizer.normalize(snapshot)
