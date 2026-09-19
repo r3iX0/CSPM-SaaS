@@ -351,6 +351,58 @@ def test_an_html_body_is_logged_as_the_sentence_it_contains() -> None:
     assert "  " not in failure["detail"]
 
 
+# Front Door's block page, as Railway received it from management.azure.com:
+# a stylesheet first, then the sentence, then the references support asks for.
+FRONT_DOOR_BLOCK = (
+    "<!DOCTYPE html><html><head><title>Error</title><style type='text/css'>"
+    "body { font-family:Arial; margin-left:40px; }img { border:0 none; }"
+    "#content { margin-left: auto; margin-right: auto }"
+    "#message h2 { font-size: 20px; font-weight: normal; color: #000000; "
+    "margin: 34px 0px 0px 0px }#message p { font-size: 13px; color: #000000; "
+    "margin: 7px 0px 0px 0px }#errorref { font-size: 11px; color: #737373; "
+    "margin-top: 41px }</style></head><body><div id='content'><div id='message'>"
+    "<h2>The request is blocked.</h2></div><div id='errorref'><span>"
+    "20260919T182450Z-17d8f4c6b8dxk9tphC1LONnkx40000000ff0000000000a1b2"
+    "</span></div></div></body></html>"
+)
+
+
+def test_a_block_page_logs_its_reference_not_its_stylesheet() -> None:
+    """Stripping tags kept the CSS between them, which used most of the detail
+    limit and cut the reference off -- the one string Microsoft support needs."""
+    (failure,) = logs_from(403, text=FRONT_DOOR_BLOCK)
+
+    assert "font-family" not in failure["detail"]
+    assert "The request is blocked." in failure["detail"]
+    assert "20260919T182450Z-17d8f4c6b8dxk9tphC1LONnkx40000000ff0000000000a1b2" in (
+        failure["detail"]
+    )
+    assert failure["edge_blocked"] is True
+
+
+def test_an_authorization_403_is_not_logged_as_an_edge_block() -> None:
+    (failure,) = logs_from(
+        403, {"error": {"code": "AuthorizationFailed", "message": "does not have access"}}
+    )
+    assert failure["edge_blocked"] is False
+
+
+async def test_an_edge_block_is_not_blamed_on_the_role() -> None:
+    """The failure that prompted this: every ARM call from Railway was refused by
+    Front Door, and each one told the customer to go and check IAM -- where the
+    role they had just deployed was sitting, correctly assigned."""
+    for client_cls in (ArmClient, GraphClient):
+        error = await error_from(client_cls, 403, text=FRONT_DOOR_BLOCK)
+        message = str(error)
+
+        assert "network edge" in message
+        assert "not a permission problem" in message
+        assert "Access control (IAM)" not in message
+        assert "Enterprise applications" not in message
+        assert "The request is blocked." in message
+        assert error.azure_status_code == 403
+
+
 def test_a_long_body_cannot_fill_the_log() -> None:
     """A poll runs every five seconds for as long as a setup is unfinished."""
     (failure,) = logs_from(500, text="<p>" + ("x" * 5000) + "</p>")

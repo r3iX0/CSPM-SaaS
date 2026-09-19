@@ -6112,6 +6112,40 @@ The demo already built in production is still the empty one: rerun
 `demo_environment.py --shared` on the API service after deploying. It keeps
 the organization id and its members.
 
+## 117. A 403 from Azure's front door is not blamed on the role
+
+**A staging connection sat on "Waiting for the read access grant" for ten
+minutes** with the scanner role deployed. Every `GET /subscriptions` from
+Railway came back 403 with an HTML page, "The request is blocked", which is
+Azure Front Door refusing the call before ARM sees it. ARM itself never answers
+that listing with 403 when a role is missing: it answers 200 with an empty
+list, which the probe already reports as `no_subscriptions_readable`. Graph
+calls from the same service were succeeding the whole time. The block was
+about where the requests came from. Nothing was wrong with what CloudGuard
+had been granted.
+
+Two things made this slow to see, and both are fixed in `client.py`.
+
+Every 403 raised the surface's access-denied hint, so the log and any
+collection error said "the scanner role is not assigned" and sent the reader
+to IAM, where the role sat correctly assigned. A 403 whose body is Front
+Door's block page now raises its own message: blocked at Microsoft's network
+edge, not a permission problem, quote the reference to Microsoft support or
+send the calls from another address. `azure.request_failed` carries
+`edge_blocked` so the logs can be filtered on it. The match is the page's
+wording, not "any HTML": other gateways answer in HTML for other reasons, and
+an unrecognised HTML 403 keeps the role hint (§91's test still holds).
+
+The detail lost the block reference. §91 reduced markup to its text, but text
+between `<style>` tags is still text, and Front Door's page opens with about
+300 characters of CSS. That filled the 400-character limit and cut the "Ref A"
+off partway through, and Ref A is the string Microsoft support asks for.
+Stylesheets and scripts are now dropped before tags are stripped.
+
+The fix does not unblock anything. If the block persists, the deployment
+needs a different outbound address (Railway's static egress IPs, or another
+region) or a ticket with Microsoft quoting the references.
+
 ## Open items carried forward
 
 **Data residency is not built (§113).** An organization setting for allowed

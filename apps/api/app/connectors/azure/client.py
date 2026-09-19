@@ -128,6 +128,23 @@ class AzureApiError(CloudConnectionError):
 # needs. Reduced rather than dropped: an HTML body is itself the evidence that
 # something other than the API answered.
 _TAGS = re.compile(r"<[^>]+>")
+# Stylesheets and scripts are text between tags, so stripping tags alone kept
+# them -- and Front Door's block page opens with 300 characters of CSS, which
+# filled the detail limit before the reference Microsoft support asks for.
+_NON_TEXT = re.compile(r"<(style|script)\b[^>]*>.*?</\1\s*>", re.IGNORECASE | re.DOTALL)
+
+# Azure Front Door's block page. ARM sits behind it, and it refuses a request
+# before ARM ever sees it -- a verdict about where the call came from, not
+# about what the caller holds. Matched on its wording rather than on "any HTML"
+# because other gateways answer in HTML for other reasons.
+_EDGE_BLOCK = re.compile(r"The request is blocked", re.IGNORECASE)
+EDGE_BLOCK_MESSAGE = (
+    "Blocked by Microsoft's network edge before the request reached Azure. "
+    "This is not a permission problem: the scanner role and admin consent are "
+    "never consulted for a request refused here. Azure's front door refused "
+    "calls from CloudGuard's outbound network address; quote the reference "
+    "below to Microsoft support, or send the calls from a different address."
+)
 
 # Long enough for Azure's longest authorization message and for the visible
 # text of an error page; short enough that a failing poll cannot fill a log.
@@ -166,7 +183,8 @@ def _registration_hint(detail: str, url: str) -> str:
 
 def _readable(body: str) -> str:
     """One line of whatever the provider sent, tags and padding removed."""
-    return " ".join(_TAGS.sub(" ", body or "").split())[:DETAIL_LIMIT]
+    text = _TAGS.sub(" ", _NON_TEXT.sub(" ", body or ""))
+    return " ".join(text.split())[:DETAIL_LIMIT]
 
 
 class _BaseClient:
@@ -257,6 +275,8 @@ class _BaseClient:
             )
             await asyncio.sleep(wait)
 
+        edge_blocked = response.status_code == 403 and bool(_EDGE_BLOCK.search(response.text))
+
         if response.status_code >= 400:
             # Logged here rather than left to the caller, because the callers
             # that matter cannot report it: ``probe`` answers ok/not-ok and
@@ -273,8 +293,15 @@ class _BaseClient:
                 request_id=response.headers.get("x-ms-request-id", ""),
                 correlation_id=response.headers.get("x-ms-correlation-request-id", ""),
                 detail=self._detail(response),
+                edge_blocked=edge_blocked,
             )
 
+        if edge_blocked:
+            # Before the generic 403, whose hint sends the customer to IAM --
+            # a blade that is correctly configured when this is the failure.
+            raise AzureApiError(
+                f"{EDGE_BLOCK_MESSAGE}{self._reported_detail(response)}", status_code=403
+            )
         if response.status_code == 403:
             raise AzureApiError(
                 f"Access denied. {self.access_denied_hint}"
