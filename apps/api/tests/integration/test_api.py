@@ -1257,6 +1257,161 @@ class TestAssetList:
         assert response.status_code == 200
         assert "total" in response.json()["meta"]
 
+    async def _estate(
+        self, org_id: uuid.UUID, assets: list[tuple[str, str, str | None, int]]
+    ) -> None:
+        """Several assets in one subscription: (name, type, environment, open findings)."""
+        from datetime import UTC, datetime
+
+        from app.core.db import service_session
+        from app.core.enums import (
+            CloudAccountStatus,
+            ConnectionScope,
+            ConsentStatus,
+            FindingStatus,
+            Level,
+            Provider,
+            ResourceType,
+            Severity,
+        )
+        from app.models.cloud_account import CloudAccount
+        from app.models.cloud_connection import CloudConnection
+        from app.models.finding import Finding
+        from app.models.resource import ResourceRecord
+
+        tenant_id = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+        subscription = "00000000-0000-0000-0000-000000000001"
+        now = datetime.now(UTC)
+        async with service_session() as session:
+            connection = CloudConnection(
+                organization_id=org_id,
+                provider=Provider.AZURE,
+                name="prod",
+                scope_type=ConnectionScope.TENANT_ROOT,
+                role_version="v2",
+                tenant_id=tenant_id,
+                consent_status=ConsentStatus.GRANTED,
+                rbac_verified_at=now,
+                status=CloudAccountStatus.ACTIVE,
+            )
+            session.add(connection)
+            await session.flush()
+            account = CloudAccount(
+                organization_id=org_id,
+                connection_id=connection.id,
+                provider=Provider.AZURE,
+                account_name="Production",
+                tenant_id=tenant_id,
+                subscription_id=subscription,
+                consent_status=ConsentStatus.GRANTED,
+                rbac_verified_at=now,
+                status=CloudAccountStatus.ACTIVE,
+            )
+            session.add(account)
+            await session.flush()
+
+            for name, resource_type, environment, open_count in assets:
+                resource = ResourceRecord(
+                    organization_id=org_id,
+                    cloud_account_id=account.id,
+                    connection_id=connection.id,
+                    provider=Provider.AZURE,
+                    provider_resource_id=(
+                        f"/subscriptions/{subscription}/resourceGroups/prod"
+                        f"/providers/Microsoft.Example/things/{name}"
+                    ),
+                    resource_type=ResourceType(resource_type),
+                    name=name,
+                    environment=environment,
+                    criticality=Level.MEDIUM,
+                    data_sensitivity=Level.MEDIUM,
+                    public_exposure=Level.LOW,
+                    first_seen_at=now,
+                    last_seen_at=now,
+                )
+                session.add(resource)
+                await session.flush()
+                session.add_all(
+                    Finding(
+                        organization_id=org_id,
+                        resource_id=resource.id,
+                        rule_id=f"AZ-TEST-{index:03d}",
+                        severity=Severity.MEDIUM,
+                        status=FindingStatus.OPEN,
+                        title=f"Finding {index} on {name}",
+                        description="",
+                        first_detected_at=now,
+                        last_detected_at=now,
+                    )
+                    for index in range(open_count)
+                )
+            await session.commit()
+
+    async def test_the_worst_asset_leads_the_first_page_wherever_its_name_sorts(
+        self, client, cleanup_orgs
+    ) -> None:
+        """Ordered by open findings in the database, not re-sorted per page.
+
+        `zeta` sorts last by name. When the API ordered by name and the page
+        re-sorted what it held, a one-row page showed `alpha` with nothing wrong
+        and `zeta`, the asset with work on it, sat on a later page.
+        """
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Queue Ltd"))
+        cleanup_orgs.append(org_id)
+        await self._estate(
+            org_id,
+            [
+                ("alpha", "storage_account", "prod", 0),
+                ("mid", "storage_account", "prod", 1),
+                ("zeta", "virtual_machine", "prod", 3),
+            ],
+        )
+
+        first = await client.get("/api/v1/assets?limit=1", headers=auth_header(user))
+        everything = await client.get("/api/v1/assets", headers=auth_header(user))
+
+        assert first.status_code == 200, first.text
+        assert [a["name"] for a in first.json()["data"]] == ["zeta"]
+        assert [a["name"] for a in everything.json()["data"]] == ["zeta", "mid", "alpha"]
+
+    async def test_the_filter_options_cover_the_whole_set_and_not_one_page(
+        self, client, cleanup_orgs
+    ) -> None:
+        """Facets are counted over every matching asset, each without its own filter.
+
+        A one-row page holds one type and one environment; the menus still have
+        to offer the rest. Filtering to one type narrows the environment counts
+        but leaves the other type selectable.
+        """
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Facet Ltd"))
+        cleanup_orgs.append(org_id)
+        await self._estate(
+            org_id,
+            [
+                ("a", "storage_account", "prod", 0),
+                ("b", "storage_account", "staging", 0),
+                ("c", "virtual_machine", "prod", 0),
+                ("d", "virtual_machine", None, 0),
+            ],
+        )
+
+        paged = await client.get("/api/v1/assets?limit=1", headers=auth_header(user))
+        narrowed = await client.get(
+            "/api/v1/assets?resource_type=virtual_machine", headers=auth_header(user)
+        )
+
+        assert paged.status_code == 200, paged.text
+        assert paged.json()["meta"]["facets"] == {
+            "resource_type": {"storage_account": 2, "virtual_machine": 2},
+            # An asset with no environment is not an option to filter to.
+            "environment": {"prod": 2, "staging": 1},
+        }
+        facets = narrowed.json()["meta"]["facets"]
+        assert facets["resource_type"] == {"storage_account": 2, "virtual_machine": 2}
+        assert facets["environment"] == {"prod": 1}
+
 
 class TestFindingSearchAndSort:
     """The two parameters a paginated list cannot do without.
@@ -2356,6 +2511,68 @@ class TestAssetNeighborhood:
 
         assert response.status_code == 404, response.text
 
+
+    async def test_the_estate_map_opens_down_to_the_assets(self, client, cleanup_orgs) -> None:
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Graph Ltd"))
+        cleanup_orgs.append(org_id)
+        await self._estate(org_id)
+        subscription = "00000000-0000-0000-0000-000000000001"
+
+        # The estate: one subscription, and the route inside it is counted.
+        response = await client.get("/api/v1/attack-paths/estate", headers=auth_header(user))
+        assert response.status_code == 200, response.text
+        body = response.json()
+        (box,) = body["data"]["boxes"]
+        assert box["id"] == f"scope:{subscription}"
+        # Named as the hierarchy names it: no display name, so the id.
+        assert box["name"] == subscription
+        assert (box["entry"], box["sensitive"]) == (1, 1)
+        assert box["findings"] == {"open": 1, "worst": "CRITICAL"}
+        assert body["meta"]["routes_total"] == 1
+
+        # The subscription: the identity sits directly in it, the rest in prod.
+        response = await client.get(
+            f"/api/v1/attack-paths/estate?subscription_id={subscription}",
+            headers=auth_header(user),
+        )
+        assert response.status_code == 200, response.text
+        edges = {
+            (e["source"], e["target"]): e for e in response.json()["data"]["edges"]
+        }
+        prod = f"group:{subscription}:prod"
+        identity = f"asset:{self.IDENTITY}"
+        assert edges[(prod, identity)]["links"][0]["relationship"] == "has_identity"
+        assert edges[(identity, prod)]["on_route"] is True
+
+        # The group, by the name in a link rather than as ARM spelled it.
+        response = await client.get(
+            f"/api/v1/attack-paths/estate?subscription_id={subscription}&resource_group=PROD",
+            headers=auth_header(user),
+        )
+        assert response.status_code == 200, response.text
+        boxes = {b["id"]: b for b in response.json()["data"]["boxes"]}
+        assert boxes[f"asset:{self.VM}"]["inside"] is True
+        assert boxes[f"asset:{self.VM}"]["asset_id"] is not None
+        assert boxes[f"group:{subscription}:"]["inside"] is False
+
+    async def test_an_estate_lens_on_nothing_is_not_found(self, client, cleanup_orgs) -> None:
+        owner, stranger = uuid.uuid4(), uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, owner, "Graph Ltd"))
+        cleanup_orgs.append(org_id)
+        cleanup_orgs.append(uuid.UUID(await make_org(client, stranger, "Elsewhere")))
+        await self._estate(org_id)
+
+        # Another organization's subscription is nothing, not somebody else's.
+        response = await client.get(
+            "/api/v1/attack-paths/estate?subscription_id=00000000-0000-0000-0000-000000000001",
+            headers=auth_header(stranger),
+        )
+        assert response.status_code == 404, response.text
+
+        response = await client.get("/api/v1/attack-paths/estate", headers=auth_header(stranger))
+        assert response.status_code == 200, response.text
+        assert response.json()["data"]["boxes"] == []
 
 class TestReports:
     """The report endpoints, over the real dependency chain.

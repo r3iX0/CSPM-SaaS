@@ -12,6 +12,7 @@
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -71,7 +72,7 @@ let requested: string[] = [];
 
 function mount(
   assets: object[] = [ASSET],
-  meta: Record<string, number> = { total: 40 },
+  meta: Record<string, unknown> = { total: 40 },
 ) {
   requested = [];
   vi.stubGlobal(
@@ -229,5 +230,42 @@ describe("the assets page", () => {
     expect(screen.queryByText(/no checks yet/)).not.toBeInTheDocument();
   });
 
+  it("offers every type in the filtered set, not only the ones on this page", async () => {
+    /** The menu used to be read off the fifty rows on screen, so a type that
+     * sorted onto page two could not be chosen. The API now counts the options
+     * over the whole set, and the page offers what it was told. */
+    const user = userEvent.setup();
+    mount([ASSET], {
+      total: 60,
+      facets: {
+        resource_type: { STORAGE_ACCOUNT: 40, VIRTUAL_MACHINE: 20 },
+        environment: { PRODUCTION: 50, staging: 10 },
+      },
+    });
+    await screen.findByText("payroll");
 
+    await user.click(screen.getByRole("combobox", { name: "Filter by type" }));
+    const types = (await screen.findAllByRole("option")).map((o) => o.textContent);
+    expect(types.some((label) => /virtual machine/i.test(label ?? ""))).toBe(true);
+    await user.keyboard("{Escape}");
+
+    await user.click(screen.getByRole("combobox", { name: "Filter by environment" }));
+    const environments = (await screen.findAllByRole("option")).map((o) => o.textContent);
+    expect(environments).toContain("Staging");
+  });
+
+  it("keeps the order the API sent rather than re-sorting the page", async () => {
+    /** The queue order is decided over the whole set on the server. A page
+     * that re-sorted its own rows could only ever rank within one page. */
+    mount([{ ...UNCHECKED, name: "first-by-server", open_findings: 0 }, ASSET], {
+      total: 2,
+    });
+
+    await screen.findByText("payroll");
+    const names = screen
+      .getAllByRole("link")
+      .map((link) => link.textContent)
+      .filter((text) => text === "first-by-server" || text === "payroll");
+    expect(names).toEqual(["first-by-server", "payroll"]);
+  });
 });

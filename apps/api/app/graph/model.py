@@ -7,6 +7,7 @@ route through an environment nobody looked at in one go.
 """
 
 from collections import deque
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 
 from app.core.enums import Level, RelationshipType, ResourceType
@@ -230,6 +231,12 @@ class AssetGraph:
         return graph
 
     # ---------------------------------------------------------------- queries
+    def links(self) -> Iterator[tuple[str, RelationshipType, str]]:
+        """Every edge, source first, in a stable order."""
+        for source in sorted(self._out):
+            for relationship, target in sorted(self._out[source]):
+                yield source, relationship, target
+
     def entry_points(self) -> list[CloudResource]:
         """Assets an attacker could plausibly start from."""
         return [

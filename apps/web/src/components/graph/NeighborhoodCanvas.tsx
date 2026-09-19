@@ -6,7 +6,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type KeyboardEvent,
 } from "react";
 import { Link } from "react-router-dom";
@@ -15,7 +14,6 @@ import {
   BackgroundVariant,
   Handle,
   MarkerType,
-  Panel,
   Position,
   ReactFlow,
   ReactFlowProvider,
@@ -27,7 +25,6 @@ import {
 // The structural stylesheet only. `style.css` is React Flow's own theme, and
 // the colours here come from the tokens in index.css like everything else.
 import "@xyflow/react/dist/base.css";
-import { MaximizeIcon, MinusIcon, PlusIcon } from "lucide-react";
 
 import type {
   AttackPath,
@@ -37,9 +34,10 @@ import type {
 } from "@/lib/types";
 import { cn, levelStyle, resourceTypeLabel } from "@/lib/format";
 import { FACTOR_ICONS, resourceTypeIcon } from "@/lib/icons";
-import { Button } from "@/components/ui/button";
 import { DURATION, usePrefersReducedMotion } from "@/lib/motion";
-import { layoutNeighborhood, stepFrom, type Direction } from "./neighborhoodLayout";
+import { ARROWS, FIT, FLOW_TOKENS, HIDDEN_HANDLE } from "./flowChrome";
+import { ZoomButtons } from "./ZoomButtons";
+import { layoutNeighborhood, stepFrom } from "./neighborhoodLayout";
 import { hopKey } from "./routeKeys";
 
 // `Pick` to a mapped type: React Flow wants node data to be a record, and an
@@ -77,13 +75,6 @@ function useActions(): CanvasActions {
   if (!actions) throw new Error("A graph node rendered outside NeighborhoodCanvas");
   return actions;
 }
-
-const ARROWS: Record<string, Direction> = {
-  ArrowLeft: "left",
-  ArrowRight: "right",
-  ArrowUp: "up",
-  ArrowDown: "down",
-};
 
 /**
  * The canvas behind the graph view: React Flow, drawn with CloudGuard's tokens.
@@ -221,38 +212,6 @@ function Canvas({
 const BOX_WIDTH = 220;
 const BOX_HEIGHT = 44;
 
-const FIT = { padding: 0.15 };
-
-function ZoomButtons() {
-  const flow = useReactFlow();
-  return (
-    <Panel position="top-right" className="flex gap-1">
-      <Button variant="outline" size="icon-sm" onClick={() => flow.zoomIn()} aria-label="Zoom in">
-        <PlusIcon />
-      </Button>
-      <Button variant="outline" size="icon-sm" onClick={() => flow.zoomOut()} aria-label="Zoom out">
-        <MinusIcon />
-      </Button>
-      <Button
-        variant="outline"
-        size="icon-sm"
-        onClick={() => flow.fitView(FIT)}
-        aria-label="Fit the graph to the frame"
-      >
-        <MaximizeIcon />
-      </Button>
-    </Panel>
-  );
-}
-
-// React Flow reads these variables for what it draws itself -- edges, the
-// background -- so pointing them at the tokens is what makes dark mode work.
-const FLOW_TOKENS = {
-  "--xy-edge-stroke": "var(--muted-foreground)",
-  "--xy-background-color": "transparent",
-  "--xy-background-pattern-color": "var(--border)",
-} as CSSProperties;
-
 function toFlow(
   neighborhood: Neighborhood,
   traced: AttackPath | null,
@@ -359,8 +318,6 @@ function toFlow(
 
   return { nodes, edges, at };
 }
-
-const HIDDEN_HANDLE: CSSProperties = { opacity: 0, pointerEvents: "none" };
 
 function AssetNode({ id, data }: NodeProps<AssetFlowNode>) {
   const actions = useActions();

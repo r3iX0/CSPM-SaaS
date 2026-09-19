@@ -1,7 +1,9 @@
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Query
-from sqlalchemy import case, func, select
+from sqlalchemy import ColumnElement, func, select
+from sqlalchemy.orm import InstrumentedAttribute
 
 from app.core.deps import DbSession, Tenant
 from app.core.enums import ContextSource, FindingStatus, Level, ResourceType
@@ -9,32 +11,9 @@ from app.core.errors import NotFound, envelope
 from app.models.cloud_account import CloudAccount
 from app.models.finding import Finding
 from app.models.resource import ResourceRecord
+from app.services.placement import DIRECTORY_SCOPE, RESOURCE_GROUP
 
 router = APIRouter(prefix="/assets", tags=["assets"])
-
-# The resource group, read out of the provider's own identifier.
-#
-# An ARM id spells out where the resource sits -- ``/subscriptions/{id}/
-# resourceGroups/{name}/providers/...`` -- so the fifth segment *is* the group
-# and nothing needs storing or asking. Positional rather than pattern-matched
-# on the segment name, because ARM treats `/resourcegroups/` and
-# `/resourceGroups/` as the same path and an estate whose ids arrive in the
-# other casing would otherwise report every asset as ungrouped.
-#
-# The guard matters: a directory asset (`/principals/...`) has no fifth segment
-# to mean anything, and slicing one anyway would invent a resource group out of
-# a principal id.
-# What the tree calls the set of assets that belong to no subscription: the
-# directory itself, which outlives every subscription under it.
-DIRECTORY_SCOPE = "directory"
-
-RESOURCE_GROUP = case(
-    (
-        ResourceRecord.provider_resource_id.ilike("/subscriptions/%/resourcegroups/%"),
-        func.split_part(ResourceRecord.provider_resource_id, "/", 5),
-    ),
-    else_=None,
-)
 
 
 def _fact(value: object, source: ContextSource) -> dict:
@@ -81,38 +60,42 @@ async def list_assets(
         .group_by(Finding.resource_id)
         .subquery()
     )
+    open_findings = func.coalesce(finding_counts.c.open_findings, 0)
 
-    stmt = (
-        select(ResourceRecord, func.coalesce(finding_counts.c.open_findings, 0))
-        .outerjoin(finding_counts, finding_counts.c.resource_id == ResourceRecord.id)
-        .where(ResourceRecord.organization_id == tenant.organization_id)
-    )
-
+    # Each filter keyed by what it narrows, so a facet can be counted under
+    # every filter except its own (below).
+    conditions: dict[str, ColumnElement[bool]] = {
+        "tenant": ResourceRecord.organization_id == tenant.organization_id,
+    }
     if resource_type:
-        stmt = stmt.where(ResourceRecord.resource_type == resource_type)
+        conditions["resource_type"] = ResourceRecord.resource_type == resource_type
     if environment:
-        stmt = stmt.where(ResourceRecord.environment == environment)
+        conditions["environment"] = ResourceRecord.environment == environment
     if criticality:
-        stmt = stmt.where(ResourceRecord.criticality == criticality)
+        conditions["criticality"] = ResourceRecord.criticality == criticality
     if exposure:
-        stmt = stmt.where(ResourceRecord.public_exposure == exposure)
+        conditions["exposure"] = ResourceRecord.public_exposure == exposure
     if search:
-        stmt = stmt.where(ResourceRecord.name.ilike(f"%{search}%"))
+        conditions["search"] = ResourceRecord.name.ilike(f"%{search}%")
     if subscription_id == DIRECTORY_SCOPE:
-        stmt = stmt.where(ResourceRecord.cloud_account_id.is_(None))
+        conditions["subscription"] = ResourceRecord.cloud_account_id.is_(None)
     elif subscription_id:
-        stmt = stmt.where(
-            ResourceRecord.cloud_account_id.in_(
-                select(CloudAccount.id).where(
-                    CloudAccount.organization_id == tenant.organization_id,
-                    CloudAccount.subscription_id == subscription_id,
-                )
+        conditions["subscription"] = ResourceRecord.cloud_account_id.in_(
+            select(CloudAccount.id).where(
+                CloudAccount.organization_id == tenant.organization_id,
+                CloudAccount.subscription_id == subscription_id,
             )
         )
     if resource_group:
         # Compared case-insensitively because ARM is: a group named `Prod` and
         # a link that says `prod` name the same place.
-        stmt = stmt.where(func.lower(RESOURCE_GROUP) == resource_group.lower())
+        conditions["resource_group"] = func.lower(RESOURCE_GROUP) == resource_group.lower()
+
+    stmt = (
+        select(ResourceRecord, open_findings)
+        .outerjoin(finding_counts, finding_counts.c.resource_id == ResourceRecord.id)
+        .where(*conditions.values())
+    )
 
     scoped = stmt.subquery()
     total = (
@@ -136,9 +119,34 @@ async def list_assets(
         )
     ).scalar_one()
 
+    # The options the filters can offer, counted over the whole filtered set
+    # rather than read off the page. Each dimension is counted under every
+    # filter except its own, so choosing a type still offers the other types
+    # instead of collapsing the menu to the one already chosen. The page used
+    # to build these menus from the fifty rows it held, so a type that sorted
+    # onto page two could not be filtered to at all.
+    async def facet(column: InstrumentedAttribute[Any], own: str) -> dict[str, int]:
+        others = [c for key, c in conditions.items() if key != own]
+        counted = await session.execute(
+            select(column, func.count()).where(*others).group_by(column)
+        )
+        return {str(value): int(n) for value, n in counted.all() if value is not None}
+
+    facets = {
+        "resource_type": await facet(ResourceRecord.resource_type, "resource_type"),
+        "environment": await facet(ResourceRecord.environment, "environment"),
+    }
+
+    # A queue, not a directory: the asset with the most open findings comes
+    # first across the whole set. Ordered here rather than by the client,
+    # which could only re-sort the page it held -- an asset with twenty
+    # findings on page five never reached the top. The id breaks ties so an
+    # offset lands on the same row every time it is asked for.
     rows = (
         await session.execute(
-            stmt.order_by(ResourceRecord.name).limit(limit).offset(offset)
+            stmt.order_by(open_findings.desc(), ResourceRecord.name, ResourceRecord.id)
+            .limit(limit)
+            .offset(offset)
         )
     ).all()
 
@@ -173,6 +181,7 @@ async def list_assets(
         {
             "total": total,
             "unchecked": int(unchecked_total),
+            "facets": facets,
             "limit": limit,
             "offset": offset,
         },

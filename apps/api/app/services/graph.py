@@ -31,9 +31,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.enums import FindingStatus, RelationshipType, Severity
 from app.domain.resource import CloudResource
 from app.graph import AssetGraph, ChokePoint, Neighborhood, Path
+from app.graph.estate import EstateMap
 from app.graph.model import ENTRY_EXPOSURE, RELATIONSHIP_VERBS, SENSITIVE_DATA
 from app.models.finding import Finding
 from app.models.resource import ResourceRecord, ResourceRelationship
+from app.services.placement import Placements
 
 # Graphs held in memory, keyed by tenant, each remembered with the version of
 # the data it was built from.
@@ -306,21 +308,24 @@ _SEVERITY_RANK = {
 
 
 async def open_findings(
-    session: AsyncSession, organization_id: UUID, row_ids: list[UUID]
+    session: AsyncSession, organization_id: UUID, row_ids: list[UUID] | None
 ) -> dict[UUID, dict]:
     """How many open findings each drawn asset carries, and the worst of them.
 
-    One grouped query for the assets on the canvas. Open means what it means
-    on the security score -- OPEN or IN_PROGRESS -- so the number on a box and
-    the number on the asset's own page never disagree.
+    One grouped query for the assets on the canvas, or for every asset when
+    ``row_ids`` is None -- the estate map counts the whole tenant, and naming
+    every row in an ``IN`` list would be the same answer at a far higher price.
+    Open means what it means on the security score -- OPEN or IN_PROGRESS -- so
+    the number on a box and the number on the asset's own page never disagree.
     """
-    if not row_ids:
+    if row_ids is not None and not row_ids:
         return {}
+    scoped = [Finding.resource_id.in_(row_ids)] if row_ids is not None else []
     rows = await session.execute(
         select(Finding.resource_id, Finding.severity, func.count(Finding.id))
         .where(
             Finding.organization_id == organization_id,
-            Finding.resource_id.in_(row_ids),
+            *scoped,
             Finding.status.in_([FindingStatus.OPEN, FindingStatus.IN_PROGRESS]),
         )
         .group_by(Finding.resource_id, Finding.severity)
@@ -446,4 +451,97 @@ def serialize_neighborhood(
         "groups": groups,
         "edges": edges,
         "routes": [serialize_path(path) for path in routes or []],
+    }
+
+
+def serialize_estate(
+    estate: EstateMap,
+    placements: Placements,
+    findings: dict[UUID, dict],
+) -> dict:
+    """Boxes and the counted links between them, ready to draw.
+
+    Every box carries the same counts whatever it holds -- assets, ways in,
+    sensitive assets, open findings and the worst of them, and the attack paths
+    through it -- so a subscription and a single virtual machine are read the
+    same way. ``entry`` and ``sensitive`` are counted with the graph's own
+    predicates, as the neighbourhood's markers are, so "3 ways in" on a box is
+    exactly three assets a route may start from.
+    """
+    boxes = []
+    for box in estate.boxes:
+        open_count = 0
+        worst: Severity | None = None
+        by_type: dict[str, int] = {}
+        for member in box.members:
+            by_type[member.resource_type.value] = by_type.get(member.resource_type.value, 0) + 1
+            row = placements.row_ids.get(member.provider_resource_id)
+            found = findings.get(row) if row else None
+            if not found:
+                continue
+            open_count += found["open"]
+            severity = Severity(found["worst"]) if found["worst"] else None
+            if severity and (worst is None or _SEVERITY_RANK[severity] < _SEVERITY_RANK[worst]):
+                worst = severity
+
+        entry: dict = {
+            "id": box.id,
+            "kind": box.kind,
+            "inside": box.inside,
+            "scope_id": box.scope,
+            "scope_name": placements.scope_names.get(box.scope, box.scope),
+            "provider": placements.scope_providers.get(box.scope),
+            "group": box.group,
+            "assets": len(box.members),
+            "entry": sum(1 for m in box.members if m.public_exposure in ENTRY_EXPOSURE),
+            "sensitive": sum(1 for m in box.members if m.data_sensitivity in SENSITIVE_DATA),
+            "findings": {"open": open_count, "worst": worst.value if worst else None},
+            "routes": estate.routes.get(box.id, 0),
+        }
+        if box.kind == "asset":
+            resource = box.members[0]
+            row = placements.row_ids.get(resource.provider_resource_id)
+            entry.update(
+                {
+                    "name": resource.name,
+                    "provider_resource_id": resource.provider_resource_id,
+                    "asset_id": str(row) if row else None,
+                    "resource_type": resource.resource_type.value,
+                    "public_exposure": resource.public_exposure.value,
+                    "data_sensitivity": resource.data_sensitivity.value,
+                }
+            )
+        elif box.kind == "scope":
+            entry["name"] = entry["scope_name"]
+        elif box.kind == "group":
+            # Null for what sits directly in the scope; the page names that
+            # rather than inventing a group called "Ungrouped".
+            entry["name"] = box.group
+        else:
+            entry["name"] = None
+            entry["by_type"] = dict(sorted(by_type.items(), key=lambda item: (-item[1], item[0])))
+            entry["with_reach"] = estate.folded_with_reach
+        boxes.append(entry)
+
+    edges = [
+        {
+            "source": edge.source,
+            "target": edge.target,
+            "links": [
+                {
+                    "relationship": relationship.value,
+                    "count": count,
+                    "label": RELATIONSHIP_VERBS.get(relationship, relationship.value),
+                }
+                for relationship, count in edge.links
+            ],
+            "on_route": edge.on_route,
+        }
+        for edge in estate.edges
+    ]
+
+    return {
+        "lens": {"scope_id": estate.lens.scope, "group": estate.lens.group},
+        "boxes": boxes,
+        "edges": edges,
     }

@@ -100,7 +100,10 @@ export function AssetNeighborhood({
   const elsewhere = around !== providerResourceId;
 
   const arrivingWith = params.get(TRACE);
-  const [asked, setAsked] = useState(elsewhere || arrivingWith !== null);
+  // Drawn on arrival whenever the link names a centre, even this asset: the
+  // estate map's asset boxes link here with `?around=` set to the asset itself,
+  // because the graph is what the reader was looking at when they followed it.
+  const [asked, setAsked] = useState(params.has(AROUND) || arrivingWith !== null);
   // Three hops when arriving to trace a route: most routes are three or four
   // long, and two would cut the one the reader came to see in half.
   const [depth, setDepth] = useState<number>(arrivingWith ? 3 : 2);

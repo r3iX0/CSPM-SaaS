@@ -1,9 +1,10 @@
 import { lazy, Suspense, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronRightIcon, FolderIcon, LayersIcon, UsersIcon } from "lucide-react";
+import { ChevronRightIcon, FolderIcon, LayersIcon } from "lucide-react";
 
 import { api } from "@/lib/api";
+import { DIRECTORY_ICON } from "@/lib/icons";
 import type { Asset, AssetScopeNode } from "@/lib/types";
 import { CardsSkeleton, EmptyState, ErrorState } from "@/components/common/states";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
@@ -96,7 +97,7 @@ function ScopeRow({ scope }: { scope: AssetScopeNode }) {
   // The worst scope opens by itself: a tree that starts fully closed makes the
   // reader click to discover what the page was already able to tell them.
   const [open, setOpen] = useState(scope.open_findings > 0);
-  const Icon = scope.kind === "DIRECTORY" ? UsersIcon : LayersIcon;
+  const Icon = scope.kind === "DIRECTORY" ? DIRECTORY_ICON : LayersIcon;
 
   return (
     <li className="border-b last:border-0">

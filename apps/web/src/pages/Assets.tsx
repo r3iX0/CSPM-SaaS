@@ -10,6 +10,7 @@ import type { Asset } from "@/lib/types";
 import { useT } from "@/i18n";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { AssetTree } from "@/components/assets/AssetTree";
+import { EstateGraph } from "@/components/assets/EstateGraph";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState, ErrorState, PageHeader, TableSkeleton } from "@/components/common/states";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -37,7 +38,7 @@ const SEARCH_DEBOUNCE_MS = 250;
 
 type GroupKey = "none" | "scope" | "resource_type" | "environment";
 
-type View = "list" | "tree";
+type View = "list" | "tree" | "graph";
 
 /**
  * The inventory, and what is worth knowing about each thing in it.
@@ -77,7 +78,8 @@ export function AssetsPage() {
   });
   const { environment, exposure, type } = filters;
   const groupBy = filters.group as GroupKey;
-  const view = (filters.view === "tree" ? "tree" : "list") as View;
+  const view: View =
+    filters.view === "tree" || filters.view === "graph" ? filters.view : "list";
   const page = Math.max(0, Number.parseInt(filters.page, 10) || 0);
   const subscriptionId = filters.subscription_id;
   const resourceGroup = filters.resource_group;
@@ -127,13 +129,21 @@ export function AssetsPage() {
         .get<Asset[]>(`/api/v1/assets?${params.toString()}`)
         .then((r) => {
           const meta = r.meta as
-            | { total?: number; unchecked?: number }
+            | {
+                total?: number;
+                unchecked?: number;
+                facets?: {
+                  resource_type?: Record<string, number>;
+                  environment?: Record<string, number>;
+                };
+              }
             | undefined;
           return {
             assets: r.data,
             total: meta?.total ?? r.data.length,
             // Counted over the whole filtered set by the API, not this page.
             unchecked: meta?.unchecked ?? 0,
+            facets: meta?.facets ?? {},
           };
         }),
     // Paging without this blanks the table on every page turn, which reads as
@@ -142,45 +152,40 @@ export function AssetsPage() {
   });
 
   // Memoised rather than `data?.assets ?? []`, which minted a new array every
-  // render and so defeated both memos below -- they re-sorted and re-grouped
+  // render and so defeated the memos below -- they re-grouped
   // the whole page on every keystroke.
   const assets = useMemo(() => data?.assets ?? [], [data]);
   const total = data?.total ?? 0;
   const unchecked = data?.unchecked ?? 0;
 
-  /** Types present in this page, so the filter offers only real options. */
-  const types = useMemo(
-    () => [...new Set(assets.map((a) => a.resource_type))].sort(),
-    [assets],
-  );
-
   /**
-   * Environments present in this page, plus the one selected. It used to offer
-   * a fixed "Production / Development", so staging -- and anything else a
-   * customer calls theirs -- could not be filtered at all.
+   * The types and environments the filters offer, counted by the API over the
+   * whole filtered set -- each without its own filter, so choosing one still
+   * offers the rest. These used to be read off the fifty rows on the page, so
+   * a type that happened to sort onto page two could not be chosen at all.
+   * The selected value is kept even at a count of zero, so the menu never
+   * loses the thing it is showing.
    */
+  const facets = data?.facets;
+  const types = useMemo(() => {
+    const found = new Set(Object.keys(facets?.resource_type ?? {}));
+    if (type !== "all") found.add(type);
+    return [...found].sort();
+  }, [facets, type]);
   const environments = useMemo(() => {
-    const found = new Set(
-      assets.map((a) => a.environment).filter((value): value is string => Boolean(value)),
-    );
+    const found = new Set(Object.keys(facets?.environment ?? {}));
     if (environment !== "all") found.add(environment);
     return [...found].sort();
-  }, [assets, environment]);
+  }, [facets, environment]);
 
-  const sorted = useMemo(
-    () =>
-      [...assets].sort((a, b) => {
-        // A queue, not a directory: what has findings comes first.
-        if (b.open_findings !== a.open_findings) return b.open_findings - a.open_findings;
-        return a.name.localeCompare(b.name);
-      }),
-    [assets],
-  );
 
+  // `assets` arrives in queue order -- most open findings first, across the
+  // whole set. The API sorts, because a page can only re-sort the rows it
+  // holds; grouping below keeps that order within each group.
   const groups = useMemo(() => {
-    if (groupBy === "none") return [["", sorted] as const];
+    if (groupBy === "none") return [["", assets] as const];
     const map = new Map<string, Asset[]>();
-    for (const asset of sorted) {
+    for (const asset of assets) {
       const key =
         groupBy === "scope"
           ? scopeLabel(asset.provider_resource_id)
@@ -190,7 +195,7 @@ export function AssetsPage() {
       map.set(key, [...(map.get(key) ?? []), asset]);
     }
     return [...map.entries()].sort((a, b) => b[1].length - a[1].length);
-  }, [sorted, groupBy]);
+  }, [assets, groupBy]);
 
   // Rows in the order they are drawn -- grouped, then within each group -- so
   // `j` moves down the screen rather than through the fetch order.
@@ -224,9 +229,10 @@ export function AssetsPage() {
         title={t.assets.title}
         description="Everything CloudGuard has discovered, with what it is worth and how exposed it is."
         actions={
-          // Two readings of one inventory: the queue, and the shape. The list
-          // ranks by what is wrong; the tree says which part of the estate --
-          // and so which owner -- it is wrong in.
+          // Three readings of one inventory: the queue, the shape, and the
+          // wiring. The list ranks by what is wrong; the tree says which part
+          // of the estate -- and so which owner -- it is wrong in; the graph
+          // says how those parts reach each other (DECISIONS.md §111).
           <SegmentedFilter
             label="View"
             value={view}
@@ -234,6 +240,7 @@ export function AssetsPage() {
             segments={[
               { value: "list", label: "List" },
               { value: "tree", label: "Hierarchy" },
+              { value: "graph", label: "Graph" },
             ]}
           />
         }
@@ -247,6 +254,8 @@ export function AssetsPage() {
           <AssetTree />
         </>
       )}
+
+      {view === "graph" && <EstateGraph scopeId={subscriptionId} group={resourceGroup} />}
 
       {view === "list" && (
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">

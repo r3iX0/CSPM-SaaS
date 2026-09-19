@@ -890,6 +890,66 @@ export interface WhatIf {
   after: number;
 }
 
+/**
+ * One box on the estate map: a subscription (or the directory), a resource
+ * group, a single asset, or the fold holding the assets a lens did not draw.
+ * Every kind carries the same counts, so a subscription and one virtual
+ * machine are read the same way (DECISIONS.md §111).
+ */
+export interface EstateBox {
+  id: string;
+  kind: "scope" | "group" | "asset" | "fold";
+  /** Part of what is opened, rather than a neighbour reach crosses to. */
+  inside: boolean;
+  /** Subscription id, or `directory`: the list's `subscription_id` filter. */
+  scope_id: string;
+  scope_name: string;
+  provider: string | null;
+  /** The resource group; null for what sits directly in the scope. */
+  group: string | null;
+  /** Null for a group box of what sits directly in the scope, and the fold. */
+  name: string | null;
+  assets: number;
+  /** Assets a route may start from, counted with the graph's own predicate. */
+  entry: number;
+  /** Assets a route may end at. */
+  sensitive: number;
+  findings: { open: number; worst: Severity | null };
+  /** Attack paths through the box. */
+  routes: number;
+  // An asset box only.
+  asset_id?: string | null;
+  provider_resource_id?: string;
+  resource_type?: string;
+  public_exposure?: Level;
+  data_sensitivity?: Level;
+  // The fold only.
+  by_type?: Record<string, number>;
+  with_reach?: number;
+}
+
+export interface EstateEdge {
+  source: string;
+  target: string;
+  links: { relationship: string; count: number; label: string }[];
+  /** A hop on an attack path runs along it. */
+  on_route: boolean;
+}
+
+export interface EstateMap {
+  lens: { scope_id: string | null; group: string | null };
+  boxes: EstateBox[];
+  edges: EstateEdge[];
+}
+
+export interface EstateMeta {
+  /** Attack paths through what is opened. */
+  routes_total: number;
+  max_assets: number;
+  /** Assets folded although they carry reach; their links end at the fold. */
+  folded_with_reach: number;
+}
+
 export interface RevocationStep {
   title: string;
   detail: string;

@@ -270,6 +270,18 @@ describe("the neighbourhood card", () => {
     expect(screen.getByTestId("where")).toBeEmptyDOMElement();
   });
 
+  it("opens drawn when the link centres it on the page's own asset", async () => {
+    // How the estate map's asset boxes link here: the reader was looking at a
+    // graph, so the page they land on shows one without a second press.
+    const get = mount(AROUND_VM, {}, "/assets/row-vm?around=vm");
+
+    await waitFor(() =>
+      expect(get).toHaveBeenCalledWith(expect.stringContaining("/neighborhood/vm?depth=2")),
+    );
+    expect(screen.queryByRole("button", { name: /draw the graph/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/centred on/i)).not.toBeInTheDocument();
+  });
+
   it("makes a re-centred centre a link to its page", async () => {
     mount({ ...AROUND_VM, focus: "mi" }, {}, "/assets/row-vm?around=mi");
 

@@ -41,6 +41,7 @@ import {
   TriangleAlertIcon,
   UserCogIcon,
   UserIcon,
+  UsersIcon,
   WaypointsIcon,
   WorkflowIcon,
   type LucideIcon,
@@ -167,6 +168,13 @@ export const SETUP_ICONS = {
 
 /** The graph around an asset: drawing it, and opening it from a route (§101). */
 export const GRAPH_ICON = WorkflowIcon;
+
+/**
+ * The directory: the users, service principals and applications that belong
+ * to the tenant rather than to any subscription. Beside `resourceTypeIcon`'s
+ * subscription and resource group, wherever the estate is drawn by scope.
+ */
+export const DIRECTORY_ICON = UsersIcon;
 
 /** The shared demo organization, wherever it is named (DECISIONS.md §99). */
 export const DEMO_ICON = FlaskConicalIcon;

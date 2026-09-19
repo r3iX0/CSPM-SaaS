@@ -5676,6 +5676,143 @@ mark are SVG too.
 Checked by rendering both reports through WeasyPrint 63.1 in a container built
 with the API image's apt packages, which is also where DejaVu comes from.
 
+## 110. The asset list is ranked and faceted on the server
+
+**The asset list claimed to be worst first, but only within a page.** The
+`/assets` endpoint ordered by name. `Assets.tsx` then re-sorted the fifty rows it
+had been handed by open findings. So on an estate larger than one page, an
+asset with twenty open findings whose name sorted late was on page five, and
+page one led with whichever asset had the most findings among the first fifty
+names -- often none. The list promised a queue and delivered a directory with
+a local shuffle. It is the failure §27 closed for `/findings` and `/risks`: a
+paginated endpoint whose client orders or filters only the page it holds.
+
+The API now orders by the open-finding count it already computes, then by name,
+then by id. The id tiebreak matters for paging: without it two assets with the
+same count and name could swap between requests, and an offset would repeat one
+and skip the other. The page keeps the order it receives, and its grouping
+keeps that order within each group.
+
+**The type and environment filters offered only what was on the page.** The
+menus were built from the rows on screen, so a type that did not appear in the
+first fifty rows could not be chosen at all -- and the list's own ordering
+decided which types those were. `meta.facets` now carries both option lists
+with counts, computed over the whole filtered set. Each dimension is counted
+under every filter except its own, which is the usual faceting rule: after
+choosing "virtual machine", the type menu still offers storage accounts rather
+than collapsing to the one value already chosen, while the environment menu
+narrows to the environments virtual machines are in. The filters are kept as a
+dict keyed by what each one narrows, so leaving one out is a key lookup rather
+than a second copy of the filter code. The currently selected value stays in
+its menu even if its count falls to zero, so the control never loses what it
+is showing.
+
+Two more queries per request -- one grouped count for each dimension over the
+tenant's resources. That is the same scale as the `total` and `unchecked`
+counts the endpoint already runs.
+
+## 111. The estate is drawn as its containers, opened one at a time
+
+§101 refused to draw the whole tenant, because a canvas of every asset is the
+picture every CSPM demo shows and nobody can read. That refusal left the
+question before §101's unanswered: not "what is around this asset", but "how is
+my estate wired together, and where should I start looking". The Assets page
+now has a third view, **Graph**, beside the list and the hierarchy. It answers
+that question by drawing containers instead of assets.
+
+**Containers, not assets.** `GET /attack-paths/estate` draws the estate through
+a *lens*:
+
+* With nothing opened, each subscription is a box, and so is the directory.
+* With one subscription opened, its resource groups are boxes, and what sits
+  directly in it is drawn as itself. Above all that is the subscription
+  resource, which is what a role over the subscription lands on.
+* With one resource group opened, its assets are boxes.
+
+Anything outside the lens is drawn only when reach crosses into or out of it.
+It then appears as the coarsest box that names it: another subscription, or
+another group in the same one. This is the whole tenant, bounded by grouping
+rather than by hops, and each level can be read.
+
+**The lens is the list's scope filter.** The lens is carried as
+`subscription_id` and `resource_group`, the same pair the list filters by and
+the hierarchy links into. The directory is the same `directory` key. Placement
+is read the same way in all three: the account's subscription id, and the
+resource group taken from the ARM id's fifth segment. `RESOURCE_GROUP` moved
+from the assets route into `services/placement.py` so there is one copy of it.
+So switching from the graph to the list shows exactly the assets the map was
+drawing, and a link to an opened map is a link like any other. Opening a box
+pushes a history entry, the way re-centring the neighbourhood does (§101), and
+Back retraces it. Narrowing the list still replaces its entry (§98).
+
+**Only reach crosses a box, and only reach that crosses is drawn.** Between
+boxes the map draws the identity hops: `HAS_IDENTITY`, `GRANTS_ROLE` and
+`CAN_GRANT_ROLES`. These are counted by relationship and labelled with the verbs
+a route uses, for example "can act over ×3". A link between two assets in the
+same box is inside it and is not drawn. Containment is what the boxes *are*, so
+it is drawn only where an attack path runs along it, unlabelled. Otherwise a
+subscription would carry an edge to every group it holds, and the one route
+through them would be lost among forty statements of where things live. A link
+between two neighbours that are both outside the lens concerns somewhere else,
+and is left out.
+
+**Every box carries the same counts.** Each box shows assets, entry points,
+sensitive assets, open findings with the worst of them, and the attack paths
+that pass through it. Entry points and sensitive assets are counted with the
+graph's own predicates, as the neighbourhood's markers are. Open findings mean
+OPEN or IN_PROGRESS. A subscription box and a single virtual machine are
+therefore read the same way. Arrows on an attack path are drawn darker.
+`routes_total` counts the paths that touch what the lens opened, not the whole
+organization.
+
+**Folded, never dropped, and inventory is always folded.** A lens draws at most
+`ESTATE_MAX_ASSETS` (40) asset boxes. They are chosen in this order: entry
+points and sensitive assets, then assets a route runs through, then the assets
+carrying the most reach. The rest go into one dashed box. An asset with none of
+those properties is inventory, which the list answers better, so it is folded
+even when there is room. Folded assets keep their reach: their links are drawn
+from the fold, and `folded_with_reach` makes the page say how many of them have
+reach. The fold links to the list filtered to the same lens.
+
+**Laid out by reach, not by simulation.** There is no focus to count hops from,
+so `layoutEstate` counts from where reach starts. That is every box holding an
+entry point, plus every box that nothing reaches. Each box sits at its shortest
+distance from one of those starts, so reach reads left to right and a box
+holding a way in is always in the first column. A cycle that nothing leads into
+is entered at its first box in a fixed order, so it is still drawn. Boxes with
+no reach at all go after the rest, stacked eight to a column so that a quiet
+estate becomes a grid rather than one tall column. Within a column, boxes are
+ordered by the average height of their placed neighbours, with ties broken by a
+fixed order. The same estate draws the same picture on every visit, as §101
+requires.
+
+**The same canvas, not a second one.** `EstateCanvas` is its own lazy chunk,
+built on React Flow the way `NeighborhoodCanvas` is: `base.css` only, colours
+from the tokens, read-only, no wheel zoom, and one tab stop with arrow keys
+inside. What the two canvases share (the flow tokens, the fit, the arrow keys
+and the zoom buttons) moved into `flowChrome.ts` and `ZoomButtons.tsx`, so they
+cannot drift into two looks. Pressing a subscription or group opens it on the
+map. Pressing an asset opens its page with its own graph already drawn: the
+link sets `?around=` to the asset itself, and a neighbourhood card now draws on
+arrival whenever `around` is present, not only when it names another asset. The
+map hands the "what is around this asset" question to the view that already
+answers it, rather than growing a thinner copy of that view. Under the canvas,
+the arrows are listed again as sentences, with reach on a route listed first.
+That list is the text form of the picture, as the blast-radius list is for the
+neighbourhood.
+
+**Considered and not built.** Three alternatives were weighed:
+
+* A graph tab that is the neighbourhood with a picker. It would only have moved
+  the asset page's view to another page.
+* A from→to explorer. It overlaps the attack-paths page and belongs there if
+  anywhere.
+* A layer showing reach that appeared since the previous scan. This is the most
+  distinctive of the three, but it needs a graph built from an older snapshot,
+  and the graph is computed on read from present state (`services/graph.py`
+  says why). It waits for the per-scan `attack_paths` table that module
+  describes.
+
 ## Open items carried forward
 
 **Phase 9 (reports) is built, generated on request rather than stored.**

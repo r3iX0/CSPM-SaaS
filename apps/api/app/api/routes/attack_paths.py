@@ -13,9 +13,11 @@ from fastapi import APIRouter, Query
 from app.core.deps import DbSession, Tenant
 from app.core.enums import RelationshipType
 from app.core.errors import NotFound, envelope
+from app.graph.estate import ESTATE_MAX_ASSETS, Lens, estate_map
 from app.graph.model import NEIGHBOURHOOD_FAN_OUT, NEIGHBOURHOOD_MAX_NODES
 from app.services import graph as graph_service
 from app.services.graph import serialize_path
+from app.services.placement import load_placements
 
 router = APIRouter(prefix="/attack-paths", tags=["attack-paths"])
 
@@ -149,6 +151,42 @@ async def neighborhood(
             "truncated": around.truncated,
             "max_nodes": NEIGHBOURHOOD_MAX_NODES,
             "fan_out": NEIGHBOURHOOD_FAN_OUT,
+        },
+    )
+
+
+@router.get("/estate")
+async def estate(
+    session: DbSession,
+    tenant: Tenant,
+    subscription_id: str | None = Query(default=None, min_length=1, max_length=256),
+    resource_group: str | None = Query(default=None, min_length=1, max_length=256),
+) -> dict:
+    """The estate as boxes -- subscriptions, groups, assets -- and the reach
+    between them.
+
+    For the graph view on the assets page. The neighbourhood draws one asset's
+    surroundings and never the whole tenant; this draws the whole tenant by
+    drawing its containers, and opens one at a time (DECISIONS.md section 111).
+    The lens is the same pair the list filters by, so a box and the list it
+    opens into hold the same assets.
+    """
+    graph = await graph_service.load_graph(session, tenant.organization_id)
+    placements = await load_placements(session, tenant.organization_id)
+    routes = graph.attack_paths()
+    mapped = estate_map(
+        graph, placements.of, Lens(subscription_id, resource_group), routes
+    )
+    if mapped is None:
+        raise NotFound("Nothing CloudGuard holds sits there")
+
+    findings = await graph_service.open_findings(session, tenant.organization_id, None)
+    return envelope(
+        graph_service.serialize_estate(mapped, placements, findings),
+        {
+            "routes_total": mapped.routes_total,
+            "max_assets": ESTATE_MAX_ASSETS,
+            "folded_with_reach": mapped.folded_with_reach,
         },
     )
 

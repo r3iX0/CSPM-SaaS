@@ -56,6 +56,7 @@ GET    /findings/{id}/attack-paths         GET    /findings/{id}/provenance
 GET    /attack-paths                       GET    /attack-paths/choke-points
 GET    /attack-paths/blast-radius/{resource_id}
 GET    /attack-paths/neighborhood/{resource_id}?depth=1..3&expand=<fold id>
+GET    /attack-paths/estate?subscription_id=&resource_group=
 GET    /attack-paths/what-if?source=&relationship=&target=
 
 GET    /rules                              GET    /rules/{rule_id}
@@ -260,6 +261,16 @@ one more thing to keep in step. Directory assets are named as such rather than
 reported as assets whose subscription is unknown.
 
 Counted over the whole estate and returned whole, unlike `/assets`, which pages.
+
+`/attack-paths/estate` is the same estate drawn as a graph (DECISIONS.md §111).
+It returns boxes and the reach between them: subscriptions and the directory
+when nothing is opened, a subscription's groups when `subscription_id` is
+given, and a group's assets when `resource_group` is given as well. Those are
+the same two parameters the list filters by. Each box carries asset,
+entry-point, sensitive, open-finding and attack-path counts. Each edge carries
+its links counted by relationship, and whether an attack path runs along it. A
+lens that names nothing this organization holds is a 404. At most 40 asset
+boxes are drawn per lens, and the rest are counted in one fold box.
 A tree built from one page of a paginated list would show a resource group once
 per page its assets straddled, each time with a fraction of its findings.
 
@@ -267,6 +278,14 @@ per page its assets straddled, each time with a fraction of its findings.
 can drill in — `subscription_id=directory` is the tenant-scoped set, and
 `resource_group` compares case-insensitively because ARM treats `Prod` and
 `prod` as the same place.
+
+`/assets` is ordered on the server — most open findings first, then name, then
+id so that an offset always lands on the same row. It is a queue rather than a
+directory, and a page cannot rank what it does not hold. `meta.facets` carries
+the options the list's filters can offer, counted over the whole filtered set:
+`{"resource_type": {type: count}, "environment": {name: count}}`. Each dimension
+is counted under every filter except its own, so filtering to one type still
+offers the others. An asset with no environment is not listed as an option.
 
 `/attack-paths/choke-points` answers a different question from the list: not
 which routes exist but which single change closes the most of them. `severs` is
