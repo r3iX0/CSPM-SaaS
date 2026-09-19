@@ -426,6 +426,11 @@ export const en = {
     opensInNewTab: "Opens in a new tab",
     detectedAutomatically:
       "Detected automatically. You can close this page \u2014 setup carries on where it stopped.",
+    publishingPrincipal: "Setting CloudGuard up in your directory\u2026",
+    publishingPrincipalDetail: (left: string) =>
+      "Entra can take a few minutes to publish CloudGuard in a directory that "
+      + "has just consented. CloudGuard checks every few seconds and moves on by "
+      + `itself; if it is still not there in ${left}, the reason will show here.`,
     deployHowTitle: "What happens next",
     deployHow1: "Open Azure Portal",
     deployHow1Detail: "Signed in as an Owner at the scope you chose.",

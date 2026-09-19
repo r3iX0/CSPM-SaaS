@@ -6063,6 +6063,28 @@ and it is also what Graph enforces against.
   permission, so it cannot run that command itself; this is the same stance
   as change events.
 
+## 115. The deploy step waits three minutes after consent before calling a missing principal a fault
+
+Entra creates CloudGuard's service principal during admin consent, and
+publishes it to the directory when replication gets there. Until then, the
+lookup that the ARM template needs is refused or comes back empty. The setup
+page showed the result immediately as "CloudGuard cannot generate the
+deployment yet", so every new tenant opened on an error that was usually just
+timing.
+
+For three minutes after `consented_at`, the step shows a `WaitingNote` with a
+countdown to when it will report instead. This is not the timer-driven
+progress that §87 rules out. The page re-reads the connection every five
+seconds, and each read retries the lookup (`try_auto_validate` →
+`ensure_principal`), so the wait is real and ends early as soon as the
+principal appears. The countdown only says when the page will stop calling it
+a wait. It is measured from the server's `consented_at`, so a reload does not
+restart it.
+
+When the window closes, the reason is shown unchanged. A registration with no
+application permissions never publishes a lookup that works, so after three
+minutes the fault is shown for what it is (§114).
+
 ## Open items carried forward
 
 **Data residency is not built (§113).** An organization setting for allowed

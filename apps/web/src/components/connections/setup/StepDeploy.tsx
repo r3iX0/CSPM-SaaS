@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { CloudConnection } from "@/lib/types";
 import { useT } from "@/i18n";
@@ -50,8 +50,26 @@ export function StepDeploy({
   const LeavesApp = SETUP_ICONS.leavesApp;
   const Stalled = SETUP_ICONS.stalled;
 
-  // Consented, but CloudGuard cannot produce a template. Nothing the customer
-  // does in Azure advances this, so it is shown as a problem and not as a wait.
+  const remaining = usePublishWindow(connection.template_url ? null : connection.consented_at);
+
+  // Consented, and the directory has not answered yet. Entra creates
+  // CloudGuard's service principal during consent but publishes it when
+  // replication gets there, and the lookup is refused or empty until then --
+  // which read as a setup fault for the first minutes of every new tenant. The
+  // page re-reads the connection every five seconds and each read looks the
+  // principal up again, so this is a real wait with a real end.
+  if (!connection.template_url && remaining > 0) {
+    return (
+      <WaitingNote
+        text={t.setup.publishingPrincipal}
+        detail={t.setup.publishingPrincipalDetail(formatCountdown(remaining))}
+      />
+    );
+  }
+
+  // Consented, but CloudGuard cannot produce a template, and waiting has
+  // stopped being the explanation. Nothing the customer does in Azure advances
+  // this, so it is shown as a problem and not as a wait.
   if (!connection.template_url) {
     return (
       <Alert className="border-high-border bg-high-bg text-high">
@@ -212,4 +230,36 @@ export function StepDeploy({
       )}
     </>
   );
+}
+
+/**
+ * How long a new directory is given to publish CloudGuard's service principal
+ * before the lookup's failure is shown as a problem.
+ */
+const PRINCIPAL_PUBLISH_MS = 3 * 60 * 1000;
+
+/**
+ * Milliseconds left in the publish window, ticking once a second; zero once it
+ * has passed, and zero when there is no consent to measure from.
+ *
+ * Measured from `consented_at`, which the server wrote, so reloading the page
+ * or coming back later does not restart the wait.
+ */
+function usePublishWindow(consentedAt: string | null | undefined): number {
+  const deadline = consentedAt ? Date.parse(consentedAt) + PRINCIPAL_PUBLISH_MS : 0;
+  const [now, setNow] = useState(() => Date.now());
+  const open = deadline > now;
+
+  useEffect(() => {
+    if (!open) return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [open]);
+
+  return Math.max(0, deadline - now);
+}
+
+function formatCountdown(ms: number): string {
+  const seconds = Math.ceil(ms / 1000);
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
