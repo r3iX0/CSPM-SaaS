@@ -5475,6 +5475,45 @@ findings page inside the new one -- the confusion §103 set out to remove.
 Both text changes are written by the scanner, so existing rows change at the
 next scan of each subscription; nothing is rewritten in place.
 
+## 106. Findings goes back in the navigation
+
+**Supersedes the navigation half of §103 and the label half of §105.** The
+findings list is a navigation item again, first under Exposure, above Risks, and
+the risks page's kind segment is labelled *Findings* rather than
+*Misconfigurations*. Taking the list out of the navigation left no direct way to
+work finding by finding, which is still how the list is used, and the relabel
+only existed to paper over its absence.
+
+Everything else §103–§105 did stays: deciding about risks one at a time and in
+bulk, the status rules in `app/risk/triage.py`, acceptances that end on their
+date, and rows described by the finding's own message.
+
+## 107. A finding is decided about on its risk, and nowhere else
+
+**Two places to decide about one problem.** After §103 a finding could be marked
+in progress or accepted on its own page, and the same finding could be decided
+about through its risk, in the queue. The two did not agree on scope: accepting
+one member of a grouped risk from the finding page accepted one account of
+forty, and the queue's next read of the group (§103's least-settled rule) still
+showed it as needing triage -- a decision made and, as far as the queue was
+concerned, not made. The risk page, meanwhile, could decide nothing at all.
+
+**The risk is the one place.** Its page now carries the same decisions as the
+queue's bar -- Mark in progress, Accept… (reason, optional end date, and a
+sentence saying how many findings it reaches), Reopen -- through one component,
+`RiskDecisions` in `RiskTriage.tsx`, which the bar now wraps. The finding page
+loses its Accept and Mark in progress and gains **Decide on its risk**, a link;
+it keeps Rescan and Assign, which are about fixing rather than deciding, and
+still shows the status and the acceptance's end date, which remain stored on
+the finding for compliance and exceptions (§103).
+
+**The API is unchanged.** `POST /findings/{id}/status` and
+`/findings/{id}/accept-risk` stay: the risk endpoints write through them, and
+API clients may use them. The single place is a product decision about where a
+person decides, not a removal of the finding's own record of it. A false
+positive, if one is ever offered in the UI, belongs on the finding -- it says
+the rule was wrong about that asset, which is never true of a group.
+
 ## Settings: the evidence a person supplies
 
 `PATCH /organizations` takes no id in the path. Deleting a *different*

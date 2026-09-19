@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { CircleCheckIcon, RotateCcwIcon, type LucideIcon } from "lucide-react";
+import { ArrowRightIcon, CircleCheckIcon, RotateCcwIcon, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -17,7 +17,7 @@ import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { Breadcrumbs, DetailSkeleton, ErrorState } from "@/components/common/states";
 import { CodeBlock } from "@/components/common/CodeBlock";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -31,8 +31,6 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
-import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { AttackPathRoute } from "@/components/graph/AttackPathRoute";
@@ -45,13 +43,11 @@ import { VerificationPanel } from "@/components/security/VerificationPanel";
 import { FindingTimeline } from "@/components/security/FindingTimeline";
 import {
   cn,
-  endOfDayIso,
   formatDate,
   formatDateTime,
   formatRelative,
   outcomeStyle,
   resourceTypeLabel,
-  tomorrowDay,
 } from "@/lib/format";
 import { FACT_ICONS, FACTOR_ICONS, resourceTypeIcon } from "@/lib/icons";
 import { IconLabel } from "@/components/security/IconLabel";
@@ -65,11 +61,6 @@ export function FindingDetailPage() {
   const t = useT();
   const { findingId } = useParams();
   const queryClient = useQueryClient();
-  const [acceptReason, setAcceptReason] = useState("");
-  // Optional, a day rather than an instant -- the same field the risks queue
-  // offers, so an acceptance can end whichever page it was made on (§104).
-  const [acceptUntil, setAcceptUntil] = useState("");
-  const [showAccept, setShowAccept] = useState(false);
   // The scan a "verify" queued, followed on this page until it concludes.
   const [verifyScanId, setVerifyScanId] = useState<string | null>(null);
   const isDemo = useIsDemo();
@@ -140,10 +131,8 @@ export function FindingDetailPage() {
     queryClient.invalidateQueries({ queryKey: ["dashboard"] });
   };
 
-  // Every action on this page is asynchronous and none of them navigate, so
-  // each one has to say out loud what it did. Two of them used to say nothing
-  // at all: marking a finding in progress and accepting a risk both changed the
-  // record and left the reader looking at an unchanged screen.
+  // Rescan is the one action left on this page: deciding about a finding --
+  // in progress, accepted, reopened -- is done on its risk (DECISIONS.md §107).
   const rescan = useMutation({
     mutationFn: () =>
       api.post<{ message: string; scan_id: string }>(`/api/v1/findings/${findingId}/rescan`),
@@ -155,46 +144,6 @@ export function FindingDetailPage() {
     },
     onError: (err) =>
       toast.error("Could not start a rescan", {
-        description:
-          err instanceof ApiError ? err.message : "The API rejected the request.",
-      }),
-  });
-
-  const markInProgress = useMutation({
-    mutationFn: () =>
-      api.post(`/api/v1/findings/${findingId}/status?new_status=IN_PROGRESS`),
-    onSuccess: () => {
-      toast.success("Marked in progress", {
-        description:
-          "The finding stays open until a scan observes the fix — a status is intent, not proof.",
-      });
-      invalidate();
-    },
-    onError: (err) =>
-      toast.error("Could not change the status", {
-        description:
-          err instanceof ApiError ? err.message : "The API rejected the change.",
-      }),
-  });
-
-  const accept = useMutation({
-    mutationFn: () =>
-      api.post(`/api/v1/findings/${findingId}/accept-risk`, {
-        reason: acceptReason,
-        ...(acceptUntil ? { expires_at: endOfDayIso(acceptUntil) } : {}),
-      }),
-    onSuccess: () => {
-      setShowAccept(false);
-      setAcceptReason("");
-      setAcceptUntil("");
-      toast.success("Risk accepted", {
-        description:
-          "Recorded in the audit log with your reason. It stays visible and is counted in its own right, never as a fix.",
-      });
-      invalidate();
-    },
-    onError: (err) =>
-      toast.error("Could not accept this risk", {
         description:
           err instanceof ApiError ? err.message : "The API rejected the request.",
       }),
@@ -254,19 +203,16 @@ export function FindingDetailPage() {
         {!isDemo && (
         <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
           <div className="flex flex-wrap gap-2">
-            {data.status !== "ACCEPTED_RISK" && data.status !== "RESOLVED" && (
-              <Button variant="ghost" onClick={() => setShowAccept((v) => !v)}>
-                {t.findings.acceptRisk}
-              </Button>
-            )}
-            {data.status === "OPEN" && (
-              <Button
-                variant="outline"
-                disabled={markInProgress.isPending}
-                onClick={() => markInProgress.mutate()}
+            {/* Decided on the risk, the one place triage happens, so a
+                grouped finding cannot be accepted out from under its group. */}
+            {data.risk && data.status !== "RESOLVED" && (
+              <Link
+                to={`/risks/${data.risk.id}`}
+                className={buttonVariants({ variant: "outline" })}
               >
-                {t.findings.markInProgress}
-              </Button>
+                {t.findings.decideOnRisk}
+                <ArrowRightIcon data-icon="inline-end" aria-hidden />
+              </Link>
             )}
             <Button onClick={() => rescan.mutate()} disabled={rescan.isPending}>
               {rescan.isPending ? (
@@ -294,61 +240,6 @@ export function FindingDetailPage() {
           onRetry={() => rescan.mutate()}
           onClose={() => setVerifyScanId(null)}
         />
-      )}
-
-      {showAccept && (
-        <Card>
-          <CardContent>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                accept.mutate();
-              }}
-            >
-              <Field>
-                <FieldLabel htmlFor="accept-reason">{t.findings.acceptReason}</FieldLabel>
-                <Input
-                  id="accept-reason"
-                  required
-                  autoFocus
-                  minLength={10}
-                  value={acceptReason}
-                  onChange={(e) => setAcceptReason(e.target.value)}
-                  placeholder="Compensating control in place: WAF restricts source addresses"
-                />
-                <FieldDescription>
-                  Recorded in the audit log. Accepted risks stay visible — they are
-                  never hidden.
-                </FieldDescription>
-              </Field>
-              <Field className="mt-3">
-                <FieldLabel htmlFor="accept-until">Until (optional)</FieldLabel>
-                <Input
-                  id="accept-until"
-                  type="date"
-                  min={tomorrowDay()}
-                  value={acceptUntil}
-                  onChange={(e) => setAcceptUntil(e.target.value)}
-                  className="w-fit"
-                />
-                <FieldDescription>
-                  {acceptUntil
-                    ? "After this date the finding comes back to Needs triage on its own, and its timeline says why."
-                    : "With no date, it stays accepted until somebody reopens it."}
-                </FieldDescription>
-              </Field>
-              <div className="mt-3 flex gap-2">
-                <Button type="submit" variant="destructive" disabled={accept.isPending}>
-                  {accept.isPending && <Spinner data-icon="inline-start" />}
-                  {t.findings.confirm}
-                </Button>
-                <Button type="button" variant="ghost" onClick={() => setShowAccept(false)}>
-                  {t.findings.cancel}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
       )}
 
       {/* Not a generic success: it names the scan date, because "verified"

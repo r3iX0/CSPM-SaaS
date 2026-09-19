@@ -28,13 +28,7 @@ const MIN_REASON = 10;
  * What to do about the risks selected in the queue (DECISIONS.md §103).
  *
  * One bar for one risk or fifty, because the API takes both the same way and
- * applies a decision to all of them or to none. The buttons offered are the
- * ones that would change something: nothing to reopen is no Reopen button.
- * Accept is the exception -- on an accepted row it changes the end date.
- *
- * A decision on a finding risk is written to every open finding in it, so the
- * accept dialog says how many that is. Forty accounts is one click here, and
- * the dialog is where that has to be visible rather than discovered.
+ * applies a decision to all of them or to none.
  */
 export function RiskTriageBar({
   selected,
@@ -42,6 +36,49 @@ export function RiskTriageBar({
 }: {
   selected: Risk[];
   onDone: () => void;
+}) {
+  if (selected.length === 0) return null;
+
+  return (
+    <div
+      role="region"
+      aria-label="Selected risks"
+      className="sticky top-2 z-20 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-2.5 shadow-sm"
+    >
+      <p className="text-sm text-foreground">
+        <strong className="tabular-nums">{selected.length}</strong> selected
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <RiskDecisions risks={selected} size="sm" onDone={onDone} />
+        <Button variant="ghost" size="sm" onClick={onDone}>
+          Clear
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The decisions about one or more risks -- the only place in the product a
+ * risk, or a finding, is triaged (DECISIONS.md §107). Used by the queue's bar
+ * and by the risk page.
+ *
+ * The buttons offered are the ones that would change something: nothing to
+ * reopen is no Reopen button. Accept is the exception -- on an accepted risk it
+ * changes the end date.
+ *
+ * A decision on a finding risk is written to every open finding in it, so the
+ * accept dialog says how many that is. Forty accounts is one click here, and
+ * the dialog is where that has to be visible rather than discovered.
+ */
+export function RiskDecisions({
+  risks,
+  size = "default",
+  onDone,
+}: {
+  risks: Risk[];
+  size?: "sm" | "default";
+  onDone?: () => void;
 }) {
   const queryClient = useQueryClient();
   const [accepting, setAccepting] = useState(false);
@@ -52,7 +89,7 @@ export function RiskTriageBar({
   const decide = useMutation({
     mutationFn: (decision: { status: Decision; reason?: string; expires_at?: string }) =>
       api.post("/api/v1/risks/status", {
-        risk_ids: selected.map((risk) => risk.id),
+        risk_ids: risks.map((risk) => risk.id),
         ...decision,
       }),
     onSuccess: (_, decision) => {
@@ -65,10 +102,11 @@ export function RiskTriageBar({
       setAccepting(false);
       setReason("");
       setUntil("");
-      onDone();
-      queryClient.invalidateQueries({ queryKey: ["risks"] });
-      queryClient.invalidateQueries({ queryKey: ["findings"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      onDone?.();
+      // The risk page and every finding in it show the status just written.
+      for (const key of ["risks", "risk", "findings", "finding", "dashboard"]) {
+        queryClient.invalidateQueries({ queryKey: [key] });
+      }
     },
     onError: (err) =>
       toast.error("Nothing was changed", {
@@ -77,64 +115,50 @@ export function RiskTriageBar({
       }),
   });
 
-  if (selected.length === 0) return null;
+  if (risks.length === 0) return null;
 
-  const canStart = selected.some((risk) => risk.status === "OPEN");
-  const canReopen = selected.some(
+  const canStart = risks.some((risk) => risk.status === "OPEN");
+  const canReopen = risks.some(
     (risk) => risk.status === "ACCEPTED" || risk.status === "IN_PROGRESS",
   );
-  const findings = selected.reduce(
+  const findings = risks.reduce(
     (sum, risk) => sum + (risk.kind === "FINDING" ? (risk.finding_count ?? 1) : 0),
     0,
   );
-  const routes = selected.filter((risk) => risk.kind !== "FINDING").length;
+  const routes = risks.filter((risk) => risk.kind !== "FINDING").length;
 
   return (
     <>
-      <div
-        role="region"
-        aria-label="Selected risks"
-        className="sticky top-2 z-20 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-2.5 shadow-sm"
+      {canStart && (
+        <Button
+          variant="outline"
+          size={size}
+          disabled={decide.isPending}
+          onClick={() => decide.mutate({ status: "IN_PROGRESS" })}
+        >
+          Mark in progress
+        </Button>
+      )}
+      {/* Always offered, accepted risks included: accepting again is how an
+          end date is moved or removed, and it replaces the running one. */}
+      <Button
+        variant="outline"
+        size={size}
+        disabled={decide.isPending}
+        onClick={() => setAccepting(true)}
       >
-        <p className="text-sm text-foreground">
-          <strong className="tabular-nums">{selected.length}</strong> selected
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {canStart && (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={decide.isPending}
-              onClick={() => decide.mutate({ status: "IN_PROGRESS" })}
-            >
-              Mark in progress
-            </Button>
-          )}
-          {/* Always offered, accepted rows included: accepting again is how an
-              end date is moved or removed, and it replaces the running one. */}
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={decide.isPending}
-            onClick={() => setAccepting(true)}
-          >
-            Accept…
-          </Button>
-          {canReopen && (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={decide.isPending}
-              onClick={() => decide.mutate({ status: "OPEN" })}
-            >
-              Reopen
-            </Button>
-          )}
-          <Button variant="ghost" size="sm" onClick={onDone}>
-            Clear
-          </Button>
-        </div>
-      </div>
+        Accept…
+      </Button>
+      {canReopen && (
+        <Button
+          variant="outline"
+          size={size}
+          disabled={decide.isPending}
+          onClick={() => decide.mutate({ status: "OPEN" })}
+        >
+          Reopen
+        </Button>
+      )}
 
       <Dialog open={accepting} onOpenChange={setAccepting}>
         <DialogContent className="sm:max-w-lg">
@@ -151,7 +175,7 @@ export function RiskTriageBar({
           >
             <DialogHeader>
               <DialogTitle>
-                Accept {selected.length === 1 ? "this risk" : `${selected.length} risks`}
+                Accept {risks.length === 1 ? "this risk" : `${risks.length} risks`}
               </DialogTitle>
               <DialogDescription>{acceptScope(findings, routes)}</DialogDescription>
             </DialogHeader>

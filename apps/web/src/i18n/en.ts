@@ -615,12 +615,9 @@ export const en = {
     resolvedBy: "Verified fixed by scan",
     actions: "Actions",
     assign: "Assign",
-    markInProgress: "Mark in progress",
-    acceptRisk: "Accept risk",
+    decideOnRisk: "Decide on its risk",
     rescan: "Rescan to verify",
     rescanQueued: "Rescan queued. CloudGuard will close this finding automatically if the fix worked.",
-    acceptReason: "Why are you accepting this risk?",
-    confirm: "Confirm",
     cancel: "Cancel",
     cannotResolveManually:
       "Findings are closed by a scan that confirms the fix, never by hand.",

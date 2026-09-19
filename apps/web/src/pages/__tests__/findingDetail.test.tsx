@@ -8,8 +8,7 @@
  * all-clear — what counts as sensitive is something the customer declares.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -157,29 +156,18 @@ describe("the finding detail page", () => {
     vi.unstubAllGlobals();
   });
 
-  it("sends an acceptance's end date as the end of the picked day", async () => {
-    mount([]);
-    const fetchMock = vi.mocked(fetch);
-
-    await userEvent.click(await screen.findByRole("button", { name: "Accept risk" }));
-    await userEvent.type(
-      screen.getByLabelText("Why are you accepting this risk?"),
-      "Accepted for the migration window",
-    );
-    fireEvent.change(screen.getByLabelText("Until (optional)"), {
-      target: { value: "2099-03-31" },
+  // Decisions are made on the risk, the one place triage happens (§107).
+  it("sends the reader to its risk to decide, and offers no decision of its own", async () => {
+    mount([], {
+      ...FINDING,
+      risk: { id: "risk-1", risk_score: 71, risk_level: "HIGH", score_breakdown: {} },
     });
-    expect(screen.getByText(/comes back to Needs triage on its own/)).toBeInTheDocument();
-    fireEvent.submit(screen.getByLabelText("Until (optional)").closest("form")!);
 
-    await waitFor(() => {
-      const post = fetchMock.mock.calls.find(([url]) => String(url).includes("/accept-risk"));
-      expect(post).toBeDefined();
-      expect(JSON.parse(String((post![1] as RequestInit).body))).toEqual({
-        reason: "Accepted for the migration window",
-        expires_at: new Date("2099-03-31T23:59:59").toISOString(),
-      });
-    });
+    expect(
+      await screen.findByRole("link", { name: /Decide on its risk/ }),
+    ).toHaveAttribute("href", "/risks/risk-1");
+    expect(screen.queryByRole("button", { name: /Accept/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Mark in progress/ })).not.toBeInTheDocument();
   });
 
   it("says when an accepted finding comes back", async () => {

@@ -19,7 +19,9 @@ import {
 } from "@/components/common/states";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
-import { cn, formatRelative } from "@/lib/format";
+import { cn, formatDate, formatRelative } from "@/lib/format";
+import { useIsDemo } from "@/lib/useDemo";
+import { RiskDecisions } from "@/components/security/RiskTriage";
 import { FACTOR_ICONS } from "@/lib/icons";
 import { IconLabel } from "@/components/security/IconLabel";
 import type { LucideIcon } from "lucide-react";
@@ -48,6 +50,7 @@ import {
 export function RiskDetailPage() {
   const t = useT();
   const { riskId } = useParams();
+  const isDemo = useIsDemo();
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["risk", riskId],
@@ -95,6 +98,11 @@ export function RiskDetailPage() {
   if (!data) return null;
 
   const scenario = data.kind !== "FINDING";
+  // What a decision here reaches, for the accept dialog to say before the
+  // click. The list endpoint counts it; the detail already has the members.
+  const openFindings = data.findings.filter(
+    (f) => f.status !== "RESOLVED" && f.status !== "FALSE_POSITIVE",
+  ).length;
   const breakdown = data.score_breakdown;
   const components = breakdown.components ?? {};
   const capped = (breakdown.uncapped ?? 0) > 100;
@@ -112,6 +120,11 @@ export function RiskDetailPage() {
         <div className="flex flex-wrap items-center gap-3">
           <SeverityBadge level={data.risk_level} />
           <StatusPill status={data.status} />
+          {data.accepted_until && (
+            <span className="text-xs text-muted-foreground">
+              until {formatDate(data.accepted_until)}
+            </span>
+          )}
           {/* Says which formula scored this, so the arithmetic below is read
               against the right one. */}
           {scenario && (
@@ -130,6 +143,14 @@ export function RiskDetailPage() {
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
               {data.description}
             </p>
+            {/* The one place a risk -- and so a finding -- is decided about
+                (DECISIONS.md §107). Not in the demo, where the API refuses
+                every write, and not on a resolved risk: only a scan closes one. */}
+            {!isDemo && data.status !== "RESOLVED" && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                <RiskDecisions risks={[{ ...data, finding_count: openFindings }]} />
+              </div>
+            )}
           </div>
           <div className="flex shrink-0 flex-col items-center gap-1.5">
             <ScoreTile

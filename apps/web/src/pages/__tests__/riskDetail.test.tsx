@@ -7,7 +7,8 @@
  * short, so showing it the six weighted components would be working nobody did.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -203,5 +204,53 @@ describe("RiskDetailPage", () => {
       await screen.findByText(/no longer stored/),
     ).toBeInTheDocument();
     expect(screen.queryByText(/still there/)).not.toBeInTheDocument();
+  });
+
+  // The one place a risk -- and so a finding -- is decided about (§107).
+  it("decides about the risk, sending an acceptance's end date as the end of the picked day", async () => {
+    mount(findingRisk());
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: [], meta: {} });
+
+    await userEvent.click(await screen.findByRole("button", { name: "Accept…" }));
+    expect(
+      screen.getByText(/1 open finding, each recorded as an accepted risk/),
+    ).toBeInTheDocument();
+    await userEvent.type(
+      screen.getByLabelText("Why is this acceptable?"),
+      "Accepted for the migration window",
+    );
+    fireEvent.change(screen.getByLabelText("Until (optional)"), {
+      target: { value: "2099-03-31" },
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Accept" }));
+
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith("/api/v1/risks/status", {
+        risk_ids: ["r-1"],
+        status: "ACCEPTED",
+        reason: "Accepted for the migration window",
+        expires_at: new Date("2099-03-31T23:59:59").toISOString(),
+      }),
+    );
+  });
+
+  it("offers only the decisions that would change something", async () => {
+    mount(findingRisk({ status: "IN_PROGRESS" }));
+
+    expect(await screen.findByRole("button", { name: "Reopen" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Mark in progress" })).not.toBeInTheDocument();
+  });
+
+  it("offers no decision on a resolved risk, which only a scan closes", async () => {
+    mount(findingRisk({ status: "RESOLVED" }));
+
+    await screen.findByRole("heading", { name: /Public blob access/ });
+    expect(screen.queryByRole("button", { name: "Accept…" })).not.toBeInTheDocument();
+  });
+
+  it("says when an accepted risk comes back", async () => {
+    mount(findingRisk({ status: "ACCEPTED", accepted_until: "2099-03-31T12:00:00Z" }));
+
+    expect(await screen.findByText(/^until /)).toBeInTheDocument();
   });
 });
