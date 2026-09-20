@@ -6,7 +6,7 @@ these rows -- a finding is about an asset, and a route passes through them.
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from app.connectors.base import NormalizedState
 from app.core.enums import AssetChange, RelationshipType
@@ -17,7 +17,11 @@ from app.models.history import AssetChangeEvent
 from app.models.resource import ResourceRecord, ResourceRelationship
 from app.services.scan.context import AnalyzeContext
 from app.services.scan.scope import asset_scope
-from app.services.scan.writer import ScanWriter
+
+# Stale edges are deleted by id, and a statement carries a bounded number of
+# them: one large first scan of a tenant that has since been restructured is
+# the case this exists for.
+_DELETE_BATCH = 1000
 
 
 async def existing_resource_ids(ctx: AnalyzeContext) -> dict[str, UUID]:
@@ -232,27 +236,34 @@ async def persist_resources(
     edges = [edge for _account, state in account_state for edge in state.relationships]
     if directory is not None:
         edges.extend(directory[1].relationships)
-    _persist_relationships(ctx.writer, edges, id_map)
+    await _persist_relationships(ctx, edges, id_map)
     await ctx.writer.commit()
     return id_map
 
 
-def _persist_relationships(
-    writer: ScanWriter,
+async def _persist_relationships(
+    ctx: AnalyzeContext,
     edges: list[tuple[str, RelationshipType, str]],
     id_map: dict[str, UUID],
 ) -> None:
-    """Record every edge between two assets this scan wrote.
+    """Record every edge this scan saw, and drop the ones it did not.
 
-    Without reading what is already recorded. The read was only ever there to
-    skip edges that existed -- first across the organization's whole table,
-    then narrowed to the sources being written -- and an edge is a fact that is
-    either stored or not, so the writer's ``ON CONFLICT DO NOTHING`` on
-    ``uq_resource_relationships_edge`` answers the same question inside the
-    insert, for no read at all.
+    Edges are written without reading what is already recorded. The read was
+    only ever there to skip edges that existed -- first across the
+    organization's whole table, then narrowed to the sources being written --
+    and an edge is a fact that is either stored or not, so the writer's ``ON
+    CONFLICT DO NOTHING`` on ``uq_resource_relationships_edge`` answers the
+    same question inside the insert, for no read at all.
 
-    Deduplicated here all the same: two subscriptions can report the same
-    edge, and one row per edge is less to send.
+    Deduplicated all the same: two subscriptions can report the same edge, and
+    one row per edge is less to send.
+
+    Removal is the other half, and it was missing. An edge went in and never
+    came out, so an NSG unbound from a machine, a role assignment revoked or a
+    workload's identity removed stayed in the table as a fact about an
+    environment that had moved on -- and the route through it stayed on the
+    attack-paths page after the customer severed it. A stale edge is not a
+    weaker claim than a real one, it is a false one (DECISIONS.md section 52).
     """
     wanted = {
         (id_map[s], rel, id_map[t])
@@ -260,11 +271,70 @@ def _persist_relationships(
         if s in id_map and t in id_map
     }
     for source, rel, target in wanted:
-        writer.add(
+        ctx.writer.add(
             ResourceRelationship,
             source_resource_id=source,
             target_resource_id=target,
             relationship_type=rel,
+        )
+    await _prune_relationships(ctx, wanted)
+
+
+async def _prune_relationships(
+    ctx: AnalyzeContext, wanted: set[tuple[UUID, RelationshipType, UUID]]
+) -> None:
+    """Delete edges this scan re-read both ends of and did not see.
+
+    **Both ends, and that is the whole of the safety argument.** A scan speaks
+    for the assets it covered, and an edge is reported by the scope its
+    endpoints sit in: a role assignment over subscription A is read when A is
+    collected, and reading B says nothing about it. So a directory user
+    rescanned alongside one subscription keeps every role it holds over the
+    others -- their scopes are not in this scan's, so those edges are never
+    candidates -- while the assignment it lost inside the scanned subscription
+    goes, because both ends of that one were re-read.
+
+    Edges touching an asset that has disappeared are left alone. The row
+    survives its own absence (``absent_since``), the graph already excludes it,
+    and deleting its edges would throw away the shape of an environment that
+    may be back next week.
+
+    One read and one delete per batch, scoped by a subquery rather than by the
+    ids themselves -- a tenant with fifty thousand edges is not a parameter
+    list anything should be asked to carry.
+    """
+    scope = asset_scope(ctx.account_ids, ctx.connection_id)
+    if scope is None:
+        return
+    covered = select(ResourceRecord.id).where(
+        ResourceRecord.organization_id == ctx.org_id,
+        ResourceRecord.absent_since.is_(None),
+        scope,
+    )
+    rows = (
+        (
+            await ctx.session.execute(
+                select(
+                    ResourceRelationship.id,
+                    ResourceRelationship.source_resource_id,
+                    ResourceRelationship.relationship_type,
+                    ResourceRelationship.target_resource_id,
+                ).where(
+                    ResourceRelationship.organization_id == ctx.org_id,
+                    ResourceRelationship.source_resource_id.in_(covered),
+                    ResourceRelationship.target_resource_id.in_(covered),
+                )
+            )
+        )
+        .tuples()
+        .all()
+    )
+    stale = [row_id for row_id, s, rel, t in rows if (s, rel, t) not in wanted]
+    for start in range(0, len(stale), _DELETE_BATCH):
+        await ctx.session.execute(
+            delete(ResourceRelationship).where(
+                ResourceRelationship.id.in_(stale[start : start + _DELETE_BATCH])
+            )
         )
 
 

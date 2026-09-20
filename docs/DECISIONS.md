@@ -1847,12 +1847,13 @@ they closed this morning. §"the graph holds present assets" already established
 that a stale path is not a weaker claim than a real one, it is a false one — a
 TTL would reintroduce exactly that, on a timer.
 
-The version is three aggregates: the newest `cloud_resources.updated_at`, the
-newest `resource_relationships.created_at`, and the count of present assets. The
-count is not redundant. A scan that only *removed* an asset moves no timestamp —
-the rows that remain were not touched, and the one that went is not there to
-carry a time — so without it the graph would go on serving routes through
-something no longer in the estate.
+The version is four aggregates: the newest `cloud_resources.updated_at`, the
+newest `resource_relationships.created_at`, and a count of each. The counts are
+not redundant. A scan that only *removed* something moves no timestamp — the
+rows that remain were not touched, and the one that went is not there to carry
+a time — so without the asset count the graph would go on serving routes
+through something no longer in the estate, and without the edge count it would
+go on serving a route whose link the last scan pruned (§120).
 
 Keyed on the data rather than on "the newest scan", though a scan is the only
 thing that rewrites assets today. Keying on the scan would be an inference about
@@ -6248,6 +6249,168 @@ open and disagree with.
 **What this does not change.** Sensitivity is still only what tags, names and
 type floors declare. An untagged lab storage account is still not a target, and
 the page now says so rather than calling the estate clean.
+
+## 120. A link between two assets is removed when the scan that re-read it does not see it
+
+Edges were inserted and never deleted. `_persist_relationships` wrote every
+edge a scan saw, `ON CONFLICT DO NOTHING` absorbed the repeats, and nothing
+ever took one out — so an NSG unbound from a machine, a role assignment
+revoked, a workload's identity removed all left their edge behind as a
+permanent fact about an environment that had moved on. The estate map drew it,
+`AssetGraph` traversed it, and the attack-paths page went on showing a route
+after the customer severed it. §52 already settled what that costs: a stale
+path is not a weaker claim than a real one, it is a false one.
+
+**A scan may delete an edge only when it re-read both of its ends.** An edge is
+reported by the scope its endpoints sit in — a role assignment over
+subscription A is read when A is collected, and collecting B says nothing about
+it — so "this scan did not report the edge" is evidence the edge is gone only
+where the scan actually covered both ends. A directory user rescanned beside
+one subscription therefore keeps every role it holds over the others, whose
+scopes are not in this scan's, and loses the assignment it no longer has inside
+the scanned one. Scoping the prune to the source alone would have deleted the
+first kind: the tenant-wide half of a graph disappearing on a
+single-subscription rescan.
+
+**An edge touching an absent asset is left alone.** An asset a scan looked for
+and did not find keeps its row (`absent_since`), because a resource that
+vanishes for a week and returns is one asset rather than two. Its edges are
+kept for the same reason, and the graph already refuses to traverse them.
+
+The prune is one read and one delete per batch of 1000 ids, scoped by a
+subquery over the assets this scan covered rather than by the ids themselves —
+a tenant with fifty thousand edges is not a parameter list anything should be
+asked to carry. It is the only read the edge stage makes: inserts still answer
+"is this already stored" inside the statement.
+
+**The graph's cache key grew an edge count.** It was three aggregates: the
+newest asset `updated_at`, the newest edge `created_at`, and the count of
+present assets. A scan whose only write is a delete moves no timestamp and
+changes no asset count, so the first pruning scan would have been invisible to
+the cache — the page answering the one change a customer makes *because of* it
+by serving the severed route back. `graph_version` counts edges too.
+
+## 121. A hop names its evidence, and the evidence is read off the assets
+
+`RELATIONSHIP_VERBS` turned an edge into a sentence: "mi-app can act over
+sub-prod". True, and unactionable — the one thing a customer would have to
+change to make it false is the role, and the sentence did not name it.
+CloudGuard collected the role, stored it on the principal, drew a line for it
+and then declined to say it.
+
+`PathStep.detail()` says it: "mi-app can act over sub-prod (Contributor)".
+Beside `describe()` rather than replacing it, because the plain sentence is
+what a risk is titled by, and a title that moved when a second assignment
+appeared would read as a different route.
+
+**Derived from the two assets, not carried on the edge.** An edge is
+`(source, kind, target)` in the normalizer's payload, in
+`resource_relationships`, and in every traversal that walks it. Threading a
+fourth element through all of that means a column, a migration, an
+`ON CONFLICT` that updates it, and a producer change per provider — to restate
+facts already sitting on the assets the edge joins. A principal's roles are on
+the principal (`metadata["roles"]`, which the normalizer already writes so a
+rule can state "this person holds Owner over your subscription"); a machine's
+subnets are on the machine. So `graph/facts.py` reads them back,
+which makes the evidence exactly as fresh as the assets are and impossible to
+leave stale behind them.
+
+Nothing is guessed. A fact appears when the asset states it and is absent
+otherwise, and an unresolved role is already "Unknown role" by the time it
+reaches metadata. An escalation hop names only the assignments that escalate:
+a principal may hold Reader over the same scope, and printing Reader beside
+"can grant itself any role" would put the harmless assignment's name on the
+dangerous claim.
+
+## 122. What a link holds up is answered for every link, exactly, in one pass
+
+`choke_points` used to rank candidates by how many routes they sat on, then
+verify the leaders by removing each one and re-asking the whole question. The
+ranking is sound as far as it goes — containment bounds severance — but each
+verification was a full re-traversal over every entry point in the tenant, so
+only a handful were affordable, and about every other link the page had nothing
+to say at all.
+
+`graph/severance.py` answers for all of them. From one entry point, walk
+forward layer by layer to the depth bound, carrying with each node the set of
+removable links that appear on *every* walk of that length to it:
+
+    necessary(entry, 0) = {}
+    necessary(v, d+1)   = intersection over each u with an edge u->v of
+                          necessary(u, d) + {that edge, when removable}
+    necessary(v)        = intersection over every d at which v is reached
+
+A link is in `necessary(v)` exactly when no walk to `v` within the bound avoids
+it — which is exactly when removing it puts `v` out of reach. The severed set
+is read off the targets rather than searched for, and one walk per entry point
+answers for the whole graph. The cost is the walk the route list already pays.
+
+**Layers rather than a visited set.** The traversal that enumerates routes
+stops at a node it has already seen, because it wants the shortest route to it.
+This one must not: a longer way round is the whole reason a link might not be
+worth cutting, and stopping at the first arrival would call every link on the
+shortest route necessary and promise closures that never happen. Keeping the
+layers is affordable for the same reason the routes are short — a set carried
+here can never hold more links than the walk has hops.
+
+**One analysis, three readings.** The ranked list, the what-if on a single link
+and the number drawn on a line are the same map read three ways, cached on the
+graph. They used to be two computations of one thing, and two computations of
+one thing eventually disagree in front of a customer.
+
+Two consequences worth stating. A link that closes nothing is never offered,
+because every route through it has another way round — and that is a real
+answer to "what if I cut this", not an absence. And `on_routes` is never
+smaller than `severs` by construction rather than by luck: a link severing a
+route is on every walk to that target, including the one drawn.
+
+## 123. The attack-path page draws every route, and says the repeated ones once
+
+Two problems with a ranked list of routes, and they are the same problem.
+
+Forty routes through one identity are forty rows that never say "one identity".
+The list ranks by hops, which is the right order for reading a route and the
+wrong one for seeing an estate: the shape is in what the routes *share*, and a
+list can only show it by repeating it.
+
+And twelve machines in a scale set reaching one storage account through one
+identity is one sentence printed twelve times, which buries every other shape
+under a repetition of one.
+
+`/attack-paths/graph` answers both in one request. The page draws the route
+subgraph — only the assets a route runs through, never the estate — laid out by
+`column`, the fewest hops from any way in, so reading left to right is reading
+an attacker's progress. Every line carries what cutting it would close (§122)
+and is weighted by that number, never by how many routes it merely sits on.
+Pressing a line simulates the cut: the routes that would close grey out, from
+the same answer the number came from, so the claim and the picture cannot
+disagree. Nothing is sent to Azure.
+
+`graph/patterns.py` collapses the repetition, and only where the routes are
+*identical* apart from one end — many ways in to one target, or one way in to
+many targets. Similar is not the same: two routes through different identities
+are two problems, and folding them because they end alike would hide one. A
+route belongs to at most one group, and to the larger one where it could join
+either, so the groups and the loose routes partition the list exactly; both
+readings are true of a fan that opens at both ends, and a route counted twice
+would make the totals add up to more than the estate holds.
+
+**The canvas obeys the laws §101 and §111 already set.** React Flow with
+`base.css` only, coloured from the tokens, laid out by hop count rather than a
+force simulation, lazy-loaded, nothing draggable, one tab stop with arrow keys
+inside. A simulation settles somewhere different on each run, so one estate
+would draw a different picture every visit and two people looking at it would
+not be looking at the same thing.
+
+**Motion that carries data, and nothing else.** Columns arrive left to right, so
+the drawing is read outside-in once; the traced route's hops march in the
+direction reach runs; a cut greys out what would go. Each degrades to its final
+state immediately under reduced motion, and there is no timer-driven progress
+anywhere on the page — the same rule §87 set for the scan view.
+
+`AttackPathRoute` is unchanged and still the answer to "which link do I cut" for
+one route: it is what the rail opens into, what a finding shows, and what the
+PDF report can draw, which a canvas cannot.
 
 ## Open items carried forward
 

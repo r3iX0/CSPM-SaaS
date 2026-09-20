@@ -395,6 +395,8 @@ const ROUTE: AttackPath = {
       target: "mi",
       target_id: "mi",
       description: "vm runs as mi",
+      facts: ["managed identity"],
+      detail: "vm runs as mi (managed identity)",
     },
     {
       source: "mi",
@@ -403,6 +405,8 @@ const ROUTE: AttackPath = {
       target: "sub",
       target_id: "sub",
       description: "mi can act over sub",
+      facts: ["Contributor"],
+      detail: "mi can act over sub (Contributor)",
     },
     {
       source: "sub",
@@ -411,10 +415,13 @@ const ROUTE: AttackPath = {
       target: "data",
       target_id: "data",
       description: "sub contains data",
+      facts: [],
+      detail: "sub contains data",
     },
   ],
   cheapest_break: {
     description: "vm runs as mi",
+    detail: "vm runs as mi (managed identity)",
     relationship: "has_identity",
     source_id: "vm",
     target_id: "mi",

@@ -705,10 +705,100 @@ export interface AttackPath {
    */
   cheapest_break: {
     description: string;
+    detail: string;
     relationship: string;
     source_id: string;
     target_id: string;
   } | null;
+}
+
+/**
+ * Every route in the estate as one graph, from `GET /attack-paths/graph`.
+ *
+ * The list ranks routes, which is the right order for reading them and the
+ * wrong one for acting: forty routes through one identity are forty rows that
+ * never say "one identity". This is the same facts drawn, with what each link
+ * holds up written on it.
+ */
+export interface RouteMap {
+  nodes: RouteMapNode[];
+  edges: RouteMapEdge[];
+  routes: MappedRoute[];
+  patterns: RoutePattern[];
+  /** Routes belonging to no pattern. With the patterns, these are every route. */
+  loose: string[];
+  choke_points: ChokePoint[];
+}
+
+export interface RouteMapNode {
+  id: string;
+  asset_id: string | null;
+  name: string;
+  resource_type: string;
+  provider: string;
+  /** Fewest hops from any way in. The axis the canvas lays out along. */
+  column: number;
+  public_exposure: Level;
+  data_sensitivity: Level;
+  /** Somewhere a route may start: HIGH or CRITICAL exposure, never UNKNOWN. */
+  entry: boolean;
+  /** Somewhere a route may end: HIGH or CRITICAL data sensitivity. */
+  sensitive: boolean;
+  /** How many routes run through it. */
+  routes: number;
+  findings: { open: number; worst: Level | null };
+}
+
+export interface RouteMapEdge {
+  source: string;
+  relationship: string;
+  target: string;
+  label: string;
+  facts: string[];
+  detail: string;
+  /**
+   * How many routes close if this link is removed — checked for every link,
+   * not for a shortlist. Zero is a real answer: every route through here has
+   * another way round.
+   */
+  severs: number;
+  /** Which ones, by route key — the working behind `severs`. */
+  closes: string[];
+  /** How many routes it merely sits on. Never smaller than `severs`. */
+  on_routes: number;
+  /** Whether those two differ, which is exactly "there is a way round". */
+  alternate: boolean;
+}
+
+/** A route, with the name it is known by elsewhere and the pattern it belongs to. */
+export interface MappedRoute extends AttackPath {
+  key: string;
+  pattern: string | null;
+}
+
+/**
+ * Routes that are the same route said many times — twelve machines reaching
+ * one storage account through one identity is one sentence, and was twelve
+ * rows. A route belongs to at most one pattern, so the patterns and `loose`
+ * together are every route exactly once.
+ */
+export interface RoutePattern {
+  id: string;
+  kind: "many_entries" | "many_targets";
+  description: string;
+  size: number;
+  hops: number;
+  /** The route to read as the group's, by key. */
+  exemplar: string;
+  routes: string[];
+  /** The end that varies, named, so the group can list what it collapsed. */
+  varies: { id: string; name: string; route: string }[];
+}
+
+/** What `GET /attack-paths/graph` carries beside the drawing. */
+export interface RouteMapMeta extends AttackPathMeta {
+  /** How many of `total` are drawn. Fewer means the canvas is not the whole estate. */
+  drawn: number;
 }
 
 /**
@@ -780,6 +870,15 @@ export interface AttackPathStep {
   target: string;
   target_id: string;
   description: string;
+  /**
+   * What the hop is beyond its kind — the roles held over the scope, the
+   * network two machines share, the kind of identity. Empty when the scan
+   * collected nothing that says so: an edge that cannot say more than its
+   * kind says its kind and stops.
+   */
+  facts: string[];
+  /** The description with those facts in it, when there are any. */
+  detail: string;
 }
 
 /**
@@ -824,6 +923,9 @@ export interface DeadEnd {
  */
 export interface ChokePoint {
   description: string;
+  /** The same link with its evidence in it: which role, which network. */
+  detail: string;
+  facts: string[];
   relationship: string;
   source: { id: string; name: string; resource_type: string };
   target: { id: string; name: string; resource_type: string };

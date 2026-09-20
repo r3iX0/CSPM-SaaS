@@ -33,6 +33,7 @@ from app.domain.resource import CloudResource
 from app.graph import AssetGraph, ChokePoint, DeadEnd, Neighborhood, Path
 from app.graph.estate import EstateMap
 from app.graph.model import ENTRY_EXPOSURE, RELATIONSHIP_VERBS, SENSITIVE_DATA
+from app.graph.patterns import PatternKind, route_patterns
 from app.models.finding import Finding
 from app.models.resource import ResourceRecord, ResourceRelationship
 from app.services.placement import Placements
@@ -50,14 +51,13 @@ from app.services.placement import Placements
 # and holding a graph per tenant indefinitely trades a latency problem for a
 # memory one.
 _MAX_CACHED = 8
-_cache: "OrderedDict[UUID, tuple[tuple[datetime | None, datetime | None, int], AssetGraph]]" = (
-    OrderedDict()
-)
+_GraphVersion = tuple[datetime | None, datetime | None, int, int]
+_cache: "OrderedDict[UUID, tuple[_GraphVersion, AssetGraph]]" = OrderedDict()
 
 
 async def graph_version(
     session: AsyncSession, organization_id: UUID
-) -> tuple[datetime | None, datetime | None, int]:
+) -> tuple[datetime | None, datetime | None, int, int]:
     """What the graph would be built from, cheaply enough to ask every time.
 
     Keyed on the data rather than on the scan that wrote it. A scan is the only
@@ -67,9 +67,13 @@ async def graph_version(
     the cache would go stale silently and serve routes through an estate that
     has moved.
 
-    Three aggregates rather than one: assets change by being written, and edges
-    change by being replaced, and a scan that only removed an edge would move
-    neither timestamp on its own. The count is what catches that.
+    A newest time and a count for each of the two, because either can change by
+    something being taken away, and a removal moves no timestamp: the rows that
+    remain were not touched, and the one that went is not there to carry a
+    time. The asset count catches a machine leaving the estate; the edge count
+    catches a scan whose only change was to cut a link -- an NSG unbound, a
+    role revoked -- which is exactly the moment somebody opens this page to
+    confirm the route is gone.
     """
     assets = (
         await session.execute(
@@ -84,12 +88,13 @@ async def graph_version(
     ).one()
     edges = (
         await session.execute(
-            select(func.max(ResourceRelationship.created_at)).where(
-                ResourceRelationship.organization_id == organization_id
-            )
+            select(
+                func.max(ResourceRelationship.created_at),
+                func.count(ResourceRelationship.id),
+            ).where(ResourceRelationship.organization_id == organization_id)
         )
-    ).scalar_one_or_none()
-    return (assets[0], edges, int(assets[1] or 0))
+    ).one()
+    return (assets[0], edges[0], int(assets[1] or 0), int(edges[1] or 0))
 
 
 async def load_graph(session: AsyncSession, organization_id: UUID) -> AssetGraph:
@@ -202,6 +207,11 @@ def serialize_choke_point(choke: ChokePoint, total_routes: int) -> dict:
     """
     return {
         "description": choke.describe(),
+        # The same link with its evidence in it. Carried beside the plain
+        # sentence rather than replacing it, because the plain one is what the
+        # rest of the product calls this link.
+        "detail": choke.step.detail(),
+        "facts": list(choke.step.facts),
         "relationship": choke.step.relationship.value,
         "source": {
             "id": choke.step.source.provider_resource_id,
@@ -257,6 +267,11 @@ def serialize_path(path: Path) -> dict:
                 "target": s.target.name,
                 "target_id": s.target.provider_resource_id,
                 "description": s.describe(),
+                # What the hop is, beyond its kind: the role held over the
+                # scope, the network two machines share. "can act over" names
+                # nothing anybody can go and change; "Contributor" does.
+                "facts": list(s.facts),
+                "detail": s.detail(),
             }
             for s in path.steps
         ],
@@ -267,6 +282,7 @@ def serialize_path(path: Path) -> dict:
         "cheapest_break": (
             {
                 "description": step.describe(),
+                "detail": step.detail(),
                 "relationship": step.relationship.value,
                 "source_id": step.source.provider_resource_id,
                 "target_id": step.target.provider_resource_id,
@@ -562,4 +578,173 @@ def serialize_estate(
         "lens": {"scope_id": estate.lens.scope, "group": estate.lens.group},
         "boxes": boxes,
         "edges": edges,
+    }
+
+
+def route_key(path: Path) -> str:
+    """One route, named by its ends.
+
+    The same name the browser builds (``routeKeys.ts``) and the same pair a
+    risk is keyed by (``correlation.py``), so a route is one thing across the
+    three places that talk about it. The route drawn is the shortest from its
+    entry to its target, so the pair names it uniquely.
+    """
+    return f"{path.entry.provider_resource_id}|{path.target.provider_resource_id}"
+
+
+def serialize_route_map(
+    graph: AssetGraph,
+    paths: list[Path],
+    ids: dict[str, UUID],
+    findings: dict[UUID, dict],
+    *,
+    total_routes: int,
+    choke_limit: int = 5,
+) -> dict:
+    """Every route in the estate as one drawable graph, with what each link holds up.
+
+    The list of routes and this are the same facts read two ways, and both are
+    sent together deliberately: the list ranks, and only the drawing shows that
+    forty routes pass through one identity. Splitting them across requests made
+    the page draw a shape before it knew which parts of it mattered.
+
+    **Only the routes, not the estate.** A node is here because a route runs
+    through it. The neighbourhood draws what surrounds one asset and the estate
+    map draws the containers; this draws the thing the page is named after, and
+    drawing anything else on it would be inviting the reader to look for the
+    answer somewhere it cannot be.
+
+    ``column`` is the fewest hops from any way in -- the axis the canvas lays
+    out along, and a fact rather than a drawing decision: a target two hops from
+    the internet is a different problem from one five hops away, and the reader
+    should be able to see which without counting lines.
+    """
+    columns: dict[str, int] = {}
+    through: dict[str, int] = {}
+    for path in paths:
+        walked = [path.entry.provider_resource_id] + [
+            step.target.provider_resource_id for step in path.steps
+        ]
+        for hop, node_id in enumerate(walked):
+            settled = columns.get(node_id)
+            columns[node_id] = hop if settled is None else min(settled, hop)
+        for node_id in dict.fromkeys(walked):
+            through[node_id] = through.get(node_id, 0) + 1
+
+    nodes = []
+    for node_id, column in sorted(columns.items(), key=lambda item: (item[1], item[0])):
+        resource = graph.nodes[node_id]
+        asset_id = ids.get(node_id)
+        nodes.append(
+            {
+                "id": node_id,
+                "asset_id": str(asset_id) if asset_id else None,
+                "name": resource.name,
+                "resource_type": resource.resource_type.value,
+                "provider": resource.provider.value,
+                "column": column,
+                "public_exposure": resource.public_exposure.value,
+                "data_sensitivity": resource.data_sensitivity.value,
+                # The graph's own predicates rather than a re-reading of the
+                # levels in the browser, so a box drawn as a way in is exactly
+                # an asset a route may start from.
+                "entry": resource.public_exposure in ENTRY_EXPOSURE,
+                "sensitive": resource.data_sensitivity in SENSITIVE_DATA,
+                "routes": through.get(node_id, 0),
+                "findings": (findings.get(asset_id) if asset_id else None)
+                or {"open": 0, "worst": None},
+            }
+        )
+
+    severance = graph.link_severance()
+    on_routes = graph.links_on_routes()
+    steps = {step.key(): step for path in paths for step in path.steps}
+    edges = []
+    for link, step in sorted(steps.items()):
+        severed = severance.get(link, ())
+        on = on_routes.get(link, 0)
+        edges.append(
+            {
+                "source": link[0],
+                "relationship": link[1],
+                "target": link[2],
+                "label": RELATIONSHIP_VERBS.get(step.relationship, step.relationship.value),
+                "facts": list(step.facts),
+                "detail": step.detail(),
+                # What cutting this one link would do, for every link rather
+                # than for a shortlist. Zero is a real answer and is drawn as
+                # one: it means every route through here has another way round.
+                "severs": len(severed),
+                # Named, not just counted. A count is a claim, and these are
+                # its working -- they are what lets the drawing grey out
+                # exactly what would go, without asking the server a second
+                # question whose answer might not match the first.
+                "closes": [route_key(path) for path in severed],
+                "on_routes": on,
+                # And whether that is the case, said plainly. The gap between
+                # the two numbers is the part a customer needs before they
+                # spend an afternoon removing a role assignment.
+                "alternate": on > len(severed),
+            }
+        )
+
+    patterns, loose = route_patterns(paths)
+    of_pattern: dict[str, str] = {}
+    shapes = []
+    for index, pattern in enumerate(patterns):
+        pattern_id = f"pattern-{index + 1}"
+        for member in pattern.members:
+            of_pattern[route_key(member)] = pattern_id
+        shapes.append(
+            {
+                "id": pattern_id,
+                "kind": pattern.kind.value,
+                "description": pattern.describe(),
+                "size": pattern.size,
+                "hops": pattern.exemplar.hops,
+                "exemplar": route_key(pattern.exemplar),
+                "routes": [route_key(member) for member in pattern.members],
+                # The end that varies, named, so the group can list what it
+                # collapsed without the reader opening every member.
+                "varies": [
+                    {
+                        "id": (
+                            member.entry.provider_resource_id
+                            if pattern.kind is PatternKind.MANY_ENTRIES
+                            else member.target.provider_resource_id
+                        ),
+                        "name": (
+                            member.entry.name
+                            if pattern.kind is PatternKind.MANY_ENTRIES
+                            else member.target.name
+                        ),
+                        "route": route_key(member),
+                    }
+                    for member in pattern.members
+                ],
+            }
+        )
+
+    return {
+        "nodes": nodes,
+        "edges": edges,
+        "routes": [
+            {
+                **serialize_path(path),
+                "key": route_key(path),
+                "pattern": of_pattern.get(route_key(path)),
+            }
+            for path in paths
+        ],
+        "patterns": shapes,
+        "loose": [route_key(path) for path in loose],
+        "choke_points": [
+            # Against every route the estate has, never against the subset
+            # drawn. A link's severance is computed over all of them, and the
+            # dedicated endpoint says "4 of 240"; a map capped at 200 saying
+            # "4 of 200" would be the same claim with two denominators, in two
+            # places one person reads in one sitting.
+            serialize_choke_point(choke, total_routes)
+            for choke in graph.choke_points(limit=choke_limit)
+        ],
     }

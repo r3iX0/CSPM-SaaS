@@ -169,7 +169,7 @@ async def _correlate_template(
             risk.description = (
                 f"{path.entry.name} is reachable from the internet and, in "
                 f"{path.hops} steps, reaches {path.target.name}. "
-                + (f"Severing it: {step.describe()}." if step else "")
+                + (f"Severing it: {step.detail()}." if step else "")
             )
         else:
             risk.title = (
@@ -180,7 +180,7 @@ async def _correlate_template(
                 f"{path.hops} steps, reaches an identity that can assign "
                 f"roles over {path.target.name} -- so whatever it holds "
                 "today is not the limit of what it could hold. "
-                + (f"Severing it: {step.describe()}." if step else "")
+                + (f"Severing it: {step.detail()}." if step else "")
             )
         risk.path = [
             {

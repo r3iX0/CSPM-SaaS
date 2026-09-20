@@ -2508,6 +2508,84 @@ class TestAssetGraph:
             for r in reached
         )
 
+    async def test_an_unbound_nsg_loses_its_edge_on_the_next_scan(
+        self, replay, connected_account
+    ) -> None:
+        """The reported bug: an edge went in and never came out.
+
+        Both assets are still here -- the machine and the group that guarded it
+        -- and what changed is only that they are no longer attached. Written
+        without ever being removed, the ``protects`` edge outlived the
+        attachment it stood for, so the graph went on describing a wiring the
+        customer had undone.
+        """
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+
+        before = await fetch(
+            "SELECT count(*) FROM resource_relationships "
+            "WHERE organization_id = :o AND relationship_type = 'protects'",
+            {"o": org_id},
+        )
+        assert before[0][0] > 0, "nothing was guarding anything to begin with"
+
+        # Unbind the group from the machine's interface, and leave both in
+        # place. The next scan reads the same subscription and reports every
+        # edge it still sees, which no longer includes this one.
+        payload = load_raw()
+        for nic in payload["data"]["network_interfaces"]:
+            nic.get("properties", {}).pop("networkSecurityGroup", None)
+        replay["payload"] = payload
+        await run_scan(org_id, account_id)
+
+        after = await fetch(
+            "SELECT count(*) FROM resource_relationships "
+            "WHERE organization_id = :o AND relationship_type = 'protects'",
+            {"o": org_id},
+        )
+        assert after[0][0] == 0, "the severed attachment is still on the graph"
+
+        # And the rest of the estate is untouched: pruning is about the edges
+        # this scan re-read both ends of, not about emptying the table.
+        kept = await fetch(
+            "SELECT count(*) FROM resource_relationships "
+            "WHERE organization_id = :o AND relationship_type = 'contains'",
+            {"o": org_id},
+        )
+        assert kept[0][0] > 0
+
+    async def test_the_page_stops_showing_a_route_that_was_severed(
+        self, replay, connected_account
+    ) -> None:
+        """The customer-visible half of the same bug.
+
+        The graph is cached on the version of its data, and a scan whose only
+        write is a delete moves no timestamp and changes no asset count. So the
+        one change somebody makes *because of* this page -- cutting the link --
+        was also the one change the page could not see.
+        """
+        from app.services import graph as graph_service
+
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+
+        async with service_session() as session:
+            first = await graph_service.load_graph(session, org_id)
+        assert first.attack_paths(), "no route to sever"
+
+        payload = load_raw()
+        # The machine stops running as an identity, so the hop from workload to
+        # principal goes.
+        for vm in payload["data"]["virtual_machines"]:
+            vm.pop("identity", None)
+        replay["payload"] = payload
+        await run_scan(org_id, account_id)
+
+        async with service_session() as session:
+            second = await graph_service.load_graph(session, org_id)
+        assert second is not first, "the page served the pre-scan graph back"
+        assert second.attack_paths() == []
+
     async def test_an_edge_outliving_its_resource_is_not_followed(
         self, replay, connected_account
     ) -> None:

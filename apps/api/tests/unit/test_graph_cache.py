@@ -48,17 +48,20 @@ class Result:
 class FakeSession:
     """Reports a version this test controls, and counts full reads."""
 
-    def __init__(self, *, updated_at: datetime, count: int) -> None:
+    def __init__(
+        self, *, updated_at: datetime, count: int, edges: int = 9
+    ) -> None:
         self.updated_at = updated_at
         self.count = count
+        self.edges = edges
         self.builds = 0
 
     async def execute(self, statement: object) -> Result:
         text = str(statement)
-        if "max(" in text and "count(" in text:
+        if "count(" in text and "cloud_resources" in text:
             return Result([(self.updated_at, self.count)])
-        if "max(" in text:
-            return Result([self.updated_at])
+        if "count(" in text and "resource_relationships" in text:
+            return Result([(self.updated_at, self.edges)])
         # Anything else is one of the two whole-tenant reads a build makes.
         self.builds += 1
         return Result([])
@@ -105,7 +108,7 @@ async def test_a_scan_invalidates_it_by_happening() -> None:
     assert first is not second
 
 
-async def test_an_edge_removed_without_a_new_asset_still_invalidates() -> None:
+async def test_an_asset_removed_without_a_new_one_still_invalidates() -> None:
     """Why the count is in the key.
 
     A scan that only removed an asset moves no timestamp: the rows that remain
@@ -117,6 +120,24 @@ async def test_an_edge_removed_without_a_new_asset_still_invalidates() -> None:
     first = await service.load_graph(session, ORG_A)  # type: ignore[arg-type]
 
     session.count = 11
+    second = await service.load_graph(session, ORG_A)  # type: ignore[arg-type]
+
+    assert first is not second
+
+
+async def test_an_edge_removed_and_nothing_else_still_invalidates() -> None:
+    """The case the asset count does not cover.
+
+    Unbinding an NSG or revoking a role changes no asset and adds no edge: the
+    scan's only write is a delete, so the newest asset time, the newest edge
+    time and the asset count all stand still. That is the one change a customer
+    makes *because of* this page, and without the edge count in the key the
+    page would answer it by serving the severed route back.
+    """
+    session = FakeSession(updated_at=NOW, count=12, edges=9)
+    first = await service.load_graph(session, ORG_A)  # type: ignore[arg-type]
+
+    session.edges = 8
     second = await service.load_graph(session, ORG_A)  # type: ignore[arg-type]
 
     assert first is not second

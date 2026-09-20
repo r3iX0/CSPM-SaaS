@@ -140,14 +140,17 @@ def test_no_single_cut_closes_every_route_to_the_customer_records() -> None:
     assert len({c.severs for c in choke_points}) > 1, "the cuts should not all be equal"
     for choke in choke_points:
         step = choke.step
-        remaining = estate._without(
-            (
-                step.source.provider_resource_id,
-                step.relationship.value,
-                step.target.provider_resource_id,
-            )
-        ).attack_paths()
-        assert any(p.target == records for p in remaining)
+        outcome = estate.cut(
+            step.source.provider_resource_id,
+            step.relationship,
+            step.target.provider_resource_id,
+        )
+        assert outcome is not None
+        closed = {id(path) for path in outcome.closed}
+        assert any(
+            path.target == records and id(path) not in closed
+            for path in estate.attack_paths()
+        )
 
 
 def test_the_seed_replays_this_recording_and_its_fixes_still_apply() -> None:

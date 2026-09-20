@@ -743,6 +743,25 @@ export const en = {
     sensitiveTargets: "sensitive assets",
     exposure: "Exposure",
     sensitivity: "Sensitivity",
+    // The map. Columns are hops from the outside in, so reading left to right
+    // is reading an attacker's progress.
+    mapTitle: "Every route, drawn",
+    mapHelp:
+      "Left to right is hops from the outside in. A line's thickness is how many routes close if it is cut — checked for every link, not only the ones listed above. Press a line to see what cutting it would do, or a box for the routes through it. Arrow keys move between boxes.",
+    mapDrawnOf: (drawn: number, total: number) =>
+      `Drawing ${drawn} of ${total} routes — the rest are in the list.`,
+    listTitle: "Routes",
+    patternsTitle: "The same route, repeated",
+    patternsHelp:
+      "Grouped only where the routes are identical apart from one end, so each group is a claim you can check by opening it.",
+    routesThrough: (n: number) => `On ${n} ${n === 1 ? "route" : "routes"}`,
+    simulate: "Simulate the cut",
+    simulateStop: "Stop simulating",
+    simulating: "Simulating — nothing in Azure has changed.",
+    closesNothing:
+      "Cutting this closes nothing: every route through it has another way round.",
+    clearTrace: "Show every route",
+    tracing: "Tracing one route",
   },
   notifications: {
     aria: "Notifications",

@@ -31,6 +31,11 @@ ROUTE_LIMIT = 20
 # estate's accounts are all entry points, and the machines sort first.
 DEAD_END_LIMIT = 25
 
+# Routes one drawing may hold. Past this the canvas stops being something a
+# person reads, and the count in ``meta`` says how many were left off rather
+# than letting the picture pass for the whole estate.
+ROUTE_MAP_LIMIT = 200
+
 # Folds one request may ask to open. Each is an id of a few hundred characters
 # in the query string, and the node cap bounds the drawing long before this.
 EXPAND_LIMIT = 20
@@ -84,6 +89,57 @@ async def list_attack_paths(
         meta["dead_ends_total"] = len(ends)
 
     return envelope([serialize_path(path) for path in paths[:limit]], meta)
+
+
+@router.get("/graph")
+async def route_graph(
+    session: DbSession,
+    tenant: Tenant,
+    limit: int = Query(default=ROUTE_MAP_LIMIT, le=ROUTE_MAP_LIMIT),
+) -> dict:
+    """Every route in the estate, as one graph, with what each link holds up.
+
+    The list above ranks routes, which is the right order for reading them and
+    the wrong one for acting: forty routes through one identity are forty rows
+    that never say "one identity". The drawing says it in one look, and the
+    numbers on its links say what closes if that identity's role goes -- for
+    every link, not for a shortlist, because they are all read off one analysis
+    (``graph/severance.py``).
+
+    One request rather than three. The page used to ask for routes, then for
+    choke points, then for the outcome of a cut, and drew a shape in between
+    that it had to revise twice.
+    """
+    graph = await graph_service.load_graph(session, tenant.organization_id)
+    paths = graph.attack_paths()
+    drawn = paths[:limit]
+
+    node_ids = sorted({node for path in drawn for node in path.node_ids()})
+    ids = await graph_service.asset_ids(session, tenant.organization_id, node_ids)
+    findings = await graph_service.open_findings(
+        session, tenant.organization_id, list(ids.values())
+    )
+    entries = graph.entry_points()
+    targets = graph.sensitive_targets()
+
+    return envelope(
+        graph_service.serialize_route_map(
+            graph, drawn, ids, findings, total_routes=len(paths)
+        ),
+        {
+            "total": len(paths),
+            # What the drawing leaves out, said rather than implied. A canvas
+            # that silently stopped at two hundred routes would be a picture of
+            # part of the estate presented as the whole of it.
+            "drawn": len(drawn),
+            "entry_points": len(entries),
+            "sensitive_targets": len(targets),
+            "entry_point_types": dict(Counter(r.resource_type.value for r in entries)),
+            "sensitive_target_types": dict(
+                Counter(r.resource_type.value for r in targets)
+            ),
+        },
+    )
 
 
 @router.get("/choke-points")

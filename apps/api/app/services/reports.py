@@ -285,7 +285,7 @@ async def _attack_paths(session: AsyncSession, organization_id: UUID) -> list[di
                 "target": path.target.name,
                 "hops": path.hops,
                 "steps": path.describe(),
-                "cheapest_break": cut.describe() if cut else None,
+                "cheapest_break": cut.detail() if cut else None,
             }
         )
     return serialized

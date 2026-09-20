@@ -13,6 +13,8 @@ from enum import StrEnum
 
 from app.core.enums import Level, RelationshipType, ResourceType
 from app.domain.resource import CloudResource
+from app.graph.facts import edge_facts
+from app.graph.severance import EdgeKey, removable, severed_pairs
 
 # Exposure at or above which a node is somewhere an attacker could start.
 #
@@ -66,6 +68,32 @@ class PathStep:
         verb = RELATIONSHIP_VERBS.get(self.relationship, self.relationship.value)
         return f"{self.source.name} {verb} {self.target.name}"
 
+    def key(self) -> EdgeKey:
+        """This hop as a link, named the way a query string names one."""
+        return (
+            self.source.provider_resource_id,
+            self.relationship.value,
+            self.target.provider_resource_id,
+        )
+
+    @property
+    def facts(self) -> tuple[str, ...]:
+        """What this link is beyond its kind -- the role, the network, the kind
+        of identity -- read off the two assets it joins (``graph/facts.py``)."""
+        return edge_facts(self.source, self.relationship, self.target)
+
+    def detail(self) -> str:
+        """The sentence with its evidence in it.
+
+        "mi-app can act over sub-prod" names no role, and the role is the only
+        thing anybody can go and change. Beside :meth:`describe` rather than
+        replacing it, because the plain sentence is what a risk is titled by,
+        and a title that moved when a second assignment appeared would read as
+        a different route.
+        """
+        facts = self.facts
+        return f"{self.describe()} ({', '.join(facts)})" if facts else self.describe()
+
 
 @dataclass(frozen=True)
 class Path:
@@ -107,12 +135,7 @@ class Path:
         what someone reaches once inside.
         """
         for step in self.steps:
-            if step.relationship in {
-                RelationshipType.NETWORK_ACCESS,
-                RelationshipType.HAS_IDENTITY,
-                RelationshipType.GRANTS_ROLE,
-                RelationshipType.CAN_GRANT_ROLES,
-            }:
+            if removable(step.relationship):
                 return step
         return None
 
@@ -247,6 +270,13 @@ class AssetGraph:
     # ``_without`` makes a new one -- so the routes are a fixed property of it,
     # and the asset list asks for them on every page it serves.
     _paths: dict[int, list["Path"]] = field(
+        default_factory=dict, repr=False, compare=False
+    )
+    # And what each link is holding up, worked out once for the same reason:
+    # the ranked list, the what-if on one link and the number drawn on a line
+    # are three readings of one analysis, and recomputing it per caller is how
+    # they would come to disagree.
+    _severance: dict[int, dict[EdgeKey, tuple["Path", ...]]] = field(
         default_factory=dict, repr=False, compare=False
     )
 
@@ -460,98 +490,95 @@ class AssetGraph:
         # cheaper to explain than one that arrives through three intermediaries.
         return sorted(chains, key=lambda p: (p.hops, p.target.name))
 
-    def choke_points(
-        self, *, limit: int = 5, max_depth: int = MAX_DEPTH
-    ) -> list["ChokePoint"]:
-        """The links worth cutting first, ranked by how much closes with them.
+    def link_severance(self, max_depth: int = MAX_DEPTH) -> dict[EdgeKey, tuple[Path, ...]]:
+        """Every removable link, and the routes that close without it.
 
-        Two passes, because the cheap answer is the wrong one. Counting how many
-        routes a link sits on takes one walk and *overstates*: a link on twenty
-        routes closes only the ones with no way round, and reporting the
-        containment as though it were the severance would promise a customer a
-        result they will not get. So the leading candidates are then checked by
-        removing the link and re-asking the whole question -- the only way to
-        know that a route is gone rather than merely re-routed.
-
-        Verified in order of containment, and only until no unchecked link could
-        make the list, because each check is a full re-traversal. Containment is
-        an upper bound on severance, so once ``limit`` links are kept, a link
-        sitting on fewer routes than the weakest of them cannot displace it. A
-        link that closes nothing is not kept and does not count towards
-        ``limit`` -- the next candidate is checked in its place.
-
-        Structural links are not candidates. A storage account has to live
-        somewhere, so ``CONTAINS`` cannot be removed and offering it would be a
-        recommendation nobody can take -- the same reason
-        :meth:`Path.cheapest_break` skips it.
+        Exact, and for every link rather than for a shortlist -- see
+        ``graph/severance.py`` for why one forward walk per entry point answers
+        it. A link absent from the answer closes nothing: every route through it
+        has another way round, which is a real answer to "what if I cut this"
+        and the reason the number on a line is worth drawing at all.
 
         Attack paths only. Escalation chains answer a different question, and a
         single count covering both would make "routes" mean two things in one
         sentence.
         """
+        if max_depth in self._severance:
+            return self._severance[max_depth]
+
         paths = self.attack_paths(max_depth)
-        if not paths:
+        by_pair = {
+            (p.entry.provider_resource_id, p.target.provider_resource_id): p for p in paths
+        }
+        closes = severed_pairs(
+            self._out,
+            # The ways in that lead somewhere, rather than every way in. An
+            # entry point with no route has nothing to lose, and a directory
+            # full of accounts is mostly those -- walking each of them again
+            # would double the cost of the page to learn nothing.
+            sorted({pair[0] for pair in by_pair}),
+            {pair[1] for pair in by_pair},
+            max_depth,
+        )
+        severance = {
+            link: tuple(
+                by_pair[pair] for pair in sorted(pairs) if pair in by_pair
+            )
+            for link, pairs in closes.items()
+        }
+        self._severance[max_depth] = severance
+        return severance
+
+    def links_on_routes(self, max_depth: int = MAX_DEPTH) -> dict[EdgeKey, int]:
+        """How many routes each removable link sits on.
+
+        Carried beside severance rather than instead of it, because the gap
+        between the two is the useful part: a link on twenty routes that closes
+        three is a link with a way round, and a customer who cut it expecting
+        twenty would rightly stop trusting the next number.
+        """
+        on: dict[EdgeKey, int] = {}
+        for path in self.attack_paths(max_depth):
+            for step in path.steps:
+                if not removable(step.relationship):
+                    continue
+                on[step.key()] = on.get(step.key(), 0) + 1
+        return on
+
+    def choke_points(
+        self, *, limit: int = 5, max_depth: int = MAX_DEPTH
+    ) -> list["ChokePoint"]:
+        """The links worth cutting first, ranked by how much closes with them.
+
+        The top of :meth:`link_severance`, and nothing more than that. It used
+        to be a ranking by containment followed by a verification pass over the
+        leaders, because each verification was a whole re-traversal and only a
+        handful were affordable; now every link is answered for exactly, so the
+        ranked list is a sort rather than a search and cannot miss a choke point
+        that sat below whatever the cut-off happened to be.
+
+        A link that closes nothing is not offered: every route through it has
+        another way round, so cutting it changes nothing a customer would see.
+        """
+        severance = self.link_severance(max_depth)
+        if not severance:
             return []
 
-        # Every removable hop, and the routes it sits on. Every hop rather than
-        # each route's own cheapest break: the link several routes share is
-        # usually in the middle, and looking only at the breaks would rank the
-        # entry points -- which are the answer for one route each.
-        containment: dict[tuple[str, str, str], list[Path]] = {}
-        steps: dict[tuple[str, str, str], PathStep] = {}
-        for path in paths:
-            for step in path.steps:
-                if step.relationship is RelationshipType.CONTAINS:
-                    continue
-                key = (
-                    step.source.provider_resource_id,
-                    step.relationship.value,
-                    step.target.provider_resource_id,
-                )
-                containment.setdefault(key, []).append(path)
-                steps.setdefault(key, step)
-
-        reachable_now = {
-            (p.entry.provider_resource_id, p.target.provider_resource_id) for p in paths
-        }
-        ranked = sorted(
-            containment.items(),
-            key=lambda item: (-len(item[1]), steps[item[0]].describe()),
-        )
-
-        found: list[ChokePoint] = []
-        for key, on in ranked:
-            # Stop once no unchecked link could make the list. Containment bounds
-            # severance, so a link sitting on fewer routes than the weakest one
-            # already kept cannot displace it. Stopping after a fixed number of
-            # checks instead let links with a way round use up every check, and
-            # a real choke point further down was never looked at.
-            if len(found) >= limit:
-                weakest = sorted(c.severs for c in found)[-limit]
-                if len(on) < weakest:
-                    break
-            still = {
-                (p.entry.provider_resource_id, p.target.provider_resource_id)
-                for p in self._without(key).attack_paths(max_depth)
-            }
-            gone = reachable_now - still
-            if not gone:
-                # Every route through it has another way round. Cutting it
-                # changes nothing a customer would see, so it is not offered.
-                continue
-            found.append(
-                ChokePoint(
-                    step=steps[key],
-                    severed=tuple(
-                        p
-                        for p in paths
-                        if (p.entry.provider_resource_id, p.target.provider_resource_id)
-                        in gone
-                    ),
-                    on_routes=len(on),
-                )
+        on_routes = self.links_on_routes(max_depth)
+        steps = {step.key(): step for path in self.attack_paths(max_depth) for step in path.steps}
+        found = [
+            ChokePoint(
+                step=steps.get(link) or self._step(link),
+                severed=severed,
+                # Never smaller than ``severs``, and not by an accident of
+                # ordering: a link is severing only when *every* walk to the
+                # target uses it, and the enumerated route is one of those
+                # walks -- so a link that severs a route is always drawn on it.
+                on_routes=on_routes.get(link, 0),
             )
-
+            for link, severed in severance.items()
+            if severed
+        ]
         return sorted(found, key=lambda c: (-c.severs, c.describe()))[:limit]
 
     def cut(
@@ -561,56 +588,40 @@ class AssetGraph:
         target: str,
         max_depth: int = MAX_DEPTH,
     ) -> CutOutcome | None:
-        """Remove one link and re-ask the whole question.
+        """What happens to the attack paths if one link is removed.
 
-        The same check :meth:`choke_points` makes of its candidates, for a link
-        somebody chose. None for a link that is not there, and for one nobody
-        can remove: containment is where a resource lives, so offering to cut
-        it would be a recommendation nobody can take (the rule
-        :meth:`Path.cheapest_break` and :meth:`choke_points` already follow).
+        The same answer :meth:`choke_points` ranks by, for a link somebody
+        chose -- read from the one analysis rather than recomputed, so the
+        number on the ranked list and the number on the what-if can never
+        disagree. None for a link that is not there, and for one nobody can
+        remove: containment is where a resource lives, so offering to cut it
+        would be a recommendation nobody can take.
 
         A route closes only when no route between the same two ends remains.
         One that merely moves to another way round is not closed, and counting
         it as closed would promise a customer a result they will not get.
         """
-        if relationship is RelationshipType.CONTAINS or not relationship.is_capability:
+        if not removable(relationship):
             return None
         if (relationship, target) not in self._out.get(source, []):
             return None
 
-        before = self.attack_paths(max_depth)
-        after = self._without((source, relationship.value, target)).attack_paths(max_depth)
-        still = {(p.entry.provider_resource_id, p.target.provider_resource_id) for p in after}
+        closed = self.link_severance(max_depth).get(
+            (source, relationship.value, target), ()
+        )
+        before = len(self.attack_paths(max_depth))
         return CutOutcome(
             step=PathStep(self.nodes[source], relationship, self.nodes[target]),
-            closed=tuple(
-                p
-                for p in before
-                if (p.entry.provider_resource_id, p.target.provider_resource_id) not in still
-            ),
-            before=len(before),
-            after=len(after),
+            closed=closed,
+            before=before,
+            after=before - len(closed),
         )
 
-    def _without(self, edge: tuple[str, str, str]) -> "AssetGraph":
-        """This graph with one link removed, for asking what it was holding up.
-
-        A shallow copy: the nodes are shared, because nothing here mutates them
-        and copying an estate's worth of resources per candidate would make the
-        analysis cost more than the answer is worth. Forward edges only: it is
-        asked for routes, never for a neighbourhood.
-        """
-        source, relationship, target = edge
-        pruned = AssetGraph(nodes=self.nodes)
-        for node, outgoing in self._out.items():
-            kept = [
-                (rel, other)
-                for rel, other in outgoing
-                if not (node == source and rel.value == relationship and other == target)
-            ]
-            if kept:
-                pruned._out[node] = kept
-        return pruned
+    def _step(self, link: EdgeKey) -> PathStep:
+        source, relationship, target = link
+        return PathStep(
+            self.nodes[source], RelationshipType(relationship), self.nodes[target]
+        )
 
     def neighborhood(
         self,

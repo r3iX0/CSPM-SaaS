@@ -54,6 +54,7 @@ POST   /findings/{id}/rescan
 GET    /findings/{id}/attack-paths         GET    /findings/{id}/provenance
 
 GET    /attack-paths                       GET    /attack-paths/choke-points
+GET    /attack-paths/graph?limit=1..200
 GET    /attack-paths/blast-radius/{resource_id}
 GET    /attack-paths/neighborhood/{resource_id}?depth=1..3&expand=<fold id>
 GET    /attack-paths/estate?subscription_id=&resource_group=
@@ -320,17 +321,36 @@ those under `none`, because the dashboard's region map links to them
 
 `/attack-paths/choke-points` answers a different question from the list: not
 which routes exist but which single change closes the most of them. `severs` is
-verified by removing the link and re-asking the whole question, so it is what
-actually closes; `on_routes` is the larger count of routes the link merely sits
-on, carried beside it because the gap is the point — a link on twenty routes
-that closes three is a link with a way round, and promising twenty would be a
-number the customer can check and find wrong. `closes` names the routes, because
-a count is a claim and those are its working.
+what actually closes, computed for *every* link in one forward pass per entry
+point rather than by verifying a shortlist (DECISIONS.md §122); `on_routes` is
+the larger count of routes the link merely sits on, carried beside it because
+the gap is the point — a link on twenty routes that closes three is a link with
+a way round, and promising twenty would be a number the customer can check and
+find wrong. `closes` names the routes, because a count is a claim and those are
+its working. Only removable links are candidates: a storage account has to live
+somewhere, so containment is never offered, and a link that closes nothing is
+not offered either.
 
-Its own endpoint rather than a field on the list, because it costs a full
-re-traversal per candidate and the list is read far more often than the question
-is asked. Only removable links are candidates — a storage account has to live
-somewhere, so containment is never offered.
+`/attack-paths/graph` is every route as one drawable graph, and the page's only
+request. `nodes` carry `column`, the fewest hops from any way in, which is the
+axis the canvas lays out along. `edges` carry the hop's `facts` and `detail` —
+the role held over the scope, the network two machines share (§121) — with
+`severs`, the routes named in `closes`, `on_routes`, and `alternate` for the
+case where those differ. `routes` are the serialized paths with the `key` the
+browser and the risks queue both name a route by; `patterns` groups routes that
+differ at one end only, and `loose` is the rest, so the two partition the list
+exactly (§123). `meta.drawn` says how many of `meta.total` are in the payload —
+a canvas silently stopping at 200 routes would be part of an estate presented
+as the whole of it. Its `choke_points` are the rows `/choke-points` serves,
+counted against every route rather than against the drawn ones: the risks queue
+leads with those same rows under the small endpoint, because it wants three
+rows and has no use for a route map, and one claim with two denominators is
+worse than a second request. The attack-paths page fills that endpoint's cache
+from this payload, so the two pages pay once between them.
+
+Every step of every route carries `facts` and `detail` beside `description`, on
+this endpoint and on `/attack-paths`: "mi-app can act over sub-prod" names
+nothing anybody can go and change, and "(Contributor)" does.
 
 `/findings/{id}/provenance` answers "how do you know?" — the readings the
 finding rests on, each with the listing it came from, when the *provider* was
