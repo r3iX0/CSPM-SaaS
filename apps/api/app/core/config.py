@@ -107,6 +107,35 @@ class Settings(BaseSettings):
 
     redis_url: str = ""
 
+    # --- request limits -----------------------------------------------------
+    # Defaulted rather than required, for the same reason retention is: a
+    # deployment that has not thought about them should still be protected, and
+    # a missing value here costs neither correctness nor isolation.
+    #
+    # The authenticated ceiling is per client per minute and is set well above
+    # what using the product costs -- the dashboard is a handful of calls per
+    # page, and a scan is one call plus polling. The anonymous one covers the
+    # three endpoints reachable without a token: the change-event webhook, the
+    # ARM template and the consent callback. None is reached in bursts by
+    # anything legitimate.
+    rate_limit_authenticated: int = 300
+    rate_limit_anonymous: int = 60
+    rate_limit_window_seconds: int = 60
+    # A change-event delivery is a few kilobytes and a batch of them tens. One
+    # mebibyte is generous for every body this API accepts, and every other
+    # endpoint takes a small JSON document.
+    max_request_bytes: int = 1_048_576
+    # How many proxies sit in front of this API, counted from it outwards.
+    #
+    # This is what decides which entry of ``X-Forwarded-For`` is believed, and
+    # believing the wrong one has a direct consequence: the header is written by
+    # the caller, so a deployment that trusted the leftmost entry would let
+    # anyone choose which rate-limit bucket to fill, or none. One is correct for
+    # Railway, which terminates TLS and forwards. Zero disables the header
+    # entirely and counts the socket address, which is right for a deployment
+    # with nothing in front of it.
+    trusted_proxy_hops: int = 1
+
     # --- Azure: CloudGuard's own multi-tenant app identity ------------------
     azure_client_id: str = ""
     azure_client_secret: str = ""

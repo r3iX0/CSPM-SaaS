@@ -27,6 +27,11 @@ from app.core.errors import (
     validation_error_handler,
 )
 from app.core.logging import configure_logging, get_logger
+from app.core.middleware import (
+    RateLimitMiddleware,
+    RequestSizeLimitMiddleware,
+    SecurityHeadersMiddleware,
+)
 
 log = get_logger(__name__)
 
@@ -71,14 +76,36 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Added before CORS on purpose, and the order is the whole point.
-# ``add_middleware`` inserts at the front, so the last one added is the
-# outermost -- which puts this one *inside* CORS, where the response it writes
-# still picks up the access-control headers on the way back out. A bare
-# ``Exception`` handler cannot do this: Starlette hands that to
-# ``ServerErrorMiddleware``, outside everything, and the browser then refuses
-# to read the 500 and reports a network failure instead.
+# The order below is load-bearing, and it reads backwards.
+# ``add_middleware`` inserts at the front, so the **last one added is the
+# outermost** and the first one added wraps the router directly.
+#
+# Innermost first:
+#
+# 1. ``RequestSizeLimitMiddleware`` -- innermost because it refuses an oversized
+#    body by raising from inside ``receive``, where the handler is reading it.
+#    Anything between it and the router would see that exception first; the
+#    unhandled-error middleware in particular would turn a 413 into a 500.
+# 2. ``UnhandledErrorMiddleware`` -- inside CORS, so the response it writes
+#    still picks up the access-control headers on the way back out. A bare
+#    ``Exception`` handler cannot do this: Starlette hands that to
+#    ``ServerErrorMiddleware``, outside everything, and the browser then refuses
+#    to read the 500 and reports a network failure instead.
+# 3. ``RateLimitMiddleware`` -- also inside CORS, for the same reason: a 429 a
+#    browser cannot read is indistinguishable from the API being down.
+# 4. ``CORSMiddleware``.
+# 5. ``SecurityHeadersMiddleware`` -- outermost, so every response carries the
+#    headers, including CORS preflights and anything raised further in.
+app.add_middleware(RequestSizeLimitMiddleware, max_bytes=settings.max_request_bytes)
+
 app.add_middleware(UnhandledErrorMiddleware)
+
+app.add_middleware(
+    RateLimitMiddleware,
+    authenticated_limit=settings.rate_limit_authenticated,
+    anonymous_limit=settings.rate_limit_anonymous,
+    window_seconds=settings.rate_limit_window_seconds,
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -87,6 +114,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 app.add_exception_handler(AppError, app_error_handler)  # type: ignore[arg-type]
 app.add_exception_handler(HTTPException, http_error_handler)  # type: ignore[arg-type]

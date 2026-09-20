@@ -19,6 +19,8 @@ deploy, proves the grant by *using* it rather than by being told it exists, and
 then discovers what is beneath the scope rather than having it typed in.
 """
 
+import hmac
+import secrets
 import time
 from datetime import UTC, datetime
 from urllib.parse import urlsplit
@@ -41,7 +43,7 @@ from app.core.enums import (
 )
 from app.core.errors import CloudAccountNotFound, ValidationFailed
 from app.core.logging import get_logger
-from app.core.signing import sign_state
+from app.core.signing import Purpose, sign_state
 from app.core.vocabulary import words
 from app.models.cloud_account import CloudAccount
 from app.models.cloud_connection import CloudConnection
@@ -122,26 +124,59 @@ async def create_connection(
     session.add(connection)
     await session.flush()
 
-    start_url, problem = onboarding.start_url(connection)
+    start_url, problem = issue_consent_url(connection)
     if problem:
         connection.status_detail = problem
     return connection, start_url
 
 
-def grant_start_url(connection: CloudConnection) -> tuple[str | None, str | None]:
-    """A fresh link to begin the grant, or the reason there cannot be one.
+def issue_consent_url(connection: CloudConnection) -> tuple[str | None, str | None]:
+    """A link that starts the grant, or the reason there cannot be one.
 
-    Regenerated on every read rather than stored. Azure's is signed with a
-    30-minute TTL, so a URL persisted at creation would be dead long before most
-    customers get their administrator's attention -- and it used to be returned
-    *only* from the create response, which meant a page reload lost the consent
-    button entirely and stranded the connection in PENDING with no way forward
-    but deleting it.
+    The link is a bearer credential travelling to somebody who may hold no
+    CloudGuard account -- the customer's Global Administrator, reached by
+    whatever channel the customer uses. So it carries a nonce whose counterpart
+    is on the connection row, and redeeming it clears that counterpart: the
+    signature makes the link *verifiable*, and the nonce is what makes it
+    redeemable once rather than for as long as it has not expired.
 
-    ``(None, None)`` is a complete answer for a provider with no such step, and
-    not a failure to produce one.
+    **The same link is returned while it is live.** The setup wizard polls this
+    connection, and a fresh nonce per read would invalidate whatever the
+    customer had already sent on -- an administrator following a link that says
+    the request expired, hours after somebody sent it to them. A new one is
+    minted only when there is none, or when the last has aged out.
+
+    The row is written only when a link actually came back. A provider whose
+    only grant is the deployment itself -- which is AWS -- answers
+    ``(None, None)``, and that is a complete answer rather than a failure to
+    produce one. It must not cost a database write on every read.
+
+    Mutates ``connection``; the caller owns the commit.
     """
-    return flow(connection).start_url(connection)
+    now = datetime.now(UTC)
+    nonce = connection.consent_nonce
+    issued_at = connection.consent_nonce_issued_at
+    if not nonce or not issued_at or _seconds_since(issued_at, now) > CONSENT_LINK_TTL_SECONDS:
+        nonce = secrets.token_urlsafe(24)
+        issued_at = now
+
+    url, problem = flow(connection).start_url(
+        connection, nonce=nonce, issued_at=issued_at.timestamp()
+    )
+    if url is not None:
+        connection.consent_nonce = nonce
+        connection.consent_nonce_issued_at = issued_at
+    return url, problem
+
+
+def _seconds_since(moment: datetime, now: datetime) -> float:
+    # Rows written before this column existed, and rows read back from a
+    # database that stored them without a zone, both arrive naive. Treated as
+    # UTC rather than as an error: the alternative is a link that cannot be
+    # reissued at all.
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=UTC)
+    return (now - moment).total_seconds()
 
 
 # ---------------------------------------------------------------------------
@@ -280,19 +315,56 @@ async def grant_problem(connection: CloudConnection) -> str | None:
 
 
 async def record_consent(
-    session: AsyncSession, connection_id: UUID, tenant_id: str
+    session: AsyncSession, connection_id: UUID, tenant_id: str, *, nonce: str
 ) -> CloudConnection:
     """Mark the first grant made, after the provider's callback.
 
-    ``tenant_id`` arrives from the provider, not from the customer, and this is
-    the only place it is ever written. That is the whole tenant-binding
-    guarantee: when it came from a request body, any user could name an
-    organization somebody else had already consented for and validate against
-    their environment.
+    ``tenant_id`` arrives on the provider's redirect, and this is the only place
+    it is ever written. It is also, on its own, worth nothing: the admin-consent
+    response is a plain query string, not a token, so the value is whatever the
+    caller put in the URL. Two checks stand behind it.
+
+    **The nonce.** The link that reached here has to be the one this connection
+    last issued, and it is spent on arrival. Without that, a signature is a
+    credential good until it expires, replayable by anyone who saw the URL.
+
+    **The binding is made once.** A connection that already names a tenant is
+    never repointed at another one by a callback. The tenant is what every later
+    token, graph call and scan is addressed to, so silently accepting a second
+    answer would let a stale or stolen link move a customer's connection onto a
+    directory somebody else controls. Changing it is a delete-and-reconnect,
+    which is a decision with a person behind it.
     """
     connection = await session.get(CloudConnection, connection_id)
     if connection is None:
         raise CloudAccountNotFound("Connection not found")
+
+    # Constant time, and never against an empty stored value: a connection with
+    # no live link must not be opened by a caller who guessed an empty nonce.
+    expected = connection.consent_nonce or ""
+    if not expected or not hmac.compare_digest(nonce, expected):
+        raise ValidationFailed(
+            "This consent link is no longer valid. Open the connection in "
+            "CloudGuard and send a fresh one."
+        )
+    # Spent, whatever happens next. A link that has been followed once is not a
+    # link any more, and clearing it before the provider calls below means a
+    # failure there cannot leave it redeemable.
+    connection.consent_nonce = None
+    connection.consent_nonce_issued_at = None
+
+    if tenant_id and connection.tenant_id and tenant_id != connection.tenant_id:
+        log.warning(
+            "consent.tenant_rebind_refused",
+            connection_id=str(connection_id),
+            bound_tenant_id=connection.tenant_id,
+            offered_tenant_id=tenant_id,
+        )
+        raise ValidationFailed(
+            "This connection is already bound to a different directory. "
+            "Delete it and connect again to use another one."
+        )
+
     onboarding = flow(connection)
 
     connection.consent_status = ConsentStatus.GRANTED
@@ -378,11 +450,8 @@ def template_token(connection: CloudConnection) -> str:
     CloudGuard session. The token is signed and has a 7-day TTL.
     """
     return sign_state(
-        {
-            "cloud_connection_id": str(connection.id),
-            "purpose": "template",
-            "issued_at": time.time(),
-        }
+        {"cloud_connection_id": str(connection.id), "issued_at": time.time()},
+        purpose=Purpose.TEMPLATE,
     )
 
 
@@ -991,16 +1060,14 @@ async def check_access_revoked(connection: CloudConnection) -> dict:
 def event_webhook_token(connection: CloudConnection) -> str:
     """The signed token that opens this connection's webhook, and no other's.
 
-    Signed with the same secret as the template token and separated from it by
-    ``purpose`` alone -- which is why the webhook checks that field rather than
-    trusting the signature to mean what it hopes.
+    Signed with the same secret as the template and consent tokens and
+    separated from them by ``purpose`` alone -- which ``core.signing`` stamps
+    here and demands on the way back in, so no endpoint can accept one of the
+    others by forgetting to look.
     """
     return sign_state(
-        {
-            "cloud_connection_id": str(connection.id),
-            "purpose": "event_grid",
-            "issued_at": time.time(),
-        }
+        {"cloud_connection_id": str(connection.id), "issued_at": time.time()},
+        purpose=Purpose.EVENT_FEED,
     )
 
 

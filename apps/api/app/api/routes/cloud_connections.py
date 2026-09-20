@@ -9,8 +9,8 @@ from app.core.config import settings
 from app.core.db import service_session
 from app.core.deps import DbSession, Tenant
 from app.core.enums import ConsentStatus, Provider, Role
-from app.core.errors import CloudAccountNotFound, envelope
-from app.core.signing import SignedStateError, verify_state
+from app.core.errors import CloudAccountNotFound, ValidationFailed, envelope
+from app.core.signing import Purpose, SignedStateError, verify_state
 from app.models.cloud_account import CloudAccount
 from app.models.cloud_connection import CloudConnection
 from app.schemas.cloud_connection import (
@@ -100,15 +100,11 @@ def _serialize(
         else None
     )
 
-    # Regenerated on every read, not just on create. Returning it only from the
-    # create response meant a page reload lost the consent button and left the
-    # connection stuck in PENDING with no route forward. The signed state also
-    # expires in 30 minutes, so a stored one would usually be dead anyway.
-    if connection.consent_status != ConsentStatus.GRANTED:
-        fresh, problem = service.grant_start_url(connection)
-        consent_url = consent_url or fresh
-        if problem:
-            data["status_detail"] = problem
+    # Passed in rather than minted here, and only by a handler that has
+    # established the caller may complete onboarding. A consent link is a
+    # bearer credential for an endpoint that binds this connection to a
+    # directory: minting one for every reader handed the action to roles the
+    # API otherwise refuses it to, read-only members included.
     if consent_url:
         data["consent_url"] = consent_url
     if subscriptions is not None:
@@ -152,17 +148,14 @@ async def arm_template(
     nothing that the token does not already control.
     """
     try:
-        payload = verify_state(token, max_age_seconds=service.TEMPLATE_TOKEN_TTL_SECONDS)
+        payload = verify_state(
+            token,
+            purpose=Purpose.TEMPLATE,
+            max_age_seconds=service.TEMPLATE_TOKEN_TTL_SECONDS,
+        )
     except SignedStateError as exc:
         return JSONResponse(
             {"error": str(exc)}, status_code=400, headers=TEMPLATE_CORS_HEADERS
-        )
-
-    if payload.get("purpose") != "template":
-        return JSONResponse(
-            {"error": "Invalid template token"},
-            status_code=400,
-            headers=TEMPLATE_CORS_HEADERS,
         )
 
     if str(connection_id) != payload.get("cloud_connection_id"):
@@ -238,18 +231,25 @@ async def consent_callback(
 
     The list is the fallback for the one case where there is no connection to
     return to -- a state that is missing, tampered with, or expired.
+
+    Nothing outside ``state`` is trusted. ``tenant`` is a plain query parameter
+    on a redirect anyone can construct -- Entra's admin-consent response is not
+    a token and proves nothing by itself -- so the binding it asks for is
+    accepted only once, against a link this connection issued and has not yet
+    spent. Both checks live in the service, with the write they guard.
     """
     frontend = settings.app_url.rstrip("/")
 
     try:
-        payload = verify_state(state)
-    except SignedStateError as exc:
-        reason = error_description or error or str(exc)
+        payload = verify_state(state, purpose=Purpose.CONSENT)
+        connection_id = UUID(str(payload["cloud_connection_id"]))
+        nonce = str(payload["nonce"])
+    except (SignedStateError, KeyError, ValueError) as exc:
+        reason = error_description or error or _consent_link_problem(exc)
         return RedirectResponse(
             f"{frontend}/connections?consent_error={quote(reason)}"
         )
 
-    connection_id = UUID(payload["cloud_connection_id"])
     setup = f"{frontend}/connections/{connection_id}/setup"
 
     if error:
@@ -263,9 +263,25 @@ async def consent_callback(
         )
 
     async with service_session() as session:
-        await service.record_consent(session, connection_id, tenant)
+        try:
+            await service.record_consent(session, connection_id, tenant, nonce=nonce)
+        except (ValidationFailed, CloudAccountNotFound) as exc:
+            return RedirectResponse(f"{setup}?consent_error={quote(str(exc))}")
 
     return RedirectResponse(setup)
+
+
+def _consent_link_problem(exc: Exception) -> str:
+    """What to show a customer standing on the callback with a bad link.
+
+    A malformed or tampered state says nothing more than that: the reason a
+    signature failed is not information a customer can act on, and it is
+    information an attacker can. An expired one is different -- it names
+    something they can fix by asking for another link.
+    """
+    if isinstance(exc, SignedStateError):
+        return str(exc)
+    return "This consent link is not valid. Open the connection and send a fresh one."
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -289,7 +305,14 @@ async def list_connections(session: DbSession, tenant: Tenant) -> dict:
 
 @router.get("/{connection_id}")
 async def get_connection(connection_id: UUID, session: DbSession, tenant: Tenant) -> dict:
-    """Get a connection with subscriptions. Triggers auto-validation if needed."""
+    """Get a connection with subscriptions. Triggers auto-validation if needed.
+
+    The consent link comes back only for a caller who may actually complete the
+    grant. The wizard polls this endpoint, so this is also where a link that has
+    expired is replaced -- and where one that is still live is returned
+    unchanged, so that the copy a customer already sent to their administrator
+    keeps working.
+    """
     connection, subscriptions = await service.get_connection_with_subscriptions(
         session, tenant, connection_id
     )
@@ -304,7 +327,16 @@ async def get_connection(connection_id: UUID, session: DbSession, tenant: Tenant
         _, subscriptions = await service.get_connection_with_subscriptions(
             session, tenant, connection_id
         )
-    return envelope(_serialize(connection, len(subscriptions), subscriptions))
+
+    consent_url: str | None = None
+    if tenant.may_administer and connection.consent_status != ConsentStatus.GRANTED:
+        consent_url, problem = service.issue_consent_url(connection)
+        if problem:
+            connection.status_detail = problem
+
+    return envelope(
+        _serialize(connection, len(subscriptions), subscriptions, consent_url=consent_url)
+    )
 
 
 @router.post("/{connection_id}/discover")

@@ -146,12 +146,20 @@ class ProviderOnboarding(ABC):
         connection before consent reports the tenant.
         """
 
-    def start_url(self, connection: CloudConnection) -> tuple[str | None, str | None]:
+    def start_url(
+        self, connection: CloudConnection, *, nonce: str, issued_at: float
+    ) -> tuple[str | None, str | None]:
         """Where the customer goes to make the first grant, or why they cannot.
 
         A signed consent link on Azure. Nothing on AWS, whose only grant is the
         deployment itself -- so ``(None, None)`` is a complete answer and not a
         failure to produce one.
+
+        ``nonce`` and ``issued_at`` belong in whatever the link carries back.
+        They are passed in rather than generated here so that one place decides
+        when a link is reissued and what is stored against it: a provider that
+        minted its own would make the stored counterpart and the signed token
+        two facts that could disagree.
         """
         return None, None
 

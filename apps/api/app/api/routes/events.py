@@ -38,7 +38,7 @@ from app.core.db import service_session
 from app.core.enums import Provider
 from app.core.errors import NotConfigured
 from app.core.logging import get_logger
-from app.core.signing import SignedStateError, verify_state
+from app.core.signing import Purpose, SignedStateError, verify_state
 from app.services import change_events as service
 
 router = APIRouter(prefix="/events", tags=["events"])
@@ -186,13 +186,10 @@ async def _handshake(
 
 def _authorized(connection_id: UUID, token: str) -> bool:
     try:
-        payload = verify_state(token, max_age_seconds=EVENT_TOKEN_TTL_SECONDS)
+        payload = verify_state(
+            token, purpose=Purpose.EVENT_FEED, max_age_seconds=EVENT_TOKEN_TTL_SECONDS
+        )
     except SignedStateError:
-        return False
-    if payload.get("purpose") != "event_grid":
-        # A token minted for the ARM template must not open the webhook. They
-        # are signed with the same secret, so the purpose is what separates
-        # them.
         return False
     return str(connection_id) == payload.get("cloud_connection_id")
 

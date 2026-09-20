@@ -1,5 +1,11 @@
 # CloudGuard — API Design
 
+> 🔗 **Interactive API Documentation & Schema**:
+>
+> - [Interactive API Playground & Docs](api/index.html)
+> - [OpenAPI 3.1.0 Specification (JSON)](api/openapi.json)
+> - Spec generator script: [`apps/api/scripts/generate_openapi.py`](../apps/api/scripts/generate_openapi.py)
+
 ## 1. Endpoints
 
 Every path below is prefixed `/api/v1`. This list is generated from the routers
@@ -292,14 +298,14 @@ present assets.
 
 `GET /assets/{id}` also returns:
 
-* `placement`: `{scope_id, scope_name, resource_group}`, the same lens the
+- `placement`: `{scope_id, scope_name, resource_group}`, the same lens the
   estate map and the list's scope filter take. `scope_id` is `directory` for a
   tenant-scoped asset.
-* `tenant_id`: the directory the asset lives in, for a portal link that opens
+- `tenant_id`: the directory the asset lives in, for a portal link that opens
   in the right tenant.
-* `absent_since`: set once a later scan looked for the asset and did not find
+- `absent_since`: set once a later scan looked for the asset and did not find
   it.
-* `open_findings`: OPEN and IN_PROGRESS findings, counted by the server.
+- `open_findings`: OPEN and IN_PROGRESS findings, counted by the server.
 
 `/attack-paths/blast-radius/{id}` rows carry `asset_id`, so each row can link to
 the asset's page. It is null for a vertex with no row.

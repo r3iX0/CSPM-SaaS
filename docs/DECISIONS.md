@@ -6412,6 +6412,85 @@ anywhere on the page — the same rule §87 set for the scan view.
 one route: it is what the rail opens into, what a finding shows, and what the
 PDF report can draw, which a canvas cannot.
 
+## 124. A signed token names what it may open, and the check is in the signing module
+
+Three round trips leave this API and come back carrying a claim: the Entra
+consent callback, the ARM template the Azure Portal fetches, and the change-event
+webhook. None can be authenticated by a session — the caller is a browser
+mid-redirect, a portal fetching server-side, or a cloud's own infrastructure — so
+each is guarded by an HMAC-signed token, and all three are signed with one
+secret. The only thing separating them is a `purpose` field.
+
+That field used to be each caller's own business, which meant two of three
+checked it and the third did not. The third was the consent callback: the one
+endpoint that writes the tenant binding, and therefore the one where a token
+minted for something else was worth having. A webhook URL is pasted into an `az`
+command and lives in a customer's infrastructure for a year; it carried the same
+connection id and the same issue time, so it verified there cleanly.
+
+So the check moved into `core/signing.py`, where it cannot be skipped:
+`sign_state` stamps the purpose and `verify_state` demands it, both as keyword
+arguments with no default. A new round trip cannot be added without naming one.
+
+The consent link additionally carries a nonce whose counterpart is on the
+connection row. A signature makes a link *verifiable*, by anyone, for as long as
+it has not expired — and this link is meant to travel, because the person who
+completes the grant is the customer's Global Administrator rather than a
+CloudGuard user. The nonce is what makes it redeemable once. It is reissued
+identically while it is live, because the setup wizard polls and a fresh nonce
+per read would invalidate the link the customer had already sent on.
+
+Two consequences follow, both deliberate. The link is minted only for a caller
+who may complete onboarding, so reading a connection no longer hands a read-only
+member a credential for an action the API otherwise refuses them. And the tenant
+a callback names is accepted only on a connection that does not already have
+one: the admin-consent response is a plain query string rather than a token, so
+re-pointing an established connection at another directory is a
+delete-and-reconnect, which is a decision with a person behind it.
+
+## 125. Every response carries its headers; every request carries a limit
+
+Both are written as raw ASGI middleware rather than `BaseHTTPMiddleware`
+subclasses, and the order they are installed in is load-bearing enough that
+`main.py` spells it out. `add_middleware` inserts at the front, so the last one
+added is the outermost.
+
+The body limit is innermost, wrapping the router directly. It refuses an
+oversized body by raising from inside `receive`, where the handler is reading
+it — anything between it and the router would see that exception first, and the
+unhandled-error middleware in particular would turn a 413 into a 500. It checks
+`Content-Length` *and* counts bytes as they arrive, because the first is a claim
+rather than a measurement and a chunked request carries none at all. The endpoint
+it exists for is the change-event webhook, which is unauthenticated by necessity
+and calls `request.json()` on whatever was posted.
+
+The rate limit counts in Redis rather than in the process, for the reason a
+per-process counter is worse than none: it hands out its whole allowance per
+instance while reporting in the code that a limit is enforced. It fails open on a
+Redis outage, which is the right trade for a control against abuse — no tenancy
+guarantee runs through it, and failing closed would turn a capacity problem into
+an outage. Requests with no `Authorization` header get the smaller ceiling.
+
+Which client a request is counted against is its own decision. The socket address
+is always the platform's proxy, so a limit counted on it is a limit counted per
+deployment; but `X-Forwarded-For` is written by the caller, so believing its
+leftmost entry lets anyone choose which bucket to fill. `trusted_proxy_hops`
+names how many hops the deployment actually has and the entry is taken from the
+right — the part infrastructure wrote rather than the part the caller did.
+
+The headers middleware is outermost, so it stamps CORS preflights and anything
+raised further in. The API's policy is `default-src 'none'`, which suits a
+surface that serves JSON plus one self-contained HTML document — the report at
+`/reports/{kind}?format=html`, rendered from names and error text collected out
+of a customer's cloud. Jinja escapes all of that; this is what stands behind it.
+
+The frontend's policy lives in `apps/web/vercel.json` and is deliberately a
+different one. An application needs `script-src 'self'`, and Tailwind and React
+both write inline styles. `connect-src` is left at `https: wss:` rather than
+naming origins: the API and Supabase URLs are per-deployment environment
+variables, and a static header naming the wrong one is a frontend that cannot
+reach its backend. Narrowing it is a per-environment change, not a code change.
+
 ## Open items carried forward
 
 **Data residency is not built (§113).** An organization setting for allowed

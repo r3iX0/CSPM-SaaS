@@ -95,6 +95,21 @@ jobs:
             exit 1
           }
 
+      - name: Refuse drifted documentation (OpenAPI schema & Rule Catalog)
+        # Keeps documentation synchronized with code. If an API route, schema,
+        # or security rule changes without updating docs/api/openapi.json or
+        # docs/RULE_CATALOG.md, fail the build here.
+        working-directory: apps/api
+        run: |
+          python scripts/generate_openapi.py --check || {
+            echo "::error file=docs/api/openapi.json::OpenAPI documentation is out of date. Run python apps/api/scripts/generate_openapi.py to update."
+            exit 1
+          }
+          python scripts/generate_rule_catalog.py --check || {
+            echo "::error file=docs/RULE_CATALOG.md::Rule Catalog is out of date. Run python apps/api/scripts/generate_rule_catalog.py to update."
+            exit 1
+          }
+
       - name: Lint
         working-directory: apps/api
         run: ruff check .
@@ -144,3 +159,74 @@ jobs:
       - name: Build
         working-directory: apps/web
         run: npm run build
+
+  audit:
+    name: Dependencies — known advisories
+    runs-on: ubuntu-latest
+    # Its own job on purpose. It shares nothing with the two above -- no
+    # database, no native libraries, no build -- and keeping it separate means a
+    # new advisory reports as "dependencies" rather than as the test suite
+    # failing for a reason the tests had nothing to do with.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Audit Python dependencies
+        working-directory: apps/api
+        # Audits the pinned set rather than the installed tree: every version is
+        # exact in pyproject.toml, so what is resolved here is what Railway
+        # deploys. --strict fails on an advisory this cannot rule out, which is
+        # the answer a security product should want.
+        #
+        # The --ignore-vuln list is a triage backlog, not a dismissal. Each one
+        # needs an upgrade that crosses a major version and has to be run
+        # against the test suite before it ships:
+        #
+        #   starlette     -- needs FastAPI past 0.115, which pins starlette <0.42
+        #   cryptography  -- capped by msal 1.31; bumping msal releases it
+        #   weasyprint    -- 63 -> 70 changes PDF rendering; the report tests
+        #                    assert on rendered output
+        #   pytest        -- 8 -> 9, a test-only dependency
+        #
+        # Anything *not* on this list fails the build, which is the point: the
+        # list is what a new advisory is measured against, and it should only
+        # ever get shorter. Reviewed in docs/SECURITY_AUDIT_2026-09.md section 6.
+        run: |
+          python -m pip install --upgrade pip
+          pip install "pip-audit==2.7.3"
+          pip-audit --strict --progress-spinner off . \
+            --ignore-vuln PYSEC-2026-161 \
+            --ignore-vuln PYSEC-2026-248 \
+            --ignore-vuln PYSEC-2026-249 \
+            --ignore-vuln PYSEC-2026-1941 \
+            --ignore-vuln PYSEC-2026-1942 \
+            --ignore-vuln PYSEC-2026-2280 \
+            --ignore-vuln PYSEC-2026-2281 \
+            --ignore-vuln PYSEC-2026-35 \
+            --ignore-vuln PYSEC-2026-36 \
+            --ignore-vuln PYSEC-2026-2141 \
+            --ignore-vuln PYSEC-2026-3552 \
+            --ignore-vuln PYSEC-2026-3553 \
+            --ignore-vuln PYSEC-2026-3554 \
+            --ignore-vuln GHSA-537c-gmf6-5ccf \
+            --ignore-vuln PYSEC-2026-2034 \
+            --ignore-vuln PYSEC-2026-3412 \
+            --ignore-vuln PYSEC-2026-3940 \
+            --ignore-vuln PYSEC-2026-1845
+
+      - name: Audit npm dependencies
+        working-directory: apps/web
+        # High and above. Moderate advisories in a build-time dependency tree
+        # are common enough that failing on them trains people to ignore this
+        # job, which costs more than it saves.
+        run: npm audit --audit-level=high
