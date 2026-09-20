@@ -5,6 +5,8 @@ Written against the repository rather than against a plan: every claim about
 what exists names the file it lives in, and every claim about what is missing
 was checked before it was made.
 
+> **Update (20 September 2026):** A full comprehensive architecture review reflecting the current implementation (multi-step durable pipeline, 98 rules, exact severance choke points, dual RLS isolation, and multi-cloud support) has been completed. See [`docs/ARCHITECTURE_REVIEW_2026-09-20.md`](ARCHITECTURE_REVIEW_2026-09-20.md).
+
 Written when the pipeline was one file, `app/services/scanner.py`. It is now the
 `app/services/scan/` package (DECISIONS.md §108); the method names below are
 that file's, and each lives on as a function in the stage module of the same
@@ -61,7 +63,7 @@ Several components that read as future work in the architecture sketches
 already exist and work:
 
 | Component | Where it lives now |
-|---|---|
+| --- | --- |
 | Collection DAG | `connectors/collection.py` — declared tasks, `depends_on`, topological waves, `asyncio.gather` per wave, per-task `TaskOutcome` |
 | Coverage | `CoverageReport` → `snapshot.coverage` → `RawSnapshot.errors` → `RuleContext.collection_errors` → UNKNOWN. Persisted in `scan_collection_results`, `scan_rule_results`, `scan_evaluation_gaps` |
 | Raw evidence | `cloud_snapshots.data`, verbatim Azure JSON, one row per (scan, subscription) |
@@ -127,7 +129,6 @@ depth.
 >
 > The rest stand as written. The frontend's own production gaps are a separate
 > list and are recorded in `DECISIONS.md` §66.
-
 
 ### Critical
 
@@ -673,7 +674,7 @@ the recommended first action changes.
 ## 10. Scalability
 
 | Scale | What binds | What to do |
-|---|---|---|
+| --- | --- | --- |
 | 1 tenant | Nothing | — |
 | 100 tenants | §2.4's whole-tenant reads; the single-task ceiling; snapshot growth | Steps and leases (§6). Scope hot-path reads by account or scan. Blobs to object storage. Two Celery queues. Mandatory, not optional |
 | 1,000 tenants | Write throughput on `findings` and `evidence`; large tenants starving small ones; connection pool exhaustion | Partition `evidence`, `scan_*` and `asset_change_events` by month and drop old partitions. Per-tenant fair scheduling. PgBouncer. Read replica for dashboards |
@@ -693,7 +694,7 @@ out of `cloud_snapshots.data` at 100 tenants is a background migration. At
 ## 11. Technology decisions
 
 | Technology | Verdict | Reasoning |
-|---|---|---|
+| --- | --- | --- |
 | FastAPI | **Keep** | Correctly used; the dependency chain for auth and tenant resolution is good design. Only fix is pushing logic out of the fatter routers |
 | Python 3.12 | **Keep** | The workload is IO-bound with modest CPU. Types are strict and enforced |
 | Celery | **Keep, change how it is used** | Fine as a queue; stop using it as a workflow engine. Steps, leases and a reaper in PostgreSQL; two queues; beat for scheduling |
@@ -745,7 +746,7 @@ on the reaper.
 
 ### Phase 1 — foundations
 
-6. **Done, differently** — §2.15. The review proposed a repository layer
+1. **Done, differently** — §2.15. The review proposed a repository layer
    taking `organization_id` at construction. What shipped is stronger and
    smaller: migration 0012 adds a `cloudguard_worker` role whose
    policy arm on every tenant-owned table trusts `app.current_org()`, and the
@@ -765,7 +766,7 @@ on the reaper.
    `DATABASE_WORKER_URL` is optional: unset, the worker falls back to the owner
    connection and logs that it has, so adopting the role is a deployment step
    rather than a flag day.
-7. **Mostly done** — scan steps and the orchestrator. (§6, §2.2) Migration
+2. **Mostly done** — scan steps and the orchestrator. (§6, §2.2) Migration
    0011 adds `scan_steps`; `app/services/orchestrator.py` decides what may run,
    claims it with an `UPDATE ... WHERE status = 'PENDING' RETURNING id`, and
    derives the scan's status from what its steps add up to. `ScanPipeline.run`
@@ -805,7 +806,7 @@ on the reaper.
    the least consequential task in the plan. The trigger to build it is a
    tenant-metered surface that a *rule* depends on becoming parallel per
    subscription — not the parallelism on its own.
-8. **Partly done** — the evidence model. (§7, §2.5, §2.6) Migration 0010
+3. **Partly done** — the evidence model. (§7, §2.5, §2.6) Migration 0010
    renames `scan_collection_results` to `evidence` and gives a reading the
    provenance it lacked: the provider, when it was collected, the permissions
    the read was made under, and the hash of what it produced. `evidence_blobs`
@@ -817,7 +818,7 @@ on the reaper.
    instead of `cloud_snapshots`. The last of those is gated on
    `test_the_payloads_reconstruct_the_capture_exactly` holding against real
    scans, which is why both are written for now.
-9. ~~Typed `EvidenceKey`~~ (§2.7). Keys are an enum per provider, each carrying
+4. ~~Typed `EvidenceKey`~~ (§2.7). Keys are an enum per provider, each carrying
    its category, so a task no longer declares one and the two cannot disagree.
    Rules declare `requires_evidence` as keys rather than category names, which
    also removed a real defect: `has_collection_error("identity", "mfa")` named
@@ -827,7 +828,7 @@ on the reaper.
 
 ### Phase 2 — planning and context
 
-10. **Done, and one half of it deliberately does almost nothing.**
+ 1. **Done, and one half of it deliberately does almost nothing.**
     `app/services/evidence_planner.py` builds a `CollectionPlan` before every
     collection step: the union of every enabled rule's `requires_evidence` plus
     the connector's `baseline_evidence`, minus whatever is already held fresh
@@ -862,7 +863,7 @@ on the reaper.
     everything it did not look at. The planner is the seam that makes that
     buildable; the rule about what a narrowed scan may conclude is not a
     planning decision.
-11. **Done for the backend.** `app/context/` holds inference and resolution:
+ 2. **Done for the backend.** `app/context/` holds inference and resolution:
     `infer()` is pure and runs in the normalizer's path, `resolve()` applies
     what the customer declared, in the pipeline, at evaluation time rather than
     frozen into the capture. Every value carries a `ContextSource`, persisted
@@ -884,7 +885,7 @@ on the reaper.
     are a later migration rather than a nullable column nothing writes, and a
     declaration deliberately does not rescore stored findings on the spot — a
     score is what a scan concluded. See `DECISIONS.md` §17.
-12. **Done, except the targeted plans.** `remediation_verifications` (migration
+ 3. **Done, except the targeted plans.** `remediation_verifications` (migration
     0017) records the expectation the moment a customer marks work done — this
     rule, on this asset, should now PASS — and `app/services/verification.py`
     settles it from whatever any scan observes. A beat task looks again on a
@@ -908,7 +909,7 @@ on the reaper.
 
 ### Phase 3 — analysis depth
 
-13. **Done** — the asset graph. (§2.8, §8) `app/graph/` holds it: typed
+ 1. **Done** — the asset graph. (§2.8, §8) `app/graph/` holds it: typed
     capability edges, bounded breadth-first traversal, and the two questions
     worth asking — where an exposed asset can reach, and what one identity can
     act on.
@@ -929,7 +930,7 @@ on the reaper.
     collects, and edges guessed from what is on hand would be the one kind of
     wrong that reads as authoritative.
 
-14. **Done for reachability** — `AssetGraph.attack_paths()` and
+ 2. **Done for reachability** — `AssetGraph.attack_paths()` and
     `blast_radius()`, exposed at `GET /attack-paths` and
     `/attack-paths/blast-radius/{id}`. Computed from stored assets and edges
     rather than persisted: a path is a pure function of those, and a stored one
@@ -946,7 +947,7 @@ on the reaper.
     one that matters: no sensitive targets means CloudGuard does not know what
     would cost the customer anything, which is a gap in what it was told rather
     than a clean environment.
-15. **Done for the one template the graph can support** — correlation. A route
+ 3. **Done for the one template the graph can support** — correlation. A route
     from an exposed asset to a sensitive one becomes a single risk grouping the
     open findings along it, in the `risks` table beside the findings it groups.
     No new table: `risk_findings` was written as a junction precisely so several
@@ -998,7 +999,7 @@ on the reaper.
     ever spans several assets; as one asset and one rule, it is what the risk
     score already says.
 
-16. **Done for scenario risk; history still open.** `scenario_score` floors at
+ 4. **Done for scenario risk; history still open.** `scenario_score` floors at
     the worst member and adds a bounded amplifier that is mostly about
     shortness. The floor means a scenario can never rank below its own
     evidence; the bound means a long chain of ordinary facts can never outrank
@@ -1041,7 +1042,7 @@ on the reaper.
 
 ### Phase 4 — operations and proof
 
-17. **Started** — observability. Per-stage durations are the half the steps
+ 1. **Started** — observability. Per-stage durations are the half the steps
     made free: every stage records when it was claimed and when it settled, so
     `GET /scans/{id}/detail` now returns what each stage did, which scope it
     read, how long it took and which attempt it was on, and each step logs the
@@ -1078,7 +1079,7 @@ on the reaper.
     subscription nobody has managed to read since Tuesday. `unusable` counts
     readings that came back failed, truncated or skipped, because "recent" and
     "usable" are two halves of whether to trust the picture.
-18. **Done.** All three tables exist. `risk_history` came first with item 16;
+ 2. **Done.** All three tables exist. `risk_history` came first with item 16;
     migration 0018 adds the other two, plus `cloud_resources.absent_since`.
 
     `asset_change_events` records five things: an asset appearing or
@@ -1107,7 +1108,7 @@ on the reaper.
     `GET /changes` is the feed; `GET /findings/{id}` now carries `timeline`. A
     superseded replay writes neither, for the same reason it writes no risk
     history: it made no observation.
-19. **Done for the interval half** — §2.12. Migration 0013 adds
+ 3. **Done for the interval half** — §2.12. Migration 0013 adds
     `cloud_connections.scan_interval_hours` and `scans.trigger`; a beat task
     starts scans for connections whose environment is overdue a reading, using
     the same advisory lock and in-flight check the API uses. Off by default:
@@ -1154,7 +1155,7 @@ on the reaper.
     deployments is not an afternoon of scans. The webhook itself only records --
     Event Grid times the response, and putting a queue and a provider call
     behind the acknowledgement would be work in the wrong place.
-20. **Done for the pattern; declared on three rules so far.**
+ 4. **Done for the pattern; declared on three rules so far.**
     `app/remediation/` holds `ExpectedState` and `RemediationSpec`: what has to
     be true for a finding to close, carrying three names for one setting --
     the normalized field the rule reads, the ARM alias a policy matches on, and
@@ -1217,7 +1218,7 @@ on the reaper.
     neither the aliases nor the expressions have been verified against a real
     deployment from here — which `rbac.py` records the cost of. The generator
     declines rather than guesses.
-21. **Prerequisite done; the connector itself needs an AWS account.** The seam
+ 5. **Prerequisite done; the connector itself needs an AWS account.** The seam
     this item depends on was checked rather than assumed, and it leaked in three
     places — the pipeline reaching into Azure's evidence keys, the permissions
     endpoint answering for Azure whatever the provider, and the change-event
