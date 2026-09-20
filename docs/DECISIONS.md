@@ -6491,6 +6491,55 @@ naming origins: the API and Supabase URLs are per-deployment environment
 variables, and a static header naming the wrong one is a frontend that cannot
 reach its backend. Narrowing it is a per-environment change, not a code change.
 
+## 126. A control is only as good as the place it is enforced from
+
+Four fixes from the September 2026 follow-up review
+(`docs/SECURITY_REVIEW_2026-09-20.md`), and they share a shape: each control was
+present, and each was written somewhere it could not do the job it was named
+for.
+
+**A single-use nonce is a transaction, not an assignment.** §124 gave the consent
+link a nonce that is spent on arrival. It was cleared in memory and committed at
+the end of `record_consent`, after the tenant-rebind refusal and after three
+directory calls — so any of them raising rolled the spend back with the rest of
+the transaction, and the link was live again for whoever else held it. It is now
+verified, cleared and committed in `_spend_consent_nonce` before anything that
+can fail. The guard stays in front of that commit, so a wrong guess still writes
+nothing and nobody can burn a link they have not seen.
+
+**A limit that reads the header it runs ahead of is reading a claim.** The rate
+limiter picked its ceiling from the presence of `Authorization`, which it sees
+long before anything verifies one — so attaching any header at all bought five
+times the allowance on exactly the three routes the smaller ceiling was written
+for. The routes served without a token are now counted as anonymous whatever
+they carry, listed in `core/middleware.py` and cross-checked against the live
+route table by `tests/unit/test_middleware.py`, so a new unauthenticated route
+fails the build rather than quietly inheriting the larger ceiling.
+
+**An exemption should name a path, not a prefix.** `/health` is exempt because
+the platform probes it on a schedule. `/health/ready` sat under the same prefix
+and opens a database connection per call, so the exemption handed an
+unauthenticated caller an unlimited supply of checkouts from the pool the request
+path shares. The exemption is now an exact match; Railway probes `/health`, which
+answers without touching anything, and that endpoint no longer names the
+environment either.
+
+**A header that exists in one of two deploy configs exists in neither.** The
+frontend's CSP and HSTS were added in §125 to `apps/web/vercel.json`. The
+repository root carries a second `vercel.json` so the build works from either
+Root Directory, and it had no `headers` block — so a deployment from the root
+shipped the application with no CSP, and the symptom was the absence of
+something. Both files now carry the same headers and
+`infrastructure/ci/check-deployment-headers.mjs` fails the build if they diverge.
+
+Two smaller ones alongside them: the SNS confirmation URL is parsed with
+`urlsplit` rather than cut up with `split`, so a credentialed or ported form is
+refused as what it is rather than by happening to miss a strict pattern; and the
+fix commands the UI hands a reader to paste quote what came out of the
+provider — bare only when the value is unambiguously one shell word, quoted
+when it is not, and left as a placeholder when the rule already put it inside
+quotes.
+
 ## Open items carried forward
 
 **Data residency is not built (§113).** An organization setting for allowed

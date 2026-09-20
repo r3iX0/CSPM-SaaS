@@ -19,7 +19,7 @@ from uuid import uuid4
 import pytest
 
 from app.core.enums import CloudAccountStatus, ConnectionScope, ConsentStatus, Provider
-from app.core.errors import ValidationFailed
+from app.core.errors import CloudConnectionError, ValidationFailed
 from app.models.cloud_connection import CloudConnection
 from app.services import cloud_connections as service
 
@@ -44,11 +44,20 @@ class _Session:
 
     A fake rather than a database: every rule under test is decided before any
     query is made, and the point of the test is that it is decided at all.
+
+    Each commit records what the row looked like at that moment. Assigning a
+    column is not the same as persisting it -- an exception later rolls an
+    uncommitted assignment back -- so a test that only inspected the row at the
+    end would pass for a nonce that never reached PostgreSQL. What is asserted
+    is therefore the state *at a commit*, which is the state that survives.
+    ``tests/integration/test_api.py`` makes the same assertion against a real
+    transaction.
     """
 
     def __init__(self, row: CloudConnection | None) -> None:
         self.row = row
         self.committed = False
+        self.commits: list[dict[str, object]] = []
         # What ``commit_unless_externally_managed`` reads to decide whose
         # transaction this is. Empty means "yours", which is what a service
         # called outside a request sees.
@@ -59,6 +68,19 @@ class _Session:
 
     async def commit(self) -> None:
         self.committed = True
+        if self.row is not None:
+            self.commits.append(
+                {
+                    "consent_nonce": self.row.consent_nonce,
+                    "consent_status": self.row.consent_status,
+                    "tenant_id": self.row.tenant_id,
+                }
+            )
+
+    @property
+    def nonce_was_committed_as_spent(self) -> bool:
+        """Whether any commit persisted the row with no nonce on it."""
+        return any(commit["consent_nonce"] is None for commit in self.commits)
 
 
 @pytest.fixture(autouse=True)
@@ -142,6 +164,53 @@ async def test_a_second_directory_cannot_take_over_a_bound_connection() -> None:
 
     assert row.tenant_id == "tenant-a"
     assert row.consent_nonce is None
+    # And spent *durably*. The refusal below it raises, so a spend that waited
+    # for the end of the function would be rolled back with it and the link
+    # would still be redeemable.
+    assert session.nonce_was_committed_as_spent
+
+
+async def test_the_link_is_spent_even_when_the_directory_call_fails() -> None:
+    """The provider calls are network calls, and network calls fail.
+
+    Whatever happens after the nonce is redeemed, it stays redeemed: a
+    directory that times out must not hand the link back to whoever else has
+    it.
+    """
+    row = connection(consent_nonce="fresh-link")
+    session = _Session(row)
+
+    class _Failing:
+        ready_to_deploy_detail = "ready"
+
+        async def ensure_principal(self, _connection: CloudConnection) -> Any:
+            raise CloudConnectionError("Entra did not answer")
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(service, "flow", lambda _connection: _Failing())
+        with pytest.raises(CloudConnectionError):
+            await service.record_consent(
+                session, row.id, "tenant-a", nonce="fresh-link"
+            )
+
+    assert session.nonce_was_committed_as_spent
+
+
+async def test_a_refused_nonce_is_never_committed() -> None:
+    """A failed attempt must not write anything at all.
+
+    The spend is a commit of its own, so the guard in front of it has to hold
+    before it -- otherwise a wrong guess would clear the link it failed to
+    redeem, which is a denial of service with extra steps.
+    """
+    row = connection(consent_nonce="issued-to-the-customer")
+    session = _Session(row)
+
+    with pytest.raises(ValidationFailed):
+        await service.record_consent(session, row.id, "tenant-a", nonce="guessed")
+
+    assert session.commits == []
+    assert row.consent_nonce == "issued-to-the-customer"
 
 
 async def test_reconsenting_the_same_directory_is_allowed() -> None:

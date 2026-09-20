@@ -133,6 +133,13 @@ jobs:
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
 
+      - name: Refuse drifted deployment headers
+        # Vercel reads whichever vercel.json matches the project's Root
+        # Directory, and this repository carries two. The headers used to be in
+        # only one of them, so a deployment from the repository root shipped the
+        # frontend with no CSP and no HSTS and said nothing about it.
+        run: node infrastructure/ci/check-deployment-headers.mjs
+
       - name: Install
         working-directory: apps/web
         # ci, not install: it installs exactly the locked tree Vercel will build

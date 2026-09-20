@@ -149,6 +149,47 @@ class RequestSizeLimitMiddleware:
         return f"Request body exceeds the {self.max_bytes} byte limit."
 
 
+# The routes that answer without a token, and the reason this list is here.
+#
+# ``RateLimitMiddleware`` runs before authentication, so it cannot ask whether a
+# request *is* authenticated -- only whether it carries a header claiming to be.
+# These are the paths where that claim buys nothing, because the handler never
+# looks at it: a request to one of them is counted as anonymous however it is
+# dressed.
+#
+# Kept as literals rather than derived from the route table, because the
+# middleware is constructed before the router is mounted. ``tests/unit/
+# test_middleware.py`` cross-checks this list against the live application's
+# routes, so a new route that skips authentication fails the build here rather
+# than quietly inheriting the larger ceiling.
+OPEN_PATHS = frozenset(
+    {
+        "/api/v1/cloud-connections/azure/consent/callback",
+        "/api/v1/cloud-accounts/azure/permissions",
+    }
+)
+OPEN_PREFIXES = ("/api/v1/events/",)
+# ``/api/v1/cloud-connections/{id}/template``: parameterised, so it is matched
+# by its shape rather than by a literal.
+OPEN_SUFFIXES = (("/api/v1/cloud-connections/", "/template"),)
+
+
+def _normalise(path: str) -> str:
+    """One spelling per path, so a trailing slash is not a second one."""
+    return path.rstrip("/") or "/"
+
+
+def is_open_route(path: str) -> bool:
+    """Whether this path is served without a token by design."""
+    path = _normalise(path)
+    if path in OPEN_PATHS or path.startswith(OPEN_PREFIXES):
+        return True
+    return any(
+        path.startswith(prefix) and path.endswith(suffix)
+        for prefix, suffix in OPEN_SUFFIXES
+    )
+
+
 class RateLimitMiddleware:
     """A fixed-window request limit, counted in Redis.
 
@@ -157,11 +198,21 @@ class RateLimitMiddleware:
     while reporting that it had enforced a limit -- the failure being a control
     that looks present in the code and is not present in production.
 
-    Two ceilings. A request carrying no ``Authorization`` header gets the
-    smaller one: the unauthenticated surface is the webhook, the ARM template
-    and the consent callback, and none of them is reached in bursts by anything
-    legitimate. Everything else is a signed-in customer using the product, whose
-    dashboard alone issues a handful of calls per page.
+    Two ceilings. The smaller one covers the surface reachable without a token:
+    the webhook, the ARM template, the consent callback and the permissions
+    list, none of which is reached in bursts by anything legitimate. The larger
+    one is for a signed-in customer using the product, whose dashboard alone
+    issues a handful of calls per page.
+
+    **Which ceiling applies is decided by the path, not by the header.** This
+    middleware runs long before anything verifies a token, so the presence of
+    an ``Authorization`` header proves only that the caller typed one -- and
+    taking it as proof let anyone reach the routes that need the smaller
+    ceiling under the larger one, simply by attaching a header those routes
+    never read. The routes that are unauthenticated by design are therefore
+    always counted as anonymous; everywhere else, a credentialed request is
+    counted as authenticated because a route that rejects a bad token has
+    already done the work of answering it.
 
     **Fails open.** A Redis outage that also took down the API would turn a
     capacity problem into an outage, and rate limiting is a control against
@@ -176,28 +227,35 @@ class RateLimitMiddleware:
         authenticated_limit: int,
         anonymous_limit: int,
         window_seconds: int,
-        exempt_prefixes: tuple[str, ...] = ("/health",),
+        exempt_paths: frozenset[str] = frozenset({"/health"}),
     ) -> None:
         self.app = app
         self.authenticated_limit = authenticated_limit
         self.anonymous_limit = anonymous_limit
         self.window_seconds = window_seconds
-        self.exempt_prefixes = exempt_prefixes
+        self.exempt_paths = exempt_paths
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
 
-        path = scope.get("path", "")
+        path = _normalise(scope.get("path", ""))
         # The platform's own health probe, which runs on a schedule this would
         # otherwise throttle.
-        if path.startswith(self.exempt_prefixes):
+        #
+        # Matched exactly rather than by prefix. ``/health/ready`` sits under
+        # the same prefix and opens a database connection on every call, so a
+        # prefix match exempted an unauthenticated caller from the one control
+        # standing between them and the request path's connection pool. Railway
+        # probes ``/health``, which is the one that answers without touching
+        # anything (railway.json, docs/DEPLOYMENT.md section 2).
+        if path in self.exempt_paths:
             await self.app(scope, receive, send)
             return
 
         headers = Headers(scope=scope)
-        authenticated = bool(headers.get("authorization"))
+        authenticated = bool(headers.get("authorization")) and not is_open_route(path)
         limit = self.authenticated_limit if authenticated else self.anonymous_limit
         bucket = "auth" if authenticated else "anon"
         window = int(time.time()) // self.window_seconds
@@ -300,8 +358,12 @@ async def _refuse(
 
 
 __all__ = [
+    "OPEN_PATHS",
+    "OPEN_PREFIXES",
+    "OPEN_SUFFIXES",
     "RateLimitMiddleware",
     "RequestSizeLimitMiddleware",
     "SecurityHeadersMiddleware",
     "client_address",
+    "is_open_route",
 ]

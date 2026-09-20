@@ -7,6 +7,7 @@ whether the handler runs at all -- and calling them directly would test the
 arrangement this file exists to check.
 """
 
+import re
 from typing import Any
 
 import httpx
@@ -37,6 +38,18 @@ def app_with(*middlewares: tuple[type, dict[str, Any]]) -> FastAPI:
     @app.get("/health")
     async def health() -> dict:
         return {"ok": True}
+
+    @app.get("/health/ready")
+    async def ready() -> dict:
+        return {"ok": True}
+
+    @app.post("/api/v1/events/{provider}/{connection_id}")
+    async def webhook(provider: str, connection_id: str) -> dict:
+        return {"ok": True, "provider": provider, "connection": connection_id}
+
+    @app.get("/api/v1/cloud-connections/{connection_id}/template")
+    async def template(connection_id: str) -> dict:
+        return {"ok": True, "connection": connection_id}
 
     for cls, kwargs in middlewares:
         app.add_middleware(cls, **kwargs)
@@ -199,6 +212,128 @@ async def test_the_health_probe_is_never_throttled(counter: _Counter) -> None:
     async with client_for(app) as client:
         for _ in range(5):
             assert (await client.get("/health")).status_code == 200
+
+
+async def test_readiness_is_not_exempt(counter: _Counter) -> None:
+    """``/health/ready`` opens a database connection; the probe path does not.
+
+    Exempting the whole prefix handed an unauthenticated caller an unlimited
+    supply of connection checkouts from the pool the request path shares.
+    """
+    app = app_with((RateLimitMiddleware, LIMITS))
+
+    async with client_for(app) as client:
+        assert (await client.get("/health/ready")).status_code == 200
+        assert (await client.get("/health/ready")).status_code == 429
+
+
+async def test_a_trailing_slash_is_not_a_second_path(counter: _Counter) -> None:
+    """``/health/`` is the exempt path, not a limited one wearing a slash."""
+    app = app_with((RateLimitMiddleware, LIMITS))
+
+    async with client_for(app) as client:
+        for _ in range(5):
+            assert (await client.get("/health/")).status_code != 429
+
+
+# ------------------------------------------------------------- which ceiling
+
+
+async def test_an_open_route_is_counted_as_anonymous_however_it_is_dressed(
+    counter: _Counter,
+) -> None:
+    """A header the handler never reads must not buy the larger ceiling.
+
+    This middleware runs before anything verifies a token, so ``Authorization``
+    here is a claim and nothing more. On the routes that are served without one
+    by design, the claim is worth nothing and is not allowed to change the
+    count.
+    """
+    app = app_with((RateLimitMiddleware, LIMITS))
+    headers = {"authorization": "Bearer anything-at-all"}
+
+    async with client_for(app) as client:
+        first = await client.post(
+            "/api/v1/events/azure/11111111-1111-1111-1111-111111111111",
+            json={},
+            headers=headers,
+        )
+        second = await client.post(
+            "/api/v1/events/azure/11111111-1111-1111-1111-111111111111",
+            json={},
+            headers=headers,
+        )
+
+    assert first.status_code == 200
+    assert second.status_code == 429
+
+
+async def test_the_parameterised_template_route_is_open_too(counter: _Counter) -> None:
+    app = app_with((RateLimitMiddleware, LIMITS))
+    headers = {"authorization": "Bearer anything-at-all"}
+    path = "/api/v1/cloud-connections/2f6c/template"
+
+    async with client_for(app) as client:
+        assert (await client.get(path, headers=headers)).status_code == 200
+        assert (await client.get(path, headers=headers)).status_code == 429
+
+
+def test_open_routes_are_recognised_and_ordinary_ones_are_not() -> None:
+    assert mw.is_open_route("/api/v1/cloud-connections/azure/consent/callback")
+    assert mw.is_open_route("/api/v1/cloud-accounts/azure/permissions")
+    assert mw.is_open_route("/api/v1/events/aws/2f6c")
+    assert mw.is_open_route("/api/v1/cloud-connections/2f6c/template/")
+
+    assert not mw.is_open_route("/api/v1/cloud-connections")
+    assert not mw.is_open_route("/api/v1/cloud-connections/2f6c")
+    assert not mw.is_open_route("/api/v1/findings")
+    # A path that merely ends the right way, under another prefix.
+    assert not mw.is_open_route("/api/v1/scans/2f6c/template")
+
+
+def test_the_open_list_matches_the_application_routes() -> None:
+    """The list in the middleware against the routes the app actually serves.
+
+    The middleware is built before the router is mounted, so its list is
+    literal -- and a literal list is one a new route can fall out of. This is
+    what notices: every route that resolves without an authentication
+    dependency has to be either a health path or one the middleware already
+    counts as open, and nothing else may claim to be open.
+    """
+    from app.main import app as application
+
+    def dependency_names(dependant: Any, seen: set[str]) -> set[str]:
+        if dependant.call is not None:
+            seen.add(getattr(dependant.call, "__name__", ""))
+        for sub in dependant.dependencies:
+            dependency_names(sub, seen)
+        return seen
+
+    authenticating = {"get_current_user", "get_tenant", "get_session"}
+    unauthenticated: set[str] = set()
+    for route in application.routes:
+        dependant = getattr(route, "dependant", None)
+        if dependant is None:
+            continue
+        if not dependency_names(dependant, set()) & authenticating:
+            unauthenticated.add(route.path)
+
+    # Path parameters are spelled ``{name}`` in the route table and are real
+    # values in a request, so the matcher is asked about a filled-in path.
+    def as_request_path(path: str) -> str:
+        return re.sub(r"\{[^}]+\}", "2f6c", path)
+
+    for path in unauthenticated:
+        assert path.startswith("/health") or mw.is_open_route(as_request_path(path)), (
+            f"{path} is served without authentication but is not in the "
+            "middleware's open list, so it would be counted under the "
+            "authenticated ceiling by anyone sending a header"
+        )
+
+    for path in mw.OPEN_PATHS:
+        assert path in unauthenticated, (
+            f"{path} is listed as open but the application authenticates it"
+        )
 
 
 async def test_the_limit_fails_open(monkeypatch: pytest.MonkeyPatch) -> None:

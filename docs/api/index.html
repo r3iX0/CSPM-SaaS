@@ -6,22 +6,22 @@
   <title>CloudGuard API Reference & Interactive Playground</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css">
   <style>
-    body {{
+    body {
       margin: 0;
       padding: 0;
       background-color: #0d1117;
       color: #c9d1d9;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    }}
-    .header {{
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .header {
       background: #161b22;
       border-bottom: 1px solid #30363d;
       padding: 16px 24px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-    }}
-    .header h1 {{
+    }
+    .header h1 {
       margin: 0;
       font-size: 1.25rem;
       font-weight: 600;
@@ -29,33 +29,40 @@
       display: flex;
       align-items: center;
       gap: 8px;
-    }}
-    .header .meta {{
+    }
+    .header .meta {
       font-size: 0.875rem;
       color: #8b949e;
-    }}
-    .header a {{
+    }
+    .header a {
       color: #58a6ff;
       text-decoration: none;
-    }}
-    .header a:hover {{
+    }
+    .header a:hover {
       text-decoration: underline;
-    }}
+    }
+    .badge {
+      font-size: 0.75rem;
+      background: #238636;
+      color: #fff;
+      padding: 2px 8px;
+      border-radius: 12px;
+    }
     /* Swagger UI Dark Mode Adaptations */
-    .swagger-ui {{
+    .swagger-ui {
       filter: invert(88%) hue-rotate(180deg);
       padding: 20px;
-    }}
-    .swagger-ui .topbar {{
+    }
+    .swagger-ui .topbar {
       display: none;
-    }}
+    }
   </style>
 </head>
 <body>
   <div class="header">
     <h1>
       <span>🛡️ CloudGuard API</span>
-      <span style="font-size: 0.75rem; background: #238636; color: #fff; padding: 2px 8px; border-radius: 12px;">v0.1.0</span>
+      <span class="badge">v0.1.0</span>
     </h1>
     <div class="meta">
       Auto-generated from FastAPI &bull;

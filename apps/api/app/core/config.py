@@ -115,9 +115,11 @@ class Settings(BaseSettings):
     # The authenticated ceiling is per client per minute and is set well above
     # what using the product costs -- the dashboard is a handful of calls per
     # page, and a scan is one call plus polling. The anonymous one covers the
-    # three endpoints reachable without a token: the change-event webhook, the
-    # ARM template and the consent callback. None is reached in bursts by
-    # anything legitimate.
+    # endpoints reachable without a token -- the change-event webhook, the ARM
+    # template, the consent callback and the permissions list -- none of which
+    # is reached in bursts by anything legitimate. Those paths are counted
+    # anonymously whatever header they carry (``core/middleware.py``), because
+    # the limit runs before anything verifies one.
     rate_limit_authenticated: int = 300
     rate_limit_anonymous: int = 60
     rate_limit_window_seconds: int = 60
@@ -163,7 +165,7 @@ class Settings(BaseSettings):
     # Off by default, and deliberately separate from having credentials. Every
     # IAM action name, response shape and template string in the AWS connector
     # is written from AWS's published reference and has been called by nothing;
-    # AWS_INTEGRATION.md section 1 holds the ten-item checklist that turns that
+    # AWS_INTEGRATION.md section 1 holds the checklist that turns that
     # from plausible into verified. Until it has been run against a real
     # account, AWS is reachable through the API and is not offered in the UI --
     # because shipping the picker first would be a product claiming to scan a

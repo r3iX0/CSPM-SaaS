@@ -6230,6 +6230,7 @@
           "meta"
         ],
         "summary": "Health",
+        "description": "The platform's liveness probe, and nothing else.\n\nAnswers whether this process is up, and says nothing about what it is: the\nendpoint is unauthenticated and rate-limit exempt, so every field on it is\na field anybody can read. Which environment a deployment is tells a\nstranger nothing they need and one thing they might use.",
         "operationId": "health_health_get",
         "responses": {
           "200": {

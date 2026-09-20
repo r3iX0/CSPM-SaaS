@@ -328,6 +328,13 @@ Node installed on your machine.
    `/findings/<id>`, or just refreshing the page — returns a 404, because
    those routes only exist client-side in React Router.
 
+   Both also send the same security response headers — CSP, HSTS,
+   `X-Frame-Options`, and the rest. They have to: whichever file Vercel reads
+   is the whole of what the browser gets, and a config missing them deploys an
+   application with no CSP and no symptom. CI's `web` job runs
+   `infrastructure/ci/check-deployment-headers.mjs`, which fails the build if
+   the two stop matching.
+
 3. **Environment variables**:
    ```
    VITE_API_URL=https://<your-railway-api-domain>

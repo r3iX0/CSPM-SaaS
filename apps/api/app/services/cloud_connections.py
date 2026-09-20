@@ -314,6 +314,39 @@ async def grant_problem(connection: CloudConnection) -> str | None:
 # ---------------------------------------------------------------------------
 
 
+async def _spend_consent_nonce(
+    session: AsyncSession, connection: CloudConnection, nonce: str
+) -> None:
+    """Redeem the link's nonce, or refuse the callback.
+
+    Committed here rather than with the rest of the callback's work. A nonce is
+    only single-use if spending it survives whatever the callback does next,
+    and everything it does next can raise -- the tenant-rebind refusal by
+    design, the directory lookups because they are network calls. Committing at
+    the end would roll the spend back along with them and leave the link live
+    for whoever else holds it.
+
+    So: verify, clear, commit, and only then go on. The cost is one extra
+    round trip on a flow that runs once per connection.
+    """
+    # Constant time, and never against an empty stored value: a connection with
+    # no live link must not be opened by a caller who guessed an empty nonce.
+    expected = connection.consent_nonce or ""
+    if not expected or not hmac.compare_digest(nonce, expected):
+        raise ValidationFailed(
+            "This consent link is no longer valid. Open the connection in "
+            "CloudGuard and send a fresh one."
+        )
+
+    connection.consent_nonce = None
+    connection.consent_nonce_issued_at = None
+    # ``commit_unless_externally_managed`` rather than ``session.commit``: the
+    # callback owns its session and this commits, while a caller that wrapped
+    # this in its own transaction keeps it. The consent callback is the only
+    # caller and uses ``service_session``, so in production this commits.
+    await commit_unless_externally_managed(session)
+
+
 async def record_consent(
     session: AsyncSession, connection_id: UUID, tenant_id: str, *, nonce: str
 ) -> CloudConnection:
@@ -328,6 +361,15 @@ async def record_consent(
     last issued, and it is spent on arrival. Without that, a signature is a
     credential good until it expires, replayable by anyone who saw the URL.
 
+    Spending it is a commit of its own, and that is the whole of why
+    :func:`_spend_consent_nonce` exists. Clearing the column in memory and
+    committing at the end of this function reads as "spent whatever happens
+    next" and is not: the rebind refusal below raises, and so can any of the
+    provider calls after it, and either takes the cleared column down with the
+    rest of the transaction. The link would then still be redeemable -- exactly
+    the replay the nonce was added to close. So it is cleared and committed
+    before anything that can fail.
+
     **The binding is made once.** A connection that already names a tenant is
     never repointed at another one by a callback. The tenant is what every later
     token, graph call and scan is addressed to, so silently accepting a second
@@ -339,19 +381,7 @@ async def record_consent(
     if connection is None:
         raise CloudAccountNotFound("Connection not found")
 
-    # Constant time, and never against an empty stored value: a connection with
-    # no live link must not be opened by a caller who guessed an empty nonce.
-    expected = connection.consent_nonce or ""
-    if not expected or not hmac.compare_digest(nonce, expected):
-        raise ValidationFailed(
-            "This consent link is no longer valid. Open the connection in "
-            "CloudGuard and send a fresh one."
-        )
-    # Spent, whatever happens next. A link that has been followed once is not a
-    # link any more, and clearing it before the provider calls below means a
-    # failure there cannot leave it redeemable.
-    connection.consent_nonce = None
-    connection.consent_nonce_issued_at = None
+    await _spend_consent_nonce(session, connection, nonce)
 
     if tenant_id and connection.tenant_id and tenant_id != connection.tenant_id:
         log.warning(

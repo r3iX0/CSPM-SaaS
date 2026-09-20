@@ -126,7 +126,14 @@ app.include_router(api_router)
 
 @app.get("/health", tags=["meta"])
 async def health() -> dict:
-    return envelope({"status": "ok", "environment": settings.app_env})
+    """The platform's liveness probe, and nothing else.
+
+    Answers whether this process is up, and says nothing about what it is: the
+    endpoint is unauthenticated and rate-limit exempt, so every field on it is
+    a field anybody can read. Which environment a deployment is tells a
+    stranger nothing they need and one thing they might use.
+    """
+    return envelope({"status": "ok"})
 
 
 @app.get("/health/ready", tags=["meta"])
