@@ -40,6 +40,7 @@ from app.core.enums import (
     TaskOutcome,
     VerificationStatus,
 )
+from app.graph import AssetGraph, PathStep
 from app.models.cloud_account import CloudAccount
 from app.models.context import ContextDeclarationRecord
 from app.models.finding import Finding
@@ -3194,6 +3195,25 @@ class TestGraphCaching:
         assert first == second
 
 
+def _estate_without(graph: AssetGraph, step: PathStep) -> AssetGraph:
+    """The same estate with one link removed, built from the outside.
+
+    Deliberately assembled through `AssetGraph.build` from the graph's own
+    nodes and links rather than by reaching into it: the point of the check
+    below is to re-derive the answer the way the product first derived it,
+    from resources and edges, so nothing the analysis caches can take part.
+    """
+    gone = (
+        step.source.provider_resource_id,
+        step.relationship,
+        step.target.provider_resource_id,
+    )
+    return AssetGraph.build(
+        list(graph.nodes.values()),
+        [link for link in graph.links() if link != gone],
+    )
+
+
 class TestChokePoints:
     """Which single change closes the most routes.
 
@@ -3218,14 +3238,13 @@ class TestChokePoints:
         assert routes, "the fixture estate has a route"
 
         for choke in graph.choke_points():
-            # The claim, re-checked against the graph it was made about.
-            pruned = graph._without(
-                (
-                    choke.step.source.provider_resource_id,
-                    choke.step.relationship.value,
-                    choke.step.target.provider_resource_id,
-                )
-            )
+            # The claim, re-checked against the graph it was made about --
+            # independently. `choke_points` reads its number off one severance
+            # analysis (DECISIONS.md §122), so asking `cut()` here would be
+            # asking that computation whether it agrees with itself. This
+            # rebuilds the estate without the link and re-enumerates the
+            # routes, which is what the number is supposed to mean.
+            pruned = _estate_without(graph, choke.step)
             assert len(pruned.attack_paths()) == len(routes) - choke.severs
             assert choke.severs <= choke.on_routes
 

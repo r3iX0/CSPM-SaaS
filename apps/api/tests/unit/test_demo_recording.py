@@ -132,6 +132,34 @@ def test_the_data_group_folds_with_the_sensitive_account_drawn() -> None:
     assert "stcustomerrecords" in drawn
 
 
+def test_every_choke_point_closes_exactly_what_it_says_on_a_real_estate() -> None:
+    """The severance analysis, re-checked against a whole recorded tenant.
+
+    `choke_points` reads its number off one forward derivation (DECISIONS.md
+    §122), so asking `cut()` would be asking that computation whether it agrees
+    with itself. This removes the link and re-enumerates the routes from
+    resources and edges -- the definition the number claims to mean -- over an
+    estate with three identities, a network hop and forty-odd assets rather
+    than a hand-built shape.
+    """
+    estate = graph()
+    routes = estate.attack_paths()
+    assert routes, "the recording has routes"
+
+    for choke in estate.choke_points():
+        gone = (
+            choke.step.source.provider_resource_id,
+            choke.step.relationship,
+            choke.step.target.provider_resource_id,
+        )
+        pruned = AssetGraph.build(
+            list(estate.nodes.values()),
+            [link for link in estate.links() if link != gone],
+        )
+        assert len(pruned.attack_paths()) == len(routes) - choke.severs
+        assert choke.severs <= choke.on_routes
+
+
 def test_no_single_cut_closes_every_route_to_the_customer_records() -> None:
     estate = graph()
     records = next(n for n in estate.nodes.values() if n.name == "stcustomerrecords")

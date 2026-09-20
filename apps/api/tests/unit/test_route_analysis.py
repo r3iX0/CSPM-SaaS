@@ -283,6 +283,45 @@ def test_routes_that_differ_only_in_what_they_reach_are_one_pattern() -> None:
     assert patterns[0].describe() == "web reaches 2 storage accounts the same way"
 
 
+def rebuilt_without(graph: AssetGraph, link: tuple[str, str, str]) -> AssetGraph:
+    """The same estate with one link removed, assembled from the outside."""
+    gone = (link[0], RelationshipType(link[1]), link[2])
+    return AssetGraph.build(
+        list(graph.nodes.values()), [edge for edge in graph.links() if edge != gone]
+    )
+
+
+def test_every_severance_answer_survives_being_checked_the_slow_way() -> None:
+    """The independent oracle for the whole analysis.
+
+    `link_severance` derives its answer once, forward, and everything else on
+    the page reads that one derivation -- which is what keeps the ranked list,
+    the what-if and the number on a line from disagreeing, and also what makes
+    them all wrong together if the derivation is. So each answer is re-checked
+    against the definition it claims to mean: remove the link, enumerate the
+    routes again from resources and edges, and see what is actually gone.
+    """
+    for estate in (diamond(), fan(), roled()):
+        before = {
+            (path.entry.provider_resource_id, path.target.provider_resource_id)
+            for path in estate.attack_paths()
+        }
+        severance = estate.link_severance()
+
+        for link in {step.key() for path in estate.attack_paths() for step in path.steps}:
+            if link[1] == RelationshipType.CONTAINS.value:
+                continue
+            after = {
+                (path.entry.provider_resource_id, path.target.provider_resource_id)
+                for path in rebuilt_without(estate, link).attack_paths()
+            }
+            claimed = {
+                (path.entry.provider_resource_id, path.target.provider_resource_id)
+                for path in severance.get(link, ())
+            }
+            assert claimed == before - after, link
+
+
 def test_the_drawn_map_counts_a_cut_against_every_route_not_the_drawn_ones() -> None:
     """One claim, one denominator.
 
