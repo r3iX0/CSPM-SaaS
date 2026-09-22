@@ -325,3 +325,69 @@ def test_serialized_asset_boxes_link_to_their_page() -> None:
     assert storage["resource_type"] == "storage_account"
     assert storage["sensitive"] == 1
     assert body["lens"] == {"scope_id": "sub-b", "group": "Data"}
+
+
+# ------------------------------------------------------------ routes, traced
+def test_each_route_through_the_lens_is_placed_on_the_boxes_drawn() -> None:
+    mapped = draw(Lens())
+
+    assert len(mapped.traced) == mapped.routes_total == 1
+    route = mapped.traced[0]
+    # Entry, then each step's target: the exposed VM's subscription, the
+    # directory its identity lives in, then sub-b and down to the storage.
+    assert route.boxes == (
+        scope_box("sub-a"),
+        scope_box(DIRECTORY_SCOPE),
+        scope_box("sub-b"),
+        scope_box("sub-b"),
+        scope_box("sub-b"),
+    )
+    assert len(route.boxes) == route.path.hops + 1
+
+
+def test_a_route_leaving_the_lens_names_no_box_where_none_is_drawn() -> None:
+    # Opened on sub-a, the identity's role over sub-b is between two
+    # neighbours, so sub-b is not drawn -- and the route must not claim it is.
+    mapped = draw(Lens("sub-a"))
+    drawn = {box.id for box in mapped.boxes}
+    route = mapped.traced[0]
+
+    assert route.boxes[:2] == (group_box("sub-a", "web"), scope_box(DIRECTORY_SCOPE))
+    assert route.boxes[2:] == (None, None, None)
+    assert all(box is None or box in drawn for box in route.boxes)
+
+
+def test_routes_past_the_cap_are_counted_but_not_traced() -> None:
+    graph = environment()
+    mapped = estate_map(graph, PLACEMENTS, Lens(), graph.attack_paths(), max_routes=0)
+    assert mapped is not None
+    assert mapped.routes_total == 1
+    assert mapped.traced == ()
+
+
+def test_serialized_routes_carry_their_boxes_and_patterns() -> None:
+    mapped = draw(Lens())
+    placements = Placements(
+        of=PLACEMENTS,
+        row_ids={},
+        scope_names={"sub-a": "Web", "sub-b": "Data"},
+        scope_providers={},
+    )
+    body = serialize_estate(mapped, placements, {})
+
+    (route,) = body["routes"]
+    assert route["key"] == f"{VM}|{STORAGE}"
+    assert route["boxes"][0] == scope_box("sub-a")
+    assert len(route["boxes"]) == len(route["steps"]) + 1
+    assert route["pattern"] is None
+    assert body["patterns"] == []
+    assert body["loose"] == [route["key"]]
+
+
+def test_a_route_named_to_be_walked_is_traced_past_the_cap() -> None:
+    graph = environment()
+    mapped = estate_map(
+        graph, PLACEMENTS, Lens(), graph.attack_paths(), max_routes=0, keep=f"{VM}|{STORAGE}"
+    )
+    assert mapped is not None
+    assert [route.path.target.provider_resource_id for route in mapped.traced] == [STORAGE]

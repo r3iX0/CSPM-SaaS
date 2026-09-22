@@ -1,7 +1,10 @@
 import type { EstateBox, EstateMap } from "@/lib/types";
 
-/** Horizontal distance between columns: a 240px box and room for an edge label. */
-export const ESTATE_COLUMN_GAP = 380;
+/**
+ * Horizontal distance between columns: a 240px box, and a gap wide enough for
+ * an arrow's label and for backward arrows to run up and down beside the boxes.
+ */
+export const ESTATE_COLUMN_GAP = 440;
 /** Vertical distance between boxes in one column. */
 export const ESTATE_ROW_GAP = 76;
 /** Boxes with no reach are stacked this many to a column, so a quiet estate is a grid. */

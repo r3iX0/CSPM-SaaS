@@ -22,6 +22,7 @@ facing the customer.
 """
 
 from collections import OrderedDict
+from collections.abc import Sequence
 from datetime import datetime
 from uuid import UUID
 
@@ -691,10 +692,27 @@ def serialize_estate(
         for edge in estate.edges
     ]
 
+    # The routes through the lens, to be traced on the map one hop at a time.
+    # The same route shape the attack-path page reads, plus the box each node
+    # of it is drawn in here.
+    paths = [route.path for route in estate.traced]
+    shapes, of_pattern, loose = serialize_patterns(paths)
+
     return {
         "lens": {"scope_id": estate.lens.scope, "group": estate.lens.group},
         "boxes": boxes,
         "edges": edges,
+        "routes": [
+            {
+                **serialize_path(route.path),
+                "key": route_key(route.path),
+                "pattern": of_pattern.get(route_key(route.path)),
+                "boxes": list(route.boxes),
+            }
+            for route in estate.traced
+        ],
+        "patterns": shapes,
+        "loose": loose,
     }
 
 
@@ -707,6 +725,55 @@ def route_key(path: Path) -> str:
     entry to its target, so the pair names it uniquely.
     """
     return f"{path.entry.provider_resource_id}|{path.target.provider_resource_id}"
+
+
+def serialize_patterns(
+    paths: Sequence[Path],
+) -> tuple[list[dict], dict[str, str], list[str]]:
+    """The routes that repeat, grouped (section 123): the groups, each route's
+    group by key, and the keys of the routes in none.
+
+    Shared by the attack-path page and the estate map, so a pattern reads the
+    same sentence in both places.
+    """
+    patterns, loose = route_patterns(paths)
+    of_pattern: dict[str, str] = {}
+    shapes = []
+    for index, pattern in enumerate(patterns):
+        pattern_id = f"pattern-{index + 1}"
+        for member in pattern.members:
+            of_pattern[route_key(member)] = pattern_id
+        shapes.append(
+            {
+                "id": pattern_id,
+                "kind": pattern.kind.value,
+                "description": pattern.describe(),
+                "size": pattern.size,
+                "hops": pattern.exemplar.hops,
+                "exemplar": route_key(pattern.exemplar),
+                "routes": [route_key(member) for member in pattern.members],
+                # The end that varies, named, so the group can list what it
+                # collapsed without the reader opening every member.
+                "varies": [
+                    {
+                        "id": (
+                            member.entry.provider_resource_id
+                            if pattern.kind is PatternKind.MANY_ENTRIES
+                            else member.target.provider_resource_id
+                        ),
+                        "name": (
+                            member.entry.name
+                            if pattern.kind is PatternKind.MANY_ENTRIES
+                            else member.target.name
+                        ),
+                        "route": route_key(member),
+                    }
+                    for member in pattern.members
+                ],
+            }
+        )
+
+    return shapes, of_pattern, [route_key(path) for path in loose]
 
 
 def serialize_route_map(
@@ -808,42 +875,7 @@ def serialize_route_map(
             }
         )
 
-    patterns, loose = route_patterns(paths)
-    of_pattern: dict[str, str] = {}
-    shapes = []
-    for index, pattern in enumerate(patterns):
-        pattern_id = f"pattern-{index + 1}"
-        for member in pattern.members:
-            of_pattern[route_key(member)] = pattern_id
-        shapes.append(
-            {
-                "id": pattern_id,
-                "kind": pattern.kind.value,
-                "description": pattern.describe(),
-                "size": pattern.size,
-                "hops": pattern.exemplar.hops,
-                "exemplar": route_key(pattern.exemplar),
-                "routes": [route_key(member) for member in pattern.members],
-                # The end that varies, named, so the group can list what it
-                # collapsed without the reader opening every member.
-                "varies": [
-                    {
-                        "id": (
-                            member.entry.provider_resource_id
-                            if pattern.kind is PatternKind.MANY_ENTRIES
-                            else member.target.provider_resource_id
-                        ),
-                        "name": (
-                            member.entry.name
-                            if pattern.kind is PatternKind.MANY_ENTRIES
-                            else member.target.name
-                        ),
-                        "route": route_key(member),
-                    }
-                    for member in pattern.members
-                ],
-            }
-        )
+    shapes, of_pattern, loose = serialize_patterns(paths)
 
     return {
         "nodes": nodes,
@@ -857,7 +889,7 @@ def serialize_route_map(
             for path in paths
         ],
         "patterns": shapes,
-        "loose": [route_key(path) for path in loose],
+        "loose": loose,
         "choke_points": [
             # Against every route the estate has, never against the subset
             # drawn. A link's severance is computed over all of them, and the

@@ -38,6 +38,10 @@ DIRECTORY_SCOPE = "directory"
 # kind rather than spread along a walk.
 ESTATE_MAX_ASSETS = 40
 
+# Attack paths one lens sends to be traced on it. Shortest first, so the cap
+# drops the longest; ``routes_total`` still counts every one.
+ESTATE_MAX_ROUTES = 100
+
 # The id of the box holding the assets a lens did not draw. One per lens: what
 # is in it is listed by the same filter the lens is, so it needs no identity of
 # its own.
@@ -86,6 +90,20 @@ class EstateEdge:
 
 
 @dataclass(frozen=True)
+class EstateRoute:
+    """One attack path through the lens, and where on the map each node of it is.
+
+    ``boxes`` runs along the route -- its entry, then each step's target -- so
+    step ``i`` goes from ``boxes[i]`` to ``boxes[i + 1]``. A node whose box is
+    not drawn in this lens is ``None``: the route passes somewhere the lens does
+    not show, and the page says so rather than lighting a box that is not there.
+    """
+
+    path: Path
+    boxes: tuple[str | None, ...]
+
+
+@dataclass(frozen=True)
 class EstateMap:
     lens: Lens
     boxes: tuple[EstateBox, ...]
@@ -96,6 +114,9 @@ class EstateMap:
     routes_total: int
     #: Assets folded although they carry reach; their links end at the fold.
     folded_with_reach: int
+    #: The routes counted in ``routes_total``, shortest first, capped at
+    #: ``max_routes``, each placed on the boxes drawn.
+    traced: tuple[EstateRoute, ...] = ()
 
 
 def scope_box(scope: str) -> str:
@@ -141,6 +162,8 @@ def estate_map(
     paths: Iterable[Path] = (),
     *,
     max_assets: int = ESTATE_MAX_ASSETS,
+    max_routes: int = ESTATE_MAX_ROUTES,
+    keep: str | None = None,
 ) -> EstateMap | None:
     """The estate through one lens, or None when the lens names nothing.
 
@@ -151,6 +174,10 @@ def estate_map(
     drawn only where an attack path runs along it -- otherwise a subscription
     would carry an edge to every group it holds, and the one route through them
     would be lost among forty statements of where things live.
+
+    ``keep`` names one route, by its ends (``entry|target``, as ``route_key``
+    spells it), to trace even when it falls past ``max_routes``: a link from
+    another page to walk that route must find it here.
     """
     placed = {
         node_id: placements.get(node_id, Placement(DIRECTORY_SCOPE)) for node_id in graph.nodes
@@ -228,7 +255,6 @@ def estate_map(
     for node_id in placed:
         box = coarse(node_id)
         box_of[node_id] = FOLD_BOX if box_kind(box) == "asset" and node_id not in drawn else box
-    route_boxes = [{box_of[n] for n in path.node_ids() if n in box_of} for path in routes]
 
     members: dict[str, list[CloudResource]] = defaultdict(list)
     for node_id, box in box_of.items():
@@ -282,8 +308,18 @@ def estate_map(
 
     # A route counts here when it passes through what the lens opened. One
     # that only runs between two neighbours is about somewhere else.
-    touching = [on for on in route_boxes if on & opened]
-    through = {box: sum(1 for on in touching if box in on) for box in shown}
+    touching = [
+        (path, on)
+        for path in routes
+        if (on := {box_of[n] for n in path.node_ids() if n in box_of}) & opened
+    ]
+    through = {box: sum(1 for _, on in touching if box in on) for box in shown}
+
+    def placed_on_map(path: Path) -> tuple[str | None, ...]:
+        walked = [path.entry.provider_resource_id] + [
+            step.target.provider_resource_id for step in path.steps
+        ]
+        return tuple(box if (box := box_of.get(n)) in shown else None for n in walked)
     return EstateMap(
         lens=lens,
         boxes=tuple(boxes),
@@ -291,4 +327,10 @@ def estate_map(
         routes={box: count for box, count in through.items() if count},
         routes_total=len(touching),
         folded_with_reach=sum(1 for n in folded if reach[n] > 0),
+        traced=tuple(
+            EstateRoute(path, placed_on_map(path))
+            for index, (path, _) in enumerate(touching)
+            if index < max_routes
+            or f"{path.entry.provider_resource_id}|{path.target.provider_resource_id}" == keep
+        ),
     )

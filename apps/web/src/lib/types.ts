@@ -1156,10 +1156,25 @@ export interface EstateEdge {
   on_route: boolean;
 }
 
+/**
+ * An attack path through the lens, placed on the map: `boxes` runs along the
+ * route -- its entry, then each step's target -- so step `i` goes from
+ * `boxes[i]` to `boxes[i + 1]`. Null where the route passes somewhere this
+ * lens does not draw.
+ */
+export interface EstateRoute extends MappedRoute {
+  boxes: (string | null)[];
+}
+
 export interface EstateMap {
   lens: { scope_id: string | null; group: string | null };
   boxes: EstateBox[];
   edges: EstateEdge[];
+  /** The routes `routes_total` counts, shortest first, capped. */
+  routes: EstateRoute[];
+  patterns: RoutePattern[];
+  /** Routes in no pattern. With the patterns, these are every route sent. */
+  loose: string[];
 }
 
 export interface EstateMeta {

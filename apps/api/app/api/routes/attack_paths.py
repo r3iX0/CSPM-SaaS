@@ -302,6 +302,7 @@ async def estate(
     tenant: Tenant,
     subscription_id: str | None = Query(default=None, min_length=1, max_length=256),
     resource_group: str | None = Query(default=None, min_length=1, max_length=256),
+    route: str | None = Query(default=None, min_length=1, max_length=4096),
 ) -> dict:
     """The estate as boxes -- subscriptions, groups, assets -- and the reach
     between them.
@@ -315,8 +316,10 @@ async def estate(
     graph = await graph_service.load_graph(session, tenant.organization_id)
     placements = await load_placements(session, tenant.organization_id)
     routes = graph.attack_paths()
+    # ``route`` is a route somebody was sent here to walk: traced even when it
+    # falls past the cap, so the link that named it finds it (section 132).
     mapped = estate_map(
-        graph, placements.of, Lens(subscription_id, resource_group), routes
+        graph, placements.of, Lens(subscription_id, resource_group), routes, keep=route
     )
     if mapped is None:
         raise NotFound("Nothing CloudGuard holds sits there")

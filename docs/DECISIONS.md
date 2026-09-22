@@ -5793,7 +5793,8 @@ from the tokens, read-only, no wheel zoom, and one tab stop with arrow keys
 inside. What the two canvases share (the flow tokens, the fit, the arrow keys
 and the zoom buttons) moved into `flowChrome.ts` and `ZoomButtons.tsx`, so they
 cannot drift into two looks. Pressing a subscription or group opens it on the
-map. Pressing an asset opens its page with its own graph already drawn: the
+map (since §133, a press selects and Enter or a double click opens). Opening
+an asset opens its page with its own graph already drawn: the
 link sets `?around=` to the asset itself, and a neighbourhood card now draws on
 arrival whenever `around` is present, not only when it names another asset. The
 map hands the "what is around this asset" question to the view that already
@@ -5883,6 +5884,8 @@ many. The view switch is now **List** and **Map**. Under the canvas, the boxes
 inside the opened lens are listed worst first: open findings, then attack
 paths, then size. Each row carries the same marks as its box. Pressing a
 subscription or group row opens it on the map, just as pressing the box does.
+(§133 moved the list into the panel beside the canvas, where a row selects its
+box as a press on the canvas does.)
 That list is what the tree was, and it is also the map's text form, which a
 canvas alone does not have. The hierarchy's treemap went with it, because the
 boxes carry the same counts. `AssetTree` and `EstateTreemap` are deleted. The
@@ -6952,6 +6955,156 @@ finds it.
 
 `test_rls.py` now fails if any table in `public` lacks RLS, so a table created
 without a policy block is caught in CI rather than by the advisor.
+
+## 132. An attack path is walked on the estate map, one hop at a time
+
+The estate map's list under the canvas said "32 attack paths through here" and
+then listed links: arrows between two boxes, each a toggle that lit its own
+two ends. Nobody could follow a route from where it starts to what it reaches.
+Picking a link also left the canvas where it was, and reach that ran back
+against the columns was drawn as a curve across every box in between, with
+labels over the boxes beside it.
+
+**The estate sends its routes.** `GET /attack-paths/estate` now carries the
+routes `routes_total` counts, shortest first, capped at `ESTATE_MAX_ROUTES`
+(100). Each is the attack-path page's own shape (`serialize_path` plus `key`
+and `pattern`) with one field added: `boxes`, the box each node of the route is
+drawn in under this lens, running entry first so that step `i` goes from
+`boxes[i]` to `boxes[i + 1]`. A node whose box this lens does not draw is
+`null`. A route that runs out to a neighbour of a neighbour passes somewhere
+the map does not show, and the page says so rather than lighting a box that is
+not there. Repeats are grouped by the same `route_patterns` the attack-path
+page uses (§123), and that serialization moved into `serialize_patterns` so
+both endpoints say one pattern in one sentence.
+
+**Routes first, links second.** (§133 folded these tabs, with the contents
+list, into one panel beside the canvas.) The panel beside the contents list is two
+tabs: **Attack paths**, the default whenever there are any, and **Links**,
+which is the old list unchanged. The route rows are the attack-path page's
+rows, moved to `components/graph/RouteRows.tsx` rather than copied.
+
+**Picking a route walks it.** The canvas frames the route's boxes. Each box
+gets a badge giving where the route visits it ("1", "3–5" for a route that
+runs down through one subscription), the route's arrows are drawn at full
+strength, and everything else fades. A step bar across the top of the frame, above the
+canvas rather than over it so it never hides the route's first row, reads one
+hop at a time: "Hop 2 of 4", the hop's own sentence with the role
+named (§121), and the scissors on the hop the route's `cheapest_break` names.
+The previous and next buttons, the arrow keys and a row of pressable hop
+segments all move along the route. The hop being read is ringed on both of its
+boxes, its arrow moves (except under reduced motion), and it alone shows its
+full label. The route's other arrows keep their short one. Stepping leaves the
+view where it is when the hop is already in frame, and pans at the same zoom
+when it is not. The route is framed two frames after it is picked, because
+the step bar arriving shrinks the canvas and React Flow learns the new size
+from a resize observer. A hop inside one
+box, or out of the lens, is still counted and is said in words. Escape puts the
+route down. From the bar, the graph around the entry opens with the route
+traced (`OpenInGraph`), which was already the way from a route to its
+neighbourhood.
+
+**Backward reach goes round the boxes.** An arrow into a box in the same column
+or an earlier one leaves its source's right side into the gap between
+columns, drops to a lane below every box, runs along it, and climbs the gap
+before its target to enter from the left like every other arrow. The gaps and
+the lane hold no boxes, so no arrow crosses one. Before, the arrow curved back
+across the canvas. A first version ran from under one box to under the other,
+and the harness showed it running straight down through whatever was stacked
+below in the same column. Each backward arrow has its own lane and gutter
+offset, so two never share a line. An invisible node below the last lane is
+what fitting the view, including the zoom buttons' fit, frames down to. The
+column gap widened from 380 to 440 to leave room for labels and gutters.
+
+A map where many boxes hold a way in, as the demo's subscription does, still
+draws most of its arrows backward: §111 puts every entry-holding box in the
+first column, so reach between them runs within it. Those arrows are legible
+now, but a layering that breaks cycles and places boxes by longest path
+would draw fewer of them. It would change §111's promise that a way in is
+always in the first column, so it is left as a decision rather than made
+here.
+
+**Short labels on the canvas.** An arrow carrying several kinds of reach reads
+as the commonest and a count ("can act over ×3 +2 more"). A picked link or a
+walked route shows the full label, and the Links tab always does.
+
+**Not built.** Putting the walked route in the URL was left out. The picked
+link was never in the URL either, and a route is placed on one lens's boxes, so
+a shared link would need both. (§133 put it in the URL: a route's key names it
+in every lens, and each lens places it on its own boxes.)
+
+## 133. The estate map is one frame, a click selects, and it owns walking a route
+
+After §132 the estate map was a canvas with three cards under it: the contents
+list, and the attack paths and links in tabs. Reading a route meant choosing it
+below the fold and finding it above. A press on a box opened it at once, so the
+canvas could not be asked "what runs through here" -- every question went
+through a list somewhere else. And the attack-path page traced routes as well,
+so two places each half-answered one question.
+
+**One frame.** The canvas and a panel beside it are the whole view, as tall as
+the window allows (`max(34rem, 100dvh − 15rem)` from `lg` up). Below `lg` the
+panel stacks under the canvas. With nothing selected, the panel is three tabs:
+**Paths** (the default whenever there are any), **Contents** (the list §112
+made of the hierarchy) and **Links** (the arrows as sentences). These are the
+map's text forms, and they are how the keyboard reaches an arrow, since arrows
+are not tab stops. The cards under the canvas are gone.
+
+**A click selects; opening is a second act.** Pressing a box selects it:
+`aria-pressed`, a ring, the box, its neighbours and the arrows between them
+kept, the rest faded. The panel then says what the box is, with the same marks
+it carries, gives an "Open" button, and lists the attack paths that run
+through it, each walkable from there. Pressing an arrow does the same for the
+arrow: its two ends, everything it carries, and the routes that run along it.
+A press on empty canvas clears the selection. Opening is a double click, Enter
+on the focused box, or the panel's button. A subscription or group redraws the
+map, an asset opens its page, and the fold lists what is in it. A row in the
+Contents or Links tab selects too, and brings its box or arrow into view. This
+reverses §111's "pressing a box opens it" and §112's "a row opens it". A single
+press that navigated left nothing to select with, and selecting is what makes
+the canvas answer questions. Only a selected arrow shows its full label. Around
+a selected box the arrows keep their short labels, because a hub touches most
+of the map and full labels would cover the boxes beside them.
+
+**Attack paths only, on by default.** A switch at the canvas's top left draws
+only the boxes a route passes through and the arrows a route runs along, and
+counts the rest as hidden. Whatever is selected is always drawn, so a box
+picked from Contents can be found. Contents marks a row "not on an attack path"
+when the switch is hiding its box. Turning the switch remounts the canvas, so
+the smaller picture is laid out afresh rather than keeping the holes. It is off
+by necessity when the lens has no routes.
+
+**The walk is in the URL, and follows the route down.** `walk` (the route's
+key) and `hop` sit beside the lens parameters. Stepping replaces the history
+entry, and opening a box pushes one, as before. Opening a box keeps the walk,
+so a route that runs into the box opened is still being walked there, placed
+on that lens's boxes. That is what the step bar's **Follow into …** button
+does: it appears when the hop lands in a subscription or group that has
+assets, and opens it at the same hop. A route therefore reads from the
+subscriptions down to the assets it runs through without being picked again.
+The button offers only where the hop lands. Offering where it came from read
+as a step backwards.
+
+**Linked routes are always found.** `GET /attack-paths/estate` takes
+`route=<entry|target>` and traces that route even past `ESTATE_MAX_ROUTES`.
+The map sends the walked route on every read. The key is not part of the
+query's cache key: a route picked from the list is already in the payload, and
+a linked one needs the parameter only on its first read of a lens.
+
+**The estate map owns walking a route.** The attack-path page keeps what only
+it does: the choke points, the cut simulated across every route, and the rail
+that ranks routes. Its traced-route card gains **Walk it on the estate map**,
+a link to `/assets?view=graph&walk=…`. Hop-by-hop reading lives in one place.
+
+**Checked in a browser.** This was built against the harness §132 used: the
+real map, with payloads computed by the real estate code from the demo
+recording. That harness found that selection panning inside a canvas with no
+size produced `NaN`, because d3's zoom interpolation divides by the width. The
+view no longer moves while the canvas has no size.
+
+**Not built.** Search inside the canvas (`/`) was left out, because it matters
+only past about 40 boxes, which a lens caps at anyway. A minimap was left out
+because panning is not the problem. Expanding a box in place was left out
+because it breaks the lens being the list's scope filter.
 
 ## Open items carried forward
 
