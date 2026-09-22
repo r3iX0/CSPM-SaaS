@@ -147,6 +147,11 @@ class RemediationOut(BaseModel):
     notes: str | None = None
     completed_at: datetime | None = None
     created_at: datetime
+    # Attack paths through the finding's asset, wherever on them it sits. A
+    # fact about the asset, not a promise about the fix: which routes a fix
+    # closes is the choke points' question, and only a link can answer it
+    # (DECISIONS.md section 127). Filled by the queue listing; zero elsewhere.
+    on_routes: int = 0
 
 
 class VerificationOut(BaseModel):

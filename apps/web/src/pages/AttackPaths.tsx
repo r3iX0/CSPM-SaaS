@@ -686,7 +686,7 @@ function NothingFound({ meta }: { meta: AttackPathMeta }) {
   );
 }
 
-const IDENTITY_TYPES = new Set(["user", "service_principal"]);
+const IDENTITY_TYPES = new Set(["user", "service_principal", "group"]);
 
 /**
  * Why there is no route, one way in at a time.
@@ -761,6 +761,8 @@ function deadEndReason(t: ReturnType<typeof useT>, end: DeadEnd): string {
       return t.attackPaths.deadEndReachesNothing(end.resource_type);
     case "identity_without_role":
       return t.attackPaths.deadEndIdentityWithoutRole;
+    case "roles_without_control":
+      return t.attackPaths.deadEndRolesWithoutControl;
     case "nothing_sensitive":
       return t.attackPaths.deadEndNothingSensitive(end.reached);
   }

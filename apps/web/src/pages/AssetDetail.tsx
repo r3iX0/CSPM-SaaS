@@ -24,6 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ContextRow, type ContextFact } from "@/components/security/ContextProvenance";
 import { AssetNeighborhood } from "@/components/graph/AssetNeighborhood";
 import { BlastRadius } from "@/components/graph/BlastRadius";
+import { AssetAccessPanel } from "@/components/graph/AssetAccess";
 
 interface AssetFinding {
   id: string;
@@ -74,7 +75,7 @@ interface AssetDetail {
   findings: AssetFinding[];
 }
 
-type Tab = "findings" | "connections" | "configuration";
+type Tab = "findings" | "connections" | "access" | "configuration";
 
 const OPEN = new Set(["OPEN", "IN_PROGRESS"]);
 const SEVERITY_ORDER = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"];
@@ -107,7 +108,10 @@ export function AssetDetailPage() {
   // on Connections rather than landing on a tab that hides what it came for.
   const requested = params.get("tab");
   const tab: Tab =
-    requested === "findings" || requested === "connections" || requested === "configuration"
+    requested === "findings" ||
+    requested === "connections" ||
+    requested === "access" ||
+    requested === "configuration"
       ? requested
       : params.has("around") || params.has("trace")
         ? "connections"
@@ -178,6 +182,9 @@ export function AssetDetailPage() {
           <PageTab value="connections" icon={ASSET_TAB_ICONS.connections}>
             Connections
           </PageTab>
+          <PageTab value="access" icon={ASSET_TAB_ICONS.access}>
+            {t.access.tab}
+          </PageTab>
           <PageTab value="configuration" icon={ASSET_TAB_ICONS.configuration}>
             Configuration
           </PageTab>
@@ -196,6 +203,16 @@ export function AssetDetailPage() {
             drawNow
           />
           <BlastRadius providerResourceId={data.provider_resource_id} name={data.name} drawNow />
+        </TabsContent>
+
+        {/* Who holds this asset, and what it holds if it is an identity
+            (DECISIONS.md §125). Unmounted while closed, like the graph. */}
+        <TabsContent value="access" className="pt-2">
+          <AssetAccessPanel
+            providerResourceId={data.provider_resource_id}
+            name={data.name}
+            resourceType={data.resource_type}
+          />
         </TabsContent>
 
         <TabsContent value="configuration" className="pt-2">

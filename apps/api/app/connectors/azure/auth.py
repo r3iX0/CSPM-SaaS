@@ -60,11 +60,22 @@ REQUIRED_GRAPH_PERMISSIONS = [
 GRAPH_PERMISSION_USE: dict[str, tuple[str, ...]] = {
     "Directory.Read.All": ("list_users", "list_directory_roles", "list_role_members"),
     "User.Read.All": ("list_users", "list_sign_in_activity"),
-    "RoleManagement.Read.Directory": ("list_directory_roles", "list_role_members"),
+    "RoleManagement.Read.Directory": (
+        "list_directory_roles",
+        "list_role_members",
+        "list_directory_role_eligibilities",
+    ),
     "UserAuthenticationMethod.Read.All": ("list_authentication_methods",),
     "Policy.Read.All": ("get_security_defaults", "list_conditional_access_policies"),
-    "Application.Read.All": ("list_applications", "find_service_principal"),
-    "Group.Read.All": ("list_group_members",),
+    "Application.Read.All": (
+        "list_applications",
+        "find_service_principal",
+        "list_application_owners",
+        "list_service_principals_by_app_id",
+        "find_permission_catalogue",
+        "list_app_role_assigned_to",
+    ),
+    "Group.Read.All": ("list_group_members", "list_groups_by_id", "list_group_transitive_members"),
     "AuditLog.Read.All": ("list_sign_in_activity",),
 }
 

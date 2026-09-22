@@ -5,13 +5,16 @@ from fastapi import APIRouter, status
 from sqlalchemy import select
 
 from app.core.deps import DbSession, Tenant
-from app.core.enums import FindingStatus, RemediationStatus
+from app.core.enums import FindingStatus, Priority, RemediationStatus
 from app.core.errors import NotFound, ValidationFailed, envelope
+from app.models.finding import Finding
 from app.models.remediation import RemediationTask
+from app.models.resource import ResourceRecord
 from app.models.rule import Rule
 from app.risk.scorer import default_scorer
 from app.schemas.finding import RemediationCreate, RemediationOut, RemediationUpdate
 from app.services import findings as findings_service
+from app.services import graph as graph_service
 from app.services import verification as verification_service
 
 router = APIRouter(prefix="/remediation", tags=["remediation"])
@@ -78,21 +81,69 @@ async def create_task(
     return envelope(RemediationOut.model_validate(task).model_dump(mode="json"))
 
 
+# Work still to do first, and within it the order the page promises: impact
+# against effort, as the task's priority says.
+_STATUS_ORDER = {
+    RemediationStatus.TODO: 0,
+    RemediationStatus.IN_PROGRESS: 0,
+    RemediationStatus.DONE: 1,
+    RemediationStatus.CANCELLED: 2,
+}
+_PRIORITY_ORDER = {
+    Priority.CRITICAL: 0,
+    Priority.HIGH: 1,
+    Priority.MEDIUM: 2,
+    Priority.LOW: 3,
+}
+
+
 @router.get("")
 async def list_tasks(session: DbSession, tenant: Tenant) -> dict:
+    """The queue, in the order the page says it is in.
+
+    It said "ordered by impact against effort" and was ordered by when each
+    task was created. Now: open work first; then priority, which is impact
+    against effort (RISK_ENGINE.md section 4); then how many attack paths run
+    through the finding's asset, so of two equally urgent fixes the one on a
+    route comes first; then the finding's own score (DECISIONS.md section 127).
+
+    The routes break ties rather than set the order. A finding on a route is
+    already outranked by the route itself in the risks queue, and scoring it
+    up here as well would count the route twice.
+    """
     rows = (
-        (
-            await session.execute(
-                select(RemediationTask)
-                .where(RemediationTask.organization_id == tenant.organization_id)
-                .order_by(RemediationTask.created_at.desc())
-            )
+        await session.execute(
+            select(RemediationTask, Finding.risk_score, ResourceRecord.provider_resource_id)
+            .join(Finding, Finding.id == RemediationTask.finding_id)
+            .outerjoin(ResourceRecord, ResourceRecord.id == Finding.resource_id)
+            .where(RemediationTask.organization_id == tenant.organization_id)
         )
-        .scalars()
-        .all()
+    ).all()
+
+    graph = await graph_service.load_graph(session, tenant.organization_id)
+    through = graph_service.routes_through(graph)
+
+    queue = []
+    for task, score, provider_id in rows:
+        on_routes = through.get(graph.resolve(provider_id), 0) if provider_id else 0
+        queue.append((task, float(score or 0.0), on_routes))
+    queue.sort(
+        key=lambda item: (
+            _STATUS_ORDER[item[0].status],
+            _PRIORITY_ORDER[item[0].priority],
+            -item[2],
+            -item[1],
+            -item[0].created_at.timestamp(),
+        )
     )
     return envelope(
-        [RemediationOut.model_validate(t).model_dump(mode="json") for t in rows]
+        [
+            {
+                **RemediationOut.model_validate(task).model_dump(mode="json"),
+                "on_routes": on_routes,
+            }
+            for task, _, on_routes in queue
+        ]
     )
 
 

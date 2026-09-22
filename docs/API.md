@@ -56,6 +56,7 @@ GET    /findings/{id}/attack-paths         GET    /findings/{id}/provenance
 GET    /attack-paths                       GET    /attack-paths/choke-points
 GET    /attack-paths/graph?limit=1..200
 GET    /attack-paths/blast-radius/{resource_id}
+GET    /attack-paths/access/{resource_id}
 GET    /attack-paths/neighborhood/{resource_id}?depth=1..3&expand=<fold id>
 GET    /attack-paths/estate?subscription_id=&resource_group=
 GET    /attack-paths/what-if?source=&relationship=&target=
@@ -303,6 +304,42 @@ present assets.
 
 `/attack-paths/blast-radius/{id}` rows carry `asset_id`, so each row can link to
 the asset's page. It is null for a vertex with no row.
+
+Access holders and grants carry `through_directory` when they come from the
+directory rather than an Azure role assignment: a directory role that can take
+over a subscription, or the ability to sign in as a service principal (kind
+`act_as`), §128. A grant's `via` is then the principal signed in as.
+
+Holders and grants carry `eligible` for a role that could be activated under
+Privileged Identity Management rather than held (§130): `kinds` says what
+activating would give, and `controls` is false.
+
+`/remediation` is ordered on the server (DECISIONS.md §127): open work first,
+then priority, then `on_routes` -- how many attack paths run through the
+finding's asset, carried on each row -- then the finding's risk score. Removing
+a role assignment is one link to severance: an escalation line drawn beside a
+role line is keyed as the role line, on the choke points, the what-if and the
+route map.
+
+`/attack-paths/access/{id}` answers who holds access to an asset and what an
+identity holds (DECISIONS.md §125). `data.holders` lists every role assigned on
+the asset or on a container above it, each as `{principal, role, at,
+inherited_from, kinds, controls, conditional, resolved, runs_on}`: `kinds` are
+the `AccessKind` values the role grants over this asset (empty for a
+subscription or resource group), `controls` says whether the holder holds what
+the asset holds, `resolved` is false when the role's definition was not read,
+`runs_on` names the workloads that run as the principal, and for a group
+`members` lists the members read as accounts, `unlisted_members` those read only
+by name, and `members_total` counts both (all three null or empty for anything
+that is not a group, and `members` null for a group whose membership was not
+read, §126). `data.grants` lists
+every role the asset itself holds when it is an identity: `{role, at, scope,
+inherited_from, conditional, resolved, grants_access, access, controlled,
+controlled_total, via}`, where `via` names the group the role is held through
+when it is not the identity's own, and `controlled` is capped at `meta.controlled_limit` and
+`controlled_total` the real count. Asset references carry `asset_id` for
+linking, null where there is no row. `meta` also carries `holders_total`,
+`grants_total`, `controlling` and `members_limit`. 404 for an id that is not a vertex.
 
 `/assets` is ordered on the server — most open findings first, then name, then
 id so that an offset always lands on the same row. It is a queue rather than a

@@ -6444,6 +6444,480 @@ of these. It cannot be undone.
 The list's rule stands: a risk linked to nothing is still listed. The only
 thing that made one was a delete, and that no longer does.
 
+## 125. A role edge reaches only what the role controls, and an asset says who holds it
+
+The graph knew one thing about a role assignment: that it existed. The
+normalizer drew `GRANTS_ROLE` from the principal to the scope, the traversal
+descended from the scope through `CONTAINS`, and everything underneath counted
+as reached. So Reader over a subscription was a route to the payments ledger.
+A machine running as Storage Blob Data Reader "reached" every other machine in
+its resource group, and from there every identity those machines run as, and
+from there whatever *those* identities held. The role name was on the hop
+(§121), but the traversal never read it. The demo showed a route through
+Contributor to a Key Vault whose secrets Contributor cannot read.
+
+That is the overclaim this product refuses everywhere else. UNKNOWN is never
+PASS, an unknown exposure is never an entry point (§100), and a route that
+exists only because CloudGuard ignored what a role permits is the same mistake.
+It is also what makes a feature like this get switched off.
+
+**The connector evaluates each role; the graph reads a neutral answer.**
+`connectors/azure/access.py` takes a role definition's permission blocks and
+says, per neutral `ResourceType`, which `AccessKind`s they amount to: `read`
+(configuration), `manage` (changes configuration), `read_data`, `execute`
+(runs code as the resource), `edit_policy` (edits the resource's own access
+list) and, separately, `grant_access`. Each block's `actions` less
+`notActions` and `dataActions` less `notDataActions` are evaluated on their
+own, with ARM's wildcard matching, and the blocks are unioned. The role is
+never judged by its name. The normalizer writes the answer onto each role entry
+in the principal's `roles` metadata (`access`) beside the node the edge was drawn to
+(`target`), where it came from if inherited (`inherited_from`), and whether it
+carries a condition (`conditional`). The graph reads only that. Nothing
+provider-shaped crosses the seam, and an AWS connector evaluating IAM policies
+would write the same keys.
+
+Choices worth keeping:
+
+* **Control is `read_data` and `execute`, and `edit_policy` only where the
+  resource says its own policy governs it.** A holder who can change a
+  machine's size has not run anything on it, so `manage` alone is not reach. A
+  Key Vault on access policies is held by anyone who can write those policies.
+  One on Azure RBAC is not. The normalizer states which model a vault uses
+  (`governed_by_own_policy`) only when the vault said so: an absent flag claims
+  nothing.
+* **Some management operations are data access by another name, and are
+  counted as it.** `listKeys` opens a storage account whatever its data-plane
+  roles say. Writing a SQL or PostgreSQL server resets its administrator
+  password. Writing a web app sets what it runs, and its publishing profile is a
+  deployment. `runCommand`, managed run commands and extensions are code on a
+  machine.
+* **Every string in `access.py` is matched, never deployed.** Unlike
+  `rbac.py`, none of these reaches ARM, so a wrong one cannot fail a customer's
+  deployment. It can make CloudGuard claim less than a role allows, so each is
+  a documented operation, and the tests hold the built-in roles to what
+  Microsoft documents them as doing.
+
+**The walk carries a lens.** A `GRANTS_ROLE` edge is crossed with the union of
+what the principal's roles at that target control (`graph/access.py`, `Lens`).
+Crossing `CAN_GRANT_ROLES` controls everything, because the holder can grant
+itself the rest. The walk still descends through subscriptions and resource
+groups, which is where reach lands. An asset under them is *reached*, and
+walked on from, only when the lens controls it. An asset the lens does not
+control is passed beneath, so a role over a SQL server still reaches the
+databases on it without reaching the server. A role edge that controls nothing
+is not crossed at all. A walk state is `(node, lens)`, with no lens meaning the
+walk holds the node.
+
+That makes the running-code pivot a route. Virtual Machine Contributor over a
+group reaches the machines in it, and their identities, and what those
+identities hold: the path the demo now draws from the jump box to the payments
+vault. It is also why the demo's User Access Administrator reaches data only
+through its escalation edge.
+
+**The canvases draw what the walk walks.** The neighbourhood and the estate
+map draw a role edge only when its roles control something
+(`AssetGraph.conveys`). Otherwise a Reader line would sit on a canvas of reach
+and say what the routes no longer do. The role is not lost: the access view
+lists it.
+
+**Severance walks the same states.** §122's one-pass analysis intersects the
+necessary links per walk state and then per node over the states that count as
+reaching it. Without that, a Reader edge beside an Owner edge would read as a way
+round the Owner edge, and the what-if would promise nothing closes when
+everything does. `severance.py` is generic over the state and names only the
+graph's own links, because a lens is a way of standing on a node, not a link
+anybody could cut.
+
+**What cannot be established is not claimed.**
+
+* A role whose definition was not read (`access: None`) controls nothing, and
+  the access view lists it as unread.
+* An ABAC condition is evaluated against request attributes CloudGuard never
+  sees, and applies to data actions and to role-assignment writes. An
+  assignment carrying one keeps what its control actions grant. It loses
+  whatever it had only through data actions, and is not drawn as
+  `CAN_GRANT_ROLES`: a condition is how a delegated administrator is confined
+  to handing out Reader, and calling that an escalation would be the false
+  alarm `_grants_role_assignment` was written to avoid.
+* An identity whose roles all control nothing is a new dead end,
+  `roles_without_control`. It is distinct from `identity_without_role`: there
+  is a role, and it is one change away from mattering.
+
+**A stored scan keeps its routes until it is rescanned.** Metadata written
+before this change has no `access` key, and such an entry, or a role edge with
+no entry at all, walks with a lens that controls everything, exactly as before.
+Otherwise a deploy would silently empty every tenant's attack-path page until
+its next scan. The next scan replaces the entry with a verdict, and routes that
+existed only through read-only roles close then. The risk correlation resolves
+them the ordinary way, because they are no longer observed.
+
+**Assignments above the subscription are drawn.** A subscription's listing
+returns assignments made at a management group or the tenant root only when
+they apply to it. They were dropped because their scope was no node, so the
+estate's most powerful principals were drawn holding nothing. They are now
+drawn to the subscription, and the hop says where they came from ("Owner from
+management group contoso-root").
+
+**An asset says who holds it.** `GET /attack-paths/access/{id}` and the asset
+page's Access tab answer what a route cannot, because a route needs a way in:
+every role assigned on the asset or above it, grouped as can take what it
+holds, can change its configuration, can read its configuration, and could not
+be read, each with the workloads that run as the holder. On an identity's page
+the tab leads with every role it holds and counts the assets each one controls.
+It reads the same evaluation the routes are walked with, so a holder listed as
+able to take the asset is one a route may pass through. The one exception is a
+legacy entry, listed as unread while it is still walked.
+
+**Not built, and why.**
+
+* **Group membership.** Built in §126.
+* **PIM eligibility and deny assignments.** Eligibility is built in §130.
+  Deny assignments are deliberately not read (§130), and not subtracting them
+  errs towards claiming reach.
+* **Entra escalation.** Built in §128 and §129.
+
+## 126. One identity is one node, and a group's role reaches its members
+
+§125 made a role edge honest about what it controls. It could not make it
+honest about *who* holds it, for two reasons, one of them a bug that had been
+in every production scan.
+
+**The bug: a person was two nodes.** A scan normalizes the directory capture
+and each subscription capture separately (§108). The directory produced
+`/users/<id>`, the account: its MFA, its sign-ins, and a public exposure of
+HIGH, because an account is reachable from the internet by design. That makes
+it an entry point. The subscription produced a stand-in, `/principals/<id>`,
+minted from the role assignment and carrying the roles. The normalizer's
+attempt to reuse the directory node only worked when both were in one snapshot,
+which only the tests and the demo ever were. So in production the account was
+an entry point that reached nothing, and the roles belonged to an identity
+nothing could reach. A phished administrator holding Owner was never a route,
+and the Access tab named them "User 1a2b3c4d".
+
+The same split hid in plainer form. A principal holding roles in two
+subscriptions was minted once per subscription, one asset row each, and
+building the graph kept whichever row came last, with only that subscription's
+roles on it. §125's lens then found no entry for the other subscription's
+edge and walked it as legacy, which means as if it controlled everything.
+
+**The join happens when the graph is built** (`graph/identity.py`), because
+that is the only place both readings exist together. Captures stay what they
+are: pure, per-scope readings.
+
+* Copies of one node id merge, with their roles combined. The first copy keeps
+  its other fields.
+* A node the connector minted to stand in for an identity it did not read
+  itself is marked `stub`. It is folded into the node that carries the same
+  `identity_id` and is not a stub, which is the directory's record. Its roles
+  move across, and its edges are redrawn from the directory node. The normalizer now
+  writes `identity_id` on directory users, on every stand-in, and on groups.
+* The stand-in's id still resolves (`AssetGraph.resolve`). The asset rows keep
+  their ids, so findings and risks keep their anchors, and a page opened on a
+  stand-in row is answered about the person it stood for.
+* Neutral: the join reads `identity_id`, `stub`, `members` and `roles`, and no
+  provider id. Rows stored before this change carry no `identity_id` and are
+  not joined until their next scan, which is the same stance §125 takes on
+  stored roles.
+
+Routes change on the next scan. Every directory account holding a role that
+controls something becomes a way in to what it controls. That was always what
+the model meant; it now draws it. `patterns.py` already says a repeated route
+once (§123), so a hundred analysts reading one account collapse into one line
+with a count, not a hundred.
+
+**Groups.** A role assigned to a group was a principal named "Group 1a2b3c4d"
+that reached nobody. Now:
+
+* **Collected per subscription, for the groups that hold a role there**
+  (`role_group_members`). The subscription's role assignments are what say
+  which groups matter. Reading every group once per tenant would be a directory
+  dump to answer a question about a handful of them. Names come fifteen to a
+  call through Graph's `in` filter. Members come from `transitiveMembers`, so
+  someone two nested groups down is listed directly. Both run under
+  `Group.Read.All`, which every tenant has already consented to. There is no
+  new permission, no role version bump and no redeploy. The read is bounded at
+  `ROLE_GROUP_LIMIT` groups per subscription. A group whose members could not
+  be read is absent from the payload and the task reports partial. It is never
+  an empty list, because "this role reaches nobody" is the one wrong answer.
+* **A new type, `GROUP`.** The node id is unchanged (`/principals/<id>`), so
+  the asset rows keep their findings. The role-assignment rules now apply to
+  groups too, because a group was a service principal of unknown kind until it
+  had a type.
+* **Members are recorded on the group, and the edge is derived.** A member is
+  usually a directory account read in another capture, so the `MEMBER_OF` edge
+  from it can only exist once both are in one graph. It is drawn at build time
+  from the group's `members` and never stored, following §121's rule that
+  evidence is read off the nodes. `MEMBER_OF` is a capability edge and is
+  removable: taking a person out of a group is a fix, and severance counts it.
+  Nested groups are recorded and not walked, since the listing is already
+  transitive. A member no node holds, such as a guest the directory reading did
+  not include, is listed by name and cannot be walked through.
+
+**The access view names the people.** A group holding access lists its
+members: the accounts CloudGuard read, linked to them, then the names it read
+only as names, capped at `ACCESS_MEMBERS_LIMIT` and counted in full. A group
+whose membership was not read says so. A person's own page lists the roles
+they hold through each group, with the group named ("through Data analysts").
+
+The demo recording gains a group, Data analysts, holding Storage Blob Data
+Reader over the data resource group, with Normal User and a guest contractor
+as members. Normal User was a dead end and is now a route to the customer
+records, through a group edge the what-if can cut.
+
+## 127. Removing an Owner assignment is one cut, and the queue is in the order it says
+
+Two bugs, and a decision about where "route-aware" belongs.
+
+**An Owner assignment was never a choke point.** A principal that can write
+role assignments is drawn twice between itself and the scope: `GRANTS_ROLE`
+for what its roles do there, and `CAN_GRANT_ROLES` beside it for the ceiling
+(§19). Severance treated them as two removable links, so each was the other's
+way round. `GRANTS_ROLE` never severed anything. `CAN_GRANT_ROLES` severed
+only what the grant line alone reached. Removing the Owner assignment, the fix
+a customer most often makes, closed nothing on the ranked list, and the choke
+points offered "detach the identity" instead. The two lines are one fact: the
+same role assignments, which removing them takes away together.
+
+`AssetGraph.removal_key` names what removing a link removes. That is the link
+itself, except for an escalation line drawn beside a role line, which is keyed
+as the role line. The walk hands severance that key, so a choke point, the
+what-if on either line, the number drawn on each line of the route map and the
+routes each line sits on all speak of the assignment. The two oracle tests
+that rebuild the estate without a link now remove everything the removal key
+covers. They failed first, which is how the bug showed itself. Drawn edges keep
+their own keys, so the canvases and the route highlighting do not move.
+
+**The remediation queue was not in the order it claimed.** The page said
+"ordered by impact against effort". The API returned tasks newest first, and
+the page never sorted them. `GET /remediation` now orders on the server:
+
+1. Open work (to do, in progress) first, then done, then cancelled.
+2. Priority, which is already impact against effort (RISK_ENGINE.md §4).
+3. How many attack paths run through the finding's asset, wherever on them it
+   sits (`on_routes`, on each row).
+4. The finding's risk score, then the newest first.
+
+**Routes break ties; they do not change a score.** The open item from §125
+proposed raising a finding's score when its asset sits on a route. That would
+count the route twice. The risks queue already ranks a route above its parts,
+because a scenario's floor is its worst member plus an amplifier (§100), and
+§103 rejected listing a route beside its hops for the same reason. What was
+missing was in the work queue, where two equally urgent fixes are chosen
+between. There the one on a route should come first. The row says "on 3 attack
+paths", which is a fact about the asset. It does not say "closes 3", which
+would be a promise about the fix that only a link can keep. The link-level
+question stays with the choke points, now correct for role assignments.
+
+## 128. The directory's say over the estate is drawn as reach
+
+The graph drew Azure role assignments and nothing the directory decides. Two
+of the directory's powers are the shortest routes an attacker has, and neither
+was an edge.
+
+**A Global Administrator can make themselves owner of every subscription.**
+Entra lets a Global Administrator elevate to User Access Administrator at the
+tenant root, which covers every subscription below it. A Privileged Role
+Administrator can make themselves Global Administrator. A Privileged
+Authentication Administrator can reset a Global Administrator's credentials.
+None of the three holds an Azure role, so the graph showed the most powerful
+accounts in the tenant as reaching nothing. The directory reading already had
+the membership: `user_role_map` lists every directory role's members, for the
+MFA rule.
+
+**An application's owner, or its own credential, signs in as its service
+principal.** An owner can add a client secret to a registration and
+authenticate as the principal, holding every Azure role that principal holds.
+An Application Administrator or Cloud Application Administrator can do that
+to every registration. A registration holding a credential is itself a way in:
+its public exposure was already HIGH, for the reason a directory account's is,
+and now it leads somewhere.
+
+**Collection.** One new directory task, `application_owners`. It reads each
+registration's owners, one call each, bounded at `APPLICATION_OWNER_LIMIT`. It
+also reads the service principal each registration signs in as, fifteen app ids
+to a call through Graph's `in` filter. Role assignments name a principal by
+object id and a registration knows only its app id, so this is the join. Both
+run under `Application.Read.All`, already consented. There is no new permission
+and no redeploy. A registration whose owners could not be read has
+`controllers: None`, never an empty list, and the task reports partial.
+
+**Normalization, in neutral terms.** An account's directory roles become
+`directory_powers`, each naming the role it comes from:
+`control_all_scopes` for the three roles above, and `act_as_any_application`
+for the two application roles. Roles are matched by name, as `_mfa_policies`
+matches them, rather than by template ids recalled from memory. A registration
+records `acts_as`, the principal's object id; `controllers`, its owners; and
+`can_sign_in`, whether it holds a credential.
+
+**Edges, derived when the graph is built** (`graph/identity.py`), as §126 did
+for group membership, because the principal is minted in a subscription
+capture and the owner and the registration are read in the directory's.
+
+* `CAN_ACT_AS` runs from each owner, from the registration itself when it holds
+  a credential, and from every holder of `act_as_any_application`, to the
+  principal. It is drawn only to a principal the graph holds. One holding no
+  Azure role never reached a subscription's graph, and signing in as it
+  reaches nothing here.
+* `CAN_TAKE_OVER` runs from every holder of `control_all_scopes` to every
+  subscription. It is walked with a lens that controls everything, as
+  `CAN_GRANT_ROLES` is.
+* `CAN_TAKE_OVER` is its own relationship rather than a derived
+  `CAN_GRANT_ROLES`, because of §127. `removal_key` folds an escalation line into
+  the role line beside it, since both are one Azure assignment. A Global
+  Administrator who also holds Owner would then have had their directory role
+  folded into their Azure assignment, and the what-if would have promised that
+  removing Owner closes routes the directory role keeps open. They are two
+  fixes, done in two places, and severance now keys them apart.
+* Both are capability edges and both are removable: removing an owner,
+  revoking a directory role, or deleting a credential is a fix.
+* A hop names what somebody removes: the directory role, "owner of its
+  application registration", or "its own credentials".
+
+`AssetGraph.build(..., derive=False)` takes edges exactly as given. A test
+that rebuilds an estate from another graph's `links()` to check a severance
+claim must not re-derive the link it just removed. That is how the oracle
+tests first failed.
+
+**The access view.** An asset's holders now include the directory roles that
+can take its subscription, marked `through_directory`, and on a service
+principal, whoever can sign in as it (`act_as`). An account's grants include
+each subscription its directory role can take over, with the assets under it
+counted, and the roles of every principal it can sign in as ("by signing in
+as ...").
+
+**What changes on the next scan.** Every Global Administrator is a way in to
+every sensitive asset. That is what the role means, and it now sits where the
+choke points put it, at the top. The demo's administrator, Arben K, is now its
+largest choke point. The recorded environment test now expects two ways in.
+
+**Not built.** Service principals and groups holding directory roles get no
+power, because the directory capture has no node to put it on; only users do.
+Service principal owners are not read, only application owners. Graph
+application permissions, which let a principal grant itself a directory role,
+are not drawn. PIM-eligible directory roles are not read, because
+`directoryRoles/{id}/members` lists active members only.
+
+## 129. A Graph permission that is a directory role by another name is drawn as one
+
+§128 drew the directory's powers for users and left a gap. A service principal
+or a managed identity holding a Global Administrator role, or granted a
+Microsoft Graph application permission that is one step from it, reached
+nothing. These are the principals attackers look for first, because their
+credentials sit in pipelines and on machines rather than behind MFA.
+
+**Which permissions.** Three, each matched on its own value:
+
+* `RoleManagement.ReadWrite.Directory` writes directory role assignments, so
+  it can make itself Global Administrator. That is `control_all_scopes`.
+* `AppRoleAssignment.ReadWrite.All` grants app roles, so it can grant itself
+  the permission above. Also `control_all_scopes`.
+* `Application.ReadWrite.All` adds credentials to any application. That is
+  `act_as_any_application`.
+
+The power's `via` names the permission ("Graph permission
+RoleManagement.ReadWrite.Directory"), which is what somebody revokes.
+
+**Reading them.** One directory task, `graph_permission_grants`, under
+`Application.Read.All`:
+
+* Graph's own catalogue, the `appRoles` on Microsoft Graph's service principal
+  in the tenant, turns an app role id into a permission name. No id is written
+  down here, for the reason `auth.py` gives about identifiers recalled from
+  memory. If Graph's principal is not found, the task reports partial rather
+  than an empty tenant.
+* Every grant is read from Graph's side (`appRoleAssignedTo`). One paged
+  listing covers every service principal and managed identity, instead of a
+  call per principal.
+
+The directory role reading also records each member's kind
+(`directory_role_member_types`), so a group holding a directory role is typed
+as one.
+
+**A node for them.** The directory capture produced a node for users only, so
+a principal's powers had nowhere to go. It now writes a record,
+`/principals/<id>`, for each non-user principal that holds a power, and only
+those; a record for every service principal would be a directory dump. That
+id is the one a subscription mints for the same principal from its role
+assignments or a workload's identity, so the graph merges the two when it is
+built. The merge now:
+
+* keeps the directory record's fields over a stand-in's, whichever copy arrives
+  first;
+* combines roles and powers;
+* keeps any key only one copy has;
+* takes a name a reading gave over one made up from an id (`unnamed`);
+* leaves the principal's kind to the stand-in, except for a group. Graph calls
+  a managed identity a service principal, and the stand-in knows it is managed.
+
+**What this draws.** A machine running as a managed identity granted
+`RoleManagement.ReadWrite.Directory` now has a route that crosses no Azure
+role: it runs as the identity, which can take ownership of every subscription.
+It is keyed as `CAN_TAKE_OVER` (§128), so the fix it names, revoking the
+permission, is never folded into an Azure assignment.
+
+**Known wrinkle, unchanged.** The role-assignment rules judge a directory
+record the way they already judge a directory user: it carries no Azure roles,
+so they answer UNKNOWN on it and judge the subscription's copy. That was true
+for every user before this change.
+
+## 130. A role that could be activated is listed, and is not a route
+
+Privileged Identity Management turns standing access into access on request.
+CloudGuard read only the roles a principal holds. An eligible Owner, the
+access pattern every PIM rollout aims for, was invisible. The Access tab said
+nobody could take the ledger when three people could activate Owner over it,
+and a tenant that had moved its Global Administrators to PIM looked the same
+as one that had removed them.
+
+**Collected in both places, and the role goes to v8.**
+
+* Azure eligibility is read per subscription from
+  `roleEligibilityScheduleInstances` (api-version `2020-10-01`), under one new
+  action, `Microsoft.Authorization/roleEligibilityScheduleInstances/read`. It
+  was verified on 2026-09-22 against the published operations reference, as
+  `rbac.py` requires. Instances, not schedules: an instance is an eligibility
+  in force now. Only `Provisioned` instances count.
+* Directory eligibility is read from Graph's
+  `roleManagement/directory/roleEligibilityScheduleInstances`, with the role
+  definition and principal expanded. It runs under `RoleManagement.Read.Directory`,
+  already consented. It needs Entra ID P2, so it goes through the licence-aware
+  call and has its own evidence key: a tenant without P2 loses only this
+  reading. Only eligibilities scoped to the whole directory (`/`) count. One
+  scoped to an administrative unit governs that unit, not the tenant.
+* Bumping to v8 prompts every connection for a redeploy. It costs a v7
+  connection nothing it had. `degraded_categories` names Authorization, and
+  the only key behind it is the new one, so every assignment, route and verdict
+  stays. The rules degrade per evidence key, never per category.
+
+**Recorded apart from the roles held.** An eligible Azure role goes into
+`eligible_roles`, not `roles`. The role-assignment rules read `roles`, and PIM
+is the fix they recommend: counting an eligible Owner as "a person holds full
+control" would fault the customer for following the advice. An eligible
+directory role becomes `eligible_directory_powers`, in the same neutral terms
+as §128. A non-user principal with one gets a directory record, as in §129.
+Merging an identity's copies combines these lists as it combines roles. The
+merge and the stand-in fold now share one step (`_absorb`), because the fold
+was carrying roles across and dropping everything else. The eligibility tests
+caught that.
+
+**Listed, never walked.** `ELIGIBLE_FOR` is not a capability edge. Activating
+can require MFA, a justification or an approver's decision, none of which
+CloudGuard reads. Walking an eligibility would claim standing reach that does
+not exist, the overclaim §125 removed from Reader. The access view lists
+eligible holders in their own group, "Eligible to activate", with what
+activating would give (`kinds`) and `controls` false. An identity's page lists
+the roles it could activate. An eligible role never widens the lens of the
+role held beside it.
+
+**Deny assignments: deliberately not read.** In practice they come only from
+managed applications, Azure Blueprints and deployment stacks. A customer
+cannot write one directly. Subtracting them would take per-resource deny sets
+inside the lens, evaluated at arrival, for a case most tenants never have. Not
+subtracting them errs towards claiming reach. The claim is still true of every
+principal a deny assignment excludes, and a managed application's own
+resource group is where one would sit. Revisit if a customer's estate shows a
+route through a resource group a deny assignment locks.
+
 ## Open items carried forward
 
 **Data residency is not built (§113).** An organization setting for allowed
@@ -6551,3 +7025,17 @@ requires.
 `subscription_id`, matching `DATABASE.md` §2. The child-table alternative the
 spec mentions is a migration away and no core logic assumes one subscription per
 tenant.
+
+**Identity reach beyond direct role assignments (§125, §126, §128, §130).**
+Read PIM activation policies, so an eligible role that activates without MFA or
+approval can be walked like a held one. Read service principal owners beside application owners. Expand the
+members of a role-assignable group that holds a directory role but no Azure
+role, whose members are read today only when it also holds an Azure role
+(§126). Delegated permissions (`oauth2PermissionGrants`) act only on a signed-in
+user's behalf and are not drawn.
+
+**What a finding's fix closes.** The remediation queue says how many routes
+run through a task's asset (§127), not which routes its fix would close. Saying
+that needs each rule to declare which links its fix removes: a role-assignment
+rule removes its principal's assignment, while an exposure rule may or may not
+stop an asset being a way in, depending on what else exposes it.

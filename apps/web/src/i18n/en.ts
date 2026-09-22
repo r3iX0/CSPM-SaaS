@@ -711,6 +711,8 @@ export const en = {
         ? "Holds no role over anything CloudGuard scanned."
         : "Runs as no identity, and no other machine on its network lets it in.",
     deadEndIdentityWithoutRole: "Runs as an identity that holds no role over anything CloudGuard scanned.",
+    deadEndRolesWithoutControl:
+      "Runs as an identity whose roles control nothing: they only read configuration, could not be read, or carry a condition CloudGuard cannot evaluate.",
     deadEndNothingSensitive: (n: number) =>
       `Reaches ${n} ${n === 1 ? "asset" : "assets"}, none of them classified as sensitive.`,
     onlyAccountsSensitive:
@@ -1056,7 +1058,57 @@ export const en = {
     deleteFailed: "Could not delete the organization",
     dangerOwnerOnly: "Only an owner can delete an organization.",
   },
-  remediation: { title: "Remediation", empty: "No remediation tasks yet." },
+  remediation: {
+    title: "Remediation",
+    empty: "No remediation tasks yet.",
+    description:
+      "Open work first, by impact against effort; of two equally urgent fixes, the one on an attack path comes first. A finding closes when a scan confirms the fix.",
+    onRoutes: (n: number) => `on ${n} attack ${n === 1 ? "path" : "paths"}`,
+  },
+  access: {
+    tab: "Access",
+    holdersTitle: "Who can reach this",
+    holdersDescription: (name: string) =>
+      `Every role assigned on ${name} or on a container above it, whether or not anything exposed leads to the holder`,
+    scopeHoldersDescription: (name: string) =>
+      `Every role assigned on ${name} or above it. What each one controls is on the identity's own page.`,
+    controlsGroup: "Can take what it holds",
+    manageGroup: "Can change its configuration",
+    readGroup: "Can read its configuration",
+    unresolvedGroup: "Could not be read",
+    eligibleGroup: "Eligible to activate",
+    eligible: "eligible under PIM, not held until activated",
+    holdersEmpty: "No role assignment the last scan read reaches this asset.",
+    grantsTitle: "What this identity holds",
+    grantsDescription: (name: string) =>
+      `Every role ${name} holds, and the assets each one actually controls`,
+    at: (scope: string) => `on ${scope}`,
+    inherited: (origin: string) => `inherited from ${origin}`,
+    conditional: "limited by a condition CloudGuard cannot evaluate",
+    unresolved: "CloudGuard could not read what this role allows",
+    runsOn: "used by",
+    members: (n: number) => `${n} ${n === 1 ? "member" : "members"}`,
+    membersUnread: "its members could not be read",
+    via: "through",
+    throughDirectory: "granted in the directory, not by an Azure role assignment",
+    signsInAs: "by signing in as",
+    controlsCount: (n: number) =>
+      n === 0 ? "Controls nothing it lands on" : `Controls ${n} ${n === 1 ? "asset" : "assets"}`,
+    andMore: (n: number) => `and ${n} more`,
+    unplaced: (scope: string) => `on ${scope}, which this scan did not read`,
+    kinds: {
+      read: "reads configuration",
+      manage: "changes configuration",
+      read_data: "reads its data",
+      execute: "runs code as it",
+      edit_policy: "edits its access policy",
+      grant_access: "grants itself any role",
+      act_as: "signs in as it",
+    },
+    notInGraph:
+      "This asset is not in the current graph — it may not have been in the most recent scan.",
+    failed: "Could not read who holds access",
+  },
   graph: {
     explore: "Explore in graph",
     opening: "Opening\u2026",

@@ -331,7 +331,10 @@ class TestGraphFromRecordedAzure:
         paths = graph.attack_paths()
 
         assert paths, "the recorded environment contains a reachable path"
-        assert {p.entry.name for p in paths} == {"vm-jumpbox"}
+        # The recording's administrator is a Global Administrator, who can make
+        # themselves owner of the subscription (DECISIONS.md section 128).
+        assert {p.entry.name for p in paths} == {"vm-jumpbox", "Arben K"}
+        paths = [p for p in paths if p.entry.name == "vm-jumpbox"]
 
         # Every sensitive thing under that subscription, not just the first.
         # The jump box's identity holds Contributor over the whole

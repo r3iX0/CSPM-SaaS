@@ -31,6 +31,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.enums import FindingStatus, RelationshipType, Severity
 from app.domain.resource import CloudResource
 from app.graph import AssetGraph, ChokePoint, DeadEnd, Neighborhood, Path
+from app.graph.access import AccessGrant, AccessHolder
 from app.graph.estate import EstateMap
 from app.graph.model import ENTRY_EXPOSURE, RELATIONSHIP_VERBS, SENSITIVE_DATA
 from app.graph.patterns import PatternKind, route_patterns
@@ -291,6 +292,122 @@ def serialize_path(path: Path) -> dict:
             else None
         ),
     }
+
+
+def _asset_ref(resource: CloudResource, ids: dict[str, UUID]) -> dict:
+    """An asset named the way every list on the access view names one."""
+    asset_id = ids.get(resource.provider_resource_id)
+    return {
+        "id": resource.provider_resource_id,
+        "asset_id": str(asset_id) if asset_id else None,
+        "name": resource.name,
+        "resource_type": resource.resource_type.value,
+    }
+
+
+def access_asset_ids(holders: list[AccessHolder], grants: list[AccessGrant]) -> list[str]:
+    """Every provider id the access view links to, for one row-id lookup."""
+    wanted: set[str] = set()
+    for holder in holders:
+        wanted.add(holder.principal.provider_resource_id)
+        wanted.add(holder.at.provider_resource_id)
+        wanted.update(workload.provider_resource_id for workload in holder.runs_on)
+        wanted.update(member.provider_resource_id for member in holder.members or ())
+    for grant in grants:
+        if grant.at is not None:
+            wanted.add(grant.at.provider_resource_id)
+        wanted.update(asset.provider_resource_id for asset in grant.controlled)
+        if grant.via is not None:
+            wanted.add(grant.via.provider_resource_id)
+    return sorted(wanted)
+
+
+def serialize_access(
+    holders: list[AccessHolder],
+    grants: list[AccessGrant],
+    ids: dict[str, UUID],
+    *,
+    controlled_limit: int,
+    members_limit: int,
+) -> dict:
+    """Who holds access to an asset, and what an identity holds.
+
+    Both halves every time, either possibly empty: an asset is held by
+    principals, an identity holds roles, and a managed identity's own page is
+    both. The controlled assets under a grant are capped for the payload and
+    counted in full, so "controls 412" is never drawn as the twelve listed.
+    """
+    return {
+        "holders": [
+            {
+                "principal": _asset_ref(holder.principal, ids),
+                "role": holder.role,
+                "at": _asset_ref(holder.at, ids),
+                "inherited_from": holder.inherited_from,
+                "kinds": [kind.value for kind in holder.kinds],
+                "controls": holder.controls,
+                "conditional": holder.conditional,
+                "resolved": holder.resolved,
+                "runs_on": [_asset_ref(workload, ids) for workload in holder.runs_on],
+                # A group's members: null when the holder is not a group or its
+                # membership was not read, which is not the same as nobody.
+                "members": (
+                    None
+                    if holder.members is None
+                    else [_asset_ref(member, ids) for member in holder.members[:members_limit]]
+                ),
+                "unlisted_members": list(holder.unlisted_members[:members_limit]),
+                "members_total": (
+                    None
+                    if holder.members is None
+                    else len(holder.members) + len(holder.unlisted_members)
+                ),
+                "through_directory": holder.through_directory,
+                "eligible": holder.eligible,
+            }
+            for holder in holders
+        ],
+        "grants": [
+            {
+                "role": grant.role,
+                "at": _asset_ref(grant.at, ids) if grant.at is not None else None,
+                "scope": grant.scope,
+                "inherited_from": grant.inherited_from,
+                "conditional": grant.conditional,
+                "resolved": grant.resolved,
+                "grants_access": grant.grants_access,
+                "access": [
+                    {
+                        "resource_type": resource_type.value,
+                        "kinds": [kind.value for kind in kinds],
+                    }
+                    for resource_type, kinds in grant.access
+                ],
+                "controlled": [
+                    _asset_ref(asset, ids) for asset in grant.controlled[:controlled_limit]
+                ],
+                "controlled_total": len(grant.controlled),
+                "via": _asset_ref(grant.via, ids) if grant.via is not None else None,
+                "through_directory": grant.through_directory,
+                "eligible": grant.eligible,
+            }
+            for grant in grants
+        ],
+    }
+
+
+def routes_through(graph: AssetGraph) -> dict[str, int]:
+    """How many attack paths each asset is on, wherever on them it sits.
+
+    The same count :meth:`AssetGraph.paths_through` gives one asset at a time,
+    for every asset in one pass -- a queue asking per row would walk the route
+    list once per task.
+    """
+    through: dict[str, int] = {}
+    for path in graph.attack_paths():
+        for node_id in path.node_ids():
+            through[node_id] = through.get(node_id, 0) + 1
+    return through
 
 
 def serialize_dead_end(end: DeadEnd, ids: dict[str, UUID]) -> dict:
@@ -661,8 +778,11 @@ def serialize_route_map(
     steps = {step.key(): step for path in paths for step in path.steps}
     edges = []
     for link, step in sorted(steps.items()):
-        severed = severance.get(link, ())
-        on = on_routes.get(link, 0)
+        # Each drawn line answers for what removing it removes -- for an
+        # escalation line, the role assignment it comes from (section 127).
+        removal = graph.removal_key(link[0], step.relationship, link[2])
+        severed = severance.get(removal, ())
+        on = on_routes.get(removal, 0)
         edges.append(
             {
                 "source": link[0],

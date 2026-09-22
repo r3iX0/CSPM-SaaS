@@ -100,7 +100,7 @@ export function RemediationPage() {
       <PageHeader
         icon={WrenchIcon}
         title={t.remediation.title}
-        description="Ordered by impact against effort. A finding closes when a scan confirms the fix."
+        description={t.remediation.description}
       />
 
       {isLoading && <CardsSkeleton />}
@@ -174,6 +174,7 @@ function TaskCard({
   marking: boolean;
   onDone: () => void;
 }) {
+  const t = useT();
   const done = task.status === "DONE" || task.status === "CANCELLED";
   const isDemo = useIsDemo();
   const overdue = !done && task.due_date !== null && new Date(task.due_date) < new Date();
@@ -207,6 +208,14 @@ function TaskCard({
               : finding
                 ? "Tenant-wide — no single asset carries this"
                 : " "}
+            {/* Why it sits above an equally urgent task: the asset is on a
+                route. Counted by the API, and only said when it is true. */}
+            {finding && (task.on_routes ?? 0) > 0 && (
+              <span className="font-medium text-foreground">
+                {" · "}
+                {t.remediation.onRoutes(task.on_routes ?? 0)}
+              </span>
+            )}
           </p>
           {task.notes && (
             <p className="mt-1 text-xs text-muted-foreground">{task.notes}</p>

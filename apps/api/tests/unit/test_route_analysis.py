@@ -284,10 +284,15 @@ def test_routes_that_differ_only_in_what_they_reach_are_one_pattern() -> None:
 
 
 def rebuilt_without(graph: AssetGraph, link: tuple[str, str, str]) -> AssetGraph:
-    """The same estate with one link removed, assembled from the outside."""
-    gone = (link[0], RelationshipType(link[1]), link[2])
+    """The same estate with one link removed, assembled from the outside.
+
+    Every drawn line the removal takes, which is one line except for a role
+    assignment that is also drawn as an escalation (DECISIONS.md section 127).
+    """
     return AssetGraph.build(
-        list(graph.nodes.values()), [edge for edge in graph.links() if edge != gone]
+        list(graph.nodes.values()),
+        [edge for edge in graph.links() if graph.removal_key(*edge) != link],
+        derive=False,
     )
 
 
@@ -308,7 +313,15 @@ def test_every_severance_answer_survives_being_checked_the_slow_way() -> None:
         }
         severance = estate.link_severance()
 
-        for link in {step.key() for path in estate.attack_paths() for step in path.steps}:
+        for link in {
+            estate.removal_key(
+                step.source.provider_resource_id,
+                step.relationship,
+                step.target.provider_resource_id,
+            )
+            for path in estate.attack_paths()
+            for step in path.steps
+        }:
             if link[1] == RelationshipType.CONTAINS.value:
                 continue
             after = {

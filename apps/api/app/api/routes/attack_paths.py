@@ -36,6 +36,14 @@ DEAD_END_LIMIT = 25
 # than letting the picture pass for the whole estate.
 ROUTE_MAP_LIMIT = 200
 
+# Assets listed under one role on the access view. Past this they are counted:
+# Owner over a subscription controls everything in it, and the count is the
+# answer while the list is only a sample of it.
+ACCESS_CONTROLLED_LIMIT = 25
+# Members listed under one group holder, for the same reason: "Everyone in
+# Engineering" is a count, and the list beside it is who to look at first.
+ACCESS_MEMBERS_LIMIT = 50
+
 # Folds one request may ask to open. Each is an id of a few hundred characters
 # in the query string, and the node cap bounds the drawing long before this.
 EXPAND_LIMIT = 20
@@ -174,7 +182,7 @@ async def blast_radius(
     never "is this role too broad" in the abstract, but "what would go with it".
     """
     graph = await graph_service.load_graph(session, tenant.organization_id)
-    if resource_id not in graph.nodes:
+    if graph.resolve(resource_id) not in graph.nodes:
         raise NotFound("No such asset in this organization")
 
     reached = graph.blast_radius(resource_id)
@@ -200,6 +208,45 @@ async def blast_radius(
             for resource in reached
         ],
         {"total": len(reached)},
+    )
+
+
+@router.get("/access/{resource_id:path}")
+async def access(resource_id: str, session: DbSession, tenant: Tenant) -> dict:
+    """Who holds access to one asset, and what one identity holds.
+
+    Whether or not anything exposed leads there -- the half of the question a
+    route cannot answer, because a route needs a way in. Read from the same
+    per-role evaluation the routes are walked with, so a principal listed here
+    as controlling an asset is exactly one a route may pass through
+    (DECISIONS.md section 125).
+    """
+    graph = await graph_service.load_graph(session, tenant.organization_id)
+    if graph.resolve(resource_id) not in graph.nodes:
+        raise NotFound("No such asset in this organization")
+
+    holders = graph.access_to(resource_id)
+    grants = graph.access_of(resource_id)
+    ids = await graph_service.asset_ids(
+        session,
+        tenant.organization_id,
+        graph_service.access_asset_ids(holders, grants),
+    )
+    return envelope(
+        graph_service.serialize_access(
+            holders,
+            grants,
+            ids,
+            controlled_limit=ACCESS_CONTROLLED_LIMIT,
+            members_limit=ACCESS_MEMBERS_LIMIT,
+        ),
+        {
+            "holders_total": len(holders),
+            "grants_total": len(grants),
+            "controlling": sum(1 for holder in holders if holder.controls),
+            "controlled_limit": ACCESS_CONTROLLED_LIMIT,
+            "members_limit": ACCESS_MEMBERS_LIMIT,
+        },
     )
 
 

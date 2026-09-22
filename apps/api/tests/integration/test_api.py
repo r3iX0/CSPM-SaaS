@@ -2652,6 +2652,103 @@ class TestAssetNeighborhood:
         assert reached["id"] == self.STORAGE
         assert uuid.UUID(reached["asset_id"])
 
+    async def test_the_remediation_queue_is_in_the_order_it_says(
+        self, client, cleanup_orgs
+    ) -> None:
+        """Open work first, then priority, then work on an attack path (§127)."""
+        from sqlalchemy import select
+
+        from app.core.db import service_session
+        from app.core.enums import FindingStatus, Priority, RemediationStatus, Severity
+        from app.models.finding import Finding
+        from app.models.remediation import RemediationTask
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Queue Ltd"))
+        cleanup_orgs.append(org_id)
+        vm_row = await self._estate(org_id)
+
+        now = datetime.now(UTC)
+        async with service_session() as session:
+            on_route = (
+                await session.execute(select(Finding).where(Finding.resource_id == vm_row))
+            ).scalar_one()
+
+            def finding(title: str) -> Finding:
+                return Finding(
+                    organization_id=org_id,
+                    resource_id=None,
+                    rule_id="AZ-IAM-002",
+                    severity=Severity.HIGH,
+                    status=FindingStatus.OPEN,
+                    title=title,
+                    description="",
+                    risk_score=99,
+                    first_detected_at=now,
+                    last_detected_at=now,
+                )
+
+            off_route, finished = finding("Off the route"), finding("Already done")
+            session.add_all([off_route, finished])
+            await session.flush()
+
+            def task(target: Finding, priority: Priority, status: RemediationStatus) -> None:
+                session.add(
+                    RemediationTask(
+                        organization_id=org_id,
+                        finding_id=target.id,
+                        status=status,
+                        priority=priority,
+                        estimated_effort_minutes=30,
+                    )
+                )
+
+            task(finished, Priority.CRITICAL, RemediationStatus.DONE)
+            task(off_route, Priority.HIGH, RemediationStatus.TODO)
+            task(on_route, Priority.HIGH, RemediationStatus.TODO)
+            # Read before the commit expires them.
+            expected = [str(on_route.id), str(off_route.id), str(finished.id)]
+            await session.commit()
+
+        response = await client.get("/api/v1/remediation", headers=auth_header(user))
+
+        assert response.status_code == 200, response.text
+        queue = response.json()["data"]
+        assert [row["finding_id"] for row in queue] == expected
+        assert [row["on_routes"] for row in queue] == [1, 0, 0]
+
+    async def test_who_holds_an_asset_names_the_workload_behind_the_identity(
+        self, client, cleanup_orgs
+    ) -> None:
+        from urllib.parse import quote
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Access Ltd"))
+        cleanup_orgs.append(org_id)
+        vm_row = await self._estate(org_id)
+
+        response = await client.get(
+            f"/api/v1/attack-paths/access/{quote(self.STORAGE, safe='')}",
+            headers=auth_header(user),
+        )
+
+        assert response.status_code == 200, response.text
+        body = response.json()
+        [holder] = body["data"]["holders"]
+        assert holder["principal"]["id"] == self.IDENTITY
+        # The fixture's edge records no role, so nothing is claimed about it.
+        assert holder["resolved"] is False
+        assert holder["controls"] is False
+        assert [w["asset_id"] for w in holder["runs_on"]] == [str(vm_row)]
+        assert body["data"]["grants"] == []
+        assert body["meta"]["holders_total"] == 1
+
+        missing = await client.get(
+            f"/api/v1/attack-paths/access/{quote('/nowhere', safe='')}",
+            headers=auth_header(user),
+        )
+        assert missing.status_code == 404
+
     async def test_the_identity_is_drawn_with_the_route_through_it(
         self, client, cleanup_orgs
     ) -> None:

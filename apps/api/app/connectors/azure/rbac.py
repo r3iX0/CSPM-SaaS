@@ -39,7 +39,7 @@ from app.connectors.evidence import EvidenceCategory
 from app.core.enums import ConnectionScope
 
 # Bump when the action list changes.
-ROLE_VERSION = "v7"
+ROLE_VERSION = "v8"
 
 ROLE_NAME = "CloudGuard Security Scanner"
 
@@ -143,6 +143,11 @@ ARM_READ_ACTIONS: tuple[str, ...] = (
     # which is an ``/action`` and is never requested.
     "Microsoft.Web/sites/read",
     "Microsoft.Web/sites/config/read",
+    # v8. Which roles a principal is eligible for under Privileged Identity
+    # Management -- a role it can activate rather than one it holds. Verified
+    # on 2026-09-22 against the published operations reference: "Gets the role
+    # eligibility schedule instances at given scope."
+    "Microsoft.Authorization/roleEligibilityScheduleInstances/read",
 )
 
 # Which ARM action each collector call needs. This is the link between the code
@@ -180,6 +185,9 @@ CLIENT_ACTIONS: dict[str, tuple[str, ...]] = {
         "Microsoft.Sql/servers/databases/transparentDataEncryption/read",
     ),
     "list_role_definitions": ("Microsoft.Authorization/roleDefinitions/read",),
+    "list_role_eligibilities": (
+        "Microsoft.Authorization/roleEligibilityScheduleInstances/read",
+    ),
     "get_role_definition": ("Microsoft.Authorization/roleDefinitions/read",),
     "list_key_vaults": ("Microsoft.KeyVault/vaults/read",),
     "list_security_assessments": ("Microsoft.Security/assessments/read",),
@@ -239,6 +247,7 @@ COLLECTION_ACTIONS: dict[EvidenceCategory, tuple[str, ...]] = {
     EvidenceCategory.AUTHORIZATION: (
         "Microsoft.Authorization/roleAssignments/read",
         "Microsoft.Authorization/roleDefinitions/read",
+        "Microsoft.Authorization/roleEligibilityScheduleInstances/read",
     ),
     EvidenceCategory.SECRETS: ("Microsoft.KeyVault/vaults/read",),
     EvidenceCategory.POSTURE: (
@@ -433,6 +442,38 @@ ROLE_HISTORY: dict[str, tuple[str, ...]] = {
         "Microsoft.DBforPostgreSQL/flexibleServers/configurations/read",
         "Microsoft.Web/sites/read",
         "Microsoft.Web/sites/config/read",
+    ),
+    # v8 adds one read: which roles a principal is *eligible* for under
+    # Privileged Identity Management, and could activate. A v7 role keeps every
+    # verdict and route it had; the access view simply cannot list eligible
+    # holders until the redeploy (DECISIONS.md section 130).
+    "v8": (
+        "Microsoft.Resources/subscriptions/read",
+        "Microsoft.Resources/subscriptions/resources/read",
+        "Microsoft.ResourceGraph/resources/read",
+        "Microsoft.Network/networkSecurityGroups/read",
+        "Microsoft.Network/networkInterfaces/read",
+        "Microsoft.Network/publicIPAddresses/read",
+        "Microsoft.Compute/virtualMachines/read",
+        "Microsoft.Storage/storageAccounts/read",
+        "Microsoft.Sql/servers/read",
+        "Microsoft.Sql/servers/firewallRules/read",
+        "Microsoft.Sql/servers/auditingSettings/read",
+        "Microsoft.DBforPostgreSQL/flexibleServers/read",
+        "Microsoft.Insights/diagnosticSettings/read",
+        "Microsoft.Authorization/roleAssignments/read",
+        "Microsoft.Authorization/roleDefinitions/read",
+        "Microsoft.KeyVault/vaults/read",
+        "Microsoft.Sql/servers/databases/read",
+        "Microsoft.Sql/servers/databases/transparentDataEncryption/read",
+        "Microsoft.Security/assessments/read",
+        "Microsoft.Security/pricings/read",
+        "Microsoft.Storage/storageAccounts/blobServices/read",
+        "Microsoft.Sql/servers/administrators/read",
+        "Microsoft.DBforPostgreSQL/flexibleServers/configurations/read",
+        "Microsoft.Web/sites/read",
+        "Microsoft.Web/sites/config/read",
+        "Microsoft.Authorization/roleEligibilityScheduleInstances/read",
     ),
 }
 

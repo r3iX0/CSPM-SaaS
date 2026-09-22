@@ -188,6 +188,221 @@ describe("the asset page", () => {
   });
 });
 
+describe("the access tab", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const ref = (id: string, name: string, type: string, assetId: string | null = null) => ({
+    id,
+    asset_id: assetId,
+    name,
+    resource_type: type,
+  });
+
+  function mountAccess(detail: Record<string, unknown>, access: Record<string, unknown>) {
+    vi.spyOn(api, "get").mockImplementation((url: string) => {
+      if (url === "/api/v1/assets/asset-1")
+        return Promise.resolve({ data: detail, meta: {} }) as never;
+      if (url.startsWith("/api/v1/attack-paths/access/"))
+        return Promise.resolve({ data: access, meta: {} }) as never;
+      return Promise.reject(new ApiError("NOT_FOUND", "not a vertex", 404)) as never;
+    });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={["/assets/asset-1?tab=access"]}>
+          <Routes>
+            <Route path="/assets/:assetId" element={<AssetDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+  }
+
+  const holder = (extra: Record<string, unknown>) => ({
+    principal: ref("/principals/p", "mi-app", "service_principal", "asset-p"),
+    role: "Storage Blob Data Reader",
+    at: ref(ARM, "payroll", "storage_account"),
+    inherited_from: null,
+    kinds: ["read_data"],
+    controls: true,
+    conditional: false,
+    resolved: true,
+    runs_on: [ref("/vm", "vm-app", "virtual_machine", "asset-vm")],
+    ...extra,
+  });
+
+  it("puts who can take what the asset holds above who can only read it", async () => {
+    mountAccess(asset(), {
+      holders: [
+        holder({}),
+        holder({
+          principal: ref("/principals/m", "monitoring", "service_principal"),
+          role: "Reader",
+          at: ref("/subscriptions/sub-1", "Production", "subscription"),
+          inherited_from: "/providers/Microsoft.Management/managementGroups/root-mg",
+          kinds: ["read"],
+          controls: false,
+          runs_on: [],
+        }),
+      ],
+      grants: [],
+    });
+
+    expect(await screen.findByText("Can take what it holds")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "mi-app" })).toHaveAttribute(
+      "href",
+      "/assets/asset-p",
+    );
+    expect(screen.getByText("Reads its data")).toBeInTheDocument();
+    // The workload the identity runs on is how it would be taken.
+    expect(screen.getByRole("link", { name: "vm-app" })).toHaveAttribute(
+      "href",
+      "/assets/asset-vm",
+    );
+    expect(screen.getByText("Can read its configuration")).toBeInTheDocument();
+    expect(
+      screen.getByText(/inherited from management group root-mg/),
+    ).toBeInTheDocument();
+  });
+
+  it("names who a group's role reaches, and says when it could not read them", async () => {
+    mountAccess(asset(), {
+      holders: [
+        holder({
+          principal: ref("/principals/g", "Data readers", "group", "asset-g"),
+          runs_on: [],
+          members: [ref("/users/u", "Arben K", "user", "asset-u")],
+          unlisted_members: ["Somebody Else"],
+          members_total: 60,
+        }),
+        holder({
+          principal: ref("/principals/g2", "Unread group", "group"),
+          runs_on: [],
+          members: null,
+          unlisted_members: [],
+          members_total: null,
+        }),
+      ],
+      grants: [],
+    });
+
+    expect(await screen.findByText("60 members")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Arben K" })).toHaveAttribute(
+      "href",
+      "/assets/asset-u",
+    );
+    expect(screen.getByText("Somebody Else")).toBeInTheDocument();
+    expect(screen.getByText("and 58 more")).toBeInTheDocument();
+    expect(screen.getByText("Its members could not be read")).toBeInTheDocument();
+  });
+
+  it("says when access comes from the directory rather than an Azure role (§128)", async () => {
+    mountAccess(asset(), {
+      holders: [
+        holder({
+          principal: ref("/users/a", "Arben K", "user", "asset-a"),
+          role: "Global Administrator",
+          at: ref("/subscriptions/sub-1", "Production", "subscription"),
+          kinds: ["grant_access"],
+          runs_on: [],
+          members: null,
+          unlisted_members: [],
+          members_total: null,
+          through_directory: true,
+        }),
+      ],
+      grants: [],
+    });
+
+    expect(await screen.findByText("Global Administrator")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Grants itself any role; granted in the directory, not by an Azure role assignment",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("lists who could activate a role apart from who holds one (§130)", async () => {
+    mountAccess(asset(), {
+      holders: [
+        holder({ runs_on: [], members: null, unlisted_members: [], members_total: null }),
+        holder({
+          principal: ref("/users/b", "Bea", "user", "asset-b"),
+          role: "Owner",
+          kinds: ["manage", "read_data"],
+          controls: false,
+          eligible: true,
+          runs_on: [],
+          members: null,
+          unlisted_members: [],
+          members_total: null,
+        }),
+      ],
+      grants: [],
+    });
+
+    expect(await screen.findByText("Eligible to activate")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Changes configuration; reads its data; eligible under PIM, not held until activated",
+      ),
+    ).toBeInTheDocument();
+    // An eligible Owner is not someone who can change the asset today.
+    expect(screen.queryByText("Can change its configuration")).toBeNull();
+  });
+
+  it("does not claim anything about a role it could not read", async () => {
+    mountAccess(asset(), {
+      holders: [holder({ kinds: [], controls: false, resolved: false, runs_on: [] })],
+      grants: [],
+    });
+
+    expect(await screen.findByText("Could not be read")).toBeInTheDocument();
+    expect(screen.getByText("CloudGuard could not read what this role allows")).toBeInTheDocument();
+    expect(screen.queryByText("Can take what it holds")).toBeNull();
+  });
+
+  it("counts what an identity's role controls rather than listing it all", async () => {
+    mountAccess(
+      asset({ name: "mi-app", resource_type: "service_principal" }),
+      {
+        holders: [],
+        grants: [
+          {
+            role: "Contributor",
+            at: ref("/subscriptions/sub-1", "Production", "subscription", "asset-sub"),
+            scope: "/subscriptions/sub-1",
+            inherited_from: null,
+            conditional: true,
+            resolved: true,
+            grants_access: false,
+            access: [{ resource_type: "virtual_machine", kinds: ["execute", "manage", "read"] }],
+            controlled: [ref("/vm", "vm-app", "virtual_machine", "asset-vm")],
+            controlled_total: 30,
+            via: ref("/principals/g", "Platform admins", "group", "asset-g"),
+          },
+        ],
+      },
+    );
+
+    expect(await screen.findByText("What this identity holds")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Platform admins" })).toHaveAttribute(
+      "href",
+      "/assets/asset-g",
+    );
+    expect(screen.getByText("Controls 30 assets")).toBeInTheDocument();
+    expect(screen.getByText("and 29 more")).toBeInTheDocument();
+    expect(
+      screen.getByText("Limited by a condition CloudGuard cannot evaluate"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("runs code as it, changes configuration, reads configuration")).toBeInTheDocument();
+    // Nobody is assigned a role on an identity; an empty holders card says nothing.
+    expect(screen.queryByText("Who can reach this")).toBeNull();
+  });
+});
+
 describe("when the graph cannot be read", () => {
   beforeEach(() => {
     vi.restoreAllMocks();

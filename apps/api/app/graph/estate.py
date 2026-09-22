@@ -123,9 +123,15 @@ def _same_group(a: str | None, b: str | None) -> bool:
     return (a or "").lower() == (b or "").lower()
 
 
-def _crosses(relationship: RelationshipType) -> bool:
-    """Links drawn between boxes: what an identity may do, not where things live."""
-    return relationship.is_capability and relationship is not RelationshipType.CONTAINS
+def _crosses(
+    graph: AssetGraph, source: str, relationship: RelationshipType, target: str
+) -> bool:
+    """Links drawn between boxes: what an identity may do, not where things live
+    -- and only where it may do something (a role that controls nothing is not
+    reach, DECISIONS.md section 125)."""
+    return relationship is not RelationshipType.CONTAINS and graph.conveys(
+        source, relationship, target
+    )
 
 
 def estate_map(
@@ -183,7 +189,7 @@ def estate_map(
 
     reach: dict[str, int] = defaultdict(int)
     for source, relationship, target in graph.links():
-        if _crosses(relationship) and source != target:
+        if source != target and _crosses(graph, source, relationship, target):
             reach[source] += 1
             reach[target] += 1
 
@@ -238,7 +244,9 @@ def estate_map(
         if a == b or (a not in opened and b not in opened):
             continue
         hop = (source, relationship, target) in on_route
-        if not _crosses(relationship) and not (relationship is RelationshipType.CONTAINS and hop):
+        if not _crosses(graph, source, relationship, target) and not (
+            relationship is RelationshipType.CONTAINS and hop
+        ):
             continue
         counted[(a, b)][relationship] += 1
         if hop:

@@ -75,6 +75,26 @@ class FakeGraph:
         self._check("list_applications")
         return [{"id": "a1", "appId": "app-1", "displayName": "pipeline"}]
 
+    async def list_application_owners(self, application_id: str) -> list[dict]:
+        self._check("list_application_owners")
+        return [{"id": "u1"}]
+
+    async def list_service_principals_by_app_id(self, app_ids: list[str]) -> list[dict]:
+        self._check("list_service_principals_by_app_id")
+        return [{"id": "sp-1", "appId": "app-1"}]
+
+    async def list_directory_role_eligibilities(self) -> list[dict]:
+        self._check("list_directory_role_eligibilities")
+        return []
+
+    async def find_permission_catalogue(self, app_id: str) -> dict:
+        self._check("find_permission_catalogue")
+        return {"id": "graph-sp", "appRoles": []}
+
+    async def list_app_role_assigned_to(self, resource_id: str) -> list[dict]:
+        self._check("list_app_role_assigned_to")
+        return []
+
     async def list_sign_in_activity(self) -> list[dict]:
         self._check("list_sign_in_activity")
         return [{"id": "u1", "signInActivity": {"lastSignInDateTime": "2026-08-01T00:00:00Z"}}]

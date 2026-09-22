@@ -66,13 +66,16 @@ function renderPage() {
   );
 }
 
+let tasks: Record<string, unknown>[] = [TASK];
+
 describe("the remediation queue", () => {
   beforeEach(() => {
+    tasks = [TASK];
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
         const url = String(input);
-        const body = url.includes("/findings/") ? FINDING : [TASK];
+        const body = url.includes("/findings/") ? FINDING : tasks;
         return {
           ok: true,
           status: 200,
@@ -94,5 +97,20 @@ describe("the remediation queue", () => {
     });
     expect(title).toHaveAttribute("href", "/findings/finding-1");
     expect(await screen.findByText(/prodstorage/)).toBeInTheDocument();
+  });
+
+  it("says when the work sits on an attack path, and only then (§127)", async () => {
+    tasks = [{ ...TASK, on_routes: 3 }];
+    renderPage();
+
+    expect(await screen.findByText(/on 3 attack paths/)).toBeInTheDocument();
+  });
+
+  it("says nothing about routes for work that is on none", async () => {
+    tasks = [{ ...TASK, on_routes: 0 }];
+    renderPage();
+
+    await screen.findByText(/prodstorage/);
+    expect(screen.queryByText(/on \d+ attack path/)).toBeNull();
   });
 });

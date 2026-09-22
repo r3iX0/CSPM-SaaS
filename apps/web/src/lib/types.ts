@@ -457,6 +457,12 @@ export interface RemediationTask {
   notes: string | null;
   completed_at: string | null;
   created_at: string;
+  /**
+   * Attack paths through the finding's asset (DECISIONS.md §127). A fact about
+   * the asset, not a promise about what the fix closes. Absent outside the
+   * queue listing.
+   */
+  on_routes?: number;
 }
 
 /** Compliance coverage. Mirrors app/compliance/coverage.py::ControlStatus. */
@@ -901,6 +907,84 @@ export interface AttackPathMeta {
   dead_ends_total?: number;
 }
 
+/**
+ * What a role lets its holder do to one kind of resource (DECISIONS.md §125).
+ * `read_data` and `execute` are control: the holder holds what the resource
+ * holds. `edit_policy` is control only over a resource its own policy governs.
+ */
+export type AccessKind =
+  | "read"
+  | "manage"
+  | "read_data"
+  | "execute"
+  | "edit_policy"
+  | "grant_access"
+  | "act_as";
+
+/** An asset named on the access view; `asset_id` opens it where it has a row. */
+export interface AccessAssetRef {
+  id: string;
+  asset_id: string | null;
+  name: string;
+  resource_type: string;
+}
+
+/** One role one principal holds that reaches the asset asked about. */
+export interface AccessHolder {
+  principal: AccessAssetRef;
+  role: string;
+  /** Where the role applies: the asset itself, or a container above it. */
+  at: AccessAssetRef;
+  /** The management group or root it was made at, when above `at`. */
+  inherited_from: string | null;
+  /** What it lets the holder do to this asset; empty for a container. */
+  kinds: AccessKind[];
+  controls: boolean;
+  conditional: boolean;
+  /** False when CloudGuard could not read what the role allows. */
+  resolved: boolean;
+  /** Workloads that run as the principal. */
+  runs_on: AccessAssetRef[];
+  /**
+   * For a group: its members CloudGuard read as accounts. Null when the holder
+   * is not a group or its membership was not read — not the same as nobody.
+   */
+  members: AccessAssetRef[] | null;
+  /** Members read by name only, never as accounts. */
+  unlisted_members: string[];
+  members_total: number | null;
+  /** Held through the directory, not an Azure role assignment (§128). */
+  through_directory?: boolean;
+  /** Could be activated under PIM rather than held; never counted as control (§130). */
+  eligible?: boolean;
+}
+
+/** One role an identity holds, and what it controls. */
+export interface AccessGrant {
+  role: string;
+  at: AccessAssetRef | null;
+  scope: string;
+  inherited_from: string | null;
+  conditional: boolean;
+  resolved: boolean;
+  grants_access: boolean;
+  access: { resource_type: string; kinds: AccessKind[] }[];
+  /** Capped by the API; `controlled_total` is the real count. */
+  controlled: AccessAssetRef[];
+  controlled_total: number;
+  /** The group, or the identity it signs in as, it holds this role through. */
+  via: AccessAssetRef | null;
+  /** A directory role that can make the identity owner of `at` (§128). */
+  through_directory?: boolean;
+  /** Could be activated under PIM rather than held (§130). */
+  eligible?: boolean;
+}
+
+export interface AssetAccess {
+  holders: AccessHolder[];
+  grants: AccessGrant[];
+}
+
 /** A way in with no route out of it, and where it stops. */
 export interface DeadEnd {
   id: string;
@@ -908,7 +992,11 @@ export interface DeadEnd {
   name: string;
   resource_type: string;
   public_exposure: string;
-  reason: "reaches_nothing" | "identity_without_role" | "nothing_sensitive";
+  reason:
+    | "reaches_nothing"
+    | "identity_without_role"
+    | "roles_without_control"
+    | "nothing_sensitive";
   /** How many assets it does reach. */
   reached: number;
 }
