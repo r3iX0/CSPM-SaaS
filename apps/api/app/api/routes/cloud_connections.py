@@ -446,7 +446,5 @@ async def check_revoked(connection_id: UUID, session: DbSession, tenant: Tenant)
 @router.delete("/{connection_id}", status_code=status.HTTP_200_OK)
 async def delete_connection(connection_id: UUID, session: DbSession, tenant: Tenant) -> dict:
     tenant.require_role(Role.OWNER, Role.ADMIN)
-    connection = await service.get_connection(session, tenant, connection_id)
-    await session.delete(connection)
-    await session.commit()
+    await service.delete_connection(session, tenant, connection_id)
     return envelope({"deleted": str(connection_id)})

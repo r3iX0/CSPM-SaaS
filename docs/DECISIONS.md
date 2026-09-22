@@ -6412,6 +6412,38 @@ anywhere on the page — the same rule §87 set for the scan view.
 one route: it is what the rail opens into, what a finding shows, and what the
 PDF report can draw, which a canvas cannot.
 
+## 124. A delete that takes a risk's findings takes the risk
+
+Deleting a connection cascaded its subscriptions, assets, scans and findings,
+and every `risk_findings` link with them. The `risks` rows stayed, because a
+risk hangs off the organization rather than an asset and had nothing to
+cascade from. The risks list keeps a risk linked to nothing on purpose (its
+missing links are not proof it is over), and the dashboard keeps any route
+that is not resolved, so both went on showing risks about an estate nobody was
+watching any more. Purging a scan's findings (`DELETE /scans/{id}?purge_findings=true`)
+did the same.
+
+Both delete paths now read the risks the doomed findings belong to before the
+delete, flush the cascade, and delete the ones left with no member
+(`risks.linked_to`, `risks.delete_emptied`). Connection delete moved out of the
+route into `cloud_connections.delete_connection` to do it.
+
+**Deleted, not resolved.** Nothing was fixed. The estate stopped being watched,
+and a resolved row would record a remediation nobody made — the same reason a
+superseded group member's risk is deleted rather than resolved.
+
+**A risk with a member left stays.** A route that crosses into another
+connection keeps its members there, and the next scan of what remains decides
+it: correlation already treats an asset with no row as gone, and closes every
+route through it.
+
+Migration 0039 deletes the risks already left behind. Every writer of a risk
+links its members in the same commit, so a risk with no link can only be one
+of these. It cannot be undone.
+
+The list's rule stands: a risk linked to nothing is still listed. The only
+thing that made one was a delete, and that no longer does.
+
 ## Open items carried forward
 
 **Data residency is not built (§113).** An organization setting for allowed
