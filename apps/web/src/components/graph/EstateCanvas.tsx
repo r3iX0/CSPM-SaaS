@@ -72,7 +72,7 @@ interface CanvasActions {
   /** The box holding the single tab stop into the canvas. */
   active: string;
   setActive: (id: string) => void;
-  /** Select a box: the panel shows it and the routes through it. */
+  /** Select a box: the panel shows it and what reaches it and what it reaches. */
   select: (id: string) => void;
   /** Open a box: a scope or group redraws the map, an asset opens its page. */
   open: (box: EstateBox) => void;
@@ -80,12 +80,8 @@ interface CanvasActions {
   selected: string | null;
   /** Previewed under the pointer or the keyboard: faded around, not selected. */
   preview: (id: string | null) => void;
-  /** The boxes picked out -- a link's two ends, or a traced route's -- if any. */
+  /** The boxes picked out -- a selection and what it touches -- if any. */
   lit: ReadonlySet<string> | null;
-  /** Where each box sits along the traced route, as its badge reads: "2", "3–5". */
-  order: ReadonlyMap<string, string>;
-  /** The boxes the hop being read runs between. */
-  current: ReadonlySet<string>;
 }
 
 const Actions = createContext<CanvasActions | null>(null);
@@ -94,19 +90,6 @@ function useActions(): CanvasActions {
   const actions = useContext(Actions);
   if (!actions) throw new Error("An estate box rendered outside EstateCanvas");
   return actions;
-}
-
-/**
- * One attack path laid over the map, and the hop being read on it.
- *
- * `boxes` is the route placed on this lens's boxes (`EstateRoute.boxes`): step
- * `i` runs from `boxes[i]` to `boxes[i + 1]`, and null is somewhere the lens
- * does not draw.
- */
-export interface MapTrace {
-  key: string;
-  boxes: (string | null)[];
-  hop: number;
 }
 
 /** The drawn size of a box, for centring the view on one. */
@@ -123,7 +106,8 @@ const BOX_HEIGHT = 52;
  * their arrangement rather than of the estate.
  *
  * Pressing a box or an arrow selects it, and the panel beside the canvas says
- * what it is and which attack paths run through it (§133). Opening is the
+ * what it is and what reaches it (§133). Attack paths are not drawn here:
+ * walking one is the attack-path page's (§138). Opening is the
  * second act -- a double click, Enter, or the panel's button: a subscription
  * or group redraws the map with its contents, an asset opens its page with its
  * own graph drawn, and the fold lists what is in it. One tab stop, then arrow
@@ -150,12 +134,6 @@ interface CanvasProps {
   onSelect: (selection: MapSelection | null) => void;
   /** Put the keyboard on the first box once drawn -- after opening one by key. */
   takeFocus?: boolean;
-  /**
-   * A route to trace: its boxes numbered in the order it visits them, its
-   * arrows drawn, the hop being read marked, and everything else faded. Takes
-   * the place of `highlight` while set.
-   */
-  trace?: MapTrace | null;
 }
 
 function Canvas({
@@ -164,58 +142,25 @@ function Canvas({
   onSelect,
   takeFocus = false,
   selected = null,
-  trace = null,
 }: CanvasProps) {
   const { nodes, edges: drawn, at, first } = useMemo(() => toFlow(map), [map]);
   const reduced = usePrefersReducedMotion();
   // What the pointer or the keyboard is on, faded around as a selection is
   // but without selecting it, so the map can be scanned before a click. Only
-  // with nothing selected or walked: the panel answers for a selection, and a
-  // preview that redrew the canvas under it would contradict the panel.
+  // with nothing selected: the panel answers for a selection, and a preview
+  // that redrew the canvas under it would contradict the panel.
   const [previewed, setPreviewed] = useState<MapSelection | null>(null);
   const looking = selected ?? previewed;
-  const traced = useMemo(
-    () => (trace ? traceOnMap(trace, at, new Set(drawn.map((edge) => edge.id))) : null),
-    [trace, at, drawn],
-  );
   // A selection fades the rest rather than hiding it: what is selected still
   // has to be read in its place in the estate, not on its own.
-  // A box the filter is not drawing keeps nothing; a walked route takes over.
-  const on = traced || (looking?.kind === "box" && !at.has(looking.id)) ? null : looking;
+  // A box this lens is not drawing keeps nothing.
+  const on = looking?.kind === "box" && !at.has(looking.id) ? null : looking;
   const picked = on?.kind === "edge";
   const around = useMemo(() => kept(drawn, on), [drawn, on]);
-  const lit = traced?.lit ?? around?.boxes ?? null;
+  const lit = around?.boxes ?? null;
   const edges = useMemo(
     () =>
-      traced
-        ? drawn.map((edge) => {
-            const now = edge.id === traced.currentEdge;
-            if (!now && !traced.edges.has(edge.id)) {
-              return {
-                ...edge,
-                label: undefined,
-                style: { ...edge.style, opacity: 0.12 },
-              };
-            }
-            const stroke = now ? "var(--primary)" : "var(--foreground)";
-            return {
-              ...edge,
-              // The hop being read says everything it carries; the rest of
-              // the route keeps its short label, and the step bar says it all.
-              label: now ? edge.data?.full : edge.label,
-              labelStyle: { ...edge.labelStyle, fill: stroke, fontWeight: now ? 600 : 400 },
-              style: {
-                ...edge.style,
-                stroke,
-                strokeWidth: Number(edge.style?.strokeWidth ?? 1.5) + (now ? 2 : 1),
-              },
-              markerEnd: { type: MarkerType.ArrowClosed, color: stroke, width: 14, height: 14 },
-              // The hop being read moves; the rest of the route holds still.
-              animated: now && !reduced,
-              zIndex: now ? 2 : 1,
-            };
-          })
-        : around
+      around
         ? drawn.map((edge) =>
             around.edges.has(edge.id)
               ? {
@@ -239,7 +184,7 @@ function Canvas({
                 },
           )
         : drawn,
-    [drawn, around, picked, traced, reduced],
+    [drawn, around, picked],
   );
   const [active, setActive] = useState(first);
   const frame = useRef<HTMLDivElement>(null);
@@ -297,42 +242,6 @@ function Canvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected?.kind, selected?.id]);
 
-  // A route picked is framed whole; a step along it pans to the hop only when
-  // the hop is out of view, keeping the zoom, so the route stays where the
-  // reader left it rather than jumping.
-  const framed = useRef<string | null>(null);
-  useEffect(() => {
-    if (!trace || !traced) {
-      framed.current = null;
-      return;
-    }
-    const duration = reduced ? 0 : DURATION.quick;
-    if (framed.current !== trace.key) {
-      // A route running back along the lanes is framed down to them.
-      const laned = drawn.some((edge) => edge.type === "back" && traced.edges.has(edge.id));
-      // Two frames on: the step bar arriving above shrinks the canvas, and
-      // React Flow learns its new size from a resize observer. Fitted any
-      // sooner, the route is framed for the taller canvas and its foot is cut.
-      let frameId = requestAnimationFrame(() => {
-        frameId = requestAnimationFrame(() => {
-          // Only once it has run: a step taken before then frames it again.
-          framed.current = trace.key;
-          void flow.fitView({
-            nodes: [...traced.lit, ...(laned ? ["lanes"] : [])].map((id) => ({ id })),
-            padding: 0.3,
-            maxZoom: 1.1,
-            duration,
-          });
-        });
-      });
-      return () => cancelAnimationFrame(frameId);
-    }
-    // Framed whole, the hop is usually already in view: then nothing moves.
-    centreOn([...traced.current]);
-    // The route and the hop are what move the view; `traced` follows them.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trace?.key, trace?.hop]);
-
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     const direction = ARROWS[event.key];
     if (!direction || event.altKey || event.ctrlKey || event.metaKey) return;
@@ -358,8 +267,6 @@ function Canvas({
         selected: selected?.kind === "box" ? selected.id : null,
         preview: (id) => setPreviewed(id ? { kind: "box", id } : null),
         lit,
-        order: traced?.order ?? NO_ORDER,
-        current: traced?.current ?? NO_BOXES,
       }}
     >
       <div ref={frame} className="size-full" onKeyDown={onKeyDown}>
@@ -425,7 +332,7 @@ function toFlow(map: EstateMap): {
     // Containment is drawn only where a route runs along it, and unlabelled,
     // as on the neighbourhood: it is where things live, never what is cut.
     const structural = label === undefined;
-    const stroke = edge.on_route ? "var(--foreground)" : "var(--muted-foreground)";
+    const stroke = "var(--muted-foreground)";
     // Thicker with more links, but only a little: the count is on the label,
     // and a line twenty times wider would say the same thing less exactly.
     const width = (structural ? 1 : 1.5) + Math.min(Math.log2(total), 3) * 0.5;
@@ -458,10 +365,7 @@ function toFlow(map: EstateMap): {
         : through
           ? { full: label, bends: through.map((p) => ({ x: p.x, y: p.y + BOX_HEIGHT / 2 })) }
           : { full: label },
-      labelStyle: {
-        fill: edge.on_route ? "var(--foreground)" : "var(--muted-foreground)",
-        fontSize: 11,
-      },
+      labelStyle: { fill: "var(--muted-foreground)", fontSize: 11 },
       labelBgStyle: { fill: "var(--card)" },
       labelBgPadding: [4, 2] as [number, number],
       style: { stroke, strokeWidth: width },
@@ -519,13 +423,11 @@ function BoxNode({ id, data }: NodeProps<BoxFlowNode>) {
     "nopan focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
     // Dashed, the way every gap in what CloudGuard draws is: counted, not drawn.
     fold && "border-dashed border-border bg-background",
-    !fold && (data.inside ? "border-border bg-card" : "border-border bg-muted/40"),
-    !fold && data.routes > 0 && "border-foreground/40",
+    !fold &&
+      (data.inside ? "border-border bg-card" : "border-border bg-muted/40"),
     "transition-[opacity,box-shadow]",
     actions.lit && !actions.lit.has(id) && "opacity-30",
-    actions.current.has(id) && "border-primary ring-3 ring-primary/30",
   );
-  const order = actions.order.get(id);
   const stop = {
     "data-graph-node": id,
     tabIndex: actions.active === id ? 0 : -1,
@@ -591,90 +493,16 @@ function BoxNode({ id, data }: NodeProps<BoxFlowNode>) {
 
   return (
     <>
-      <Handle type="target" position={Position.Left} isConnectable={false} style={HIDDEN_HANDLE} />
-      {order && (
-        // Where the traced route visits this box, as the step bar counts it.
-        <span
-          aria-hidden
-          className={cn(
-            "pointer-events-none absolute -top-2.5 -left-2.5 z-10 flex h-5 min-w-5 items-center justify-center rounded-full border px-1 text-[10px] font-semibold tabular-nums",
-            actions.current.has(id)
-              ? "border-primary bg-primary text-primary-foreground"
-              : "border-foreground/40 bg-card text-foreground",
-          )}
-        >
-          {order}
-        </span>
-      )}
+      <Handle
+        type="target"
+        position={Position.Left}
+        isConnectable={false}
+        style={HIDDEN_HANDLE}
+      />
       {box}
       <Handle type="source" position={Position.Right} isConnectable={false} style={HIDDEN_HANDLE} />
     </>
   );
-}
-
-const NO_ORDER: ReadonlyMap<string, string> = new Map();
-const NO_BOXES: ReadonlySet<string> = new Set();
-
-/**
- * What a traced route lights on this map: the boxes it visits and the badge
- * each carries, the arrows it runs along, and the hop being read.
- *
- * A step between two nodes in one box is inside that box and has no arrow; a
- * step to somewhere the lens does not draw has no box at that end. Both are
- * still steps -- the bar counts them -- and the map lights what it can.
- */
-function traceOnMap(
-  trace: MapTrace,
-  at: ReadonlyMap<string, unknown>,
-  drawnEdges: ReadonlySet<string>,
-): {
-  lit: Set<string>;
-  order: Map<string, string>;
-  edges: Set<string>;
-  current: Set<string>;
-  currentEdge: string | null;
-} {
-  const visits = new Map<string, number[]>();
-  trace.boxes.forEach((box, index) => {
-    if (box && at.has(box)) visits.set(box, [...(visits.get(box) ?? []), index + 1]);
-  });
-  const edgeOf = (i: number): string | null => {
-    const a = trace.boxes[i];
-    const b = trace.boxes[i + 1];
-    if (!a || !b || a === b) return null;
-    const id = `${a}|${b}`;
-    return drawnEdges.has(id) ? id : null;
-  };
-  const edges = new Set<string>();
-  for (let i = 0; i < trace.boxes.length - 1; i += 1) {
-    const id = edgeOf(i);
-    if (id) edges.add(id);
-  }
-  const current = new Set(
-    [trace.boxes[trace.hop], trace.boxes[trace.hop + 1]].filter(
-      (box): box is string => box !== null && box !== undefined && at.has(box),
-    ),
-  );
-  return {
-    lit: new Set(visits.keys()),
-    order: new Map([...visits].map(([box, at]) => [box, spans(at)])),
-    edges,
-    current,
-    currentEdge: edgeOf(trace.hop),
-  };
-}
-
-/** 1, 3, 4, 5 as "1, 3–5": where a route visits one box, compactly. */
-function spans(positions: number[]): string {
-  const parts: string[] = [];
-  let start = positions[0];
-  for (let i = 1; i <= positions.length; i += 1) {
-    if (positions[i] === positions[i - 1] + 1) continue;
-    const end = positions[i - 1];
-    parts.push(start === end ? `${start}` : `${start}–${end}`);
-    start = positions[i];
-  }
-  return parts.join(", ");
 }
 
 /** Nothing to see: the bottom edge of the lanes, for the view to fit to. */

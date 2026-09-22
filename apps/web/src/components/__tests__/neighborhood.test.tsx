@@ -407,6 +407,18 @@ describe("the neighbourhood card", () => {
     expect(screen.getByText(/the graph stops at 150 assets/i)).toBeInTheDocument();
   });
 
+  it("names its marks above the canvas, a fold's only when there is one", async () => {
+    mount(AROUND_VM);
+    await userEvent.click(screen.getByRole("button", { name: /draw the graph/i }));
+
+    expect(await screen.findByText("Exposure unknown")).toBeInTheDocument();
+    expect(screen.getByText("On an attack path")).toBeInTheDocument();
+    expect(screen.queryByText("Counted, not drawn")).toBeNull();
+    // How to read it is behind a question mark, not a paragraph under the canvas.
+    await userEvent.click(screen.getByRole("button", { name: "How to read the graph" }));
+    expect(await screen.findByText(/left of vm is what can reach it/i)).toBeInTheDocument();
+  });
+
   it("marks a way in, sensitive data and open findings in words as well as shapes", async () => {
     mount({
       ...AROUND_VM,
@@ -424,7 +436,7 @@ describe("the neighbourhood card", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /draw the graph/i }));
 
-    // Exact strings: the legend under the canvas uses the same words.
+    // Exact strings: each mark is read out in words, not left to its shape.
     expect(await screen.findAllByText(", reachable from the internet")).toHaveLength(1);
     expect(screen.getByText(", holds sensitive data")).toBeInTheDocument();
     expect(screen.getByText("open findings")).toBeInTheDocument();

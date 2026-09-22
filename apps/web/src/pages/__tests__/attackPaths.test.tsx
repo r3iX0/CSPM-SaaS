@@ -21,11 +21,17 @@
  * tested directly.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 
 import { AttackPathsPage } from "../AttackPaths";
 import { api } from "@/lib/api";
@@ -104,6 +110,9 @@ const node = (id: string, name: string, column: number) => ({
   name,
   resource_type: "virtual_machine",
   provider: "AZURE",
+  scope_id: "sub-1",
+  scope_name: "Production",
+  group: "prod",
   column,
   public_exposure: "LOW" as const,
   data_sensitivity: "LOW" as const,
@@ -151,10 +160,16 @@ const CHOKE = {
   total_routes: 4,
 };
 
+function Where() {
+  const location = useLocation();
+  return <output data-testid="where">{location.search}</output>;
+}
+
 function mount(
   map: RouteMap,
   meta: Partial<RouteMapMeta> & { total: number },
   risks: Partial<Risk>[] = [],
+  at = "/attack-paths",
 ) {
   vi.spyOn(api, "get").mockImplementation((url: string) =>
     Promise.resolve(
@@ -166,8 +181,9 @@ function mount(
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[at]}>
         <AttackPathsPage />
+        <Where />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -366,6 +382,37 @@ describe("AttackPathsPage", () => {
     expect(within(panel).getByText("jump-01 → customerdata")).toBeInTheDocument();
   });
 
+  it("names the drawing's marks, and the cut's only while a cut is tried", async () => {
+    mount(
+      {
+        ...oneRoute(),
+        // The drawn link, so the cut can be tried on the drawing.
+        choke_points: [
+          {
+            ...CHOKE,
+            relationship: "has_identity",
+            source: { id: "vm", name: "jump-01", resource_type: "virtual_machine" },
+            target: { id: "mi", name: "mi-jump-01", resource_type: "service_principal" },
+            severs: 1,
+            on_routes: 1,
+            closes: [
+              { entry: "jump-01", target: "customerdata", hops: 4, data_sensitivity: "HIGH" },
+            ],
+          },
+        ],
+      },
+      { total: 1, entry_points: 1, sensitive_targets: 1 },
+    );
+
+    expect(await screen.findByText("Thicker: closes more routes if cut")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "How to read the drawing" })).toBeInTheDocument();
+    expect(screen.queryByText("The cut being tried")).toBeNull();
+
+    await userEvent.click(screen.getByRole("button", { name: /simulate the cut/i }));
+    expect(screen.getByText("The cut being tried")).toBeInTheDocument();
+    expect(screen.getByText("Out of reach after the cut")).toBeInTheDocument();
+  });
+
   it("says when a link sits on more routes than it closes", async () => {
     // A customer told four routes close who then sees two remain stops
     // believing the next number too.
@@ -423,15 +470,120 @@ describe("AttackPathsPage", () => {
     const group = await screen.findByText(
       "3 virtual machines reach customerdata the same way",
     );
-    // Scoped to the rail: the same asset is a box on the canvas beside it, and
+    // Scoped to the panel: the same asset is a box on the canvas beside it, and
     // the claim here is about the list.
-    const rail = group.closest("[data-slot='card']") as HTMLElement;
+    const rail = screen.getByRole("complementary", { name: "The routes" });
     // Members stay behind the group until it is opened: the reader decides
     // about the shape, not about each repetition of it.
     expect(within(rail).queryByText("jump-01")).not.toBeInTheDocument();
 
     await userEvent.click(group);
     expect(await within(rail).findByText("jump-01")).toBeInTheDocument();
+  });
+
+  it("reads a traced route in the panel beside the drawing, with a way back", async () => {
+    mount(oneRoute(), { total: 1, entry_points: 1, sensitive_targets: 1 });
+    const panel = await screen.findByRole("complementary", { name: "The routes" });
+    await userEvent.click(await within(panel).findByText(/jump-01/));
+
+    expect(within(panel).getByText("The route")).toBeInTheDocument();
+    expect(within(panel).getByText("mi-jump-01 can act over sub-1")).toBeInTheDocument();
+
+    await userEvent.click(within(panel).getByRole("button", { name: "Show every route" }));
+    expect(within(panel).queryByText("The route")).not.toBeInTheDocument();
+    expect(within(panel).getByText(/jump-01/)).toBeInTheDocument();
+  });
+
+  it("walks a traced route one hop at a time, with the hop in the URL", async () => {
+    mount(
+      oneRoute(),
+      { total: 1, entry_points: 1, sensitive_targets: 1 },
+      [],
+      "/attack-paths?trace=vm%7Cstorage",
+    );
+
+    // Walking moved here from the estate map (DECISIONS.md §138).
+    const stepper = await screen.findByRole("group", {
+      name: /attack path from jump-01 to customerdata/i,
+    });
+    expect(stepper).toHaveTextContent("Hop 1 of 4");
+    // Where the hop lands, a link to that place on the estate map.
+    expect(
+      within(stepper).getByRole("link", { name: "Production › prod" }),
+    ).toHaveAttribute(
+      "href",
+      "/assets?view=graph&subscription_id=sub-1&resource_group=prod",
+    );
+
+    expect(stepper).toHaveTextContent("Cutting this link severs the route");
+
+    await userEvent.click(screen.getByRole("button", { name: "Next hop" }));
+    expect(stepper).toHaveTextContent("Hop 2 of 4");
+    expect(stepper).toHaveTextContent(
+      "mi-jump-01 can act over sub-1 (Contributor)",
+    );
+    expect(stepper).not.toHaveTextContent("Cutting this link severs the route");
+    expect(screen.getByTestId("where")).toHaveTextContent("hop=1");
+
+    fireEvent.keyDown(stepper, { key: "Escape" });
+    expect(
+      screen.queryByRole("group", { name: /attack path from/i }),
+    ).toBeNull();
+    expect(screen.getByTestId("where")).not.toHaveTextContent("trace=");
+  });
+
+  it("says where a traced route runs, each place a link to the estate map", async () => {
+    mount(
+      oneRoute(),
+      { total: 1, entry_points: 1, sensitive_targets: 1 },
+      [],
+      "/attack-paths?trace=vm%7Cstorage",
+    );
+    const panel = await screen.findByRole("complementary", {
+      name: "The routes",
+    });
+
+    expect(await within(panel).findByText("Where it runs")).toBeInTheDocument();
+    expect(
+      within(panel).getByRole("link", { name: "Production › prod" }),
+    ).toHaveAttribute(
+      "href",
+      "/assets?view=graph&subscription_id=sub-1&resource_group=prod",
+    );
+  });
+
+  it("narrows the routes to the place the estate map linked from", async () => {
+    mount(
+      oneRoute(),
+      { total: 1, entry_points: 1, sensitive_targets: 1 },
+      [],
+      "/attack-paths?scope=sub-1",
+    );
+    const panel = await screen.findByRole("complementary", {
+      name: "The routes",
+    });
+    expect(panel).toHaveTextContent("Through Production (1)");
+    expect(within(panel).getByText(/jump-01/)).toBeInTheDocument();
+
+    await userEvent.click(
+      within(panel).getByRole("button", { name: "Show routes everywhere" }),
+    );
+    expect(screen.getByTestId("where")).not.toHaveTextContent("scope=");
+  });
+
+  it("says so when no route runs through the place asked for", async () => {
+    mount(
+      oneRoute(),
+      { total: 1, entry_points: 1, sensitive_targets: 1 },
+      [],
+      "/attack-paths?scope=sub-1&group=elsewhere",
+    );
+    const panel = await screen.findByRole("complementary", {
+      name: "The routes",
+    });
+    expect(panel).toHaveTextContent(
+      "No route drawn here runs through Production › elsewhere.",
+    );
   });
 
   it("says nothing about cutting when there is nothing to cut", async () => {

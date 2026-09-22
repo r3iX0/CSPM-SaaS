@@ -148,14 +148,9 @@ def test_reach_inside_one_box_is_not_drawn_as_crossing_it() -> None:
     assert draw(Lens(), graph).edges == ()
 
 
-def test_the_edges_on_a_route_are_marked_and_the_boxes_count_it() -> None:
+def test_the_boxes_count_the_routes_through_them() -> None:
     mapped = draw(Lens())
-    routed = {(e.source, e.target) for e in mapped.edges if e.on_route}
 
-    assert routed == {
-        (scope_box("sub-a"), scope_box(DIRECTORY_SCOPE)),
-        (scope_box(DIRECTORY_SCOPE), scope_box("sub-b")),
-    }
     assert mapped.routes_total == 1
     assert mapped.routes == {
         scope_box("sub-a"): 1,
@@ -302,7 +297,7 @@ def test_serialized_boxes_carry_the_same_counts_whatever_they_hold() -> None:
 
     into_b = next(e for e in body["edges"] if e["target"] == scope_box("sub-b"))
     assert into_b["source"] == scope_box(DIRECTORY_SCOPE)
-    assert into_b["on_route"] is True
+    assert "on_route" not in into_b
     assert into_b["links"] == [
         {"relationship": "grants_role", "count": 1, "label": "can act over"}
     ]
@@ -327,45 +322,10 @@ def test_serialized_asset_boxes_link_to_their_page() -> None:
     assert body["lens"] == {"scope_id": "sub-b", "group": "Data"}
 
 
-# ------------------------------------------------------------ routes, traced
-def test_each_route_through_the_lens_is_placed_on_the_boxes_drawn() -> None:
-    mapped = draw(Lens())
-
-    assert len(mapped.traced) == mapped.routes_total == 1
-    route = mapped.traced[0]
-    # Entry, then each step's target: the exposed VM's subscription, the
-    # directory its identity lives in, then sub-b and down to the storage.
-    assert route.boxes == (
-        scope_box("sub-a"),
-        scope_box(DIRECTORY_SCOPE),
-        scope_box("sub-b"),
-        scope_box("sub-b"),
-        scope_box("sub-b"),
-    )
-    assert len(route.boxes) == route.path.hops + 1
-
-
-def test_a_route_leaving_the_lens_names_no_box_where_none_is_drawn() -> None:
-    # Opened on sub-a, the identity's role over sub-b is between two
-    # neighbours, so sub-b is not drawn -- and the route must not claim it is.
-    mapped = draw(Lens("sub-a"))
-    drawn = {box.id for box in mapped.boxes}
-    route = mapped.traced[0]
-
-    assert route.boxes[:2] == (group_box("sub-a", "web"), scope_box(DIRECTORY_SCOPE))
-    assert route.boxes[2:] == (None, None, None)
-    assert all(box is None or box in drawn for box in route.boxes)
-
-
-def test_routes_past_the_cap_are_counted_but_not_traced() -> None:
-    graph = environment()
-    mapped = estate_map(graph, PLACEMENTS, Lens(), graph.attack_paths(), max_routes=0)
-    assert mapped is not None
-    assert mapped.routes_total == 1
-    assert mapped.traced == ()
-
-
-def test_serialized_routes_carry_their_boxes_and_patterns() -> None:
+# ------------------------------------------------------------ routes
+def test_the_map_sends_no_routes_to_walk() -> None:
+    # Walking a route is the attack-path page's (DECISIONS.md section 138): the
+    # map sends the count its link there carries, and nothing to trace.
     mapped = draw(Lens())
     placements = Placements(
         of=PLACEMENTS,
@@ -375,19 +335,5 @@ def test_serialized_routes_carry_their_boxes_and_patterns() -> None:
     )
     body = serialize_estate(mapped, placements, {})
 
-    (route,) = body["routes"]
-    assert route["key"] == f"{VM}|{STORAGE}"
-    assert route["boxes"][0] == scope_box("sub-a")
-    assert len(route["boxes"]) == len(route["steps"]) + 1
-    assert route["pattern"] is None
-    assert body["patterns"] == []
-    assert body["loose"] == [route["key"]]
-
-
-def test_a_route_named_to_be_walked_is_traced_past_the_cap() -> None:
-    graph = environment()
-    mapped = estate_map(
-        graph, PLACEMENTS, Lens(), graph.attack_paths(), max_routes=0, keep=f"{VM}|{STORAGE}"
-    )
-    assert mapped is not None
-    assert [route.path.target.provider_resource_id for route in mapped.traced] == [STORAGE]
+    assert set(body) == {"lens", "boxes", "edges"}
+    assert {box["id"]: box["routes"] for box in body["boxes"]}[scope_box("sub-b")] == 1

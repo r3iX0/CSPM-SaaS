@@ -7223,6 +7223,135 @@ need them again, so the comment in `button.tsx` says why.
 `border-transparent`, a ghost one keeps its transparent border, and a class
 passed in wins.
 
+## 136. Every graph has a legend
+
+The estate map had a legend (§133): each mark once with its word, and how to
+read the map behind a question mark, because a paragraph under the canvas is
+the one place a legend is not read. The neighbourhood still had that
+paragraph, and the attack-path page's route map had one sentence of help under
+it and no key to its marks at all -- a line's thickness, the dashed green cut,
+the greyed boxes a cut would close.
+
+`GraphLegend` (`components/graph/GraphLegend.tsx`) is the estate map's legend
+made shared, and `MARKS` holds each mark drawn as the canvases draw it. The
+glyphs come from `lib/icons` (§86); the line marks -- a thin and a thick line
+for weight, a dashed line in `text-ok` for a cut -- are hand-drawn SVG, as a
+one-off visual is. One glyph therefore means one thing on all three graphs.
+
+- **Estate map**: unchanged in what it says; now built from the shared parts.
+- **Neighbourhood**: beside the depth buttons -- reachable from the internet,
+  exposure unknown, sensitive data, open findings, on an attack path, and
+  "counted, not drawn" only when a fold is drawn. How to read it moved into
+  the question mark. What stays under the canvas is what this drawing admits
+  about itself: the fold's cap and the node cap, which are facts about this
+  picture rather than how to read pictures.
+- **Route map**: above the drawing -- reachable from the internet, sensitive
+  data, open findings, and "thicker: closes more routes if cut"; while a cut is
+  being tried, also the dashed cut and "out of reach after the cut". Its help
+  sentence moved into the question mark; "drawing N of M routes" stays visible,
+  as a cap is. Its words are in `i18n/en.ts` with the rest of the page's.
+
+A legend entry appears only while its mark can: the fold's only with a fold,
+the cut's only during a cut. A key to marks that are not drawn is a list of
+things to look for and not find.
+
+**Checked in a browser**, light and dark, every mark in one legend on a scratch
+page. The dashed box first drew as a dashed circle at that size and the greyed
+box nearly vanished; both are now squarer, and the greyed one is filled from
+the muted foreground rather than faded. Tests read the words, not the pixels.
+
+## 137. The attack-path page's drawing and its routes are one frame
+
+The estate map (§133) and the neighbourhood (§134) are each one frame: the
+canvas, and a panel on its side that answers for it. The attack-path page was
+still two columns of cards -- the drawing in one, and beside it a stack of
+cards for the repeated routes, the other routes and, once a route was traced,
+the route itself at the foot of that stack, often below the fold and out of
+sight of the drawing it was tracing.
+
+Now it has the same shape. Above the frame, the title and the legend (§136).
+In it, the canvas, and a panel on its right -- below it on a narrow screen --
+that lists the repeated routes and then the rest, scrolling on its own. Tracing
+a route turns the panel into that route read hop by hop, with a button back to
+the list, as selecting a box does on the map. Pressing a box narrows the list to
+the routes through it, and the panel says whose routes they are with a button
+to show every route again. While a cut is being tried, a strip across the top
+of the frame says that nothing in Azure has changed, where the drawing it
+qualifies is.
+
+The changes that close the most stay above the frame as their own card: they
+are what to do about everything in it, and "Simulate the cut" acts on the
+drawing from there.
+
+**Not checked in a browser.** Checked by tests, which read the panel's words
+and find them beside the drawing, not the layout.
+
+## 138. The estate map explores connections; attack paths are read on their own page
+
+Supersedes the walking half of §132 and "the estate map owns walking a route"
+in §133.
+
+The estate map had become two tools in one frame. It drew how the estate is
+wired -- which subscription's identities reach which other, where the
+directory's principals land -- and it also listed every attack path, walked
+one hop at a time with the boxes numbered, and by default ("Attack paths
+only") drew nothing a route did not run through. The attack-path page, which
+ranks the routes, weighs the cuts and draws every route, then sent its reader
+to the map to walk one (§133, §137). A route was read in two places, and the
+map's default picture answered the page's question instead of its own.
+
+Now each answers one question.
+
+- **The estate map is for connections.** No paths tab, no walk, no step bar,
+  no "Attack paths only" switch, no numbered boxes, no darker arrows on a
+  route and no route count on a box. The panel lists the contents and the
+  links. A selected box lists what reaches it and what it reaches on this map,
+  each row selecting that arrow, and a selected arrow offers its two ends. A
+  quiet box is drawn like any other: this is a map of the estate, not of its
+  routes.
+- **It links to the routes, once.** Where attack paths run through a selected
+  box, one line -- "On 3 attack paths -- see them" -- opens the attack-path
+  page narrowed to it: an asset by `through=<provider id>`, a subscription by
+  `scope=`, a group by `scope=` and `group=` (an empty group is what sits
+  directly in the subscription). The fold has no one place and no link.
+- **The attack-path page walks a route.** Tracing one puts the step bar across
+  the top of the drawing, as it was on the map: previous and next, the hop's
+  own sentence with the role named (§121), whether cutting it severs the
+  route, pips for every hop, arrow keys to step and Escape to stop. The drawing
+  marks the hop in the primary colour with its two boxes ringed, frames the
+  route when it is traced, and pans only when the hop is out of view.
+- **Where each hop lands.** Each node on the route map now carries its
+  placement (`scope_id`, `scope_name`, `group`), read by `load_placements` as
+  the map reads it. The step bar says which subscription and group the hop
+  lands in, and the traced route's panel lists every place the route runs
+  through in order; each is a link to the estate map opened there. That is how
+  a route is followed down into a group now: by going to the map to see its
+  wiring, rather than by the map drawing the route.
+- **The page's state is in the URL.** `trace`, `hop`, `through`, `scope` and
+  `group`, so the map's link and any other opens on them. Each change replaces
+  the entry, as a step along a route did on the map. A simulated cut stays out
+  of the URL: it is a question asked, not a place.
+- **Old links still land.** `/assets?view=graph&walk=<key>&hop=<n>` redirects
+  to `/attack-paths?trace=<key>&hop=<n>`.
+
+**The API.** `GET /attack-paths/estate` sends no routes, patterns or `loose`
+any more, and takes no `route`; its edges lose `on_route`. A box still counts
+the routes through it (`routes`), which is the number its link carries, and
+the routes still decide which containment is drawn and which assets are drawn
+before the fold -- what a route runs through is still worth drawing, it is
+just not drawn as a route. `GET /attack-paths/graph` gains the placement on
+each node.
+
+The count on the map's link is the server's, over every route; the page it
+opens narrows the routes it has drawn, which past the drawing's cap can be
+fewer. The panel says how many it shows.
+
+The neighbourhood on an asset's page still lists and traces the routes
+through its asset. Whether it should also only link to them is left for now.
+
+**Not checked in a browser.** The page and the map were checked by tests,
+which read the step bar, the panel and the links, not the layout.
+
 ## Open items carried forward
 
 **Data residency is not built (§113).** An organization setting for allowed

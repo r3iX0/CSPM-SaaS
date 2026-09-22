@@ -750,8 +750,16 @@ export const en = {
     mapTitle: "Every route, drawn",
     mapHelp:
       "Left to right is hops from the outside in. A line's thickness is how many routes close if it is cut — checked for every link, not only the ones listed above. Press a line to see what cutting it would do, or a box for the routes through it; press the empty canvas to put the box down. Pointing at a box fades what it does not touch. Arrow keys move between boxes.",
+    mapHelpLabel: "How to read the drawing",
+    legendEntry: "Reachable from the internet",
+    legendSensitive: "Sensitive data",
+    legendFindings: "Open findings",
+    legendWeight: "Thicker: closes more routes if cut",
+    legendCut: "The cut being tried",
+    legendClosed: "Out of reach after the cut",
     mapDrawnOf: (drawn: number, total: number) =>
       `Drawing ${drawn} of ${total} routes — the rest are in the list.`,
+    panelLabel: "The routes",
     listTitle: "Routes",
     patternsTitle: "The same route, repeated",
     patternsHelp:

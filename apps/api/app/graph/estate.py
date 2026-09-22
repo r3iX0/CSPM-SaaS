@@ -38,10 +38,6 @@ DIRECTORY_SCOPE = "directory"
 # kind rather than spread along a walk.
 ESTATE_MAX_ASSETS = 40
 
-# Attack paths one lens sends to be traced on it. Shortest first, so the cap
-# drops the longest; ``routes_total`` still counts every one.
-ESTATE_MAX_ROUTES = 100
-
 # The id of the box holding the assets a lens did not draw. One per lens: what
 # is in it is listed by the same filter the lens is, so it needs no identity of
 # its own.
@@ -85,22 +81,6 @@ class EstateEdge:
     source: str
     target: str
     links: tuple[tuple[RelationshipType, int], ...]
-    #: Whether any of the links is a hop on an attack path.
-    on_route: bool
-
-
-@dataclass(frozen=True)
-class EstateRoute:
-    """One attack path through the lens, and where on the map each node of it is.
-
-    ``boxes`` runs along the route -- its entry, then each step's target -- so
-    step ``i`` goes from ``boxes[i]`` to ``boxes[i + 1]``. A node whose box is
-    not drawn in this lens is ``None``: the route passes somewhere the lens does
-    not show, and the page says so rather than lighting a box that is not there.
-    """
-
-    path: Path
-    boxes: tuple[str | None, ...]
 
 
 @dataclass(frozen=True)
@@ -114,9 +94,6 @@ class EstateMap:
     routes_total: int
     #: Assets folded although they carry reach; their links end at the fold.
     folded_with_reach: int
-    #: The routes counted in ``routes_total``, shortest first, capped at
-    #: ``max_routes``, each placed on the boxes drawn.
-    traced: tuple[EstateRoute, ...] = ()
 
 
 def scope_box(scope: str) -> str:
@@ -162,8 +139,6 @@ def estate_map(
     paths: Iterable[Path] = (),
     *,
     max_assets: int = ESTATE_MAX_ASSETS,
-    max_routes: int = ESTATE_MAX_ROUTES,
-    keep: str | None = None,
 ) -> EstateMap | None:
     """The estate through one lens, or None when the lens names nothing.
 
@@ -175,9 +150,10 @@ def estate_map(
     would carry an edge to every group it holds, and the one route through them
     would be lost among forty statements of where things live.
 
-    ``keep`` names one route, by its ends (``entry|target``, as ``route_key``
-    spells it), to trace even when it falls past ``max_routes``: a link from
-    another page to walk that route must find it here.
+    The routes themselves are the attack-path page's to draw and walk
+    (section 138). Here they decide only which containment is drawn, which
+    assets are drawn before the fold, and how many routes each box counts --
+    the number its link to that page carries.
     """
     placed = {
         node_id: placements.get(node_id, Placement(DIRECTORY_SCOPE)) for node_id in graph.nodes
@@ -264,7 +240,6 @@ def estate_map(
     counted: dict[tuple[str, str], dict[RelationshipType, int]] = defaultdict(
         lambda: defaultdict(int)
     )
-    routed: set[tuple[str, str]] = set()
     for source, relationship, target in graph.links():
         a, b = box_of[source], box_of[target]
         if a == b or (a not in opened and b not in opened):
@@ -275,8 +250,6 @@ def estate_map(
         ):
             continue
         counted[(a, b)][relationship] += 1
-        if hop:
-            routed.add((a, b))
 
     shown = opened | {box for pair in counted for box in pair}
 
@@ -301,7 +274,6 @@ def estate_map(
             source=a,
             target=b,
             links=tuple(sorted(by.items(), key=lambda item: item[0].value)),
-            on_route=(a, b) in routed,
         )
         for (a, b), by in sorted(counted.items())
     )
@@ -315,11 +287,6 @@ def estate_map(
     ]
     through = {box: sum(1 for _, on in touching if box in on) for box in shown}
 
-    def placed_on_map(path: Path) -> tuple[str | None, ...]:
-        walked = [path.entry.provider_resource_id] + [
-            step.target.provider_resource_id for step in path.steps
-        ]
-        return tuple(box if (box := box_of.get(n)) in shown else None for n in walked)
     return EstateMap(
         lens=lens,
         boxes=tuple(boxes),
@@ -327,10 +294,4 @@ def estate_map(
         routes={box: count for box, count in through.items() if count},
         routes_total=len(touching),
         folded_with_reach=sum(1 for n in folded if reach[n] > 0),
-        traced=tuple(
-            EstateRoute(path, placed_on_map(path))
-            for index, (path, _) in enumerate(touching)
-            if index < max_routes
-            or f"{path.entry.provider_resource_id}|{path.target.provider_resource_id}" == keep
-        ),
     )

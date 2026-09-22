@@ -1,7 +1,24 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useMemo,
+  useState,
+  type KeyboardEvent,
+} from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
-import { RadarIcon, RouteIcon, ScissorsIcon, UndoIcon } from "lucide-react";
+import { Link, useSearchParams } from "react-router-dom";
+import {
+  ArrowLeftIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  MapIcon,
+  RadarIcon,
+  RouteIcon,
+  ScissorsIcon,
+  UndoIcon,
+  XIcon,
+} from "lucide-react";
 
 import { api } from "@/lib/api";
 import type {
@@ -13,6 +30,7 @@ import type {
   RouteMap,
   RouteMapEdge,
   RouteMapMeta,
+  RouteMapNode,
 } from "@/lib/types";
 import { useT } from "@/i18n";
 import { cn } from "@/lib/format";
@@ -20,6 +38,7 @@ import { StatStrip } from "@/components/common/StatStrip";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { ResourceTypeLabel } from "@/components/security/IconLabel";
 import { AttackPathRoute } from "@/components/graph/AttackPathRoute";
+import { GraphLegend, MARKS } from "@/components/graph/GraphLegend";
 import { OpenInGraph } from "@/components/graph/OpenInGraph";
 import { PatternRow, RouteRow } from "@/components/graph/RouteRows";
 import { routeKeyOf } from "@/components/graph/routeKeys";
@@ -31,7 +50,7 @@ import {
   PageHeader,
 } from "@/components/common/states";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -52,6 +71,13 @@ const RouteMapCanvas = lazy(() => import("@/components/graph/RouteMapCanvas"));
  * and the drawing says it in a look. Every line carries what cutting it would
  * close — for every link, not for a shortlist — so "which change is worth
  * making" is answered on the picture rather than beside it.
+ *
+ * **Routes are read here, not on the estate map (§138).** A traced route is
+ * walked one hop at a time in a bar across the top of the drawing, each hop
+ * saying which subscription and group it lands in, with a link to that place
+ * on the map. The map links back here narrowed to one of its boxes. What is
+ * traced, the hop, the box picked and the place narrowed to are all in the URL
+ * (`trace`, `hop`, `through`, `scope`, `group`), so a link opens on them.
  */
 export function AttackPathsPage() {
   const t = useT();
@@ -93,12 +119,46 @@ export function AttackPathsPage() {
     if (chokes) queryClient.setQueryData(["attack-paths", "choke-points"], chokes);
   }, [chokes, queryClient]);
 
+  const [params, setParams] = useSearchParams();
   /** The route being read, by key. Null means every route is drawn. */
-  const [traced, setTraced] = useState<string | null>(null);
+  const traced = params.get("trace");
+  const hopParam = Math.max(
+    0,
+    Number.parseInt(params.get("hop") ?? "0", 10) || 0,
+  );
+  /** The box whose routes the list is narrowed to. */
+  const picked = params.get("through");
+  /** The subscription, and perhaps the group, the list is narrowed to. */
+  const place = useMemo<Place | null>(() => {
+    const scope = params.get("scope");
+    if (!scope) return null;
+    // An empty group is what sits directly in the subscription; no group at
+    // all is anywhere in it.
+    return {
+      scope,
+      group: params.has("group") ? params.get("group") || null : undefined,
+    };
+  }, [params]);
   /** The link somebody is weighing up, and what the graph said closes with it. */
   const [considered, setConsidered] = useState<RouteMapEdge | null>(null);
-  /** The box whose routes the rail is narrowed to. */
-  const [picked, setPicked] = useState<string | null>(null);
+
+  // Every change replaces the entry: reading along the page is not a trail
+  // somebody retraces with Back, as opening a box on the map is.
+  function change(next: Record<string, string | null>) {
+    setParams(
+      (previous) => {
+        const params = new URLSearchParams(previous);
+        for (const [name, value] of Object.entries(next)) {
+          if (value === null) params.delete(name);
+          else params.set(name, value);
+        }
+        return params;
+      },
+      { replace: true },
+    );
+  }
+  const setTraced = (key: string | null) =>
+    change({ trace: key, hop: key ? "0" : null });
 
   const map = data?.map;
   const routes = useMemo(() => map?.routes ?? [], [map]);
@@ -106,6 +166,9 @@ export function AttackPathsPage() {
     () => routes.find((route) => route.key === traced) ?? null,
     [routes, traced],
   );
+  const hop = tracedRoute
+    ? Math.min(hopParam, tracedRoute.steps.length - 1)
+    : 0;
   const simulated = useMemo(
     () =>
       considered
@@ -168,37 +231,34 @@ export function AttackPathsPage() {
             onConsider={setConsidered}
           />
 
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
-            <RouteMapCard
-              map={map}
-              meta={data.meta}
-              traced={tracedRoute}
-              simulated={simulated}
-              picked={picked}
-              onPickNode={(id) => {
-                // A box asks "what runs through here". The rail answers, and
-                // any trace clears so every route through it is visible.
-                setTraced(null);
-                setConsidered(null);
-                setPicked((current) => (current === id ? null : id));
-              }}
-              onPickLink={(edge) =>
-                setConsidered((current) =>
-                  current && sameLink(current, edge) ? null : edge,
-                )
-              }
-              onClearPick={() => setPicked(null)}
-            />
-
-            <RouteRail
-              map={map}
-              traced={traced}
-              onTrace={setTraced}
-              tracked={tracked.data}
-              trackingKnown={tracked.isSuccess}
-              picked={picked}
-            />
-          </div>
+          <RouteMapFrame
+            map={map}
+            meta={data.meta}
+            traced={tracedRoute}
+            hop={hop}
+            onTrace={setTraced}
+            onHop={(next) => change({ hop: String(next) })}
+            tracked={tracked.data}
+            trackingKnown={tracked.isSuccess}
+            simulated={simulated}
+            picked={picked}
+            place={place}
+            onPickNode={(id) => {
+              // A box asks "what runs through here". The panel answers, and
+              // any trace clears so every route through it is visible.
+              setConsidered(null);
+              change({
+                trace: null,
+                hop: null,
+                through: picked === id ? null : id,
+              });
+            }}
+            onPickLink={(edge) =>
+              setConsidered((current) => (current && sameLink(current, edge) ? null : edge))
+            }
+            onClearPick={() => change({ through: null })}
+            onClearPlace={() => change({ scope: null, group: null })}
+          />
         </>
       )}
     </div>
@@ -207,6 +267,44 @@ export function AttackPathsPage() {
 
 const sameLink = (a: RouteMapEdge, b: RouteMapEdge) =>
   a.source === b.source && a.relationship === b.relationship && a.target === b.target;
+
+/**
+ * A subscription, or a group in one, as the estate map opens it. `group`
+ * undefined is anywhere in the subscription; null is what sits directly in it.
+ */
+interface Place {
+  scope: string;
+  group: string | null | undefined;
+}
+
+/** ARM is case-insensitive about group names: `Prod` and `prod` are one group. */
+const sameGroup = (a: string | null, b: string | null) =>
+  (a ?? "").toLowerCase() === (b ?? "").toLowerCase();
+
+function inPlace(node: RouteMapNode | undefined, place: Place): boolean {
+  if (!node || node.scope_id !== place.scope) return false;
+  return place.group === undefined || sameGroup(node.group, place.group);
+}
+
+/** Every node a route visits, in order: its entry, then each step's target. */
+const visits = (route: MappedRoute) => [
+  route.entry.id,
+  ...route.steps.map((step) => step.target_id),
+];
+
+/** Where a node sits, as a name: "Production › web", or the subscription alone. */
+const placeName = (node: Pick<RouteMapNode, "scope_name" | "group">) =>
+  node.group ? `${node.scope_name} › ${node.group}` : node.scope_name;
+
+/** The estate map, opened on the place a node sits. */
+function mapHref(node: Pick<RouteMapNode, "scope_id" | "group">): string {
+  const query = new URLSearchParams({
+    view: "graph",
+    subscription_id: node.scope_id,
+  });
+  if (node.group) query.set("resource_group", node.group);
+  return `/assets?${query}`;
+}
 
 /**
  * The links holding up several routes at once, and what happens if one goes.
@@ -320,201 +418,321 @@ function ChokePoints({
   );
 }
 
-function RouteMapCard({
+/**
+ * The drawing and the routes, as one frame.
+ *
+ * The rail used to be a column of cards beside a card holding the canvas, and
+ * a traced route opened at the foot of that column, often below the fold. Now
+ * it is the estate map's shape (DECISIONS.md §137): the canvas, and a panel on
+ * its side that lists the routes and, once one is traced, reads it hop by hop
+ * with a way back to the list.
+ */
+function RouteMapFrame({
   map,
   meta,
   traced,
+  hop,
+  onTrace,
+  onHop,
+  tracked,
+  trackingKnown,
   simulated,
   picked,
+  place,
   onPickNode,
   onPickLink,
   onClearPick,
+  onClearPlace,
 }: {
   map: RouteMap;
   meta: RouteMapMeta;
   traced: MappedRoute | null;
+  hop: number;
+  onTrace: (key: string | null) => void;
+  onHop: (hop: number) => void;
+  tracked?: Map<string, Risk>;
+  trackingKnown: boolean;
   simulated: { link: Hop; closes: Set<string> } | null;
   picked: string | null;
+  place: Place | null;
   onPickNode: (id: string) => void;
   onPickLink: (edge: RouteMapEdge) => void;
   onClearPick: () => void;
+  onClearPlace: () => void;
 }) {
   const t = useT();
-  const pickedNode = map.nodes.find((node) => node.id === picked);
+  const nodes = useMemo(
+    () => new Map(map.nodes.map((node) => [node.id, node])),
+    [map.nodes],
+  );
 
   return (
-    <Card className="min-w-0">
-      <CardHeader>
-        <CardTitle className="text-sm">{t.attackPaths.mapTitle}</CardTitle>
-        {simulated && (
-          <Alert className="mt-2 border-ok-border bg-ok-bg text-ok">
-            <ScissorsIcon />
-            <AlertDescription className="text-foreground">
-              {t.attackPaths.simulating}
-            </AlertDescription>
-          </Alert>
+    <section aria-labelledby="route-map-title" className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 id="route-map-title" className="text-sm font-medium">
+          {t.attackPaths.mapTitle}
+        </h2>
+        <GraphLegend
+          label={t.attackPaths.mapHelpLabel}
+          items={[
+            { mark: MARKS.exposure, label: t.attackPaths.legendEntry },
+            { mark: MARKS.sensitive, label: t.attackPaths.legendSensitive },
+            { mark: MARKS.findings, label: t.attackPaths.legendFindings },
+            { mark: MARKS.weight, label: t.attackPaths.legendWeight },
+            ...(simulated
+              ? [
+                  { mark: MARKS.cut, label: t.attackPaths.legendCut },
+                  { mark: MARKS.closed, label: t.attackPaths.legendClosed },
+                ]
+              : []),
+          ]}
+        >
+          <p>{t.attackPaths.mapHelp}</p>
+        </GraphLegend>
+      </div>
+
+      <div className="flex w-full flex-col overflow-hidden rounded-xl border border-border bg-card lg:h-[36rem]">
+        {traced && (
+          <RouteStepper
+            route={traced}
+            hop={hop}
+            nodes={nodes}
+            onHop={onHop}
+            onClose={() => onTrace(null)}
+          />
         )}
-        {pickedNode && (
-          <p className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">{pickedNode.name}</span>
-            {t.attackPaths.routesThrough(pickedNode.routes)}
-            <button
-              type="button"
-              onClick={onClearPick}
-              className="underline underline-offset-4 hover:text-foreground"
-            >
-              {t.attackPaths.clearTrace}
-            </button>
+        {simulated && (
+          <p className="flex items-center gap-2 border-b border-ok-border bg-ok-bg px-3 py-2 text-xs text-foreground">
+            <ScissorsIcon className="size-3.5 shrink-0 text-ok" aria-hidden />
+            {t.attackPaths.simulating}
           </p>
         )}
-      </CardHeader>
-      <CardContent className="flex flex-col gap-2">
-        <div className="h-[32rem] w-full overflow-hidden rounded-lg border border-border">
-          <Suspense fallback={<Skeleton className="size-full" />}>
-            <RouteMapCanvas
-              map={map}
-              traced={traced}
-              simulated={simulated}
-              picked={picked}
-              onPickNode={onPickNode}
-              onPickLink={onPickLink}
-              onClearPick={onClearPick}
-            />
-          </Suspense>
+        <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+          <div className="h-[28rem] min-w-0 lg:h-auto lg:flex-1">
+            <Suspense fallback={<Skeleton className="size-full" />}>
+              <RouteMapCanvas
+                map={map}
+                traced={traced}
+                hop={traced ? hop : null}
+                simulated={simulated}
+                picked={picked}
+                onPickNode={onPickNode}
+                onPickLink={onPickLink}
+                onClearPick={onClearPick}
+              />
+            </Suspense>
+          </div>
+
+          <aside
+            aria-label={t.attackPaths.panelLabel}
+            className="flex max-h-[30rem] min-h-0 flex-col border-t border-border lg:max-h-none lg:w-[22rem] lg:border-t-0 lg:border-l"
+          >
+            {traced ? (
+              <TracedRoute
+                route={traced}
+                nodes={nodes}
+                risk={tracked?.get(traced.key)}
+                trackingKnown={trackingKnown}
+                onBack={() => onTrace(null)}
+              />
+            ) : (
+              <RouteList
+                map={map}
+                nodes={nodes}
+                onTrace={onTrace}
+                picked={picked}
+                onClearPick={onClearPick}
+                place={place}
+                onClearPlace={onClearPlace}
+              />
+            )}
+          </aside>
         </div>
+      </div>
+
+      {meta.drawn < meta.total && (
         <p className="text-xs leading-relaxed text-muted-foreground">
-          {t.attackPaths.mapHelp}
-          {meta.drawn < meta.total && (
-            <> {t.attackPaths.mapDrawnOf(meta.drawn, meta.total)}</>
-          )}
+          {t.attackPaths.mapDrawnOf(meta.drawn, meta.total)}
         </p>
-      </CardContent>
-    </Card>
+      )}
+    </section>
   );
 }
 
 /**
- * The routes themselves, beside the drawing.
+ * The routes themselves, in the panel beside the drawing.
  *
  * Patterns first, because a group of twelve identical routes is one thing to
  * decide about and twelve things to read. A route belongs to at most one
  * group, so the groups and the rest are every route exactly once.
  */
-function RouteRail({
+function RouteList({
   map,
-  traced,
+  nodes,
   onTrace,
-  tracked,
-  trackingKnown,
   picked,
+  onClearPick,
+  place,
+  onClearPlace,
 }: {
   map: RouteMap;
-  traced: string | null;
+  nodes: ReadonlyMap<string, RouteMapNode>;
   onTrace: (key: string | null) => void;
-  tracked?: Map<string, Risk>;
-  trackingKnown: boolean;
   picked: string | null;
+  onClearPick: () => void;
+  place: Place | null;
+  onClearPlace: () => void;
 }) {
   const t = useT();
   const byKey = useMemo(
     () => new Map(map.routes.map((route) => [route.key, route])),
     [map.routes],
   );
-  // With a box picked, the rail narrows to the routes running through it —
-  // which is the question pressing a box asks.
-  const shown = useMemo(() => {
-    if (!picked) return map.routes;
-    return map.routes.filter(
-      (route) =>
-        route.entry.id === picked ||
-        route.steps.some((step) => step.target_id === picked),
-    );
-  }, [map.routes, picked]);
-  const shownKeys = useMemo(() => new Set(shown.map((route) => route.key)), [shown]);
+  // With a box picked, the list narrows to the routes running through it —
+  // which is the question pressing a box asks. With a place, to the routes
+  // through anything in it, which is what the estate map links here for.
+  const shown = useMemo(
+    () =>
+      map.routes.filter(
+        (route) =>
+          (!picked || visits(route).includes(picked)) &&
+          (!place || visits(route).some((id) => inPlace(nodes.get(id), place))),
+      ),
+    [map.routes, picked, place, nodes],
+  );
+  const shownKeys = useMemo(
+    () => new Set(shown.map((route) => route.key)),
+    [shown],
+  );
   const patterns = picked
     ? map.patterns.filter((pattern) => pattern.routes.some((key) => shownKeys.has(key)))
     : map.patterns;
   const loose = shown.filter((route) => route.pattern === null);
-  const tracedRoute = traced ? byKey.get(traced) : undefined;
+  const pickedNode = picked ? nodes.get(picked) : undefined;
+  // Named by any node in the subscription; the id alone when none drawn is.
+  const placeNode = place
+    ? map.nodes.find((node) => node.scope_id === place.scope)
+    : undefined;
+  const placeLabel = place
+    ? placeName({
+        scope_name: placeNode?.scope_name ?? place.scope,
+        group:
+          place.group === undefined
+            ? null
+            : (place.group ?? "what sits directly in it"),
+      })
+    : null;
 
   return (
-    <aside className="flex min-w-0 flex-col gap-4">
-      {traced && (
-        <Button type="button" variant="outline" size="sm" onClick={() => onTrace(null)}>
-          <UndoIcon aria-hidden />
-          {t.attackPaths.clearTrace}
-        </Button>
+    <div className="flex min-h-0 flex-1 flex-col">
+      {place && (
+        <div className="flex items-center gap-2 border-b border-border p-2 pl-3">
+          <p className="min-w-0 flex-1 text-xs text-muted-foreground">
+            Through{" "}
+            <span className="font-medium text-foreground">{placeLabel}</span>{" "}
+            <span className="tabular-nums">({shown.length})</span>
+          </p>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Show routes everywhere"
+            onClick={onClearPlace}
+          >
+            <XIcon />
+          </Button>
+        </div>
       )}
-
-      {patterns.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">{t.attackPaths.patternsTitle}</CardTitle>
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              {t.attackPaths.patternsHelp}
-            </p>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2">
+      {pickedNode && (
+        <div className="flex items-center gap-2 border-b border-border p-2 pl-3">
+          <p className="min-w-0 flex-1 text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">{pickedNode.name}</span>{" "}
+            {t.attackPaths.routesThrough(pickedNode.routes)}
+          </p>
+          <Button variant="ghost" size="sm" onClick={onClearPick}>
+            <UndoIcon data-icon="inline-start" />
+            {t.attackPaths.clearTrace}
+          </Button>
+        </div>
+      )}
+      <div className="flex flex-col gap-4 overflow-y-auto p-3">
+        {shown.length === 0 && (
+          <p className="text-xs text-muted-foreground">
+            No route drawn here runs through {placeLabel ?? "it"}.
+          </p>
+        )}
+        {patterns.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <div>
+              <h3 className="text-xs font-medium">{t.attackPaths.patternsTitle}</h3>
+              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                {t.attackPaths.patternsHelp}
+              </p>
+            </div>
             {patterns.map((pattern) => (
               <PatternRow
                 key={pattern.id}
                 pattern={pattern}
-                traced={traced}
+                traced={null}
                 onTrace={onTrace}
                 byKey={byKey}
               />
             ))}
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        )}
 
-      {loose.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">{t.attackPaths.listTitle}</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2">
+        {loose.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <h3 className="text-xs font-medium">{t.attackPaths.listTitle}</h3>
             {loose.map((route) => (
-              <RouteRow key={route.key} route={route} traced={traced} onTrace={onTrace} />
+              <RouteRow key={route.key} route={route} traced={null} onTrace={onTrace} />
             ))}
-          </CardContent>
-        </Card>
-      )}
-
-      {tracedRoute && (
-        <TracedRoute
-          route={tracedRoute}
-          risk={tracked?.get(tracedRoute.key)}
-          trackingKnown={trackingKnown}
-        />
-      )}
-    </aside>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
 /** One route, read hop by hop, with the link worth cutting marked. */
 function TracedRoute({
   route,
+  nodes,
   risk,
   trackingKnown,
+  onBack,
 }: {
   route: MappedRoute;
+  nodes: ReadonlyMap<string, RouteMapNode>;
   risk?: Risk;
   trackingKnown: boolean;
+  onBack: () => void;
 }) {
   const t = useT();
+  // The places the route runs through, in the order it reaches them, each a
+  // link to the estate map opened there: the map shows a place's wiring, and
+  // this is how a route is followed down into it.
+  const places = new Map<string, RouteMapNode>();
+  for (const id of visits(route)) {
+    const node = nodes.get(id);
+    if (node)
+      places.set(`${node.scope_id}|${(node.group ?? "").toLowerCase()}`, node);
+  }
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-sm">
-          {route.entry.name} <span className="text-muted-foreground">→</span>{" "}
-          {route.target.name}
-        </CardTitle>
-        <p className="text-[11px] font-medium text-muted-foreground">
-          {t.attackPaths.route}
-        </p>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex items-center gap-2 border-b border-border p-2">
+        <Button variant="ghost" size="sm" onClick={onBack}>
+          <ArrowLeftIcon data-icon="inline-start" />
+          {t.attackPaths.clearTrace}
+        </Button>
+      </div>
+      <div className="flex flex-col gap-3 overflow-y-auto p-3">
+        <div>
+          <p className="text-[11px] font-medium text-muted-foreground">{t.attackPaths.route}</p>
+          <h3 className="text-sm font-medium">
+            {route.entry.name} <span className="text-muted-foreground">→</span>{" "}
+            {route.target.name}
+          </h3>
+        </div>
         <AttackPathRoute
           steps={route.steps}
           cutIndex={route.steps.findIndex(
@@ -523,15 +741,30 @@ function TracedRoute({
               route.cheapest_break?.target_id === step.target_id,
           )}
         />
+        {places.size > 0 && (
+          <div className="flex flex-col gap-1">
+            <h4 className="text-xs font-medium text-muted-foreground">
+              Where it runs
+            </h4>
+            <ul className="flex flex-col gap-0.5">
+              {[...places.values()].map((node) => (
+                <li key={`${node.scope_id}|${node.group ?? ""}`}>
+                  <Link
+                    to={mapHref(node)}
+                    className="flex items-center gap-1.5 text-xs underline-offset-4 hover:underline"
+                  >
+                    <MapIcon
+                      className="size-3.5 text-muted-foreground"
+                      aria-hidden
+                    />
+                    {placeName(node)}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          {/* Walking a route hop by hop is the estate map's (DECISIONS.md
-              §133): this page ranks the routes and weighs the cuts. */}
-          <Link
-            to={`/assets?${new URLSearchParams({ view: "graph", walk: route.key, hop: "0" })}`}
-            className={buttonVariants({ size: "sm" })}
-          >
-            Walk it on the estate map
-          </Link>
           <OpenInGraph entryId={route.entry.id} traceKey={route.key} />
           {risk ? (
             <Link
@@ -549,8 +782,140 @@ function TracedRoute({
             )
           )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The route being read, one hop at a time, across the top of the drawing.
+ *
+ * Moved here from the estate map (DECISIONS.md §138). The drawing marks the
+ * hop being read; this says what that hop is, in the route's own sentence with
+ * the role named (§121), where it lands -- the subscription and group, a link
+ * to that place on the map -- and whether cutting it severs the route. Arrow
+ * keys step along it and Escape puts it down.
+ */
+function RouteStepper({
+  route,
+  hop,
+  nodes,
+  onHop,
+  onClose,
+}: {
+  route: MappedRoute;
+  hop: number;
+  nodes: ReadonlyMap<string, RouteMapNode>;
+  onHop: (hop: number) => void;
+  onClose: () => void;
+}) {
+  const step = route.steps[hop];
+  const count = route.steps.length;
+  const landing = nodes.get(step.target_id);
+  const isCut = (each: MappedRoute["steps"][number]) =>
+    route.cheapest_break?.source_id === each.source_id &&
+    route.cheapest_break?.target_id === each.target_id &&
+    route.cheapest_break?.relationship === each.relationship;
+
+  function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "ArrowLeft" && hop > 0) onHop(hop - 1);
+    else if (event.key === "ArrowRight" && hop < count - 1) onHop(hop + 1);
+    else if (event.key === "Escape") onClose();
+    else return;
+    event.preventDefault();
+  }
+
+  return (
+    <div
+      role="group"
+      aria-label={`Attack path from ${route.entry.name} to ${route.target.name}`}
+      onKeyDown={onKeyDown}
+      className="flex shrink-0 flex-col gap-2 border-b border-border bg-muted/30 p-2.5"
+    >
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="icon-sm"
+          aria-label="Previous hop"
+          disabled={hop === 0}
+          onClick={() => onHop(hop - 1)}
+        >
+          <ChevronLeftIcon />
+        </Button>
+        <span className="w-20 text-center text-xs font-medium tabular-nums">
+          Hop {hop + 1} of {count}
+        </span>
+        <Button
+          variant="outline"
+          size="icon-sm"
+          aria-label="Next hop"
+          disabled={hop === count - 1}
+          onClick={() => onHop(hop + 1)}
+        >
+          <ChevronRightIcon />
+        </Button>
+        <p className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+          {route.entry.name} <span aria-hidden>→</span>
+          <span className="sr-only">to</span> {route.target.name}
+        </p>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Stop reading the route"
+          onClick={onClose}
+        >
+          <XIcon />
+        </Button>
+      </div>
+
+      <div aria-live="polite" className="flex flex-col gap-0.5 px-1">
+        <p className="text-sm">{step.detail || step.description}</p>
+        {landing && (
+          <p className="text-xs text-muted-foreground">
+            Lands in{" "}
+            <Link
+              to={mapHref(landing)}
+              className="underline underline-offset-4 hover:text-foreground"
+            >
+              {placeName(landing)}
+            </Link>
+          </p>
+        )}
+        {isCut(step) && (
+          <p className="flex items-center gap-1 text-xs text-ok">
+            <ScissorsIcon className="size-3.5" aria-hidden />
+            Cutting this link severs the route
+          </p>
+        )}
+      </div>
+
+      {/* Every hop, pressable: how far along the route is, and where it breaks. */}
+      <ol className="flex gap-1 px-1" aria-label="Hops">
+        {route.steps.map((each, index) => (
+          <li
+            key={`${each.source_id}|${each.relationship}|${each.target_id}`}
+            className="flex-1"
+          >
+            <button
+              type="button"
+              aria-label={`Hop ${index + 1}: ${each.description}`}
+              aria-current={index === hop ? "step" : undefined}
+              onClick={() => onHop(index)}
+              className={cn(
+                "block h-1.5 w-full rounded-full transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+                index === hop
+                  ? "bg-primary"
+                  : isCut(each)
+                    ? "bg-ok/60"
+                    : index < hop
+                      ? "bg-foreground/40"
+                      : "bg-muted",
+              )}
+            />
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }
 

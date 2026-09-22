@@ -33,7 +33,7 @@ from app.core.enums import FindingStatus, RelationshipType, Severity
 from app.domain.resource import CloudResource
 from app.graph import AssetGraph, ChokePoint, DeadEnd, Neighborhood, Path
 from app.graph.access import AccessGrant, AccessHolder
-from app.graph.estate import EstateMap
+from app.graph.estate import DIRECTORY_SCOPE, EstateMap
 from app.graph.model import ENTRY_EXPOSURE, RELATIONSHIP_VERBS, SENSITIVE_DATA
 from app.graph.patterns import PatternKind, route_patterns
 from app.models.finding import Finding
@@ -687,32 +687,16 @@ def serialize_estate(
                 }
                 for relationship, count in edge.links
             ],
-            "on_route": edge.on_route,
         }
         for edge in estate.edges
     ]
 
-    # The routes through the lens, to be traced on the map one hop at a time.
-    # The same route shape the attack-path page reads, plus the box each node
-    # of it is drawn in here.
-    paths = [route.path for route in estate.traced]
-    shapes, of_pattern, loose = serialize_patterns(paths)
-
+    # No routes: walking them is the attack-path page's (section 138). A box's
+    # ``routes`` is the count its link to that page carries.
     return {
         "lens": {"scope_id": estate.lens.scope, "group": estate.lens.group},
         "boxes": boxes,
         "edges": edges,
-        "routes": [
-            {
-                **serialize_path(route.path),
-                "key": route_key(route.path),
-                "pattern": of_pattern.get(route_key(route.path)),
-                "boxes": list(route.boxes),
-            }
-            for route in estate.traced
-        ],
-        "patterns": shapes,
-        "loose": loose,
     }
 
 
@@ -783,6 +767,7 @@ def serialize_route_map(
     findings: dict[UUID, dict],
     *,
     total_routes: int,
+    placements: Placements | None = None,
     choke_limit: int = 5,
 ) -> dict:
     """Every route in the estate as one drawable graph, with what each link holds up.
@@ -802,6 +787,11 @@ def serialize_route_map(
     out along, and a fact rather than a drawing decision: a target two hops from
     the internet is a different problem from one five hops away, and the reader
     should be able to see which without counting lines.
+
+    ``scope_id``, ``scope_name`` and ``group`` are where each node sits, read
+    the way the estate map reads it: the page says which subscription and group
+    each hop is in, links there, and narrows to the routes through one
+    (section 138). Without ``placements`` every node sits in the directory.
     """
     columns: dict[str, int] = {}
     through: dict[str, int] = {}
@@ -819,6 +809,8 @@ def serialize_route_map(
     for node_id, column in sorted(columns.items(), key=lambda item: (item[1], item[0])):
         resource = graph.nodes[node_id]
         asset_id = ids.get(node_id)
+        placed = placements.of.get(node_id) if placements else None
+        scope = placed.scope if placed else DIRECTORY_SCOPE
         nodes.append(
             {
                 "id": node_id,
@@ -826,6 +818,10 @@ def serialize_route_map(
                 "name": resource.name,
                 "resource_type": resource.resource_type.value,
                 "provider": resource.provider.value,
+                "scope_id": scope,
+                "scope_name": (placements.scope_names.get(scope) if placements else None)
+                or ("Directory" if scope == DIRECTORY_SCOPE else scope),
+                "group": placed.group if placed else None,
                 "column": column,
                 "public_exposure": resource.public_exposure.value,
                 "data_sensitivity": resource.data_sensitivity.value,

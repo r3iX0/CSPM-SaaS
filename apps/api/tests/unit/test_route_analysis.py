@@ -17,9 +17,11 @@ Azure, no scan.
 from app.core.enums import Level, RelationshipType, ResourceType
 from app.domain.resource import CloudResource
 from app.graph import AssetGraph, PathStep
+from app.graph.estate import DIRECTORY_SCOPE, Placement
 from app.graph.facts import edge_facts
 from app.graph.patterns import PatternKind, route_patterns
 from app.services.graph import serialize_route_map
+from app.services.placement import Placements
 
 GROUP = "/subscriptions/s/resourceGroups/data"
 RECORDS = f"{GROUP}/providers/storage/records"
@@ -356,6 +358,30 @@ def test_the_drawn_map_counts_a_cut_against_every_route_not_the_drawn_ones() -> 
     # And the severance itself is over every route, not over the drawn one: the
     # role the three machines share closes all three.
     assert payload["choke_points"][0]["severs"] == len(every)
+
+
+def test_each_drawn_node_says_where_it_sits() -> None:
+    """A hop names its subscription and group, read as the estate map reads
+    them, and a node with no placement sits in the directory (section 138)."""
+    graph = fan()
+    every = graph.attack_paths()
+    placements = Placements(
+        of={RECORDS: Placement("sub-1", "data"), GROUP: Placement("sub-1", "data")},
+        row_ids={},
+        scope_names={"sub-1": "Production"},
+        scope_providers={},
+    )
+
+    payload = serialize_route_map(
+        graph, every, {}, {}, total_routes=len(every), placements=placements
+    )
+    by_id = {node["id"]: node for node in payload["nodes"]}
+
+    assert (by_id[RECORDS]["scope_id"], by_id[RECORDS]["scope_name"]) == ("sub-1", "Production")
+    assert by_id[RECORDS]["group"] == "data"
+    assert by_id[IDENTITY]["scope_id"] == DIRECTORY_SCOPE
+    assert by_id[IDENTITY]["scope_name"] == "Directory"
+    assert by_id[IDENTITY]["group"] is None
 
 
 def test_a_route_belongs_to_one_pattern_and_the_totals_add_up() -> None:

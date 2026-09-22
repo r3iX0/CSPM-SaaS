@@ -2874,7 +2874,7 @@ class TestAssetNeighborhood:
         prod = f"group:{subscription}:prod"
         identity = f"asset:{self.IDENTITY}"
         assert edges[(prod, identity)]["links"][0]["relationship"] == "has_identity"
-        assert edges[(identity, prod)]["on_route"] is True
+        assert (identity, prod) in edges
 
         # The group, by the name in a link rather than as ARM spelled it.
         response = await client.get(

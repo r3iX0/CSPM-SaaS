@@ -24,6 +24,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/common/states";
 import { AttackPathRoute } from "./AttackPathRoute";
+import { GraphLegend, MARKS } from "./GraphLegend";
 import type { GraphSelection } from "./flowChrome";
 import { hopKey, routeKey } from "./routeKeys";
 
@@ -271,6 +272,35 @@ export function AssetNeighborhood({
               ))}
             </div>
             {isFetching && !isLoading && <span className="text-xs">Updating…</span>}
+            {neighborhood && !alone && (
+              <div className="ml-auto">
+                <GraphLegend
+                  label="How to read the graph"
+                  items={[
+                    { mark: MARKS.exposure, label: "Reachable from the internet" },
+                    { mark: MARKS.exposureUnknown, label: "Exposure unknown" },
+                    { mark: MARKS.sensitive, label: "Sensitive data" },
+                    { mark: MARKS.findings, label: "Open findings" },
+                    { mark: MARKS.onRoute, label: "On an attack path" },
+                    ...(neighborhood.groups.length > 0
+                      ? [{ mark: MARKS.counted, label: "Counted, not drawn" }]
+                      : []),
+                  ]}
+                >
+                  <p>
+                    Left of {centreName} is what can reach it; right is what it can reach. Only
+                    reach is drawn — the network rules around an asset are configuration, and
+                    are not. Hops on an attack path are drawn darker.
+                  </p>
+                  <p>
+                    Pointing at a box fades what it does not touch. Pressing a box or an arrow
+                    selects it, and the panel shows what runs through it. Double-click a box,
+                    or press Enter, to centre the graph on it. In the graph, arrow keys move
+                    between boxes.
+                  </p>
+                </GraphLegend>
+              </div>
+            )}
           </div>
         )}
 
@@ -380,23 +410,13 @@ export function AssetNeighborhood({
                 )}
               </aside>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Left of {centreName} is what can reach it; right is what it can reach. Only
-              reach is drawn — the network rules around an asset are configuration, and are
-              not. A globe marks an asset reachable from the internet, a cylinder one holding
-              sensitive data, and the number its open findings. Hops on an attack path are
-              drawn darker. Press a box or an arrow to see what runs through it; double-click
-              a box, or press Enter, to centre the graph on it. In the graph, arrow keys move
-              between boxes.
-              {meta && neighborhood.groups.length > 0 && (
-                <>
-                  {" "}
-                  Dashed boxes are counted, not drawn: past {meta.fan_out} neighbors of one
-                  asset the rest are grouped, except those exposed to the internet or holding
-                  sensitive data. Double-click one to draw its members.
-                </>
-              )}
-            </p>
+            {meta && neighborhood.groups.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Dashed boxes are counted, not drawn: past {meta.fan_out} neighbors of one
+                asset the rest are grouped, except those exposed to the internet or holding
+                sensitive data. Double-click one to draw its members.
+              </p>
+            )}
             {meta?.truncated && (
               <p className="text-xs text-muted-foreground">
                 The graph stops at {meta.max_nodes} assets. What lies beyond the outermost
