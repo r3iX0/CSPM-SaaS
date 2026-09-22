@@ -337,3 +337,74 @@ async def test_an_unreadable_owner_list_is_absent_and_said() -> None:
     assert result.data["application_owners"] == {}
     assert result.partial_reason is not None
     assert "could not be read" in result.partial_reason
+
+
+# ------------------------------------------------------------ escalations
+def test_owning_the_scope_already_is_no_escalation_over_it() -> None:
+    """A Global Administrator takes the subscription, walks down to a machine
+    whose identity can grant roles over that subscription -- and has gained
+    nothing: the chain is a loop, and raised as a risk it doubled one."""
+    vm, identity = "/sub/rg/vm", "/principals/vm-id"
+    graph = AssetGraph.build(
+        [
+            *base(),
+            user(ADMIN, "admin", ("control_all_scopes", "Global Administrator")),
+            node(vm, ResourceType.VIRTUAL_MACHINE, exposure=Level.HIGH),
+            node(
+                identity,
+                ResourceType.SERVICE_PRINCIPAL,
+                identity_id="vm-id",
+                roles=[role("Owner", SUB, OWNER, grants_role_assignment=True)],
+            ),
+        ],
+        [
+            *BASE_EDGES,
+            (RG, RelationshipType.CONTAINS, vm),
+            (vm, RelationshipType.HAS_IDENTITY, identity),
+            (identity, RelationshipType.GRANTS_ROLE, SUB),
+            (identity, RelationshipType.CAN_GRANT_ROLES, SUB),
+        ],
+    )
+    entries = {chain.entry.provider_resource_id for chain in graph.escalation_chains()}
+    # The exposed machine's chain is real; the administrator's is not.
+    assert entries == {vm}
+
+
+def test_a_narrower_role_over_the_scope_still_escalates() -> None:
+    """Reaching the group as Virtual Machine Contributor is not holding it."""
+    web, vm, identity = "/sub/rg/web", "/sub/rg/vm", "/principals/vm-id"
+    vm_contributor = {"actions": ["Microsoft.Compute/virtualMachines/*"]}
+    graph = AssetGraph.build(
+        [
+            *base(),
+            node(web, ResourceType.VIRTUAL_MACHINE, exposure=Level.HIGH),
+            node(
+                "/principals/web-id",
+                ResourceType.SERVICE_PRINCIPAL,
+                identity_id="web-id",
+                roles=[role("Virtual Machine Contributor", RG, vm_contributor)],
+            ),
+            node(vm, ResourceType.VIRTUAL_MACHINE),
+            node(
+                identity,
+                ResourceType.SERVICE_PRINCIPAL,
+                identity_id="vm-id",
+                roles=[role("Owner", RG, OWNER, grants_role_assignment=True)],
+            ),
+        ],
+        [
+            *BASE_EDGES,
+            (RG, RelationshipType.CONTAINS, web),
+            (RG, RelationshipType.CONTAINS, vm),
+            (web, RelationshipType.HAS_IDENTITY, "/principals/web-id"),
+            ("/principals/web-id", RelationshipType.GRANTS_ROLE, RG),
+            (vm, RelationshipType.HAS_IDENTITY, identity),
+            (identity, RelationshipType.GRANTS_ROLE, RG),
+            (identity, RelationshipType.CAN_GRANT_ROLES, RG),
+        ],
+    )
+    chains = graph.escalation_chains()
+    assert any(
+        chain.entry.provider_resource_id == web and chain.target.provider_resource_id == RG
+        for chain in chains
+    )

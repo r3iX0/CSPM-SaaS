@@ -643,6 +643,11 @@ class AssetGraph:
                         continue
                     if scope_id not in self.nodes:
                         continue
+                    if self._already_controls(path, scope_id):
+                        # The route took full control of this scope, or of one
+                        # above it, before it got here: granting roles over it
+                        # now is a loop, not an escalation (section 128).
+                        continue
                     hop = PathStep(
                         self.nodes[node_id],
                         RelationshipType.CAN_GRANT_ROLES,
@@ -660,6 +665,27 @@ class AssetGraph:
         # exposed host whose own identity can grant roles -- is both likelier and
         # cheaper to explain than one that arrives through three intermediaries.
         return sorted(chains, key=lambda p: (p.hops, p.target.name))
+
+    def _already_controls(self, path: Path, scope_id: str) -> bool:
+        """Whether a route already holds everything over a scope by the time it
+        ends: it crossed a line that controls everything -- an escalation, or a
+        directory role taking the subscription -- onto the scope or a container
+        of it. A narrower role over the same scope does not count; an identity
+        with Virtual Machine Contributor that reaches a machine able to grant
+        roles over the group has escalated, and the chain is real."""
+        whole = {RelationshipType.CAN_GRANT_ROLES, RelationshipType.CAN_TAKE_OVER}
+        held = {s.target.provider_resource_id for s in path.steps if s.relationship in whole}
+        if not held:
+            return False
+        above = {scope_id}
+        queue: deque[str] = deque([scope_id])
+        while queue:
+            current = queue.popleft()
+            for relationship, parent in self._in.get(current, []):
+                if relationship is RelationshipType.CONTAINS and parent not in above:
+                    above.add(parent)
+                    queue.append(parent)
+        return bool(held & above)
 
     def link_severance(self, max_depth: int = MAX_DEPTH) -> dict[EdgeKey, tuple[Path, ...]]:
         """Every removable link, and the routes that close without it.

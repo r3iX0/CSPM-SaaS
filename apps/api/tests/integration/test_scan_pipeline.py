@@ -2621,7 +2621,15 @@ class TestAssetGraph:
             await session.commit()
             graph = await graph_service.load_graph(session, org_id)
 
-        assert graph.attack_paths() == []
+        # No route runs through the deleted principal. The recording's Global
+        # Administrator still reaches the data through the directory, which
+        # never passed through it (DECISIONS.md section 128).
+        assert not any(
+            node.resource_type.value == "service_principal"
+            for path in graph.attack_paths()
+            for node in (path.entry, *(step.target for step in path.steps))
+        )
+        assert not any(p.entry.name == "vm-jumpbox" for p in graph.attack_paths())
 
     async def test_an_absent_resource_is_not_on_any_route(
         self, replay, connected_account
@@ -3221,14 +3229,20 @@ def _estate_without(graph: AssetGraph, step: PathStep) -> AssetGraph:
     below is to re-derive the answer the way the product first derived it,
     from resources and edges, so nothing the analysis caches can take part.
     """
-    gone = (
+    # Everything the removal takes -- both lines of a role assignment drawn
+    # also as an escalation (section 127) -- and built from the links exactly
+    # as given: re-deriving the edges the nodes imply would put back a derived
+    # link, such as a directory role taking the subscription, that the check
+    # just removed (section 128).
+    gone = graph.removal_key(
         step.source.provider_resource_id,
         step.relationship,
         step.target.provider_resource_id,
     )
     return AssetGraph.build(
         list(graph.nodes.values()),
-        [link for link in graph.links() if link != gone],
+        [link for link in graph.links() if graph.removal_key(*link) != gone],
+        derive=False,
     )
 
 
@@ -3471,7 +3485,18 @@ class TestScenarioRisk:
 
         scenarios = await self._risks(org_id, "ATTACK_PATH")
         assert scenarios, "the record of the closed route survives"
-        assert all(row[3] == "RESOLVED" for row in scenarios)
+        # Every route through the machine closed, and closed as a fix. The
+        # recording's Global Administrator reaches the same data through the
+        # directory, never through the machine, so those routes stay open
+        # (DECISIONS.md section 128).
+        through_machine = [row for row in scenarios if row[4][0]["source"] == "vm-jumpbox"]
+        assert through_machine, "the machine's routes are kept as history"
+        assert all(row[3] == "RESOLVED" for row in through_machine)
+        assert all(
+            row[4][0]["relationship"] == "can_take_over"
+            for row in scenarios
+            if row[3] != "RESOLVED"
+        )
 
     async def test_a_rescan_of_one_subscription_leaves_anothers_routes_open(
         self, replay, connected_account

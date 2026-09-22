@@ -6773,6 +6773,15 @@ capture and the owner and the registration are read in the directory's.
 * A hop names what somebody removes: the directory role, "owner of its
   application registration", or "its own credentials".
 
+**An escalation over a scope already held is a loop.** A Global Administrator
+who takes the subscription can walk down to a machine whose identity may grant
+roles over that same subscription. That chain gains nothing, and raised as an
+escalation risk it doubled the real one. `escalation_chains` now drops a chain
+whose route already crossed a line that controls everything (`CAN_GRANT_ROLES`
+or `CAN_TAKE_OVER`) onto the scope or a container of it. A route that reached
+the scope through a narrower role, such as Virtual Machine Contributor, keeps
+its chain: there the escalation is real.
+
 `AssetGraph.build(..., derive=False)` takes edges exactly as given. A test
 that rebuilds an estate from another graph's `links()` to check a severance
 claim must not re-derive the link it just removed. That is how the oracle
