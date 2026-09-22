@@ -6927,6 +6927,32 @@ principal a deny assignment excludes, and a managed application's own
 resource group is where one would sit. Revisit if a customer's estate shows a
 route through a resource group a deny assignment locks.
 
+## 131. `alembic_version` is closed to the API roles
+
+Supabase's advisor flagged `public.alembic_version` as the one table in
+`public` without row-level security. It was worse than unguarded. Alembic
+creates the table before the first migration runs, so migration 0001's
+`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO
+authenticated` included it, and Supabase's default privileges give every new
+`public` table to `anon` too. PostgREST serves `public`, so anyone holding the
+publishable key the web bundle ships could read the schema revision, and any
+signed-in user could rewrite it. That value decides what the next
+`alembic upgrade head` runs on deploy.
+
+Migration 0040 enables RLS on it with no policy, which denies every row to
+every role that does not own the table, and revokes `anon`'s and
+`authenticated`'s privileges. Migrations connect as the owner, and RLS does
+not constrain the owner unless forced, so Alembic keeps working. Nothing in
+the API reads the table.
+
+Moving it out of `public` (`version_table_schema`) would also hide it from
+PostgREST, but an existing database would then look unmigrated and re-run
+everything from 0001. Closing it in place changes nothing about how Alembic
+finds it.
+
+`test_rls.py` now fails if any table in `public` lacks RLS, so a table created
+without a policy block is caught in CI rather than by the advisor.
+
 ## Open items carried forward
 
 **Data residency is not built (§113).** An organization setting for allowed
