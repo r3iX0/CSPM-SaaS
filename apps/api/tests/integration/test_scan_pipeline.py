@@ -31,6 +31,7 @@ from app.core.enums import (
     FindingStatus,
     Level,
     Provider,
+    RelationshipType,
     RiskStatus,
     RuleState,
     ScanStatus,
@@ -2479,7 +2480,9 @@ class TestAssetGraph:
 
         paths = graph.attack_paths()
         assert paths, "an internet-facing VM reaching sensitive data"
-        assert all(p.entry.name == "vm-jumpbox" for p in paths)
+        # The recording's administrator is a Global Administrator, who can take
+        # ownership of the subscription (DECISIONS.md section 128).
+        assert {p.entry.name for p in paths} == {"vm-jumpbox", "Arben K"}
         assert all(p.cheapest_break() is not None for p in paths)
 
     async def test_the_blast_radius_of_the_jump_box_identity(
@@ -2585,7 +2588,14 @@ class TestAssetGraph:
         async with service_session() as session:
             second = await graph_service.load_graph(session, org_id)
         assert second is not first, "the page served the pre-scan graph back"
-        assert second.attack_paths() == []
+        # Every route through the machine is gone. What is left is the
+        # recording's Global Administrator, who reaches the same data through
+        # the directory and never through the machine (section 128).
+        remaining = second.attack_paths()
+        assert not any(p.entry.name == "vm-jumpbox" for p in remaining)
+        assert all(
+            p.steps[0].relationship is RelationshipType.CAN_TAKE_OVER for p in remaining
+        )
 
     async def test_an_edge_outliving_its_resource_is_not_followed(
         self, replay, connected_account
@@ -2642,7 +2652,15 @@ class TestAssetGraph:
             await session.commit()
             graph = await graph_service.load_graph(session, org_id)
 
-        assert graph.attack_paths() == []
+        # No route runs through the absent principal. The recording's Global
+        # Administrator still reaches the data through the directory, which
+        # never passed through it (section 128).
+        assert not any(
+            node.resource_type.value == "service_principal"
+            for path in graph.attack_paths()
+            for node in (path.entry, *(step.target for step in path.steps))
+        )
+        assert not any(p.entry.name == "vm-jumpbox" for p in graph.attack_paths())
         assert not any(
             node.resource_type.value == "service_principal"
             for node in graph.nodes.values()

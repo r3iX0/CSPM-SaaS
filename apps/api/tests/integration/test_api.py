@@ -1067,9 +1067,11 @@ class TestRecheckingAccess:
         assert data["role_version"] == "v2"
         assert data["role_upgrade_available"] is True
         # Every category a v2 role cannot fully serve, which grows with each
-        # role version: v7 added reads under compute and storage, so a customer
-        # five versions behind is behind on those too.
+        # role version: v7 added reads under compute and storage, and v8 the
+        # PIM eligibility read under authorization (DECISIONS.md section 130),
+        # so a customer six versions behind is behind on those too.
         assert data["degraded_categories"] == [
+            "authorization",
             "compute",
             "database",
             "posture",
