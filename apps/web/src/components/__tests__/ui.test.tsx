@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { SeverityBadge as Badge } from "../security/SeverityBadge";
 import { StatusPill } from "../security/StatusPill";
 import { ContextRow } from "../security/ContextProvenance";
+import { buttonVariants } from "../ui/button";
 
 describe("Badge", () => {
   it("labels a level when no children are given", () => {
@@ -80,5 +81,26 @@ describe("ContextRow", () => {
   it("falls back without provenance rather than claiming a source", () => {
     render(<ContextRow label="Criticality" fallback={<Badge level="HIGH" />} />);
     expect(screen.getByText("High")).toBeInTheDocument();
+  });
+});
+
+describe("buttonVariants", () => {
+  it("gives a link styled as an outline button its border", () => {
+    // A `Link` takes these classes bare, not through `Button`. Unmerged, the
+    // base's `border-transparent` won over the outline's `border-border` and
+    // the link drew no border (DECISIONS.md section 135).
+    const classes = buttonVariants({ variant: "outline", size: "sm" }).split(" ");
+    expect(classes).toContain("border-border");
+    expect(classes).not.toContain("border-transparent");
+  });
+
+  it("keeps a borderless variant borderless", () => {
+    expect(buttonVariants({ variant: "ghost" }).split(" ")).toContain("border-transparent");
+  });
+
+  it("lets a class passed in win over the variant's", () => {
+    const classes = buttonVariants({ variant: "outline", className: "h-auto" }).split(" ");
+    expect(classes).toContain("h-auto");
+    expect(classes).not.toContain("h-8");
   });
 });

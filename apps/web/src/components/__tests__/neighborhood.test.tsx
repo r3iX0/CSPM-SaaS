@@ -237,7 +237,7 @@ describe("the neighbourhood card", () => {
     expect(await screen.findByText(/nothing reaches vm/i)).toBeInTheDocument();
   });
 
-  it("centres the graph on a box when it is pressed, in the URL", async () => {
+  it("selects a box on a press, and centres on it only on a double click", async () => {
     const get = mount(AROUND_VM);
 
     await userEvent.click(screen.getByRole("button", { name: /draw the graph/i }));
@@ -248,10 +248,49 @@ describe("the neighbourhood card", () => {
     await screen.findByText("mi");
     fireEvent.click(box("mi"));
 
+    // Selected, and the panel says what it is; the graph has not moved.
+    expect(box("mi")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("where")).toBeEmptyDOMElement();
+    const panel = screen.getByRole("complementary", { name: "About the graph" });
+    expect(panel).toHaveTextContent("mi");
+    expect(panel).toHaveTextContent("No attack path here runs through it.");
+    // What is not beside it fades.
+    expect(box("rg").className).toContain("opacity-30");
+    expect(box("vm").className).not.toContain("opacity-30");
+
+    fireEvent.doubleClick(box("mi"));
     expect(screen.getByTestId("where")).toHaveTextContent("?around=mi");
     await waitFor(() =>
       expect(get).toHaveBeenLastCalledWith(expect.stringContaining("/neighborhood/mi?")),
     );
+  });
+
+  it("centres on a box from the panel, and on Enter", async () => {
+    mount(AROUND_VM);
+
+    await userEvent.click(screen.getByRole("button", { name: /draw the graph/i }));
+    await screen.findByText("sub");
+    fireEvent.click(box("sub"));
+    await userEvent.click(screen.getByRole("button", { name: /centre the graph here/i }));
+    expect(screen.getByTestId("where")).toHaveTextContent("?around=sub");
+
+    fireEvent.keyDown(await waitFor(() => box("rg")), { key: "Enter" });
+    expect(screen.getByTestId("where")).toHaveTextContent("?around=rg");
+  });
+
+  it("fades around a box under the pointer without selecting it", async () => {
+    mount(AROUND_VM);
+
+    await userEvent.click(screen.getByRole("button", { name: /draw the graph/i }));
+    await screen.findByText("mi");
+    fireEvent.pointerEnter(box("sub"));
+
+    expect(box("mi").className).not.toContain("opacity-30");
+    expect(box("rg").className).toContain("opacity-30");
+    expect(box("sub")).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.pointerLeave(box("sub"));
+    expect(box("rg").className).not.toContain("opacity-30");
   });
 
   it("opens drawn when the URL is already centred elsewhere, with a way back", async () => {
@@ -282,12 +321,19 @@ describe("the neighbourhood card", () => {
     expect(screen.queryByText(/centred on/i)).not.toBeInTheDocument();
   });
 
-  it("makes a re-centred centre a link to its page", async () => {
+  it("offers a re-centred centre's page, and none for the page's own asset", async () => {
     mount({ ...AROUND_VM, focus: "mi" }, {}, "/assets/row-vm?around=mi");
 
-    await waitFor(() => expect(box("mi")).toHaveAttribute("href", "/assets/row-mi"));
+    fireEvent.click(await waitFor(() => box("mi")));
+    const panel = screen.getByRole("complementary", { name: "About the graph" });
+    expect(panel.querySelector('a[href="/assets/row-mi"]')).not.toBeNull();
+    // Already the centre: nothing to centre on.
+    expect(screen.queryByRole("button", { name: /centre the graph here/i })).toBeNull();
+
     // The page's own asset, drawn off-centre, is a box to centre on again.
-    expect(box("vm").tagName).toBe("BUTTON");
+    fireEvent.click(box("vm"));
+    expect(screen.getByRole("button", { name: /centre the graph here/i })).toBeInTheDocument();
+    expect(panel.querySelector('a[href="/assets/row-vm"]')).toBeNull();
   });
 
   it("gives the canvas one tab stop and moves it with the arrow keys", async () => {
@@ -307,7 +353,7 @@ describe("the neighbourhood card", () => {
     expect(document.activeElement).toBe(stops()[0]);
   });
 
-  it("draws a fold's members when it is pressed", async () => {
+  it("draws a fold's members when it is opened", async () => {
     const get = mount({
       ...AROUND_VM,
       groups: [
@@ -325,6 +371,10 @@ describe("the neighbourhood card", () => {
     await userEvent.click(screen.getByRole("button", { name: /draw the graph/i }));
     await screen.findByText(/40 more/);
     fireEvent.click(box("group:3:contains:sub"));
+    expect(screen.getByRole("complementary", { name: "About the graph" })).toHaveTextContent(
+      "40 more, counted rather than drawn",
+    );
+    await userEvent.click(screen.getByRole("button", { name: /show them/i }));
 
     await waitFor(() =>
       expect(get).toHaveBeenLastCalledWith(

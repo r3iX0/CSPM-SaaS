@@ -29,7 +29,14 @@ import "@xyflow/react/dist/base.css";
 import type { EstateBox, EstateMap } from "@/lib/types";
 import { cn } from "@/lib/format";
 import { DURATION, usePrefersReducedMotion } from "@/lib/motion";
-import { ARROWS, FIT, FLOW_TOKENS, HIDDEN_HANDLE } from "./flowChrome";
+import {
+  ARROWS,
+  FIT,
+  FLOW_TOKENS,
+  HIDDEN_HANDLE,
+  kept,
+  type GraphSelection,
+} from "./flowChrome";
 import { ZoomButtons } from "./ZoomButtons";
 import { layoutEstate } from "./estateLayout";
 import { boxIcon, boxLabel, edgeLabel, edgeLabelShort } from "./estateNames";
@@ -45,6 +52,11 @@ interface ArrowData extends Record<string, unknown> {
   /** A backward arrow's own lane under the boxes, and its own gutter offset. */
   lane?: number;
   gutter?: number;
+  /**
+   * Where a long arrow crosses each column between its ends: the left edge of
+   * the slot kept for it, at the height it runs through (DECISIONS.md §134).
+   */
+  bends?: { x: number; y: number }[];
 }
 
 type ArrowFlowEdge = Edge<ArrowData>;
@@ -54,7 +66,7 @@ type ArrowFlowEdge = Edge<ArrowData>;
  * selects and the panel beside the canvas answers for it; opening is a second,
  * deliberate act (DECISIONS.md §133).
  */
-export type MapSelection = { kind: "box"; id: string } | { kind: "edge"; id: string };
+export type MapSelection = GraphSelection;
 
 interface CanvasActions {
   /** The box holding the single tab stop into the canvas. */
@@ -66,6 +78,8 @@ interface CanvasActions {
   open: (box: EstateBox) => void;
   /** The selected box, if a box is what is selected. */
   selected: string | null;
+  /** Previewed under the pointer or the keyboard: faded around, not selected. */
+  preview: (id: string | null) => void;
   /** The boxes picked out -- a link's two ends, or a traced route's -- if any. */
   lit: ReadonlySet<string> | null;
   /** Where each box sits along the traced route, as its badge reads: "2", "3–5". */
@@ -154,34 +168,23 @@ function Canvas({
 }: CanvasProps) {
   const { nodes, edges: drawn, at, first } = useMemo(() => toFlow(map), [map]);
   const reduced = usePrefersReducedMotion();
+  // What the pointer or the keyboard is on, faded around as a selection is
+  // but without selecting it, so the map can be scanned before a click. Only
+  // with nothing selected or walked: the panel answers for a selection, and a
+  // preview that redrew the canvas under it would contradict the panel.
+  const [previewed, setPreviewed] = useState<MapSelection | null>(null);
+  const looking = selected ?? previewed;
   const traced = useMemo(
     () => (trace ? traceOnMap(trace, at, new Set(drawn.map((edge) => edge.id))) : null),
     [trace, at, drawn],
   );
   // A selection fades the rest rather than hiding it: what is selected still
   // has to be read in its place in the estate, not on its own.
-  const picked =
-    !traced && selected?.kind === "edge"
-      ? drawn.find((edge) => edge.id === selected.id)
-      : undefined;
-  const box = !traced && selected?.kind === "box" && at.has(selected.id) ? selected.id : null;
-  const touching = useMemo(
-    () =>
-      box
-        ? drawn.filter((edge) => edge.source === box || edge.target === box)
-        : picked
-          ? [picked]
-          : null,
-    [box, picked, drawn],
-  );
-  const lit = useMemo(
-    () =>
-      traced?.lit ??
-      (touching
-        ? new Set([...(box ? [box] : []), ...touching.flatMap((e) => [e.source, e.target])])
-        : null),
-    [box, touching, traced],
-  );
+  // A box the filter is not drawing keeps nothing; a walked route takes over.
+  const on = traced || (looking?.kind === "box" && !at.has(looking.id)) ? null : looking;
+  const picked = on?.kind === "edge";
+  const around = useMemo(() => kept(drawn, on), [drawn, on]);
+  const lit = traced?.lit ?? around?.boxes ?? null;
   const edges = useMemo(
     () =>
       traced
@@ -212,9 +215,9 @@ function Canvas({
               zIndex: now ? 2 : 1,
             };
           })
-        : touching
+        : around
         ? drawn.map((edge) =>
-            touching.includes(edge)
+            around.edges.has(edge.id)
               ? {
                   ...edge,
                   // A selected arrow says everything it carries. Around a
@@ -236,7 +239,7 @@ function Canvas({
                 },
           )
         : drawn,
-    [drawn, touching, picked, traced, reduced],
+    [drawn, around, picked, traced, reduced],
   );
   const [active, setActive] = useState(first);
   const frame = useRef<HTMLDivElement>(null);
@@ -353,6 +356,7 @@ function Canvas({
         select: (id) => onSelect({ kind: "box", id }),
         open: onOpen,
         selected: selected?.kind === "box" ? selected.id : null,
+        preview: (id) => setPreviewed(id ? { kind: "box", id } : null),
         lit,
         order: traced?.order ?? NO_ORDER,
         current: traced?.current ?? NO_BOXES,
@@ -378,6 +382,8 @@ function Canvas({
           // An arrow is selected by pointer; by keyboard, from the panel's
           // list of links, which is the arrows' text form.
           onEdgeClick={(_, edge) => onSelect({ kind: "edge", id: edge.id })}
+          onEdgeMouseEnter={(_, edge) => setPreviewed({ kind: "edge", id: edge.id })}
+          onEdgeMouseLeave={() => setPreviewed(null)}
           onPaneClick={() => onSelect(null)}
           // The canvas sits in a scrolling page; zoom is on the buttons.
           zoomOnScroll={false}
@@ -397,7 +403,7 @@ function toFlow(map: EstateMap): {
   at: Map<string, { x: number; y: number }>;
   first: string;
 } {
-  const at = layoutEstate(map);
+  const { at, bends } = layoutEstate(map);
   const origin = { x: 0, y: 0 };
 
   const nodes: Node[] = map.boxes.map(
@@ -429,15 +435,19 @@ function toFlow(map: EstateMap): {
     // gap beside its target. The gaps and the lane hold no boxes, so the arrow
     // crosses none, and each backward arrow has its own lane and gutter so two
     // never run along one line.
+    // Reach that crosses more than one gap runs through the slot each column
+    // between keeps for it, rather than over the boxes stacked there.
+    const id = `${edge.source}|${edge.target}`;
     const from = at.get(edge.source) ?? origin;
     const to = at.get(edge.target) ?? origin;
     const back = to.x <= from.x;
     const lane = back ? backward++ : 0;
+    const through = back ? undefined : bends.get(id);
     return {
-      id: `${edge.source}|${edge.target}`,
+      id,
       source: edge.source,
       target: edge.target,
-      type: back ? "back" : "default",
+      type: back ? "back" : through ? "long" : "default",
       className: "cursor-pointer",
       // Several kinds of reach on one arrow read as their first and a count on
       // the canvas; picked, the arrow says them all, and the list under the
@@ -445,7 +455,9 @@ function toFlow(map: EstateMap): {
       label: edgeLabelShort(edge.links),
       data: back
         ? { full: label, lane: floor + lane * 18, gutter: 20 + (lane % 6) * 10 }
-        : { full: label },
+        : through
+          ? { full: label, bends: through.map((p) => ({ x: p.x, y: p.y + BOX_HEIGHT / 2 })) }
+          : { full: label },
       labelStyle: {
         fill: edge.on_route ? "var(--foreground)" : "var(--muted-foreground)",
         fontSize: 11,
@@ -463,8 +475,25 @@ function toFlow(map: EstateMap): {
     map.boxes[0]?.id ??
     "";
 
-  // Fitting the view fits boxes, and the lanes run under them: a point below
-  // the last lane is what brings them, and their labels, into the frame.
+  // Fitting the view fits boxes, and a slot kept for a long arrow can sit
+  // above or below every box in its column: an empty node in each keeps it,
+  // and the arrow through it, in the frame.
+  for (const [id, through] of bends) {
+    through.forEach((p, index) =>
+      nodes.push({
+        id: `bend:${id}#${index}`,
+        type: "floor",
+        position: p,
+        data: {},
+        selectable: false,
+        focusable: false,
+        domAttributes: { "aria-hidden": true, "aria-describedby": undefined },
+      }),
+    );
+  }
+
+  // The lanes run under the boxes: a point below the last lane is what
+  // brings them, and their labels, into the frame.
   if (backward > 0) {
     nodes.push({
       id: "lanes",
@@ -500,7 +529,13 @@ function BoxNode({ id, data }: NodeProps<BoxFlowNode>) {
   const stop = {
     "data-graph-node": id,
     tabIndex: actions.active === id ? 0 : -1,
-    onFocus: () => actions.setActive(id),
+    onFocus: () => {
+      actions.setActive(id);
+      actions.preview(id);
+    },
+    onBlur: () => actions.preview(null),
+    onPointerEnter: () => actions.preview(id),
+    onPointerLeave: () => actions.preview(null),
   };
   const body = (
     <>
@@ -691,6 +726,56 @@ function BackEdge({
   );
 }
 
+/**
+ * A forward arrow that crosses more than one gap: out of its source, through
+ * the slot kept for it in each column between -- straight across the slot,
+ * which holds no box -- and into its target. Each gap is the same curve a
+ * one-gap arrow draws, so the long arrow reads as several short ones joined.
+ */
+function LongEdge({
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  data,
+  label,
+  labelStyle,
+  labelBgStyle,
+  labelBgPadding,
+  style,
+  markerEnd,
+}: EdgeProps<ArrowFlowEdge>) {
+  const bends = data?.bends ?? [];
+  let d = `M ${sourceX} ${sourceY}`;
+  let [x, y] = [sourceX, sourceY];
+  const curve = (toX: number, toY: number) => {
+    const k = (toX - x) / 2;
+    d += ` C ${x + k} ${y} ${toX - k} ${toY} ${toX} ${toY}`;
+  };
+  for (const bend of bends) {
+    curve(bend.x, bend.y);
+    d += ` L ${bend.x + BOX_WIDTH} ${bend.y}`;
+    [x, y] = [bend.x + BOX_WIDTH, bend.y];
+  }
+  curve(targetX, targetY);
+  // The label sits in the first gap, beside the arrow's source, where a
+  // one-gap arrow's would.
+  const first = bends[0] ?? { x: targetX, y: targetY };
+  return (
+    <BaseEdge
+      path={d}
+      label={label}
+      labelX={(sourceX + first.x) / 2}
+      labelY={(sourceY + first.y) / 2}
+      labelStyle={labelStyle}
+      labelBgStyle={labelBgStyle}
+      labelBgPadding={labelBgPadding}
+      style={style}
+      markerEnd={markerEnd}
+    />
+  );
+}
+
 /** A path through right-angled corners, each rounded a little. */
 function orthogonal(points: [number, number][], radius = 8): string {
   let d = `M ${points[0][0]} ${points[0][1]}`;
@@ -711,4 +796,4 @@ function orthogonal(points: [number, number][], radius = 8): string {
 
 // Module-level: React Flow re-mounts every node when this object's identity changes.
 const NODE_TYPES = { box: BoxNode, floor: Floor };
-const EDGE_TYPES = { back: BackEdge };
+const EDGE_TYPES = { back: BackEdge, long: LongEdge };

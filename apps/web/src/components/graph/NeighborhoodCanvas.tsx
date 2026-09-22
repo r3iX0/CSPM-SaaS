@@ -7,8 +7,8 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
+  type ReactNode,
 } from "react";
-import { Link } from "react-router-dom";
 import {
   Background,
   BackgroundVariant,
@@ -35,7 +35,14 @@ import type {
 import { cn, levelStyle, resourceTypeLabel } from "@/lib/format";
 import { FACTOR_ICONS, resourceTypeIcon } from "@/lib/icons";
 import { DURATION, usePrefersReducedMotion } from "@/lib/motion";
-import { ARROWS, FIT, FLOW_TOKENS, HIDDEN_HANDLE } from "./flowChrome";
+import {
+  ARROWS,
+  FIT,
+  FLOW_TOKENS,
+  HIDDEN_HANDLE,
+  kept,
+  type GraphSelection,
+} from "./flowChrome";
 import { ZoomButtons } from "./ZoomButtons";
 import { layoutNeighborhood, stepFrom } from "./neighborhoodLayout";
 import { hopKey } from "./routeKeys";
@@ -62,8 +69,15 @@ interface CanvasActions {
   /** The box that holds the single tab stop into the canvas. */
   active: string;
   setActive: (id: string) => void;
-  recenter: (id: string) => void;
-  openGroup: (id: string) => void;
+  /** Select a box: the panel beside the canvas says what it is. */
+  select: (id: string) => void;
+  /** Open a box: re-centre on it, open its page, or draw a fold's members. */
+  open: (id: string) => void;
+  /** Previewed under the pointer or the keyboard: faded around, not selected. */
+  preview: (id: string | null) => void;
+  selected: string | null;
+  /** The boxes a selection or a preview keeps, if any. */
+  lit: ReadonlySet<string> | null;
   /** The asset whose page this is: its box is where the reader already is. */
   pageAsset: string;
 }
@@ -83,16 +97,22 @@ function useActions(): CanvasActions {
  * on the asset page and most visits never open the graph. The default export is
  * what `lazy()` loads.
  *
- * Nothing can be dragged, connected or selected: the positions come from
+ * Nothing can be dragged or connected: the positions come from
  * `layoutNeighborhood`, and a box a person had moved would be a picture of
- * their arrangement rather than of the estate. What a box does is move the
- * question: pressing one centres the graph on it, pressing a folded group
- * draws its members.
+ * their arrangement rather than of the estate.
+ *
+ * A press selects, as on the estate map (DECISIONS.md §133, §134): the box,
+ * its neighbours and the arrows between them stay and the rest fades, and the
+ * panel beside the canvas says what it is and which routes run through it.
+ * Moving the question is the second act -- a double click, Enter, or the
+ * panel's button centres the graph on a box, opens the centre's page, or
+ * draws a folded group's members. An arrow is selected the same way. With
+ * nothing selected, the box or arrow under the pointer is faded around
+ * without being selected, so the graph can be scanned before a click.
  *
  * One tab stop, then arrow keys. Tabbing through a hundred boxes to reach the
- * route list below would make the canvas a wall; a single stop with arrows
- * inside is how a grid of controls is reached everywhere else, and Enter on
- * the marked box does what a click would.
+ * panel would make the canvas a wall; a single stop with arrows inside is how
+ * a grid of controls is reached everywhere else. Space selects, Enter opens.
  */
 export default function NeighborhoodCanvas(props: CanvasProps) {
   return (
@@ -109,8 +129,10 @@ interface CanvasProps {
   /** The hop to draw as cut, when somebody picked one other than the cheapest. */
   cut?: Hop | null;
   pageAsset: string;
-  onRecenter: (id: string) => void;
-  onOpenGroup: (id: string) => void;
+  selected?: GraphSelection | null;
+  onSelect: (selection: GraphSelection | null) => void;
+  /** The second act on a box: re-centre, open the centre's page, or open a fold. */
+  onOpen: (id: string) => void;
   /** Put the keyboard on the focus box once drawn -- after a recentre made by key. */
   takeFocus?: boolean;
 }
@@ -120,13 +142,44 @@ function Canvas({
   traced = null,
   cut = null,
   pageAsset,
-  onRecenter,
-  onOpenGroup,
+  selected = null,
+  onSelect,
+  onOpen,
   takeFocus = false,
 }: CanvasProps) {
-  const { nodes, edges, at } = useMemo(
+  const { nodes, edges: drawn, at } = useMemo(
     () => toFlow(neighborhood, traced, cut),
     [neighborhood, traced, cut],
+  );
+  // With nothing selected, what the pointer or keyboard is on previews the
+  // same fading. A traced route draws its own, and wins over both.
+  const [previewed, setPreviewed] = useState<GraphSelection | null>(null);
+  const on = traced ? null : (selected ?? previewed);
+  const around = useMemo(() => kept(drawn, on), [drawn, on]);
+  const edges = useMemo(
+    () =>
+      around
+        ? drawn.map((edge) =>
+            around.edges.has(edge.id)
+              ? {
+                  ...edge,
+                  label: edge.data?.label as string | undefined,
+                  labelStyle: { ...edge.labelStyle, fill: "var(--foreground)" },
+                  style: {
+                    ...edge.style,
+                    stroke: "var(--foreground)",
+                    strokeWidth: Number(edge.style?.strokeWidth ?? 1.5) + 1,
+                  },
+                  zIndex: 1,
+                }
+              : {
+                  ...edge,
+                  style: { ...edge.style, opacity: 0.15 },
+                  labelStyle: { ...edge.labelStyle, opacity: 0.15 },
+                },
+          )
+        : drawn,
+    [drawn, around],
   );
   const [active, setActive] = useState(neighborhood.focus);
   const frame = useRef<HTMLDivElement>(null);
@@ -170,8 +223,11 @@ function Canvas({
   const actions: CanvasActions = {
     active: marked,
     setActive,
-    recenter: onRecenter,
-    openGroup: onOpenGroup,
+    select: (id) => onSelect({ kind: "box", id }),
+    open: onOpen,
+    preview: (id) => setPreviewed(id ? { kind: "box", id } : null),
+    selected: selected?.kind === "box" ? selected.id : null,
+    lit: around?.boxes ?? null,
     pageAsset,
   };
 
@@ -194,6 +250,11 @@ function Canvas({
           // wrapper being one too would put two stops on every box.
           nodesFocusable={false}
           edgesFocusable={false}
+          // An arrow is selected by pointer; by keyboard, from its box's panel.
+          onEdgeClick={(_, edge) => onSelect({ kind: "edge", id: edge.id })}
+          onEdgeMouseEnter={(_, edge) => setPreviewed({ kind: "edge", id: edge.id })}
+          onEdgeMouseLeave={() => setPreviewed(null)}
+          onPaneClick={() => onSelect(null)}
           // The canvas sits in a scrolling page. A wheel that zoomed the graph
           // would trap somebody scrolling past it; zoom is on the buttons and on
           // a pinch instead.
@@ -272,6 +333,9 @@ function toFlow(
       id: key,
       source: edge.source,
       target: edge.target,
+      className: "cursor-pointer",
+      // What a selection shows, even where a trace had hidden it.
+      data: { label: structural ? undefined : edge.label },
       labelStyle: { fill: "var(--muted-foreground)", fontSize: 11 },
       labelBgStyle: { fill: "var(--card)" },
       labelBgPadding: [4, 2] as [number, number],
@@ -338,59 +402,87 @@ function AssetNode({ id, data }: NodeProps<AssetFlowNode>) {
       <Markers node={data} />
     </>
   );
-  const frame = cn(
-    "flex w-[220px] items-center gap-2 rounded-lg border bg-card px-2 py-1.5 text-left transition-opacity",
-    "nopan focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
-    data.focus ? "border-foreground shadow-sm ring-3 ring-ring/20" : "border-border",
-    data.dimmed && "opacity-30",
-  );
-  const stop = {
-    "data-graph-node": id,
-    tabIndex: actions.active === id ? 0 : -1,
-    onFocus: () => actions.setActive(id),
-  };
-
-  let box;
-  if (!data.focus) {
-    // Every other box re-centres the graph on itself: the canvas is for
-    // walking the estate, and a click that left the page would end the walk.
-    box = (
-      <button
-        type="button"
-        {...stop}
-        onClick={() => actions.recenter(id)}
-        className={cn(frame, "cursor-pointer hover:bg-muted/60")}
-      >
-        {body}
-        <span className="sr-only">. Centre the graph here</span>
-      </button>
-    );
-  } else if (id !== actions.pageAsset && data.asset_id) {
-    // The centre, when it is somewhere else: the one step left is its page.
-    box = (
-      <Link
-        to={`/assets/${data.asset_id}`}
-        {...stop}
-        className={cn(frame, "hover:bg-muted/60")}
-      >
-        {body}
-        <span className="sr-only">. Open its page</span>
-      </Link>
-    );
-  } else {
-    box = (
-      <div {...stop} aria-current="true" className={frame}>
-        {body}
-      </div>
-    );
-  }
-
+  // The centre is where the graph is; opening it again means its page, and
+  // on the page's own asset there is nowhere further to go.
+  const opens = !data.focus
+    ? "centre the graph here"
+    : id !== actions.pageAsset && data.asset_id
+      ? "open its page"
+      : null;
   return (
     <>
       <Handle type="target" position={Position.Left} isConnectable={false} style={HIDDEN_HANDLE} />
-      {box}
+      <BoxButton
+        id={id}
+        opens={opens}
+        dimmed={data.dimmed}
+        aria-current={data.focus || undefined}
+        className={cn(
+          "flex w-[220px] items-center gap-2 bg-card",
+          data.focus ? "border-foreground shadow-sm ring-3 ring-ring/20" : "border-border",
+        )}
+      >
+        {body}
+      </BoxButton>
       <Handle type="source" position={Position.Right} isConnectable={false} style={HIDDEN_HANDLE} />
     </>
+  );
+}
+
+/**
+ * A box on the canvas: one button that selects on a press and opens on a
+ * double click or Enter, and previews under the pointer or the keyboard.
+ */
+function BoxButton({
+  id,
+  opens,
+  dimmed,
+  className,
+  children,
+  ...rest
+}: {
+  id: string;
+  /** What opening it does, for a screen reader; null when there is nothing to open. */
+  opens: string | null;
+  dimmed: boolean;
+  className: string;
+  children: ReactNode;
+  "aria-current"?: boolean;
+}) {
+  const actions = useActions();
+  const selected = actions.selected === id;
+  return (
+    <button
+      type="button"
+      {...rest}
+      data-graph-node={id}
+      tabIndex={actions.active === id ? 0 : -1}
+      aria-pressed={selected}
+      onFocus={() => {
+        actions.setActive(id);
+        actions.preview(id);
+      }}
+      onBlur={() => actions.preview(null)}
+      onPointerEnter={() => actions.preview(id)}
+      onPointerLeave={() => actions.preview(null)}
+      onClick={() => actions.select(id)}
+      onDoubleClick={() => opens && actions.open(id)}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        if (opens) actions.open(id);
+      }}
+      className={cn(
+        "nopan cursor-pointer rounded-lg border px-2 py-1.5 text-left transition-[opacity,box-shadow] hover:bg-muted/60",
+        "focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+        className,
+        (dimmed || (actions.lit && !actions.lit.has(id))) && "opacity-30",
+        selected && "ring-2 ring-foreground/70 ring-offset-2 ring-offset-card",
+      )}
+    >
+      {children}
+      {opens && <span className="sr-only">. Enter to {opens}</span>}
+    </button>
   );
 }
 
@@ -455,30 +547,24 @@ function Markers({ node }: { node: AssetFlowNode["data"] }) {
  * what CloudGuard shows is drawn, so it cannot pass for one more asset.
  */
 function GroupNode({ id, data }: NodeProps<GroupFlowNode>) {
-  const actions = useActions();
   const kinds = Object.entries(data.by_type).slice(0, 2);
   return (
     <>
       <Handle type="target" position={Position.Left} isConnectable={false} style={HIDDEN_HANDLE} />
-      <button
-        type="button"
-        data-graph-node={id}
-        tabIndex={actions.active === id ? 0 : -1}
-        onFocus={() => actions.setActive(id)}
-        onClick={() => actions.openGroup(id)}
-        className={cn(
-          "nopan block w-[220px] cursor-pointer rounded-lg border border-dashed border-border bg-background px-2 py-1.5 text-left transition-opacity hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
-          data.dimmed && "opacity-30",
-        )}
+      <BoxButton
+        id={id}
+        opens="show them"
+        dimmed={data.dimmed}
+        className="block w-[220px] border-dashed border-border bg-background"
       >
         <span className="block text-xs font-medium text-foreground tabular-nums">
-          {data.count} more <span className="font-normal text-muted-foreground">· show them</span>
+          {data.count} more <span className="font-normal text-muted-foreground">· not drawn</span>
         </span>
         <span className="block truncate text-[11px] text-muted-foreground">
           {kinds.map(([type, count]) => `${resourceTypeLabel(type)} · ${count}`).join(", ")}
           {Object.keys(data.by_type).length > kinds.length && ", …"}
         </span>
-      </button>
+      </BoxButton>
       <Handle type="source" position={Position.Right} isConnectable={false} style={HIDDEN_HANDLE} />
     </>
   );

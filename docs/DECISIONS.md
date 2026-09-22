@@ -5189,7 +5189,9 @@ replacing the current one — unlike list filters (§98), where narrowing a list
 should not fill the history, each re-centre is a step somebody took, so Back
 retraces it. A link to a re-centred view opens with the graph already drawn.
 While centred elsewhere, the centre box is a link to that asset's page, and a
-strip above the canvas names it and offers the way back. Folds that were opened
+strip above the canvas names it and offers the way back. (§134 made a press
+select, as on the estate map; re-centring is a double click, Enter, or the
+panel's button.) Folds that were opened
 belong to one centre and are forgotten when it moves.
 
 **Folds open in place.** Pressing a dashed group sends its id back as
@@ -5785,7 +5787,9 @@ no reach at all go after the rest, stacked eight to a column so that a quiet
 estate becomes a grid rather than one tall column. Within a column, boxes are
 ordered by the average height of their placed neighbours, with ties broken by a
 fixed order. The same estate draws the same picture on every visit, as §101
-requires.
+requires. (§134 replaced shortest distance with a layering that breaks loops
+and places each box past the furthest box that reaches it, and a way in is no
+longer always in the first column.)
 
 **The same canvas, not a second one.** `EstateCanvas` is its own lazy chunk,
 built on React Flow the way `NeighborhoodCanvas` is: `base.css` only, colours
@@ -7021,7 +7025,7 @@ first column, so reach between them runs within it. Those arrows are legible
 now, but a layering that breaks cycles and places boxes by longest path
 would draw fewer of them. It would change §111's promise that a way in is
 always in the first column, so it is left as a decision rather than made
-here.
+here. (§134 made it.)
 
 **Short labels on the canvas.** An arrow carrying several kinds of reach reads
 as the commonest and a count ("can act over ×3 +2 more"). A picked link or a
@@ -7105,6 +7109,119 @@ view no longer moves while the canvas has no size.
 only past about 40 boxes, which a lens caps at anyway. A minimap was left out
 because panning is not the problem. Expanding a box in place was left out
 because it breaks the lens being the list's scope filter.
+
+## 134. The estate map is layered by longest reach, and every canvas selects the same way
+
+**Few arrows run back.** §111 placed every box at its shortest distance from
+where reach starts, and counted every box holding a way in as a start. On a
+tenant where many boxes hold a way in -- the demo's subscription is one -- they
+all stood in the first column, reach between them ran within it, and §132 had
+to route most of the map's arrows backwards round the boxes. `layoutEstate` is
+now a layered drawing in four steps:
+
+1. The wired boxes are put in one order that as few arrows as possible run
+   against (Eades, Lin and Smyth's greedy ordering): boxes that reach nothing
+   off the end, boxes nothing reaches off the front, and otherwise the box
+   whose arrows most run out. An arrow against the order is the one drawn back,
+   so an arrow runs back only where reach loops. Where a loop has to be entered
+   somewhere, a box holding a way in goes first, because an attacker starts
+   there, and the arrow drawn back is the one into it.
+2. Each box sits one column past the furthest box that reaches it, the arrows
+   drawn back counted reversed. Every other arrow runs strictly rightwards.
+3. An arrow crossing more than one gap gets a slot in each column between, a
+   row kept empty for it, and passes straight across the slot rather than over
+   the boxes stacked there. `layoutEstate` returns those slots as `bends`, and
+   `EstateCanvas` draws such an arrow as a `long` edge: the same curve a
+   one-gap arrow draws in each gap, joined by a straight run through each slot,
+   with its label in the first gap as a one-gap arrow's would be. A slot at the
+   top or bottom of its column is an empty node too, so fitting the view keeps
+   it in the frame.
+4. Sweeping right and left, each column is ordered by the average place of what
+   it joins in the column beside, and the order with the fewest crossings is
+   kept. Before, one rightward pass ordered each column by average height.
+
+This gives up §111's promise that a way in is always in the first column. A
+box nothing reaches is still there, so reach still reads from where it starts.
+A box holding a way in that another box reaches now sits after that box, and
+its globe says it is a way in, wherever it is. On the demo's subscription
+rg-build and rg-prod lead into the directory, rg-payments -- which holds a way
+in too -- sits where reach arrives at it, and two arrows run back where reach
+loops, where before most arrows did. The layering is
+wider: a chain of five boxes takes five columns, which shortest distance could
+fold into fewer by drawing the arrows back. The legend says how columns are
+read.
+
+**A click selects on every canvas.** §133 made a press on the estate map
+select, and the panel beside it answer, with opening a second act. The
+neighbourhood on an asset's page still re-centred on a press (§101), and the
+attack-path page's route map picked a box without showing which. So:
+
+- **The neighbourhood** is one frame of canvas and panel, as the map is. A
+  press on a box or an arrow selects it: `aria-pressed`, a ring, the box with
+  its neighbours and the arrows between them kept, the rest faded. The panel
+  says what an asset is -- its type, and its exposure, sensitive data and open
+  findings in words -- with **Centre the graph here** and **Open its page**,
+  and lists the routes here that run through it, each traceable. A fold says
+  what it counts, by type, with **Show them**. An arrow says its hop. With
+  nothing selected, the panel is the list of attack paths through the centre
+  that sat under the canvas; the traced route's line and the what-if cut stay
+  under the frame, where they have the width. A double click or Enter
+  re-centres on a box, opens the centre's page when it is not the page's own
+  asset, or draws a fold's members. The centre is a button like every other
+  box rather than a link, so a press on it selects too.
+- **The route map** rings the box picked and fades what it does not touch
+  while no route is traced and no cut simulated, and a press on the empty
+  canvas puts the box down. A press on a line still asks what cutting it
+  would do: that is the question this map is for.
+- What a selection keeps is one function, `kept` in `flowChrome.ts`, which all
+  three canvases call, as they share the tokens and the keys.
+
+**Pointing previews.** With nothing selected or walked, the box or arrow under
+the pointer, or the box the keyboard is on, fades the rest as a selection
+would, without selecting it. A hovered arrow shows its full label. It is off
+while something is selected, because the panel answers for the selection and a
+canvas redrawn under the pointer would contradict it, and off while a route is
+traced or a cut simulated, which draw their own fading.
+
+**Checked in a browser.** Against the §133 harness, rebuilt: the real
+components, fed estate and neighbourhood payloads computed by the real
+serializers from the demo recording, plus a made-up estate of twelve
+subscriptions with two loops and several long arrows. Light, dark, and phone
+width. That turned up an existing fault that is not fixed here: a `Link`
+carrying `buttonVariants({ variant: "outline" })` has no visible border,
+because `border-transparent` from the base classes wins over `border-border`
+in the generated CSS and `buttonVariants` does not merge them. `Button` is
+unaffected. It shows on every outline link, the neighbourhood's "Open its
+page" among them. (§135 fixed it.)
+
+**Not built.** A preview while something is selected, for the reason above.
+Edge bundling, which grouping repeated arrows would need. Compacting the
+columns a long chain makes, which would put arrows back.
+
+## 135. `buttonVariants` merges its classes
+
+§31 made a navigation styled as a button a `Link` carrying
+`buttonVariants({ variant, size })`. cva concatenates; it does not resolve
+conflicts. The base classes carry `border border-transparent` and the outline
+variant adds `border-border`, two border colours on one element, and whichever
+Tailwind emits later wins. That is `border-transparent`, so an outline link
+given the classes bare drew no border -- "Scan history" after a scan, "Run a
+scan" on an empty Assets page, the way back to the risk list, and the
+neighbourhood's "Open its page" -- while the `Button` beside it did, because
+`Button` already ran the classes through `cn` (`tailwind-merge`). The links
+that happened to wrap them in `cn` themselves, such as "Connect Azure" and the
+setup steps' way back, were already right.
+
+`buttonVariants` is now `cn` over the cva function, so a link and a button
+given the same variant get the same classes, and a class passed in replaces
+the variant's rather than competing with it. The cva function itself is
+`buttonStyles`, kept for `VariantProps`. This edits a vendored primitive, which
+§24 allows: the fix is two lines, and re-running the shadcn CLI over it would
+need them again, so the comment in `button.tsx` says why.
+
+`ui.test.tsx` pins it: an outline variant carries `border-border` and not
+`border-transparent`, a ghost one keeps its transparent border, and a class
+passed in wins.
 
 ## Open items carried forward
 

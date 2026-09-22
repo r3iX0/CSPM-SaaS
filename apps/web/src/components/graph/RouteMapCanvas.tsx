@@ -27,7 +27,14 @@ import type { MappedRoute, RouteMap, RouteMapEdge, RouteMapNode } from "@/lib/ty
 import { cn, levelStyle, resourceTypeLabel } from "@/lib/format";
 import { FACTOR_ICONS, resourceTypeIcon } from "@/lib/icons";
 import { DURATION, usePrefersReducedMotion } from "@/lib/motion";
-import { ARROWS, FIT, FLOW_TOKENS, HIDDEN_HANDLE } from "./flowChrome";
+import {
+  ARROWS,
+  FIT,
+  FLOW_TOKENS,
+  HIDDEN_HANDLE,
+  kept,
+  type GraphSelection,
+} from "./flowChrome";
 import { ZoomButtons } from "./ZoomButtons";
 import { layoutRouteMap } from "./routeMapLayout";
 import { stepFrom } from "./neighborhoodLayout";
@@ -56,6 +63,11 @@ interface CanvasActions {
   active: string;
   setActive: (id: string) => void;
   pick: (id: string) => void;
+  /** Previewed under the pointer or the keyboard: faded around, not picked. */
+  preview: (id: string | null) => void;
+  picked: string | null;
+  /** The boxes a pick or a preview keeps, if any. */
+  lit: ReadonlySet<string> | null;
 }
 
 const Actions = createContext<CanvasActions | null>(null);
@@ -72,8 +84,12 @@ export interface RouteMapCanvasProps {
   traced?: MappedRoute | null;
   /** A link somebody is considering cutting, and the routes that close with it. */
   simulated?: { link: Hop; closes: Set<string> } | null;
+  /** The box picked, whose routes the rail is showing. */
+  picked?: string | null;
   /** Called when a box is pressed: the rail shows what runs through it. */
   onPickNode: (id: string) => void;
+  /** Called when the empty canvas is pressed: the pick is put down. */
+  onClearPick?: () => void;
   /** Called when a link is pressed: the page asks what cutting it would do. */
   onPickLink: (edge: RouteMapEdge) => void;
 }
@@ -89,7 +105,10 @@ export interface RouteMapCanvasProps {
  * `layoutRouteMap`, and a box somebody had moved would be a picture of their
  * arrangement rather than of the estate. What a box does is ask a question:
  * pressing one shows the routes through it, pressing a link asks what cutting
- * it would close.
+ * it would close. A picked box is ringed and kept with its neighbours while
+ * the rest fades, as a selection is on the estate map and the neighbourhood,
+ * and with nothing picked the box or line under the pointer previews the same
+ * fading (DECISIONS.md §134).
  *
  * One tab stop, then arrow keys — the way the neighbourhood canvas is reached,
  * because tabbing through eighty boxes to get to the list beside them would
@@ -107,13 +126,39 @@ function Canvas({
   map,
   traced = null,
   simulated = null,
+  picked = null,
   onPickNode,
   onPickLink,
+  onClearPick,
 }: RouteMapCanvasProps) {
   const reduced = usePrefersReducedMotion();
-  const { nodes, edges, at } = useMemo(
+  const { nodes, edges: drawn, at } = useMemo(
     () => toFlow(map, traced, simulated, reduced),
     [map, traced, simulated, reduced],
+  );
+  // A traced route or a simulated cut draws its own fading, and wins.
+  const [previewed, setPreviewed] = useState<GraphSelection | null>(null);
+  const pickedOn = useMemo<GraphSelection | null>(
+    () => (picked && at.has(picked) ? { kind: "box", id: picked } : null),
+    [picked, at],
+  );
+  const on = traced || simulated ? null : (pickedOn ?? previewed);
+  const around = useMemo(() => kept(drawn, on), [drawn, on]);
+  const edges = useMemo(
+    () =>
+      around
+        ? drawn.map((edge) =>
+            around.edges.has(edge.id)
+              ? { ...edge, zIndex: 1, style: { ...edge.style, opacity: 1 } }
+              : {
+                  ...edge,
+                  animated: false,
+                  style: { ...edge.style, opacity: 0.12 },
+                  labelStyle: { ...edge.labelStyle, opacity: 0.15 },
+                },
+          )
+        : drawn,
+    [drawn, around],
   );
   const [active, setActive] = useState(() => map.nodes[0]?.id ?? "");
   const flow = useReactFlow();
@@ -139,7 +184,16 @@ function Canvas({
   }
 
   return (
-    <Actions.Provider value={{ active: marked, setActive, pick: onPickNode }}>
+    <Actions.Provider
+      value={{
+        active: marked,
+        setActive,
+        pick: onPickNode,
+        preview: (id) => setPreviewed(id ? { kind: "box", id } : null),
+        picked,
+        lit: around?.boxes ?? null,
+      }}
+    >
       <div className="size-full" onKeyDown={onKeyDown}>
         <ReactFlow
           nodes={nodes}
@@ -159,6 +213,9 @@ function Canvas({
             const found = map.edges.find((candidate) => keyOf(candidate) === edge.id);
             if (found) onPickLink(found);
           }}
+          onEdgeMouseEnter={(_, edge) => setPreviewed({ kind: "edge", id: edge.id })}
+          onEdgeMouseLeave={() => setPreviewed(null)}
+          onPaneClick={() => onClearPick?.()}
           // The canvas sits in a scrolling page. A wheel that zoomed the graph
           // would trap somebody scrolling past it; zoom is on the buttons.
           zoomOnScroll={false}
@@ -337,7 +394,14 @@ function AssetNode({ id, data }: NodeProps<AssetFlowNode>) {
         type="button"
         data-graph-node={id}
         tabIndex={actions.active === id ? 0 : -1}
-        onFocus={() => actions.setActive(id)}
+        aria-pressed={actions.picked === id}
+        onFocus={() => {
+          actions.setActive(id);
+          actions.preview(id);
+        }}
+        onBlur={() => actions.preview(null)}
+        onPointerEnter={() => actions.preview(id)}
+        onPointerLeave={() => actions.preview(null)}
         onClick={() => actions.pick(id)}
         style={{ animationDelay: `${Math.min(data.arrival, 6) * 60}ms` }}
         className={cn(
@@ -349,7 +413,8 @@ function AssetNode({ id, data }: NodeProps<AssetFlowNode>) {
             : data.sensitive
               ? "border-high-border"
               : "border-border",
-          data.dimmed && "opacity-30",
+          (data.dimmed || (actions.lit && !actions.lit.has(id))) && "opacity-30",
+          actions.picked === id && "ring-2 ring-foreground/70 ring-offset-2 ring-offset-card",
           // Out of reach once the considered link is gone. Desaturated rather
           // than hidden: the asset is still in the estate, it is the route to
           // it that would be over.

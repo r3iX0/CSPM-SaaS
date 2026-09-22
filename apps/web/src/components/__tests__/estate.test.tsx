@@ -2,8 +2,10 @@
  * The estate map on the assets page.
  *
  * The layout is tested as a function, because that is where its promises
- * live: reach reads left to right from where it starts, a quiet box is never
- * mistaken for part of a route, and the same estate draws the same picture.
+ * live: reach reads left to right from where it starts, an arrow runs back
+ * only where a loop leaves no other way, a long arrow passes through a slot
+ * rather than over a box, a quiet box is never mistaken for part of a route,
+ * and the same estate draws the same picture.
  * The view is tested for what it decides: the lens is the list's scope
  * filter, opening a box is a step Back can retrace, and a lens on nothing
  * offers the way back rather than a blank frame.
@@ -120,7 +122,7 @@ const ESTATE: EstateMap = {
 
 describe("the estate layout", () => {
   it("reads left to right from the box holding a way in", () => {
-    const at = layoutEstate(ESTATE);
+    const { at } = layoutEstate(ESTATE);
 
     expect(at.get("scope:web")!.x).toBe(0);
     expect(at.get("scope:directory")!.x).toBe(ESTATE_COLUMN_GAP);
@@ -128,19 +130,19 @@ describe("the estate layout", () => {
   });
 
   it("puts boxes with no reach after the route rather than on it", () => {
-    const at = layoutEstate(ESTATE);
+    const { at } = layoutEstate(ESTATE);
     expect(at.get("scope:quiet")!.x).toBe(3 * ESTATE_COLUMN_GAP);
   });
 
   it("stacks a quiet estate into a grid rather than one tall column", () => {
     const boxes = Array.from({ length: QUIET_ROWS + 2 }, (_, i) => scope(`s${i}`));
-    const at = layoutEstate({ lens: ESTATE.lens, boxes, edges: [], ...NO_ROUTES });
+    const { at } = layoutEstate({ lens: ESTATE.lens, boxes, edges: [], ...NO_ROUTES });
     const columns = new Set([...at.values()].map((p) => p.x));
     expect(columns.size).toBe(2);
   });
 
   it("draws a cycle nothing leads into rather than losing it", () => {
-    const at = layoutEstate({
+    const { at } = layoutEstate({
       lens: ESTATE.lens,
       boxes: [scope("a"), scope("b")],
       edges: [link("a", "b"), link("b", "a")],
@@ -148,6 +150,59 @@ describe("the estate layout", () => {
     });
     expect(at.get("scope:a")!.x).toBe(0);
     expect(at.get("scope:b")!.x).toBe(ESTATE_COLUMN_GAP);
+  });
+
+  it("enters a loop at its way in, so the arrow drawn back is the one into it", () => {
+    const { at } = layoutEstate({
+      lens: ESTATE.lens,
+      boxes: [scope("a"), scope("b", { entry: 1 })],
+      edges: [link("a", "b"), link("b", "a")],
+      ...NO_ROUTES,
+    });
+    expect(at.get("scope:b")!.x).toBe(0);
+    expect(at.get("scope:a")!.x).toBe(ESTATE_COLUMN_GAP);
+  });
+
+  it("puts a way in that another way in reaches after it, rather than drawing reach back", () => {
+    // Both hold a way in. Stacked in the first column, as they once were, the
+    // arrow between them ran back round every box.
+    const { at } = layoutEstate({
+      lens: ESTATE.lens,
+      boxes: [scope("a", { entry: 1 }), scope("b", { entry: 1 }), scope("c")],
+      edges: [link("a", "b"), link("b", "c")],
+      ...NO_ROUTES,
+    });
+    expect(at.get("scope:a")!.x).toBe(0);
+    expect(at.get("scope:b")!.x).toBe(ESTATE_COLUMN_GAP);
+    expect(at.get("scope:c")!.x).toBe(2 * ESTATE_COLUMN_GAP);
+  });
+
+  it("keeps a slot for an arrow that crosses more than one gap, clear of the boxes", () => {
+    const { at, bends } = layoutEstate({
+      lens: ESTATE.lens,
+      boxes: [scope("a"), scope("b"), scope("c")],
+      edges: [link("a", "b"), link("b", "c"), link("a", "c")],
+      ...NO_ROUTES,
+    });
+    expect(at.get("scope:c")!.x).toBe(2 * ESTATE_COLUMN_GAP);
+    const through = bends.get("scope:a|scope:c")!;
+    expect(through).toHaveLength(1);
+    expect(through[0].x).toBe(ESTATE_COLUMN_GAP);
+    expect(through[0].y).not.toBe(at.get("scope:b")!.y);
+    // A one-gap arrow has nowhere to bend.
+    expect(bends.has("scope:a|scope:b")).toBe(false);
+  });
+
+  it("orders a column to uncross the arrows into it", () => {
+    // In name order y sits above z, and a -> z, b -> y would cross.
+    const { at } = layoutEstate({
+      lens: ESTATE.lens,
+      boxes: [scope("a"), scope("b"), scope("y"), scope("z")],
+      edges: [link("a", "z"), link("b", "y")],
+      ...NO_ROUTES,
+    });
+    expect(at.get("scope:a")!.y).toBeLessThan(at.get("scope:b")!.y);
+    expect(at.get("scope:z")!.y).toBeLessThan(at.get("scope:y")!.y);
   });
 
   it("draws the same picture whatever order the rows arrived in", () => {
@@ -274,6 +329,19 @@ describe("the estate map", () => {
 
     fireEvent.keyDown(box("scope:prod"), { key: "Enter" });
     expect(screen.getByTestId("where")).toHaveTextContent("subscription_id=prod");
+  });
+
+  it("fades around a box under the pointer without selecting it", async () => {
+    mount(() => ESTATE);
+    fireEvent.pointerEnter(await waitFor(() => box("scope:prod")));
+
+    // Prod's neighbour stays; web, two hops away, fades.
+    expect(box("scope:directory").className).not.toContain("opacity-30");
+    expect(box("scope:web").className).toContain("opacity-30");
+    expect(box("scope:prod")).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.pointerLeave(box("scope:prod"));
+    expect(box("scope:web").className).not.toContain("opacity-30");
   });
 
   it("opens a selected box from the panel, as a double click would", async () => {

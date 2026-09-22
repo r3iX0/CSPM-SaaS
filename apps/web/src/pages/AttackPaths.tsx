@@ -375,8 +375,10 @@ function RouteMapCard({
               map={map}
               traced={traced}
               simulated={simulated}
+              picked={picked}
               onPickNode={onPickNode}
               onPickLink={onPickLink}
+              onClearPick={onClearPick}
             />
           </Suspense>
         </div>

@@ -1,6 +1,7 @@
-import { lazy, Suspense, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { createElement, lazy, Suspense, useRef, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { ArrowLeftIcon } from "lucide-react";
 
 import { api, ApiError } from "@/lib/api";
 import type {
@@ -10,8 +11,8 @@ import type {
   NeighborhoodMeta,
   WhatIf,
 } from "@/lib/types";
-import { GRAPH_ICON, RISK_KIND_ICONS } from "@/lib/icons";
-import { cn } from "@/lib/format";
+import { FACTOR_ICONS, GRAPH_ICON, RISK_KIND_ICONS, resourceTypeIcon } from "@/lib/icons";
+import { cn, levelStyle, resourceTypeLabel } from "@/lib/format";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -23,6 +24,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/common/states";
 import { AttackPathRoute } from "./AttackPathRoute";
+import type { GraphSelection } from "./flowChrome";
 import { hopKey, routeKey } from "./routeKeys";
 
 const GraphIcon = GRAPH_ICON;
@@ -83,11 +85,19 @@ const canvasKey = (focus: string, depth: number, folds: string[]) =>
  * endpoint needs the organization's whole asset graph, and the canvas is the
  * heaviest chunk on the page.
  *
- * **Walked without leaving the page.** Pressing a box centres the graph on
- * it, and the centre lives in the URL as `?around=`, written as a new history
- * entry rather than a replacement: each re-centre is a step somebody took, so
- * Back retraces it, and a link to a re-centred view opens it drawn. Folds that
- * were opened belong to one centre and are forgotten when it moves.
+ * **A click selects; moving is a second act** (DECISIONS.md §134), as on the
+ * estate map (§133). The canvas and a panel beside it are one frame. Pressing
+ * a box or an arrow selects it, and the panel says what it is and which of
+ * the routes here run through it; with nothing selected, the panel lists the
+ * attack paths through the centre. A double click, Enter, or the panel's
+ * button centres the graph on a box, opens the centre's page, or draws a
+ * fold's members.
+ *
+ * **Walked without leaving the page.** The centre lives in the URL as
+ * `?around=`, written as a new history entry rather than a replacement: each
+ * re-centre is a step somebody took, so Back retraces it, and a link to a
+ * re-centred view opens it drawn. Folds that were opened, and what was
+ * selected, belong to one picture and are forgotten when it changes.
  */
 export function AssetNeighborhood({
   providerResourceId,
@@ -132,6 +142,9 @@ export function AssetNeighborhood({
   // inside the canvas asked for. Named by its key, so a depth change or a Back
   // press -- which draw some other canvas -- never pulls focus off the page.
   const [focusFor, setFocusFor] = useState<string | null>(null);
+  // What is selected, remembered with the picture it belongs to.
+  const [selection, setSelection] = useState<{ key: string; on: GraphSelection } | null>(null);
+  const navigate = useNavigate();
   const frame = useRef<HTMLDivElement>(null);
   const keyboardInCanvas = () =>
     frame.current?.contains(document.activeElement) ?? false;
@@ -201,6 +214,26 @@ export function AssetNeighborhood({
     setFocusFor(keyboardInCanvas() ? canvasKey(around, depth, next) : null);
     setOpened({ around, folds: next });
   }
+
+  /** The second act on a box: a fold draws its members, the centre opens its page. */
+  function open(id: string) {
+    if (!neighborhood) return;
+    if (neighborhood.groups.some((group) => group.id === id)) {
+      openGroup(id);
+      return;
+    }
+    if (id !== neighborhood.focus) {
+      recenter(id);
+      return;
+    }
+    const node = neighborhood.nodes.find((each) => each.id === id);
+    if (id !== providerResourceId && node?.asset_id) navigate(`/assets/${node.asset_id}`);
+  }
+
+  const pictureKey = neighborhood ? canvasKey(neighborhood.focus, depth, folds) : "";
+  const selected = selection?.key === pictureKey ? selection.on : null;
+  const select = (on: GraphSelection | null) =>
+    setSelection(on ? { key: pictureKey, on } : null);
 
   return (
     <Card>
@@ -298,37 +331,69 @@ export function AssetNeighborhood({
               ref={frame}
               role="group"
               aria-label={`Graph of the assets around ${centreName}`}
-              className="h-[28rem] w-full overflow-hidden rounded-lg border border-border"
+              className="flex w-full flex-col overflow-hidden rounded-lg border border-border lg:h-[30rem] lg:flex-row"
             >
-              <Suspense fallback={<Skeleton className="size-full" />}>
-                <NeighborhoodCanvas
-                  // A new centre, depth or fold is a new picture: remounting
-                  // fits it to the frame, where an update would keep the old
-                  // viewport pointed at wherever the last one was.
-                  key={canvasKey(neighborhood.focus, depth, folds)}
-                  neighborhood={neighborhood}
-                  traced={traced}
-                  cut={cutStep}
-                  pageAsset={providerResourceId}
-                  onRecenter={recenter}
-                  onOpenGroup={openGroup}
-                  takeFocus={focusFor === canvasKey(neighborhood.focus, depth, folds)}
-                />
-              </Suspense>
+              <div className="h-[28rem] min-w-0 lg:h-auto lg:flex-1">
+                <Suspense fallback={<Skeleton className="size-full" />}>
+                  <NeighborhoodCanvas
+                    // A new centre, depth or fold is a new picture: remounting
+                    // fits it to the frame, where an update would keep the old
+                    // viewport pointed at wherever the last one was.
+                    key={pictureKey}
+                    neighborhood={neighborhood}
+                    traced={traced}
+                    cut={cutStep}
+                    pageAsset={providerResourceId}
+                    selected={selected}
+                    onSelect={select}
+                    onOpen={open}
+                    takeFocus={focusFor === pictureKey}
+                  />
+                </Suspense>
+              </div>
+              <aside
+                aria-label="About the graph"
+                className="flex max-h-[28rem] min-h-0 flex-col border-t border-border lg:max-h-none lg:w-80 lg:border-t-0 lg:border-l"
+              >
+                {selected ? (
+                  <SelectedHere
+                    drawn={neighborhood}
+                    on={selected}
+                    pageAsset={providerResourceId}
+                    traced={traced}
+                    onTrace={(route) =>
+                      setTracedKey(route && routeKey(route) !== tracedKey ? routeKey(route) : null)
+                    }
+                    onOpen={open}
+                    onBack={() => select(null)}
+                  />
+                ) : (
+                  <RouteList
+                    name={centreName}
+                    routes={routes}
+                    total={meta?.routes_total ?? routes.length}
+                    traced={traced}
+                    onTrace={(route) =>
+                      setTracedKey(route && routeKey(route) !== tracedKey ? routeKey(route) : null)
+                    }
+                  />
+                )}
+              </aside>
             </div>
             <p className="text-xs text-muted-foreground">
               Left of {centreName} is what can reach it; right is what it can reach. Only
               reach is drawn — the network rules around an asset are configuration, and are
               not. A globe marks an asset reachable from the internet, a cylinder one holding
               sensitive data, and the number its open findings. Hops on an attack path are
-              drawn darker. Press a box to centre the graph on it; in the graph, arrow keys
-              move between boxes.
+              drawn darker. Press a box or an arrow to see what runs through it; double-click
+              a box, or press Enter, to centre the graph on it. In the graph, arrow keys move
+              between boxes.
               {meta && neighborhood.groups.length > 0 && (
                 <>
                   {" "}
                   Dashed boxes are counted, not drawn: past {meta.fan_out} neighbors of one
                   asset the rest are grouped, except those exposed to the internet or holding
-                  sensitive data. Press one to draw its members.
+                  sensitive data. Double-click one to draw its members.
                 </>
               )}
             </p>
@@ -339,27 +404,23 @@ export function AssetNeighborhood({
                 further.
               </p>
             )}
-            <RoutesThrough
-              name={centreName}
-              routes={routes}
-              total={meta?.routes_total ?? routes.length}
-              traced={traced}
-              onTrace={(route) =>
-                setTracedKey(route && routeKey(route) !== tracedKey ? routeKey(route) : null)
-              }
-              drawn={neighborhood}
-              depth={depth}
-              cutStep={cutStep}
-              onChooseCut={(step) =>
-                traced &&
-                setChosenCut({
-                  route: routeKey(traced),
-                  hop: hopKey(step.source_id, step.relationship, step.target_id),
-                })
-              }
-              whatIf={whatIf.data}
-              whatIfState={whatIf.isError ? "error" : whatIf.isFetching ? "checking" : "ready"}
-            />
+            {traced && (
+              <TracedRoute
+                name={centreName}
+                traced={traced}
+                drawn={neighborhood}
+                depth={depth}
+                cutStep={cutStep}
+                onChooseCut={(step) =>
+                  setChosenCut({
+                    route: routeKey(traced),
+                    hop: hopKey(step.source_id, step.relationship, step.target_id),
+                  })
+                }
+                whatIf={whatIf.data}
+                whatIfState={whatIf.isError ? "error" : whatIf.isFetching ? "checking" : "ready"}
+              />
+            )}
           </>
         )}
       </CardContent>
@@ -367,21 +428,262 @@ export function AssetNeighborhood({
   );
 }
 
+/** One route, as a row that traces it on the canvas and a second press puts down. */
+function RouteButton({
+  route,
+  traced,
+  onTrace,
+}: {
+  route: AttackPath;
+  traced: AttackPath | null;
+  onTrace: (route: AttackPath) => void;
+}) {
+  const RouteMark = RISK_KIND_ICONS.ATTACK_PATH;
+  const active = traced !== null && routeKey(route) === routeKey(traced);
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={() => onTrace(route)}
+      className={cn(
+        "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+        active && "bg-muted",
+      )}
+    >
+      <RouteMark className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+      <span className="min-w-0 flex-1 truncate">
+        {route.entry.name} → {route.target.name}
+      </span>
+      <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+        {route.hops} {route.hops === 1 ? "hop" : "hops"}
+      </span>
+    </button>
+  );
+}
+
 /**
- * The attack paths this asset sits on, as a list beside the canvas.
- *
- * Picking one traces it on the canvas and draws it again underneath as the
- * straight line `AttackPathRoute` draws everywhere else -- the canvas shows
- * where the route runs through the neighbourhood, the line shows which link
- * to cut. The line is the whole route; the canvas holds only the part within
- * the chosen hops, and when the two differ the card says so.
+ * The attack paths this asset sits on: the panel beside the canvas with
+ * nothing selected. Picking one traces it on the canvas, and draws it again
+ * under the frame as the straight line `AttackPathRoute` draws everywhere else.
  */
-function RoutesThrough({
+function RouteList({
   name,
   routes,
   total,
   traced,
   onTrace,
+}: {
+  name: string;
+  routes: AttackPath[];
+  total: number;
+  traced: AttackPath | null;
+  onTrace: (route: AttackPath | null) => void;
+}) {
+  if (routes.length === 0) {
+    return (
+      <p className="p-3 text-sm text-muted-foreground">No attack path passes through {name}.</p>
+    );
+  }
+  return (
+    <section aria-labelledby="routes-through" className="flex min-h-0 flex-col gap-2 p-3">
+      <h3 id="routes-through" className="text-sm font-medium">
+        Attack paths through {name}
+        <span className="ml-2 font-normal text-muted-foreground tabular-nums">{total}</span>
+      </h3>
+      <ul className="-mx-2 flex min-h-0 flex-col overflow-y-auto">
+        {routes.map((route) => (
+          <li key={routeKey(route)}>
+            <RouteButton route={route} traced={traced} onTrace={onTrace} />
+          </li>
+        ))}
+      </ul>
+      {total > routes.length && (
+        <p className="text-xs text-muted-foreground">
+          Showing the {routes.length} shortest of {total}. The attack paths page lists every
+          one.
+        </p>
+      )}
+    </section>
+  );
+}
+
+/**
+ * What is selected on the canvas, and which of the routes here run through it.
+ *
+ * An asset says what makes it matter -- exposure, sensitive data, open
+ * findings -- in words, and offers the second act a press does not do:
+ * centring the graph on it, or opening its page. A fold says what it counts
+ * and offers to draw them. An arrow says the hop it is.
+ */
+function SelectedHere({
+  drawn,
+  on,
+  pageAsset,
+  traced,
+  onTrace,
+  onOpen,
+  onBack,
+}: {
+  drawn: Neighborhood;
+  on: GraphSelection;
+  pageAsset: string;
+  traced: AttackPath | null;
+  onTrace: (route: AttackPath | null) => void;
+  onOpen: (id: string) => void;
+  onBack: () => void;
+}) {
+  const name = (id: string) => drawn.nodes.find((node) => node.id === id)?.name ?? id;
+  const node = on.kind === "box" ? drawn.nodes.find((each) => each.id === on.id) : undefined;
+  const group = on.kind === "box" ? drawn.groups.find((each) => each.id === on.id) : undefined;
+  const edge =
+    on.kind === "edge"
+      ? drawn.edges.find((each) => hopKey(each.source, each.relationship, each.target) === on.id)
+      : undefined;
+  const through = drawn.routes.filter((route) =>
+    route.steps.some((step) =>
+      edge
+        ? hopKey(step.source_id, step.relationship, step.target_id) === on.id
+        : step.source_id === on.id || step.target_id === on.id,
+    ),
+  );
+  const Exposure = FACTOR_ICONS.exposure;
+  const Sensitive = FACTOR_ICONS.dataSensitivity;
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="border-b border-border p-2">
+        <Button variant="ghost" size="sm" onClick={onBack}>
+          <ArrowLeftIcon data-icon="inline-start" />
+          All
+        </Button>
+      </div>
+      <div className="flex flex-col gap-3 overflow-y-auto p-3">
+        {node && (
+          <>
+            <div className="flex items-start gap-2">
+              {createElement(resourceTypeIcon(node.resource_type), {
+                className: "mt-0.5 size-4 shrink-0 text-muted-foreground",
+                "aria-hidden": true,
+              })}
+              <div className="min-w-0 flex-1">
+                <h3 className="truncate text-sm font-medium">{node.name}</h3>
+                <p className="truncate text-xs text-muted-foreground">
+                  {resourceTypeLabel(node.resource_type)}
+                  {node.id === drawn.focus && " · the centre"}
+                </p>
+              </div>
+            </div>
+            <ul className="flex flex-col gap-1 text-xs">
+              {node.entry && (
+                <li className="flex items-center gap-1.5">
+                  <Exposure className="size-3.5 text-high" aria-hidden />
+                  Reachable from the internet · exposure {node.public_exposure.toLowerCase()}
+                </li>
+              )}
+              {node.public_exposure === "UNKNOWN" && (
+                <li className="flex items-center gap-1.5 text-muted-foreground">
+                  <Exposure className="size-3.5 text-unknown opacity-60" aria-hidden />
+                  Internet exposure could not be worked out
+                </li>
+              )}
+              {node.sensitive && (
+                <li className="flex items-center gap-1.5">
+                  <Sensitive className="size-3.5 text-high" aria-hidden />
+                  Holds sensitive data · {node.data_sensitivity.toLowerCase()}
+                </li>
+              )}
+              {node.findings.open > 0 && (
+                <li className="flex items-center gap-1.5">
+                  <span
+                    className={cn(
+                      "rounded border px-1 text-[10px] leading-4 font-medium tabular-nums",
+                      levelStyle(node.findings.worst ?? "UNKNOWN"),
+                    )}
+                  >
+                    {node.findings.open}
+                  </span>
+                  open finding{node.findings.open === 1 ? "" : "s"}
+                  {node.findings.worst && `, worst ${node.findings.worst.toLowerCase()}`}
+                </li>
+              )}
+            </ul>
+            <div className="flex flex-wrap gap-2">
+              {node.id !== drawn.focus && (
+                <Button variant="outline" size="sm" onClick={() => onOpen(node.id)}>
+                  Centre the graph here
+                </Button>
+              )}
+              {node.id !== pageAsset && node.asset_id && (
+                <Link
+                  to={`/assets/${node.asset_id}`}
+                  className={buttonVariants({ variant: "outline", size: "sm" })}
+                >
+                  Open its page
+                </Link>
+              )}
+            </div>
+          </>
+        )}
+        {group && (
+          <>
+            <div>
+              <h3 className="text-sm font-medium tabular-nums">
+                {group.count} more, counted rather than drawn
+              </h3>
+              <ul className="mt-1 text-xs text-muted-foreground">
+                {Object.entries(group.by_type).map(([type, count]) => (
+                  <li key={type}>
+                    {resourceTypeLabel(type)} <span className="tabular-nums">· {count}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <Button variant="outline" size="sm" className="self-start" onClick={() => onOpen(group.id)}>
+              Show them
+            </Button>
+          </>
+        )}
+        {edge && (
+          <h3 className="text-sm">
+            <span className="font-medium">{name(edge.source)}</span>{" "}
+            <span className="text-muted-foreground">{edge.label}</span>{" "}
+            <span className="font-medium">{name(edge.target)}</span>
+          </h3>
+        )}
+        {!node && !group && !edge && (
+          <p className="text-xs text-muted-foreground">That is no longer in this graph.</p>
+        )}
+
+        {(node || edge) && (
+          <div className="flex flex-col gap-1">
+            <h4 className="text-xs font-medium text-muted-foreground">
+              {through.length === 0
+                ? "No attack path here runs through it."
+                : `${through.length} attack path${through.length === 1 ? "" : "s"} here run${through.length === 1 ? "s" : ""} through it`}
+            </h4>
+            <ul className="-mx-2 flex flex-col">
+              {through.map((route) => (
+                <li key={routeKey(route)}>
+                  <RouteButton route={route} traced={traced} onTrace={onTrace} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The route being traced, under the frame: the whole route as the straight
+ * line `AttackPathRoute` draws everywhere else -- the canvas shows where it
+ * runs through the neighbourhood, the line which link to cut. The canvas holds
+ * only the part within the chosen hops, and when the two differ this says so.
+ */
+function TracedRoute({
+  name,
+  traced,
   drawn,
   depth,
   cutStep,
@@ -390,10 +692,7 @@ function RoutesThrough({
   whatIfState,
 }: {
   name: string;
-  routes: AttackPath[];
-  total: number;
-  traced: AttackPath | null;
-  onTrace: (route: AttackPath | null) => void;
+  traced: AttackPath;
   drawn: Neighborhood;
   depth: number;
   cutStep: AttackPathStep | null;
@@ -401,85 +700,30 @@ function RoutesThrough({
   whatIf: WhatIf | undefined;
   whatIfState: "checking" | "error" | "ready";
 }) {
-  const RouteMark = RISK_KIND_ICONS.ATTACK_PATH;
-
-  if (routes.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        No attack path passes through {name}.
-      </p>
-    );
-  }
-
   const onCanvas = new Set(
     drawn.edges.map((edge) => hopKey(edge.source, edge.relationship, edge.target)),
   );
-  const partlyOff =
-    traced !== null &&
-    traced.steps.some(
-      (step) => !onCanvas.has(hopKey(step.source_id, step.relationship, step.target_id)),
-    );
+  const partlyOff = traced.steps.some(
+    (step) => !onCanvas.has(hopKey(step.source_id, step.relationship, step.target_id)),
+  );
 
   return (
-    <section aria-labelledby="routes-through" className="flex flex-col gap-2 border-t pt-3">
-      <h3 id="routes-through" className="text-sm font-medium">
-        Attack paths through {name}
-        <span className="ml-2 font-normal text-muted-foreground tabular-nums">{total}</span>
-      </h3>
-      <ul className="-mx-2 flex flex-col">
-        {routes.map((route) => {
-          const active = traced !== null && routeKey(route) === routeKey(traced);
-          return (
-            <li key={routeKey(route)}>
-              <button
-                type="button"
-                aria-pressed={active}
-                onClick={() => onTrace(route)}
-                className={cn(
-                  "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
-                  active && "bg-muted",
-                )}
-              >
-                <RouteMark className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
-                <span className="min-w-0 flex-1 truncate">
-                  {route.entry.name} → {route.target.name}
-                </span>
-                <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                  {route.hops} {route.hops === 1 ? "hop" : "hops"}
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-      {total > routes.length && (
+    <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
+      {partlyOff && (
         <p className="text-xs text-muted-foreground">
-          Showing the {routes.length} shortest of {total}. The attack paths page lists every
-          one.
+          Part of this route runs more than {depth} {depth === 1 ? "hop" : "hops"} from {name},
+          so the canvas shows only some of it. The line below is the whole route.
         </p>
       )}
-      {traced && (
-        <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
-          {partlyOff && (
-            <p className="text-xs text-muted-foreground">
-              Part of this route runs more than {depth} {depth === 1 ? "hop" : "hops"} from{" "}
-              {name}, so the canvas shows only some of it. The line below is the whole route.
-            </p>
-          )}
-          <AttackPathRoute
-            steps={traced.steps}
-            cutIndex={cutStep ? traced.steps.indexOf(cutStep) : -1}
-          />
-          <WhatIfCut
-            route={traced}
-            cutStep={cutStep}
-            onChooseCut={onChooseCut}
-            whatIf={whatIf}
-            state={whatIfState}
-          />
-        </div>
-      )}
-    </section>
+      <AttackPathRoute steps={traced.steps} cutIndex={cutStep ? traced.steps.indexOf(cutStep) : -1} />
+      <WhatIfCut
+        route={traced}
+        cutStep={cutStep}
+        onChooseCut={onChooseCut}
+        whatIf={whatIf}
+        state={whatIfState}
+      />
+    </div>
   );
 }
 

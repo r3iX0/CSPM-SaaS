@@ -850,13 +850,16 @@ function Legend({ accounts }: { accounts: string }) {
             another scope. A role over a box reaches everything inside it.
           </p>
           <p>
-            Reach runs left to right, starting from the boxes that hold something reachable
-            from the internet. Darker arrows are on an attack path.
+            Reach runs left to right: each box sits one column past the furthest box that
+            reaches it, so the first column holds what nothing reaches. Where reach loops,
+            one arrow has to run back, and it goes round under the boxes. A box reachable from
+            the internet carries a globe wherever it sits. Darker arrows are on an attack path.
           </p>
           <p>
-            Pressing a box or an arrow selects it, and the panel shows what runs through
-            it. Double-click, or press Enter, to open one of the {accounts} or groups here,
-            or an asset's own graph. In the map, arrow keys move between boxes.
+            Pointing at a box fades what it does not touch. Pressing a box or an arrow selects
+            it, and the panel shows what runs through it. Double-click, or press Enter, to open
+            one of the {accounts} or groups here, or an asset's own graph. In the map, arrow
+            keys move between boxes.
           </p>
         </PopoverContent>
       </Popover>
