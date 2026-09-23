@@ -14,13 +14,15 @@ Pure: a graph is built from resources and edges and asked. No database, no
 Azure, no scan.
 """
 
+from collections.abc import Iterable
+
 from app.core.enums import Level, RelationshipType, ResourceType
 from app.domain.resource import CloudResource
-from app.graph import AssetGraph, PathStep
+from app.graph import AssetGraph, Path, PathStep
 from app.graph.estate import DIRECTORY_SCOPE, Placement
 from app.graph.facts import edge_facts
 from app.graph.patterns import PatternKind, route_patterns
-from app.services.graph import serialize_route_map
+from app.services.graph import serialize_route_map, serialize_simulation
 from app.services.placement import Placements
 
 GROUP = "/subscriptions/s/resourceGroups/data"
@@ -392,3 +394,149 @@ def test_a_route_belongs_to_one_pattern_and_the_totals_add_up() -> None:
     patterns, loose = route_patterns(paths)
 
     assert sum(pattern.size for pattern in patterns) + len(loose) == len(paths)
+
+
+def test_a_plan_closes_what_no_cut_in_it_closes_alone() -> None:
+    """Why a plan is simulated whole rather than added up.
+
+    Either network hop into the diamond closes nothing: the other is a way
+    round. Both together close the route -- and a page that summed what each
+    closes alone would say the plan does nothing at all.
+    """
+    graph = diamond()
+
+    plan = graph.simulate(
+        [
+            (WEB, RelationshipType.NETWORK_ACCESS, HOP_A),
+            (WEB, RelationshipType.NETWORK_ACCESS, HOP_B),
+        ]
+    )
+
+    assert [(p.entry.provider_resource_id, p.target.provider_resource_id) for p in plan.closed] == [
+        (WEB, RECORDS)
+    ]
+    assert plan.remaining == ()
+    assert plan.before == 1
+    assert [len(cut.alone) for cut in plan.cuts] == [0, 0]
+    # Each is needed: take either out of the plan and the route is back.
+    assert [len(cut.needed_for) for cut in plan.cuts] == [1, 1]
+    # Nothing left to rank.
+    assert plan.next == ()
+
+
+def test_a_cut_the_rest_of_the_plan_already_covers_is_needed_for_nothing() -> None:
+    """The identity's role closes the route alone, so the network hop beside it
+    in the plan is an afternoon's work that changes nothing."""
+    graph = diamond()
+
+    plan = graph.simulate(
+        [
+            (IDENTITY, RelationshipType.GRANTS_ROLE, GROUP),
+            (WEB, RelationshipType.NETWORK_ACCESS, HOP_A),
+        ]
+    )
+
+    needed = {cut.step.key(): len(cut.needed_for) for cut in plan.cuts}
+    assert needed == {
+        (IDENTITY, "grants_role", GROUP): 1,
+        (WEB, "network_access", HOP_A): 0,
+    }
+    assert len(plan.closed) == 1
+
+
+def test_the_next_cut_is_ranked_over_the_estate_with_the_plan_made() -> None:
+    """With one network hop gone, the other is now the only way in -- a choke
+    point it was not before the plan."""
+    graph = diamond()
+    assert (WEB, "network_access", HOP_B) not in graph.link_severance()
+
+    plan = graph.simulate([(WEB, RelationshipType.NETWORK_ACCESS, HOP_A)])
+
+    assert plan.closed == ()
+    assert len(plan.remaining) == 1
+    assert (WEB, "network_access", HOP_B) in {choke.step.key() for choke in plan.next}
+    assert all(choke.severs == 1 for choke in plan.next)
+
+
+def test_a_plan_matches_rebuilding_the_estate_without_it() -> None:
+    """The oracle, for a plan: remove its links from the outside and look."""
+
+    def ends(paths: Iterable[Path]) -> set[tuple[str, str]]:
+        return {(p.entry.provider_resource_id, p.target.provider_resource_id) for p in paths}
+
+    for estate in (diamond(), fan(), roled()):
+        links = sorted(
+            {
+                estate.removal_key(
+                    step.source.provider_resource_id,
+                    step.relationship,
+                    step.target.provider_resource_id,
+                )
+                for path in estate.attack_paths()
+                for step in path.steps
+                if step.relationship is not RelationshipType.CONTAINS
+            }
+        )[:2]
+        plan = estate.simulate(
+            (source, RelationshipType(relationship), target)
+            for source, relationship, target in links
+        )
+        rebuilt = estate.without(frozenset(links))
+
+        assert ends(plan.remaining) == ends(rebuilt.attack_paths())
+        assert ends(plan.closed) == ends(estate.attack_paths()) - ends(rebuilt.attack_paths())
+
+
+def test_an_escalation_line_and_its_role_line_are_one_cut() -> None:
+    """Pressing either line of an Owner assignment plans one change (section 127)."""
+    graph = roled()
+
+    plan = graph.simulate(
+        [
+            (IDENTITY, RelationshipType.GRANTS_ROLE, GROUP),
+            (IDENTITY, RelationshipType.CAN_GRANT_ROLES, GROUP),
+        ]
+    )
+
+    assert [cut.step.key() for cut in plan.cuts] == [(IDENTITY, "grants_role", GROUP)]
+    assert len(plan.closed) == 1
+
+
+def test_a_link_no_longer_in_the_estate_does_not_hide_the_rest_of_the_plan() -> None:
+    """A plan kept in a URL outlives the scan that drew it."""
+    graph = diamond()
+
+    plan = graph.simulate(
+        [
+            (GROUP, RelationshipType.CONTAINS, RECORDS),
+            ("/vm/gone", RelationshipType.NETWORK_ACCESS, HOP_A),
+            (IDENTITY, RelationshipType.GRANTS_ROLE, GROUP),
+        ]
+    )
+
+    assert plan.missing == (
+        (GROUP, "contains", RECORDS),
+        ("/vm/gone", "network_access", HOP_A),
+    )
+    assert [cut.step.key() for cut in plan.cuts] == [(IDENTITY, "grants_role", GROUP)]
+    assert len(plan.closed) == 1
+
+
+def test_the_page_is_told_which_routes_close_only_together() -> None:
+    graph = diamond()
+
+    body = serialize_simulation(
+        graph.simulate(
+            [
+                (WEB, RelationshipType.NETWORK_ACCESS, HOP_A),
+                (WEB, RelationshipType.NETWORK_ACCESS, HOP_B),
+            ]
+        )
+    )
+
+    assert body["before"] == 1
+    assert body["after"] == 0
+    assert [route["key"] for route in body["closed"]] == [f"{WEB}|{RECORDS}"]
+    assert body["together"] == [f"{WEB}|{RECORDS}"]
+    assert [(cut["alone"], cut["needed_for"]) for cut in body["cuts"]] == [(0, 1), (0, 1)]
+    assert body["next"] == []

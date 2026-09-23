@@ -53,7 +53,7 @@ type AssetFlowNode = Node<
   Pick<RouteMapNode, keyof RouteMapNode> & {
     /** Faded, because a route is traced and this box is not on it. */
     dimmed: boolean;
-    /** Out of reach if the considered link were cut. The point of simulating. */
+    /** Out of reach if the planned links were cut. The point of simulating. */
     closed: boolean;
     /** One end of the hop being read on the traced route. */
     current: boolean;
@@ -92,15 +92,18 @@ export interface RouteMapCanvasProps {
    * into view when it is not.
    */
   hop?: number | null;
-  /** A link somebody is considering cutting, and the routes that close with it. */
-  simulated?: { link: Hop; closes: Set<string> } | null;
+  /**
+   * Links somebody is considering cutting together, and the routes the server
+   * said close with them -- for the plan as a whole, never summed per link.
+   */
+  simulated?: { links: Hop[]; closes: Set<string> } | null;
   /** The box picked, whose routes the rail is showing. */
   picked?: string | null;
   /** Called when a box is pressed: the rail shows what runs through it. */
   onPickNode: (id: string) => void;
   /** Called when the empty canvas is pressed: the pick is put down. */
   onClearPick?: () => void;
-  /** Called when a link is pressed: the page asks what cutting it would do. */
+  /** Called when a link is pressed: the page adds it to the plan, or takes it out. */
   onPickLink: (edge: RouteMapEdge) => void;
 }
 
@@ -321,7 +324,7 @@ function toFlow(
   map: RouteMap,
   traced: MappedRoute | null,
   hop: number | null,
-  simulated: { link: Hop; closes: Set<string> } | null,
+  simulated: { links: Hop[]; closes: Set<string> } | null,
   reduced: boolean,
 ): { nodes: Node[]; edges: Edge[]; at: Map<string, { x: number; y: number }> } {
   const at = layoutRouteMap(map);
@@ -341,18 +344,29 @@ function toFlow(
   const tracedNodes = traced
     ? new Set(traced.steps.flatMap((step) => [step.source_id, step.target_id]))
     : null;
-  const cutHop =
-    simulated?.link ??
-    (traced?.cheapest_break
-      ? {
-          source: traced.cheapest_break.source_id,
-          relationship: traced.cheapest_break.relationship,
-          target: traced.cheapest_break.target_id,
-        }
-      : null);
-  const cut = cutHop ? hopOf(cutHop) : null;
+  // The lines drawn as cut: the plan's, or a traced route's cheapest break. A
+  // role assignment is also drawn as an escalation line where it can grant
+  // roles, and removing the assignment takes both (DECISIONS.md §127).
+  const cutHops: Hop[] = simulated?.links.length
+    ? simulated.links
+    : traced?.cheapest_break
+      ? [
+          {
+            source: traced.cheapest_break.source_id,
+            relationship: traced.cheapest_break.relationship,
+            target: traced.cheapest_break.target_id,
+          },
+        ]
+      : [];
+  const cut = new Set(
+    cutHops.flatMap((each) =>
+      each.relationship === "grants_role"
+        ? [hopOf(each), hopKey(each.source, "can_grant_roles", each.target)]
+        : [hopOf(each)],
+    ),
+  );
 
-  // What the considered cut would put out of reach. Worked from the routes the
+  // What the planned cuts would put out of reach. Worked from the routes the
   // API said would close rather than by re-walking the drawing: the number in
   // the bar and the boxes that grey out have to be one claim.
   const closedNodes = new Set<string>();
@@ -391,7 +405,7 @@ function toFlow(
   const edges: Edge[] = map.edges.map((edge) => {
     const key = keyOf(edge);
     const onTraced = tracedHops?.has(key) ?? false;
-    const isCut = key === cut;
+    const isCut = cut.has(key);
     const now = key === readingKey;
     // Weighted by what it closes, never by what it sits on. The whole point of
     // carrying both numbers is that "on forty routes" and "closes forty

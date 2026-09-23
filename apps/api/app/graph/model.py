@@ -7,7 +7,7 @@ route through an environment nobody looked at in one go.
 """
 
 from collections import deque
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from enum import StrEnum
 
@@ -244,6 +244,45 @@ class CutOutcome:
 
 
 @dataclass(frozen=True)
+class SimulatedCut:
+    """One link in a simulated plan, weighed alone and against the rest."""
+
+    step: PathStep
+    #: Routes this link closes on its own -- the number drawn on its line.
+    alone: tuple[Path, ...]
+    #: Routes that reopen if this link is dropped from the plan. Empty means
+    #: the rest of the plan already closes everything it would.
+    needed_for: tuple[Path, ...]
+
+
+@dataclass(frozen=True)
+class Simulation:
+    """What several links removed together would do to the attack paths.
+
+    Answered by removing them all and enumerating the routes again, never by
+    adding up what each closes alone (see :meth:`AssetGraph.simulate`).
+    """
+
+    cuts: tuple[SimulatedCut, ...]
+    #: Links asked about that are not in the estate or cannot be removed.
+    missing: tuple[EdgeKey, ...]
+    #: Routes that no longer exist once every cut is made.
+    closed: tuple[Path, ...]
+    #: Routes still open, as they run with the cuts made -- round the cut
+    #: links where the route used to cross one.
+    remaining: tuple[Path, ...]
+    #: How many routes exist with nothing cut.
+    before: int
+    #: The links worth cutting next, ranked over the estate with the plan made.
+    next: tuple[ChokePoint, ...]
+
+
+def _ends(path: Path) -> tuple[str, str]:
+    """A route named by its ends, as ``route_key`` names it."""
+    return (path.entry.provider_resource_id, path.target.provider_resource_id)
+
+
+@dataclass(frozen=True)
 class FoldedGroup:
     """Neighbours of one asset that were counted rather than drawn.
 
@@ -299,7 +338,7 @@ class AssetGraph:
     )
     # Attack paths by depth, worked out once per graph. A graph is cached per
     # tenant (``services/graph.py``) and never changed after it is built --
-    # ``_without`` makes a new one -- so the routes are a fixed property of it,
+    # ``without`` makes a new one -- so the routes are a fixed property of it,
     # and the asset list asks for them on every page it serves.
     _paths: dict[int, list["Path"]] = field(
         default_factory=dict, repr=False, compare=False
@@ -820,6 +859,90 @@ class AssetGraph:
             closed=closed,
             before=before,
             after=before - len(closed),
+        )
+
+    def without(self, links: frozenset[EdgeKey]) -> "AssetGraph":
+        """The same estate with these links removed, keyed as :meth:`removal_key`
+        keys them -- so removing a role assignment takes its escalation line
+        with it (DECISIONS.md section 127)."""
+        return AssetGraph.build(
+            list(self.nodes.values()),
+            [edge for edge in self.links() if self.removal_key(*edge) not in links],
+            derive=False,
+        )
+
+    def simulate(
+        self,
+        links: Iterable[tuple[str, RelationshipType, str]],
+        *,
+        next_limit: int = 3,
+        max_depth: int = MAX_DEPTH,
+    ) -> Simulation:
+        """What happens to the attack paths if several links are removed together.
+
+        Not the sum of each link's severance, and the gap is the reason this
+        exists. Two network hops into the same identity each close nothing --
+        the other is a way round -- and together close every route through it;
+        adding up what each closes alone would say nothing happens. So the plan
+        is answered by removing every link at once and enumerating the routes
+        again, from the resources and edges, the way the severance oracle in the
+        tests checks a single link.
+
+        Each cut is then weighed against the rest of the plan: taken out of it,
+        how many routes reopen. A cut that reopens nothing is work the rest of
+        the plan has already done, and somebody deciding what to change wants
+        to know which of their changes that is.
+
+        A link that is not in the estate, or is not one anybody can remove, is
+        returned in ``missing`` rather than refusing the whole plan: a plan kept
+        in a link outlives the scan that drew it, and one change that has since
+        been made should not hide what the others still do.
+        """
+        planned: dict[EdgeKey, PathStep] = {}
+        missing: list[EdgeKey] = []
+        for raw_source, relationship, raw_target in links:
+            source, target = self.resolve(raw_source), self.resolve(raw_target)
+            if not removable(relationship) or (relationship, target) not in self._out.get(
+                source, []
+            ):
+                missing.append((raw_source, relationship.value, raw_target))
+                continue
+            link = self.removal_key(source, relationship, target)
+            planned.setdefault(link, self._step(link))
+
+        before = self.attack_paths(max_depth)
+        plan = frozenset(planned)
+        after = self.without(plan) if plan else self
+        remaining = after.attack_paths(max_depth)
+        still_open = {_ends(path) for path in remaining}
+        closed = tuple(path for path in before if _ends(path) not in still_open)
+
+        severance = self.link_severance(max_depth)
+        cuts = []
+        for link, step in planned.items():
+            if len(plan) == 1:
+                # Alone, the plan is the link: everything it closes needs it.
+                needed_for = closed
+            else:
+                reopened = {
+                    _ends(path) for path in self.without(plan - {link}).attack_paths(max_depth)
+                }
+                needed_for = tuple(path for path in closed if _ends(path) in reopened)
+            cuts.append(
+                SimulatedCut(step=step, alone=severance.get(link, ()), needed_for=needed_for)
+            )
+
+        return Simulation(
+            cuts=tuple(cuts),
+            missing=tuple(missing),
+            closed=closed,
+            remaining=tuple(remaining),
+            before=len(before),
+            next=(
+                tuple(after.choke_points(limit=next_limit, max_depth=max_depth))
+                if remaining
+                else ()
+            ),
         )
 
     def _step(self, link: EdgeKey) -> PathStep:

@@ -1041,6 +1041,44 @@ export interface ChokePoint {
 }
 
 /**
+ * What several links removed together would do (`POST /attack-paths/simulate`).
+ *
+ * Answered for the plan as a whole, never summed from each link's `severs`:
+ * two links that are each other's way round close nothing alone and
+ * everything together, and `together` names the routes that close only so.
+ */
+export interface Simulation {
+  before: number;
+  after: number;
+  closed: {
+    key: string;
+    entry: string;
+    target: string;
+    hops: number;
+    data_sensitivity: Level;
+  }[];
+  /** Keys of closed routes no single link in the plan closes alone. */
+  together: string[];
+  /** Routes still open, and how many hops each now runs. */
+  remaining: { key: string; hops: number }[];
+  cuts: {
+    source: string;
+    relationship: string;
+    target: string;
+    description: string;
+    detail: string;
+    /** Routes this link closes on its own. */
+    alone: number;
+    /** Routes that reopen if this link is taken out of the plan. */
+    needed_for: number;
+  }[];
+  /** Links asked about that are not in the latest reading. */
+  missing: { source: string; relationship: string; target: string }[];
+  /** The links worth cutting next, ranked with the plan made. */
+  next: ChokePoint[];
+}
+
+/**
  * The assets around one, for the graph view on an asset's page.
  *
  * `layer` is where a vertex sits: 0 for the focus, negative for what reaches

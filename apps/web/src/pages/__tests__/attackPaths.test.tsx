@@ -35,7 +35,7 @@ import { MemoryRouter, useLocation } from "react-router-dom";
 
 import { AttackPathsPage } from "../AttackPaths";
 import { api } from "@/lib/api";
-import type { MappedRoute, Risk, RouteMap, RouteMapMeta } from "@/lib/types";
+import type { MappedRoute, Risk, RouteMap, RouteMapMeta, Simulation } from "@/lib/types";
 
 const ROUTE: MappedRoute = {
   key: "vm|storage",
@@ -163,6 +163,46 @@ const CHOKE = {
 function Where() {
   const location = useLocation();
   return <output data-testid="where">{location.search}</output>;
+}
+
+/** The drawn link from jump-01 to its identity, as a plan names it. */
+const RUNS_AS = { source: "vm", relationship: "has_identity", target: "mi" };
+
+function closingAll(overrides: Partial<Simulation> = {}): Simulation {
+  return {
+    before: 1,
+    after: 0,
+    closed: [
+      {
+        key: "vm|storage",
+        entry: "jump-01",
+        target: "customerdata",
+        hops: 4,
+        data_sensitivity: "HIGH",
+      },
+    ],
+    together: [],
+    remaining: [],
+    cuts: [
+      {
+        ...RUNS_AS,
+        description: "jump-01 runs as mi-jump-01",
+        detail: "jump-01 runs as mi-jump-01 (managed identity)",
+        alone: 1,
+        needed_for: 1,
+      },
+    ],
+    missing: [],
+    next: [],
+    ...overrides,
+  };
+}
+
+/** Answers every simulation with this, and records the plans asked about. */
+function simulateWith(result: Simulation) {
+  return vi
+    .spyOn(api, "post")
+    .mockImplementation(() => Promise.resolve({ data: result, meta: {} }) as never);
 }
 
 function mount(
@@ -382,7 +422,8 @@ describe("AttackPathsPage", () => {
     expect(within(panel).getByText("jump-01 → customerdata")).toBeInTheDocument();
   });
 
-  it("names the drawing's marks, and the cut's only while a cut is tried", async () => {
+  it("names the drawing's marks, and the cut's only while a plan is tried", async () => {
+    simulateWith(closingAll());
     mount(
       {
         ...oneRoute(),
@@ -406,11 +447,11 @@ describe("AttackPathsPage", () => {
 
     expect(await screen.findByText("Thicker: closes more routes if cut")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "How to read the drawing" })).toBeInTheDocument();
-    expect(screen.queryByText("The cut being tried")).toBeNull();
+    expect(screen.queryByText("In the simulated plan")).toBeNull();
 
-    await userEvent.click(screen.getByRole("button", { name: /simulate the cut/i }));
-    expect(screen.getByText("The cut being tried")).toBeInTheDocument();
-    expect(screen.getByText("Out of reach after the cut")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /add to the simulation/i }));
+    expect(screen.getByText("In the simulated plan")).toBeInTheDocument();
+    expect(screen.getByText("Out of reach with the plan made")).toBeInTheDocument();
   });
 
   it("says when a link sits on more routes than it closes", async () => {
@@ -621,6 +662,107 @@ describe("AttackPathsPage", () => {
     expect(panel).toHaveTextContent(
       "No route drawn here runs through Production › elsewhere.",
     );
+  });
+
+  it("offers the estate's choke points on an empty simulate tab", async () => {
+    mount(
+      { ...oneRoute(), choke_points: [{ ...CHOKE, severs: 1, on_routes: 1, closes: [] }] },
+      { total: 1, entry_points: 1, sensitive_targets: 1 },
+    );
+
+    await userEvent.click(await screen.findByRole("tab", { name: /simulate/i }));
+    const panel = screen.getByRole("complementary", { name: "The routes" });
+    expect(within(panel).getByText("Where to start")).toBeInTheDocument();
+    expect(
+      within(panel).getByRole("button", {
+        name: "Add to the plan: mi-jump-01 can act over sub-1 (Contributor)",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("asks the server about the plan as a whole and keeps it in the URL", async () => {
+    // Never summed from the numbers on the lines: two links that are each
+    // other's way round close nothing alone and everything together.
+    const post = simulateWith(closingAll({ together: ["vm|storage"] }));
+    mount(
+      { ...oneRoute(), choke_points: [{ ...CHOKE, severs: 1, on_routes: 1, closes: [] }] },
+      { total: 1, entry_points: 1, sensitive_targets: 1 },
+    );
+
+    await userEvent.click(await screen.findByRole("tab", { name: /simulate/i }));
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "Add to the plan: mi-jump-01 can act over sub-1 (Contributor)",
+      }),
+    );
+
+    expect(screen.getByTestId("where")).toHaveTextContent("cut=mi%7Cgrants_role%7Csub");
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith("/api/v1/attack-paths/simulate", {
+        cuts: [{ source: "mi", relationship: "grants_role", target: "sub" }],
+      }),
+    );
+    const panel = screen.getByRole("complementary", { name: "The routes" });
+    expect(await within(panel).findByText(/of 1 route closes/)).toBeInTheDocument();
+    expect(panel).toHaveTextContent("only because these changes are made together");
+    expect(within(panel).getByText("only together")).toBeInTheDocument();
+  });
+
+  it("opens on the simulation a link names, and marks a change the rest covers", async () => {
+    simulateWith(
+      closingAll({
+        cuts: [
+          { ...closingAll().cuts[0], alone: 1, needed_for: 1 },
+          {
+            source: "mi",
+            relationship: "grants_role",
+            target: "sub",
+            description: "mi-jump-01 can act over sub-1",
+            detail: "mi-jump-01 can act over sub-1 (Contributor)",
+            alone: 0,
+            needed_for: 0,
+          },
+        ],
+      }),
+    );
+    mount(
+      oneRoute(),
+      { total: 1, entry_points: 1, sensitive_targets: 1 },
+      [],
+      "/attack-paths?cut=vm%7Chas_identity%7Cmi&cut=mi%7Cgrants_role%7Csub",
+    );
+
+    const panel = await screen.findByRole("complementary", { name: "The routes" });
+    expect(await within(panel).findByText("You can leave it out.", { exact: false })).toBeInTheDocument();
+    expect(within(panel).getByText(/2 of 10/)).toBeInTheDocument();
+    expect(screen.getByText(/Simulating 2 changes together/)).toBeInTheDocument();
+
+    await userEvent.click(within(panel).getByRole("button", { name: "Clear" }));
+    expect(screen.getByTestId("where")).not.toHaveTextContent("cut=");
+  });
+
+  it("says a planned link the latest reading no longer has is left out", async () => {
+    simulateWith(
+      closingAll({
+        closed: [],
+        after: 1,
+        remaining: [{ key: "vm|storage", hops: 4 }],
+        cuts: [],
+        missing: [{ source: "gone", relationship: "network_access", target: "vm" }],
+      }),
+    );
+    mount(
+      oneRoute(),
+      { total: 1, entry_points: 1, sensitive_targets: 1 },
+      [],
+      "/attack-paths?cut=gone%7Cnetwork_access%7Cvm",
+    );
+
+    const panel = await screen.findByRole("complementary", { name: "The routes" });
+    expect(
+      await within(panel).findByText(/Not in the latest reading/),
+    ).toBeInTheDocument();
+    expect(within(panel).getByText("Still open")).toBeInTheDocument();
   });
 
   it("says nothing about cutting when there is nothing to cut", async () => {

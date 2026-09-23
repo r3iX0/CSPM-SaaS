@@ -60,6 +60,7 @@ GET    /attack-paths/access/{resource_id}
 GET    /attack-paths/neighborhood/{resource_id}?depth=1..3&expand=<fold id>
 GET    /attack-paths/estate?subscription_id=&resource_group=
 GET    /attack-paths/what-if?source=&relationship=&target=
+POST   /attack-paths/simulate            { cuts: [{source, relationship, target}] }  (1..10)
 
 GET    /rules                              GET    /rules/{rule_id}
 GET    /compliance                         GET    /compliance/{framework_id}
@@ -384,6 +385,22 @@ leads with those same rows under the small endpoint, because it wants three
 rows and has no use for a route map, and one claim with two denominators is
 worse than a second request. The attack-paths page fills that endpoint's cache
 from this payload, so the two pages pay once between them.
+
+`POST /attack-paths/simulate` answers for several links removed together, which
+no sum of `severs` can: two links that are each other's way round close nothing
+alone and everything together (DECISIONS.md §141). The plan is a body because
+ten Azure ids three times over outgrow a URL; nothing is written, and a demo
+visitor may ask it. `closed` names every route that no longer exists with the
+plan made, against every route rather than the drawn ones, and `together` the
+keys of those that no single cut closes alone. `remaining` is what still runs
+and how many hops it now takes, which is longer where it goes round a cut. Each
+entry in `cuts` carries `alone` (its own severance, the number on its line) and
+`needed_for` (routes that reopen if it is taken out of the plan — zero means the
+rest of the plan already covers it). A link not in the latest reading, or one
+nobody can remove, is returned in `missing` and left out rather than failing
+the plan, because a plan kept in a URL outlives the scan that drew it. `next`
+is the choke points of the estate with the plan made, ranked against what is
+left.
 
 Every step of every route carries `facts` and `detail` beside `description`, on
 this endpoint and on `/attack-paths`: "mi-app can act over sub-prod" names

@@ -17,6 +17,7 @@ from app.core.enums import RelationshipType
 from app.core.errors import NotFound, envelope
 from app.graph.estate import ESTATE_MAX_ASSETS, Lens, estate_map
 from app.graph.model import NEIGHBOURHOOD_FAN_OUT, NEIGHBOURHOOD_MAX_NODES
+from app.schemas.attack_path import MAX_SIMULATED_CUTS, SimulationRequest
 from app.services import graph as graph_service
 from app.services.graph import serialize_path
 from app.services.placement import load_placements
@@ -375,4 +376,24 @@ async def what_if(
             "before": outcome.before,
             "after": outcome.after,
         }
+    )
+
+
+@router.post("/simulate")
+async def simulate(payload: SimulationRequest, session: DbSession, tenant: Tenant) -> dict:
+    """What closes if several links are removed together, across the organization.
+
+    A POST because the plan is a body, not because anything is written: this
+    changes nothing, in CloudGuard or in the cloud, and a demo visitor may ask
+    it like any other question. The answer is exact for the plan as a whole --
+    never the sum of what each link closes alone, which is the one number a
+    plan of several changes cannot be read off (``AssetGraph.simulate``).
+    """
+    graph = await graph_service.load_graph(session, tenant.organization_id)
+    outcome = graph.simulate(
+        (link.source, link.relationship, link.target) for link in payload.cuts
+    )
+    return envelope(
+        graph_service.serialize_simulation(outcome),
+        {"max_cuts": MAX_SIMULATED_CUTS},
     )

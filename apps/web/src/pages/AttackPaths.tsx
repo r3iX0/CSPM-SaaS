@@ -6,8 +6,9 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
+  type ReactNode,
 } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import {
   ArrowLeftIcon,
@@ -32,6 +33,7 @@ import type {
   RouteMapEdge,
   RouteMapMeta,
   RouteMapNode,
+  Simulation,
 } from "@/lib/types";
 import { useT } from "@/i18n";
 import { cn } from "@/lib/format";
@@ -42,11 +44,12 @@ import { AttackPathRoute } from "@/components/graph/AttackPathRoute";
 import { GraphLegend, MARKS } from "@/components/graph/GraphLegend";
 import { OpenInGraph } from "@/components/graph/OpenInGraph";
 import { PatternRow, RouteRow } from "@/components/graph/RouteRows";
-import { routeKeyOf } from "@/components/graph/routeKeys";
+import { hopKey, routeKeyOf } from "@/components/graph/routeKeys";
 import { routeMapQuery } from "@/components/graph/graphQueries";
 import { usePrefersReducedMotion } from "@/lib/motion";
 import { arrivedByMorph } from "@/lib/viewTransition";
 import type { Hop } from "@/components/graph/RouteMapCanvas";
+import { SimulationPanel } from "@/components/graph/SimulationPanel";
 import {
   CardsSkeleton,
   EmptyState,
@@ -57,6 +60,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // React Flow is the heaviest thing this page can load, and a tenant with no
 // routes never needs it.
@@ -82,6 +86,12 @@ const RouteMapCanvas = lazy(() => import("@/components/graph/RouteMapCanvas"));
  * on the map. The map links back here narrowed to one of its boxes. What is
  * traced, the hop, the box picked and the place narrowed to are all in the URL
  * (`trace`, `hop`, `through`, `scope`, `group`), so a link opens on them.
+ *
+ * **Changes are tried in the panel's other tab (§141).** Pressing a line adds
+ * it to a plan rather than trying it alone, and the plan is answered whole by
+ * the server, because two changes can close what neither closes alone. The
+ * plan is in the URL too (`cut`, one per link), so it can be sent to whoever
+ * makes the change.
  */
 export function AttackPathsPage() {
   const t = useT();
@@ -137,8 +147,9 @@ export function AttackPathsPage() {
       group: params.has("group") ? params.get("group") || null : undefined,
     };
   }, [params]);
-  /** The link somebody is weighing up, and what the graph said closes with it. */
-  const [considered, setConsidered] = useState<RouteMapEdge | null>(null);
+  /** The links somebody is trying out together, in the order they were added. */
+  const plan = useMemo(() => params.getAll("cut").flatMap(parseCut), [params]);
+  const [tab, setTab] = useState<PanelTab>(() => (plan.length > 0 ? "simulate" : "routes"));
 
   // Every change replaces the entry: reading along the page is not a trail
   // somebody retraces with Back, as opening a box on the map is.
@@ -157,6 +168,18 @@ export function AttackPathsPage() {
   }
   const setTraced = (key: string | null) =>
     change({ trace: key, hop: key ? "0" : null });
+
+  function setPlan(next: Hop[]) {
+    setParams(
+      (previous) => {
+        const params = new URLSearchParams(previous);
+        params.delete("cut");
+        for (const link of next) params.append("cut", cutKey(link));
+        return params;
+      },
+      { replace: true },
+    );
+  }
 
   const map = data?.map;
   const routes = useMemo(() => map?.routes ?? [], [map]);
@@ -186,19 +209,35 @@ export function AttackPathsPage() {
       behavior: reduced || morphed ? "auto" : "smooth",
     });
   }, [arrivingWith, tracedRoute, reduced, morphed]);
+  // Pressing a line, or a suggestion, puts it in the plan or takes it out,
+  // and opens the tab that answers for the plan.
+  function togglePlanned(link: Hop) {
+    const key = cutKey(asRemoved(link, map?.edges ?? []));
+    const inPlan = plan.some((each) => cutKey(each) === key);
+    if (inPlan) setPlan(plan.filter((each) => cutKey(each) !== key));
+    else if (plan.length < MAX_CUTS) setPlan([...plan, asRemoved(link, map?.edges ?? [])]);
+    setTab("simulate");
+  }
+
+  const simulation = useQuery({
+    queryKey: ["attack-paths", "simulate", plan.map(cutKey)],
+    enabled: plan.length > 0,
+    // The last answer stays up, faded, while the next is checked: a panel that
+    // emptied on every press would make adding a second change feel like
+    // starting again.
+    placeholderData: keepPreviousData,
+    queryFn: () =>
+      api
+        .post<Simulation>("/api/v1/attack-paths/simulate", { cuts: plan })
+        .then((r) => r.data),
+  });
+  const result = plan.length > 0 ? simulation.data : undefined;
   const simulated = useMemo(
     () =>
-      considered
-        ? {
-            link: {
-              source: considered.source,
-              relationship: considered.relationship,
-              target: considered.target,
-            } satisfies Hop,
-            closes: new Set(considered.closes),
-          }
+      plan.length > 0
+        ? { links: plan, closes: new Set(result?.closed.map((route) => route.key)) }
         : null,
-    [considered],
+    [plan, result],
   );
 
   return (
@@ -243,9 +282,15 @@ export function AttackPathsPage() {
               else. */}
           <ChokePoints
             chokes={map.choke_points}
-            edges={map.edges}
-            considered={considered}
-            onConsider={setConsidered}
+            planned={plan}
+            full={plan.length >= MAX_CUTS}
+            onToggle={(link) => {
+              togglePlanned(link);
+              frame.current?.scrollIntoView?.({
+                block: "start",
+                behavior: reduced ? "auto" : "smooth",
+              });
+            }}
           />
 
           {traced && !tracedRoute && (
@@ -265,26 +310,52 @@ export function AttackPathsPage() {
               meta={data.meta}
               traced={tracedRoute}
               hop={hop}
-              onTrace={setTraced}
+              onTrace={(key) => {
+                setTraced(key);
+                if (key) setTab("routes");
+              }}
               onHop={(next) => change({ hop: String(next) })}
               tracked={tracked.data}
               trackingKnown={tracked.isSuccess}
               simulated={simulated}
+              tab={tab}
+              onTab={setTab}
+              simulationPanel={
+                <SimulationPanel
+                  map={map}
+                  plan={plan}
+                  result={result}
+                  state={
+                    simulation.isError
+                      ? "error"
+                      : simulation.isFetching
+                        ? "checking"
+                        : "ready"
+                  }
+                  maxCuts={MAX_CUTS}
+                  onRetry={() => void simulation.refetch()}
+                  onAdd={togglePlanned}
+                  onRemove={togglePlanned}
+                  onClear={() => setPlan([])}
+                  onTrace={(key) => {
+                    setTraced(key);
+                    setTab("routes");
+                  }}
+                />
+              }
               picked={picked}
               place={place}
               onPickNode={(id) => {
                 // A box asks "what runs through here". The panel answers, and
                 // any trace clears so every route through it is visible.
-                setConsidered(null);
+                setTab("routes");
                 change({
                   trace: null,
                   hop: null,
                   through: picked === id ? null : id,
                 });
               }}
-              onPickLink={(edge) =>
-                setConsidered((current) => (current && sameLink(current, edge) ? null : edge))
-              }
+              onPickLink={togglePlanned}
               onClearPick={() => change({ through: null })}
               onClearPlace={() => change({ scope: null, group: null })}
             />
@@ -295,8 +366,50 @@ export function AttackPathsPage() {
   );
 }
 
-const sameLink = (a: RouteMapEdge, b: RouteMapEdge) =>
-  a.source === b.source && a.relationship === b.relationship && a.target === b.target;
+/**
+ * Links one plan may hold, as the API caps it (`MAX_SIMULATED_CUTS`): each is
+ * weighed against the rest by rebuilding the estate without it, and a plan
+ * longer than this is a project rather than a what-if.
+ */
+const MAX_CUTS = 10;
+
+type PanelTab = "routes" | "simulate";
+
+const cutKey = (link: Hop) => hopKey(link.source, link.relationship, link.target);
+
+/** A `cut` parameter back into a link; nothing for one that is not one. */
+function parseCut(value: string): Hop[] {
+  const first = value.indexOf("|");
+  const last = value.lastIndexOf("|");
+  if (first <= 0 || last <= first + 1 || last === value.length - 1) return [];
+  return [
+    {
+      source: value.slice(0, first),
+      relationship: value.slice(first + 1, last),
+      target: value.slice(last + 1),
+    },
+  ];
+}
+
+/**
+ * The link as the thing somebody removes. An escalation line beside a role
+ * line is the same role assignment (DECISIONS.md §127), so pressing either
+ * plans one change and the choke point that names the assignment shows it.
+ */
+function asRemoved(link: Hop, edges: RouteMapEdge[]): Hop {
+  if (
+    link.relationship === "can_grant_roles" &&
+    edges.some(
+      (edge) =>
+        edge.source === link.source &&
+        edge.target === link.target &&
+        edge.relationship === "grants_role",
+    )
+  ) {
+    return { source: link.source, relationship: "grants_role", target: link.target };
+  }
+  return { source: link.source, relationship: link.relationship, target: link.target };
+}
 
 /**
  * A subscription, or a group in one, as the estate map opens it. `group`
@@ -344,23 +457,23 @@ function mapHref(node: Pick<RouteMapNode, "scope_id" | "group">): string {
  * sits on more routes than it closes, the panel says so: a customer told four
  * routes close who then sees two remain stops believing the next number too.
  *
- * "Simulate the cut" changes nothing. It greys out what would go out of reach,
- * on the drawing, from the same answer the number came from — so the claim and
- * the picture cannot disagree.
+ * Each can be added to the simulation beside the drawing, which answers for
+ * it together with whatever else is planned. Adding one changes nothing.
  */
 function ChokePoints({
   chokes,
-  edges,
-  considered,
-  onConsider,
+  planned,
+  full,
+  onToggle,
 }: {
   chokes: ChokePoint[];
-  edges: RouteMapEdge[];
-  considered: RouteMapEdge | null;
-  onConsider: (edge: RouteMapEdge | null) => void;
+  planned: Hop[];
+  full: boolean;
+  onToggle: (link: Hop) => void;
 }) {
   const t = useT();
   if (!chokes.length) return null;
+  const inPlan = new Set(planned.map(cutKey));
 
   return (
     <Card>
@@ -375,17 +488,16 @@ function ChokePoints({
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {chokes.map((choke) => {
-          const edge = edges.find(
-            (candidate) =>
-              candidate.source === choke.source.id &&
-              candidate.relationship === choke.relationship &&
-              candidate.target === choke.target.id,
-          );
-          const simulating = Boolean(edge && considered && sameLink(edge, considered));
+          const link = {
+            source: choke.source.id,
+            relationship: choke.relationship,
+            target: choke.target.id,
+          };
+          const simulating = inPlan.has(cutKey(link));
 
           return (
             <div
-              key={`${choke.source.id}-${choke.relationship}-${choke.target.id}`}
+              key={cutKey(link)}
               className={cn(
                 "rounded-lg border px-4 py-3 transition-colors",
                 simulating ? "border-ok-border bg-ok-bg" : "border-border",
@@ -419,27 +531,26 @@ function ChokePoints({
                   </li>
                 ))}
               </ul>
-              {edge && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={simulating ? "secondary" : "outline"}
-                  className="mt-3"
-                  onClick={() => onConsider(simulating ? null : edge)}
-                >
-                  {simulating ? (
-                    <>
-                      <UndoIcon aria-hidden />
-                      {t.attackPaths.simulateStop}
-                    </>
-                  ) : (
-                    <>
-                      <ScissorsIcon aria-hidden />
-                      {t.attackPaths.simulate}
-                    </>
-                  )}
-                </Button>
-              )}
+              <Button
+                type="button"
+                size="sm"
+                variant={simulating ? "secondary" : "outline"}
+                className="mt-3"
+                disabled={!simulating && full}
+                onClick={() => onToggle(link)}
+              >
+                {simulating ? (
+                  <>
+                    <UndoIcon aria-hidden />
+                    {t.attackPaths.simulateStop}
+                  </>
+                ) : (
+                  <>
+                    <ScissorsIcon aria-hidden />
+                    {t.attackPaths.simulate}
+                  </>
+                )}
+              </Button>
             </div>
           );
         })}
@@ -467,6 +578,9 @@ function RouteMapFrame({
   tracked,
   trackingKnown,
   simulated,
+  tab,
+  onTab,
+  simulationPanel,
   picked,
   place,
   onPickNode,
@@ -482,11 +596,14 @@ function RouteMapFrame({
   onHop: (hop: number) => void;
   tracked?: Map<string, Risk>;
   trackingKnown: boolean;
-  simulated: { link: Hop; closes: Set<string> } | null;
+  simulated: { links: Hop[]; closes: Set<string> } | null;
+  tab: PanelTab;
+  onTab: (tab: PanelTab) => void;
+  simulationPanel: ReactNode;
   picked: string | null;
   place: Place | null;
   onPickNode: (id: string) => void;
-  onPickLink: (edge: RouteMapEdge) => void;
+  onPickLink: (edge: Hop) => void;
   onClearPick: () => void;
   onClearPlace: () => void;
 }) {
@@ -536,10 +653,17 @@ function RouteMapFrame({
           />
         )}
         {simulated && (
-          <p className="flex items-center gap-2 border-b border-ok-border bg-ok-bg px-3 py-2 text-xs text-foreground">
+          <div className="flex items-center gap-2 border-b border-ok-border bg-ok-bg px-3 py-1.5 text-xs text-foreground">
             <ScissorsIcon className="size-3.5 shrink-0 text-ok" aria-hidden />
-            {t.attackPaths.simulating}
-          </p>
+            <p className="min-w-0 flex-1">
+              {t.attackPaths.simulating(simulated.links.length)}
+            </p>
+            {tab !== "simulate" && (
+              <Button variant="ghost" size="sm" onClick={() => onTab("simulate")}>
+                {t.attackPaths.simulationShow}
+              </Button>
+            )}
+          </div>
         )}
         <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
           <div className="h-[28rem] min-w-0 lg:h-auto lg:flex-1">
@@ -561,25 +685,56 @@ function RouteMapFrame({
             aria-label={t.attackPaths.panelLabel}
             className="flex max-h-[30rem] min-h-0 flex-col border-t border-border lg:max-h-none lg:w-[22rem] lg:border-t-0 lg:border-l"
           >
-            {traced ? (
-              <TracedRoute
-                route={traced}
-                nodes={nodes}
-                risk={tracked?.get(traced.key)}
-                trackingKnown={trackingKnown}
-                onBack={() => onTrace(null)}
-              />
-            ) : (
-              <RouteList
-                map={map}
-                nodes={nodes}
-                onTrace={onTrace}
-                picked={picked}
-                onClearPick={onClearPick}
-                place={place}
-                onClearPlace={onClearPlace}
-              />
-            )}
+            <Tabs
+              value={tab}
+              onValueChange={(value) => onTab(value as PanelTab)}
+              className="min-h-0 flex-1 gap-0"
+            >
+              <div className="border-b border-border p-2">
+                <TabsList className="w-full">
+                  <TabsTrigger value="routes">
+                    {t.attackPaths.tabRoutes}
+                    <span className="text-muted-foreground tabular-nums">
+                      {map.routes.length}
+                    </span>
+                  </TabsTrigger>
+                  <TabsTrigger value="simulate">
+                    {t.attackPaths.tabSimulate}
+                    {simulated && (
+                      <span className="text-muted-foreground tabular-nums">
+                        {simulated.links.length}
+                      </span>
+                    )}
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              <TabsContent value="routes" className="flex min-h-0 flex-col">
+                {traced ? (
+                  <TracedRoute
+                    route={traced}
+                    nodes={nodes}
+                    risk={tracked?.get(traced.key)}
+                    trackingKnown={trackingKnown}
+                    onBack={() => onTrace(null)}
+                  />
+                ) : (
+                  <RouteList
+                    map={map}
+                    nodes={nodes}
+                    onTrace={onTrace}
+                    picked={picked}
+                    onClearPick={onClearPick}
+                    place={place}
+                    onClearPlace={onClearPlace}
+                  />
+                )}
+              </TabsContent>
+
+              <TabsContent value="simulate" className="flex min-h-0 flex-col">
+                {simulationPanel}
+              </TabsContent>
+            </Tabs>
           </aside>
         </div>
       </div>

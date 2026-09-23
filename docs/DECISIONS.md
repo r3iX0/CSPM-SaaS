@@ -7460,6 +7460,67 @@ same element, and each fallback. jsdom has no View Transitions and draws
 nothing, so how the movement looks, and whether 300ms is the right wait, still
 need a real browser, in Chrome and Safari at least.
 
+## 141. Changes are simulated as a plan, in a tab beside the drawing
+
+The attack-path page could try one cut: a choke point's button, or a pressed
+line, greyed out what that link's severance closed. Nobody makes one change.
+What goes to a change window is a list, and a list is the one thing severance
+per link cannot answer: two network hops into one identity each close nothing,
+because each is the other's way round, and together close everything behind
+them. A page that added up the numbers on the lines would tell that customer
+the plan does nothing.
+
+- **The plan is answered whole, on the server.** `POST /attack-paths/simulate`
+  takes up to ten links, removes them all (`AssetGraph.without`, keyed by
+  `removal_key`, so an Owner assignment takes its escalation line, §127) and
+  enumerates the routes again from the resources and edges, the way the
+  severance oracle in the tests checks one link. The browser never derives a
+  plan's outcome from `closes`; the union of those is a lower bound, and a
+  lower bound shown as the answer is the overclaim §122 exists to avoid, pointed
+  the other way.
+- **Where the whole beats its parts, the page says so.** `together` names the
+  routes no single cut closes alone. That is the thing nobody could have read
+  off the drawing, and the reason to simulate rather than eyeball.
+- **Each change is weighed against the rest.** `alone` is the number on the
+  line; `needed_for` is how many routes reopen if the change is taken out of
+  the plan, found by rebuilding without it — one rebuild per cut, which is
+  what caps a plan at ten. A change with `needed_for` zero is work the rest of
+  the plan already does, and is marked "you can leave it out".
+- **What to add next is ranked with the plan made.** The choke points above
+  the drawing are the estate as it stands. Once the plan removes a link, a hop
+  that had a way round may be the only way left, so the tab's suggestions are
+  `choke_points` of the rebuilt estate against what remains. An empty tab starts
+  from the estate's own choke points.
+- **A tab, not a mode.** The panel beside the drawing has two tabs, Routes and
+  Simulate. Pressing a line adds it to the plan (or takes it out) and opens
+  Simulate; tracing a route or pressing a box opens Routes. The drawing shows
+  the plan in either tab — its lines dashed in the ok colour, what it closes
+  greyed — with a bar above saying how many changes are simulated and that
+  nothing in the cloud has changed. A choke point's button adds it to the same
+  plan rather than trying it alone.
+- **The plan is in the URL.** `cut=source|relationship|target`, one per link,
+  so a plan can be sent to whoever makes the change, and the page opens on the
+  Simulate tab when a link names one. The API call is a POST body because ten
+  Azure ids three times over outgrow what some proxies accept; the page's own
+  URL never reaches the API. A link not in the latest reading comes back in
+  `missing` and is shown as such rather than failing the plan — a plan in a
+  URL outlives the scan that drew it, and one change already made should not
+  hide what the others still do.
+- **Still open, and longer.** Routes the plan leaves are listed with the hops
+  they now take. A route that runs longer goes round a cut, which is the plan
+  partly working; saying "4 → 6 hops" keeps that from reading as failure.
+- **"Copy the plan"** puts the changes and what they close on the clipboard,
+  for the ticket. No export format beyond that until somebody asks for one.
+
+**Cost.** One rebuild and traversal for the plan, one more per cut, and one
+severance pass over the rebuilt estate for the suggestions. A tenant whose
+route map is already slow will feel a ten-cut plan; the page keeps the last
+answer up, faded, while the next is checked, rather than emptying the panel.
+
+**Not checked in a browser.** Tests cover the plan in the URL, the request
+body, the together callout, a covered change, and a missing link. How the tab
+reads beside a large drawing still needs a real screen.
+
 ## Open items carried forward
 
 **Data residency is not built (§113).** An organization setting for allowed

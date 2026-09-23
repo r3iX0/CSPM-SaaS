@@ -754,14 +754,14 @@ export const en = {
       "The route this link names is not among the routes in the latest reading \u2014 it may have closed since. Every route is drawn below.",
     traceMissingClear: "Clear",
     mapHelp:
-      "Left to right is hops from the outside in. A line's thickness is how many routes close if it is cut — checked for every link, not only the ones listed above. Press a line to see what cutting it would do, or a box for the routes through it; press the empty canvas to put the box down. Pointing at a box fades what it does not touch. Arrow keys move between boxes.",
+      "Left to right is hops from the outside in. A line's thickness is how many routes close if it is cut — checked for every link, not only the ones listed above. Press a line to add it to the simulation, or a box for the routes through it; press the empty canvas to put the box down. Pointing at a box fades what it does not touch. Arrow keys move between boxes.",
     mapHelpLabel: "How to read the drawing",
     legendEntry: "Reachable from the internet",
     legendSensitive: "Sensitive data",
     legendFindings: "Open findings",
     legendWeight: "Thicker: closes more routes if cut",
-    legendCut: "The cut being tried",
-    legendClosed: "Out of reach after the cut",
+    legendCut: "In the simulated plan",
+    legendClosed: "Out of reach with the plan made",
     mapDrawnOf: (drawn: number, total: number) =>
       `Drawing ${drawn} of ${total} routes — the rest are in the list.`,
     panelLabel: "The routes",
@@ -770,9 +770,13 @@ export const en = {
     patternsHelp:
       "Grouped only where the routes are identical apart from one end, so each group is a claim you can check by opening it.",
     routesThrough: (n: number) => `On ${n} ${n === 1 ? "route" : "routes"}`,
-    simulate: "Simulate the cut",
-    simulateStop: "Stop simulating",
-    simulating: "Simulating — nothing in Azure has changed.",
+    simulate: "Add to the simulation",
+    simulateStop: "Take out of the simulation",
+    simulating: (n: number) =>
+      `Simulating ${n} ${n === 1 ? "change" : "changes"} together — nothing in your cloud has changed.`,
+    simulationShow: "Show the plan",
+    tabRoutes: "Routes",
+    tabSimulate: "Simulate",
     closesNothing:
       "Cutting this closes nothing: every route through it has another way round.",
     clearTrace: "Show every route",

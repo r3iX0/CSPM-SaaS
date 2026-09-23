@@ -31,7 +31,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.enums import FindingStatus, RelationshipType, Severity
 from app.domain.resource import CloudResource
-from app.graph import AssetGraph, ChokePoint, DeadEnd, Neighborhood, Path
+from app.graph import AssetGraph, ChokePoint, DeadEnd, Neighborhood, Path, Simulation
 from app.graph.access import AccessGrant, AccessHolder
 from app.graph.estate import DIRECTORY_SCOPE, EstateMap
 from app.graph.model import ENTRY_EXPOSURE, RELATIONSHIP_VERBS, SENSITIVE_DATA
@@ -239,6 +239,60 @@ def serialize_choke_point(choke: ChokePoint, total_routes: int) -> dict:
             }
             for path in choke.severed
         ],
+    }
+
+
+def serialize_simulation(simulation: Simulation) -> dict:
+    """A plan of cuts, what it closes together, and what is left.
+
+    Routes are named by key, the same key the route map carries, so the page
+    greys out exactly what the server said closes; and with their ends and
+    sensitivity, because a closed route may be one the drawing left off.
+    """
+    alone: set[str] = set()
+    for cut in simulation.cuts:
+        alone.update(route_key(path) for path in cut.alone)
+    closed = [route_key(path) for path in simulation.closed]
+    after = len(simulation.remaining)
+    return {
+        "before": simulation.before,
+        "after": after,
+        "closed": [
+            {
+                "key": route_key(path),
+                "entry": path.entry.name,
+                "target": path.target.name,
+                "hops": path.hops,
+                "data_sensitivity": path.target.data_sensitivity.value,
+            }
+            for path in simulation.closed
+        ],
+        # Closed only because the cuts were made together: no one of them
+        # closes these alone. The reason a plan is simulated whole.
+        "together": [key for key in closed if key not in alone],
+        # Still open, and how long each now runs -- round a cut link where the
+        # drawn route used to cross one.
+        "remaining": [
+            {"key": route_key(path), "hops": path.hops} for path in simulation.remaining
+        ],
+        "cuts": [
+            {
+                "source": cut.step.source.provider_resource_id,
+                "relationship": cut.step.relationship.value,
+                "target": cut.step.target.provider_resource_id,
+                "description": cut.step.describe(),
+                "detail": cut.step.detail(),
+                "alone": len(cut.alone),
+                "needed_for": len(cut.needed_for),
+            }
+            for cut in simulation.cuts
+        ],
+        "missing": [
+            {"source": source, "relationship": relationship, "target": target}
+            for source, relationship, target in simulation.missing
+        ],
+        # Ranked over the estate with the plan made, against what is left.
+        "next": [serialize_choke_point(choke, after) for choke in simulation.next],
     }
 
 
