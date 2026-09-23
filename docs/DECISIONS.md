@@ -7408,6 +7408,58 @@ Whether it should follow §138 is left for now.
 the one arrival scroll and the missing-route notice. They do not show how long
 the handoff takes, which is the thing a transition would be judged against.
 
+## 140. A link into the graph grows into the graph's frame
+
+The step §139 left for later. A dashboard row, or the shortest-path panel,
+now grows into the frame of the graph it opens: the neighbourhood card on an
+asset's page, or the drawing on the attack-path page. The row is the thing
+that becomes the graph, so the reader never has to look for it on arrival.
+
+- **The browser's View Transitions API, not `motion`.** `motion` animates
+  elements React holds. The two ends of this movement are on two pages, and
+  the first is unmounted before the second mounts. `document.startViewTransition`
+  pictures the page before and after a change and moves between the two,
+  matching elements by name. It is called by hand, since React Router 6 only
+  offers it with a data router, and this app uses `<Routes>`. It is a platform
+  API, not a second animation kit: nothing is installed, and nothing is drawn
+  that the page does not already draw.
+- **What is named.** The click names the nearest `data-graph-source` (the risk
+  row, the panel), or the link itself when there is none. Once the first
+  picture is taken that name is cleared, and a class on `<html>` names the
+  destination's `data-graph-frame`. A frame is named only while a morph runs,
+  so an ordinary visit to the page is untouched, and two names never exist at
+  the same moment.
+- **It never holds the page long.** Between the browser's two pictures the page
+  is frozen. `morphInto` waits for a frame to appear (a mutation observer and
+  timers, not animation frames, which are not drawn while frozen), for at most
+  300ms, and then two more turns so an arrival scroll has already happened.
+  The preload from §139 means the frame is usually there at once. When it is
+  not, the morph goes ahead with the page as it stands, rather than freezing
+  it for a slow network.
+- **`PageTransition` holds its key across a morph.** Its exit is counted in
+  animation frames, which would never finish while the page is frozen, and
+  the new page would never mount. On a navigation carrying the morph's history
+  state, the same element takes the new page and the old one leaves at once.
+  The key still changes only with the pathname, so the next ordinary
+  navigation animates as it always did, and a later search change on the
+  arrived page does not remount it.
+- **Timings are `lib/motion.ts`'s.** The frame grows over `page` (240ms) on its
+  ease-out, clipped as it grows, from the source's top edge. The source's
+  picture leaves over `instant` (120ms) on the ease-in, so the two never read
+  as one image stretched. The rest of the page crossfades on the same two.
+- **An enhancement only.** Without the API, for a reader who has asked for
+  less motion, or for a modified or middle click, the link is the ordinary
+  link §139 made. The reduced-motion media query in `index.css` also removes
+  the view-transition animations, as a backstop. After a morph the attack-path
+  page's arrival scroll is instant rather than smooth, because the browser
+  pictures the page once it has scrolled.
+
+**Not checked in a browser.** Tests cover what is named when, that the frame's
+page is mounted before the second picture, that the old page leaves into the
+same element, and each fallback. jsdom has no View Transitions and draws
+nothing, so how the movement looks, and whether 300ms is the right wait, still
+need a real browser, in Chrome and Safari at least.
+
 ## Open items carried forward
 
 **Data residency is not built (§113).** An organization setting for allowed

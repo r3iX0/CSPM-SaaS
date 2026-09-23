@@ -8,7 +8,7 @@ import {
   type KeyboardEvent,
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import {
   ArrowLeftIcon,
   ChevronLeftIcon,
@@ -45,6 +45,7 @@ import { PatternRow, RouteRow } from "@/components/graph/RouteRows";
 import { routeKeyOf } from "@/components/graph/routeKeys";
 import { routeMapQuery } from "@/components/graph/graphQueries";
 import { usePrefersReducedMotion } from "@/lib/motion";
+import { arrivedByMorph } from "@/lib/viewTransition";
 import type { Hop } from "@/components/graph/RouteMapCanvas";
 import {
   CardsSkeleton,
@@ -116,6 +117,7 @@ export function AttackPathsPage() {
   }, [chokes, queryClient]);
 
   const [params, setParams] = useSearchParams();
+  const location = useLocation();
   /** The route being read, by key. Null means every route is drawn. */
   const traced = params.get("trace");
   const hopParam = Math.max(
@@ -172,12 +174,18 @@ export function AttackPathsPage() {
   const frame = useRef<HTMLDivElement>(null);
   const reduced = usePrefersReducedMotion();
   const [arrivingWith] = useState(traced);
+  // After a morph the scroll is instant: the browser takes its picture of this
+  // page once it has happened, and grows the link into the frame where it ends.
+  const [morphed] = useState(() => arrivedByMorph(location.state));
   const arrived = useRef(false);
   useEffect(() => {
     if (arrived.current || !arrivingWith || tracedRoute?.key !== arrivingWith) return;
     arrived.current = true;
-    frame.current?.scrollIntoView?.({ block: "start", behavior: reduced ? "auto" : "smooth" });
-  }, [arrivingWith, tracedRoute, reduced]);
+    frame.current?.scrollIntoView?.({
+      block: "start",
+      behavior: reduced || morphed ? "auto" : "smooth",
+    });
+  }, [arrivingWith, tracedRoute, reduced, morphed]);
   const simulated = useMemo(
     () =>
       considered
@@ -513,7 +521,11 @@ function RouteMapFrame({
         </GraphLegend>
       </div>
 
-      <div className="flex w-full flex-col overflow-hidden rounded-xl border border-border bg-card lg:h-[36rem]">
+      {/* What a link from the dashboard grows into (DECISIONS.md §140). */}
+      <div
+        data-graph-frame=""
+        className="flex w-full flex-col overflow-hidden rounded-xl border border-border bg-card lg:h-[36rem]"
+      >
         {traced && (
           <RouteStepper
             route={traced}

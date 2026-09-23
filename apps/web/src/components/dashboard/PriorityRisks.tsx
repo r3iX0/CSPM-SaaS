@@ -79,6 +79,7 @@ export function PriorityRisks({ risks }: { risks: Risk[] }) {
           {risks.map((risk, index) => (
             <li
               key={risk.id}
+              data-graph-source=""
               className="flex items-center border-b [animation:cg-rise_260ms_ease-out_both] last:border-0"
               style={stagger(index)}
             >

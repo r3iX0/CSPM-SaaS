@@ -51,6 +51,7 @@ export function AttackPathPanel({
   return (
     <section
       aria-labelledby="critical-attack-path"
+      data-graph-source=""
       className="flex flex-col overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10"
     >
       <header className="flex items-start justify-between gap-4 px-5 py-4">

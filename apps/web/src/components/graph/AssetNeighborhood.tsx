@@ -231,7 +231,8 @@ export function AssetNeighborhood({
     setSelection(on ? { key: pictureKey, on } : null);
 
   return (
-    <Card>
+    // What a link from the dashboard grows into (DECISIONS.md §140).
+    <Card data-graph-frame="">
       <CardHeader>
         <CardTitle>Around this asset</CardTitle>
         <CardDescription>
