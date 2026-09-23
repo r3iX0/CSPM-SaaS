@@ -3,6 +3,7 @@ import { PlusIcon, ScissorsIcon, XIcon } from "lucide-react";
 
 import type { ChokePoint, MappedRoute, RouteMap, Simulation } from "@/lib/types";
 import { cn } from "@/lib/format";
+import { useT } from "@/i18n";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { CopyButton } from "@/components/common/CopyButton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -41,10 +42,11 @@ const chokeHop = (choke: ChokePoint): Hop => ({
  * of the plan already covers is an afternoon's work for nothing, and is marked
  * so it can be left out.
  *
- * **What to add next is ranked with the plan made.** The choke points above
- * the drawing are the estate as it is; once a plan removes a link, a hop that
- * had a way round may be the only way left, and the suggestions here are
- * re-ranked over what remains.
+ * **What to add next is ranked with the plan made.** With nothing planned the
+ * tab starts from the estate's choke points -- the links holding several
+ * routes up at once, which used to be a card above the drawing. Once a plan
+ * removes a link, a hop that had a way round may be the only way left, and the
+ * suggestions are re-ranked over what remains.
  */
 export function SimulationPanel({
   map,
@@ -88,13 +90,19 @@ export function SimulationPanel({
         <div className="flex flex-col gap-1">
           <h3 className="text-sm font-medium">Try a change before you make it</h3>
           <p className="text-xs leading-relaxed text-muted-foreground">
-            Press a line on the drawing to add it to a plan, or start from a suggestion
-            below. Add everything you would change together: the plan is checked as a
-            whole, because two changes can close routes neither closes alone. Nothing in
-            your cloud changes.
+            Press a line on the drawing to add it to a plan, or start from one of the
+            changes below. Add everything you would change together: the plan is checked
+            as a whole, because two changes can close routes neither closes alone.
+            Nothing in your cloud changes.
           </p>
         </div>
-        <Suggestions title="Where to start" chokes={suggestions} full={full} onAdd={onAdd} />
+        <Suggestions
+          title="The changes that close the most"
+          help="Each holds several routes up at once, and is usually not the fix any single route would suggest: the shared link tends to sit in the middle, while each route's own cheapest break is at its start."
+          chokes={suggestions}
+          full={full}
+          onAdd={onAdd}
+        />
       </div>
     );
   }
@@ -355,6 +363,7 @@ function Suggestions({
   full: boolean;
   onAdd: (link: Hop) => void;
 }) {
+  const t = useT();
   if (chokes.length === 0) return null;
   return (
     <section className="flex flex-col gap-2">
@@ -376,6 +385,32 @@ function Suggestions({
                 Closes <span className="tabular-nums text-foreground">{choke.severs}</span>{" "}
                 of {choke.total_routes}
               </p>
+              {/* Where it sits on more than it closes, said: a customer told four
+                  close who then sees two remain stops believing the next number. */}
+              {choke.on_routes > choke.severs && (
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {t.attackPaths.chokeSitsOn.replace("{on}", String(choke.on_routes))}
+                </p>
+              )}
+              {/* Named, not just counted: the count is a claim, these its working. */}
+              <ul className="mt-1.5 flex flex-col gap-0.5">
+                {choke.closes.slice(0, 3).map((route) => (
+                  <li
+                    key={`${route.entry}->${route.target}`}
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground"
+                  >
+                    <SeverityBadge level={route.data_sensitivity} size="sm" />
+                    <span className="min-w-0 truncate">
+                      {route.entry} → {route.target}
+                    </span>
+                  </li>
+                ))}
+                {choke.closes.length > 3 && (
+                  <li className="text-xs text-muted-foreground">
+                    and {choke.closes.length - 3} more
+                  </li>
+                )}
+              </ul>
             </div>
             <Button
               variant="outline"

@@ -382,11 +382,12 @@ describe("AttackPathsPage", () => {
     expect(screen.getByText("and 1 more")).toBeInTheDocument();
   });
 
-  it("leads with the change that closes the most routes, and names the role", async () => {
+  it("starts the simulation from the change that closes the most, and names the role", async () => {
     // The rail ranks routes, which is the right order for reading them and the
     // wrong one for acting: fifty routes are fifty things to read, and one role
     // assignment holding them up is one thing to do. "can act over" names
-    // nothing anybody can change; "Contributor" does.
+    // nothing anybody can change; "Contributor" does. These lead the simulate
+    // tab rather than a card above the drawing (DECISIONS.md §141).
     mount(
       {
         ...oneRoute(),
@@ -409,15 +410,15 @@ describe("AttackPathsPage", () => {
       { total: 4, entry_points: 2, sensitive_targets: 2 },
     );
 
-    const panel = (await screen.findByText("The changes that close the most")).closest(
-      "[data-slot='card']",
-    ) as HTMLElement;
+    await userEvent.click(await screen.findByRole("tab", { name: /simulate/i }));
+    const panel = screen.getByRole("complementary", { name: "The routes" });
 
+    expect(within(panel).getByText("The changes that close the most")).toBeInTheDocument();
     expect(
       within(panel).getByText("mi-jump-01 can act over sub-1 (Contributor)"),
     ).toBeInTheDocument();
     expect(within(panel).getByText("4")).toBeInTheDocument();
-    expect(within(panel).getByText(/of 4 routes close/)).toBeInTheDocument();
+    expect(within(panel).getByText(/of 4$/)).toBeInTheDocument();
     // Named, not just counted: the count is a claim and these are its working.
     expect(within(panel).getByText("jump-01 → customerdata")).toBeInTheDocument();
   });
@@ -449,7 +450,12 @@ describe("AttackPathsPage", () => {
     expect(screen.getByRole("button", { name: "How to read the drawing" })).toBeInTheDocument();
     expect(screen.queryByText("In the simulated plan")).toBeNull();
 
-    await userEvent.click(screen.getByRole("button", { name: /add to the simulation/i }));
+    await userEvent.click(screen.getByRole("tab", { name: /simulate/i }));
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "Add to the plan: mi-jump-01 can act over sub-1 (Contributor)",
+      }),
+    );
     expect(screen.getByText("In the simulated plan")).toBeInTheDocument();
     expect(screen.getByText("Out of reach with the plan made")).toBeInTheDocument();
   });
@@ -479,9 +485,8 @@ describe("AttackPathsPage", () => {
       { total: 4, entry_points: 2, sensitive_targets: 2 },
     );
 
-    await waitFor(() =>
-      expect(screen.getByText(/another way round/)).toBeInTheDocument(),
-    );
+    await userEvent.click(await screen.findByRole("tab", { name: /simulate/i }));
+    expect(screen.getByText(/another way round/)).toBeInTheDocument();
   });
 
   it("collapses routes that are the same route said many times", async () => {
@@ -672,7 +677,7 @@ describe("AttackPathsPage", () => {
 
     await userEvent.click(await screen.findByRole("tab", { name: /simulate/i }));
     const panel = screen.getByRole("complementary", { name: "The routes" });
-    expect(within(panel).getByText("Where to start")).toBeInTheDocument();
+    expect(within(panel).getByText("The changes that close the most")).toBeInTheDocument();
     expect(
       within(panel).getByRole("button", {
         name: "Add to the plan: mi-jump-01 can act over sub-1 (Contributor)",
@@ -763,6 +768,18 @@ describe("AttackPathsPage", () => {
       await within(panel).findByText(/Not in the latest reading/),
     ).toBeInTheDocument();
     expect(within(panel).getByText("Still open")).toBeInTheDocument();
+  });
+
+  it("draws no card above the drawing for the changes that close the most", async () => {
+    // They are the simulate tab's starting point, and a second list of the same
+    // links above the drawing was one thing said twice.
+    mount(
+      { ...oneRoute(), choke_points: [{ ...CHOKE, severs: 1, on_routes: 1, closes: [] }] },
+      { total: 1, entry_points: 1, sensitive_targets: 1 },
+    );
+
+    await screen.findByRole("tab", { name: /simulate/i });
+    expect(screen.queryByText("The changes that close the most")).toBeNull();
   });
 
   it("says nothing about cutting when there is nothing to cut", async () => {

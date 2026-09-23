@@ -7496,8 +7496,13 @@ the plan does nothing.
   Simulate; tracing a route or pressing a box opens Routes. The drawing shows
   the plan in either tab — its lines dashed in the ok colour, what it closes
   greyed — with a bar above saying how many changes are simulated and that
-  nothing in the cloud has changed. A choke point's button adds it to the same
-  plan rather than trying it alone.
+  nothing in the cloud has changed.
+- **No choke-point card above the drawing.** It listed the same links the
+  Simulate tab starts from, so the page said one thing twice, and the card's
+  button only fed the tab. The tab now leads with them under the card's title
+  — each with what it closes, named, and "it sits on N" where it has a way
+  round — and the page goes from the counts straight to the drawing. The risks
+  queue still leads with the same rows, from `/choke-points`.
 - **The plan is in the URL.** `cut=source|relationship|target`, one per link,
   so a plan can be sent to whoever makes the change, and the page opens on the
   Simulate tab when a link names one. The API call is a POST body because ten

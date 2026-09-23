@@ -25,7 +25,6 @@ import {
 import { api } from "@/lib/api";
 import type {
   AttackPathMeta,
-  ChokePoint,
   DeadEnd,
   MappedRoute,
   Risk,
@@ -38,7 +37,6 @@ import type {
 import { useT } from "@/i18n";
 import { cn } from "@/lib/format";
 import { StatStrip } from "@/components/common/StatStrip";
-import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { ResourceTypeLabel } from "@/components/security/IconLabel";
 import { AttackPathRoute } from "@/components/graph/AttackPathRoute";
 import { GraphLegend, MARKS } from "@/components/graph/GraphLegend";
@@ -90,8 +88,9 @@ const RouteMapCanvas = lazy(() => import("@/components/graph/RouteMapCanvas"));
  * **Changes are tried in the panel's other tab (§141).** Pressing a line adds
  * it to a plan rather than trying it alone, and the plan is answered whole by
  * the server, because two changes can close what neither closes alone. The
- * plan is in the URL too (`cut`, one per link), so it can be sent to whoever
- * makes the change.
+ * tab starts from the links holding the most routes up, which used to be a
+ * card of their own above the drawing. The plan is in the URL too (`cut`, one
+ * per link), so it can be sent to whoever makes the change.
  */
 export function AttackPathsPage() {
   const t = useT();
@@ -278,21 +277,6 @@ export function AttackPathsPage() {
             ]}
           />
 
-          {/* Before everything else, because it is what to do about everything
-              else. */}
-          <ChokePoints
-            chokes={map.choke_points}
-            planned={plan}
-            full={plan.length >= MAX_CUTS}
-            onToggle={(link) => {
-              togglePlanned(link);
-              frame.current?.scrollIntoView?.({
-                block: "start",
-                behavior: reduced ? "auto" : "smooth",
-              });
-            }}
-          />
-
           {traced && !tracedRoute && (
             <Alert>
               <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
@@ -447,116 +431,6 @@ function mapHref(node: Pick<RouteMapNode, "scope_id" | "group">): string {
   });
   if (node.group) query.set("resource_group", node.group);
   return `/assets?${query}`;
-}
-
-/**
- * The links holding up several routes at once, and what happens if one goes.
- *
- * The number is what actually closes, read off an analysis that answers for
- * every link rather than for a shortlist (`graph/severance.py`). Where a link
- * sits on more routes than it closes, the panel says so: a customer told four
- * routes close who then sees two remain stops believing the next number too.
- *
- * Each can be added to the simulation beside the drawing, which answers for
- * it together with whatever else is planned. Adding one changes nothing.
- */
-function ChokePoints({
-  chokes,
-  planned,
-  full,
-  onToggle,
-}: {
-  chokes: ChokePoint[];
-  planned: Hop[];
-  full: boolean;
-  onToggle: (link: Hop) => void;
-}) {
-  const t = useT();
-  if (!chokes.length) return null;
-  const inPlan = new Set(planned.map(cutKey));
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <ScissorsIcon className="size-4 text-muted-foreground" aria-hidden />
-          {t.attackPaths.chokeTitle}
-        </CardTitle>
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          {t.attackPaths.chokeHelp}
-        </p>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        {chokes.map((choke) => {
-          const link = {
-            source: choke.source.id,
-            relationship: choke.relationship,
-            target: choke.target.id,
-          };
-          const simulating = inPlan.has(cutKey(link));
-
-          return (
-            <div
-              key={cutKey(link)}
-              className={cn(
-                "rounded-lg border px-4 py-3 transition-colors",
-                simulating ? "border-ok-border bg-ok-bg" : "border-border",
-              )}
-            >
-              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                <p className="font-mono text-xs text-foreground">{choke.detail}</p>
-                <p className="text-xs text-muted-foreground">
-                  <span className="text-sm font-semibold tabular-nums text-foreground">
-                    {choke.severs}
-                  </span>{" "}
-                  {t.attackPaths.chokeOf} {choke.total_routes}{" "}
-                  {t.attackPaths.chokeSevers}
-                </p>
-              </div>
-              {choke.on_routes > choke.severs && (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {t.attackPaths.chokeSitsOn.replace("{on}", String(choke.on_routes))}
-                </p>
-              )}
-              <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-                {choke.closes.map((route) => (
-                  <li
-                    key={`${route.entry}->${route.target}`}
-                    className="flex items-center gap-1.5 text-xs text-muted-foreground"
-                  >
-                    <SeverityBadge level={route.data_sensitivity} size="sm" />
-                    <span>
-                      {route.entry} → {route.target}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <Button
-                type="button"
-                size="sm"
-                variant={simulating ? "secondary" : "outline"}
-                className="mt-3"
-                disabled={!simulating && full}
-                onClick={() => onToggle(link)}
-              >
-                {simulating ? (
-                  <>
-                    <UndoIcon aria-hidden />
-                    {t.attackPaths.simulateStop}
-                  </>
-                ) : (
-                  <>
-                    <ScissorsIcon aria-hidden />
-                    {t.attackPaths.simulate}
-                  </>
-                )}
-              </Button>
-            </div>
-          );
-        })}
-      </CardContent>
-    </Card>
-  );
 }
 
 /**

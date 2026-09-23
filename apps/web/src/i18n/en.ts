@@ -734,11 +734,6 @@ export const en = {
     cutHere: "Cut it here",
     cutHereDetail:
       "Removing this one link severs the route. Containment cannot be removed \u2014 a storage account has to live somewhere \u2014 so the fix is always an identity or a role.",
-    chokeTitle: "The changes that close the most",
-    chokeHelp:
-      "Every route below is one thing to read. These are the links holding several of them up at once \u2014 and each is usually not the fix any single route would have suggested on its own, because the shared link tends to sit in the middle while each route's own cheapest break is at its start.",
-    chokeSevers: "routes close",
-    chokeOf: "of",
     chokeSitsOn:
       "It sits on {on} \u2014 the rest have another way round, so cutting this does not close them.",
     entryPoints: "exposed assets",
@@ -754,7 +749,7 @@ export const en = {
       "The route this link names is not among the routes in the latest reading \u2014 it may have closed since. Every route is drawn below.",
     traceMissingClear: "Clear",
     mapHelp:
-      "Left to right is hops from the outside in. A line's thickness is how many routes close if it is cut — checked for every link, not only the ones listed above. Press a line to add it to the simulation, or a box for the routes through it; press the empty canvas to put the box down. Pointing at a box fades what it does not touch. Arrow keys move between boxes.",
+      "Left to right is hops from the outside in. A line's thickness is how many routes close if it is cut — checked for every link. Press a line to add it to the simulation, or a box for the routes through it; press the empty canvas to put the box down. Pointing at a box fades what it does not touch. Arrow keys move between boxes.",
     mapHelpLabel: "How to read the drawing",
     legendEntry: "Reachable from the internet",
     legendSensitive: "Sensitive data",
@@ -770,8 +765,6 @@ export const en = {
     patternsHelp:
       "Grouped only where the routes are identical apart from one end, so each group is a claim you can check by opening it.",
     routesThrough: (n: number) => `On ${n} ${n === 1 ? "route" : "routes"}`,
-    simulate: "Add to the simulation",
-    simulateStop: "Take out of the simulation",
     simulating: (n: number) =>
       `Simulating ${n} ${n === 1 ? "change" : "changes"} together — nothing in your cloud has changed.`,
     simulationShow: "Show the plan",
