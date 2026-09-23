@@ -748,6 +748,11 @@ export const en = {
     // The map. Columns are hops from the outside in, so reading left to right
     // is reading an attacker's progress.
     mapTitle: "Every route, drawn",
+    // A link named a route the latest reading does not have: it closed, or the
+    // estate changed under it. Said, rather than landing untraced in silence.
+    traceMissing:
+      "The route this link names is not among the routes in the latest reading \u2014 it may have closed since. Every route is drawn below.",
+    traceMissingClear: "Clear",
     mapHelp:
       "Left to right is hops from the outside in. A line's thickness is how many routes close if it is cut — checked for every link, not only the ones listed above. Press a line to see what cutting it would do, or a box for the routes through it; press the empty canvas to put the box down. Pointing at a box fades what it does not touch. Arrow keys move between boxes.",
     mapHelpLabel: "How to read the drawing",

@@ -3,6 +3,7 @@ import {
   Suspense,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type KeyboardEvent,
 } from "react";
@@ -42,6 +43,8 @@ import { GraphLegend, MARKS } from "@/components/graph/GraphLegend";
 import { OpenInGraph } from "@/components/graph/OpenInGraph";
 import { PatternRow, RouteRow } from "@/components/graph/RouteRows";
 import { routeKeyOf } from "@/components/graph/routeKeys";
+import { routeMapQuery } from "@/components/graph/graphQueries";
+import { usePrefersReducedMotion } from "@/lib/motion";
 import type { Hop } from "@/components/graph/RouteMapCanvas";
 import {
   CardsSkeleton,
@@ -81,14 +84,7 @@ const RouteMapCanvas = lazy(() => import("@/components/graph/RouteMapCanvas"));
  */
 export function AttackPathsPage() {
   const t = useT();
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["attack-paths", "graph"],
-    queryFn: () =>
-      api.get<RouteMap>("/api/v1/attack-paths/graph").then((r) => ({
-        map: r.data,
-        meta: r.meta as unknown as RouteMapMeta,
-      })),
-  });
+  const { data, isLoading, error, refetch } = useQuery(routeMapQuery);
 
   // Which of these routes the risks queue is tracking. This page rebuilds
   // routes live from the graph; the queue holds the ones with something
@@ -169,6 +165,19 @@ export function AttackPathsPage() {
   const hop = tracedRoute
     ? Math.min(hopParam, tracedRoute.steps.length - 1)
     : 0;
+
+  // A link that names a route came to read it, and the frame sits below the
+  // counts and the choke points: bring it up once, on arrival, and never again
+  // when somebody traces from the rail they are already looking at (§139).
+  const frame = useRef<HTMLDivElement>(null);
+  const reduced = usePrefersReducedMotion();
+  const [arrivingWith] = useState(traced);
+  const arrived = useRef(false);
+  useEffect(() => {
+    if (arrived.current || !arrivingWith || tracedRoute?.key !== arrivingWith) return;
+    arrived.current = true;
+    frame.current?.scrollIntoView?.({ block: "start", behavior: reduced ? "auto" : "smooth" });
+  }, [arrivingWith, tracedRoute, reduced]);
   const simulated = useMemo(
     () =>
       considered
@@ -231,34 +240,47 @@ export function AttackPathsPage() {
             onConsider={setConsidered}
           />
 
-          <RouteMapFrame
-            map={map}
-            meta={data.meta}
-            traced={tracedRoute}
-            hop={hop}
-            onTrace={setTraced}
-            onHop={(next) => change({ hop: String(next) })}
-            tracked={tracked.data}
-            trackingKnown={tracked.isSuccess}
-            simulated={simulated}
-            picked={picked}
-            place={place}
-            onPickNode={(id) => {
-              // A box asks "what runs through here". The panel answers, and
-              // any trace clears so every route through it is visible.
-              setConsidered(null);
-              change({
-                trace: null,
-                hop: null,
-                through: picked === id ? null : id,
-              });
-            }}
-            onPickLink={(edge) =>
-              setConsidered((current) => (current && sameLink(current, edge) ? null : edge))
-            }
-            onClearPick={() => change({ through: null })}
-            onClearPlace={() => change({ scope: null, group: null })}
-          />
+          {traced && !tracedRoute && (
+            <Alert>
+              <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+                {t.attackPaths.traceMissing}
+                <Button variant="outline" size="sm" onClick={() => setTraced(null)}>
+                  {t.attackPaths.traceMissingClear}
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <div ref={frame} className="scroll-mt-4">
+            <RouteMapFrame
+              map={map}
+              meta={data.meta}
+              traced={tracedRoute}
+              hop={hop}
+              onTrace={setTraced}
+              onHop={(next) => change({ hop: String(next) })}
+              tracked={tracked.data}
+              trackingKnown={tracked.isSuccess}
+              simulated={simulated}
+              picked={picked}
+              place={place}
+              onPickNode={(id) => {
+                // A box asks "what runs through here". The panel answers, and
+                // any trace clears so every route through it is visible.
+                setConsidered(null);
+                change({
+                  trace: null,
+                  hop: null,
+                  through: picked === id ? null : id,
+                });
+              }}
+              onPickLink={(edge) =>
+                setConsidered((current) => (current && sameLink(current, edge) ? null : edge))
+              }
+              onClearPick={() => change({ through: null })}
+              onClearPlace={() => change({ scope: null, group: null })}
+            />
+          </div>
         </>
       )}
     </div>

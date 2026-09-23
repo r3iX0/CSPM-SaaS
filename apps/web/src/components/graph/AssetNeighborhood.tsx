@@ -26,6 +26,7 @@ import { ErrorState } from "@/components/common/states";
 import { AttackPathRoute } from "./AttackPathRoute";
 import { GraphLegend, MARKS } from "./GraphLegend";
 import type { GraphSelection } from "./flowChrome";
+import { NEIGHBORHOOD_DEPTH, neighborhoodQuery } from "./graphQueries";
 import { hopKey, routeKey } from "./routeKeys";
 
 const GraphIcon = GRAPH_ICON;
@@ -127,7 +128,7 @@ export function AssetNeighborhood({
   );
   // Three hops when arriving to trace a route: most routes are three or four
   // long, and two would cut the one the reader came to see in half.
-  const [depth, setDepth] = useState<number>(arrivingWith ? 3 : 2);
+  const [depth, setDepth] = useState<number>(arrivingWith ? 3 : NEIGHBORHOOD_DEPTH);
   // By key rather than by object, so a refetch at another depth keeps the
   // same route traced.
   const [tracedKey, setTracedKey] = useState<string | null>(arrivingWith);
@@ -151,14 +152,7 @@ export function AssetNeighborhood({
     frame.current?.contains(document.activeElement) ?? false;
 
   const { data, isLoading, isFetching, error, refetch } = useQuery({
-    queryKey: ["neighborhood", providerResourceId, around, depth, folds],
-    queryFn: () => {
-      const query = new URLSearchParams({ depth: String(depth) });
-      for (const fold of folds) query.append("expand", fold);
-      return api.get<Neighborhood>(
-        `/api/v1/attack-paths/neighborhood/${encodeURIComponent(around)}?${query}`,
-      );
-    },
+    ...neighborhoodQuery(providerResourceId, around, depth, folds),
     enabled: asked,
     retry: false,
     // Keeps the old picture up until the new one arrives -- at another depth,

@@ -1,10 +1,12 @@
 import { Link } from "react-router-dom";
 import { ArrowRightIcon, RouteIcon } from "lucide-react";
-import { FACTOR_ICONS } from "@/lib/icons";
+import { FACTOR_ICONS, GRAPH_ICON } from "@/lib/icons";
 
 import type { Dashboard } from "@/lib/types";
 import { ScoreTile } from "@/components/security/ScoreTile";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
+import { GraphLink } from "@/components/graph/GraphLink";
+import type { GraphTarget } from "@/components/graph/graphQueries";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -18,6 +20,8 @@ import { stagger } from "@/lib/motion";
 import { cn } from "@/lib/format";
 
 type Risk = Dashboard["top_risks"][number];
+
+const GraphIcon = GRAPH_ICON;
 
 /**
  * What to go and deal with, ranked by what it would cost rather than by how
@@ -75,12 +79,12 @@ export function PriorityRisks({ risks }: { risks: Risk[] }) {
           {risks.map((risk, index) => (
             <li
               key={risk.id}
-              className="[animation:cg-rise_260ms_ease-out_both]"
+              className="flex items-center border-b [animation:cg-rise_260ms_ease-out_both] last:border-0"
               style={stagger(index)}
             >
               <Link
                 to={`/risks/${risk.id}`}
-                className="group flex items-center gap-3 border-b px-5 py-3 transition-colors last:border-0 hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                className="group flex min-w-0 flex-1 items-center gap-3 py-3 pl-5 pr-3 transition-colors hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
               >
                 <ScoreTile
                   score={Number(risk.risk_score)}
@@ -101,11 +105,47 @@ export function PriorityRisks({ risks }: { risks: Risk[] }) {
                   />
                 </div>
               </Link>
+              <RiskGraphLink risk={risk} />
             </li>
           ))}
         </ol>
       )}
     </Card>
+  );
+}
+
+/**
+ * The way from a ranked risk to the graph it sits in, beside the row rather
+ * than inside it: the row still opens the risk, which says why it ranks where
+ * it does, and this opens where it is — a route traced on the attack-path
+ * page, an asset centred on its connections (DECISIONS.md §139).
+ *
+ * A risk grouped across several assets has no one place to open, and keeps an
+ * empty slot of the same width so the badges down the list stay in a column.
+ */
+function RiskGraphLink({ risk }: { risk: Risk }) {
+  const target: GraphTarget | null = risk.route
+    ? { kind: "route", entryId: risk.route.entry_id, targetId: risk.route.target_id }
+    : risk.asset_id
+      ? { kind: "asset", assetId: risk.asset_id }
+      : null;
+  const slot = "mr-3 ml-1 shrink-0";
+  if (!target) return <span className={cn("size-7", slot)} aria-hidden />;
+
+  const action = target.kind === "route" ? "Trace among attack paths" : "Open in the graph";
+  return (
+    <GraphLink
+      to={target}
+      aria-label={`${action}: ${risk.title}`}
+      title={action}
+      className={cn(
+        buttonVariants({ variant: "ghost", size: "icon-sm" }),
+        slot,
+        "text-muted-foreground",
+      )}
+    >
+      <GraphIcon aria-hidden />
+    </GraphLink>
   );
 }
 

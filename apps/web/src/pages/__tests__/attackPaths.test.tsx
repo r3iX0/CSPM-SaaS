@@ -29,7 +29,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { MemoryRouter, useLocation } from "react-router-dom";
 
@@ -529,6 +529,43 @@ describe("AttackPathsPage", () => {
     expect(
       screen.queryByRole("group", { name: /attack path from/i }),
     ).toBeNull();
+    expect(screen.getByTestId("where")).not.toHaveTextContent("trace=");
+  });
+
+  it("brings a route a link named into view on arrival, once", async () => {
+    // jsdom has no layout, so no scrollIntoView to spy on; one is lent here.
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    onTestFinished(() => {
+      delete (Element.prototype as Partial<Element>).scrollIntoView;
+    });
+    mount(
+      oneRoute(),
+      { total: 1, entry_points: 1, sensitive_targets: 1 },
+      [],
+      "/attack-paths?trace=vm%7Cstorage",
+    );
+
+    await screen.findByRole("group", { name: /attack path from jump-01 to customerdata/i });
+    await waitFor(() => expect(scroll).toHaveBeenCalledTimes(1));
+
+    await userEvent.click(screen.getByRole("button", { name: "Next hop" }));
+    expect(scroll).toHaveBeenCalledTimes(1);
+  });
+
+  it("says so when a link names a route the latest reading does not have", async () => {
+    mount(
+      oneRoute(),
+      { total: 1, entry_points: 1, sensitive_targets: 1 },
+      [],
+      "/attack-paths?trace=gone%7Cstorage",
+    );
+
+    expect(
+      await screen.findByText(/not among the routes in the latest reading/),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Clear" }));
+    expect(screen.queryByText(/not among the routes/)).not.toBeInTheDocument();
     expect(screen.getByTestId("where")).not.toHaveTextContent("trace=");
   });
 

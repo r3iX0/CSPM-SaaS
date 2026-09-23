@@ -469,7 +469,11 @@ truncated listing cannot support "none of them are public" — so a reader is to
 `top_risks[]` carries `kind` and the three context levels the score was built
 from (`internet_exposure`, `data_sensitivity`, `asset_criticality`), which are
 already columns on the row and cost no extra query; they let a rank be read as a
-reason rather than as an assertion.
+reason rather than as an assertion. Each row also says where its graph opens
+(DECISIONS.md §139): `asset_id` is the asset row a finding risk is about, when it
+is about exactly one asset, and `route` is `{entry_id, target_id}`, the provider
+ids an `ATTACK_PATH` route is keyed by on the attack-path page. Both are null
+otherwise, and one query covers the whole list.
 
 `regions[]` is where the estate runs, one row per provider and region code:
 `{region, provider, assets, open_findings, by_severity, readings, unread}`,

@@ -3460,6 +3460,31 @@ class TestScenarioRisk:
         ids = [risk["id"] for risk in summary["top_risks"]]
         assert len(ids) == len(set(ids)), f"a risk appears more than once: {ids}"
 
+    async def test_each_top_risk_says_where_its_graph_opens(
+        self, replay, connected_account
+    ) -> None:
+        """The dashboard links a risk straight to its graph (DECISIONS.md §139):
+        a route by the ends it is keyed by, a finding risk by its asset's row."""
+        from app.services.dashboard import build_dashboard
+
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+
+        async with service_session() as session:
+            summary = await build_dashboard(session, org_id)
+
+        rows = await fetch(
+            "SELECT id FROM cloud_resources WHERE organization_id = :o", {"o": org_id}
+        )
+        asset_ids = {str(row[0]) for row in rows}
+        for risk in summary["top_risks"]:
+            if risk["kind"] == "ATTACK_PATH":
+                assert risk["route"]["entry_id"] and risk["route"]["target_id"]
+                assert risk["asset_id"] is None
+            else:
+                assert risk["route"] is None
+                assert risk["asset_id"] is None or risk["asset_id"] in asset_ids
+
     async def test_a_route_that_closes_is_resolved_not_deleted(
         self, replay, connected_account
     ) -> None:

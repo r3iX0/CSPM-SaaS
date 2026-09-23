@@ -371,6 +371,13 @@ export interface Dashboard {
     internet_exposure?: Level;
     data_sensitivity?: Level;
     asset_criticality?: Level;
+    /**
+     * Where the risk's graph opens, so the dashboard links straight there: the
+     * asset a finding risk is about, when it is about exactly one, and the ends
+     * a route is keyed by (DECISIONS.md §139).
+     */
+    asset_id?: string | null;
+    route?: { entry_id: string; target_id: string } | null;
   }[];
   coverage: {
     ratio: number | null;

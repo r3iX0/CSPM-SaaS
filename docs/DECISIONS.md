@@ -7352,6 +7352,62 @@ through its asset. Whether it should also only link to them is left for now.
 **Not checked in a browser.** The page and the map were checked by tests,
 which read the step bar, the panel and the links, not the layout.
 
+## 139. The dashboard opens a risk's graph directly, and loads it on the way
+
+The ask was a card on the dashboard that expands smoothly into the node-link
+graph. Before any animation, the path from the dashboard to a graph was slow
+and indirect, and a transition played over that wait would have made it look
+worse, not better. Opening a route meant a round trip to
+`/assets/resolve` (the risk knew its assets by provider id, the page is
+addressed by row id), then the page's chunk, then React Flow's chunk, then the
+graph itself, each one waiting for the last. The dashboard's risk rows went
+only to the risk, and the shortest-path panel only to the unfiltered list.
+This entry fixes that path. The transition is a separate decision, left until
+this is measured.
+
+- **A risk says where its graph is.** Each `top_risks` row gains `asset_id`,
+  the asset a finding risk is about when it is about exactly one, and `route`,
+  the `entry_id` and `target_id` a scenario's route is keyed by on the
+  attack-path page. A risk grouped across several assets gets neither: there
+  is no single place to open, and sending the reader to the worst asset would
+  present that asset as if it were the whole risk. A tenant-scope finding is on
+  no asset.
+- **The link goes to the existing pages, not a new one.** A route opens
+  `/attack-paths?trace=<key>`, where routes are read (§138). An asset opens
+  `/assets/<id>?tab=connections`, centred on itself. An expansion on the
+  dashboard was considered and rejected: it would have been a third place
+  hosting a canvas, with its own selection and URL state, after §133 and §137
+  worked to reduce them to one frame per question.
+- **Beside the row, not instead of it.** The row still opens the risk, which
+  explains the rank. A small graph link sits next to it. A risk with no single
+  place to open keeps an empty slot of the same width, so the badges stay
+  aligned. The shortest-path panel gains "Trace this route".
+- **Loaded before the click.** `GraphLink` starts the page's chunk, the
+  canvas's chunk and the graph's query when the keyboard reaches the link, or
+  when a pointer has rested on it for 100ms. That delay is long enough that
+  sweeping down five rows does not request five graphs. An asset's
+  neighbourhood is addressed by provider id, so the asset row is fetched first
+  and the neighbourhood second. Every part is fire-and-forget: a failure leaves
+  the page to ask again and show its own error.
+- **The queries are declared once.** `components/graph/graphQueries.ts` holds
+  the asset, neighbourhood and route-map queries that the pages and the
+  prefetch share. A prefetch only helps if it fills the exact entry the page
+  reads, and a key changed on one side alone would silently turn every
+  prefetch into a wasted request.
+- **Arrival.** A page opened with `trace=` scrolls its drawing into view once,
+  since the drawing sits below the counts and the choke points. Tracing from
+  the rail afterwards does not scroll. A `trace=` that names a route missing
+  from the latest reading now says so, with a way to clear it, instead of
+  showing every route with no explanation.
+
+The risk page's "Explore in graph" still opens a scenario on the neighbourhood
+around its entry point, traced there, rather than on the attack-path page.
+Whether it should follow §138 is left for now.
+
+**Not checked in a browser.** Tests cover the links, the prefetch requests,
+the one arrival scroll and the missing-route notice. They do not show how long
+the handoff takes, which is the thing a transition would be judged against.
+
 ## Open items carried forward
 
 **Data residency is not built (§113).** An organization setting for allowed

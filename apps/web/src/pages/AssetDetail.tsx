@@ -3,7 +3,6 @@ import { Link, useLocation, useParams, useSearchParams } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query";
 import { ChevronRightIcon, ExternalLinkIcon, type LucideIcon } from "lucide-react";
 
-import { api } from "@/lib/api";
 import type { Level } from "@/lib/types";
 import { useT } from "@/i18n";
 import { StatusPill } from "@/components/security/StatusPill";
@@ -23,6 +22,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ContextRow, type ContextFact } from "@/components/security/ContextProvenance";
 import { AssetNeighborhood } from "@/components/graph/AssetNeighborhood";
+import { assetQuery } from "@/components/graph/graphQueries";
 import { BlastRadius } from "@/components/graph/BlastRadius";
 import { AssetAccessPanel } from "@/components/graph/AssetAccess";
 
@@ -98,10 +98,7 @@ export function AssetDetailPage() {
   const location = useLocation();
   const [params, setParams] = useSearchParams();
 
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["asset", assetId],
-    queryFn: () => api.get<AssetDetail>(`/api/v1/assets/${assetId}`).then((r) => r.data),
-  });
+  const { data, isLoading, error, refetch } = useQuery(assetQuery<AssetDetail>(assetId!));
 
   // A link that names a centre or a route came for the graph -- the estate
   // map's asset boxes and a finding's "trace this route" both do -- so it opens
