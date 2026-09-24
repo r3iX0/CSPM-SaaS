@@ -821,6 +821,11 @@ export const en = {
     sortTracked: "Tracked risks first",
     trackedBadge: "Tracked",
     closedByPlan: "Closed by the plan",
+    patternsHelpLabel: "What a group is",
+    patternsCount: (n: number) => `${n} ${n === 1 ? "group" : "groups"}`,
+    shownOf: (n: number, total: number) => `${n} of ${total} here`,
+    trackedCount: (n: number) => `${n} tracked`,
+    closedCount: (n: number) => `${n} closed by the plan`,
     noneNamed: (query: string) => `No route passes anything named “${query}”.`,
   },
   notifications: {

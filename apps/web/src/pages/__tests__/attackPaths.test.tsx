@@ -531,6 +531,52 @@ describe("AttackPathsPage", () => {
     expect(await within(rail).findByText("jump-01")).toBeInTheDocument();
   });
 
+  it("says what a group holds on its row, with its help a question mark away", async () => {
+    // Thirty-two routes in eight groups filled the panel with a paragraph and
+    // eight sentences before anything could be read (DECISIONS.md §143).
+    mount(
+      {
+        ...oneRoute(),
+        routes: [{ ...ROUTE, pattern: "pattern-1" }],
+        loose: [],
+        patterns: [
+          {
+            id: "pattern-1",
+            kind: "many_entries",
+            description: "3 virtual machines reach customerdata the same way",
+            size: 3,
+            hops: 4,
+            exemplar: "vm|storage",
+            routes: ["vm|storage"],
+            varies: [{ id: "vm", name: "jump-01", route: "vm|storage" }],
+          },
+        ],
+      },
+      { total: 3, entry_points: 3, sensitive_targets: 1 },
+      [
+        {
+          id: "r-route",
+          kind: "ATTACK_PATH",
+          path: [
+            { ...ROUTE.steps[0], source_id: ROUTE.entry.id },
+            { ...ROUTE.steps[3], target_id: ROUTE.target.id },
+          ],
+        },
+      ],
+    );
+    const rail = await screen.findByRole("complementary", { name: "The routes" });
+    const row = (await within(rail).findByText(/3 virtual machines reach/)).closest("button")!;
+
+    expect(within(rail).getByText("· 1 group")).toBeInTheDocument();
+    // Only one of the three is among the routes drawn.
+    expect(row).toHaveTextContent("1 of 3 here");
+    await waitFor(() => expect(row).toHaveTextContent("1 tracked"));
+    expect(within(rail).queryByText(/Grouped only where/)).toBeNull();
+
+    await userEvent.click(within(rail).getByRole("button", { name: "What a group is" }));
+    expect(await screen.findByText(/Grouped only where/)).toBeInTheDocument();
+  });
+
   it("reads a traced route in the panel beside the drawing, with a way back", async () => {
     mount(oneRoute(), { total: 1, entry_points: 1, sensitive_targets: 1 });
     const panel = await screen.findByRole("complementary", { name: "The routes" });

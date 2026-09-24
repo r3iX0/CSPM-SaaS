@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { RadarIcon } from "lucide-react";
+import { ChevronRightIcon, RadarIcon } from "lucide-react";
 
 import type { MappedRoute, RoutePattern } from "@/lib/types";
 import { useT } from "@/i18n";
+import { LEVEL_RANK } from "@/lib/changes";
 import { cn } from "@/lib/format";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
 
@@ -38,6 +39,15 @@ export function PatternRow({
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
+  // The group's shape is its exemplar's: the members differ at one end only.
+  const exemplar = byKey.get(pattern.exemplar);
+  const routes = members.flatMap((member) => byKey.get(member.route) ?? []);
+  // The worst of what the group reaches, since a group can vary at the target.
+  const reaches = routes
+    .map((route) => route.target.data_sensitivity)
+    .sort((a, b) => (LEVEL_RANK[b] ?? 0) - (LEVEL_RANK[a] ?? 0))[0];
+  const tracked = members.filter((member) => marks.tracked.has(member.route)).length;
+  const closed = members.filter((member) => marks.closed.has(member.route)).length;
 
   return (
     <div className="rounded-lg border border-border">
@@ -49,11 +59,38 @@ export function PatternRow({
         onFocus={() => onPreview(pattern.exemplar)}
         onBlur={() => onPreview(null)}
         aria-expanded={open}
-        className="flex w-full items-baseline justify-between gap-3 px-3 py-2 text-left hover:bg-muted/60"
+        className="flex w-full items-start gap-2 px-2.5 py-2 text-left hover:bg-muted/60"
       >
-        <span className="min-w-0 text-xs text-foreground">{pattern.description}</span>
-        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-          {pattern.hops} {pattern.hops === 1 ? t.attackPaths.oneHop : t.attackPaths.hops}
+        <ChevronRightIcon
+          className={cn(
+            "mt-0.5 size-3.5 shrink-0 text-muted-foreground transition-transform",
+            open && "rotate-90",
+          )}
+          aria-hidden
+        />
+        <span className="flex min-w-0 flex-1 flex-col gap-1">
+          <span className="text-xs text-foreground">{pattern.description}</span>
+          <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-muted-foreground">
+            {exemplar && <HopStrip route={exemplar} />}
+            <span className="tabular-nums">
+              {pattern.hops} {pattern.hops === 1 ? t.attackPaths.oneHop : t.attackPaths.hops}
+            </span>
+            {reaches && <SeverityBadge level={reaches} size="sm" />}
+            {members.length < pattern.size && (
+              <span className="tabular-nums">
+                {t.attackPaths.shownOf(members.length, pattern.size)}
+              </span>
+            )}
+            {closed > 0 && (
+              <span className="text-ok tabular-nums">{t.attackPaths.closedCount(closed)}</span>
+            )}
+            {tracked > 0 && (
+              <span className="flex items-center gap-0.5 tabular-nums">
+                <RadarIcon className="size-3" aria-hidden />
+                {t.attackPaths.trackedCount(tracked)}
+              </span>
+            )}
+          </span>
         </span>
       </button>
       {open && (
@@ -69,7 +106,7 @@ export function PatternRow({
                   onMouseLeave={() => onPreview(null)}
                   onFocus={() => onPreview(member.route)}
                   onBlur={() => onPreview(null)}
-                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted/60"
+                  className="flex w-full items-center gap-2 py-1.5 pr-2.5 pl-8 text-left text-xs hover:bg-muted/60"
                 >
                   <span
                     className={cn(

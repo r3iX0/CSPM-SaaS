@@ -7612,6 +7612,48 @@ canvas is not mounted in tests, so the press on the traced route and the
 preview on pointing are not covered by them, and how the panel reads beside a
 large drawing still needs a real screen.
 
+## 143. No label on the route map prints over another, and a group says what it holds on its row
+
+Two things seen on the live page, with thirty-two routes in eight groups.
+
+**Labels printed over each other.** Near the subscription the drawing read
+"can gra can act over ıle over". A role and the escalation it grants join one
+pair of boxes (§127), both are drawn along the same curve, and React Flow puts
+each label at its curve's midpoint -- the same spot, twice. Where several lines
+converge on one box, or a long line passes a short one, different pairs'
+midpoints crowd too.
+
+- **A pair speaks once.** `pairSpeakers` picks one line per pair of boxes to
+  carry the label, naming both ("can act over · can grant roles over"): the
+  line being read, then one on the traced route, then one in the plan, then the
+  one closing the most, then the role over its escalation, then by key.
+- **Then no label over another.** `placeLabels` estimates each label's box --
+  from its text length, not measured, so the drawing does not depend on which
+  font loaded -- at the midpoint of the two handles, and draws labels most
+  important first, leaving out any that would overlap one already drawn. The
+  order is what is picked or previewed, then the hop being read, the traced
+  route, the plan, what closes the most, and the key, so one estate drops the
+  same labels every time. A label left out is not lost: the line still carries
+  its weight, and picking either end or tracing a route through it brings it
+  back.
+
+**Groups filled the panel.** All thirty-two routes were grouped, so the panel
+was the three-line help about what a group is and then eight sentences, with
+nothing about any of them but "3 hops".
+
+- **The help is a question mark away**, beside "The same route, repeated · 8
+  groups", as the drawing's own help is (§136).
+- **Each group's row says what the rest of the list says of a route**: the
+  shape (a dash per hop, the earliest cut in the cut's colour), the hops, the
+  worst sensitivity it reaches, how many of its members are here when the list
+  is narrowed ("2 of 3 here"), how many a risk tracks, and how many the plan
+  closes. A chevron says it opens.
+
+**Not checked in a browser.** Tests cover the pair's one label, the placement,
+the group's row and the help behind its question mark. How many labels a
+crowded estate loses, and whether the estimate of a label's width is close
+enough, need the real page.
+
 ## Open items carried forward
 
 **Data residency is not built (§113).** An organization setting for allowed

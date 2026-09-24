@@ -38,7 +38,13 @@ import {
   type GraphSelection,
 } from "./flowChrome";
 import { ZoomButtons } from "./ZoomButtons";
-import { layoutRouteMap } from "./routeMapLayout";
+import {
+  BOX_HEIGHT,
+  BOX_WIDTH,
+  layoutRouteMap,
+  pairSpeakers,
+  placeLabels,
+} from "./routeMapLayout";
 import { stepFrom } from "./neighborhoodLayout";
 import { hopKey } from "./routeKeys";
 
@@ -182,22 +188,40 @@ function Canvas({
   );
   const on = traced || preview || simulated ? null : (pickedOn ?? previewed);
   const around = useMemo(() => kept(drawn, on), [drawn, on]);
-  const edges = useMemo(
-    () =>
-      around
-        ? drawn.map((edge) =>
-            around.edges.has(edge.id)
-              ? { ...edge, zIndex: 1, style: { ...edge.style, opacity: 1 } }
-              : {
-                  ...edge,
-                  animated: false,
-                  style: { ...edge.style, opacity: 0.12 },
-                  labelStyle: { ...edge.labelStyle, opacity: 0.15 },
-                },
-          )
-        : drawn,
-    [drawn, around],
-  );
+  const edges = useMemo(() => {
+    const faded = around
+      ? drawn.map((edge) =>
+          around.edges.has(edge.id)
+            ? { ...edge, zIndex: 1, style: { ...edge.style, opacity: 1 } }
+            : {
+                ...edge,
+                animated: false,
+                style: { ...edge.style, opacity: 0.12 },
+                labelStyle: { ...edge.labelStyle, opacity: 0.15 },
+              },
+        )
+      : drawn;
+    // No two labels over each other (DECISIONS.md §143). What is picked or
+    // previewed speaks first, then what `toFlow` ranked, then the id, so the
+    // same estate drops the same labels every time.
+    const behind = (edge: Edge<LabelRank>) => (around && !around.edges.has(edge.id) ? 1 : 0);
+    const kept = placeLabels(
+      [...faded]
+        .sort(
+          (a, b) =>
+            behind(a) - behind(b) ||
+            (a.data?.rank ?? 0) - (b.data?.rank ?? 0) ||
+            (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+        )
+        .map((edge) => ({
+          id: edge.id,
+          text: typeof edge.label === "string" ? edge.label : "",
+          from: at.get(edge.source) ?? { x: 0, y: 0 },
+          to: at.get(edge.target) ?? { x: 0, y: 0 },
+        })),
+    );
+    return faded.map((edge) => (kept.has(edge.id) ? edge : { ...edge, label: undefined }));
+  }, [drawn, around, at]);
   const [active, setActive] = useState(() => map.nodes[0]?.id ?? "");
   const flow = useReactFlow();
   const marked = at.has(active) ? active : (map.nodes[0]?.id ?? "");
@@ -331,9 +355,12 @@ function Canvas({
   );
 }
 
-/** The drawn size of a box, for centring the view on one. */
-const BOX_WIDTH = 220;
-const BOX_HEIGHT = 44;
+/**
+ * How much a line's label matters when two want the same space: lower wins.
+ * Set by `toFlow` from what is being read and simulated; what is picked or
+ * previewed is put in front of it on the canvas.
+ */
+type LabelRank = { rank: number };
 
 const keyOf = (edge: RouteMapEdge) =>
   hopKey(edge.source, edge.relationship, edge.target);
@@ -346,7 +373,11 @@ function toFlow(
   hop: number | null,
   simulated: { links: Hop[]; closes: Set<string> } | null,
   reduced: boolean,
-): { nodes: Node[]; edges: Edge[]; at: Map<string, { x: number; y: number }> } {
+): {
+  nodes: Node[];
+  edges: Edge<LabelRank>[];
+  at: Map<string, { x: number; y: number }>;
+} {
   const at = layoutRouteMap(map);
   const origin = { x: 0, y: 0 };
 
@@ -405,6 +436,22 @@ function toFlow(
     }
   }
 
+  // A role and the escalation it grants join one pair of boxes, and both are
+  // drawn along one curve, so their labels printed on top of each other. The
+  // pair speaks once: through the line that matters most to what is on
+  // screen, naming both ("can act over · can grant roles over").
+  const standing = (edge: RouteMapEdge): number[] => {
+    const key = keyOf(edge);
+    return [
+      key === readingKey ? 1 : 0,
+      tracedHops?.has(key) ? 1 : 0,
+      cut.has(key) ? 1 : 0,
+      edge.severs,
+      edge.relationship === "grants_role" ? 1 : 0,
+    ];
+  };
+  const speaker = pairSpeakers(map.edges, standing);
+
   const nodes: Node[] = map.nodes.map((node): AssetFlowNode => ({
     id: node.id,
     type: "asset",
@@ -422,8 +469,10 @@ function toFlow(
     },
   }));
 
-  const edges: Edge[] = map.edges.map((edge) => {
+  const edges: Edge<LabelRank>[] = map.edges.map((edge) => {
     const key = keyOf(edge);
+    const speaks = speaker.get(`${edge.source}|${edge.target}`)!;
+    const text = speaks.text;
     const onTraced = tracedHops?.has(key) ?? false;
     const isCut = cut.has(key);
     const now = key === readingKey;
@@ -436,7 +485,7 @@ function toFlow(
     let width = edge.severs > 0 ? weight : 1;
     let dash: string | undefined;
     let opacity = edge.severs > 0 ? 1 : 0.55;
-    let label = edge.severs > 0 ? `${edge.label} · closes ${edge.severs}` : edge.label;
+    let label = edge.severs > 0 ? `${text} · closes ${edge.severs}` : text;
     let labelFill = "var(--muted-foreground)";
 
     if (isCut) {
@@ -445,7 +494,7 @@ function toFlow(
       stroke = "var(--sev-ok)";
       width = Math.max(width, 2);
       dash = "5 4";
-      label = `${edge.label} · cut`;
+      label = `${text} · cut`;
       labelFill = "var(--sev-ok)";
       opacity = 1;
     } else if (tracedHops) {
@@ -467,11 +516,14 @@ function toFlow(
       opacity = 0.2;
     }
 
+    if (speaks.key !== key) label = "";
+
     return {
       id: key,
       source: edge.source,
       target: edge.target,
       label: label || undefined,
+      data: { rank: now ? 0 : onTraced ? 1 : isCut ? 2 : 3 + 1 / (1 + edge.severs) },
       zIndex: now ? 2 : undefined,
       // Marching dashes along the route being read, in the direction reach
       // runs. The one animation here that says something the static picture

@@ -9,7 +9,14 @@ import {
 } from "react";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
-import { RouteIcon, ScissorsIcon, SearchIcon, UndoIcon, XIcon } from "lucide-react";
+import {
+  CircleHelpIcon,
+  RouteIcon,
+  ScissorsIcon,
+  SearchIcon,
+  UndoIcon,
+  XIcon,
+} from "lucide-react";
 
 import { api } from "@/lib/api";
 import type {
@@ -56,6 +63,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -826,11 +834,30 @@ function RouteList({
         )}
         {listing.patterns.length > 0 && (
           <div className="flex flex-col gap-2">
-            <div>
+            {/* The help is a question mark away: it was three lines above
+                the groups, read once and then only in the way (§143). */}
+            <div className="flex items-center gap-1">
               <h3 className="text-xs font-medium">{t.attackPaths.patternsTitle}</h3>
-              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                {t.attackPaths.patternsHelp}
-              </p>
+              <span className="text-xs text-muted-foreground tabular-nums">
+                · {t.attackPaths.patternsCount(listing.patterns.length)}
+              </span>
+              <Popover>
+                <PopoverTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      aria-label={t.attackPaths.patternsHelpLabel}
+                      className="ml-auto text-muted-foreground"
+                    >
+                      <CircleHelpIcon />
+                    </Button>
+                  }
+                />
+                <PopoverContent align="end" className="w-72 text-xs leading-relaxed">
+                  {t.attackPaths.patternsHelp}
+                </PopoverContent>
+              </Popover>
             </div>
             {listing.patterns.map(({ pattern, members }) => (
               <PatternRow
