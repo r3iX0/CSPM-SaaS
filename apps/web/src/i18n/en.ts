@@ -749,7 +749,7 @@ export const en = {
       "The route this link names is not among the routes in the latest reading \u2014 it may have closed since. Every route is drawn below.",
     traceMissingClear: "Clear",
     mapHelp:
-      "Left to right is hops from the outside in. A line's thickness is how many routes close if it is cut — checked for every link. Press a line to add it to the simulation, or a box for the routes through it; press the empty canvas to put the box down. Pointing at a box fades what it does not touch. Arrow keys move between boxes.",
+      "Left to right is hops from the outside in. A line's thickness is how many routes close if it is cut — checked for every link. Press a line to add it to the simulation, or a box for the routes through it; press the empty canvas to put the box down. While a route is being read, pressing one of its own lines or boxes reads that hop instead. Pointing at a box fades what it does not touch. Arrow keys move between boxes.",
     mapHelpLabel: "How to read the drawing",
     legendEntry: "Reachable from the internet",
     legendSensitive: "Sensitive data",
@@ -774,6 +774,54 @@ export const en = {
       "Cutting this closes nothing: every route through it has another way round.",
     clearTrace: "Show every route",
     tracing: "Tracing one route",
+    // The route navigator (DECISIONS.md §142): stops always shown, links walked.
+    navigatorLabel: (entry: string, target: string) =>
+      `Attack path from ${entry} to ${target}`,
+    previousRoute: "Previous route",
+    nextRoute: "Next route",
+    routeOf: (n: number, total: number) => `Route ${n} of ${total}`,
+    onePattern: (description: string) => `One of a group: ${description}`,
+    planCloses: "The simulated plan closes this route",
+    planLeavesOpen: "Still open with the simulated plan made",
+    hopsLabel: "Hops",
+    hopOf: (n: number, total: number, text: string) => `Hop ${n} of ${total}: ${text}`,
+    trackedAsRisk: "Tracked as a risk",
+    notARisk: "Not a risk: nothing on this route fails a check",
+    keysHops: "hops",
+    keysRoutes: "routes",
+    keysBack: "back to the list",
+    openFindings: (n: number) => `${n} open ${n === 1 ? "finding" : "findings"}`,
+    placeIn: "In",
+    placeEnters: "Enters",
+    earliestCut: "Earliest place to cut",
+    closesMost: (n: number) => `Closes the most on this route: ${n} routes`,
+    factsLabel: "What the link is",
+    cannotRemove:
+      "Where it lives. Containment cannot be removed, so this is not a place to cut.",
+    notDrawn:
+      "This link is past what the drawing holds, so what cutting it closes is not known here.",
+    closesThis: (others: number) =>
+      others === 0
+        ? "Cutting it closes this route."
+        : `Cutting it closes this route and ${others} ${others === 1 ? "other" : "others"}.`,
+    wayRound: (severs: number) =>
+      severs === 0
+        ? "This route has a way round it: cutting this alone closes nothing."
+        : `This route has a way round it. Cutting this alone closes ${severs} other ${severs === 1 ? "route" : "routes"}.`,
+    sitsOn: (n: number) => `It sits on ${n}; the rest have another way round.`,
+    addToPlan: "Add to the plan",
+    takeOutOfPlan: "Take out of the plan",
+    // The list's own controls.
+    searchLabel: "Search routes",
+    searchPlaceholder: "Any asset on a route",
+    sortLabel: "Sort routes",
+    sortHops: "Shortest first",
+    sortSensitive: "Most sensitive target",
+    sortExposed: "Most exposed entry",
+    sortTracked: "Tracked risks first",
+    trackedBadge: "Tracked",
+    closedByPlan: "Closed by the plan",
+    noneNamed: (query: string) => `No route passes anything named “${query}”.`,
   },
   notifications: {
     aria: "Notifications",

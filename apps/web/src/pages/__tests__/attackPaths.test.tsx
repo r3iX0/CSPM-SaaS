@@ -274,12 +274,16 @@ describe("AttackPathsPage", () => {
 
     await userEvent.click(screen.getByText(/jump-01/));
 
-    await waitFor(() =>
-      expect(screen.getAllByText("jump-01 runs as mi-jump-01").length).toBeGreaterThan(0),
-    );
-    expect(screen.getByText("mi-jump-01 can act over sub-1")).toBeInTheDocument();
-    expect(screen.getByText("sub-1 contains prod")).toBeInTheDocument();
-    expect(screen.getByText("prod contains customerdata")).toBeInTheDocument();
+    // Every hop is a row to read; the one being read says what it is in full.
+    const hops = await screen.findByRole("list", { name: "Hops" });
+    expect(
+      within(hops).getByRole("button", {
+        name: "Hop 1 of 4: jump-01 runs as mi-jump-01 (managed identity)",
+      }),
+    ).toHaveAttribute("aria-current", "step");
+    expect(within(hops).getByText("mi-jump-01 can act over sub-1")).toBeInTheDocument();
+    expect(within(hops).getByText("sub-1 contains prod")).toBeInTheDocument();
+    expect(within(hops).getByText("prod contains customerdata")).toBeInTheDocument();
   });
 
   it("distinguishes a clean environment from an unscanned one", async () => {
@@ -540,7 +544,7 @@ describe("AttackPathsPage", () => {
     expect(within(panel).getByText(/jump-01/)).toBeInTheDocument();
   });
 
-  it("walks a traced route one hop at a time, with the hop in the URL", async () => {
+  it("walks a traced route one hop at a time in the panel, with the hop in the URL", async () => {
     mount(
       oneRoute(),
       { total: 1, entry_points: 1, sensitive_targets: 1 },
@@ -548,34 +552,179 @@ describe("AttackPathsPage", () => {
       "/attack-paths?trace=vm%7Cstorage",
     );
 
-    // Walking moved here from the estate map (DECISIONS.md §138).
-    const stepper = await screen.findByRole("group", {
+    // One navigator, in the panel; no step bar over the drawing (§142).
+    const navigator = await screen.findByRole("group", {
       name: /attack path from jump-01 to customerdata/i,
     });
-    expect(stepper).toHaveTextContent("Hop 1 of 4");
-    // Where the hop lands, a link to that place on the estate map.
     expect(
-      within(stepper).getByRole("link", { name: "Production › prod" }),
-    ).toHaveAttribute(
-      "href",
-      "/assets?view=graph&subscription_id=sub-1&resource_group=prod",
-    );
+      within(screen.getByRole("complementary", { name: "The routes" })).getByRole("group", {
+        name: /attack path from/i,
+      }),
+    ).toBe(navigator);
+    const hops = within(navigator).getByRole("list", { name: "Hops" });
+    expect(
+      within(hops).getByRole("button", { name: /^Hop 1 of 4/ }),
+    ).toHaveAttribute("aria-current", "step");
+    // The earliest place to cut is marked, and what cutting it closes is the
+    // number on the line, for this route.
+    expect(within(navigator).getByText("Earliest place to cut")).toBeInTheDocument();
+    expect(within(navigator).getByText("Cutting it closes this route.")).toBeInTheDocument();
+    expect(within(navigator).getByText("managed identity")).toBeInTheDocument();
 
-    expect(stepper).toHaveTextContent("Cutting this link severs the route");
-
-    await userEvent.click(screen.getByRole("button", { name: "Next hop" }));
-    expect(stepper).toHaveTextContent("Hop 2 of 4");
-    expect(stepper).toHaveTextContent(
-      "mi-jump-01 can act over sub-1 (Contributor)",
-    );
-    expect(stepper).not.toHaveTextContent("Cutting this link severs the route");
+    fireEvent.keyDown(navigator, { key: "ArrowDown" });
     expect(screen.getByTestId("where")).toHaveTextContent("hop=1");
-
-    fireEvent.keyDown(stepper, { key: "Escape" });
     expect(
-      screen.queryByRole("group", { name: /attack path from/i }),
-    ).toBeNull();
+      within(hops).getByRole("button", { name: /^Hop 2 of 4/ }),
+    ).toHaveAttribute("aria-current", "step");
+    expect(
+      within(hops).getByRole("button", { name: /^Hop 2 of 4/ }),
+    ).toHaveTextContent("mi-jump-01 can act over sub-1 (Contributor)");
+
+    await userEvent.click(within(hops).getByRole("button", { name: /^Hop 4 of 4/ }));
+    expect(screen.getByTestId("where")).toHaveTextContent("hop=3");
+    // Containment is where something lives: not offered as a cut.
+    expect(within(navigator).getByText(/Containment cannot be removed/)).toBeInTheDocument();
+    expect(within(navigator).queryByRole("button", { name: "Add to the plan" })).toBeNull();
+
+    fireEvent.keyDown(navigator, { key: "Escape" });
+    expect(screen.queryByRole("group", { name: /attack path from/i })).toBeNull();
     expect(screen.getByTestId("where")).not.toHaveTextContent("trace=");
+  });
+
+  it("names the link that closes the most when it is not the earliest cut", async () => {
+    // The server's cut is the earliest removable link. A later one can close
+    // far more of the estate, and a reader choosing between them needs both.
+    const map = oneRoute();
+    map.edges.push({
+      source: "mi",
+      relationship: "grants_role",
+      target: "sub",
+      label: "can act over",
+      facts: ["Contributor"],
+      detail: "mi-jump-01 can act over sub-1 (Contributor)",
+      severs: 3,
+      closes: ["vm|storage", "a|storage", "b|storage"],
+      on_routes: 5,
+      alternate: true,
+    });
+    mount(map, { total: 1, entry_points: 1, sensitive_targets: 1 }, [], "/attack-paths?trace=vm%7Cstorage&hop=1");
+
+    const navigator = await screen.findByRole("group", { name: /attack path from/i });
+    expect(
+      within(navigator).getByText("Closes the most on this route: 3 routes"),
+    ).toBeInTheDocument();
+    expect(
+      within(navigator).getByText(
+        "Cutting it closes this route and 2 others. It sits on 5; the rest have another way round.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("steps between routes in the order the list shows them", async () => {
+    const second: MappedRoute = {
+      ...ROUTE,
+      key: "web|storage",
+      entry: { ...ROUTE.entry, id: "web", name: "web-02" },
+      steps: [{ ...ROUTE.steps[0], source: "web-02", source_id: "web" }, ...ROUTE.steps.slice(1)],
+    };
+    mount(
+      { ...oneRoute(), routes: [ROUTE, second], loose: [ROUTE.key, second.key] },
+      { total: 2, entry_points: 2, sensitive_targets: 1 },
+      [],
+      "/attack-paths?trace=vm%7Cstorage&hop=2",
+    );
+
+    const panel = await screen.findByRole("complementary", { name: "The routes" });
+    expect(await within(panel).findByText("Route 1 of 2")).toBeInTheDocument();
+    expect(within(panel).getByRole("button", { name: "Previous route" })).toBeDisabled();
+
+    await userEvent.click(within(panel).getByRole("button", { name: "Next route" }));
+    expect(screen.getByTestId("where")).toHaveTextContent("trace=web%7Cstorage");
+    // A new route is read from its first hop.
+    expect(screen.getByTestId("where")).toHaveTextContent("hop=0");
+    expect(within(panel).getByText("Route 2 of 2")).toBeInTheDocument();
+    // Chosen here, so the focus follows it to its name.
+    expect(within(panel).getByRole("heading", { name: /web-02/ })).toHaveFocus();
+
+    fireEvent.keyDown(within(panel).getByRole("group", { name: /attack path from/i }), {
+      key: "ArrowLeft",
+    });
+    expect(screen.getByTestId("where")).toHaveTextContent("trace=vm%7Cstorage");
+  });
+
+  it("puts a hop into the plan without leaving the route, and says what the plan does to it", async () => {
+    const post = simulateWith(closingAll());
+    mount(
+      oneRoute(),
+      { total: 1, entry_points: 1, sensitive_targets: 1 },
+      [],
+      "/attack-paths?trace=vm%7Cstorage",
+    );
+
+    const navigator = await screen.findByRole("group", { name: /attack path from/i });
+    await userEvent.click(within(navigator).getByRole("button", { name: "Add to the plan" }));
+
+    expect(screen.getByTestId("where")).toHaveTextContent("cut=vm%7Chas_identity%7Cmi");
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith("/api/v1/attack-paths/simulate", { cuts: [RUNS_AS] }),
+    );
+    // Still reading the route: the plan is a tab away, not where the reader went.
+    expect(
+      await within(navigator).findByText("The simulated plan closes this route"),
+    ).toBeInTheDocument();
+    expect(within(navigator).getByRole("button", { name: "Take out of the plan" })).toBeInTheDocument();
+  });
+
+  it("finds routes by any asset on them, and says when nothing is so named", async () => {
+    mount(oneRoute(), { total: 1, entry_points: 1, sensitive_targets: 1 });
+    const panel = await screen.findByRole("complementary", { name: "The routes" });
+    const search = await within(panel).findByRole("searchbox", { name: "Search routes" });
+
+    // An asset in the middle of the route, not only its ends.
+    await userEvent.type(search, "sub-1");
+    expect(within(panel).getByText(/jump-01/)).toBeInTheDocument();
+    expect(screen.getByTestId("where")).toHaveTextContent("q=sub-1");
+
+    await userEvent.clear(search);
+    await userEvent.type(search, "nowhere");
+    expect(
+      within(panel).getByText("No route passes anything named \u201cnowhere\u201d."),
+    ).toBeInTheDocument();
+  });
+
+  it("sorts by what a route reaches, and marks the ones a risk tracks", async () => {
+    const critical: MappedRoute = {
+      ...ROUTE,
+      key: "web|vault",
+      entry: { ...ROUTE.entry, id: "web", name: "web-02" },
+      target: { ...ROUTE.target, id: "vault", name: "kv-prod", data_sensitivity: "CRITICAL" },
+    };
+    mount(
+      { ...oneRoute(), routes: [ROUTE, critical], loose: [ROUTE.key, critical.key] },
+      { total: 2, entry_points: 2, sensitive_targets: 2 },
+      [
+        {
+          id: "r-route",
+          kind: "ATTACK_PATH",
+          path: [
+            { ...ROUTE.steps[0], source_id: ROUTE.entry.id },
+            { ...ROUTE.steps[3], target_id: ROUTE.target.id },
+          ],
+        },
+      ],
+      "/attack-paths?sort=sensitive",
+    );
+    const panel = await screen.findByRole("complementary", { name: "The routes" });
+    await within(panel).findByText(/kv-prod/);
+    const rows = within(panel)
+      .getAllByRole("button")
+      .filter((button) => /→/.test(button.textContent ?? ""));
+    expect(rows.map((row) => row.textContent)).toEqual([
+      expect.stringContaining("web-02 → kv-prod"),
+      expect.stringContaining("jump-01 → customerdata"),
+    ]);
+    await waitFor(() => expect(rows[1]).toHaveTextContent("Tracked"));
+    expect(rows[0]).not.toHaveTextContent("Tracked");
   });
 
   it("brings a route a link named into view on arrival, once", async () => {
@@ -595,7 +744,7 @@ describe("AttackPathsPage", () => {
     await screen.findByRole("group", { name: /attack path from jump-01 to customerdata/i });
     await waitFor(() => expect(scroll).toHaveBeenCalledTimes(1));
 
-    await userEvent.click(screen.getByRole("button", { name: "Next hop" }));
+    await userEvent.click(screen.getByRole("button", { name: /^Hop 2 of 4/ }));
     expect(scroll).toHaveBeenCalledTimes(1);
   });
 
@@ -615,7 +764,7 @@ describe("AttackPathsPage", () => {
     expect(screen.getByTestId("where")).not.toHaveTextContent("trace=");
   });
 
-  it("says where a traced route runs, each place a link to the estate map", async () => {
+  it("says where a traced route enters each place, each a link to the estate map", async () => {
     mount(
       oneRoute(),
       { total: 1, entry_points: 1, sensitive_targets: 1 },
@@ -626,7 +775,11 @@ describe("AttackPathsPage", () => {
       name: "The routes",
     });
 
-    expect(await within(panel).findByText("Where it runs")).toBeInTheDocument();
+    // Said once where the route arrives in a place, not at every stop in it:
+    // jump-01 and its identity both sit in Production › prod.
+    expect(
+      await within(panel).findAllByRole("link", { name: "Production › prod" }),
+    ).toHaveLength(1);
     expect(
       within(panel).getByRole("link", { name: "Production › prod" }),
     ).toHaveAttribute(

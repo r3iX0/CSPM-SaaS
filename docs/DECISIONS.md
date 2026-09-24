@@ -7526,6 +7526,92 @@ answer up, faded, while the next is checked, rather than emptying the panel.
 body, the together callout, a covered change, and a missing link. How the tab
 reads beside a large drawing still needs a real screen.
 
+## 142. A route is read in one navigator in the panel, stop by stop
+
+Supersedes the step bar in §138 and the traced-route panel in §137.
+
+A traced route was read twice, and the two readings did not agree. A step bar
+across the top of the drawing showed one hop at a time, with previous and next,
+the hop's sentence and six-pixel pips. The panel showed every hop as a spine,
+which could not be stepped along and did not mark the hop the bar was on. The
+bar said the hop's `detail`, the spine its `description`. The two found the
+cut differently: the bar matched the relationship, the spine did not, so where
+one pair of boxes is joined by a role and by a grant the spine could mark the
+wrong one. The bar and the plan's bar together took seven rows from a drawing
+of fixed height. The entry was never a hop, so nothing said why the route
+started there, and nothing said what the target held. Reading forty routes was
+back, press, back, press. And every hop carried numbers the page already had --
+what cutting it closes, whether there is a way round, the open findings where
+it lands -- and said none of them.
+
+Now there is one reading, in the panel (`RouteNavigator`).
+
+- **Stops and links.** A route of four hops is five stops joined by four links.
+  Every stop is always shown: its name (a link to the asset), its type, open
+  findings, the entry's exposure and the target's sensitivity, and where the
+  route enters a place -- the subscription and group, linked to the estate
+  map, said once where the route arrives rather than at every stop in it. The
+  links are what is walked. The one being read opens: its `detail` and facts,
+  and what cutting it would do.
+- **The cursor is on a link, never on a stop.** Stops are short enough to show
+  whole, so there is nothing to open on them, and keeping the cursor on links
+  leaves `hop` meaning what it has meant since §138 -- every link already
+  made still opens where it did. A press on a stop in the drawing reads the
+  link arriving at it.
+- **What cutting it does, from the line's numbers.** "Closes this route and N
+  others" only when the link's `closes` names this route; a link the route has
+  a way round says so, with what it closes elsewhere; "It sits on M" where
+  `on_routes` is larger than `severs`. Containment says it cannot be removed
+  and offers no cut. Two marks: the earliest place to cut, which is the
+  server's `cheapest_break`, and the link closing the most on this route, when
+  that is another link and closes more than this one. The earliest removable
+  link is the cheap one to reason about and often not the one worth making,
+  and a reader choosing between them needs both in front of them.
+- **"Add to the plan" is on the hop.** It plans the link without leaving the
+  route (§141's tab does not open), and once the server has answered for the
+  plan the navigator says whether it closes this route. The plan's bar above
+  the drawing still says a plan is being simulated, with a way to it.
+- **Route to route.** "Route 3 of 17", with previous and next, over the list
+  exactly as it stands -- narrowed by box, place and search, in its sort.
+  `listRoutes` (`routeOrder.ts`) is that order, and the list and the navigator
+  both read it, so neither can skip a route the other shows. A route in a
+  group says which group. A route the narrowed list does not hold shows no
+  counter rather than a wrong one.
+- **Keys where the reader is.** Up and down walk the links, left and right move
+  between routes, Escape goes back to the list, while the focus is in the
+  panel -- the drawing keeps its arrow keys for its boxes. A route chosen here
+  moves the focus to its name; one a link arrived with does not, since the page
+  has only just loaded. One live region says the hop being read, since a region
+  mounted with its words is not reliably read.
+- **The drawing selects what is being read.** A press on the traced route's own
+  line or box reads that hop, as a click selects on every canvas. A line off
+  the route still goes into the plan, and a box off it still narrows the list.
+  Before, a press on the line being read put it in the plan and switched tabs,
+  which took the reader away from the thing they were reading.
+- **The list.** Searched by any asset on a route, not only its ends (`q`), and
+  sorted by hops, sensitivity of what it reaches, exposure of where it starts,
+  or tracked risks first (`sort`); groups stay above the rest whatever the
+  sort, a group being one thing to decide about. Each row carries a dash per
+  hop with the earliest cut in the cut's colour, "Tracked" where the risks
+  queue has it, and "Closed by the plan", struck through, once the server has
+  answered. Pointing at a row, or reaching it by keyboard, previews its route
+  on the drawing -- faded around, but the view does not move and nothing
+  marches, so sweeping down the list does not set the drawing swimming. A
+  place narrowed to now narrows the groups' members too; before, only the
+  loose routes were narrowed.
+
+**Rejected.** Playing a route by itself, hop after hop on a timer: progress
+nobody asked for (§87). Keeping the step bar alongside: the fault was two
+readings. A cursor on stops: it would move what `hop` means under every link
+already made, for stops that have nothing to open.
+
+**Not checked in a browser.** Tests cover the navigator's walk, keys and URL,
+what a hop says about cutting it, the two marks, route to route with the focus,
+the plan from a hop, search, sort, the tracked mark and the narrowing. The
+canvas is not mounted in tests, so the press on the traced route and the
+preview on pointing are not covered by them, and how the panel reads beside a
+large drawing still needs a real screen.
+
 ## Open items carried forward
 
 **Data residency is not built (§113).** An organization setting for allowed

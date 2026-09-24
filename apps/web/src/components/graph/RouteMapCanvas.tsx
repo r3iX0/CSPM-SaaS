@@ -93,17 +93,29 @@ export interface RouteMapCanvasProps {
    */
   hop?: number | null;
   /**
+   * A route pointed at in the list: faded around like a traced one, but the
+   * view does not move and nothing marches -- sweeping down the list must not
+   * set the drawing swimming (DECISIONS.md §142).
+   */
+  preview?: MappedRoute | null;
+  /**
    * Links somebody is considering cutting together, and the routes the server
    * said close with them -- for the plan as a whole, never summed per link.
    */
   simulated?: { links: Hop[]; closes: Set<string> } | null;
   /** The box picked, whose routes the rail is showing. */
   picked?: string | null;
-  /** Called when a box is pressed: the rail shows what runs through it. */
+  /**
+   * Called when a box is pressed: on the traced route the page reads the hop
+   * arriving there, anywhere else the rail shows what runs through it.
+   */
   onPickNode: (id: string) => void;
   /** Called when the empty canvas is pressed: the pick is put down. */
   onClearPick?: () => void;
-  /** Called when a link is pressed: the page adds it to the plan, or takes it out. */
+  /**
+   * Called when a link is pressed: on the traced route the page reads it,
+   * anywhere else it goes into the plan, or out of it.
+   */
   onPickLink: (edge: RouteMapEdge) => void;
 }
 
@@ -139,6 +151,7 @@ function Canvas({
   map,
   traced = null,
   hop = null,
+  preview = null,
   simulated = null,
   picked = null,
   onPickNode,
@@ -151,16 +164,23 @@ function Canvas({
     edges: drawn,
     at,
   } = useMemo(
-    () => toFlow(map, traced, hop, simulated, reduced),
-    [map, traced, hop, simulated, reduced],
+    () =>
+      toFlow(
+        map,
+        traced ?? preview,
+        traced ? hop : null,
+        simulated,
+        reduced || (preview !== null && !traced),
+      ),
+    [map, traced, preview, hop, simulated, reduced],
   );
-  // A traced route or a simulated cut draws its own fading, and wins.
+  // A traced or previewed route, or a simulated cut, draws its own fading, and wins.
   const [previewed, setPreviewed] = useState<GraphSelection | null>(null);
   const pickedOn = useMemo<GraphSelection | null>(
     () => (picked && at.has(picked) ? { kind: "box", id: picked } : null),
     [picked, at],
   );
-  const on = traced || simulated ? null : (pickedOn ?? previewed);
+  const on = traced || preview || simulated ? null : (pickedOn ?? previewed);
   const around = useMemo(() => kept(drawn, on), [drawn, on]);
   const edges = useMemo(
     () =>
@@ -213,8 +233,8 @@ function Canvas({
     const duration = reduced ? 0 : DURATION.quick;
     const ids = [traced.entry.id, ...traced.steps.map((step) => step.target_id)];
     if (framed.current !== traced.key) {
-      // Two frames on: the step bar arriving above shrinks the canvas, and
-      // React Flow learns its new size from a resize observer.
+      // Two frames on: a bar arriving above the drawing can shrink the canvas,
+      // and React Flow learns its new size from a resize observer.
       let frameId = requestAnimationFrame(() => {
         frameId = requestAnimationFrame(() => {
           framed.current = traced.key;

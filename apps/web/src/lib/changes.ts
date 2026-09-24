@@ -10,7 +10,11 @@
  * dashboard's summary of it. A second copy is how the same movement ends up
  * green on one page and red on another.
  */
-const RANK: Record<string, number> = {
+/**
+ * The levels in order. UNKNOWN has no rank: whoever sorts by it decides where
+ * not knowing goes, rather than this table deciding it is the least.
+ */
+export const LEVEL_RANK: Record<string, number> = {
   LOW: 1,
   MEDIUM: 2,
   HIGH: 3,
@@ -23,8 +27,8 @@ export function changeDirection(
   previous: string | null,
   current: string | null,
 ): Direction {
-  const from = RANK[previous ?? ""];
-  const to = RANK[current ?? ""];
+  const from = LEVEL_RANK[previous ?? ""];
+  const to = LEVEL_RANK[current ?? ""];
   if (from === undefined || to === undefined) return "neutral";
   if (to > from) return "worse";
   if (to < from) return "better";

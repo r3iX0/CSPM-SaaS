@@ -5,26 +5,16 @@ import {
   useMemo,
   useRef,
   useState,
-  type KeyboardEvent,
   type ReactNode,
 } from "react";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
-import {
-  ArrowLeftIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  MapIcon,
-  RadarIcon,
-  RouteIcon,
-  ScissorsIcon,
-  UndoIcon,
-  XIcon,
-} from "lucide-react";
+import { RouteIcon, ScissorsIcon, SearchIcon, UndoIcon, XIcon } from "lucide-react";
 
 import { api } from "@/lib/api";
 import type {
   AttackPathMeta,
+  AttackPathStep,
   DeadEnd,
   MappedRoute,
   Risk,
@@ -35,14 +25,22 @@ import type {
   Simulation,
 } from "@/lib/types";
 import { useT } from "@/i18n";
-import { cn } from "@/lib/format";
 import { StatStrip } from "@/components/common/StatStrip";
+import { SelectField } from "@/components/common/SelectField";
 import { ResourceTypeLabel } from "@/components/security/IconLabel";
-import { AttackPathRoute } from "@/components/graph/AttackPathRoute";
 import { GraphLegend, MARKS } from "@/components/graph/GraphLegend";
-import { OpenInGraph } from "@/components/graph/OpenInGraph";
-import { PatternRow, RouteRow } from "@/components/graph/RouteRows";
+import { PatternRow, RouteRow, type RouteMarks } from "@/components/graph/RouteRows";
+import { RouteNavigator } from "@/components/graph/RouteNavigator";
 import { hopKey, routeKeyOf } from "@/components/graph/routeKeys";
+import {
+  listRoutes,
+  placeName,
+  ROUTE_SORTS,
+  visits,
+  type Place,
+  type RouteListing,
+  type RouteSort,
+} from "@/components/graph/routeOrder";
 import { routeMapQuery } from "@/components/graph/graphQueries";
 import { usePrefersReducedMotion } from "@/lib/motion";
 import { arrivedByMorph } from "@/lib/viewTransition";
@@ -57,6 +55,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -72,25 +71,27 @@ const RouteMapCanvas = lazy(() => import("@/components/graph/RouteMapCanvas"));
  * *together* — and it answers it twice, because one answer was never enough.
  *
  * The rail ranks routes by hops, where the shortest is both the likeliest and
- * the cheapest to break. The map draws all of them at once, because forty
+ * the cheapest to break, or by what they reach, what they start from, or
+ * whether a risk tracks them. The map draws all of them at once, because forty
  * routes through one identity are forty rows that never say "one identity",
  * and the drawing says it in a look. Every line carries what cutting it would
  * close — for every link, not for a shortlist — so "which change is worth
  * making" is answered on the picture rather than beside it.
  *
- * **Routes are read here, not on the estate map (§138).** A traced route is
- * walked one hop at a time in a bar across the top of the drawing, each hop
- * saying which subscription and group it lands in, with a link to that place
- * on the map. The map links back here narrowed to one of its boxes. What is
- * traced, the hop, the box picked and the place narrowed to are all in the URL
- * (`trace`, `hop`, `through`, `scope`, `group`), so a link opens on them.
+ * **A route is read in the panel (§142).** Tracing one turns the panel into
+ * the route navigator: its stops and the links between them, the link being
+ * read opened with what cutting it would close, and the routes before and
+ * after it in the list a key away. Pressing the traced route's own lines or
+ * boxes on the drawing reads that hop. What is traced, the hop, the box
+ * picked, the place narrowed to, the search and the sort are all in the URL
+ * (`trace`, `hop`, `through`, `scope`, `group`, `q`, `sort`), so a link opens
+ * on them.
  *
- * **Changes are tried in the panel's other tab (§141).** Pressing a line adds
- * it to a plan rather than trying it alone, and the plan is answered whole by
- * the server, because two changes can close what neither closes alone. The
- * tab starts from the links holding the most routes up, which used to be a
- * card of their own above the drawing. The plan is in the URL too (`cut`, one
- * per link), so it can be sent to whoever makes the change.
+ * **Changes are tried in the panel's other tab (§141).** Pressing a line off
+ * the traced route, or "Add to the plan" on a hop, puts it in a plan answered
+ * whole by the server, because two changes can close what neither closes
+ * alone. The plan is in the URL too (`cut`, one per link), so it can be sent to
+ * whoever makes the change.
  */
 export function AttackPathsPage() {
   const t = useT();
@@ -146,9 +147,19 @@ export function AttackPathsPage() {
       group: params.has("group") ? params.get("group") || null : undefined,
     };
   }, [params]);
+  const sortParam = params.get("sort");
+  const sort: RouteSort = ROUTE_SORTS.includes(sortParam as RouteSort)
+    ? (sortParam as RouteSort)
+    : "hops";
+  const query = params.get("q") ?? "";
   /** The links somebody is trying out together, in the order they were added. */
   const plan = useMemo(() => params.getAll("cut").flatMap(parseCut), [params]);
   const [tab, setTab] = useState<PanelTab>(() => (plan.length > 0 ? "simulate" : "routes"));
+  /** The route under the pointer in the list, drawn faded-around until it leaves. */
+  const [previewKey, setPreviewKey] = useState<string | null>(null);
+  // Whether the traced route was chosen on this page rather than arriving with
+  // a link: only then does the focus follow it into the panel.
+  const [chosenHere, setChosenHere] = useState(false);
 
   // Every change replaces the entry: reading along the page is not a trail
   // somebody retraces with Back, as opening a box on the map is.
@@ -165,8 +176,16 @@ export function AttackPathsPage() {
       { replace: true },
     );
   }
-  const setTraced = (key: string | null) =>
+  function setTraced(key: string | null) {
+    setPreviewKey(null);
     change({ trace: key, hop: key ? "0" : null });
+  }
+  /** A route chosen here: read in the Routes tab, with the focus following it. */
+  function trace(key: string | null) {
+    setChosenHere(true);
+    setTraced(key);
+    if (key) setTab("routes");
+  }
 
   function setPlan(next: Hop[]) {
     setParams(
@@ -182,6 +201,31 @@ export function AttackPathsPage() {
 
   const map = data?.map;
   const routes = useMemo(() => map?.routes ?? [], [map]);
+  const nodes = useMemo(
+    () => new Map((map?.nodes ?? []).map((node) => [node.id, node])),
+    [map],
+  );
+  const edges = useMemo(
+    () =>
+      new Map(
+        (map?.edges ?? []).map((edge) => [
+          hopKey(edge.source, edge.relationship, edge.target),
+          edge,
+        ]),
+      ),
+    [map],
+  );
+  const trackedKeys = useMemo(
+    () => new Set(tracked.data?.keys() ?? []),
+    [tracked.data],
+  );
+  const listing = useMemo(
+    () =>
+      map
+        ? listRoutes(map, nodes, { picked, place, query, sort, tracked: trackedKeys })
+        : null,
+    [map, nodes, picked, place, query, sort, trackedKeys],
+  );
   const tracedRoute = useMemo(
     () => routes.find((route) => route.key === traced) ?? null,
     [routes, traced],
@@ -189,10 +233,17 @@ export function AttackPathsPage() {
   const hop = tracedRoute
     ? Math.min(hopParam, tracedRoute.steps.length - 1)
     : 0;
+  const previewRoute = useMemo(
+    () =>
+      previewKey && !tracedRoute
+        ? (routes.find((route) => route.key === previewKey) ?? null)
+        : null,
+    [routes, previewKey, tracedRoute],
+  );
 
   // A link that names a route came to read it, and the frame sits below the
-  // counts and the choke points: bring it up once, on arrival, and never again
-  // when somebody traces from the rail they are already looking at (§139).
+  // counts: bring it up once, on arrival, and never again when somebody traces
+  // from the rail they are already looking at (§139).
   const frame = useRef<HTMLDivElement>(null);
   const reduced = usePrefersReducedMotion();
   const [arrivingWith] = useState(traced);
@@ -208,15 +259,21 @@ export function AttackPathsPage() {
       behavior: reduced || morphed ? "auto" : "smooth",
     });
   }, [arrivingWith, tracedRoute, reduced, morphed]);
-  // Pressing a line, or a suggestion, puts it in the plan or takes it out,
-  // and opens the tab that answers for the plan.
-  function togglePlanned(link: Hop) {
+
+  // Pressing a line, or a suggestion, puts it in the plan or takes it out.
+  // From the drawing or a suggestion it opens the tab that answers for the
+  // plan; from a hop being read it leaves the reader on the route.
+  function togglePlanned(link: Hop, open = true) {
     const key = cutKey(asRemoved(link, map?.edges ?? []));
     const inPlan = plan.some((each) => cutKey(each) === key);
     if (inPlan) setPlan(plan.filter((each) => cutKey(each) !== key));
     else if (plan.length < MAX_CUTS) setPlan([...plan, asRemoved(link, map?.edges ?? [])]);
-    setTab("simulate");
+    if (open) setTab("simulate");
   }
+  const isPlanned = (step: AttackPathStep) => {
+    const key = cutKey(asRemoved(asHop(step), map?.edges ?? []));
+    return plan.some((each) => cutKey(each) === key);
+  };
 
   const simulation = useQuery({
     queryKey: ["attack-paths", "simulate", plan.map(cutKey)],
@@ -238,6 +295,23 @@ export function AttackPathsPage() {
         : null,
     [plan, result],
   );
+  // What the list and the navigator say about the plan waits for the answer to
+  // this plan, never the last one left up while it is checked.
+  const settled =
+    plan.length > 0 && simulation.isSuccess && !simulation.isFetching ? result : undefined;
+  const marks = useMemo<RouteMarks>(
+    () => ({
+      tracked: trackedKeys,
+      closed: new Set(settled?.closed.map((route) => route.key) ?? []),
+    }),
+    [trackedKeys, settled],
+  );
+
+  const at = tracedRoute && listing ? listing.order.indexOf(tracedRoute.key) : -1;
+  function stepRoute(delta: -1 | 1) {
+    const next = listing?.order[at + delta];
+    if (at >= 0 && next) trace(next);
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -260,7 +334,7 @@ export function AttackPathsPage() {
 
       {data && routes.length === 0 && <NothingFound meta={data.meta} />}
 
-      {data && map && routes.length > 0 && (
+      {data && map && listing && routes.length > 0 && (
         <>
           <StatStrip
             stats={[
@@ -294,16 +368,54 @@ export function AttackPathsPage() {
               meta={data.meta}
               traced={tracedRoute}
               hop={hop}
-              onTrace={(key) => {
-                setTraced(key);
-                if (key) setTab("routes");
-              }}
-              onHop={(next) => change({ hop: String(next) })}
-              tracked={tracked.data}
-              trackingKnown={tracked.isSuccess}
+              preview={previewRoute}
               simulated={simulated}
               tab={tab}
               onTab={setTab}
+              routesPanel={
+                tracedRoute ? (
+                  <RouteNavigator
+                    route={tracedRoute}
+                    nodes={nodes}
+                    edges={edges}
+                    hop={hop}
+                    onHop={(next) => change({ hop: String(next) })}
+                    position={at >= 0 ? { index: at, count: listing.order.length } : null}
+                    onRoute={stepRoute}
+                    pattern={
+                      tracedRoute.pattern
+                        ? map.patterns.find((each) => each.id === tracedRoute.pattern)
+                        : undefined
+                    }
+                    risk={tracked.data?.get(tracedRoute.key)}
+                    trackingKnown={tracked.isSuccess}
+                    isPlanned={isPlanned}
+                    onPlan={(step) => togglePlanned(asHop(step), false)}
+                    planVerdict={
+                      settled ? (marks.closed.has(tracedRoute.key) ? "closed" : "open") : null
+                    }
+                    focusOnOpen={chosenHere}
+                    onBack={() => trace(null)}
+                  />
+                ) : (
+                  <RouteList
+                    map={map}
+                    nodes={nodes}
+                    listing={listing}
+                    marks={marks}
+                    onTrace={trace}
+                    onPreview={setPreviewKey}
+                    query={query}
+                    onQuery={(next) => change({ q: next || null })}
+                    sort={sort}
+                    onSort={(next) => change({ sort: next === "hops" ? null : next })}
+                    picked={picked}
+                    onClearPick={() => change({ through: null })}
+                    place={place}
+                    onClearPlace={() => change({ scope: null, group: null })}
+                  />
+                )
+              }
               simulationPanel={
                 <SimulationPanel
                   map={map}
@@ -321,27 +433,41 @@ export function AttackPathsPage() {
                   onAdd={togglePlanned}
                   onRemove={togglePlanned}
                   onClear={() => setPlan([])}
-                  onTrace={(key) => {
-                    setTraced(key);
-                    setTab("routes");
-                  }}
+                  onTrace={trace}
                 />
               }
               picked={picked}
-              place={place}
               onPickNode={(id) => {
-                // A box asks "what runs through here". The panel answers, and
-                // any trace clears so every route through it is visible.
+                // A box on the route being read reads the hop arriving there.
+                const stop = tracedRoute ? visits(tracedRoute).indexOf(id) : -1;
+                if (stop >= 0) {
+                  setTab("routes");
+                  change({ hop: String(Math.max(0, stop - 1)) });
+                  return;
+                }
+                // Any other box asks "what runs through here". The panel
+                // answers, and any trace clears so every route through it is
+                // visible.
                 setTab("routes");
+                setPreviewKey(null);
                 change({
                   trace: null,
                   hop: null,
                   through: picked === id ? null : id,
                 });
               }}
-              onPickLink={togglePlanned}
+              onPickLink={(link) => {
+                // A line on the route being read is read, as a click selects
+                // on every canvas; a line anywhere else goes into the plan.
+                const index = tracedRoute ? stepOf(tracedRoute, link) : -1;
+                if (index >= 0) {
+                  setTab("routes");
+                  change({ hop: String(index) });
+                  return;
+                }
+                togglePlanned(link);
+              }}
               onClearPick={() => change({ through: null })}
-              onClearPlace={() => change({ scope: null, group: null })}
             />
           </div>
         </>
@@ -360,6 +486,30 @@ const MAX_CUTS = 10;
 type PanelTab = "routes" | "simulate";
 
 const cutKey = (link: Hop) => hopKey(link.source, link.relationship, link.target);
+
+const asHop = (step: AttackPathStep): Hop => ({
+  source: step.source_id,
+  relationship: step.relationship,
+  target: step.target_id,
+});
+
+/**
+ * Which hop of a route a drawn line is, or -1. An escalation line is drawn
+ * beside the role line it comes from, so a press on either reads the hop
+ * between those two boxes.
+ */
+function stepOf(route: MappedRoute, link: Hop): number {
+  const exact = route.steps.findIndex(
+    (step) =>
+      step.source_id === link.source &&
+      step.relationship === link.relationship &&
+      step.target_id === link.target,
+  );
+  if (exact >= 0) return exact;
+  return route.steps.findIndex(
+    (step) => step.source_id === link.source && step.target_id === link.target,
+  );
+}
 
 /** A `cut` parameter back into a link; nothing for one that is not one. */
 function parseCut(value: string): Hop[] {
@@ -396,96 +546,45 @@ function asRemoved(link: Hop, edges: RouteMapEdge[]): Hop {
 }
 
 /**
- * A subscription, or a group in one, as the estate map opens it. `group`
- * undefined is anywhere in the subscription; null is what sits directly in it.
- */
-interface Place {
-  scope: string;
-  group: string | null | undefined;
-}
-
-/** ARM is case-insensitive about group names: `Prod` and `prod` are one group. */
-const sameGroup = (a: string | null, b: string | null) =>
-  (a ?? "").toLowerCase() === (b ?? "").toLowerCase();
-
-function inPlace(node: RouteMapNode | undefined, place: Place): boolean {
-  if (!node || node.scope_id !== place.scope) return false;
-  return place.group === undefined || sameGroup(node.group, place.group);
-}
-
-/** Every node a route visits, in order: its entry, then each step's target. */
-const visits = (route: MappedRoute) => [
-  route.entry.id,
-  ...route.steps.map((step) => step.target_id),
-];
-
-/** Where a node sits, as a name: "Production › web", or the subscription alone. */
-const placeName = (node: Pick<RouteMapNode, "scope_name" | "group">) =>
-  node.group ? `${node.scope_name} › ${node.group}` : node.scope_name;
-
-/** The estate map, opened on the place a node sits. */
-function mapHref(node: Pick<RouteMapNode, "scope_id" | "group">): string {
-  const query = new URLSearchParams({
-    view: "graph",
-    subscription_id: node.scope_id,
-  });
-  if (node.group) query.set("resource_group", node.group);
-  return `/assets?${query}`;
-}
-
-/**
  * The drawing and the routes, as one frame.
  *
  * The rail used to be a column of cards beside a card holding the canvas, and
  * a traced route opened at the foot of that column, often below the fold. Now
  * it is the estate map's shape (DECISIONS.md §137): the canvas, and a panel on
- * its side that lists the routes and, once one is traced, reads it hop by hop
- * with a way back to the list.
+ * its side that lists the routes and, once one is traced, reads it (§142).
  */
 function RouteMapFrame({
   map,
   meta,
   traced,
   hop,
-  onTrace,
-  onHop,
-  tracked,
-  trackingKnown,
+  preview,
   simulated,
   tab,
   onTab,
+  routesPanel,
   simulationPanel,
   picked,
-  place,
   onPickNode,
   onPickLink,
   onClearPick,
-  onClearPlace,
 }: {
   map: RouteMap;
   meta: RouteMapMeta;
   traced: MappedRoute | null;
   hop: number;
-  onTrace: (key: string | null) => void;
-  onHop: (hop: number) => void;
-  tracked?: Map<string, Risk>;
-  trackingKnown: boolean;
+  preview: MappedRoute | null;
   simulated: { links: Hop[]; closes: Set<string> } | null;
   tab: PanelTab;
   onTab: (tab: PanelTab) => void;
+  routesPanel: ReactNode;
   simulationPanel: ReactNode;
   picked: string | null;
-  place: Place | null;
   onPickNode: (id: string) => void;
   onPickLink: (edge: Hop) => void;
   onClearPick: () => void;
-  onClearPlace: () => void;
 }) {
   const t = useT();
-  const nodes = useMemo(
-    () => new Map(map.nodes.map((node) => [node.id, node])),
-    [map.nodes],
-  );
 
   return (
     <section aria-labelledby="route-map-title" className="flex flex-col gap-3">
@@ -517,15 +616,6 @@ function RouteMapFrame({
         data-graph-frame=""
         className="flex w-full flex-col overflow-hidden rounded-xl border border-border bg-card lg:h-[36rem]"
       >
-        {traced && (
-          <RouteStepper
-            route={traced}
-            hop={hop}
-            nodes={nodes}
-            onHop={onHop}
-            onClose={() => onTrace(null)}
-          />
-        )}
         {simulated && (
           <div className="flex items-center gap-2 border-b border-ok-border bg-ok-bg px-3 py-1.5 text-xs text-foreground">
             <ScissorsIcon className="size-3.5 shrink-0 text-ok" aria-hidden />
@@ -546,6 +636,7 @@ function RouteMapFrame({
                 map={map}
                 traced={traced}
                 hop={traced ? hop : null}
+                preview={preview}
                 simulated={simulated}
                 picked={picked}
                 onPickNode={onPickNode}
@@ -584,25 +675,7 @@ function RouteMapFrame({
               </div>
 
               <TabsContent value="routes" className="flex min-h-0 flex-col">
-                {traced ? (
-                  <TracedRoute
-                    route={traced}
-                    nodes={nodes}
-                    risk={tracked?.get(traced.key)}
-                    trackingKnown={trackingKnown}
-                    onBack={() => onTrace(null)}
-                  />
-                ) : (
-                  <RouteList
-                    map={map}
-                    nodes={nodes}
-                    onTrace={onTrace}
-                    picked={picked}
-                    onClearPick={onClearPick}
-                    place={place}
-                    onClearPlace={onClearPlace}
-                  />
-                )}
+                {routesPanel}
               </TabsContent>
 
               <TabsContent value="simulate" className="flex min-h-0 flex-col">
@@ -627,12 +700,20 @@ function RouteMapFrame({
  *
  * Patterns first, because a group of twelve identical routes is one thing to
  * decide about and twelve things to read. A route belongs to at most one
- * group, so the groups and the rest are every route exactly once.
+ * group, so the groups and the rest are every route exactly once. The order
+ * and the narrowing are `listRoutes`', which the navigator counts by too.
  */
 function RouteList({
   map,
   nodes,
+  listing,
+  marks,
   onTrace,
+  onPreview,
+  query,
+  onQuery,
+  sort,
+  onSort,
   picked,
   onClearPick,
   place,
@@ -640,7 +721,14 @@ function RouteList({
 }: {
   map: RouteMap;
   nodes: ReadonlyMap<string, RouteMapNode>;
-  onTrace: (key: string | null) => void;
+  listing: RouteListing;
+  marks: RouteMarks;
+  onTrace: (key: string) => void;
+  onPreview: (key: string | null) => void;
+  query: string;
+  onQuery: (query: string) => void;
+  sort: RouteSort;
+  onSort: (sort: RouteSort) => void;
   picked: string | null;
   onClearPick: () => void;
   place: Place | null;
@@ -651,26 +739,12 @@ function RouteList({
     () => new Map(map.routes.map((route) => [route.key, route])),
     [map.routes],
   );
-  // With a box picked, the list narrows to the routes running through it —
-  // which is the question pressing a box asks. With a place, to the routes
-  // through anything in it, which is what the estate map links here for.
-  const shown = useMemo(
-    () =>
-      map.routes.filter(
-        (route) =>
-          (!picked || visits(route).includes(picked)) &&
-          (!place || visits(route).some((id) => inPlace(nodes.get(id), place))),
-      ),
-    [map.routes, picked, place, nodes],
-  );
-  const shownKeys = useMemo(
-    () => new Set(shown.map((route) => route.key)),
-    [shown],
-  );
-  const patterns = picked
-    ? map.patterns.filter((pattern) => pattern.routes.some((key) => shownKeys.has(key)))
-    : map.patterns;
-  const loose = shown.filter((route) => route.pattern === null);
+  const labels: Record<RouteSort, string> = {
+    hops: t.attackPaths.sortHops,
+    sensitive: t.attackPaths.sortSensitive,
+    exposed: t.attackPaths.sortExposed,
+    tracked: t.attackPaths.sortTracked,
+  };
   const pickedNode = picked ? nodes.get(picked) : undefined;
   // Named by any node in the subscription; the id alone when none drawn is.
   const placeNode = place
@@ -693,7 +767,7 @@ function RouteList({
           <p className="min-w-0 flex-1 text-xs text-muted-foreground">
             Through{" "}
             <span className="font-medium text-foreground">{placeLabel}</span>{" "}
-            <span className="tabular-nums">({shown.length})</span>
+            <span className="tabular-nums">({listing.count})</span>
           </p>
           <Button
             variant="ghost"
@@ -717,13 +791,40 @@ function RouteList({
           </Button>
         </div>
       )}
+      <div className="flex shrink-0 items-center gap-2 border-b border-border p-2">
+        <div className="relative min-w-0 flex-1">
+          <SearchIcon
+            className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
+          <Input
+            type="search"
+            value={query}
+            onChange={(event) => onQuery(event.target.value)}
+            placeholder={t.attackPaths.searchPlaceholder}
+            aria-label={t.attackPaths.searchLabel}
+            data-page-search
+            className="h-7 pl-8 text-xs"
+          />
+        </div>
+        <SelectField
+          value={sort}
+          onValueChange={(value) => onSort(value as RouteSort)}
+          options={ROUTE_SORTS.map((value) => ({ value, label: labels[value] }))}
+          ariaLabel={t.attackPaths.sortLabel}
+          idleValue="hops"
+          className="w-40"
+        />
+      </div>
       <div className="flex flex-col gap-4 overflow-y-auto p-3">
-        {shown.length === 0 && (
+        {listing.count === 0 && (
           <p className="text-xs text-muted-foreground">
-            No route drawn here runs through {placeLabel ?? "it"}.
+            {query.trim()
+              ? t.attackPaths.noneNamed(query.trim())
+              : `No route drawn here runs through ${placeLabel ?? "it"}.`}
           </p>
         )}
-        {patterns.length > 0 && (
+        {listing.patterns.length > 0 && (
           <div className="flex flex-col gap-2">
             <div>
               <h3 className="text-xs font-medium">{t.attackPaths.patternsTitle}</h3>
@@ -731,253 +832,35 @@ function RouteList({
                 {t.attackPaths.patternsHelp}
               </p>
             </div>
-            {patterns.map((pattern) => (
+            {listing.patterns.map(({ pattern, members }) => (
               <PatternRow
                 key={pattern.id}
                 pattern={pattern}
-                traced={null}
+                members={members}
                 onTrace={onTrace}
+                onPreview={onPreview}
                 byKey={byKey}
+                marks={marks}
               />
             ))}
           </div>
         )}
 
-        {loose.length > 0 && (
+        {listing.loose.length > 0 && (
           <div className="flex flex-col gap-2">
             <h3 className="text-xs font-medium">{t.attackPaths.listTitle}</h3>
-            {loose.map((route) => (
-              <RouteRow key={route.key} route={route} traced={null} onTrace={onTrace} />
+            {listing.loose.map((route) => (
+              <RouteRow
+                key={route.key}
+                route={route}
+                onTrace={onTrace}
+                onPreview={onPreview}
+                marks={marks}
+              />
             ))}
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-/** One route, read hop by hop, with the link worth cutting marked. */
-function TracedRoute({
-  route,
-  nodes,
-  risk,
-  trackingKnown,
-  onBack,
-}: {
-  route: MappedRoute;
-  nodes: ReadonlyMap<string, RouteMapNode>;
-  risk?: Risk;
-  trackingKnown: boolean;
-  onBack: () => void;
-}) {
-  const t = useT();
-  // The places the route runs through, in the order it reaches them, each a
-  // link to the estate map opened there: the map shows a place's wiring, and
-  // this is how a route is followed down into it.
-  const places = new Map<string, RouteMapNode>();
-  for (const id of visits(route)) {
-    const node = nodes.get(id);
-    if (node)
-      places.set(`${node.scope_id}|${(node.group ?? "").toLowerCase()}`, node);
-  }
-  return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex items-center gap-2 border-b border-border p-2">
-        <Button variant="ghost" size="sm" onClick={onBack}>
-          <ArrowLeftIcon data-icon="inline-start" />
-          {t.attackPaths.clearTrace}
-        </Button>
-      </div>
-      <div className="flex flex-col gap-3 overflow-y-auto p-3">
-        <div>
-          <p className="text-[11px] font-medium text-muted-foreground">{t.attackPaths.route}</p>
-          <h3 className="text-sm font-medium">
-            {route.entry.name} <span className="text-muted-foreground">→</span>{" "}
-            {route.target.name}
-          </h3>
-        </div>
-        <AttackPathRoute
-          steps={route.steps}
-          cutIndex={route.steps.findIndex(
-            (step) =>
-              route.cheapest_break?.source_id === step.source_id &&
-              route.cheapest_break?.target_id === step.target_id,
-          )}
-        />
-        {places.size > 0 && (
-          <div className="flex flex-col gap-1">
-            <h4 className="text-xs font-medium text-muted-foreground">
-              Where it runs
-            </h4>
-            <ul className="flex flex-col gap-0.5">
-              {[...places.values()].map((node) => (
-                <li key={`${node.scope_id}|${node.group ?? ""}`}>
-                  <Link
-                    to={mapHref(node)}
-                    className="flex items-center gap-1.5 text-xs underline-offset-4 hover:underline"
-                  >
-                    <MapIcon
-                      className="size-3.5 text-muted-foreground"
-                      aria-hidden
-                    />
-                    {placeName(node)}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <OpenInGraph entryId={route.entry.id} traceKey={route.key} />
-          {risk ? (
-            <Link
-              to={`/risks/${risk.id}`}
-              className="flex items-center gap-1.5 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-            >
-              <RadarIcon className="size-3.5" aria-hidden />
-              Tracked as a risk
-            </Link>
-          ) : (
-            trackingKnown && (
-              <span className="text-xs text-muted-foreground">
-                Not a risk: nothing on this route fails a check
-              </span>
-            )
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * The route being read, one hop at a time, across the top of the drawing.
- *
- * Moved here from the estate map (DECISIONS.md §138). The drawing marks the
- * hop being read; this says what that hop is, in the route's own sentence with
- * the role named (§121), where it lands -- the subscription and group, a link
- * to that place on the map -- and whether cutting it severs the route. Arrow
- * keys step along it and Escape puts it down.
- */
-function RouteStepper({
-  route,
-  hop,
-  nodes,
-  onHop,
-  onClose,
-}: {
-  route: MappedRoute;
-  hop: number;
-  nodes: ReadonlyMap<string, RouteMapNode>;
-  onHop: (hop: number) => void;
-  onClose: () => void;
-}) {
-  const step = route.steps[hop];
-  const count = route.steps.length;
-  const landing = nodes.get(step.target_id);
-  const isCut = (each: MappedRoute["steps"][number]) =>
-    route.cheapest_break?.source_id === each.source_id &&
-    route.cheapest_break?.target_id === each.target_id &&
-    route.cheapest_break?.relationship === each.relationship;
-
-  function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.key === "ArrowLeft" && hop > 0) onHop(hop - 1);
-    else if (event.key === "ArrowRight" && hop < count - 1) onHop(hop + 1);
-    else if (event.key === "Escape") onClose();
-    else return;
-    event.preventDefault();
-  }
-
-  return (
-    <div
-      role="group"
-      aria-label={`Attack path from ${route.entry.name} to ${route.target.name}`}
-      onKeyDown={onKeyDown}
-      className="flex shrink-0 flex-col gap-2 border-b border-border bg-muted/30 p-2.5"
-    >
-      <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="icon-sm"
-          aria-label="Previous hop"
-          disabled={hop === 0}
-          onClick={() => onHop(hop - 1)}
-        >
-          <ChevronLeftIcon />
-        </Button>
-        <span className="w-20 text-center text-xs font-medium tabular-nums">
-          Hop {hop + 1} of {count}
-        </span>
-        <Button
-          variant="outline"
-          size="icon-sm"
-          aria-label="Next hop"
-          disabled={hop === count - 1}
-          onClick={() => onHop(hop + 1)}
-        >
-          <ChevronRightIcon />
-        </Button>
-        <p className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
-          {route.entry.name} <span aria-hidden>→</span>
-          <span className="sr-only">to</span> {route.target.name}
-        </p>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Stop reading the route"
-          onClick={onClose}
-        >
-          <XIcon />
-        </Button>
-      </div>
-
-      <div aria-live="polite" className="flex flex-col gap-0.5 px-1">
-        <p className="text-sm">{step.detail || step.description}</p>
-        {landing && (
-          <p className="text-xs text-muted-foreground">
-            Lands in{" "}
-            <Link
-              to={mapHref(landing)}
-              className="underline underline-offset-4 hover:text-foreground"
-            >
-              {placeName(landing)}
-            </Link>
-          </p>
-        )}
-        {isCut(step) && (
-          <p className="flex items-center gap-1 text-xs text-ok">
-            <ScissorsIcon className="size-3.5" aria-hidden />
-            Cutting this link severs the route
-          </p>
-        )}
-      </div>
-
-      {/* Every hop, pressable: how far along the route is, and where it breaks. */}
-      <ol className="flex gap-1 px-1" aria-label="Hops">
-        {route.steps.map((each, index) => (
-          <li
-            key={`${each.source_id}|${each.relationship}|${each.target_id}`}
-            className="flex-1"
-          >
-            <button
-              type="button"
-              aria-label={`Hop ${index + 1}: ${each.description}`}
-              aria-current={index === hop ? "step" : undefined}
-              onClick={() => onHop(index)}
-              className={cn(
-                "block h-1.5 w-full rounded-full transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
-                index === hop
-                  ? "bg-primary"
-                  : isCut(each)
-                    ? "bg-ok/60"
-                    : index < hop
-                      ? "bg-foreground/40"
-                      : "bg-muted",
-              )}
-            />
-          </li>
-        ))}
-      </ol>
     </div>
   );
 }
