@@ -84,7 +84,17 @@ function scenarioRisk(overrides: Partial<Risk> = {}): Risk {
 
 function mount(
   risks: Risk[],
-  { chokes = [], demo = false }: { chokes?: unknown[]; demo?: boolean } = {},
+  {
+    chokes = [],
+    demo = false,
+    counts = {},
+    untriaged = 0,
+  }: {
+    chokes?: unknown[];
+    demo?: boolean;
+    counts?: { all?: number; CRITICAL?: number; HIGH?: number };
+    untriaged?: number;
+  } = {},
 ) {
   // Answered by URL: the page also asks which organization it is in (the demo
   // takes the actions away) and, once a route is listed, what to cut.
@@ -92,6 +102,17 @@ function mount(
     Promise.resolve(
       url.includes("/choke-points")
         ? { data: chokes, meta: {} }
+        : url.includes("risks?limit=1")
+          ? {
+              data: [],
+              meta: {
+                total: url.includes("risk_level=")
+                  ? counts[url.split("risk_level=")[1] as "CRITICAL" | "HIGH"]
+                  : counts.all,
+              },
+            }
+          : url.includes("status=OPEN&limit=1")
+            ? { data: [], meta: { total: untriaged } }
         : url.includes("/organizations")
           ? { data: [{ id: "org-1", name: "Contoso", is_demo: demo }], meta: {} }
           : { data: risks, meta: {} },
@@ -110,6 +131,24 @@ function mount(
 describe("RisksPage", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it("heads the ranking with the list's own counts and the untriaged queue", async () => {
+    // Counted by the list's endpoint, so attack paths and escalations are in
+    // them -- the dashboard's bands hold finding risks only.
+    mount([findingRisk()], {
+      counts: { all: 9, CRITICAL: 4, HIGH: 3 },
+      untriaged: 5,
+    });
+
+    const triage = await screen.findByText("Needs triage", { selector: "dt" });
+    await waitFor(() => expect(triage.nextElementSibling).toHaveTextContent("5"));
+    await waitFor(() =>
+      expect(screen.getByText("Live risks", { selector: "dt" }).nextElementSibling).toHaveTextContent("9"),
+    );
+    expect(screen.getByText("Critical", { selector: "dt" }).nextElementSibling).toHaveTextContent("4");
+    expect(screen.getByText("High", { selector: "dt" }).nextElementSibling).toHaveTextContent("3");
+    expect(screen.queryByText("No verdict", { selector: "dt" })).not.toBeInTheDocument();
   });
 
   it("says what deciding about a row decides about", async () => {
@@ -245,6 +284,8 @@ describe("RisksPage", () => {
       chokes: [
         {
           description: "mi-jump-01 can act over sub-1",
+          detail: "mi-jump-01 —Owner→ sub-1",
+          facts: ["Owner"],
           relationship: "grants_role",
           source: { id: "mi", name: "mi-jump-01", resource_type: "managed_identity" },
           target: { id: "sub", name: "sub-1", resource_type: "subscription" },
@@ -257,7 +298,8 @@ describe("RisksPage", () => {
     });
 
     const fixes = await screen.findByRole("region", { name: "Top fixes" });
-    expect(fixes).toHaveTextContent("mi-jump-01 can act over sub-1");
+    // Named with its evidence, in the attack-path page's notation.
+    expect(fixes).toHaveTextContent("mi-jump-01 —Owner→ sub-1");
     expect(fixes).toHaveTextContent("closes 4 of 6 routes");
   });
 

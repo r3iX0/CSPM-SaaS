@@ -2,10 +2,11 @@ import { createElement, useEffect, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import { Link } from "react-router-dom";
-import { ChevronRightIcon, RadarIcon, ScissorsIcon, SearchIcon } from "lucide-react";
+import { ChevronRightIcon, RadarIcon, SearchIcon } from "lucide-react";
 
 import { api } from "@/lib/api";
 import type { ChokePoint, Risk } from "@/lib/types";
+import { useRiskCount } from "@/lib/useRiskCount";
 import { useT } from "@/i18n";
 import { StatusPill } from "@/components/security/StatusPill";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
@@ -17,7 +18,8 @@ import {
   ErrorState,
   PageHeader,
 } from "@/components/common/states";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { StatStrip } from "@/components/common/StatStrip";
 import { Input } from "@/components/ui/input";
 import { SelectField } from "@/components/common/SelectField";
 import { SegmentedFilter } from "@/components/common/SegmentedFilter";
@@ -29,7 +31,7 @@ import { Pager } from "@/components/common/Pager";
 import { useUrlFilters } from "@/lib/useUrlFilters";
 import { dialogOpen, isTypingTarget, plainKey, useRowNavigation } from "@/lib/keyboard";
 import { useIsDemo } from "@/lib/useDemo";
-import { formatDate } from "@/lib/format";
+import { cn, formatDate } from "@/lib/format";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RiskTriageBar } from "@/components/security/RiskTriage";
 
@@ -159,6 +161,23 @@ export function RisksPage() {
       api.get<ChokePoint[]>("/api/v1/attack-paths/choke-points").then((r) => r.data),
   });
 
+  // The headline counts, each from the list's own endpoint (`meta.total` of
+  // one row), so they agree with the list below them. The dashboard's bands
+  // were not that: they hold finding risks only, and a risk's level is never
+  // UNKNOWN, so a "No verdict" cell read from them was always 0. Each cell
+  // waits for its own number rather than showing a zero it does not have.
+  const live = useRiskCount();
+  const critical = useRiskCount("CRITICAL");
+  const high = useRiskCount("HIGH");
+  const untriaged = useQuery({
+    queryKey: ["risks", "untriaged-count"],
+    queryFn: () =>
+      api
+        .get<Risk[]>("/api/v1/risks?status=OPEN&limit=1")
+        .then((r) => (r.meta as { total?: number } | undefined)?.total ?? null),
+    retry: false,
+  });
+
   function clearFilters() {
     setSearch("");
     refilter({ q: null, level: null, status: null, kind: null });
@@ -168,7 +187,19 @@ export function RisksPage() {
     <div className="flex flex-col gap-4">
       <PageHeader
         title={t.risks.title}
-        description="Everything worth deciding about — findings, attack paths and escalations — worst first. Select rows to mark them in progress, accept them or reopen them."
+        description="Findings, attack paths and escalations, worst first."
+      />
+
+      <StatStrip
+        stats={[
+          { label: "Live risks", value: live ?? "—" },
+          { label: "Critical", value: critical ?? "—", tone: "CRITICAL" },
+          { label: "High", value: high ?? "—", tone: "HIGH" },
+          {
+            label: "Needs triage",
+            value: typeof untriaged.data === "number" ? untriaged.data : "—",
+          },
+        ]}
       />
 
       {chokes.data && chokes.data.length > 0 && <TopFixes chokes={chokes.data} />}
@@ -190,7 +221,7 @@ export function RisksPage() {
         />
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative w-full sm:w-64">
+          <div className="relative w-full sm:w-auto sm:min-w-[240px]">
             <SearchIcon
               className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
               aria-hidden
@@ -201,7 +232,7 @@ export function RisksPage() {
               placeholder="Search risks"
               aria-label="Search risks"
               data-page-search
-              className="pl-8"
+              className="h-8 pl-8 text-[12.5px]"
             />
           </div>
 
@@ -474,7 +505,7 @@ function FindingRiskCard({ risk, select }: { risk: Risk; select?: React.ReactNod
  */
 function RiskShell({ children }: { children: React.ReactNode }) {
   return (
-    <article className="group relative overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-foreground/20">
+    <article className="group relative overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10 transition-shadow hover:ring-foreground/20">
       {children}
     </article>
   );
@@ -509,7 +540,10 @@ function RiskHead({
           {/* Says which formula scored this, so the arithmetic below is read
               against the right one. */}
           {badge && (
-            <Badge variant="outline" className="gap-1">
+            <Badge
+              variant="outline"
+              className="gap-1 rounded-md bg-muted font-normal text-muted-foreground"
+            >
               {createElement(RISK_KIND_ICONS[risk.kind] ?? RISK_KIND_ICONS.FINDING, {
                 className: "size-3",
                 "aria-hidden": true,
@@ -542,7 +576,7 @@ function RiskHead({
           to={`/risks/${risk.id}`}
           // The overlay makes the whole card the way into the risk; the title
           // stays the link's accessible name.
-          className="mt-1.5 block text-[15px] font-medium text-foreground underline-offset-4 after:absolute after:inset-0 hover:underline"
+          className="mt-1.5 block text-[14px] font-medium text-foreground underline-offset-4 after:absolute after:inset-0 hover:underline"
         >
           {risk.title}
         </Link>
@@ -560,7 +594,7 @@ function RiskHead({
 
 function RiskFooter({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex flex-wrap gap-x-6 gap-y-2 border-t border-border bg-muted/30 px-4 py-2.5 text-xs sm:pl-20">
+    <div className="flex flex-wrap gap-x-6 gap-y-2 border-t border-border bg-muted/40 px-4 py-2.5 text-[11.5px] sm:pl-[4.5rem]">
       {children}
     </div>
   );
@@ -618,36 +652,37 @@ function SelectRow({
  * A fix is not a row in the queue -- it has no status and nothing can be
  * accepted about it -- but it is often the best answer to several rows at once,
  * so the three strongest are named here and the attack paths page has the rest
- * (DECISIONS.md §103).
+ * (DECISIONS.md §103). In the brand's soft tint: it is a suggestion to look
+ * at, not a level of anything. Each link is named with its evidence -- the
+ * role, the port -- in the same mono notation the attack-path page uses.
  */
 function TopFixes({ chokes }: { chokes: ChokePoint[] }) {
   return (
     <section
-      aria-label="Top fixes"
-      className="rounded-xl border border-ok-border bg-ok-bg px-4 py-3"
+      aria-labelledby="top-fixes"
+      className="rounded-xl border border-primary-border bg-primary-soft px-5 py-4"
     >
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="flex items-center gap-2 text-sm font-medium text-ok">
-          <ScissorsIcon className="size-4" aria-hidden />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 id="top-fixes" className="text-[13.5px] font-semibold">
           Top fixes
         </h2>
         <Link
           to="/attack-paths"
-          className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          className={cn(buttonVariants({ variant: "outline", size: "sm" }), "bg-card")}
         >
           All routes and fixes
         </Link>
       </div>
-      <ul className="mt-2 flex flex-col gap-1.5">
+      <ul className="mt-2.5 flex flex-col gap-1.5">
         {chokes.slice(0, 3).map((choke) => (
           <li
             key={`${choke.source.id}-${choke.relationship}-${choke.target.id}`}
-            className="flex flex-wrap items-baseline justify-between gap-x-4 text-xs"
+            className="flex flex-wrap items-baseline justify-between gap-x-4 text-[12.5px]"
           >
-            <span className="font-mono text-foreground">{choke.description}</span>
-            <span className="text-muted-foreground">
+            <span className="min-w-0 font-mono break-words text-foreground">{choke.detail || choke.description}</span>
+            <span className="shrink-0 text-muted-foreground">
               closes{" "}
-              <strong className="tabular-nums text-foreground">{choke.severs}</strong> of{" "}
+              <strong className="font-semibold tabular-nums text-foreground">{choke.severs}</strong> of{" "}
               {choke.total_routes} route{choke.total_routes === 1 ? "" : "s"}
             </span>
           </li>
