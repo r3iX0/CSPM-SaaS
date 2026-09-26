@@ -7654,6 +7654,36 @@ the group's row and the help behind its question mark. How many labels a
 crowded estate loses, and whether the estimate of a label's width is close
 enough, need the real page.
 
+## 144. Cleave: one brand hue in the chrome, and a severity scale with more chroma
+
+The redesign (`docs/design_handoff_cleave_redesign/`) renames the product to
+Cleave and gives `--primary` a deep teal. §50 removed the last saturated hue from
+the chrome on the grounds that a colour meaning nothing sits badly beside a scale
+where every colour means something. This entry supersedes that part of §50, and
+keeps its reason by narrowing what the one hue may mean.
+
+- **Teal means "selected" or "the primary action", nothing about risk.** The
+  selected nav item, the active tab, a traced route, the one filled button per
+  view. It is 196° -- well clear of every severity hue (24°, 42°, 78°, 150°,
+  263°) -- so it is not read as a level.
+- **It appears in both modes** (`oklch(0.45 0.072 196)` light, `0.74 0.082 194`
+  dark), which answers §50's other objection: an accent in one mode only reads
+  as a bug. `--primary-soft` and `--primary-border` are mixed from `--primary`
+  per theme rather than written out, so they cannot drift from it.
+- **`destructive` is still not `critical`.** Neither token moved to the brand.
+
+The severity scale keeps its hues and gains chroma in the tints, so a pill reads
+at a glance in a dense row. Measured with the sRGB contrast formula against the
+token values, every foreground clears 4.5:1 on its own `-bg`: light 4.86
+(critical) to 7.12 (unknown), dark 5.51 (critical) to 7.81 (medium); on the page
+the lowest is 5.96 (light ok). `--primary-foreground` on `--primary` is 6.98
+light, 8.41 dark.
+
+Also: `--radius` 0.625rem → 0.5rem (8px buttons, 12px cards), dark `--border`
+10% → 12% and `--sidebar` 0.205 → 0.185 so the sidebar sits below the cards
+rather than level with them, and Geist Mono as `--font-mono` for evidence, rule
+ids and the mono link notation.
+
 ## Open items carried forward
 
 **Data residency is not built (§113).** An organization setting for allowed
