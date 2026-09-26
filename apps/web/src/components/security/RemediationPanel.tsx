@@ -108,7 +108,7 @@ export function RemediationPanel({
               ))}
               <p className="text-xs text-muted-foreground">
                 {anyFilled && fill
-                  ? `Filled in for ${fill.resourceName} from what CloudGuard observed. Anything still in angle brackets is yours to fill — CloudGuard never guesses a value into a command.`
+                  ? `Filled in for ${fill.resourceName} from what Cleave observed. Anything still in angle brackets is yours to fill — Cleave never guesses a value into a command.`
                   : "Placeholders are left in angle brackets on purpose — a command carrying a made-up resource name is a command somebody runs."}
               </p>
             </TabsContent>

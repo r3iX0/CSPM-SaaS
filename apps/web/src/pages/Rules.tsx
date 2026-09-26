@@ -79,7 +79,7 @@ export function RulesPage() {
       <PageHeader
         icon={ListChecksIcon}
         title={t.rules.title}
-        description="Every check CloudGuard runs. Deterministic: the same environment always gives the same result."
+        description="Every check Cleave runs. Deterministic: the same environment always gives the same result."
       />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -132,7 +132,7 @@ export function RulesPage() {
       {error && (
         <ErrorState
           title="Could not load the rule catalogue"
-          detail="CloudGuard could not reach its own API."
+          detail="Cleave could not reach its own API."
           impact="Nothing about your environment has changed — this is a problem displaying it."
           onRetry={() => refetch()}
         />
@@ -172,7 +172,7 @@ export function RulesPage() {
             ))}
           </div>
           <p className="text-xs text-muted-foreground">
-            {rules.length} of {live} rule{live === 1 ? "" : "s"} CloudGuard runs
+            {rules.length} of {live} rule{live === 1 ? "" : "s"} Cleave runs
             {withdrawnCount > 0 && `, and ${withdrawnCount} ${t.rules.withdrawnCount}`}
           </p>
         </>

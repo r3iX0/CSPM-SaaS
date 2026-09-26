@@ -8,7 +8,7 @@
  */
 export const en = {
   app: {
-    name: "CloudGuard",
+    name: "Cleave",
     tagline: "Cloud security posture, in plain language",
   },
   nav: {
@@ -34,7 +34,7 @@ export const en = {
     switchTo: "Switch to",
     currentOrg: "Current organization",
     newOrganization: "Create organization",
-    settings: "Cloud connections",
+    settings: "Environments",
     unknownUser: "Signed in",
     removeOrg: "Remove organization",
     removingOrg: "Removing\u2026",
@@ -57,7 +57,7 @@ export const en = {
     resetSentTo: "We sent a password reset link to",
     openOnThisDevice: "Open it on this device to continue.",
     passwordNotice:
-      "Your password goes straight to Supabase and never to CloudGuard's servers — this app only ever verifies the token Supabase issues.",
+      "Your password goes straight to Supabase and never to Cleave's servers — this app only ever verifies the token Supabase issues.",
     continueWithMicrosoft: "Continue with Microsoft",
     orDivider: "or",
     forgotPassword: "Forgot password?",
@@ -81,18 +81,18 @@ export const en = {
     backToSignIn: "Back to sign in",
     useAnotherAddress: "Use a different address",
     microsoftHint:
-      "Signing in with Microsoft does not give CloudGuard access to your Azure resources \u2014 that is a separate consent step.",
+      "Signing in with Microsoft does not give Cleave access to your Azure resources \u2014 that is a separate consent step.",
   },
   // The dashboard's getting-started checklist. Every step is read off state
   // the server already holds, so the list is right on any device and for any
   // teammate -- nothing here is remembered by the browser except a dismissal.
   demo: {
     explore: "Explore a demo environment",
-    exploreDetail: "A recorded Azure estate, scanned by CloudGuard. Read-only, nothing to set up.",
+    exploreDetail: "A recorded Azure estate, scanned by Cleave. Read-only, nothing to set up.",
     opening: "Opening the demo\u2026",
     unavailable: "The demo is not available right now.",
     badge: "Demo",
-    bannerTitle: "You are exploring the CloudGuard demo",
+    bannerTitle: "You are exploring the Cleave demo",
     bannerDetail:
       "A recorded Azure estate, scanned by the real product. Everything here is read-only.",
     createOwn: "Create your organization",
@@ -101,7 +101,7 @@ export const en = {
     readOnlyAction: "Read-only in the demo",
   },
   gettingStarted: {
-    title: "Get CloudGuard working for you",
+    title: "Get Cleave working for you",
     intro: "Five steps from a connected cloud to a fix you can prove.",
     progress: "{done} of {total} done",
     dismiss: "Hide this checklist",
@@ -110,10 +110,10 @@ export const en = {
     connectAction: "Connect a cloud",
     continueAction: "Continue setup",
     scanTitle: "Run your first scan",
-    scanDetail: "CloudGuard reads the environment and scores what it finds.",
+    scanDetail: "Cleave reads the environment and scores what it finds.",
     scanAction: "Run a scan",
     fixTitle: "Fix your top risk and verify it",
-    fixDetail: "Apply the fix, rescan, and watch CloudGuard confirm it is gone.",
+    fixDetail: "Apply the fix, rescan, and watch Cleave confirm it is gone.",
     fixAction: "Open the top risk",
     fixActionFallback: "Open findings",
     scheduleTitle: "Turn on automatic scanning",
@@ -135,29 +135,29 @@ export const en = {
       "The workspace every finding, scan and report belongs to. It takes a few seconds; connecting a cloud comes next.",
     stepOrganization: "Organization",
     stepCloud: "Connect a cloud",
-    orgNameHelp: "Everything CloudGuard discovers is separated by organization.",
+    orgNameHelp: "Everything Cleave discovers is separated by organization.",
     optional: "Optional",
     countryHelp: "Two-letter code, used for compliance context.",
   },
   connect: {
     title: "Connect your Azure environment",
-    readOnlyPromise: "CloudGuard requests read-only access. It never modifies your Azure resources.",
-    whatWeAccess: "What CloudGuard can see",
-    whatWeCannot: "What CloudGuard cannot do",
+    readOnlyPromise: "Cleave requests read-only access. It never modifies your Azure resources.",
+    whatWeAccess: "What Cleave can see",
+    whatWeCannot: "What Cleave cannot do",
     noSecrets:
-      "You never give CloudGuard a password, client secret, or certificate. CloudGuard authenticates as its own application against your directory, so there is no credential of yours for us to store or lose.",
+      "You never give Cleave a password, client secret, or certificate. Cleave authenticates as its own application against your directory, so there is no credential of yours for us to store or lose.",
     step1: "Grant admin consent",
     step1Detail:
       "Your Entra ID Global Administrator approves read access to directory data. One click, applied tenant-wide.",
     step2: "Deploy the scanner role",
     step2Detail:
-      "Click Deploy to Azure to grant CloudGuard read-only access at the scope you chose. Nothing to type — the template is pre-filled.",
+      "Click Deploy to Azure to grant Cleave read-only access at the scope you chose. Nothing to type — the template is pre-filled.",
     accountName: "Connection name",
     openConsent: "Open admin consent",
     verified: "Connection verified",
   },
   connection: {
-    title: "Cloud connections",
+    title: "Environments",
     intro:
       "One connection per trust boundary. Everything beneath it is discovered automatically.",
     connectCloud: "Connect a cloud",
@@ -184,7 +184,7 @@ export const en = {
     // a recurring cost on their own Azure bill.
     scheduleTitle: "Automatic scanning",
     scheduleHelp:
-      "A security report ages the moment it is written \u2014 cloud environments change daily, and a scan from last month describes an environment that has moved on. Choose how often CloudGuard should re-read this one.",
+      "A security report ages the moment it is written \u2014 cloud environments change daily, and a scan from last month describes an environment that has moved on. Choose how often Cleave should re-read this one.",
     scheduleLabel: "Re-read this environment",
     scheduleManual: "Only when I ask",
     scheduleEvery6Hours: "Every 6 hours",
@@ -200,7 +200,7 @@ export const en = {
     scheduleNotReady:
       "This connection cannot scan yet, so there is nothing to schedule. Finish the two grants above first.",
     scheduleFloorNote:
-      "An interval rather than a time of day: CloudGuard promises to read this environment at least this often, not to start at a particular minute.",
+      "An interval rather than a time of day: Cleave promises to read this environment at least this often, not to start at a particular minute.",
 
     // Change-triggered scanning. Two things have to survive the copy: that
     // turning it on wires nothing up on its own, and *why* -- CloudGuard holds
@@ -212,30 +212,30 @@ export const en = {
     changeOff: "Not listening",
     changeSaving: "Saving\u2026",
     changeNotWired:
-      "The webhook is open. Nothing reaches it until you run the command below in each account \u2014 CloudGuard cannot create that wiring for you, because it holds no write permission in your cloud and does not ask for one.",
+      "The webhook is open. Nothing reaches it until you run the command below in each account \u2014 Cleave cannot create that wiring for you, because it holds no write permission in your cloud and does not ask for one.",
     changeCommandsLabel: "Run this once per account",
     // AWS needs three commands rather than one, and the reason is worth
     // stating: there is no single AWS call that points a rule at an HTTPS
     // endpoint, so the delivery goes through a topic the customer owns.
     changeCommandsLabelAws: "Run these once per account",
     changeNotWiredAws:
-      "The webhook is open. Nothing reaches it until you run the commands below \u2014 EventBridge cannot deliver to an HTTPS endpoint on its own, so the change goes through an SNS topic in your account. CloudGuard creates none of it: it holds no write permission in your cloud and does not ask for one.",
+      "The webhook is open. Nothing reaches it until you run the commands below \u2014 EventBridge cannot deliver to an HTTPS endpoint on its own, so the change goes through an SNS topic in your account. Cleave creates none of it: it holds no write permission in your cloud and does not ask for one.",
     changeCopyCommand: "Copy command",
-    changeNoEndpoint: "CloudGuard has no public address to receive deliveries",
+    changeNoEndpoint: "Cleave has no public address to receive deliveries",
     changeNoEndpointHelp:
       "This deployment has no public API base URL configured, so there is no endpoint for your cloud to deliver to. Change detection cannot be wired up until that is set.",
     changeLastEvent: "Last change heard",
     changeNeverHeard: "Nothing yet",
     changePending: "A change is settling; a scan starts once the environment is quiet",
     changeTiming:
-      "A burst of changes becomes one scan, not one per event: CloudGuard waits for {quiet} minutes of quiet, and scans a connection at most once every {interval} minutes for change.",
+      "A burst of changes becomes one scan, not one per event: Cleave waits for {quiet} minutes of quiet, and scans a connection at most once every {interval} minutes for change.",
 
     // The empty state, which is the first meaningful screen in the product.
-    readWhatItDoes: "Read what CloudGuard will do",
+    readWhatItDoes: "Read what Cleave will do",
     hideWhatItDoes: "Hide the detail",
     readOnlyPromise:
-      "The role CloudGuard asks for is read-only. It cannot change your configuration, and it cannot read the data inside your storage accounts, databases or key vaults.",
-    permissionsTitle: "The exact access CloudGuard asks for",
+      "The role Cleave asks for is read-only. It cannot change your configuration, and it cannot read the data inside your storage accounts, databases or key vaults.",
+    permissionsTitle: "The exact access Cleave asks for",
     graphPermissions: "Directory permissions",
     rbacRole: "Azure role",
     writesPerformed: "Writes performed",
@@ -272,16 +272,16 @@ export const en = {
     roleBehind: "behind",
     roleUpgradeTitle: "Some checks cannot run until the role is redeployed",
     roleUpgradeBody:
-      "CloudGuard's scanner role gained permissions this connection was not "
+      "Cleave's scanner role gained permissions this connection was not "
       + "granted. The checks that need them report \u201cnot known\u201d "
-      + "rather than passing \u2014 CloudGuard will not tell you something is "
+      + "rather than passing \u2014 Cleave will not tell you something is "
       + "fine when it could not look.",
     roleUpgradeAffects: "Affected checks",
     consentIncomplete: "Granted, incomplete",
     permissionsMissingTitle: "Identity checks cannot run until consent is complete",
     permissionsMissingBody:
       "Admin consent completed, but it did not grant these directory "
-      + "permissions. Subscription scanning is unaffected. CloudGuard's app "
+      + "permissions. Subscription scanning is unaffected. Cleave's app "
       + "registration must declare them as application permissions \u2014 "
       + "delegated ones never reach a scanner \u2014 and a Global "
       + "Administrator must then consent again, because consent covers only what "
@@ -297,19 +297,19 @@ export const en = {
     discoveryPromise:
       "Anything created beneath this connection appears here on the next read.",
     scopeFootnote:
-      "Unticking one stops CloudGuard reading it. Existing findings for it are kept and marked out of scope, not deleted.",
+      "Unticking one stops Cleave reading it. Existing findings for it are kept and marked out of scope, not deleted.",
 
     noSubscriptionsTitle: "Nothing found yet",
     noSubscriptionsBody:
-      "The grant is working, but CloudGuard cannot see anything to scan. Access granted moments ago can take a few minutes to show up, and a grant deployed to the wrong scope will never show up at all.",
+      "The grant is working, but Cleave cannot see anything to scan. Access granted moments ago can take a few minutes to show up, and a grant deployed to the wrong scope will never show up at all.",
     lookAgain: "Look again",
     lookingAgain: "Looking…",
     runFirstScan: "Run a scan",
     noSubscriptionsYet: "Nothing discovered yet",
     noSubscriptionsYetHelp:
       "The connection is verified but nothing was found beneath it. If the grant was deployed at a narrower scope than this connection covers, nothing beneath it is visible.",
-    cannotStartConsent: "CloudGuard cannot start the consent flow",
-    cannotDeployYet: "CloudGuard cannot generate the deployment yet",
+    cannotStartConsent: "Cleave cannot start the consent flow",
+    cannotDeployYet: "Cleave cannot generate the deployment yet",
     whoYouNeed: "Who you will need",
     whoYouNeedDetail:
       "Admin consent needs a work or school account that is a Global Administrator. A personal Microsoft account \u2014 outlook.com, hotmail.com, live.com \u2014 cannot grant it, even if that account owns the subscription. Granting read access then needs Owner or User Access Administrator on the scope you chose. These are different permissions, and often different people.",
@@ -338,9 +338,9 @@ export const en = {
     notVerified: "Not verified",
     yes: "Yes",
     notYet: "Not yet",
-    whatItReads: "The exact operations CloudGuard performs",
+    whatItReads: "The exact operations Cleave performs",
     noWriteActions:
-      "No write actions and no data-plane access. CloudGuard cannot modify anything, and cannot read the contents of your storage or databases.",
+      "No write actions and no data-plane access. Cleave cannot modify anything, and cannot read the contents of your storage or databases.",
     principalId: "Service principal",
     scopePath: "Scope",
     cancel: "Cancel",
@@ -359,17 +359,17 @@ export const en = {
       "Its discovered accounts, their assets, scan history and findings are deleted with it. This cannot be undone.",
     revokeTitle: "Revoke access in Azure",
     revokeIntro:
-      "Removing the connection here deletes CloudGuard's copy of the data. It does not take away the access you granted \u2014 run these in Azure to do that.",
+      "Removing the connection here deletes Cleave's copy of the data. It does not take away the access you granted \u2014 run these in Azure to do that.",
     checkRevoked: "Check whether access is gone",
     checking: "Checking\u2026",
-    stillHasAccess: "CloudGuard can still read this environment",
+    stillHasAccess: "Cleave can still read this environment",
     accessGone: "Confirmed: access revoked",
     removeAzureNote:
-      "This does not revoke anything in Azure. To withdraw the access you granted, remove CloudGuard from Enterprise applications in Entra ID and delete its role assignment.",
+      "This does not revoke anything in Azure. To withdraw the access you granted, remove Cleave from Enterprise applications in Entra ID and delete its role assignment.",
     keep: "Keep it",
-    notConfigured: "This CloudGuard deployment cannot connect Azure yet",
+    notConfigured: "This Cleave deployment cannot connect Azure yet",
     notConfiguredDetail:
-      "This is a setup step on CloudGuard's side, not yours \u2014 whoever operates this deployment needs to register its Entra application (docs/AZURE_INTEGRATION.md \u00a72.1).",
+      "This is a setup step on Cleave's side, not yours \u2014 whoever operates this deployment needs to register its Entra application (docs/AZURE_INTEGRATION.md \u00a72.1).",
   },
 
   // The setup wizard. Its own block rather than more keys on `connection`,
@@ -379,7 +379,7 @@ export const en = {
     title: "Connect Azure",
     intro:
       "Two grants and about three minutes. You will not be asked for a tenant id, a subscription id, or any credential.",
-    backToConnections: "Cloud connections",
+    backToConnections: "Environments",
     railTitle: "What the three minutes look like",
 
     stepScope: "Choose the scope, and name it",
@@ -387,11 +387,11 @@ export const en = {
       "A whole tenant, one management group, or a single subscription. The name is yours \u2014 it is what you will see on every finding.",
     stepConsent: "A Global Administrator grants admin consent",
     stepConsentDetail:
-      "One Microsoft prompt, once per tenant. If that is not you, CloudGuard gives you a link to send.",
+      "One Microsoft prompt, once per tenant. If that is not you, Cleave gives you a link to send.",
     stepDeploy: "Deploy the reader role",
     stepDeployDetail:
       "One ARM template in Azure Portal. Needs Owner at the scope you chose \u2014 the form says which, before you start.",
-    stepAccounts: "Then CloudGuard finds the rest",
+    stepAccounts: "Then Cleave finds the rest",
     stepAccountsDetail:
       "Every subscription beneath the scope is discovered and kept in step \u2014 including the ones created after today.",
 
@@ -402,7 +402,7 @@ export const en = {
     metaDuration: "About 3 minutes",
     metaReadOnly: "Read-only access",
     metaNoCredentials: "No credentials to hand over",
-    footerPromise: "Read-only. CloudGuard never changes your resources.",
+    footerPromise: "Read-only. Cleave never changes your resources.",
 
     // Step one, as cards rather than paragraphs.
     providerDetailAzure: "Entra ID consent and a read-only Azure role",
@@ -418,7 +418,7 @@ export const en = {
       "Approves admin consent once. It has to be a work or school account \u2014 a personal Microsoft account cannot grant it, even one that owns the subscription.",
     needSecondTitle: "Owner at the scope you choose",
     needSecondDetail:
-      "Or User Access Administrator, to assign CloudGuard\u2019s read-only role. Often a different person from the first.",
+      "Or User Access Administrator, to assign Cleave\u2019s read-only role. Often a different person from the first.",
     noIdsNeeded:
       "No tenant id, subscription id or secret. Entra reports the tenant when consent is granted.",
 
@@ -426,17 +426,17 @@ export const en = {
     opensInNewTab: "Opens in a new tab",
     detectedAutomatically:
       "Detected automatically. You can close this page \u2014 setup carries on where it stopped.",
-    publishingPrincipal: "Setting CloudGuard up in your directory\u2026",
+    publishingPrincipal: "Setting Cleave up in your directory\u2026",
     publishingPrincipalDetail: (left: string) =>
-      "Entra can take a few minutes to publish CloudGuard in a directory that "
-      + "has just consented. CloudGuard checks every few seconds and moves on by "
+      "Entra can take a few minutes to publish Cleave in a directory that "
+      + "has just consented. Cleave checks every few seconds and moves on by "
       + `itself; if it is still not there in ${left}, the reason will show here.`,
     deployHowTitle: "What happens next",
     deployHow1: "Open Azure Portal",
     deployHow1Detail: "Signed in as an Owner at the scope you chose.",
     deployHow2: "Review and create",
     deployHow2Detail: "The template is pre-filled. There is nothing to type.",
-    deployHow3: "CloudGuard picks it up",
+    deployHow3: "Cleave picks it up",
     deployHow3Detail: "Usually within a minute of the deployment finishing.",
 
     // The last step, once something can be scanned.
@@ -450,14 +450,14 @@ export const en = {
     aws: {
       title: "Connect AWS",
       intro:
-        "One stack and about two minutes. There is no consent screen and no credential to hand over \u2014 you deploy a read-only role, and CloudGuard proves it works by using it.",
+        "One stack and about two minutes. There is no consent screen and no credential to hand over \u2014 you deploy a read-only role, and Cleave proves it works by using it.",
       stepScope: "Choose the scope, and name it",
       stepScopeDetail:
-        "A whole organization, one organizational unit, or a single account. Either way you name the account CloudGuard starts from.",
+        "A whole organization, one organizational unit, or a single account. Either way you name the account Cleave starts from.",
       stepDeploy: "Deploy the scanner stack",
       stepDeployDetail:
-        "One CloudFormation stack, pre-filled. It creates a read-only role that only CloudGuard can assume, and only with the external id below.",
-      stepAccounts: "Then CloudGuard finds the rest",
+        "One CloudFormation stack, pre-filled. It creates a read-only role that only Cleave can assume, and only with the external id below.",
+      stepAccounts: "Then Cleave finds the rest",
       stepAccountsDetail:
         "Every account in the organization is discovered and kept in step \u2014 including the ones opened after today.",
       metaDuration: "About 2 minutes",
@@ -468,7 +468,7 @@ export const en = {
       needSecondDetail:
         "Twelve digits, from the account menu in the top-right corner of the AWS console.",
       noIdsNeeded:
-        "No access key and no secret. CloudGuard assumes the role you deploy, and only with the external id it generates.",
+        "No access key and no secret. Cleave assumes the role you deploy, and only with the external id it generates.",
       deployHow1: "Open CloudFormation",
       deployHow1Detail: "Signed in to the account you named.",
       deployHow2: "Acknowledge and create",
@@ -480,8 +480,8 @@ export const en = {
       launchStack: "Launch stack in AWS",
       externalIdTitle: "Your external id",
       externalIdBody:
-        "The stack requires this value before the role can be assumed, and CloudGuard generated it for this connection alone. It is not a password: on its own it grants nothing, and it is useless to anyone without a role that demands it. Check it appears in the trust policy you are about to create.",
-      roleArnTitle: "The role CloudGuard will assume",
+        "The stack requires this value before the role can be assumed, and Cleave generated it for this connection alone. It is not a password: on its own it grants nothing, and it is useless to anyone without a role that demands it. Check it appears in the trust policy you are about to create.",
+      roleArnTitle: "The role Cleave will assume",
       stackScopeOrganization:
         "Deployed in the management account you named. Use a StackSet to reach the member accounts, or run the same stack in each.",
       stackScopeAccount: "Deployed in the one account you named.",
@@ -507,13 +507,13 @@ export const en = {
     // Consent step.
     consentTitle: "Ask a Global Administrator to consent",
     consentBody:
-      "This is one Microsoft prompt, granted once for the whole directory. Nothing is scanned by it \u2014 it is what lets CloudGuard ask Azure who exists.",
+      "This is one Microsoft prompt, granted once for the whole directory. Nothing is scanned by it \u2014 it is what lets Cleave ask Azure who exists.",
     notAdmin: "I am not a Global Administrator",
     handoffTitle: "Send it to someone who is",
     handoffBody:
       "The link works once and expires in 30 minutes, so send it when they are at their desk. This page keeps waiting; you can close it and come back.",
     handoffMessage:
-      "Please open this link and approve read-only access for CloudGuard, our cloud security tool. It needs a Global Administrator, takes one click, and grants no permission to change anything:",
+      "Please open this link and approve read-only access for Cleave, our cloud security tool. It needs a Global Administrator, takes one click, and grants no permission to change anything:",
     copyMessage: "Copy the message",
     consentFailed: "Admin consent did not complete",
     consentRetry: "Start consent again",
@@ -542,9 +542,9 @@ export const en = {
 
     // The accounts step.
     discoverTitle: "Looking for what is beneath it",
-    reviewTitle: "Choose what CloudGuard reads",
+    reviewTitle: "Choose what Cleave reads",
     reviewBody:
-      "Everything beneath the scope is in scope by default. Unticking one stops CloudGuard reading it; existing findings are kept and marked out of scope, not deleted.",
+      "Everything beneath the scope is in scope by default. Unticking one stops Cleave reading it; existing findings are kept and marked out of scope, not deleted.",
     nothingInScopeTitle: "Nothing is ticked, so nothing will be read",
     nothingInScopeBody:
       "Everything found beneath this scope is out of scope. Tick at least one above, or leave it — the connection stays and picks up whatever is ticked later.",
@@ -567,7 +567,7 @@ export const en = {
     outOf: "out of 100",
     trendTitle: "Score over time",
     trendTooShort:
-      "One scan so far. A second one gives CloudGuard something to compare against, and this becomes a line.",
+      "One scan so far. A second one gives Cleave something to compare against, and this becomes a line.",
     scoreWorse: "since last scan",
     noPreviousScan: "No previous scan to compare against",
     sinceLastScan: "since last scan",
@@ -581,7 +581,7 @@ export const en = {
     resolvedRecently: "verified fixed in the last 30 days",
     coverage: "Assessment coverage",
     coverageHelp:
-      "How much of your environment CloudGuard could conclusively assess. Tracked separately from your score so the score stays easy to explain.",
+      "How much of your environment Cleave could conclusively assess. Tracked separately from your score so the score stays easy to explain.",
     assets: "Assets discovered",
     noScans: "No scan has run yet",
     noScansHelp: "Connect a cloud environment and run your first scan to see your posture.",
@@ -603,7 +603,7 @@ export const en = {
       "Where the evidence above came from \u2014 which listing, when the provider was read, and under which permission.",
     // `null` from the API: a fact about CloudGuard, not about this finding.
     provenanceUnrecorded:
-      "This finding was raised before CloudGuard recorded where its evidence came from. The next scan that detects it will.",
+      "This finding was raised before Cleave recorded where its evidence came from. The next scan that detects it will.",
     // `[]`: a fact about the rule, and a different sentence for that reason.
     provenanceNone: "This check reads no collected evidence.",
     provenanceRead: "Read",
@@ -617,7 +617,7 @@ export const en = {
     provenanceRule: "Evaluated by {rule} v{version}",
     controlsTitle: "What is standing in the way",
     controlsHelp:
-      "Defences CloudGuard observed in the same reading. They make this harder to exploit without making it right, so this finding is ranked lower than it otherwise would be \u2014 and it is still open, because every one of them can be switched off, rescoped or have this account excluded in a change nobody reviews.",
+      "Defences Cleave observed in the same reading. They make this harder to exploit without making it right, so this finding is ranked lower than it otherwise would be \u2014 and it is still open, because every one of them can be switched off, rescoped or have this account excluded in a change nobody reviews.",
     controlsStillNeeded: "An attacker still needs",
     howToFix: "How to fix it",
     riskScore: "Risk score",
@@ -631,7 +631,7 @@ export const en = {
     assign: "Assign",
     decideOnRisk: "Decide on its risk",
     rescan: "Rescan to verify",
-    rescanQueued: "Rescan queued. CloudGuard will close this finding automatically if the fix worked.",
+    rescanQueued: "Rescan queued. Cleave will close this finding automatically if the fix worked.",
     cancel: "Cancel",
     cannotResolveManually:
       "Findings are closed by a scan that confirms the fix, never by hand.",
@@ -662,7 +662,7 @@ export const en = {
     // missing is which reading, and saying so beats implying staleness we
     // cannot demonstrate.
     lastSeenUnknown:
-      "The reading that found this route is no longer stored, so CloudGuard cannot say when it was last confirmed.",
+      "The reading that found this route is no longer stored, so Cleave cannot say when it was last confirmed.",
     routeLabel: "The route",
     cutLabel: "Severing it",
     // The scoring, said in the terms the breakdown actually stores. A customer
@@ -679,7 +679,7 @@ export const en = {
     builtFromScenario:
       "The findings on this route. Fixing any one of them breaks the route \u2014 the cheapest is usually the identity or the role, never the containment.",
     builtFromFinding:
-      "The observation this risk scores. A finding is what CloudGuard saw; the risk is what it means for this asset, with this data, at this level of exposure.",
+      "The observation this risk scores. A finding is what Cleave saw; the risk is what it means for this asset, with this data, at this level of exposure.",
     builtFromGroup:
       "Every asset failing this check. They are one risk because they are one mistake and one fix \u2014 scored as the worst of them, not as the sum, and each still tracked and verified on its own.",
     noMembers: "No findings are linked to this risk.",
@@ -688,7 +688,7 @@ export const en = {
     theArithmetic: "How this score was reached",
     notFound: "That risk no longer exists",
     notFoundDetail:
-      "It may have been deleted with the scan that raised it. The risks list shows everything CloudGuard currently ranks.",
+      "It may have been deleted with the scan that raised it. The risks list shows everything Cleave currently ranks.",
   },
   attackPaths: {
     routesLabel: "Routes to sensitive data",
@@ -701,28 +701,28 @@ export const en = {
     // they call for three different actions.
     emptyNoPaths: "Nothing exposed can reach anything sensitive",
     emptyNoPathsDetail:
-      "CloudGuard found assets reachable from the internet and assets holding sensitive data, and no route between them. Below is where each way in stops.",
+      "Cleave found assets reachable from the internet and assets holding sensitive data, and no route between them. Below is where each way in stops.",
     exposedCount: "Exposed",
     sensitiveCount: "Sensitive",
     deadEndsTitle: "Where each way in stops",
     deadEndsMore: (n: number) => `and ${n} more`,
     deadEndReachesNothing: (type: string) =>
       type === "user" || type === "service_principal"
-        ? "Holds no role over anything CloudGuard scanned."
+        ? "Holds no role over anything Cleave scanned."
         : "Runs as no identity, and no other machine on its network lets it in.",
-    deadEndIdentityWithoutRole: "Runs as an identity that holds no role over anything CloudGuard scanned.",
+    deadEndIdentityWithoutRole: "Runs as an identity that holds no role over anything Cleave scanned.",
     deadEndRolesWithoutControl:
-      "Runs as an identity whose roles control nothing: they only read configuration, could not be read, or carry a condition CloudGuard cannot evaluate.",
+      "Runs as an identity whose roles control nothing: they only read configuration, could not be read, or carry a condition Cleave cannot evaluate.",
     deadEndNothingSensitive: (n: number) =>
       `Reaches ${n} ${n === 1 ? "asset" : "assets"}, none of them classified as sensitive.`,
     onlyAccountsSensitive:
-      "The only assets classified as sensitive are accounts. Tag your storage, databases and vaults with a data classification so CloudGuard knows what a route to them would cost.",
+      "The only assets classified as sensitive are accounts. Tag your storage, databases and vaults with a data classification so Cleave knows what a route to them would cost.",
     emptyNoEntry: "Nothing is reachable from the internet",
     emptyNoEntryDetail:
       "A route has to start somewhere. No asset in this environment is exposed enough to be an entry point, so there is nothing for a path to begin from.",
     emptyNoTargets: "Nothing has been classified as sensitive",
     emptyNoTargetsDetail:
-      "A route has to end somewhere worth reaching. Tag your storage and databases with a data classification, or set asset criticality, so CloudGuard knows what would actually cost you.",
+      "A route has to end somewhere worth reaching. Tag your storage and databases with a data classification, or set asset criticality, so Cleave knows what would actually cost you.",
     emptyNoScan: "No scan has run yet",
     emptyNoScanDetail:
       "Attack paths are built from what a scan found. Run one, and any route from an exposed asset to a sensitive one appears here.",
@@ -839,7 +839,7 @@ export const en = {
     clearAll: "Clear all",
     // Not "no notifications" alone: that is ambiguous between all quiet and
     // CloudGuard having stopped checking.
-    empty: "Nothing new. CloudGuard tells you about reachable findings, verified fixes, and readings it could not take.",
+    empty: "Nothing new. Cleave tells you about reachable findings, verified fixes, and readings it could not take.",
   },
   scans: {
     title: "Scans",
@@ -884,24 +884,24 @@ export const en = {
     replay: "Re-evaluate",
     replayQueueing: "Queueing\u2026",
     replayHelp:
-      "Runs today's rules against what this scan already collected. No Azure call, no consent, no cost to your throttle budget \u2014 CloudGuard kept the provider's own JSON, so a check written since can still be applied to it.",
+      "Runs today's rules against what this scan already collected. No Azure call, no consent, no cost to your throttle budget \u2014 Cleave kept the provider's own JSON, so a check written since can still be applied to it.",
     replayBadge: "Re-evaluated a stored capture",
     replayOfLabel: "Re-evaluation of an earlier scan",
     // The distinction that keeps a replay honest. Only a replay of the newest
     // capture may touch findings; an older one reports and stops.
     replayAdvisoryTitle: "What the rules would have found",
     replayAdvisoryDetail:
-      "This capture is no longer CloudGuard's current picture of the environment \u2014 it has been read again since. The counts below say what today's rules would have made of it. No finding was created, resolved or reopened: a capture from before nobody looked at cannot verify a fix.",
+      "This capture is no longer Cleave's current picture of the environment \u2014 it has been read again since. The counts below say what today's rules would have made of it. No finding was created, resolved or reopened: a capture from before nobody looked at cannot verify a fix.",
     replayCurrentTitle: "Applied to your current picture",
     replayCurrentDetail:
       "This was still the newest capture for everything it covered, so the results count: findings were raised, resolved and reopened exactly as a fresh scan would have done, without reading your cloud again.",
     wouldHaveFound: "Findings (would have)",
     stuckTitle: "Nothing has picked this scan up",
     stuckDetail:
-      "A scan is collected by CloudGuard's worker within seconds of being queued. Minutes of silence means no worker is running \u2014 check that the Celery worker service is deployed and can reach Redis.",
+      "A scan is collected by Cleave's worker within seconds of being queued. Minutes of silence means no worker is running \u2014 check that the Celery worker service is deployed and can reach Redis.",
     nothingFound: "No resources were found here",
     nothingFoundHelp:
-      "Every resource category CloudGuard reads returned successfully and was empty, so there is nothing here to assess. If that is unexpected, check in Details what this scan covered \u2014 a connection discovers everything it can see, including empty environments.",
+      "Every resource category Cleave reads returned successfully and was empty, so there is nothing here to assess. If that is unexpected, check in Details what this scan covered \u2014 a connection discovers everything it can see, including empty environments.",
     nothingFoundPartial:
       "Nothing was assessed, and some categories could not be read at all \u2014 see the gaps below. A category that failed is not the same as a category that was empty.",
     supportsOne: "1 finding rests on this",
@@ -949,18 +949,18 @@ export const en = {
   compliance: {
     title: "Compliance",
     intro:
-      "What CloudGuard's checks can evidence against each framework \u2014 and what they cannot.",
+      "What Cleave's checks can evidence against each framework \u2014 and what they cannot.",
     notALegalClaim:
       "This is evidence, not a compliance verdict. A green control means specific misconfigurations were absent at the last scan; it is not a statement that a requirement is met in law or that an audit would pass.",
     coverage: "Assessable coverage",
     coverageHelp:
-      "Share of the catalogued controls CloudGuard reached a conclusion on \u2014 pass or fail. Controls nothing checks, and controls it could not read, are excluded rather than counted as met.",
+      "Share of the catalogued controls Cleave reached a conclusion on \u2014 pass or fail. Controls nothing checks, and controls it could not read, are excluded rather than counted as met.",
     controls: "controls",
     openFindings: "open findings",
     viewFramework: "View controls",
     scopeNote: "What this covers",
     ownWording:
-      "Control titles are CloudGuard's own wording, not the published text. Follow the source link for authoritative definitions.",
+      "Control titles are Cleave's own wording, not the published text. Follow the source link for authoritative definitions.",
     source: "Official source",
     noRules: "No rule checks this.",
     notAssessable: "Not observable by a scanner",
@@ -993,7 +993,7 @@ export const en = {
       INCONCLUSIVE: "Nothing failing, but a mapped rule could not be evaluated. Not a pass.",
       PASSING: "Every mapped rule was evaluated conclusively and none is failing.",
       NOT_ASSESSED: "Rules map here, but no scan has produced a result yet.",
-      NOT_COVERED: "No rule maps here. CloudGuard has nothing to say about it.",
+      NOT_COVERED: "No rule maps here. Cleave has nothing to say about it.",
     },
   },
   changes: {
@@ -1053,7 +1053,7 @@ export const en = {
     // customer who expects a library of past reports should not have to
     // discover its absence.
     freshNote:
-      "Reports are generated when you ask for one, from the evidence that exists at that moment. CloudGuard keeps no copies \u2014 a stored PDF outlives the evidence behind it, and there would be no honest way to say which of five was current.",
+      "Reports are generated when you ask for one, from the evidence that exists at that moment. Cleave keeps no copies \u2014 a stored PDF outlives the evidence behind it, and there would be no honest way to say which of five was current.",
     // The one failure worth its own copy: the server is missing native
     // libraries, which is an operator problem and not something a retry fixes.
     noPdfTitle: "This server cannot produce PDFs",
@@ -1062,12 +1062,12 @@ export const en = {
   settings: {
     title: "Settings",
     intro:
-      "What CloudGuard knows about you and your environment that it could not find out by looking.",
+      "What Cleave knows about you and your environment that it could not find out by looking.",
 
     // The organization profile. A correction, not a statement: saving a name
     // must not clear a country nobody touched.
     orgTitle: "Organization",
-    orgHelp: "How this organization is named in CloudGuard and on its reports.",
+    orgHelp: "How this organization is named in Cleave and on its reports.",
     orgName: "Name",
     orgIndustry: "Industry",
     orgCountry: "Country",
@@ -1087,10 +1087,10 @@ export const en = {
     // The declarations. This is the part that changes what CloudGuard reports.
     contextTitle: "What your environments are for",
     contextHelp:
-      "CloudGuard scores a finding by what it would cost you \u2014 how critical the asset is, how sensitive its data, how exposed it is. It infers those from names and tags where it can, and inference is the weakest evidence it has. Anything you declare here beats it.",
+      "Cleave scores a finding by what it would cost you \u2014 how critical the asset is, how sensitive its data, how exposed it is. It infers those from names and tags where it can, and inference is the weakest evidence it has. Anything you declare here beats it.",
     contextEmpty: "Nothing has been discovered yet",
     contextEmptyDetail:
-      "Connect a cloud environment and CloudGuard will discover what is beneath it. There is nothing to describe until then.",
+      "Connect a cloud environment and Cleave will discover what is beneath it. There is nothing to describe until then.",
     environment: "Environment",
     criticality: "Criticality",
     dataSensitivity: "Data sensitivity",
@@ -1102,7 +1102,7 @@ export const en = {
     // would assert an absence that saying nothing already asserts.
     notDeclared: "Not declared",
     notDeclaredHelp:
-      "Leaving a field unset is not the same as declaring it unknown \u2014 CloudGuard goes back to working it out for itself.",
+      "Leaving a field unset is not the same as declaring it unknown \u2014 Cleave goes back to working it out for itself.",
     declaredBy: "Declared",
     declare: "Save declaration",
     clear: "Clear declaration",
@@ -1147,8 +1147,8 @@ export const en = {
       `Every role ${name} holds, and the assets each one actually controls`,
     at: (scope: string) => `on ${scope}`,
     inherited: (origin: string) => `inherited from ${origin}`,
-    conditional: "limited by a condition CloudGuard cannot evaluate",
-    unresolved: "CloudGuard could not read what this role allows",
+    conditional: "limited by a condition Cleave cannot evaluate",
+    unresolved: "Cleave could not read what this role allows",
     runsOn: "used by",
     members: (n: number) => `${n} ${n === 1 ? "member" : "members"}`,
     membersUnread: "its members could not be read",

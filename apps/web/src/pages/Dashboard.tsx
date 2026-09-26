@@ -123,7 +123,7 @@ export function DashboardPage() {
             {t.dashboard.title}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Your cloud security posture, and what CloudGuard could see while
+            Your cloud security posture, and what Cleave could see while
             forming it.
           </p>
         </div>

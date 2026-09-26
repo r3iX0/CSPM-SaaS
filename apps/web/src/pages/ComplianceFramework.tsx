@@ -68,7 +68,7 @@ export function ComplianceFrameworkPage() {
     return (
       <ErrorState
         title="Could not load this page"
-        detail="CloudGuard could not reach its own API."
+        detail="Cleave could not reach its own API."
         impact="Nothing about your environment has changed — this is a problem displaying it."
         onRetry={() => refetch()}
       />

@@ -105,7 +105,7 @@ export function ScanWizard({
             <SheetDescription>
               {current === "run"
                 ? "Closing this panel does not stop the scan. The header keeps its progress."
-                : "CloudGuard reads your environment with the role you deployed. Nothing is changed."}
+                : "Cleave reads your environment with the role you deployed. Nothing is changed."}
             </SheetDescription>
           </div>
           <Stepper current={current} />

@@ -213,7 +213,7 @@ export function CommandPalette() {
         size="sm"
         onClick={() => setOpen(true)}
         className="gap-2 text-muted-foreground"
-        aria-label="Search CloudGuard"
+        aria-label="Search Cleave"
       >
         <SearchIcon data-icon="inline-start" />
         <span className="hidden sm:inline">Search</span>
@@ -226,7 +226,7 @@ export function CommandPalette() {
           setOpen(next);
           if (!next) setQuery("");
         }}
-        title="Search CloudGuard"
+        title="Search Cleave"
         description="Jump to a page, an asset, or a rule."
       >
         {/* Filtering is done above, against the same substring rule the API

@@ -184,7 +184,7 @@ export function FindingsPage() {
       <PageHeader
         icon={ShieldAlertIcon}
         title={t.findings.title}
-        description="Misconfigurations CloudGuard observed, ranked by what they mean on the asset."
+        description="Misconfigurations Cleave observed, ranked by what they mean on the asset."
       />
 
       {/* Which slice, then how to narrow it. Status is the view -- open is
@@ -275,7 +275,7 @@ export function FindingsPage() {
       {error && (
         <ErrorState
           title="Could not load findings"
-          detail="CloudGuard could not reach its own API to read your findings."
+          detail="Cleave could not reach its own API to read your findings."
           impact="This is a problem loading the page, not a change in your security posture — nothing about your environment has been reassessed."
           onRetry={() => refetch()}
         />

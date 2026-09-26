@@ -250,7 +250,7 @@ export function RisksPage() {
       {error && (
         <ErrorState
           title="Could not load your risks"
-          detail="CloudGuard could not reach its own API."
+          detail="Cleave could not reach its own API."
           impact="Nothing about your environment has changed — this is a problem displaying it."
           onRetry={() => refetch()}
         />

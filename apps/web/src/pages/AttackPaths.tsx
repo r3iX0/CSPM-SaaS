@@ -334,7 +334,7 @@ export function AttackPathsPage() {
       {error && (
         <ErrorState
           title="Could not work out your attack paths"
-          detail="CloudGuard could not reach its own API to rebuild the graph."
+          detail="Cleave could not reach its own API to rebuild the graph."
           impact="Nothing about your environment has changed — this is a problem displaying it."
           onRetry={() => refetch()}
         />

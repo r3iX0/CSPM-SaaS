@@ -136,14 +136,14 @@ describe("the getting-started checklist", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Hide this checklist" }));
 
-    expect(screen.queryByText("Get CloudGuard working for you")).not.toBeInTheDocument();
+    expect(screen.queryByText("Get Cleave working for you")).not.toBeInTheDocument();
     expect(Object.values({ ...localStorage })).toContain("1");
   });
 
   it("cannot be put away before the first scan, when it is the whole page", async () => {
     mount(dashboard({ last_scan: null }), { connections: [], variant: "full" });
 
-    await screen.findByText("Get CloudGuard working for you");
+    await screen.findByText("Get Cleave working for you");
     expect(screen.queryByRole("button", { name: "Hide this checklist" })).not.toBeInTheDocument();
   });
 });

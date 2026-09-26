@@ -4,8 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api, auth } from "@/lib/api";
 import type { CloudAccount, Organization } from "@/lib/types";
-import { useT } from "@/i18n";
-import { ShieldMark } from "@/components/Brand";
+import { Wordmark } from "@/components/Brand";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AccountMenu } from "@/components/AccountMenu";
 import { SidebarNav } from "@/components/layout/Sidebar";
@@ -56,7 +55,6 @@ const COLLAPSE_KEY = "cloudguard.sidebar.collapsed";
  * running.
  */
 export function Shell() {
-  const t = useT();
   const navigate = useNavigate();
   // A choice about the shape of the workspace, so it is remembered: somebody
   // working on a small laptop should not re-collapse the sidebar every morning.
@@ -124,10 +122,10 @@ export function Shell() {
               to="/"
               className="flex items-center gap-2.5 rounded-md px-2 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 group-data-[collapsible=icon]:px-0"
             >
-              <ShieldMark className="size-5 shrink-0" />
-              <span className="truncate text-sm font-semibold tracking-tight group-data-[collapsible=icon]:hidden">
-                {t.app.name}
-              </span>
+              <Wordmark
+                markClassName="size-5"
+                labelClassName="group-data-[collapsible=icon]:hidden"
+              />
             </Link>
           </SidebarHeader>
           <SidebarContent>

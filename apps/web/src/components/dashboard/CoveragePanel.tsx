@@ -86,7 +86,7 @@ export function CoveragePanel({
           </h2>
           <p className="mt-0.5 max-w-xl text-xs leading-relaxed text-muted-foreground">
             {complete
-              ? "Every applicable check reached a verdict from evidence CloudGuard could read."
+              ? "Every applicable check reached a verdict from evidence Cleave could read."
               : "The share of checks that reached a verdict — not a security percentage. What could not be evaluated reports UNKNOWN, and UNKNOWN is never a pass."}
           </p>
         </div>
@@ -169,14 +169,14 @@ export function CoveragePanel({
               {context.unclassified} of{" "}
               {context.unclassified + context.classified} open risks
             </span>{" "}
-            sit on assets CloudGuard could not classify. They are ranked as
+            sit on assets Cleave could not classify. They are ranked as
             though they matter, so nothing important hides behind a missing
             label — but the score is only charged for what was established.{" "}
             <Link
               to="/settings"
               className="font-medium text-foreground underline underline-offset-2"
             >
-              Tell CloudGuard what these subscriptions hold
+              Tell Cleave what these subscriptions hold
             </Link>{" "}
             and the number will move to match.
           </p>

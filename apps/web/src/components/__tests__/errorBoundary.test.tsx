@@ -31,7 +31,7 @@ describe("the last thing between an error and a blank page", () => {
 
     expect(screen.getByText(/something went wrong/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /reload cloudguard/i }),
+      screen.getByRole("button", { name: /reload cleave/i }),
     ).toBeInTheDocument();
     // The one line worth quoting to support, and never a stack.
     expect(
@@ -133,7 +133,7 @@ describe("the last thing between an error and a blank page", () => {
           <Boom error={new Error("boom")} />
         </ErrorBoundary>,
       );
-      await userEvent.click(screen.getByRole("button", { name: /reload cloudguard/i }));
+      await userEvent.click(screen.getByRole("button", { name: /reload cleave/i }));
 
       expect(reload).toHaveBeenCalled();
       expect(sessionStorage.getItem("cloudguard.chunk-reloaded")).toBeNull();

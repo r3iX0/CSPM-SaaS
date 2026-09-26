@@ -6,7 +6,7 @@ import { api, auth, ApiError } from "@/lib/api";
 import type { Organization } from "@/lib/types";
 import { useT } from "@/i18n";
 import { cn } from "@/lib/format";
-import { ShieldMark } from "@/components/Brand";
+import { Wordmark } from "@/components/Brand";
 import { DEMO_ICON } from "@/lib/icons";
 import { useJoinDemo } from "@/lib/useDemo";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -68,8 +68,7 @@ export function OnboardingPage() {
   return (
     <div className="flex min-h-screen flex-col bg-muted/40 px-6">
       <header className="flex items-center gap-2.5 py-6">
-        <ShieldMark className="size-6 text-foreground" />
-        <span className="text-sm font-semibold tracking-tight">{t.app.name}</span>
+        <Wordmark />
       </header>
 
       <main className="flex flex-1 items-center justify-center pb-24">

@@ -97,7 +97,7 @@ export function BlastRadius({
         {asked && error && !(error instanceof ApiError && error.status === 404) && (
           <ErrorState
             title="Could not work out its reach"
-            detail="CloudGuard could not reach its own API to read the graph."
+            detail="Cleave could not reach its own API to read the graph."
             impact="Nothing about your environment has changed — this is a problem displaying it."
             onRetry={() => refetch()}
           />
@@ -105,7 +105,7 @@ export function BlastRadius({
 
         {data && data.length === 0 && (
           <p className="text-sm text-muted-foreground">
-            Nothing. This asset holds no role that controls anything CloudGuard has seen,
+            Nothing. This asset holds no role that controls anything Cleave has seen,
             and runs as no identity that does.
           </p>
         )}

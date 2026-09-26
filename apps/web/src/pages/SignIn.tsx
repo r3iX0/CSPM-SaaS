@@ -9,7 +9,7 @@ import {
 } from "@/lib/supabase";
 import { useAuthToken } from "@/lib/useAuth";
 import { useT } from "@/i18n";
-import { ShieldMark } from "@/components/Brand";
+import { Wordmark } from "@/components/Brand";
 import { ScoreTile } from "@/components/security/ScoreTile";
 
 /**
@@ -121,8 +121,7 @@ export function SignInPage() {
         <div className="w-full max-w-sm">
           {/* The mark repeats on mobile, where the left panel is hidden. */}
           <div className="mb-10 flex items-center gap-2.5 lg:hidden">
-            <ShieldMark className="h-7 w-7 text-foreground" />
-            <span className="text-base font-semibold tracking-tight">{t.app.name}</span>
+            <Wordmark />
           </div>
 
           {sent ? (
@@ -439,7 +438,6 @@ function TextLink({ onClick, children }: { onClick: () => void; children: React.
 }
 
 function BrandPanel() {
-  const t = useT();
   return (
     // `dark` scopes the dark theme's tokens to this panel, so it is drawn from
     // the same background, border and severity values as the product in dark
@@ -462,8 +460,7 @@ function BrandPanel() {
       />
 
       <div className="relative flex items-center gap-2.5">
-        <ShieldMark className="h-8 w-8 text-foreground" />
-        <span className="text-base font-semibold tracking-tight">{t.app.name}</span>
+        <Wordmark markClassName="size-7" labelClassName="text-lg" />
       </div>
 
       <div className="relative">
@@ -473,14 +470,14 @@ function BrandPanel() {
           <span className="text-muted-foreground">Fix what matters.</span>
         </h2>
         <p className="mt-5 max-w-md text-sm leading-relaxed text-muted-foreground">
-          CloudGuard reads your Azure environment, ranks what it finds by real
+          Cleave reads your Azure environment, ranks what it finds by real
           business risk, and confirms your fixes actually worked.
         </p>
 
         <ProductPreview />
 
         <ul className="mt-10 space-y-3.5">
-          <Assurance>Read-only access. CloudGuard never changes your resources.</Assurance>
+          <Assurance>Read-only access. Cleave never changes your resources.</Assurance>
           <Assurance>No Azure credential to hand over — consent, not secrets.</Assurance>
           <Assurance>Your data is isolated at the database level, not just in code.</Assurance>
         </ul>

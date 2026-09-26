@@ -16,7 +16,7 @@ import type { CloudConnection } from "@/lib/types";
 
 const NOW = Date.parse("2026-09-19T12:00:00Z");
 const REFUSED =
-  "Microsoft Graph refused this lookup. CloudGuard's own app registration is most likely missing its API permissions.";
+  "Microsoft Graph refused this lookup. Cleave's own app registration is most likely missing its API permissions.";
 
 function mount(consentedSecondsAgo: number | null) {
   const connection = {
@@ -52,7 +52,7 @@ describe("the deploy step, just after consent", () => {
   it("waits rather than reporting a fault, and says for how long", () => {
     mount(30);
 
-    expect(screen.getByRole("status")).toHaveTextContent(/setting cloudguard up/i);
+    expect(screen.getByRole("status")).toHaveTextContent(/setting cleave up/i);
     expect(screen.getByText(/2:30/)).toBeInTheDocument();
     expect(screen.queryByText(REFUSED)).not.toBeInTheDocument();
   });

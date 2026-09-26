@@ -61,7 +61,7 @@ export const NAV_GROUPS = [
     items: [
       { to: "/scans", label: "Scans", icon: ActivityIcon },
       { to: "/rules", label: "Rules", icon: ListChecksIcon },
-      { to: "/connections", label: "Cloud", icon: CloudIcon },
+      { to: "/connections", label: "Environments", icon: CloudIcon },
       // Last, and in this group on purpose: everything here is something a
       // person told CloudGuard, which is evidence of exactly the same kind as
       // a scan — just from a different source.

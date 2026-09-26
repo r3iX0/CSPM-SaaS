@@ -39,7 +39,7 @@ function connection(overrides: Partial<CloudConnection> = {}): CloudConnection {
     template_url:
       "https://us-east-1.console.aws.amazon.com/cloudformation/home#/stacks/create/review",
     provider_ref: {
-      role_arn: "arn:aws:iam::111122223333:role/CloudGuardScannerRole",
+      role_arn: "arn:aws:iam::111122223333:role/CleaveScannerRole",
       external_id: "cg-2f8a1c9e4b6d7a3f5e0c",
     },
     ...overrides,

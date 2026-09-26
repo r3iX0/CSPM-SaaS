@@ -52,7 +52,7 @@ export function AutomaticScanning({
             Automatic scanning
           </h2>
           <p className="mt-0.5 max-w-2xl text-xs leading-relaxed text-muted-foreground">
-            How often CloudGuard re-reads each environment without being asked.
+            How often Cleave re-reads each environment without being asked.
           </p>
         </div>
       </header>

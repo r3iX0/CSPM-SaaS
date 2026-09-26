@@ -42,7 +42,7 @@ export function PostureHeader({
       <div className="min-w-0">
         <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Your cloud security posture, and what CloudGuard could see while
+          Your cloud security posture, and what Cleave could see while
           forming it.
         </p>
       </div>

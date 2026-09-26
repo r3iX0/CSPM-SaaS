@@ -54,7 +54,7 @@ describe("RegionPanel", () => {
     ]);
 
     expect(screen.getByRole("link", { name: /atlantis1/ })).toHaveTextContent(
-      "location not known to CloudGuard",
+      "location not known to Cleave",
     );
     const drawn = [...container.querySelectorAll("[data-region]")].map((node) =>
       node.getAttribute("data-region"),

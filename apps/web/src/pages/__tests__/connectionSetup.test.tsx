@@ -88,7 +88,7 @@ describe("the connection wizard", () => {
     // The link, and the sentence that explains what is being approved: a bare
     // URL in a chat window is the request an administrator should refuse.
     expect(
-      screen.getByText(/approve read-only access for CloudGuard/i),
+      screen.getByText(/approve read-only access for Cleave/i),
     ).toHaveTextContent("https://login.microsoftonline.com/consent");
     expect(screen.getByRole("button", { name: /copy the message/i })).toBeInTheDocument();
   });

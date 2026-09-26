@@ -122,7 +122,7 @@ export function ChangesPage() {
       {error && (
         <ErrorState
           title="Could not load the change feed"
-          detail="CloudGuard could not reach its own API."
+          detail="Cleave could not reach its own API."
           impact="Nothing about your environment has changed — this is a problem displaying it."
           onRetry={() => refetch()}
         />

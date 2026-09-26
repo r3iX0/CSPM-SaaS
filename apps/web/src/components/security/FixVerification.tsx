@@ -131,7 +131,7 @@ export function FixVerification({
                 (scan.data?.error_message ??
                   "It stopped before it could look at this resource, so it proves nothing either way.")}
               {!finished &&
-                "CloudGuard is re-reading the subscription this resource lives in. You can leave this page — the finding closes on its own if the fix took."}
+                "Cleave is re-reading the subscription this resource lives in. You can leave this page — the finding closes on its own if the fix took."}
             </p>
           </div>
         </div>

@@ -10,7 +10,7 @@ export function ConfigError({ problems }: { problems: ConfigProblem[] }) {
     <div className="flex min-h-screen items-center justify-center bg-muted/40 px-6 py-12">
       <div className="w-full max-w-xl rounded-xl border border-critical-border bg-background p-6 shadow-sm">
         <h1 className="text-lg font-semibold text-foreground">
-          CloudGuard is deployed but not configured
+          Cleave is deployed but not configured
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
           The build is missing environment variables it needs to reach the API. Set these

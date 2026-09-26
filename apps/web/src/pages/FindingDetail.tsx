@@ -154,7 +154,7 @@ export function FindingDetailPage() {
     return (
       <ErrorState
         title="Could not load this finding"
-        detail="CloudGuard could not reach its own API."
+        detail="Cleave could not reach its own API."
         impact="Nothing about your environment has changed — this is a problem displaying it."
         onRetry={() => refetch()}
       />
@@ -599,7 +599,7 @@ function EvidencePanel({ evidence }: { evidence: unknown }) {
     <Card>
       <CardHeader>
         <CardTitle>{t.findings.evidence}</CardTitle>
-        <CardDescription>Exactly what CloudGuard observed</CardDescription>
+        <CardDescription>Exactly what Cleave observed</CardDescription>
       </CardHeader>
       <CardContent>
         <Collapsible open={expanded || !long} onOpenChange={setExpanded}>
@@ -875,7 +875,7 @@ function AttackPathContext({
           // sensitive is something the customer declares, so an estate that
           // has declared nothing produces no routes at all.
           <p className="text-sm leading-relaxed text-muted-foreground">
-            CloudGuard traced no route from an internet-facing asset to a
+            Cleave traced no route from an internet-facing asset to a
             sensitive one through this one. What counts as sensitive is
             declared per subscription in Settings — an estate where nothing has
             been classified will also show none.

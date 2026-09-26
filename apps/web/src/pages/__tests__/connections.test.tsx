@@ -101,7 +101,7 @@ describe("the connections page", () => {
     mount([]);
 
     await userEvent.click(
-      await screen.findByRole("button", { name: /read what cloudguard will do/i }),
+      await screen.findByRole("button", { name: /read what cleave will do/i }),
     );
 
     expect(await screen.findByText("Directory.Read.All")).toBeInTheDocument();

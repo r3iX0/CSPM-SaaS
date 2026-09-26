@@ -377,7 +377,7 @@ describe("AttackPathsPage", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Runs as an identity that holds no role over anything CloudGuard scanned.",
+        "Runs as an identity that holds no role over anything Cleave scanned.",
       ),
     ).toBeInTheDocument();
     expect(

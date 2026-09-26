@@ -41,7 +41,7 @@ export function ComplianceSummary({
             Compliance coverage
           </h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            The share of controls CloudGuard reached a conclusion on
+            The share of controls Cleave reached a conclusion on
           </p>
         </div>
         <Link

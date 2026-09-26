@@ -50,7 +50,7 @@ export function ScansPage() {
         <PageHeader
           icon={ActivityIcon}
           title={t.scans.title}
-          description="Every time CloudGuard has read your environment, and what it could reach."
+          description="Every time Cleave has read your environment, and what it could reach."
         />
         {!isDemo && (
         <Button className="shrink-0" onClick={() => wizard.start()}>

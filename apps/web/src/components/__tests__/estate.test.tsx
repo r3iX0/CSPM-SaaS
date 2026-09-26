@@ -351,7 +351,7 @@ describe("the estate map", () => {
     expect(stops().map((b) => b.dataset.graphNode)).toEqual(["scope:directory"]);
   });
 
-  it("says CloudGuard failed, not that the estate is empty, when the API does", async () => {
+  it("says Cleave failed, not that the estate is empty, when the API does", async () => {
     // Only a 404 means the scope is not there. A 500 read as "nothing is
     // there" would present an outage as a fact about the estate.
     mount(() => new ApiError("INTERNAL", "boom", 500));

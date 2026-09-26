@@ -72,7 +72,7 @@ export function RiskDetailPage() {
           detail={
             missing
               ? t.risks.notFoundDetail
-              : "CloudGuard could not reach its own API."
+              : "Cleave could not reach its own API."
           }
           impact={
             missing

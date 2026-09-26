@@ -85,7 +85,7 @@ export function RemediationPage() {
       toast.success("Marked done", {
         description:
           task.note ??
-          "CloudGuard will check the environment and close the finding once the change appears.",
+          "Cleave will check the environment and close the finding once the change appears.",
       });
     },
     onError: (err) =>
@@ -108,7 +108,7 @@ export function RemediationPage() {
       {error && (
         <ErrorState
           title="Could not load the remediation queue"
-          detail="CloudGuard could not reach its own API."
+          detail="Cleave could not reach its own API."
           impact="Nothing about your environment has changed — this is a problem displaying it."
           onRetry={() => refetch()}
         />

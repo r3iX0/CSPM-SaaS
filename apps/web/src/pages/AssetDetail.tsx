@@ -130,7 +130,7 @@ export function AssetDetailPage() {
     return (
       <ErrorState
         title="Could not load this page"
-        detail="CloudGuard could not reach its own API."
+        detail="Cleave could not reach its own API."
         impact="Nothing about your environment has changed — this is a problem displaying it."
         onRetry={() => refetch()}
       />
@@ -156,7 +156,7 @@ export function AssetDetailPage() {
           <AlertTitle>Not seen since {formatDateTime(data.absent_since)}</AlertTitle>
           <AlertDescription>
             The last scan looked for this asset and did not find it: it was deleted, or
-            CloudGuard lost access to where it was. Its findings are kept as they were at the
+            Cleave lost access to where it was. Its findings are kept as they were at the
             last scan that saw it, and it is no longer part of any attack path.
           </AlertDescription>
         </Alert>
@@ -461,7 +461,7 @@ function FindingsPanel({ asset }: { asset: AssetDetail }) {
           // findings" would present that as a clean bill of health.
           <p className="py-4 text-center text-sm text-muted-foreground">
             {asset.resource_type === "unknown"
-              ? `CloudGuard has no checks for this kind of resource${
+              ? `Cleave has no checks for this kind of resource${
                   typeof azureType === "string" ? ` (${azureType})` : ""
                 } yet, so nothing here has been evaluated.`
               : `No open findings. Last scanned ${formatRelative(asset.last_seen_at)}.`}

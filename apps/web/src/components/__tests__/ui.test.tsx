@@ -59,7 +59,7 @@ describe("SeverityBadge", () => {
 });
 
 describe("ContextRow", () => {
-  it("distinguishes a value somebody chose from one CloudGuard guessed", () => {
+  it("distinguishes a value somebody chose from one Cleave guessed", () => {
     // The three context values multiply a finding into a risk. "CRITICAL"
     // invites the question "says who", and until the backend recorded
     // provenance there was no answer to give.

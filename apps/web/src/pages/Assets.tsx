@@ -246,7 +246,7 @@ export function AssetsPage() {
       <PageHeader
         icon={BoxesIcon}
         title={t.assets.title}
-        description="Everything CloudGuard has discovered, with what it is worth and how exposed it is."
+        description="Everything Cleave has discovered, with what it is worth and how exposed it is."
         actions={
           // Two readings of one inventory: the queue and the map. The list
           // ranks by what is wrong; the map says which part of the estate --
@@ -419,7 +419,7 @@ export function AssetsPage() {
       {view === "list" && error && (
         <ErrorState
           title="Could not load your assets"
-          detail="CloudGuard could not reach its own API to read the inventory."
+          detail="Cleave could not reach its own API to read the inventory."
           impact="Nothing about your environment has changed — this is a problem displaying it."
           onRetry={() => refetch()}
         />

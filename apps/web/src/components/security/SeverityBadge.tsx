@@ -67,7 +67,7 @@ export function UnknownNote({
         <p className="font-medium text-unknown">Not enough evidence to judge this</p>
         <p className="mt-0.5 text-muted-foreground">
           {reason ??
-            "CloudGuard could not collect what this check reads, so it has no verdict — this is neither a pass nor a failure."}
+            "Cleave could not collect what this check reads, so it has no verdict — this is neither a pass nor a failure."}
         </p>
       </div>
     </div>
