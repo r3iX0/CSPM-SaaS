@@ -117,6 +117,17 @@ export function formatDate(value: string | null): string {
   });
 }
 
+/** A day, with the year only when it is not this one: "Sep 25". */
+export function formatDay(value: string | null): string {
+  if (!value) return "—";
+  const date = new Date(value);
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    ...(date.getFullYear() === new Date().getFullYear() ? {} : { year: "numeric" }),
+  });
+}
+
 export function formatDateTime(value: string | null): string {
   if (!value) return "—";
   return new Date(value).toLocaleString(undefined, {

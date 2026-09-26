@@ -1124,9 +1124,14 @@ export const en = {
   remediation: {
     title: "Remediation",
     empty: "No remediation tasks yet.",
-    description:
-      "Open work first, by impact against effort; of two equally urgent fixes, the one on an attack path comes first. A finding closes when a scan confirms the fix.",
+    // Of two equally urgent fixes, the one on an attack path comes first --
+    // which each row says, rather than the intro.
+    description: "Ordered by impact against effort.",
     onRoutes: (n: number) => `on ${n} attack ${n === 1 ? "path" : "paths"}`,
+    waitingOnScan: "Waiting on a scan",
+    doneOn: (date: string) => `Done ${date}`,
+    doneNote:
+      "Marked done does not close a finding. Cleave reads the environment again on the next scan and closes it then, or leaves it open.",
   },
   access: {
     tab: "Access",

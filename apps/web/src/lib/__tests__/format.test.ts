@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatDate,
+  formatDay,
   formatEffort,
   formatRelative,
   levelStyle,
@@ -114,5 +115,14 @@ describe("how long ago something happened", () => {
   it("says nothing rather than 'Invalid Date'", () => {
     expect(formatRelative(null)).toBe("—");
     expect(formatRelative("not a date")).toBe("—");
+  });
+});
+
+describe("formatDay", () => {
+  it("leaves out this year, and says any other", () => {
+    const year = new Date().getFullYear();
+    expect(formatDay(`${year}-09-25T12:00:00`)).not.toContain(String(year));
+    expect(formatDay(`${year + 1}-09-25T12:00:00`)).toContain(String(year + 1));
+    expect(formatDay(null)).toBe("—");
   });
 });
