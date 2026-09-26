@@ -48,6 +48,12 @@ function mount(data: Dashboard, accounts: CloudAccount[] = []) {
     if (path.includes("cloud-accounts")) {
       return Promise.resolve({ data: accounts, meta: {} }) as never;
     }
+    if (path.startsWith("/api/v1/assets/")) {
+      return Promise.resolve({
+        data: { id: "asset-1", provider_resource_id: "/sub/vm/web" },
+        meta: {},
+      }) as never;
+    }
     // The panels the page asks for after its own payload. Answered as the
     // lists they really are, so a test about the dashboard is not quietly
     // testing what happens when an endpoint returns the wrong shape.
@@ -125,6 +131,90 @@ describe("DashboardPage", () => {
         screen.getByRole("link", { name: /Production database reachable/ }),
       ).toHaveAttribute("href", "/risks/risk-1"),
     );
+  });
+
+  it("opens a ranked risk's graph beside the row: a route traced, an asset centred", async () => {
+    mount(
+      dashboard({
+        top_risks: [
+          {
+            id: "risk-1",
+            title: "Web tier reaches the key vault",
+            risk_score: 96,
+            risk_level: "CRITICAL",
+            kind: "ATTACK_PATH",
+            route: { entry_id: "/sub/vm/web", target_id: "/sub/kv/secrets" },
+          },
+          {
+            id: "risk-2",
+            title: "Storage account allows public blobs",
+            risk_score: 80,
+            risk_level: "HIGH",
+            kind: "FINDING",
+            asset_id: "asset-1",
+          },
+          {
+            id: "risk-3",
+            title: "Diagnostic logs off on forty accounts",
+            risk_score: 40,
+            risk_level: "MEDIUM",
+            kind: "FINDING",
+            asset_id: null,
+          },
+        ],
+      }),
+    );
+
+    const traced = await screen.findByRole("link", {
+      name: "Trace among attack paths: Web tier reaches the key vault",
+    });
+    const href = new URL(traced.getAttribute("href")!, "http://x");
+    expect(href.pathname).toBe("/attack-paths");
+    expect(href.searchParams.get("trace")).toBe("/sub/vm/web|/sub/kv/secrets");
+
+    expect(
+      screen.getByRole("link", { name: "Open in the graph: Storage account allows public blobs" }),
+    ).toHaveAttribute("href", "/assets/asset-1?tab=connections");
+    // Grouped across assets: no one place to open, so no link to one.
+    expect(
+      screen.queryByRole("link", { name: /: Diagnostic logs off/ }),
+    ).not.toBeInTheDocument();
+    // The row itself still opens the risk.
+    const opens = screen
+      .getAllByRole("link", { name: /Storage account allows public blobs/ })
+      .map((link) => link.getAttribute("href"));
+    expect(opens).toContain("/risks/risk-2");
+  });
+
+  it("loads an asset's graph when the keyboard reaches its link, before it is followed", async () => {
+    mount(
+      dashboard({
+        top_risks: [
+          {
+            id: "risk-2",
+            title: "Storage account allows public blobs",
+            risk_score: 80,
+            risk_level: "HIGH",
+            kind: "FINDING",
+            asset_id: "asset-1",
+          },
+        ],
+      }),
+    );
+
+    const link = await screen.findByRole("link", {
+      name: "Open in the graph: Storage account allows public blobs",
+    });
+    link.focus();
+
+    // The asset row first, because only it knows the provider id the
+    // neighbourhood is addressed by; then the neighbourhood the tab opens on.
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith(
+        `/api/v1/attack-paths/neighborhood/${encodeURIComponent("/sub/vm/web")}?depth=2`,
+      ),
+    );
+    expect(api.get).toHaveBeenCalledWith("/api/v1/assets/asset-1");
   });
 
   it("reads the estate's coverage per category, not just as one number", async () => {

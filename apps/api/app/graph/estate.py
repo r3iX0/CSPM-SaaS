@@ -81,8 +81,6 @@ class EstateEdge:
     source: str
     target: str
     links: tuple[tuple[RelationshipType, int], ...]
-    #: Whether any of the links is a hop on an attack path.
-    on_route: bool
 
 
 @dataclass(frozen=True)
@@ -123,9 +121,15 @@ def _same_group(a: str | None, b: str | None) -> bool:
     return (a or "").lower() == (b or "").lower()
 
 
-def _crosses(relationship: RelationshipType) -> bool:
-    """Links drawn between boxes: what an identity may do, not where things live."""
-    return relationship.is_capability and relationship is not RelationshipType.CONTAINS
+def _crosses(
+    graph: AssetGraph, source: str, relationship: RelationshipType, target: str
+) -> bool:
+    """Links drawn between boxes: what an identity may do, not where things live
+    -- and only where it may do something (a role that controls nothing is not
+    reach, DECISIONS.md section 125)."""
+    return relationship is not RelationshipType.CONTAINS and graph.conveys(
+        source, relationship, target
+    )
 
 
 def estate_map(
@@ -145,6 +149,11 @@ def estate_map(
     drawn only where an attack path runs along it -- otherwise a subscription
     would carry an edge to every group it holds, and the one route through them
     would be lost among forty statements of where things live.
+
+    The routes themselves are the attack-path page's to draw and walk
+    (section 138). Here they decide only which containment is drawn, which
+    assets are drawn before the fold, and how many routes each box counts --
+    the number its link to that page carries.
     """
     placed = {
         node_id: placements.get(node_id, Placement(DIRECTORY_SCOPE)) for node_id in graph.nodes
@@ -183,7 +192,7 @@ def estate_map(
 
     reach: dict[str, int] = defaultdict(int)
     for source, relationship, target in graph.links():
-        if _crosses(relationship) and source != target:
+        if source != target and _crosses(graph, source, relationship, target):
             reach[source] += 1
             reach[target] += 1
 
@@ -222,7 +231,6 @@ def estate_map(
     for node_id in placed:
         box = coarse(node_id)
         box_of[node_id] = FOLD_BOX if box_kind(box) == "asset" and node_id not in drawn else box
-    route_boxes = [{box_of[n] for n in path.node_ids() if n in box_of} for path in routes]
 
     members: dict[str, list[CloudResource]] = defaultdict(list)
     for node_id, box in box_of.items():
@@ -232,17 +240,16 @@ def estate_map(
     counted: dict[tuple[str, str], dict[RelationshipType, int]] = defaultdict(
         lambda: defaultdict(int)
     )
-    routed: set[tuple[str, str]] = set()
     for source, relationship, target in graph.links():
         a, b = box_of[source], box_of[target]
         if a == b or (a not in opened and b not in opened):
             continue
         hop = (source, relationship, target) in on_route
-        if not _crosses(relationship) and not (relationship is RelationshipType.CONTAINS and hop):
+        if not _crosses(graph, source, relationship, target) and not (
+            relationship is RelationshipType.CONTAINS and hop
+        ):
             continue
         counted[(a, b)][relationship] += 1
-        if hop:
-            routed.add((a, b))
 
     shown = opened | {box for pair in counted for box in pair}
 
@@ -267,15 +274,19 @@ def estate_map(
             source=a,
             target=b,
             links=tuple(sorted(by.items(), key=lambda item: item[0].value)),
-            on_route=(a, b) in routed,
         )
         for (a, b), by in sorted(counted.items())
     )
 
     # A route counts here when it passes through what the lens opened. One
     # that only runs between two neighbours is about somewhere else.
-    touching = [on for on in route_boxes if on & opened]
-    through = {box: sum(1 for on in touching if box in on) for box in shown}
+    touching = [
+        (path, on)
+        for path in routes
+        if (on := {box_of[n] for n in path.node_ids() if n in box_of}) & opened
+    ]
+    through = {box: sum(1 for _, on in touching if box in on) for box in shown}
+
     return EstateMap(
         lens=lens,
         boxes=tuple(boxes),

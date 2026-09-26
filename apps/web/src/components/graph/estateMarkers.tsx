@@ -1,6 +1,6 @@
 import type { EstateBox } from "@/lib/types";
 import { cn, levelStyle } from "@/lib/format";
-import { FACTOR_ICONS, RISK_KIND_ICONS } from "@/lib/icons";
+import { FACTOR_ICONS } from "@/lib/icons";
 
 /**
  * The marks a box on the estate map carries, shared by the canvas and the
@@ -18,18 +18,17 @@ const LEVEL_TEXT: Record<string, string> = {
 };
 
 /**
- * Ways in, sensitive data, attack paths and open findings, counted.
+ * Ways in, sensitive data and open findings, counted.
  *
  * The neighbourhood's markers, with a number wherever a box holds more than
  * one asset: a globe for assets a route may start from, a cylinder for ones it
- * may end at, the route glyph for attack paths passing through, and open
- * findings tinted by the worst. Each carries its meaning as screen-reader
- * text, which is also what a box's link is named from.
+ * may end at, and open findings tinted by the worst. Attack paths are counted
+ * on the panel's link to them, not here (DECISIONS.md §138). Each carries its
+ * meaning as screen-reader text, which is also what a box's link is named from.
  */
 export function Markers({ box, className }: { box: EstateBox; className?: string }) {
   const Exposure = FACTOR_ICONS.exposure;
   const Sensitive = FACTOR_ICONS.dataSensitivity;
-  const Route = RISK_KIND_ICONS.ATTACK_PATH;
   const single = box.kind === "asset";
   const { open, worst } = box.findings;
 
@@ -68,13 +67,6 @@ export function Markers({ box, className }: { box: EstateBox; className?: string
           <span className="sr-only">
             {single ? ", holds sensitive data" : " holding sensitive data"}
           </span>
-        </span>
-      )}
-      {box.routes > 0 && (
-        <span className="flex items-center gap-0.5 text-foreground" title="On attack paths">
-          <Route className="size-3.5" aria-hidden />
-          <span className="tabular-nums">{box.routes}</span>
-          <span className="sr-only"> attack path{box.routes === 1 ? "" : "s"}</span>
         </span>
       )}
       {open > 0 && (

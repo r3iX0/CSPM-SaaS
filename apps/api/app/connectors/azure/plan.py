@@ -32,7 +32,7 @@ from typing import Any
 
 import httpx
 
-from app.connectors.azure.auth import TokenProvider
+from app.connectors.azure.auth import GRAPH_RESOURCE_APP_ID, TokenProvider
 from app.connectors.azure.client import (
     ArmClient,
     AzureApiError,
@@ -165,6 +165,11 @@ ROLE_DEFINITIONS_ENDPOINT = ProviderEndpoint(
     "/roleDefinitions",
     "2022-04-01",
 )
+ROLE_ELIGIBILITIES_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Authorization"
+    "/roleEligibilityScheduleInstances",
+    "2020-10-01",
+)
 DIAGNOSTICS_ENDPOINT = ProviderEndpoint(
     f"{ARM}/{{resourceId}}/providers/Microsoft.Insights/diagnosticSettings",
     "2021-05-01-preview",
@@ -198,7 +203,31 @@ CONDITIONAL_ACCESS_ENDPOINT = ProviderEndpoint(
 GROUP_MEMBERS_ENDPOINT = ProviderEndpoint(
     f"{GRAPH}/groups/{{groupId}}/members", GRAPH_VERSION
 )
+GROUPS_ENDPOINT = ProviderEndpoint(f"{GRAPH}/groups", GRAPH_VERSION)
+DIRECTORY_ROLE_ELIGIBILITIES_ENDPOINT = ProviderEndpoint(
+    f"{GRAPH}/roleManagement/directory/roleEligibilityScheduleInstances", GRAPH_VERSION
+)
+GROUP_TRANSITIVE_MEMBERS_ENDPOINT = ProviderEndpoint(
+    f"{GRAPH}/groups/{{groupId}}/transitiveMembers", GRAPH_VERSION
+)
 APPLICATIONS_ENDPOINT = ProviderEndpoint(f"{GRAPH}/applications", GRAPH_VERSION)
+APPLICATION_OWNERS_ENDPOINT = ProviderEndpoint(
+    f"{GRAPH}/applications/{{applicationId}}/owners", GRAPH_VERSION
+)
+SERVICE_PRINCIPALS_ENDPOINT = ProviderEndpoint(f"{GRAPH}/servicePrincipals", GRAPH_VERSION)
+APP_ROLE_ASSIGNED_TO_ENDPOINT = ProviderEndpoint(
+    f"{GRAPH}/servicePrincipals/{{servicePrincipalId}}/appRoleAssignedTo", GRAPH_VERSION
+)
+
+# Groups whose members one subscription's reading resolves. A subscription
+# with more role-holding groups than this is read partially and says so; the
+# bound is on calls, two per group, not on how many people a group holds.
+ROLE_GROUP_LIMIT = 100
+# Application registrations whose owners one scan reads, one call each. A
+# tenant with more is read partially and says so.
+APPLICATION_OWNER_LIMIT = 300
+# Values Graph's ``in`` filter accepts in one call.
+GRAPH_IN_FILTER_LIMIT = 15
 # The ``$select`` is part of the path here and nowhere else, because it is part
 # of the contract: ``/users`` alone returns no sign-in activity at all, and this
 # is not the same read as USERS_ENDPOINT above however similar the URL looks.
@@ -375,6 +404,10 @@ class AzurePlanBuilder:
             """
             return {"role_assignments": await arm.list_role_assignments(sub)}
 
+        async def role_eligibilities(arm: ArmClient) -> dict[str, Any]:
+            """Roles a principal could activate rather than holds (section 130)."""
+            return {"role_eligibilities": await arm.list_role_eligibilities(sub)}
+
         async def role_definitions(arm: ArmClient) -> dict[str, Any]:
             """What each role actually permits.
 
@@ -516,6 +549,13 @@ class AzurePlanBuilder:
                 ("Microsoft.Authorization/roleDefinitions/read",),
                 role_definitions,
                 endpoints=(ROLE_DEFINITIONS_ENDPOINT,),
+            ),
+            self._role_group_members_task(),
+            self._arm_task(
+                AzureEvidence.ROLE_ELIGIBILITIES,
+                ("Microsoft.Authorization/roleEligibilityScheduleInstances/read",),
+                role_eligibilities,
+                endpoints=(ROLE_ELIGIBILITIES_ENDPOINT,),
             ),
             self._inventory_task(),
             self._sql_auditing_task(),
@@ -771,6 +811,95 @@ class AzurePlanBuilder:
                 "Microsoft.Sql/servers/databases/transparentDataEncryption/read",
             ),
             endpoints=(SQL_DATABASES_ENDPOINT, SQL_TDE_ENDPOINT),
+        )
+
+    def _role_group_members_task(self) -> CollectionTask:
+        """Who is in each group that holds a role in this subscription.
+
+        A role assigned to a group was drawn to a principal named "Group
+        1a2b3c4d" and stopped there: the people it actually reaches were never
+        read, so the access view could not name them and no route could pass
+        through them (DECISIONS.md section 126).
+
+        Graph, from a subscription's reading, because the assignments are what
+        say which groups matter. Keyed by group id; a group whose read failed
+        is absent rather than empty, because an empty member list would say
+        "this role reaches nobody", which is the one wrong answer here.
+        """
+
+        async def run(collected: dict[str, Any]) -> TaskData:
+            wanted = sorted(
+                {
+                    str(props["principalId"])
+                    for assignment in collected.get("role_assignments") or []
+                    if (props := assignment.get("properties") or {}).get("principalType")
+                    == "Group"
+                    and props.get("principalId")
+                }
+            )
+            if not wanted:
+                return TaskData({"role_group_members": {}})
+
+            graph = GraphClient(self.tokens, self._http, limiter=self._limiter)
+            reading = wanted[:ROLE_GROUP_LIMIT]
+
+            # Names first, fifteen to a call. A failed batch costs only the
+            # names -- the group is still drawn, by its id -- so it is logged
+            # rather than allowed to cost the members.
+            names: dict[str, str] = {}
+            for start in range(0, len(reading), GRAPH_IN_FILTER_LIMIT):
+                batch = reading[start : start + GRAPH_IN_FILTER_LIMIT]
+                try:
+                    found_groups = await self._graph_call(graph.list_groups_by_id(batch))
+                except Exception as exc:
+                    log.warning("azure.role_group_names_failed", error=str(exc))
+                    continue
+                for group in found_groups:
+                    if group.get("id") and group.get("displayName"):
+                        names[str(group["id"])] = str(group["displayName"])
+
+            async def read(group_id: str) -> tuple[str, dict[str, Any] | None]:
+                try:
+                    members = await self._graph_call(
+                        graph.list_group_transitive_members(group_id)
+                    )
+                except Exception as exc:
+                    log.warning("azure.role_group_members_failed", error=str(exc))
+                    return group_id, None
+                return group_id, {
+                    "display_name": names.get(group_id),
+                    "members": [
+                        {
+                            "id": str(member["id"]),
+                            "type": str(member.get("@odata.type") or ""),
+                            "display_name": member.get("displayName"),
+                        }
+                        for member in members
+                        if member.get("id")
+                    ],
+                }
+
+            pairs = await self._gather_limited([read(group_id) for group_id in reading])
+            found = {group_id: value for group_id, value in pairs if value is not None}
+            data = {"role_group_members": found}
+            missing = len(wanted) - len(found)
+            if missing or graph.truncated:
+                return TaskData(
+                    data,
+                    partial_reason=(
+                        f"the members of {missing} of {len(wanted)} role-holding groups "
+                        "could not be read"
+                        if missing
+                        else "a role-holding group has more members than one scan reads"
+                    ),
+                )
+            return TaskData(data)
+
+        return CollectionTask(
+            key=AzureEvidence.ROLE_GROUP_MEMBERS,
+            run=run,
+            depends_on=(AzureEvidence.ROLE_ASSIGNMENTS,),
+            endpoints=(GROUPS_ENDPOINT, GROUP_TRANSITIVE_MEMBERS_ENDPOINT),
         )
 
     def build_directory_plan(self) -> list[CollectionTask]:
@@ -1042,6 +1171,17 @@ class AzurePlanBuilder:
                 )
             return TaskData({"application_credentials": found})
 
+        async def directory_eligibilities(collected: dict[str, Any]) -> TaskData:
+            """Directory roles a principal could activate (section 130)."""
+            graph = GraphClient(self.tokens, self._http, limiter=self._limiter)
+            found = await self._licence_aware_call(graph.list_directory_role_eligibilities())
+            data = {"directory_role_eligibilities": found}
+            if graph.truncated:
+                return TaskData(
+                    data, partial_reason="there are more eligible roles than one scan reads"
+                )
+            return TaskData(data)
+
         async def sign_in_activity(collected: dict[str, Any]) -> TaskData:
             graph = GraphClient(self.tokens, self._http, limiter=self._limiter)
             found = await self._licence_aware_call(graph.list_sign_in_activity())
@@ -1124,7 +1264,114 @@ class AzurePlanBuilder:
                 run=sign_in_activity,
                 endpoints=(SIGN_IN_ACTIVITY_ENDPOINT,),
             ),
+            CollectionTask(
+                key=AzureEvidence.DIRECTORY_ROLE_ELIGIBILITIES,
+                run=directory_eligibilities,
+                endpoints=(DIRECTORY_ROLE_ELIGIBILITIES_ENDPOINT,),
+            ),
+            CollectionTask(
+                key=AzureEvidence.GRAPH_PERMISSION_GRANTS,
+                run=self._graph_permission_grants,
+                endpoints=(SERVICE_PRINCIPALS_ENDPOINT, APP_ROLE_ASSIGNED_TO_ENDPOINT),
+            ),
+            CollectionTask(
+                key=AzureEvidence.APPLICATION_OWNERS,
+                run=self._application_owners,
+                depends_on=(AzureEvidence.APPLICATION_CREDENTIALS,),
+                endpoints=(APPLICATION_OWNERS_ENDPOINT, SERVICE_PRINCIPALS_ENDPOINT),
+            ),
         ]
+
+    async def _graph_permission_grants(self, collected: dict[str, Any]) -> TaskData:
+        """Who holds which Microsoft Graph application permission.
+
+        Two readings: Graph's own catalogue of what each app role id means,
+        from its service principal in this tenant, and every grant of one of
+        those roles, read from Graph's side so a single listing covers every
+        principal and managed identity (DECISIONS.md section 129).
+        """
+        graph = GraphClient(self.tokens, self._http, limiter=self._limiter)
+        catalogue = await self._graph_call(
+            graph.find_permission_catalogue(GRAPH_RESOURCE_APP_ID)
+        )
+        if catalogue is None or not catalogue.get("id"):
+            # A tenant always holds Graph's principal; not finding it is a
+            # reading that failed to say anything, not a tenant with no grants.
+            return TaskData(
+                {"graph_app_roles": {}, "graph_permission_grants": []},
+                partial_reason="Microsoft Graph's service principal was not found",
+            )
+        roles = {
+            str(role["id"]): str(role["value"])
+            for role in catalogue.get("appRoles") or []
+            if role.get("id") and role.get("value")
+        }
+        grants = await self._graph_call(graph.list_app_role_assigned_to(str(catalogue["id"])))
+        data = {"graph_app_roles": roles, "graph_permission_grants": grants}
+        if graph.truncated:
+            return TaskData(
+                data, partial_reason="there are more Graph permission grants than one scan reads"
+            )
+        return TaskData(data)
+
+    async def _application_owners(self, collected: dict[str, Any]) -> TaskData:
+        """Who can sign in as each of this tenant's applications.
+
+        Two readings. The owners of each registration, since an owner can add a
+        credential and act as the registration's service principal. And that
+        service principal's object id, which is what a subscription's role
+        assignments name it by -- a registration knows only its app id
+        (DECISIONS.md section 128).
+
+        Keyed so an unread registration is absent rather than empty: "nobody
+        owns this" and "nobody could say who owns this" are different answers.
+        """
+        applications = [
+            app for app in collected.get("application_credentials") or [] if app.get("id")
+        ]
+        reading = applications[:APPLICATION_OWNER_LIMIT]
+        graph = GraphClient(self.tokens, self._http, limiter=self._limiter)
+
+        async def owners_of(app: dict[str, Any]) -> tuple[str, list[str] | None]:
+            try:
+                found = await self._graph_call(graph.list_application_owners(str(app["id"])))
+            except Exception as exc:
+                log.warning("azure.application_owners_failed", error=str(exc))
+                return str(app["id"]), None
+            return str(app["id"]), [str(owner["id"]) for owner in found if owner.get("id")]
+
+        pairs = await self._gather_limited([owners_of(app) for app in reading])
+        owners = {app_id: found for app_id, found in pairs if found is not None}
+
+        principals: dict[str, str] = {}
+        app_ids = sorted({str(app["appId"]) for app in reading if app.get("appId")})
+        unmapped = 0
+        for start in range(0, len(app_ids), GRAPH_IN_FILTER_LIMIT):
+            batch = app_ids[start : start + GRAPH_IN_FILTER_LIMIT]
+            try:
+                found = await self._graph_call(graph.list_service_principals_by_app_id(batch))
+            except Exception as exc:
+                unmapped += len(batch)
+                log.warning("azure.application_principals_failed", error=str(exc))
+                continue
+            for principal in found:
+                if principal.get("appId") and principal.get("id"):
+                    principals[str(principal["appId"])] = str(principal["id"])
+
+        data = {"application_owners": owners, "application_service_principals": principals}
+        missing = len(reading) - len(owners)
+        reasons = []
+        if len(applications) > len(reading):
+            reasons.append(
+                f"owners were read for {len(reading)} of {len(applications)} applications"
+            )
+        if missing:
+            reasons.append(f"the owners of {missing} applications could not be read")
+        if unmapped:
+            reasons.append(f"the service principals of {unmapped} applications were not read")
+        if graph.truncated:
+            reasons.append("an application has more owners than one scan reads")
+        return TaskData(data, partial_reason="; ".join(reasons) if reasons else None)
 
     async def _role_membership(self, collected: dict[str, Any]) -> TaskData:
         """Who holds which directory role, and whether they have MFA.
@@ -1136,6 +1383,11 @@ class AzurePlanBuilder:
 
         graph = GraphClient(self.tokens, self._http, limiter=self._limiter)
         role_map: dict[str, list[str]] = {}
+        # What kind of directory object each member is. A service principal or
+        # a role-assignable group holding a directory role has no record in the
+        # user listing, and without its kind the graph could not type the node
+        # it needs (DECISIONS.md section 129).
+        member_types: dict[str, str] = {}
         privileged: set[str] = set()
         failures = 0
 
@@ -1152,6 +1404,7 @@ class AzurePlanBuilder:
                 if not member_id:
                     continue
                 role_map.setdefault(member_id, []).append(name)
+                member_types[member_id] = str(member.get("@odata.type") or "")
                 if name.strip().lower() in PRIVILEGED_ROLE_NAMES:
                     privileged.add(member_id)
 
@@ -1167,6 +1420,7 @@ class AzurePlanBuilder:
         pairs = await self._gather_limited([methods_for(u) for u in privileged])
         data = {
             "user_role_map": role_map,
+            "directory_role_member_types": member_types,
             "authentication_methods": dict(pairs),
         }
         if failures:

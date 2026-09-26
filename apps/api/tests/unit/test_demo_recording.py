@@ -147,14 +147,19 @@ def test_every_choke_point_closes_exactly_what_it_says_on_a_real_estate() -> Non
     assert routes, "the recording has routes"
 
     for choke in estate.choke_points():
-        gone = (
+        # Everything the removal takes: one line, or both lines of a role
+        # assignment drawn also as an escalation (DECISIONS.md section 127).
+        gone = estate.removal_key(
             choke.step.source.provider_resource_id,
             choke.step.relationship,
             choke.step.target.provider_resource_id,
         )
         pruned = AssetGraph.build(
             list(estate.nodes.values()),
-            [link for link in estate.links() if link != gone],
+            [link for link in estate.links() if estate.removal_key(*link) != gone],
+            # The links already include the edges the nodes imply; deriving
+            # them again would put the removed one back.
+            derive=False,
         )
         assert len(pruned.attack_paths()) == len(routes) - choke.severs
         assert choke.severs <= choke.on_routes

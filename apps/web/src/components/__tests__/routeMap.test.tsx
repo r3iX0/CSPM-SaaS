@@ -15,7 +15,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { layoutRouteMap } from "../graph/routeMapLayout";
+import { layoutRouteMap, pairSpeakers, placeLabels } from "../graph/routeMapLayout";
 import { COLUMN_GAP } from "../graph/neighborhoodLayout";
 import type { RouteMap } from "@/lib/types";
 
@@ -25,6 +25,9 @@ const node = (id: string, column: number) => ({
   name: id,
   resource_type: "virtual_machine",
   provider: "AZURE",
+  scope_id: "sub-1",
+  scope_name: "Production",
+  group: "prod",
   column,
   public_exposure: "LOW" as const,
   data_sensitivity: "LOW" as const,
@@ -96,5 +99,46 @@ describe("the route map's layout", () => {
     // Whichever way in sorts first, its identity follows it rather than
     // landing under the other one's.
     expect(above("api", "web")).toBe(above("mi-b", "mi-a"));
+  });
+});
+
+describe("the route map's labels", () => {
+  it("names a role and the escalation it grants once, on one line", () => {
+    // Both are drawn along one curve between one pair of boxes, and their two
+    // labels printed on the same spot ("can gra can act over").
+    const role = { ...edge("admin", "sub"), relationship: "grants_role", label: "can act over" };
+    const grant = {
+      ...edge("admin", "sub"),
+      relationship: "can_grant_roles",
+      label: "can grant roles over",
+    };
+    const speakers = pairSpeakers([grant, role], (each) => [
+      each.relationship === "grants_role" ? 1 : 0,
+    ]);
+
+    expect(speakers.size).toBe(1);
+    expect(speakers.get("admin|sub")).toEqual({
+      key: "admin|grants_role|sub",
+      text: "can act over · can grant roles over",
+    });
+    // What is being read speaks for the pair when it is the other line.
+    expect(
+      pairSpeakers([grant, role], (each) => [each.relationship === "can_grant_roles" ? 1 : 0])
+        .get("admin|sub")?.key,
+    ).toBe("admin|can_grant_roles|sub");
+  });
+
+  it("draws no label over another, the more important first", () => {
+    const from = { x: 0, y: 0 };
+    const to = { x: COLUMN_GAP, y: 0 };
+    const kept = placeLabels([
+      { id: "first", text: "can grant itself any role over", from, to },
+      // The same midpoint: left out.
+      { id: "same", text: "can act over", from, to },
+      // A row below, where the lines no longer crowd: drawn.
+      { id: "below", text: "can act over", from: { x: 0, y: 72 }, to: { x: COLUMN_GAP, y: 72 } },
+    ]);
+
+    expect([...kept]).toEqual(["first", "below"]);
   });
 });

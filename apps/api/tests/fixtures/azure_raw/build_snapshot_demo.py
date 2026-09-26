@@ -50,12 +50,18 @@ LOCATION = "westeurope"
 # East US, the region somebody picked once and nobody meant to keep. Three
 # regions, so the dashboard's region map draws an estate rather than a dot.
 ARCHIVE_LOCATION = "northeurope"
+# The directory group that holds a data role over the records.
+ANALYSTS_GROUP = "8a7e0c3f-5d21-4b6e-9f43-2c1d0e9b7a65"
 BUILD_LOCATION = "eastus"
 
-# Built-in role definitions, with their real ids and permissions. The graph
-# only needs the id to resolve; the permissions are what decide whether a role
-# can grant roles, which is the escalation edge.
-ROLES: dict[str, tuple[str, list[str]]] = {
+# Built-in role definitions, with their real ids and permissions: actions, then
+# data actions. The permissions decide both whether a role can grant roles --
+# the escalation edge -- and what it reaches at all, since a role edge is walked
+# only as far as its actions control (DECISIONS.md section 125). The data
+# actions matter as much as the actions: every blob or secret a data-plane role
+# reads, it reads through them.
+_BLOBS = "Microsoft.Storage/storageAccounts/blobServices/containers/blobs"
+ROLES: dict[str, tuple[str, list[str], list[str]]] = {
     "ba92f5b4-2d11-453d-a403-e96b0029c9fe": (
         "Storage Blob Data Contributor",
         [
@@ -64,6 +70,13 @@ ROLES: dict[str, tuple[str, list[str]]] = {
             "Microsoft.Storage/storageAccounts/blobServices/containers/write",
             "Microsoft.Storage/storageAccounts/blobServices/generateUserDelegationKey/action",
         ],
+        [
+            f"{_BLOBS}/delete",
+            f"{_BLOBS}/read",
+            f"{_BLOBS}/write",
+            f"{_BLOBS}/move/action",
+            f"{_BLOBS}/add/action",
+        ],
     ),
     "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1": (
         "Storage Blob Data Reader",
@@ -71,13 +84,22 @@ ROLES: dict[str, tuple[str, list[str]]] = {
             "Microsoft.Storage/storageAccounts/blobServices/containers/read",
             "Microsoft.Storage/storageAccounts/blobServices/generateUserDelegationKey/action",
         ],
+        [f"{_BLOBS}/read"],
     ),
-    "4633458b-17de-408a-b874-0445c86b69e6": ("Key Vault Secrets User", []),
+    "4633458b-17de-408a-b874-0445c86b69e6": (
+        "Key Vault Secrets User",
+        [],
+        [
+            "Microsoft.KeyVault/vaults/secrets/getSecret/action",
+            "Microsoft.KeyVault/vaults/secrets/readMetadata/action",
+        ],
+    ),
     "18d7d88d-d35e-4fb5-a5c3-7773c20a72d9": (
         "User Access Administrator",
         ["*/read", "Microsoft.Authorization/*", "Microsoft.Support/*"],
+        [],
     ),
-    "acdd72a7-3385-48ef-bd42-f606fba81ae7": ("Reader", ["*/read"]),
+    "acdd72a7-3385-48ef-bd42-f606fba81ae7": ("Reader", ["*/read"], []),
 }
 
 
@@ -86,19 +108,32 @@ def arm(group: str, provider: str, name: str) -> str:
 
 
 def role_definition(role_id: str) -> dict[str, Any]:
-    name, actions = ROLES[role_id]
+    name, actions, data_actions = ROLES[role_id]
     return {
         "id": f"{SUB}/providers/Microsoft.Authorization/roleDefinitions/{role_id}",
         "name": role_id,
         "properties": {
             "roleName": name,
             "type": "BuiltInRole",
-            "permissions": [{"actions": actions, "notActions": []}],
+            "permissions": [
+                {
+                    "actions": actions,
+                    "notActions": [],
+                    "dataActions": data_actions,
+                    "notDataActions": [],
+                }
+            ],
         },
     }
 
 
-def role_assignment(key: str, principal_id: str, role_id: str, scope: str) -> dict[str, Any]:
+def role_assignment(
+    key: str,
+    principal_id: str,
+    role_id: str,
+    scope: str,
+    principal_type: str = "ServicePrincipal",
+) -> dict[str, Any]:
     return {
         "id": f"{SUB}/providers/Microsoft.Authorization/roleAssignments/{key}",
         "name": key,
@@ -106,7 +141,7 @@ def role_assignment(key: str, principal_id: str, role_id: str, scope: str) -> di
         "properties": {
             "roleDefinitionId": role_definition(role_id)["id"],
             "principalId": principal_id,
-            "principalType": "ServicePrincipal",
+            "principalType": principal_type,
             "scope": scope,
         },
     }
@@ -372,8 +407,37 @@ def build() -> dict[str, Any]:
             role_assignment(
                 "reporting-reader", reporting, "acdd72a7-3385-48ef-bd42-f606fba81ae7", data_group
             ),
+            # A group holding a data role: how most people get access in a real
+            # tenant, and a route only once its members are read
+            # (DECISIONS.md section 126).
+            role_assignment(
+                "analysts-records",
+                ANALYSTS_GROUP,
+                "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1",
+                data_group,
+                principal_type="Group",
+            ),
         ]
     )
+    # Who is in it: one account the directory reading holds, and one it does
+    # not -- a contractor from another tenant, read here as a name only.
+    data["role_group_members"] = {
+        ANALYSTS_GROUP: {
+            "display_name": "Data analysts",
+            "members": [
+                {
+                    "id": "u-normal",
+                    "type": "#microsoft.graph.user",
+                    "display_name": "Normal User",
+                },
+                {
+                    "id": "u-contractor",
+                    "type": "#microsoft.graph.user",
+                    "display_name": "Contractor (guest)",
+                },
+            ],
+        }
+    }
 
     # ------------------------------------------------------------ coverage
     coverage = snapshot["coverage"]
@@ -386,6 +450,7 @@ def build() -> dict[str, Any]:
         ("app_services", "compute"),
         ("role_assignments", "authorization"),
         ("role_definitions", "authorization"),
+        ("role_group_members", "authorization"),
         ("key_vaults", "secrets"),
         ("subscription", "resources"),
     ):

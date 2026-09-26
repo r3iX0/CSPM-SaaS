@@ -148,14 +148,9 @@ def test_reach_inside_one_box_is_not_drawn_as_crossing_it() -> None:
     assert draw(Lens(), graph).edges == ()
 
 
-def test_the_edges_on_a_route_are_marked_and_the_boxes_count_it() -> None:
+def test_the_boxes_count_the_routes_through_them() -> None:
     mapped = draw(Lens())
-    routed = {(e.source, e.target) for e in mapped.edges if e.on_route}
 
-    assert routed == {
-        (scope_box("sub-a"), scope_box(DIRECTORY_SCOPE)),
-        (scope_box(DIRECTORY_SCOPE), scope_box("sub-b")),
-    }
     assert mapped.routes_total == 1
     assert mapped.routes == {
         scope_box("sub-a"): 1,
@@ -302,7 +297,7 @@ def test_serialized_boxes_carry_the_same_counts_whatever_they_hold() -> None:
 
     into_b = next(e for e in body["edges"] if e["target"] == scope_box("sub-b"))
     assert into_b["source"] == scope_box(DIRECTORY_SCOPE)
-    assert into_b["on_route"] is True
+    assert "on_route" not in into_b
     assert into_b["links"] == [
         {"relationship": "grants_role", "count": 1, "label": "can act over"}
     ]
@@ -325,3 +320,20 @@ def test_serialized_asset_boxes_link_to_their_page() -> None:
     assert storage["resource_type"] == "storage_account"
     assert storage["sensitive"] == 1
     assert body["lens"] == {"scope_id": "sub-b", "group": "Data"}
+
+
+# ------------------------------------------------------------ routes
+def test_the_map_sends_no_routes_to_walk() -> None:
+    # Walking a route is the attack-path page's (DECISIONS.md section 138): the
+    # map sends the count its link there carries, and nothing to trace.
+    mapped = draw(Lens())
+    placements = Placements(
+        of=PLACEMENTS,
+        row_ids={},
+        scope_names={"sub-a": "Web", "sub-b": "Data"},
+        scope_providers={},
+    )
+    body = serialize_estate(mapped, placements, {})
+
+    assert set(body) == {"lens", "boxes", "edges"}
+    assert {box["id"]: box["routes"] for box in body["boxes"]}[scope_box("sub-b")] == 1

@@ -258,7 +258,7 @@ az provider operation show --namespace Microsoft.KeyVault \
   --query "resourceTypes[].operations[].name"
 ```
 
-`ROLE_VERSION` is `v7`, and `ROLE_HISTORY` records what every published version
+`ROLE_VERSION` is `v8`, and `ROLE_HISTORY` records what every published version
 granted. A version exists to flag a deployed role that is *insufficient* for a
 newer rule; narrowing is backward compatible and does not warrant a bump. `v2`
 added Resource Graph, which inventory needs since it moved off the ARM resource
@@ -271,6 +271,11 @@ server parameter (`require_secure_transport`), and App Service sites and their
 configuration -- twenty-five reads in all. The App Service configuration read
 returns TLS, FTP and debugging settings; application settings and connection
 strings sit behind `config/list`, an `/action` the role never requests.
+`v8` adds one: `Microsoft.Authorization/roleEligibilityScheduleInstances/read`,
+which roles a principal could activate under Privileged Identity Management
+(`DECISIONS.md` §130) -- twenty-six reads in all. A v7 connection keeps every
+verdict and every route; the access view cannot list eligible holders until the
+role is redeployed.
 A connection on an older role keeps every
 other category and loses exactly the checks the missing actions serve, which
 `degraded_categories` names in those terms rather than as a 403 — and those

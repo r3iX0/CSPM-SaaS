@@ -24,10 +24,12 @@ rather than something plausible.
 
 from app.core.enums import RelationshipType
 from app.domain.resource import CloudResource
+from app.graph.access import control_pairs, role_entries
+from app.graph.identity import directory_reason
 
 # Metadata a normalizer writes for the facts below to be readable. Neutral
 # keys, written by whichever connector has the answer: ``roles`` is a list of
-# ``{"role", "scope", "grants_role_assignment"}`` on a principal, ``subnets``
+# role entries on a principal (``graph/access.py`` spells them out), ``subnets``
 # a list of subnet ids on a machine, ``principal_type`` a string on a minted
 # identity.
 ROLES = "roles"
@@ -58,6 +60,11 @@ def edge_facts(
         return _identity_kind(target)
     if relationship is RelationshipType.NETWORK_ACCESS:
         return _shared_network(source, target)
+    if relationship in {RelationshipType.CAN_ACT_AS, RelationshipType.CAN_TAKE_OVER}:
+        # The directory role, the ownership or the credential -- whichever of
+        # them somebody would remove (DECISIONS.md section 128).
+        reason = directory_reason(source, relationship)
+        return (reason,) if reason else ()
     return ()
 
 
@@ -66,36 +73,49 @@ def _roles(
 ) -> tuple[str, ...]:
     """The roles this principal holds over this scope, by name.
 
-    Matched on the scope case-insensitively, for the reason the normalizer
-    joins scopes that way: an assignment's scope is spelled by whoever made it,
-    and ``resourcegroups/lab-rg`` over a group whose id says
-    ``resourceGroups/LAB-RG`` is the same scope.
+    Matched on where the edge was drawn, case-insensitively, for the reason the
+    normalizer joins scopes that way: an assignment's scope is spelled by
+    whoever made it, and ``resourcegroups/lab-rg`` over a group whose id says
+    ``resourceGroups/LAB-RG`` is the same scope. An assignment inherited from a
+    management group is drawn to the subscription and says where it came from.
 
-    For an escalation edge, only the assignments that carry the escalation.
-    The principal may hold Reader over the same scope too, and naming Reader
-    beside "can grant itself any role" would put the harmless assignment's name
-    on the dangerous claim.
+    For an escalation edge, only the assignments that carry the escalation. For
+    a role edge, the roles that control something first: the principal may hold
+    Reader over the same scope too, and naming Reader first on a hop the walk
+    took because of Owner would put the harmless assignment's name on the
+    dangerous claim (DECISIONS.md section 125).
     """
-    wanted = scope.provider_resource_id.lower()
-    held = principal.metadata.get(ROLES)
-    if not isinstance(held, list):
-        return ()
-
-    names: list[str] = []
-    for entry in held:
-        if not isinstance(entry, dict):
-            continue
-        if str(entry.get("scope", "")).lower() != wanted:
-            continue
+    ranked: list[tuple[bool, str]] = []
+    for entry in role_entries(principal, scope.provider_resource_id):
         if escalating and not entry.get("grants_role_assignment"):
             continue
         name = entry.get("role")
-        if isinstance(name, str) and name and name not in names:
+        if not isinstance(name, str) or not name:
+            continue
+        origin = entry.get("inherited_from")
+        if isinstance(origin, str) and origin:
+            name = f"{name} from {_ancestor_name(origin)}"
+        controlling = "access" not in entry or bool(
+            entry.get("grants_role_assignment")
+        ) or any(True for _ in control_pairs(entry.get("access")))
+        ranked.append((not controlling, name))
+
+    names: list[str] = []
+    for _, name in sorted(ranked, key=lambda item: item[0]):
+        if name not in names:
             names.append(name)
 
     if len(names) > _MAX_ROLES:
         return (*names[:_MAX_ROLES], f"and {len(names) - _MAX_ROLES} more")
     return tuple(names)
+
+
+def _ancestor_name(scope: str) -> str:
+    """A management group by its name, or the root by what it is."""
+    trimmed = scope.rstrip("/")
+    if not trimmed:
+        return "the tenant root"
+    return f"management group {trimmed.rsplit('/', 1)[-1]}"
 
 
 def _identity_kind(identity: CloudResource) -> tuple[str, ...]:

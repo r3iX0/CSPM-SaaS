@@ -23,6 +23,7 @@ import {
   GlobeIcon,
   HardDriveIcon,
   KeyRoundIcon,
+  UserRoundKeyIcon,
   LayersIcon,
   LockIcon,
   MapPinIcon,
@@ -43,6 +44,7 @@ import {
   UserCogIcon,
   UserIcon,
   UsersIcon,
+  UsersRoundIcon,
   WaypointsIcon,
   WorkflowIcon,
   type LucideIcon,
@@ -79,6 +81,8 @@ const RESOURCE_TYPE_ICONS: Record<string, LucideIcon> = {
   postgresql_server: DatabaseIcon,
   user: UserIcon,
   service_principal: BotIcon,
+  // A directory group holding a role. Not UsersIcon, which is the directory itself.
+  group: UsersRoundIcon,
   application: AppWindowIcon,
   role_assignment: UserCogIcon,
   diagnostic_setting: ScrollTextIcon,
@@ -195,5 +199,6 @@ export const RISK_KIND_ICONS: Record<string, LucideIcon> = {
 export const ASSET_TAB_ICONS = {
   findings: ShieldAlertIcon,
   connections: WorkflowIcon,
+  access: UserRoundKeyIcon,
   configuration: BracesIcon,
 } as const;

@@ -669,6 +669,18 @@ class ArmClient(_BaseClient):
             "/roleAssignments?api-version=2022-04-01"
         )
 
+    async def list_role_eligibilities(self, subscription_id: str) -> list[dict[str, Any]]:
+        """Roles principals are eligible to activate under Privileged Identity
+        Management, at, above and below this subscription.
+
+        Instances rather than schedules: an instance is an eligibility in force
+        now, which is what "could activate this today" means.
+        """
+        return await self.get_all(
+            f"/subscriptions/{subscription_id}/providers/Microsoft.Authorization"
+            "/roleEligibilityScheduleInstances?api-version=2020-10-01"
+        )
+
     async def list_role_assignments_at_scope(self, scope: str) -> list[dict[str, Any]]:
         """Assignments at an arbitrary scope -- a management group, typically.
 
@@ -905,6 +917,30 @@ class GraphClient(_BaseClient):
         """
         return await self.get_all(f"/groups/{group_id}/members?$select=id&$top=999")
 
+    async def list_groups_by_id(self, group_ids: list[str]) -> list[dict[str, Any]]:
+        """The names of up to fifteen groups, in one call.
+
+        Graph's ``in`` filter takes at most fifteen values, so the caller
+        batches. A group that no longer exists is simply absent from the answer.
+        """
+        quoted = ",".join(f"'{group_id}'" for group_id in group_ids)
+        return await self.get_all(
+            f"/groups?$filter=id in ({quoted})&$select=id,displayName&$top=999"
+        )
+
+    async def list_group_transitive_members(self, group_id: str) -> list[dict[str, Any]]:
+        """Everyone a group's role reaches: its members, and the members of
+        every group inside it.
+
+        Transitive rather than direct because a role held by a group is held by
+        everybody nested under it, and reading one level would call the
+        accounts two groups down unprivileged. Read only for groups that hold
+        a role in the subscription being scanned.
+        """
+        return await self.get_all(
+            f"/groups/{group_id}/transitiveMembers?$select=id,displayName&$top=999"
+        )
+
     async def list_applications(self) -> list[dict[str, Any]]:
         """This tenant's own application registrations, with their credentials.
 
@@ -937,6 +973,64 @@ class GraphClient(_BaseClient):
         one is told.
         """
         return await self.get_all("/users?$select=id,signInActivity&$top=999")
+
+    async def list_application_owners(self, application_id: str) -> list[dict[str, Any]]:
+        """Who owns one application registration, by object id.
+
+        An owner can add a credential to the registration and sign in as its
+        service principal, so an owner holds whatever that principal holds.
+        """
+        return await self.get_all(
+            f"/applications/{application_id}/owners?$select=id&$top=999"
+        )
+
+    async def list_service_principals_by_app_id(
+        self, app_ids: list[str]
+    ) -> list[dict[str, Any]]:
+        """The service principals of up to fifteen application registrations.
+
+        A role assignment names a service principal by its object id; an
+        application registration knows only its app id. This is the join.
+        """
+        quoted = ",".join(f"'{app_id}'" for app_id in app_ids)
+        return await self.get_all(
+            f"/servicePrincipals?$filter=appId in ({quoted})&$select=id,appId&$top=999"
+        )
+
+    async def find_permission_catalogue(self, app_id: str) -> dict[str, Any] | None:
+        """An API's service principal in this tenant, with the permissions it
+        defines -- for Microsoft Graph, what each app role id means.
+
+        Read from the tenant rather than written down, for the reason
+        ``auth.py`` records: an app role id that looks right and is not is
+        indistinguishable from one that is.
+        """
+        results = await self.get_all(
+            f"/servicePrincipals?$filter=appId eq '{app_id}'&$select=id,appId,appRoles"
+        )
+        return results[0] if results else None
+
+    async def list_directory_role_eligibilities(self) -> list[dict[str, Any]]:
+        """Directory roles principals are eligible to activate under Privileged
+        Identity Management, with each role's name and each principal's kind.
+
+        Needs an Entra ID P2 licence; the caller handles its absence.
+        """
+        return await self.get_all(
+            "/roleManagement/directory/roleEligibilityScheduleInstances"
+            "?$expand=roleDefinition,principal"
+        )
+
+    async def list_app_role_assigned_to(self, resource_id: str) -> list[dict[str, Any]]:
+        """Every principal in the tenant granted one of this API's app roles.
+
+        Read from the API's side, so one listing covers every service principal
+        and managed identity, rather than a call per principal.
+        """
+        return await self.get_all(
+            f"/servicePrincipals/{resource_id}/appRoleAssignedTo?"
+            "$select=principalId,principalType,principalDisplayName,appRoleId&$top=999"
+        )
 
     async def find_service_principal(self, app_id: str) -> dict[str, Any] | None:
         """CloudGuard's own service principal, as it exists in this tenant.

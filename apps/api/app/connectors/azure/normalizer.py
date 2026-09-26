@@ -18,6 +18,7 @@ import re
 from datetime import UTC, datetime
 from typing import Any
 
+from app.connectors.azure.access import access_profile
 from app.connectors.azure.network import network_access
 from app.connectors.azure.rbac import action_matches
 from app.connectors.base import NormalizedState, RawSnapshot
@@ -171,6 +172,265 @@ def _principal_node(principal_id: str, known: set[str]) -> str:
     return f"/principals/{principal_id}"
 
 
+# Graph's names for the kinds of directory object a group can hold, and the
+# neutral type each one is. Anything else -- a device, an organizational
+# contact -- is not something a role reaches through.
+_MEMBER_KINDS = {
+    "#microsoft.graph.user": ResourceType.USER.value,
+    "#microsoft.graph.serviceprincipal": ResourceType.SERVICE_PRINCIPAL.value,
+    "#microsoft.graph.group": ResourceType.GROUP.value,
+}
+
+
+def _group_node(
+    node_id: str, group_id: str, read: dict[str, Any] | None
+) -> CloudResource:
+    """A group that holds a role, with the identities its role reaches.
+
+    The members are recorded on the group rather than drawn as edges here: a
+    member is usually a directory account, read in the directory's own capture,
+    so the edge from it can only be drawn once both are in one graph
+    (``graph/identity.py``). Nested groups are recorded too, and are not walked
+    through -- the listing is already transitive, so everyone under them is
+    listed directly.
+    """
+    members: list[dict[str, Any]] = []
+    if isinstance(read, dict):
+        for member in read.get("members") or []:
+            kind = _MEMBER_KINDS.get(str(member.get("type") or "").lower())
+            if kind is None or not member.get("id"):
+                continue
+            members.append(
+                {"id": str(member["id"]), "kind": kind, "name": member.get("display_name")}
+            )
+    name = read.get("display_name") if isinstance(read, dict) else None
+    return CloudResource(
+        provider_resource_id=node_id,
+        resource_type=ResourceType.GROUP,
+        name=str(name) if name else f"Group {group_id[:8]}",
+        provider=Provider.AZURE,
+        metadata={
+            "principal_id": group_id,
+            "principal_type": "Group",
+            "identity_id": group_id,
+            "stub": True,
+            # None when the membership was not read: "reaches nobody" and
+            # "nobody knows whom it reaches" are different answers.
+            "members": members if isinstance(read, dict) else None,
+        },
+    )
+
+
+# Directory roles that can make their holder owner of every subscription. A
+# Global Administrator elevates to User Access Administrator at the root; a
+# Privileged Role Administrator can make itself Global Administrator; a
+# Privileged Authentication Administrator can reset one's credentials. Matched
+# by name, as ``_mfa_policies`` matches them, rather than by template ids
+# written from memory (section 128).
+_TAKEOVER_ROLES = frozenset(
+    {
+        "global administrator",
+        "privileged role administrator",
+        "privileged authentication administrator",
+    }
+)
+# Directory roles that can add a credential to any application registration,
+# and so act as any of the tenant's service principals.
+_APPLICATION_ROLES = frozenset(
+    {"application administrator", "cloud application administrator"}
+)
+
+
+# Microsoft Graph application permissions that are a directory role by another
+# name. Matched on the permission's own value, read from Graph's catalogue in
+# the tenant, never on an app role id written down here.
+_GRAPH_TAKEOVER_PERMISSIONS = frozenset(
+    {
+        # Writes directory role assignments: it can make itself Global
+        # Administrator.
+        "RoleManagement.ReadWrite.Directory",
+        # Grants app roles: it can grant itself the permission above.
+        "AppRoleAssignment.ReadWrite.All",
+    }
+)
+_GRAPH_APPLICATION_PERMISSIONS = frozenset({"Application.ReadWrite.All"})
+
+_DIRECTORY_OBJECT_KINDS = {
+    "#microsoft.graph.serviceprincipal": ResourceType.SERVICE_PRINCIPAL,
+    "#microsoft.graph.group": ResourceType.GROUP,
+}
+
+
+def _eligible_directory_roles(
+    data: dict[str, Any],
+) -> tuple[dict[str, list[str]], dict[str, str]]:
+    """Directory roles each principal is eligible to activate, tenant-wide.
+
+    Only eligibilities scoped to the whole directory (``/``). One scoped to an
+    administrative unit governs the objects in that unit, not the tenant, and
+    is no route to every subscription. Returns names by principal, and each
+    principal's kind as Graph states it.
+    """
+    names: dict[str, list[str]] = {}
+    kinds: dict[str, str] = {}
+    for instance in data.get("directory_role_eligibilities") or []:
+        if not isinstance(instance, dict) or instance.get("directoryScopeId") != "/":
+            continue
+        principal = str(instance.get("principalId") or "")
+        definition = instance.get("roleDefinition") or {}
+        name = definition.get("displayName") if isinstance(definition, dict) else None
+        if not principal or not name:
+            continue
+        names.setdefault(principal, []).append(str(name))
+        detail = instance.get("principal") or {}
+        if isinstance(detail, dict) and detail.get("@odata.type"):
+            kinds[principal] = str(detail["@odata.type"])
+    return names, kinds
+
+
+def _directory_principals(data: dict[str, Any]) -> list[CloudResource]:
+    """The directory's record of each principal that is not a user and holds a
+    directory power: a directory role, or a Graph permission that amounts to
+    one (DECISIONS.md section 129).
+
+    Users carry their powers on their own node. A service principal or a
+    role-assignable group had nowhere to carry them, because the directory
+    reading produced no node for it -- so a managed identity granted
+    ``RoleManagement.ReadWrite.Directory`` reached nothing. This is that node:
+    the same id a subscription's role assignments mint for the principal, so the
+    graph merges the two and the powers meet the Azure roles.
+
+    Only principals holding a power. The directory holds thousands of service
+    principals, and a record of each would be a directory dump for nothing.
+    """
+    users = {str(user.get("id")) for user in data.get("users") or [] if user.get("id")}
+    role_map = data.get("user_role_map") or {}
+    kinds = data.get("directory_role_member_types") or {}
+    catalogue = data.get("graph_app_roles") or {}
+
+    powers: dict[str, list[dict[str, str]]] = {}
+    eligible_powers: dict[str, list[dict[str, str]]] = {}
+    eligible_names, eligible_kinds = _eligible_directory_roles(data)
+    roles: dict[str, list[str]] = {}
+    permissions: dict[str, list[str]] = {}
+    names: dict[str, str] = {}
+    types: dict[str, ResourceType] = {}
+
+    if isinstance(role_map, dict):
+        for member_id, held in role_map.items():
+            if str(member_id) in users or not isinstance(held, list):
+                continue
+            found = _directory_powers(held)
+            if found:
+                powers.setdefault(str(member_id), []).extend(found)
+                roles[str(member_id)] = [str(name) for name in held]
+                kind = str(kinds.get(member_id) or "").lower() if isinstance(kinds, dict) else ""
+                types[str(member_id)] = _DIRECTORY_OBJECT_KINDS.get(
+                    kind, ResourceType.SERVICE_PRINCIPAL
+                )
+
+    for principal, held in eligible_names.items():
+        if principal in users:
+            continue
+        found = _directory_powers(held)
+        if found:
+            eligible_powers[principal] = found
+            types.setdefault(
+                principal,
+                _DIRECTORY_OBJECT_KINDS.get(
+                    eligible_kinds.get(principal, "").lower(), ResourceType.SERVICE_PRINCIPAL
+                ),
+            )
+
+    for grant in data.get("graph_permission_grants") or []:
+        if not isinstance(grant, dict) or grant.get("principalType") != "ServicePrincipal":
+            continue
+        principal = str(grant.get("principalId") or "")
+        permission = (
+            catalogue.get(str(grant.get("appRoleId"))) if isinstance(catalogue, dict) else None
+        )
+        if not principal or not permission:
+            continue
+        power = (
+            "control_all_scopes"
+            if permission in _GRAPH_TAKEOVER_PERMISSIONS
+            else "act_as_any_application"
+            if permission in _GRAPH_APPLICATION_PERMISSIONS
+            else None
+        )
+        if power is None:
+            continue
+        powers.setdefault(principal, []).append(
+            {"power": power, "via": f"Graph permission {permission}"}
+        )
+        permissions.setdefault(principal, []).append(str(permission))
+        types.setdefault(principal, ResourceType.SERVICE_PRINCIPAL)
+        if grant.get("principalDisplayName"):
+            names[principal] = str(grant["principalDisplayName"])
+
+    resources = []
+    for principal in sorted(powers.keys() | eligible_powers.keys()):
+        held = powers.get(principal, [])
+        kind = types.get(principal, ResourceType.SERVICE_PRINCIPAL)
+        label = "Group" if kind is ResourceType.GROUP else "Service principal"
+        resources.append(
+            CloudResource(
+                provider_resource_id=f"/principals/{principal}",
+                resource_type=kind,
+                name=names.get(principal) or f"{label} {principal[:8]}",
+                provider=Provider.AZURE,
+                metadata={
+                    "principal_id": principal,
+                    # Said only for a group. Graph calls a managed identity a
+                    # service principal too, and a subscription's stand-in for
+                    # one knows better -- so this record leaves the kind to it.
+                    **({"principal_type": "Group"} if kind is ResourceType.GROUP else {}),
+                    # The directory's own record, so not a stand-in: where a
+                    # subscription minted the same principal, the graph keeps
+                    # this one's fields and adds the other's roles.
+                    "identity_id": principal,
+                    "directory_roles": roles.get(principal, []),
+                    "graph_permissions": sorted(set(permissions.get(principal, []))),
+                    "directory_powers": held,
+                    "eligible_directory_powers": eligible_powers.get(principal, []),
+                    # Named by its id when no reading named it, and so no match
+                    # for a stand-in that knows it by its workload's name.
+                    "unnamed": principal not in names,
+                },
+            )
+        )
+    return resources
+
+
+def _directory_powers(roles: Any) -> list[dict[str, str]]:
+    """What an account's directory roles let it do to the estate, neutrally.
+
+    ``control_all_scopes`` -- it can make itself owner of every subscription.
+    ``act_as_any_application`` -- it can sign in as any of this tenant's
+    applications. Each names the role it comes from, which is what somebody
+    removes.
+    """
+    powers: list[dict[str, str]] = []
+    for name in roles if isinstance(roles, list) else []:
+        lowered = str(name).strip().lower()
+        if lowered in _TAKEOVER_ROLES:
+            powers.append({"power": "control_all_scopes", "via": str(name)})
+        elif lowered in _APPLICATION_ROLES:
+            powers.append({"power": "act_as_any_application", "via": str(name)})
+    return powers
+
+
+def _is_ancestor_scope(scope: str) -> bool:
+    """Whether a role assignment's scope sits above every subscription.
+
+    The tenant root, or a management group. Nothing else an assignment can name
+    is above a subscription, and a subscription's listing includes these only
+    when they apply to it.
+    """
+    lowered = scope.lower().rstrip("/")
+    return lowered == "" or lowered.startswith("/providers/microsoft.management/managementgroups/")
+
+
 def _role_summary(definition: dict[str, Any] | None) -> str:
     """A role's name, or the honest absence of one.
 
@@ -273,6 +533,7 @@ class AzureNormalizer:
         state.resources.extend(
             self._normalize_applications(data, snapshot.collected_at)
         )
+        state.resources.extend(_directory_principals(data))
 
         # Everything else the subscription holds. Added after the service
         # listings and filtered against them, because the inventory covers the
@@ -667,6 +928,14 @@ class AzureNormalizer:
         # ``resourcegroups/lab-rg`` over a group whose id says
         # ``resourceGroups/LAB-RG`` is the same scope.
         scopes = {r.lower(): r for r in known}
+        subscription_node = next(
+            (
+                r.provider_resource_id
+                for r in resources
+                if r.resource_type is ResourceType.SUBSCRIPTION
+            ),
+            None,
+        )
         workloads = [*data.get("virtual_machines", []), *data.get("app_services", [])]
 
         # What to call a principal CloudGuard mints: the name the directory
@@ -681,6 +950,11 @@ class AzureNormalizer:
 
         nodes: dict[str, CloudResource] = {}
         edges: list[tuple[str, RelationshipType, str]] = []
+        # Who is in each role-holding group, where the subscription's reading
+        # resolved it. Absent for a group whose read failed -- which the node
+        # says, rather than claiming the role reaches nobody.
+        group_members = data.get("role_group_members")
+        group_members = group_members if isinstance(group_members, dict) else {}
 
         for assignment in assignments:
             props = assignment.get("properties", {}) or {}
@@ -691,32 +965,58 @@ class AzureNormalizer:
 
             definition = definitions.get(props.get("roleDefinitionId", ""))
             role = _role_summary(definition)
-            escalates = _grants_role_assignment(definition)
+            # A condition CloudGuard cannot evaluate. It may be the thing that
+            # confines a delegated administrator to handing out Reader, so an
+            # assignment carrying one is not drawn as an escalation, and what
+            # it grants through data actions is not claimed (``access.py``).
+            conditional = bool(props.get("condition"))
+            escalates = _grants_role_assignment(definition) and not conditional
+            access = access_profile(definition, conditional=conditional)
             principal_node = _principal_node(principal_id, known)
 
             if principal_node not in known and principal_node not in nodes:
-                nodes[principal_node] = CloudResource(
-                    provider_resource_id=principal_node,
-                    resource_type=ResourceType.SERVICE_PRINCIPAL,
-                    # With no directory record and no workload to name it after,
-                    # the type alone made every such identity read the same --
-                    # forty rows of "Identity can grant itself any role — User".
-                    # The start of the object id is what a person can look up in
-                    # Entra, and it tells the rows apart.
-                    name=identity_names.get(principal_id)
-                    or f"{props.get('principalType') or 'Principal'} {principal_id[:8]}",
-                    provider=Provider.AZURE,
-                    metadata={
-                        "principal_id": principal_id,
-                        "principal_type": props.get("principalType"),
-                    },
-                )
+                if str(props.get("principalType") or "").lower() == "group":
+                    nodes[principal_node] = _group_node(
+                        principal_node, principal_id, group_members.get(principal_id)
+                    )
+                else:
+                    nodes[principal_node] = CloudResource(
+                        provider_resource_id=principal_node,
+                        resource_type=ResourceType.SERVICE_PRINCIPAL,
+                        # With no directory record and no workload to name it
+                        # after, the type alone made every such identity read
+                        # the same -- forty rows of "Identity can grant itself
+                        # any role — User". The start of the object id is what a
+                        # person can look up in Entra, and it tells the rows
+                        # apart.
+                        name=identity_names.get(principal_id)
+                        or f"{props.get('principalType') or 'Principal'} {principal_id[:8]}",
+                        provider=Provider.AZURE,
+                        metadata={
+                            "principal_id": principal_id,
+                            "principal_type": props.get("principalType"),
+                            # The directory object this stands in for. The
+                            # directory's own record of it is read in another
+                            # capture, and the graph joins the two on this
+                            # (``graph/identity.py``, DECISIONS.md section 126).
+                            "identity_id": principal_id,
+                            "stub": True,
+                        },
+                    )
 
             # Only where the scope is something we hold. An assignment above the
             # subscription -- at a management group CloudGuard cannot see -- is
             # real and is not a reach we can describe, and inventing an edge to
             # a node that does not exist would be describing it anyway.
             target = scopes.get(str(scope).lower()) or (scope if scope in nodes else None)
+            # Above the subscription, and still describable. The subscription's
+            # own listing returns an assignment made at a management group or
+            # at the tenant root only because it applies here -- so Owner at
+            # the root is Owner over this subscription, and leaving it out drew
+            # the estate's most powerful principals as holding nothing.
+            inherited = target is None and _is_ancestor_scope(str(scope))
+            if inherited:
+                target = subscription_node
             if target is not None:
                 edges.append((principal_node, RelationshipType.GRANTS_ROLE, target))
                 # Beside it, never instead of it. The reach is the same pair of
@@ -742,9 +1042,79 @@ class AzureNormalizer:
             if existing is not None:
                 roles = list(existing.metadata.get("roles", []))
                 roles.append(
-                    {"role": role, "scope": scope, "grants_role_assignment": escalates}
+                    {
+                        "role": role,
+                        "scope": scope,
+                        "grants_role_assignment": escalates,
+                        # The node the edge was drawn to, which is the scope
+                        # itself except for an inherited assignment. None when
+                        # no edge was drawn at all.
+                        "target": target,
+                        "inherited_from": scope if inherited else None,
+                        "conditional": conditional,
+                        # Per resource type, what the role amounts to; None
+                        # when its definition was not read (``access.py``).
+                        "access": access,
+                    }
                 )
                 existing.metadata["roles"] = roles
+
+        # Roles a principal is eligible to activate under PIM rather than
+        # holds (section 130). Recorded apart from ``roles`` -- the rules judge
+        # standing access, and PIM is the fix they recommend -- and drawn with
+        # an edge the traversal does not walk.
+        for eligibility in data.get("role_eligibilities") or []:
+            props = eligibility.get("properties", {}) or {}
+            principal_id = props.get("principalId")
+            scope = props.get("scope")
+            status = props.get("status")
+            if not principal_id or not scope or (status and status != "Provisioned"):
+                continue
+            definition = definitions.get(props.get("roleDefinitionId", ""))
+            conditional = bool(props.get("condition"))
+            principal_node = _principal_node(principal_id, known)
+            if principal_node not in known and principal_node not in nodes:
+                if str(props.get("principalType") or "").lower() == "group":
+                    nodes[principal_node] = _group_node(
+                        principal_node, principal_id, group_members.get(principal_id)
+                    )
+                else:
+                    nodes[principal_node] = CloudResource(
+                        provider_resource_id=principal_node,
+                        resource_type=ResourceType.SERVICE_PRINCIPAL,
+                        name=identity_names.get(principal_id)
+                        or f"{props.get('principalType') or 'Principal'} {principal_id[:8]}",
+                        provider=Provider.AZURE,
+                        metadata={
+                            "principal_id": principal_id,
+                            "principal_type": props.get("principalType"),
+                            "identity_id": principal_id,
+                            "stub": True,
+                        },
+                    )
+            target = scopes.get(str(scope).lower()) or (scope if scope in nodes else None)
+            inherited = target is None and _is_ancestor_scope(str(scope))
+            if inherited:
+                target = subscription_node
+            if target is not None:
+                edges.append((principal_node, RelationshipType.ELIGIBLE_FOR, target))
+            holder = nodes.get(principal_node) or by_id.get(principal_node)
+            if holder is not None:
+                eligible = list(holder.metadata.get("eligible_roles", []))
+                eligible.append(
+                    {
+                        "role": _role_summary(definition),
+                        "scope": scope,
+                        "target": target,
+                        "inherited_from": scope if inherited else None,
+                        "conditional": conditional,
+                        "grants_role_assignment": _grants_role_assignment(definition)
+                        and not conditional,
+                        "access": access_profile(definition, conditional=conditional),
+                        "eligible": True,
+                    }
+                )
+                holder.metadata["eligible_roles"] = eligible
 
         # Resources that run as an identity. The first hop of the path. A web
         # app is a workload exactly as a machine is, and a taken app acts as its
@@ -764,6 +1134,8 @@ class AzureNormalizer:
                         metadata={
                             "principal_id": principal_id,
                             "principal_type": "ManagedIdentity",
+                            "identity_id": principal_id,
+                            "stub": True,
                         },
                     )
                 edges.append((vm["id"], RelationshipType.HAS_IDENTITY, principal_node))
@@ -970,6 +1342,15 @@ class AzureNormalizer:
                         "virtual_network_rules": network_acls.get("virtualNetworkRules")
                         or [],
                         "rbac_authorization": props.get("enableRbacAuthorization"),
+                        # The neutral reading of the same flag, for the graph
+                        # (``graph/access.py``): a vault on access policies is
+                        # one whose own list decides who reads its secrets.
+                        # Stated only when the vault said so either way.
+                        "governed_by_own_policy": (
+                            props.get("enableRbacAuthorization") is False
+                            if isinstance(props.get("enableRbacAuthorization"), bool)
+                            else None
+                        ),
                         "access_policy_count": len(props.get("accessPolicies") or []),
                         "diagnostic_settings": self._diagnostics_for(
                             vault["id"], diagnostics
@@ -1409,6 +1790,7 @@ class AzureNormalizer:
         self, data: dict[str, Any], collected_at: datetime
     ) -> list[CloudResource]:
         role_map = data.get("user_role_map", {}) or {}
+        eligible_names, _ = _eligible_directory_roles(data)
         auth_methods = data.get("authentication_methods", {}) or {}
         sign_in = data.get("user_sign_in_activity", {}) or {}
         resources = []
@@ -1429,7 +1811,20 @@ class AzureNormalizer:
                 # administrator, which is a different thing from a member of
                 # this one holding the same role.
                 "user_type": user.get("userType"),
+                # The directory object id, which a subscription's role
+                # assignments name this account by. The graph joins the two
+                # readings on it (``graph/identity.py``, section 126).
+                "identity_id": user_id,
                 "directory_roles": roles,
+                # What those roles let the account do to the estate, in the
+                # graph's neutral terms (section 128).
+                "directory_powers": _directory_powers(roles),
+                # Directory roles the account could activate under PIM, and what
+                # they would let it do -- listed, never walked (section 130).
+                "eligible_directory_roles": eligible_names.get(str(user_id), []),
+                "eligible_directory_powers": _directory_powers(
+                    eligible_names.get(str(user_id), [])
+                ),
             }
             metadata.update(
                 self._sign_in_state(user, sign_in, collected_at)
@@ -1527,6 +1922,12 @@ class AzureNormalizer:
         and no network control stands in front of that.
         """
         resources = []
+        # Who owns each registration and which principal it signs in as, where
+        # the directory reading resolved them (section 128).
+        owners = data.get("application_owners")
+        owners = owners if isinstance(owners, dict) else {}
+        principals = data.get("application_service_principals")
+        principals = principals if isinstance(principals, dict) else {}
 
         for app in data.get("application_credentials", []):
             app_object_id = app.get("id")
@@ -1561,6 +1962,14 @@ class AzureNormalizer:
                         "app_id": app.get("appId"),
                         "credentials": credentials,
                         "credential_count": len(credentials),
+                        # The service principal this registration signs in as,
+                        # by the id role assignments name it by; who can add a
+                        # credential to it (None when not read); and whether it
+                        # holds one of its own. The graph draws "can act as"
+                        # from these (``graph/identity.py``, section 128).
+                        "acts_as": principals.get(str(app.get("appId") or "")),
+                        "controllers": owners.get(str(app_object_id)),
+                        "can_sign_in": len(credentials) > 0,
                     },
                 )
             )

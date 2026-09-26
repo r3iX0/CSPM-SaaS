@@ -2,11 +2,14 @@
  * The estate map on the assets page.
  *
  * The layout is tested as a function, because that is where its promises
- * live: reach reads left to right from where it starts, a quiet box is never
- * mistaken for part of a route, and the same estate draws the same picture.
+ * live: reach reads left to right from where it starts, an arrow runs back
+ * only where a loop leaves no other way, a long arrow passes through a slot
+ * rather than over a box, a quiet box is never mistaken for part of a route,
+ * and the same estate draws the same picture.
  * The view is tested for what it decides: the lens is the list's scope
- * filter, opening a box is a step Back can retrace, and a lens on nothing
- * offers the way back rather than a blank frame.
+ * filter, opening a box is a step Back can retrace, a lens on nothing offers
+ * the way back rather than a blank frame, and attack paths are read on their
+ * own page -- a box links there, and an old link to walk one is sent there.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -16,7 +19,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { EstateGraph } from "@/components/assets/EstateGraph";
 import { ESTATE_COLUMN_GAP, QUIET_ROWS, layoutEstate } from "@/components/graph/estateLayout";
-import { boxHref, boxLabel, edgeLabel } from "@/components/graph/estateNames";
+import { boxHref, boxLabel, edgeLabel, edgeLabelShort } from "@/components/graph/estateNames";
 import { api, ApiError } from "@/lib/api";
 import type { EstateBox, EstateEdge, EstateMap } from "@/lib/types";
 
@@ -44,7 +47,6 @@ const link = (
   target: string,
   relationship = "grants_role",
   count = 1,
-  on_route = false,
 ): EstateEdge => ({
   source: `scope:${source}`,
   target: `scope:${target}`,
@@ -55,7 +57,6 @@ const link = (
       label: relationship === "has_identity" ? "runs as" : "can act over",
     },
   ],
-  on_route,
 });
 
 const ESTATE: EstateMap = {
@@ -67,14 +68,14 @@ const ESTATE: EstateMap = {
     scope("quiet"),
   ],
   edges: [
-    link("web", "directory", "has_identity", 1, true),
-    link("directory", "prod", "grants_role", 3, true),
+    link("web", "directory", "has_identity", 1),
+    link("directory", "prod", "grants_role", 3),
   ],
 };
 
 describe("the estate layout", () => {
   it("reads left to right from the box holding a way in", () => {
-    const at = layoutEstate(ESTATE);
+    const { at } = layoutEstate(ESTATE);
 
     expect(at.get("scope:web")!.x).toBe(0);
     expect(at.get("scope:directory")!.x).toBe(ESTATE_COLUMN_GAP);
@@ -82,25 +83,76 @@ describe("the estate layout", () => {
   });
 
   it("puts boxes with no reach after the route rather than on it", () => {
-    const at = layoutEstate(ESTATE);
+    const { at } = layoutEstate(ESTATE);
     expect(at.get("scope:quiet")!.x).toBe(3 * ESTATE_COLUMN_GAP);
   });
 
   it("stacks a quiet estate into a grid rather than one tall column", () => {
-    const boxes = Array.from({ length: QUIET_ROWS + 2 }, (_, i) => scope(`s${i}`));
-    const at = layoutEstate({ lens: ESTATE.lens, boxes, edges: [] });
+    const boxes = Array.from({ length: QUIET_ROWS + 2 }, (_, i) =>
+      scope(`s${i}`),
+    );
+    const { at } = layoutEstate({ lens: ESTATE.lens, boxes, edges: [] });
     const columns = new Set([...at.values()].map((p) => p.x));
     expect(columns.size).toBe(2);
   });
 
   it("draws a cycle nothing leads into rather than losing it", () => {
-    const at = layoutEstate({
+    const { at } = layoutEstate({
       lens: ESTATE.lens,
       boxes: [scope("a"), scope("b")],
       edges: [link("a", "b"), link("b", "a")],
     });
     expect(at.get("scope:a")!.x).toBe(0);
     expect(at.get("scope:b")!.x).toBe(ESTATE_COLUMN_GAP);
+  });
+
+  it("enters a loop at its way in, so the arrow drawn back is the one into it", () => {
+    const { at } = layoutEstate({
+      lens: ESTATE.lens,
+      boxes: [scope("a"), scope("b", { entry: 1 })],
+      edges: [link("a", "b"), link("b", "a")],
+    });
+    expect(at.get("scope:b")!.x).toBe(0);
+    expect(at.get("scope:a")!.x).toBe(ESTATE_COLUMN_GAP);
+  });
+
+  it("puts a way in that another way in reaches after it, rather than drawing reach back", () => {
+    // Both hold a way in. Stacked in the first column, as they once were, the
+    // arrow between them ran back round every box.
+    const { at } = layoutEstate({
+      lens: ESTATE.lens,
+      boxes: [scope("a", { entry: 1 }), scope("b", { entry: 1 }), scope("c")],
+      edges: [link("a", "b"), link("b", "c")],
+    });
+    expect(at.get("scope:a")!.x).toBe(0);
+    expect(at.get("scope:b")!.x).toBe(ESTATE_COLUMN_GAP);
+    expect(at.get("scope:c")!.x).toBe(2 * ESTATE_COLUMN_GAP);
+  });
+
+  it("keeps a slot for an arrow that crosses more than one gap, clear of the boxes", () => {
+    const { at, bends } = layoutEstate({
+      lens: ESTATE.lens,
+      boxes: [scope("a"), scope("b"), scope("c")],
+      edges: [link("a", "b"), link("b", "c"), link("a", "c")],
+    });
+    expect(at.get("scope:c")!.x).toBe(2 * ESTATE_COLUMN_GAP);
+    const through = bends.get("scope:a|scope:c")!;
+    expect(through).toHaveLength(1);
+    expect(through[0].x).toBe(ESTATE_COLUMN_GAP);
+    expect(through[0].y).not.toBe(at.get("scope:b")!.y);
+    // A one-gap arrow has nowhere to bend.
+    expect(bends.has("scope:a|scope:b")).toBe(false);
+  });
+
+  it("orders a column to uncross the arrows into it", () => {
+    // In name order y sits above z, and a -> z, b -> y would cross.
+    const { at } = layoutEstate({
+      lens: ESTATE.lens,
+      boxes: [scope("a"), scope("b"), scope("y"), scope("z")],
+      edges: [link("a", "z"), link("b", "y")],
+    });
+    expect(at.get("scope:a")!.y).toBeLessThan(at.get("scope:b")!.y);
+    expect(at.get("scope:z")!.y).toBeLessThan(at.get("scope:y")!.y);
   });
 
   it("draws the same picture whatever order the rows arrived in", () => {
@@ -126,6 +178,16 @@ describe("what a box and a link are called", () => {
     expect(edgeLabel(link("a", "b", "contains").links)).toBeUndefined();
   });
 
+  it("shortens several kinds of reach on one arrow to the commonest and a count", () => {
+    const links = [
+      { relationship: "can_grant_roles", count: 1, label: "can grant itself any role over" },
+      { relationship: "grants_role", count: 3, label: "can act over" },
+      { relationship: "can_take_over", count: 2, label: "can take ownership of" },
+    ];
+    expect(edgeLabelShort(links)).toBe("can act over ×3 +2 more");
+    expect(edgeLabelShort(links.slice(1, 2))).toBe("can act over ×3");
+  });
+
   it("sends an asset to its page with its graph drawn, and the fold to the list", () => {
     const asset: EstateBox = {
       ...scope("prod"),
@@ -145,7 +207,12 @@ describe("what a box and a link are called", () => {
 
 function Where() {
   const location = useLocation();
-  return <output data-testid="where">{location.search}</output>;
+  return (
+    <output data-testid="where">
+      {location.pathname}
+      {location.search}
+    </output>
+  );
 }
 
 /** A drawn box, by the id the canvas keys it on. */
@@ -191,26 +258,54 @@ describe("the estate map", () => {
   it("draws the estate and lists the reach across it in words", async () => {
     const get = mount(() => ESTATE);
 
-    expect(await screen.findByText("Reach across boundaries")).toBeInTheDocument();
+    await userEvent.click(await screen.findByRole("tab", { name: /links/i }));
     expect(get).toHaveBeenCalledWith("/api/v1/attack-paths/estate?");
-    // The text form of the arrows, reach on a route first. Each is a toggle
-    // that picks its arrow out on the canvas.
-    const items = screen
-      .getAllByRole("button", { pressed: false })
-      .map((row) => row.textContent ?? "");
+    // The text form of the arrows.
+    const items = [...screen.getByRole("tabpanel").querySelectorAll("li")].map(
+      (row) => row.textContent ?? "",
+    );
     expect(items[0]).toContain("Sub web");
     expect(items[0]).toContain("runs as");
     expect(items.some((text) => text.includes("can act over ×3"))).toBe(true);
   });
 
-  it("opens a subscription by writing the list's own scope filter", async () => {
+  it("selects a box on a click, and opens it only on Enter or a double click", async () => {
     mount(() => ESTATE);
 
     // The canvas is a lazy chunk: wait for the box itself, not its name,
-    // which the list under the canvas carries first.
+    // which the panel beside the canvas carries first.
     fireEvent.click(await waitFor(() => box("scope:prod")));
+    expect(box("scope:prod")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("where")).not.toHaveTextContent(
+      "subscription_id",
+    );
+    // The panel answers for it: what it is, and the reach on either side.
+    const panel = screen.getByRole("complementary", { name: "About the map" });
+    expect(panel).toHaveTextContent("Sub prod");
+    expect(panel).toHaveTextContent("What reaches itDirectorycan act over");
+    expect(panel).toHaveTextContent("It reaches nothing else on this map.");
 
+    fireEvent.keyDown(box("scope:prod"), { key: "Enter" });
     expect(screen.getByTestId("where")).toHaveTextContent("subscription_id=prod");
+  });
+
+  it("fades around a box under the pointer without selecting it", async () => {
+    mount(() => ESTATE);
+    fireEvent.pointerEnter(await waitFor(() => box("scope:prod")));
+
+    // Prod's neighbour stays; web, two hops away, fades.
+    expect(box("scope:directory").className).not.toContain("opacity-30");
+    expect(box("scope:web").className).toContain("opacity-30");
+    expect(box("scope:prod")).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.pointerLeave(box("scope:prod"));
+    expect(box("scope:web").className).not.toContain("opacity-30");
+  });
+
+  it("opens a selected box from the panel, as a double click would", async () => {
+    mount(() => ESTATE);
+    fireEvent.doubleClick(await waitFor(() => box("scope:web")));
+    expect(screen.getByTestId("where")).toHaveTextContent("subscription_id=web");
   });
 
   it("asks for the lens it is given", async () => {
@@ -265,33 +360,87 @@ describe("the estate map", () => {
     expect(screen.queryByRole("button", { name: /draw the whole estate/i })).toBeNull();
   });
 
-  it("lists what the map holds worst first, and opens a row as the box would", async () => {
+  it("lists what the map holds worst first, and selects a row as the box would", async () => {
     // The hierarchy view, folded into the map: the same boxes as rows.
     mount(() => ESTATE);
+    await waitFor(() => box("scope:web"));
+    await userEvent.click(screen.getByRole("tab", { name: /contents/i }));
 
-    const heading = await screen.findByText("Your subscriptions");
-    const rows = [...heading.closest("div")!.querySelectorAll("li")].map(
+    const rows = [...screen.getByRole("tabpanel").querySelectorAll("li")].map(
       (li) => li.textContent ?? "",
     );
     expect(rows[0]).toContain("Sub web");
+
     await userEvent.click(
       screen.getAllByRole("button").find((b) => b.textContent?.startsWith("Sub prod"))!,
     );
+    expect(box("scope:prod")).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(screen.getByRole("button", { name: /open on the map/i }));
     expect(screen.getByTestId("where")).toHaveTextContent("subscription_id=prod");
+  });
+
+  it("draws every box, a quiet one too: it is a map of connections, not of routes", async () => {
+    mount(() => ESTATE);
+    await waitFor(() => box("scope:quiet"));
+    expect(screen.queryByRole("switch")).toBeNull();
+    expect(screen.queryByRole("tab", { name: /paths/i })).toBeNull();
   });
 
   it("picks an arrow out on the map from its sentence", async () => {
     mount(() => ESTATE);
-    await waitFor(() => box("scope:web"));
+    await waitFor(() => box("scope:quiet"));
+    await userEvent.click(screen.getByRole("tab", { name: /links/i }));
 
     const row = screen
-      .getAllByRole("button", { pressed: false })
+      .getAllByRole("button")
       .find((b) => b.textContent?.includes("runs as"))!;
     await userEvent.click(row);
 
-    expect(row).toHaveAttribute("aria-pressed", "true");
-    // Its two ends stay; everything else fades.
+    // The panel says what the arrow carries; its two ends stay, the rest fade.
+    expect(screen.getByRole("complementary", { name: "About the map" })).toHaveTextContent(
+      "Sub web → Directory",
+    );
     expect(box("scope:quiet").className).toContain("opacity-30");
     expect(box("scope:web").className).not.toContain("opacity-30");
+  });
+
+  it("links a box's attack paths to their page, narrowed to it", async () => {
+    mount(() => ESTATE);
+    fireEvent.click(await waitFor(() => box("scope:prod")));
+
+    const link = screen.getByRole("link", { name: /on 1 attack path/i });
+    expect(link).toHaveAttribute("href", "/attack-paths?scope=prod");
+  });
+
+  it("says nothing about attack paths on a box none runs through", async () => {
+    mount(() => ESTATE);
+    fireEvent.click(await waitFor(() => box("scope:quiet")));
+    expect(screen.queryByRole("link", { name: /attack path/i })).toBeNull();
+  });
+
+  it("selects an arrow from a box's reach, and a box from an arrow's ends", async () => {
+    mount(() => ESTATE);
+    fireEvent.click(await waitFor(() => box("scope:prod")));
+    const panel = screen.getByRole("complementary", { name: "About the map" });
+
+    await userEvent.click(
+      [...panel.querySelectorAll("button")].find((b) =>
+        b.textContent?.startsWith("Directory"),
+      )!,
+    );
+    expect(panel).toHaveTextContent("Directory → Sub prod");
+
+    await userEvent.click(screen.getByRole("button", { name: "Directory" }));
+    expect(box("scope:directory")).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("sends an old link to walk a route to the attack-path page", async () => {
+    mount(() => ESTATE, "/assets?view=graph&walk=vm%7Csa&hop=1");
+
+    await waitFor(() =>
+      expect(screen.getByTestId("where")).toHaveTextContent(
+        "/attack-paths?trace=vm%7Csa&hop=1",
+      ),
+    );
   });
 });

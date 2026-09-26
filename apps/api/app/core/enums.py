@@ -539,6 +539,11 @@ class ResourceType(StrEnum):
     # deletable, so folding them together would name the wrong object in a
     # remediation.
     APPLICATION = "application"
+    # A directory group that holds a role. Its own type rather than a principal
+    # of unknown kind, because the fix differs: a group is changed by who is in
+    # it, and naming its members is the whole of what makes its role an answer
+    # to "who can reach this" (DECISIONS.md section 126).
+    GROUP = "group"
     ROLE_ASSIGNMENT = "role_assignment"
     DIAGNOSTIC_SETTING = "diagnostic_setting"
     # The vault itself, as an asset. Its contents are not modelled and never
@@ -588,6 +593,31 @@ class RelationshipType(StrEnum):
     # the box beside it -- which may be the one running as an identity
     # (DECISIONS.md section 119).
     NETWORK_ACCESS = "network_access"
+    # This identity is in that group, directly or through a group inside it,
+    # and so acts with every role the group holds. Derived when the graph is
+    # built, from the members recorded on the group, rather than stored: the
+    # member is usually a directory account read in another capture, and the
+    # edge exists only once both are in one graph (section 126).
+    MEMBER_OF = "member_of"
+    # This identity can add a credential to that one and sign in as it: it owns
+    # the application registration, holds a directory role that manages every
+    # application, or is the registration itself, whose own credentials sign
+    # in as its service principal (DECISIONS.md section 128).
+    CAN_ACT_AS = "can_act_as"
+    # This identity holds a directory role that can make it owner of that
+    # subscription: a Global Administrator elevates to User Access
+    # Administrator at the root, and the roles that can make themselves Global
+    # Administrator can do the same one step later. Its own kind rather than
+    # CAN_GRANT_ROLES, because removing it is removing a directory role, not an
+    # Azure role assignment, and severance keys the two apart (section 128).
+    CAN_TAKE_OVER = "can_take_over"
+    # This identity is eligible, under Privileged Identity Management, for a
+    # role over that scope -- one it can activate rather than one it holds.
+    # Deliberately not a capability: activation can require MFA, a reason or
+    # somebody's approval, none of which CloudGuard reads, so walking it would
+    # claim standing reach that does not exist. It is there for the access
+    # view, which lists who could activate what (DECISIONS.md section 130).
+    ELIGIBLE_FOR = "eligible_for"
 
     @property
     def is_capability(self) -> bool:
@@ -603,4 +633,49 @@ class RelationshipType(StrEnum):
             RelationshipType.CAN_GRANT_ROLES,
             RelationshipType.CONTAINS,
             RelationshipType.NETWORK_ACCESS,
+            RelationshipType.MEMBER_OF,
+            RelationshipType.CAN_ACT_AS,
+            RelationshipType.CAN_TAKE_OVER,
         }
+
+
+class AccessKind(StrEnum):
+    """What a role lets its holder do to one kind of resource.
+
+    Neutral, so the graph can decide reach without knowing a provider's
+    permission vocabulary: the connector reads its own actions and says which of
+    these they amount to, per resource type, and everything downstream reads
+    only this (DECISIONS.md section 125).
+
+    Two of them are *control* -- holding them over a resource means holding
+    what the resource holds -- and the rest are not. That line is the reason the
+    enum exists: Reader over a subscription and Owner over it are one edge in a
+    graph that only records "holds a role", and one of them reaches nothing.
+    """
+
+    # Sees the resource's configuration. Never reach: Reader cannot read a
+    # blob, a secret or a row.
+    READ = "read"
+    # Changes the resource's configuration. Not control on its own: a principal
+    # that can resize a machine has not run anything on it.
+    MANAGE = "manage"
+    # Reads what the resource stores -- a blob, a secret, a database -- whether
+    # directly or by taking the keys that do.
+    READ_DATA = "read_data"
+    # Runs code as the resource, and so acts as every identity it has.
+    EXECUTE = "execute"
+    # Edits the access list the resource keeps for itself. Control only where
+    # that list is what governs access (``GOVERNED_BY_OWN_POLICY``), because
+    # there the holder can simply add itself.
+    EDIT_POLICY = "edit_policy"
+    # Hands out roles over the resource. Recorded for the access view; the graph
+    # already draws it as ``CAN_GRANT_ROLES``.
+    GRANT_ACCESS = "grant_access"
+    # Signs in as the identity: adds a credential to it, or holds its own. For
+    # the access view; the graph draws it as ``CAN_ACT_AS``.
+    ACT_AS = "act_as"
+
+    @property
+    def is_control(self) -> bool:
+        """Whether holding this over a resource means holding its contents."""
+        return self in {AccessKind.READ_DATA, AccessKind.EXECUTE}

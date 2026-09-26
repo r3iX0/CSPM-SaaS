@@ -323,6 +323,28 @@ class TestConnectionRoleItself:
             ).scalar_one()
         assert bypass is False
 
+    async def test_every_public_table_has_row_level_security(self) -> None:
+        """PostgREST serves ``public``, so a table there without RLS is open to
+        anyone holding the anon key. ``alembic_version`` was one (§131)."""
+        async with rls_session(USER_A) as session:
+            exposed = (
+                await session.execute(
+                    text(
+                        "SELECT c.relname FROM pg_class c "
+                        "JOIN pg_namespace n ON n.oid = c.relnamespace "
+                        "WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p') "
+                        "AND NOT c.relrowsecurity ORDER BY c.relname"
+                    )
+                )
+            ).scalars().all()
+        assert exposed == []
+
+    async def test_migration_state_is_closed_to_the_app_role(self) -> None:
+        with pytest.raises((DBAPIError, ProgrammingError)) as exc:
+            async with rls_session(USER_A) as session:
+                await session.execute(text("SELECT version_num FROM alembic_version"))
+        assert "permission denied" in str(exc.value).lower()
+
 
 class TestEvidenceBlobIsolation:
     """Content-addressed storage, scoped per tenant on purpose.

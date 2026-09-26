@@ -16,7 +16,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import Select, delete, exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import commit_unless_externally_managed
@@ -146,6 +146,63 @@ async def _decide_findings(
         else:
             await findings_service.set_status(session, tenant, finding, target)
     risk.status = finding_risk_status((f.status for f in members), risk.status)
+
+
+async def linked_to(
+    session: AsyncSession,
+    organization_id: UUID,
+    finding_ids: Select[tuple[UUID]] | Sequence[UUID],
+) -> set[UUID]:
+    """The risks any of these findings is a member of.
+
+    Read before the findings are deleted, because afterwards the links are gone
+    with them and nothing says which risks they held up.
+    """
+    return set(
+        (
+            await session.execute(
+                select(RiskFinding.risk_id).where(
+                    RiskFinding.organization_id == organization_id,
+                    RiskFinding.finding_id.in_(finding_ids),
+                )
+            )
+        ).scalars()
+    )
+
+
+async def delete_emptied(
+    session: AsyncSession, organization_id: UUID, risk_ids: set[UUID]
+) -> int:
+    """Delete those of these risks that no finding is a member of any more.
+
+    For after a delete that took findings with it -- a connection, or a scan
+    purged of what it found. ``risk_findings`` cascades from the finding and
+    ``risks`` has nothing to cascade from, so the row stayed: a card with no
+    evidence behind it that the risks list keeps on purpose, because it cannot
+    tell such a row from one whose links went missing (DECISIONS.md §124).
+
+    Deleted rather than resolved. Nothing was fixed; the estate it was about
+    stopped being watched, and a resolved row would put a remediation in the
+    history that nobody made. A risk with a member left -- a route that crosses
+    into another connection -- is kept, and the next scan of what remains
+    decides it.
+
+    The caller flushes the delete first, so the cascade has already run.
+    """
+    if not risk_ids:
+        return 0
+    emptied = (
+        await session.execute(
+            delete(Risk)
+            .where(
+                Risk.organization_id == organization_id,
+                Risk.id.in_(risk_ids),
+                ~exists().where(RiskFinding.risk_id == Risk.id),
+            )
+            .returning(Risk.id)
+        )
+    ).scalars()
+    return len(list(emptied))
 
 
 async def _members(

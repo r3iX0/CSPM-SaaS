@@ -26,7 +26,7 @@ from datetime import UTC, datetime
 from urllib.parse import urlsplit
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.connectors.base import ConnectionCheck
@@ -47,9 +47,12 @@ from app.core.signing import Purpose, sign_state
 from app.core.vocabulary import words
 from app.models.cloud_account import CloudAccount
 from app.models.cloud_connection import CloudConnection
+from app.models.finding import Finding
+from app.models.resource import ResourceRecord
 from app.schemas.cloud_connection import CloudConnectionCreate
 from app.services import change_events
 from app.services import findings as findings_service
+from app.services import risks as risks_service
 
 log = get_logger(__name__)
 
@@ -198,6 +201,39 @@ async def get_connection(
     if connection is None:
         raise CloudAccountNotFound("Connection not found")
     return connection
+
+
+async def delete_connection(
+    session: AsyncSession, tenant: TenantContext, connection_id: UUID
+) -> None:
+    """Delete a connection and everything read through it.
+
+    The subscriptions, assets, scans and findings go by ``ON DELETE CASCADE``.
+    The risks those findings made up do not -- a risk hangs off the organization,
+    not an asset -- so they are gathered before the cascade and the ones it
+    leaves with no member are deleted after it (``risks.delete_emptied``).
+    """
+    connection = await get_connection(session, tenant, connection_id)
+    org_id = tenant.organization_id
+    accounts = select(CloudAccount.id).where(CloudAccount.connection_id == connection.id)
+    assets = select(ResourceRecord.id).where(
+        ResourceRecord.organization_id == org_id,
+        or_(
+            ResourceRecord.connection_id == connection.id,
+            ResourceRecord.cloud_account_id.in_(accounts),
+        ),
+    )
+    stranded = await risks_service.linked_to(
+        session,
+        org_id,
+        select(Finding.id).where(
+            Finding.organization_id == org_id, Finding.resource_id.in_(assets)
+        ),
+    )
+    await session.delete(connection)
+    await session.flush()
+    await risks_service.delete_emptied(session, org_id, stranded)
+    await commit_unless_externally_managed(session)
 
 
 async def get_connection_with_subscriptions(

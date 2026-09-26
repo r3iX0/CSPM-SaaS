@@ -110,6 +110,15 @@ class AzureEvidence(EvidenceKey):
     # under admin consent -- two grants that fail independently.
     ROLE_ASSIGNMENTS = "role_assignments"
     ROLE_DEFINITIONS = "role_definitions"
+    # Who is in each group that holds a role here, nested groups flattened.
+    # From Graph rather than ARM, and per subscription rather than with the
+    # directory, because only this subscription's assignments say which groups
+    # matter: reading every group's members once per tenant would be a
+    # directory dump to answer a question about a handful (section 126).
+    ROLE_GROUP_MEMBERS = "role_group_members"
+    # Roles a principal is eligible to activate under Privileged Identity
+    # Management, as opposed to ones it holds. Needs the v8 role (section 130).
+    ROLE_ELIGIBILITIES = "role_eligibilities"
 
     # Directory. Read once per scan against the tenant, never per subscription.
     USERS = "users"
@@ -135,6 +144,23 @@ class AzureEvidence(EvidenceKey):
     # no customer a second trip to a Global Administrator
     # (``DECISIONS.md`` section 63).
     APPLICATION_CREDENTIALS = "application_credentials"
+
+    # Who owns each application registration, and which service principal each
+    # registration signs in as. No rule reads it; the graph does, because an
+    # owner can add a credential and act as the principal (section 128).
+    # ``Application.Read.All`` again, so no customer grants anything new.
+    APPLICATION_OWNERS = "application_owners"
+
+    # Which principals hold which Microsoft Graph application permissions. A
+    # few of them are a directory role by another name -- a principal that may
+    # write role assignments in the directory can make itself Global
+    # Administrator -- so the graph reads them as powers (section 129).
+    GRAPH_PERMISSION_GRANTS = "graph_permission_grants"
+
+    # Directory roles a principal is eligible to activate (section 130). Its
+    # own key because it is separately deniable: it needs Entra ID P2, and a
+    # tenant without it must not lose the active roles to that.
+    DIRECTORY_ROLE_ELIGIBILITIES = "directory_role_eligibilities"
 
     # When each account last signed in. Its own key rather than a wider
     # ``users`` listing, because it is separately deniable in a way none of the
@@ -177,12 +203,17 @@ _CATEGORIES: dict[AzureEvidence, EvidenceCategory] = {
     AzureEvidence.DIAGNOSTIC_SETTINGS: EvidenceCategory.LOGGING,
     AzureEvidence.ROLE_ASSIGNMENTS: EvidenceCategory.AUTHORIZATION,
     AzureEvidence.ROLE_DEFINITIONS: EvidenceCategory.AUTHORIZATION,
+    AzureEvidence.ROLE_GROUP_MEMBERS: EvidenceCategory.AUTHORIZATION,
+    AzureEvidence.ROLE_ELIGIBILITIES: EvidenceCategory.AUTHORIZATION,
     AzureEvidence.USERS: EvidenceCategory.IDENTITY,
     AzureEvidence.DIRECTORY_ROLES: EvidenceCategory.IDENTITY,
     AzureEvidence.USER_ROLE_MAP: EvidenceCategory.IDENTITY,
     AzureEvidence.SECURITY_DEFAULTS: EvidenceCategory.IDENTITY,
     AzureEvidence.CONDITIONAL_ACCESS_POLICIES: EvidenceCategory.IDENTITY,
     AzureEvidence.APPLICATION_CREDENTIALS: EvidenceCategory.IDENTITY,
+    AzureEvidence.APPLICATION_OWNERS: EvidenceCategory.IDENTITY,
+    AzureEvidence.GRAPH_PERMISSION_GRANTS: EvidenceCategory.IDENTITY,
+    AzureEvidence.DIRECTORY_ROLE_ELIGIBILITIES: EvidenceCategory.IDENTITY,
     AzureEvidence.USER_SIGN_IN_ACTIVITY: EvidenceCategory.IDENTITY,
 }
 
@@ -235,6 +266,15 @@ BASELINE_EVIDENCE: frozenset[AzureEvidence] = frozenset(
         AzureEvidence.SUBSCRIPTION,
         AzureEvidence.ROLE_ASSIGNMENTS,
         AzureEvidence.ROLE_DEFINITIONS,
+        # Who a group's role reaches. No rule reads it; without it every role
+        # held by a group is a role held by nobody the graph can name.
+        AzureEvidence.ROLE_GROUP_MEMBERS,
+        # Who can sign in as an application, and which principal that is.
+        AzureEvidence.APPLICATION_OWNERS,
+        AzureEvidence.GRAPH_PERMISSION_GRANTS,
+        # Who could activate a role, for the access view (section 130).
+        AzureEvidence.ROLE_ELIGIBILITIES,
+        AzureEvidence.DIRECTORY_ROLE_ELIGIBILITIES,
         # The two control readings. No rule *requires* them -- a rule that did
         # would report UNKNOWN when a defence could not be read, which is
         # backwards: an unreadable control is an absent one, and the finding

@@ -115,6 +115,52 @@
   }
 }
 
+/*
+  A link from the dashboard growing into the next page's graph frame
+  (DECISIONS.md §140). The browser pictures both pages and moves between them;
+  these say how. Timings are `lib/motion.ts`'s: the frame grows over `page`
+  (240ms) on its ease-out, and what it grew from leaves over `instant` (120ms)
+  on its ease-in, so the old picture is gone before the new one settles and
+  the two never read as one image stretched. The frame is named only while a
+  morph runs, so an ordinary visit to the page is untouched.
+*/
+.cg-graph-morph [data-graph-frame] {
+  view-transition-name: graph-frame;
+}
+
+::view-transition-group(graph-frame) {
+  animation-duration: 240ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Grows from its top edge, clipped to the box as it grows. */
+::view-transition-image-pair(graph-frame) {
+  overflow: clip;
+  border-radius: var(--radius-xl);
+}
+
+::view-transition-old(graph-frame),
+::view-transition-old(root) {
+  animation: cg-vt-leave 120ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+::view-transition-new(graph-frame),
+::view-transition-new(root) {
+  animation: cg-vt-arrive 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes cg-vt-leave {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes cg-vt-arrive {
+  from {
+    opacity: 0;
+  }
+}
+
 /* Reduced motion means arriving, not crawling: the end state, immediately. */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -123,6 +169,13 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  /* No morph is started for this reader (`canMorph`); this is the backstop. */
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
   }
 }
 

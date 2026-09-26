@@ -39,6 +39,8 @@ from app.graph.model import (
     Neighborhood,
     Path,
     PathStep,
+    SimulatedCut,
+    Simulation,
 )
 
 __all__ = [
@@ -51,4 +53,6 @@ __all__ = [
     "Neighborhood",
     "Path",
     "PathStep",
+    "SimulatedCut",
+    "Simulation",
 ]

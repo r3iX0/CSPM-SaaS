@@ -76,6 +76,20 @@ export function edgeLabel(links: EstateEdge["links"]): string | undefined {
     .join(" · ");
 }
 
+/**
+ * The same, short enough to sit on an arrow: the reach carried most often,
+ * and how many other kinds ride with it. The directory's arrow into a
+ * subscription can carry three verbs, and written out in full they cover the
+ * boxes beside it.
+ */
+export function edgeLabelShort(links: EstateEdge["links"]): string | undefined {
+  const named = links.filter((link) => link.relationship !== "contains");
+  if (named.length <= 1) return edgeLabel(links);
+  const [lead] = [...named].sort((a, b) => b.count - a.count);
+  const first = lead.count > 1 ? `${lead.label} ×${lead.count}` : lead.label;
+  return `${first} +${named.length - 1} more`;
+}
+
 /** The glyph a box is drawn with, on the canvas and in the contents list. */
 export function boxIcon(box: EstateBox) {
   if (box.kind === "asset") return resourceTypeIcon(box.resource_type ?? "unknown");

@@ -711,6 +711,8 @@ export const en = {
         ? "Holds no role over anything CloudGuard scanned."
         : "Runs as no identity, and no other machine on its network lets it in.",
     deadEndIdentityWithoutRole: "Runs as an identity that holds no role over anything CloudGuard scanned.",
+    deadEndRolesWithoutControl:
+      "Runs as an identity whose roles control nothing: they only read configuration, could not be read, or carry a condition CloudGuard cannot evaluate.",
     deadEndNothingSensitive: (n: number) =>
       `Reaches ${n} ${n === 1 ? "asset" : "assets"}, none of them classified as sensitive.`,
     onlyAccountsSensitive:
@@ -732,11 +734,6 @@ export const en = {
     cutHere: "Cut it here",
     cutHereDetail:
       "Removing this one link severs the route. Containment cannot be removed \u2014 a storage account has to live somewhere \u2014 so the fix is always an identity or a role.",
-    chokeTitle: "The changes that close the most",
-    chokeHelp:
-      "Every route below is one thing to read. These are the links holding several of them up at once \u2014 and each is usually not the fix any single route would have suggested on its own, because the shared link tends to sit in the middle while each route's own cheapest break is at its start.",
-    chokeSevers: "routes close",
-    chokeOf: "of",
     chokeSitsOn:
       "It sits on {on} \u2014 the rest have another way round, so cutting this does not close them.",
     entryPoints: "exposed assets",
@@ -746,22 +743,90 @@ export const en = {
     // The map. Columns are hops from the outside in, so reading left to right
     // is reading an attacker's progress.
     mapTitle: "Every route, drawn",
+    // A link named a route the latest reading does not have: it closed, or the
+    // estate changed under it. Said, rather than landing untraced in silence.
+    traceMissing:
+      "The route this link names is not among the routes in the latest reading \u2014 it may have closed since. Every route is drawn below.",
+    traceMissingClear: "Clear",
     mapHelp:
-      "Left to right is hops from the outside in. A line's thickness is how many routes close if it is cut — checked for every link, not only the ones listed above. Press a line to see what cutting it would do, or a box for the routes through it. Arrow keys move between boxes.",
+      "Left to right is hops from the outside in. A line's thickness is how many routes close if it is cut — checked for every link. Press a line to add it to the simulation, or a box for the routes through it; press the empty canvas to put the box down. While a route is being read, pressing one of its own lines or boxes reads that hop instead. Pointing at a box fades what it does not touch. Arrow keys move between boxes.",
+    mapHelpLabel: "How to read the drawing",
+    legendEntry: "Reachable from the internet",
+    legendSensitive: "Sensitive data",
+    legendFindings: "Open findings",
+    legendWeight: "Thicker: closes more routes if cut",
+    legendCut: "In the simulated plan",
+    legendClosed: "Out of reach with the plan made",
     mapDrawnOf: (drawn: number, total: number) =>
       `Drawing ${drawn} of ${total} routes — the rest are in the list.`,
+    panelLabel: "The routes",
     listTitle: "Routes",
     patternsTitle: "The same route, repeated",
     patternsHelp:
       "Grouped only where the routes are identical apart from one end, so each group is a claim you can check by opening it.",
     routesThrough: (n: number) => `On ${n} ${n === 1 ? "route" : "routes"}`,
-    simulate: "Simulate the cut",
-    simulateStop: "Stop simulating",
-    simulating: "Simulating — nothing in Azure has changed.",
+    simulating: (n: number) =>
+      `Simulating ${n} ${n === 1 ? "change" : "changes"} together — nothing in your cloud has changed.`,
+    simulationShow: "Show the plan",
+    tabRoutes: "Routes",
+    tabSimulate: "Simulate",
     closesNothing:
       "Cutting this closes nothing: every route through it has another way round.",
     clearTrace: "Show every route",
     tracing: "Tracing one route",
+    // The route navigator (DECISIONS.md §142): stops always shown, links walked.
+    navigatorLabel: (entry: string, target: string) =>
+      `Attack path from ${entry} to ${target}`,
+    previousRoute: "Previous route",
+    nextRoute: "Next route",
+    routeOf: (n: number, total: number) => `Route ${n} of ${total}`,
+    onePattern: (description: string) => `One of a group: ${description}`,
+    planCloses: "The simulated plan closes this route",
+    planLeavesOpen: "Still open with the simulated plan made",
+    hopsLabel: "Hops",
+    hopOf: (n: number, total: number, text: string) => `Hop ${n} of ${total}: ${text}`,
+    trackedAsRisk: "Tracked as a risk",
+    notARisk: "Not a risk: nothing on this route fails a check",
+    keysHops: "hops",
+    keysRoutes: "routes",
+    keysBack: "back to the list",
+    openFindings: (n: number) => `${n} open ${n === 1 ? "finding" : "findings"}`,
+    placeIn: "In",
+    placeEnters: "Enters",
+    earliestCut: "Earliest place to cut",
+    closesMost: (n: number) => `Closes the most on this route: ${n} routes`,
+    factsLabel: "What the link is",
+    cannotRemove:
+      "Where it lives. Containment cannot be removed, so this is not a place to cut.",
+    notDrawn:
+      "This link is past what the drawing holds, so what cutting it closes is not known here.",
+    closesThis: (others: number) =>
+      others === 0
+        ? "Cutting it closes this route."
+        : `Cutting it closes this route and ${others} ${others === 1 ? "other" : "others"}.`,
+    wayRound: (severs: number) =>
+      severs === 0
+        ? "This route has a way round it: cutting this alone closes nothing."
+        : `This route has a way round it. Cutting this alone closes ${severs} other ${severs === 1 ? "route" : "routes"}.`,
+    sitsOn: (n: number) => `It sits on ${n}; the rest have another way round.`,
+    addToPlan: "Add to the plan",
+    takeOutOfPlan: "Take out of the plan",
+    // The list's own controls.
+    searchLabel: "Search routes",
+    searchPlaceholder: "Any asset on a route",
+    sortLabel: "Sort routes",
+    sortHops: "Shortest first",
+    sortSensitive: "Most sensitive target",
+    sortExposed: "Most exposed entry",
+    sortTracked: "Tracked risks first",
+    trackedBadge: "Tracked",
+    closedByPlan: "Closed by the plan",
+    patternsHelpLabel: "What a group is",
+    patternsCount: (n: number) => `${n} ${n === 1 ? "group" : "groups"}`,
+    shownOf: (n: number, total: number) => `${n} of ${total} here`,
+    trackedCount: (n: number) => `${n} tracked`,
+    closedCount: (n: number) => `${n} closed by the plan`,
+    noneNamed: (query: string) => `No route passes anything named “${query}”.`,
   },
   notifications: {
     aria: "Notifications",
@@ -1056,7 +1121,57 @@ export const en = {
     deleteFailed: "Could not delete the organization",
     dangerOwnerOnly: "Only an owner can delete an organization.",
   },
-  remediation: { title: "Remediation", empty: "No remediation tasks yet." },
+  remediation: {
+    title: "Remediation",
+    empty: "No remediation tasks yet.",
+    description:
+      "Open work first, by impact against effort; of two equally urgent fixes, the one on an attack path comes first. A finding closes when a scan confirms the fix.",
+    onRoutes: (n: number) => `on ${n} attack ${n === 1 ? "path" : "paths"}`,
+  },
+  access: {
+    tab: "Access",
+    holdersTitle: "Who can reach this",
+    holdersDescription: (name: string) =>
+      `Every role assigned on ${name} or on a container above it, whether or not anything exposed leads to the holder`,
+    scopeHoldersDescription: (name: string) =>
+      `Every role assigned on ${name} or above it. What each one controls is on the identity's own page.`,
+    controlsGroup: "Can take what it holds",
+    manageGroup: "Can change its configuration",
+    readGroup: "Can read its configuration",
+    unresolvedGroup: "Could not be read",
+    eligibleGroup: "Eligible to activate",
+    eligible: "eligible under PIM, not held until activated",
+    holdersEmpty: "No role assignment the last scan read reaches this asset.",
+    grantsTitle: "What this identity holds",
+    grantsDescription: (name: string) =>
+      `Every role ${name} holds, and the assets each one actually controls`,
+    at: (scope: string) => `on ${scope}`,
+    inherited: (origin: string) => `inherited from ${origin}`,
+    conditional: "limited by a condition CloudGuard cannot evaluate",
+    unresolved: "CloudGuard could not read what this role allows",
+    runsOn: "used by",
+    members: (n: number) => `${n} ${n === 1 ? "member" : "members"}`,
+    membersUnread: "its members could not be read",
+    via: "through",
+    throughDirectory: "granted in the directory, not by an Azure role assignment",
+    signsInAs: "by signing in as",
+    controlsCount: (n: number) =>
+      n === 0 ? "Controls nothing it lands on" : `Controls ${n} ${n === 1 ? "asset" : "assets"}`,
+    andMore: (n: number) => `and ${n} more`,
+    unplaced: (scope: string) => `on ${scope}, which this scan did not read`,
+    kinds: {
+      read: "reads configuration",
+      manage: "changes configuration",
+      read_data: "reads its data",
+      execute: "runs code as it",
+      edit_policy: "edits its access policy",
+      grant_access: "grants itself any role",
+      act_as: "signs in as it",
+    },
+    notInGraph:
+      "This asset is not in the current graph — it may not have been in the most recent scan.",
+    failed: "Could not read who holds access",
+  },
   graph: {
     explore: "Explore in graph",
     opening: "Opening\u2026",

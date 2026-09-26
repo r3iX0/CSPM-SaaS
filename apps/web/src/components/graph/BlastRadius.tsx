@@ -105,8 +105,8 @@ export function BlastRadius({
 
         {data && data.length === 0 && (
           <p className="text-sm text-muted-foreground">
-            Nothing. This asset holds no role and runs as no identity that reaches
-            anything else CloudGuard has seen.
+            Nothing. This asset holds no role that controls anything CloudGuard has seen,
+            and runs as no identity that does.
           </p>
         )}
 

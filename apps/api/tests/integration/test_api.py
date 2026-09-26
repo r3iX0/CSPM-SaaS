@@ -1067,9 +1067,11 @@ class TestRecheckingAccess:
         assert data["role_version"] == "v2"
         assert data["role_upgrade_available"] is True
         # Every category a v2 role cannot fully serve, which grows with each
-        # role version: v7 added reads under compute and storage, so a customer
-        # five versions behind is behind on those too.
+        # role version: v7 added reads under compute and storage, and v8 the
+        # PIM eligibility read under authorization (DECISIONS.md section 130),
+        # so a customer six versions behind is behind on those too.
         assert data["degraded_categories"] == [
+            "authorization",
             "compute",
             "database",
             "posture",
@@ -2652,6 +2654,103 @@ class TestAssetNeighborhood:
         assert reached["id"] == self.STORAGE
         assert uuid.UUID(reached["asset_id"])
 
+    async def test_the_remediation_queue_is_in_the_order_it_says(
+        self, client, cleanup_orgs
+    ) -> None:
+        """Open work first, then priority, then work on an attack path (§127)."""
+        from sqlalchemy import select
+
+        from app.core.db import service_session
+        from app.core.enums import FindingStatus, Priority, RemediationStatus, Severity
+        from app.models.finding import Finding
+        from app.models.remediation import RemediationTask
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Queue Ltd"))
+        cleanup_orgs.append(org_id)
+        vm_row = await self._estate(org_id)
+
+        now = datetime.now(UTC)
+        async with service_session() as session:
+            on_route = (
+                await session.execute(select(Finding).where(Finding.resource_id == vm_row))
+            ).scalar_one()
+
+            def finding(title: str) -> Finding:
+                return Finding(
+                    organization_id=org_id,
+                    resource_id=None,
+                    rule_id="AZ-IAM-002",
+                    severity=Severity.HIGH,
+                    status=FindingStatus.OPEN,
+                    title=title,
+                    description="",
+                    risk_score=99,
+                    first_detected_at=now,
+                    last_detected_at=now,
+                )
+
+            off_route, finished = finding("Off the route"), finding("Already done")
+            session.add_all([off_route, finished])
+            await session.flush()
+
+            def task(target: Finding, priority: Priority, status: RemediationStatus) -> None:
+                session.add(
+                    RemediationTask(
+                        organization_id=org_id,
+                        finding_id=target.id,
+                        status=status,
+                        priority=priority,
+                        estimated_effort_minutes=30,
+                    )
+                )
+
+            task(finished, Priority.CRITICAL, RemediationStatus.DONE)
+            task(off_route, Priority.HIGH, RemediationStatus.TODO)
+            task(on_route, Priority.HIGH, RemediationStatus.TODO)
+            # Read before the commit expires them.
+            expected = [str(on_route.id), str(off_route.id), str(finished.id)]
+            await session.commit()
+
+        response = await client.get("/api/v1/remediation", headers=auth_header(user))
+
+        assert response.status_code == 200, response.text
+        queue = response.json()["data"]
+        assert [row["finding_id"] for row in queue] == expected
+        assert [row["on_routes"] for row in queue] == [1, 0, 0]
+
+    async def test_who_holds_an_asset_names_the_workload_behind_the_identity(
+        self, client, cleanup_orgs
+    ) -> None:
+        from urllib.parse import quote
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Access Ltd"))
+        cleanup_orgs.append(org_id)
+        vm_row = await self._estate(org_id)
+
+        response = await client.get(
+            f"/api/v1/attack-paths/access/{quote(self.STORAGE, safe='')}",
+            headers=auth_header(user),
+        )
+
+        assert response.status_code == 200, response.text
+        body = response.json()
+        [holder] = body["data"]["holders"]
+        assert holder["principal"]["id"] == self.IDENTITY
+        # The fixture's edge records no role, so nothing is claimed about it.
+        assert holder["resolved"] is False
+        assert holder["controls"] is False
+        assert [w["asset_id"] for w in holder["runs_on"]] == [str(vm_row)]
+        assert body["data"]["grants"] == []
+        assert body["meta"]["holders_total"] == 1
+
+        missing = await client.get(
+            f"/api/v1/attack-paths/access/{quote('/nowhere', safe='')}",
+            headers=auth_header(user),
+        )
+        assert missing.status_code == 404
+
     async def test_the_identity_is_drawn_with_the_route_through_it(
         self, client, cleanup_orgs
     ) -> None:
@@ -2775,7 +2874,7 @@ class TestAssetNeighborhood:
         prod = f"group:{subscription}:prod"
         identity = f"asset:{self.IDENTITY}"
         assert edges[(prod, identity)]["links"][0]["relationship"] == "has_identity"
-        assert edges[(identity, prod)]["on_route"] is True
+        assert (identity, prod) in edges
 
         # The group, by the name in a link rather than as ARM spelled it.
         response = await client.get(
@@ -2993,3 +3092,216 @@ class TestOrganizationProfile:
         )
 
         assert response.status_code == 422
+
+
+class TestDeletingWhatARiskRestsOn:
+    """A delete that takes findings with it takes their risks too (§124).
+
+    ``risk_findings`` cascades from the finding; ``risks`` hangs off the
+    organization and has nothing to cascade from. Deleting a connection used to
+    leave every risk it had raised on the risks page, linked to nothing and
+    listed on purpose because of it.
+    """
+
+    async def _estate(self, org_id: uuid.UUID) -> dict[str, uuid.UUID]:
+        """One connection with one asset, a finding on it, and that finding's risk.
+
+        Also a second risk with a member on the asset and a member off it, the
+        shape of a route that crosses into another connection.
+        """
+        from datetime import UTC, datetime
+
+        from app.core.db import service_session
+        from app.core.enums import (
+            CloudAccountStatus,
+            ConnectionScope,
+            ConsentStatus,
+            FindingStatus,
+            Level,
+            Provider,
+            ResourceType,
+            RiskKind,
+            RiskStatus,
+            ScanStatus,
+            Severity,
+        )
+        from app.models.cloud_account import CloudAccount
+        from app.models.cloud_connection import CloudConnection
+        from app.models.finding import Finding
+        from app.models.resource import ResourceRecord
+        from app.models.risk import Risk, RiskFinding
+        from app.models.scan import Scan
+
+        now = datetime.now(UTC)
+        tenant_id = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+        async with service_session() as session:
+            connection = CloudConnection(
+                organization_id=org_id,
+                provider=Provider.AZURE,
+                name="prod",
+                scope_type=ConnectionScope.TENANT_ROOT,
+                role_version="v2",
+                tenant_id=tenant_id,
+                consent_status=ConsentStatus.GRANTED,
+                rbac_verified_at=now,
+                status=CloudAccountStatus.ACTIVE,
+            )
+            session.add(connection)
+            await session.flush()
+
+            account = CloudAccount(
+                organization_id=org_id,
+                connection_id=connection.id,
+                provider=Provider.AZURE,
+                account_name="Production",
+                tenant_id=tenant_id,
+                subscription_id="00000000-0000-0000-0000-000000000001",
+                consent_status=ConsentStatus.GRANTED,
+                rbac_verified_at=now,
+                status=CloudAccountStatus.ACTIVE,
+            )
+            session.add(account)
+            await session.flush()
+
+            asset = ResourceRecord(
+                organization_id=org_id,
+                cloud_account_id=account.id,
+                connection_id=connection.id,
+                provider=Provider.AZURE,
+                provider_resource_id=(
+                    "/subscriptions/00000000-0000-0000-0000-000000000001"
+                    "/resourceGroups/rg/providers/Microsoft.Storage/storageAccounts/payroll"
+                ),
+                resource_type=ResourceType.STORAGE_ACCOUNT,
+                name="payroll",
+                criticality=Level.HIGH,
+                data_sensitivity=Level.HIGH,
+                public_exposure=Level.LOW,
+                first_seen_at=now,
+                last_seen_at=now,
+            )
+            scan = Scan(
+                organization_id=org_id,
+                connection_id=connection.id,
+                status=ScanStatus.COMPLETED,
+            )
+            session.add_all([asset, scan])
+            await session.flush()
+
+            def finding(rule_id: str, resource_id: uuid.UUID | None) -> Finding:
+                return Finding(
+                    organization_id=org_id,
+                    scan_id=scan.id,
+                    resource_id=resource_id,
+                    rule_id=rule_id,
+                    severity=Severity.HIGH,
+                    status=FindingStatus.OPEN,
+                    title=rule_id,
+                    description="",
+                    remediation="",
+                    rule_version="1.0",
+                    first_detected_at=now,
+                    last_detected_at=now,
+                )
+
+            def risk(title: str, kind: RiskKind) -> Risk:
+                return Risk(
+                    organization_id=org_id,
+                    kind=kind,
+                    title=title,
+                    description="",
+                    risk_score=80,
+                    risk_level=Level.HIGH,
+                    status=RiskStatus.OPEN,
+                    severity="HIGH",
+                    asset_criticality=Level.HIGH,
+                    data_sensitivity=Level.HIGH,
+                    internet_exposure=Level.HIGH,
+                )
+
+            on_asset = finding("AZ-TEST-ON", asset.id)
+            elsewhere = finding("AZ-TEST-ELSEWHERE", None)
+            only_here = risk("Only here", RiskKind.FINDING)
+            crossing = risk("Crossing", RiskKind.ATTACK_PATH)
+            session.add_all([on_asset, elsewhere, only_here, crossing])
+            await session.flush()
+            session.add_all(
+                [
+                    RiskFinding(organization_id=org_id, risk_id=r.id, finding_id=f.id)
+                    for r, f in (
+                        (only_here, on_asset),
+                        (crossing, on_asset),
+                        (crossing, elsewhere),
+                    )
+                ]
+            )
+            await session.commit()
+            return {
+                "connection": connection.id,
+                "scan": scan.id,
+                "only_here": only_here.id,
+                "crossing": crossing.id,
+            }
+
+    async def _risk_ids(self, org_id: uuid.UUID) -> set[uuid.UUID]:
+        from app.core.db import service_session
+
+        async with service_session() as session:
+            return set(
+                (
+                    await session.execute(
+                        text("SELECT id FROM risks WHERE organization_id = :org"),
+                        {"org": org_id},
+                    )
+                ).scalars()
+            )
+
+    async def test_deleting_a_connection_deletes_the_risks_it_emptied(
+        self, client, cleanup_orgs
+    ) -> None:
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Disconnecting Ltd"))
+        cleanup_orgs.append(org_id)
+        estate = await self._estate(org_id)
+
+        response = await client.delete(
+            f"/api/v1/cloud-connections/{estate['connection']}", headers=auth_header(user)
+        )
+
+        assert response.status_code == 200, response.text
+        # The route still has a member outside the connection, so it stays
+        # for the next scan of what remains to decide.
+        assert await self._risk_ids(org_id) == {estate["crossing"]}
+        listed = (await client.get("/api/v1/risks", headers=auth_header(user))).json()["data"]
+        assert "Only here" not in [risk["title"] for risk in listed]
+
+    async def test_purging_a_scan_deletes_the_risks_it_emptied(
+        self, client, cleanup_orgs
+    ) -> None:
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Purging Ltd"))
+        cleanup_orgs.append(org_id)
+        estate = await self._estate(org_id)
+
+        response = await client.delete(
+            f"/api/v1/scans/{estate['scan']}?purge_findings=true", headers=auth_header(user)
+        )
+
+        assert response.status_code == 200, response.text
+        # Both findings came from this scan, so both risks are left empty.
+        assert await self._risk_ids(org_id) == set()
+
+    async def test_deleting_a_scan_without_purging_keeps_every_risk(
+        self, client, cleanup_orgs
+    ) -> None:
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Pruning Ltd"))
+        cleanup_orgs.append(org_id)
+        estate = await self._estate(org_id)
+
+        response = await client.delete(
+            f"/api/v1/scans/{estate['scan']}", headers=auth_header(user)
+        )
+
+        assert response.status_code == 200, response.text
+        assert await self._risk_ids(org_id) == {estate["only_here"], estate["crossing"]}

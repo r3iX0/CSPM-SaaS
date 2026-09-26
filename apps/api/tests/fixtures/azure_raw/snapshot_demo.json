@@ -989,6 +989,17 @@
           "principalType": "ServicePrincipal",
           "scope": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data"
         }
+      },
+      {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Authorization/roleAssignments/analysts-records",
+        "name": "analysts-records",
+        "type": "Microsoft.Authorization/roleAssignments",
+        "properties": {
+          "roleDefinitionId": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Authorization/roleDefinitions/2a2b9908-6ea1-4ae2-8e65-a410df84e7d1",
+          "principalId": "8a7e0c3f-5d21-4b6e-9f43-2c1d0e9b7a65",
+          "principalType": "Group",
+          "scope": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-data"
+        }
       }
     ],
     "role_definitions": [
@@ -1028,7 +1039,15 @@
                 "Microsoft.Storage/storageAccounts/blobServices/containers/write",
                 "Microsoft.Storage/storageAccounts/blobServices/generateUserDelegationKey/action"
               ],
-              "notActions": []
+              "notActions": [],
+              "dataActions": [
+                "Microsoft.Storage/storageAccounts/blobServices/containers/blobs/delete",
+                "Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read",
+                "Microsoft.Storage/storageAccounts/blobServices/containers/blobs/write",
+                "Microsoft.Storage/storageAccounts/blobServices/containers/blobs/move/action",
+                "Microsoft.Storage/storageAccounts/blobServices/containers/blobs/add/action"
+              ],
+              "notDataActions": []
             }
           ]
         }
@@ -1045,7 +1064,11 @@
                 "Microsoft.Storage/storageAccounts/blobServices/containers/read",
                 "Microsoft.Storage/storageAccounts/blobServices/generateUserDelegationKey/action"
               ],
-              "notActions": []
+              "notActions": [],
+              "dataActions": [
+                "Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read"
+              ],
+              "notDataActions": []
             }
           ]
         }
@@ -1059,7 +1082,12 @@
           "permissions": [
             {
               "actions": [],
-              "notActions": []
+              "notActions": [],
+              "dataActions": [
+                "Microsoft.KeyVault/vaults/secrets/getSecret/action",
+                "Microsoft.KeyVault/vaults/secrets/readMetadata/action"
+              ],
+              "notDataActions": []
             }
           ]
         }
@@ -1077,7 +1105,9 @@
                 "Microsoft.Authorization/*",
                 "Microsoft.Support/*"
               ],
-              "notActions": []
+              "notActions": [],
+              "dataActions": [],
+              "notDataActions": []
             }
           ]
         }
@@ -1093,7 +1123,9 @@
               "actions": [
                 "*/read"
               ],
-              "notActions": []
+              "notActions": [],
+              "dataActions": [],
+              "notDataActions": []
             }
           ]
         }
@@ -1619,7 +1651,24 @@
           "accessPolicies": []
         }
       }
-    ]
+    ],
+    "role_group_members": {
+      "8a7e0c3f-5d21-4b6e-9f43-2c1d0e9b7a65": {
+        "display_name": "Data analysts",
+        "members": [
+          {
+            "id": "u-normal",
+            "type": "#microsoft.graph.user",
+            "display_name": "Normal User"
+          },
+          {
+            "id": "u-contractor",
+            "type": "#microsoft.graph.user",
+            "display_name": "Contractor (guest)"
+          }
+        ]
+      }
+    }
   },
   "coverage": {
     "network_security_groups": {
@@ -1692,7 +1741,7 @@
       "category": "authorization",
       "outcome": "COMPLETE",
       "detail": "",
-      "item_count": 6,
+      "item_count": 7,
       "permissions": []
     },
     "role_definitions": {
@@ -1734,6 +1783,12 @@
     },
     "app_service_configs": {
       "category": "compute",
+      "outcome": "COMPLETE",
+      "detail": "",
+      "item_count": 1
+    },
+    "role_group_members": {
+      "category": "authorization",
       "outcome": "COMPLETE",
       "detail": "",
       "item_count": 1

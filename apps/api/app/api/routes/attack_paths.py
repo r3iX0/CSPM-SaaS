@@ -17,6 +17,7 @@ from app.core.enums import RelationshipType
 from app.core.errors import NotFound, envelope
 from app.graph.estate import ESTATE_MAX_ASSETS, Lens, estate_map
 from app.graph.model import NEIGHBOURHOOD_FAN_OUT, NEIGHBOURHOOD_MAX_NODES
+from app.schemas.attack_path import MAX_SIMULATED_CUTS, SimulationRequest
 from app.services import graph as graph_service
 from app.services.graph import serialize_path
 from app.services.placement import load_placements
@@ -35,6 +36,14 @@ DEAD_END_LIMIT = 25
 # person reads, and the count in ``meta`` says how many were left off rather
 # than letting the picture pass for the whole estate.
 ROUTE_MAP_LIMIT = 200
+
+# Assets listed under one role on the access view. Past this they are counted:
+# Owner over a subscription controls everything in it, and the count is the
+# answer while the list is only a sample of it.
+ACCESS_CONTROLLED_LIMIT = 25
+# Members listed under one group holder, for the same reason: "Everyone in
+# Engineering" is a count, and the list beside it is who to look at first.
+ACCESS_MEMBERS_LIMIT = 50
 
 # Folds one request may ask to open. Each is an id of a few hundred characters
 # in the query string, and the node cap bounds the drawing long before this.
@@ -121,10 +130,13 @@ async def route_graph(
     )
     entries = graph.entry_points()
     targets = graph.sensitive_targets()
+    # Where each node sits, so a hop names its subscription and group and the
+    # page can narrow to one (section 138).
+    placements = await load_placements(session, tenant.organization_id)
 
     return envelope(
         graph_service.serialize_route_map(
-            graph, drawn, ids, findings, total_routes=len(paths)
+            graph, drawn, ids, findings, total_routes=len(paths), placements=placements
         ),
         {
             "total": len(paths),
@@ -174,7 +186,7 @@ async def blast_radius(
     never "is this role too broad" in the abstract, but "what would go with it".
     """
     graph = await graph_service.load_graph(session, tenant.organization_id)
-    if resource_id not in graph.nodes:
+    if graph.resolve(resource_id) not in graph.nodes:
         raise NotFound("No such asset in this organization")
 
     reached = graph.blast_radius(resource_id)
@@ -200,6 +212,45 @@ async def blast_radius(
             for resource in reached
         ],
         {"total": len(reached)},
+    )
+
+
+@router.get("/access/{resource_id:path}")
+async def access(resource_id: str, session: DbSession, tenant: Tenant) -> dict:
+    """Who holds access to one asset, and what one identity holds.
+
+    Whether or not anything exposed leads there -- the half of the question a
+    route cannot answer, because a route needs a way in. Read from the same
+    per-role evaluation the routes are walked with, so a principal listed here
+    as controlling an asset is exactly one a route may pass through
+    (DECISIONS.md section 125).
+    """
+    graph = await graph_service.load_graph(session, tenant.organization_id)
+    if graph.resolve(resource_id) not in graph.nodes:
+        raise NotFound("No such asset in this organization")
+
+    holders = graph.access_to(resource_id)
+    grants = graph.access_of(resource_id)
+    ids = await graph_service.asset_ids(
+        session,
+        tenant.organization_id,
+        graph_service.access_asset_ids(holders, grants),
+    )
+    return envelope(
+        graph_service.serialize_access(
+            holders,
+            grants,
+            ids,
+            controlled_limit=ACCESS_CONTROLLED_LIMIT,
+            members_limit=ACCESS_MEMBERS_LIMIT,
+        ),
+        {
+            "holders_total": len(holders),
+            "grants_total": len(grants),
+            "controlling": sum(1 for holder in holders if holder.controls),
+            "controlled_limit": ACCESS_CONTROLLED_LIMIT,
+            "members_limit": ACCESS_MEMBERS_LIMIT,
+        },
     )
 
 
@@ -268,9 +319,7 @@ async def estate(
     graph = await graph_service.load_graph(session, tenant.organization_id)
     placements = await load_placements(session, tenant.organization_id)
     routes = graph.attack_paths()
-    mapped = estate_map(
-        graph, placements.of, Lens(subscription_id, resource_group), routes
-    )
+    mapped = estate_map(graph, placements.of, Lens(subscription_id, resource_group), routes)
     if mapped is None:
         raise NotFound("Nothing CloudGuard holds sits there")
 
@@ -327,4 +376,24 @@ async def what_if(
             "before": outcome.before,
             "after": outcome.after,
         }
+    )
+
+
+@router.post("/simulate")
+async def simulate(payload: SimulationRequest, session: DbSession, tenant: Tenant) -> dict:
+    """What closes if several links are removed together, across the organization.
+
+    A POST because the plan is a body, not because anything is written: this
+    changes nothing, in CloudGuard or in the cloud, and a demo visitor may ask
+    it like any other question. The answer is exact for the plan as a whole --
+    never the sum of what each link closes alone, which is the one number a
+    plan of several changes cannot be read off (``AssetGraph.simulate``).
+    """
+    graph = await graph_service.load_graph(session, tenant.organization_id)
+    outcome = graph.simulate(
+        (link.source, link.relationship, link.target) for link in payload.cuts
+    )
+    return envelope(
+        graph_service.serialize_simulation(outcome),
+        {"max_cuts": MAX_SIMULATED_CUTS},
     )

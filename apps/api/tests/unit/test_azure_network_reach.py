@@ -290,10 +290,14 @@ def test_the_lab_route_runs_through_the_machine_next_door() -> None:
     assert paths, "the open machine reaches the vault through its neighbour"
     path = paths[0]
     assert path.entry.name == "open-web"
+    # Through the escalation edge rather than the role edge beside it. The
+    # fixture's role is ``actions: ["*"]`` with no not-actions -- Owner in all
+    # but name -- and nothing in it reads a secret: it reaches the vault only
+    # because it can grant itself the role that does (DECISIONS.md section 125).
     assert [s.relationship for s in path.steps] == [
         RelationshipType.NETWORK_ACCESS,
         RelationshipType.HAS_IDENTITY,
-        RelationshipType.GRANTS_ROLE,
+        RelationshipType.CAN_GRANT_ROLES,
         RelationshipType.CONTAINS,
     ]
     cut = path.cheapest_break()

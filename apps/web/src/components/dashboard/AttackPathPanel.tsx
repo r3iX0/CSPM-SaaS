@@ -4,10 +4,14 @@ import { ArrowRightIcon, RouteIcon, ScissorsIcon } from "lucide-react";
 import type { AttackPath, PostureReading } from "@/lib/types";
 import { Sparkline } from "@/components/charts/Sparkline";
 import { AttackPathRoute } from "@/components/graph/AttackPathRoute";
+import { GraphLink } from "@/components/graph/GraphLink";
+import { GRAPH_ICON } from "@/lib/icons";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/format";
+
+const GraphIcon = GRAPH_ICON;
 
 /**
  * The shortest way in, drawn as the route it is.
@@ -47,6 +51,7 @@ export function AttackPathPanel({
   return (
     <section
       aria-labelledby="critical-attack-path"
+      data-graph-source=""
       className="flex flex-col overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10"
     >
       <header className="flex items-start justify-between gap-4 px-5 py-4">
@@ -131,6 +136,16 @@ export function AttackPathPanel({
                 </span>
               </p>
             )}
+
+            {/* Traced, rather than landing among every route with this one to
+                be found again (DECISIONS.md §139). */}
+            <GraphLink
+              to={{ kind: "route", entryId: path.entry.id, targetId: path.target.id }}
+              className={cn(buttonVariants({ variant: "outline", size: "sm" }), "self-start")}
+            >
+              <GraphIcon data-icon="inline-start" />
+              Trace this route
+            </GraphLink>
           </>
         )}
       </div>

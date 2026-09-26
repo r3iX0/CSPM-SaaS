@@ -21,6 +21,7 @@ from app.models.cloud_connection import CloudConnection
 from app.models.finding import Finding, FindingEvidence
 from app.models.scan import Evidence, Scan, ScanStep
 from app.services import cloud_connections
+from app.services import risks as risks_service
 
 OPEN_STATUSES = [FindingStatus.OPEN, FindingStatus.IN_PROGRESS]
 
@@ -469,9 +470,18 @@ async def delete_scan(
             .scalars()
             .all()
         )
+        # The risks these made up, read while the links still say so. A purged
+        # finding's link cascades away and its risk would not (§124).
+        stranded = await risks_service.linked_to(
+            session,
+            scan.organization_id,
+            [finding.id for finding in findings],
+        )
         for finding in findings:
             await session.delete(finding)
             purged += 1
+        await session.flush()
+        await risks_service.delete_emptied(session, scan.organization_id, stranded)
 
     await session.delete(scan)
     await commit_unless_externally_managed(session)

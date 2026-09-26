@@ -5189,7 +5189,9 @@ replacing the current one — unlike list filters (§98), where narrowing a list
 should not fill the history, each re-centre is a step somebody took, so Back
 retraces it. A link to a re-centred view opens with the graph already drawn.
 While centred elsewhere, the centre box is a link to that asset's page, and a
-strip above the canvas names it and offers the way back. Folds that were opened
+strip above the canvas names it and offers the way back. (§134 made a press
+select, as on the estate map; re-centring is a double click, Enter, or the
+panel's button.) Folds that were opened
 belong to one centre and are forgotten when it moves.
 
 **Folds open in place.** Pressing a dashed group sends its id back as
@@ -5785,7 +5787,9 @@ no reach at all go after the rest, stacked eight to a column so that a quiet
 estate becomes a grid rather than one tall column. Within a column, boxes are
 ordered by the average height of their placed neighbours, with ties broken by a
 fixed order. The same estate draws the same picture on every visit, as §101
-requires.
+requires. (§134 replaced shortest distance with a layering that breaks loops
+and places each box past the furthest box that reaches it, and a way in is no
+longer always in the first column.)
 
 **The same canvas, not a second one.** `EstateCanvas` is its own lazy chunk,
 built on React Flow the way `NeighborhoodCanvas` is: `base.css` only, colours
@@ -5793,7 +5797,8 @@ from the tokens, read-only, no wheel zoom, and one tab stop with arrow keys
 inside. What the two canvases share (the flow tokens, the fit, the arrow keys
 and the zoom buttons) moved into `flowChrome.ts` and `ZoomButtons.tsx`, so they
 cannot drift into two looks. Pressing a subscription or group opens it on the
-map. Pressing an asset opens its page with its own graph already drawn: the
+map (since §133, a press selects and Enter or a double click opens). Opening
+an asset opens its page with its own graph already drawn: the
 link sets `?around=` to the asset itself, and a neighbourhood card now draws on
 arrival whenever `around` is present, not only when it names another asset. The
 map hands the "what is around this asset" question to the view that already
@@ -5883,6 +5888,8 @@ many. The view switch is now **List** and **Map**. Under the canvas, the boxes
 inside the opened lens are listed worst first: open findings, then attack
 paths, then size. Each row carries the same marks as its box. Pressing a
 subscription or group row opens it on the map, just as pressing the box does.
+(§133 moved the list into the panel beside the canvas, where a row selects its
+box as a press on the canvas does.)
 That list is what the tree was, and it is also the map's text form, which a
 canvas alone does not have. The hierarchy's treemap went with it, because the
 boxes carry the same counts. `AssetTree` and `EstateTreemap` are deleted. The
@@ -6412,133 +6419,1240 @@ anywhere on the page — the same rule §87 set for the scan view.
 one route: it is what the rail opens into, what a finding shows, and what the
 PDF report can draw, which a canvas cannot.
 
-## 124. A signed token names what it may open, and the check is in the signing module
+## 124. A delete that takes a risk's findings takes the risk
 
-Three round trips leave this API and come back carrying a claim: the Entra
-consent callback, the ARM template the Azure Portal fetches, and the change-event
-webhook. None can be authenticated by a session — the caller is a browser
-mid-redirect, a portal fetching server-side, or a cloud's own infrastructure — so
-each is guarded by an HMAC-signed token, and all three are signed with one
-secret. The only thing separating them is a `purpose` field.
+Deleting a connection cascaded its subscriptions, assets, scans and findings,
+and every `risk_findings` link with them. The `risks` rows stayed, because a
+risk hangs off the organization rather than an asset and had nothing to
+cascade from. The risks list keeps a risk linked to nothing on purpose (its
+missing links are not proof it is over), and the dashboard keeps any route
+that is not resolved, so both went on showing risks about an estate nobody was
+watching any more. Purging a scan's findings (`DELETE /scans/{id}?purge_findings=true`)
+did the same.
 
-That field used to be each caller's own business, which meant two of three
-checked it and the third did not. The third was the consent callback: the one
-endpoint that writes the tenant binding, and therefore the one where a token
-minted for something else was worth having. A webhook URL is pasted into an `az`
-command and lives in a customer's infrastructure for a year; it carried the same
-connection id and the same issue time, so it verified there cleanly.
+Both delete paths now read the risks the doomed findings belong to before the
+delete, flush the cascade, and delete the ones left with no member
+(`risks.linked_to`, `risks.delete_emptied`). Connection delete moved out of the
+route into `cloud_connections.delete_connection` to do it.
 
-So the check moved into `core/signing.py`, where it cannot be skipped:
-`sign_state` stamps the purpose and `verify_state` demands it, both as keyword
-arguments with no default. A new round trip cannot be added without naming one.
+**Deleted, not resolved.** Nothing was fixed. The estate stopped being watched,
+and a resolved row would record a remediation nobody made — the same reason a
+superseded group member's risk is deleted rather than resolved.
 
-The consent link additionally carries a nonce whose counterpart is on the
-connection row. A signature makes a link *verifiable*, by anyone, for as long as
-it has not expired — and this link is meant to travel, because the person who
-completes the grant is the customer's Global Administrator rather than a
-CloudGuard user. The nonce is what makes it redeemable once. It is reissued
-identically while it is live, because the setup wizard polls and a fresh nonce
-per read would invalidate the link the customer had already sent on.
+**A risk with a member left stays.** A route that crosses into another
+connection keeps its members there, and the next scan of what remains decides
+it: correlation already treats an asset with no row as gone, and closes every
+route through it.
 
-Two consequences follow, both deliberate. The link is minted only for a caller
-who may complete onboarding, so reading a connection no longer hands a read-only
-member a credential for an action the API otherwise refuses them. And the tenant
-a callback names is accepted only on a connection that does not already have
-one: the admin-consent response is a plain query string rather than a token, so
-re-pointing an established connection at another directory is a
-delete-and-reconnect, which is a decision with a person behind it.
+Migration 0039 deletes the risks already left behind. Every writer of a risk
+links its members in the same commit, so a risk with no link can only be one
+of these. It cannot be undone.
 
-## 125. Every response carries its headers; every request carries a limit
+The list's rule stands: a risk linked to nothing is still listed. The only
+thing that made one was a delete, and that no longer does.
 
-Both are written as raw ASGI middleware rather than `BaseHTTPMiddleware`
-subclasses, and the order they are installed in is load-bearing enough that
-`main.py` spells it out. `add_middleware` inserts at the front, so the last one
-added is the outermost.
+## 125. A role edge reaches only what the role controls, and an asset says who holds it
 
-The body limit is innermost, wrapping the router directly. It refuses an
-oversized body by raising from inside `receive`, where the handler is reading
-it — anything between it and the router would see that exception first, and the
-unhandled-error middleware in particular would turn a 413 into a 500. It checks
-`Content-Length` *and* counts bytes as they arrive, because the first is a claim
-rather than a measurement and a chunked request carries none at all. The endpoint
-it exists for is the change-event webhook, which is unauthenticated by necessity
-and calls `request.json()` on whatever was posted.
+The graph knew one thing about a role assignment: that it existed. The
+normalizer drew `GRANTS_ROLE` from the principal to the scope, the traversal
+descended from the scope through `CONTAINS`, and everything underneath counted
+as reached. So Reader over a subscription was a route to the payments ledger.
+A machine running as Storage Blob Data Reader "reached" every other machine in
+its resource group, and from there every identity those machines run as, and
+from there whatever *those* identities held. The role name was on the hop
+(§121), but the traversal never read it. The demo showed a route through
+Contributor to a Key Vault whose secrets Contributor cannot read.
 
-The rate limit counts in Redis rather than in the process, for the reason a
-per-process counter is worse than none: it hands out its whole allowance per
-instance while reporting in the code that a limit is enforced. It fails open on a
-Redis outage, which is the right trade for a control against abuse — no tenancy
-guarantee runs through it, and failing closed would turn a capacity problem into
-an outage. Requests with no `Authorization` header get the smaller ceiling.
+That is the overclaim this product refuses everywhere else. UNKNOWN is never
+PASS, an unknown exposure is never an entry point (§100), and a route that
+exists only because CloudGuard ignored what a role permits is the same mistake.
+It is also what makes a feature like this get switched off.
 
-Which client a request is counted against is its own decision. The socket address
-is always the platform's proxy, so a limit counted on it is a limit counted per
-deployment; but `X-Forwarded-For` is written by the caller, so believing its
-leftmost entry lets anyone choose which bucket to fill. `trusted_proxy_hops`
-names how many hops the deployment actually has and the entry is taken from the
-right — the part infrastructure wrote rather than the part the caller did.
+**The connector evaluates each role; the graph reads a neutral answer.**
+`connectors/azure/access.py` takes a role definition's permission blocks and
+says, per neutral `ResourceType`, which `AccessKind`s they amount to: `read`
+(configuration), `manage` (changes configuration), `read_data`, `execute`
+(runs code as the resource), `edit_policy` (edits the resource's own access
+list) and, separately, `grant_access`. Each block's `actions` less
+`notActions` and `dataActions` less `notDataActions` are evaluated on their
+own, with ARM's wildcard matching, and the blocks are unioned. The role is
+never judged by its name. The normalizer writes the answer onto each role entry
+in the principal's `roles` metadata (`access`) beside the node the edge was drawn to
+(`target`), where it came from if inherited (`inherited_from`), and whether it
+carries a condition (`conditional`). The graph reads only that. Nothing
+provider-shaped crosses the seam, and an AWS connector evaluating IAM policies
+would write the same keys.
 
-The headers middleware is outermost, so it stamps CORS preflights and anything
-raised further in. The API's policy is `default-src 'none'`, which suits a
-surface that serves JSON plus one self-contained HTML document — the report at
-`/reports/{kind}?format=html`, rendered from names and error text collected out
-of a customer's cloud. Jinja escapes all of that; this is what stands behind it.
+Choices worth keeping:
 
-The frontend's policy lives in `apps/web/vercel.json` and is deliberately a
-different one. An application needs `script-src 'self'`, and Tailwind and React
-both write inline styles. `connect-src` is left at `https: wss:` rather than
-naming origins: the API and Supabase URLs are per-deployment environment
-variables, and a static header naming the wrong one is a frontend that cannot
-reach its backend. Narrowing it is a per-environment change, not a code change.
+* **Control is `read_data` and `execute`, and `edit_policy` only where the
+  resource says its own policy governs it.** A holder who can change a
+  machine's size has not run anything on it, so `manage` alone is not reach. A
+  Key Vault on access policies is held by anyone who can write those policies.
+  One on Azure RBAC is not. The normalizer states which model a vault uses
+  (`governed_by_own_policy`) only when the vault said so: an absent flag claims
+  nothing.
+* **Some management operations are data access by another name, and are
+  counted as it.** `listKeys` opens a storage account whatever its data-plane
+  roles say. Writing a SQL or PostgreSQL server resets its administrator
+  password. Writing a web app sets what it runs, and its publishing profile is a
+  deployment. `runCommand`, managed run commands and extensions are code on a
+  machine.
+* **Every string in `access.py` is matched, never deployed.** Unlike
+  `rbac.py`, none of these reaches ARM, so a wrong one cannot fail a customer's
+  deployment. It can make CloudGuard claim less than a role allows, so each is
+  a documented operation, and the tests hold the built-in roles to what
+  Microsoft documents them as doing.
 
-## 126. A control is only as good as the place it is enforced from
+**The walk carries a lens.** A `GRANTS_ROLE` edge is crossed with the union of
+what the principal's roles at that target control (`graph/access.py`, `Lens`).
+Crossing `CAN_GRANT_ROLES` controls everything, because the holder can grant
+itself the rest. The walk still descends through subscriptions and resource
+groups, which is where reach lands. An asset under them is *reached*, and
+walked on from, only when the lens controls it. An asset the lens does not
+control is passed beneath, so a role over a SQL server still reaches the
+databases on it without reaching the server. A role edge that controls nothing
+is not crossed at all. A walk state is `(node, lens)`, with no lens meaning the
+walk holds the node.
 
-Four fixes from the September 2026 follow-up review
-(`docs/SECURITY_REVIEW_2026-09-20.md`), and they share a shape: each control was
-present, and each was written somewhere it could not do the job it was named
-for.
+That makes the running-code pivot a route. Virtual Machine Contributor over a
+group reaches the machines in it, and their identities, and what those
+identities hold: the path the demo now draws from the jump box to the payments
+vault. It is also why the demo's User Access Administrator reaches data only
+through its escalation edge.
 
-**A single-use nonce is a transaction, not an assignment.** §124 gave the consent
-link a nonce that is spent on arrival. It was cleared in memory and committed at
-the end of `record_consent`, after the tenant-rebind refusal and after three
-directory calls — so any of them raising rolled the spend back with the rest of
-the transaction, and the link was live again for whoever else held it. It is now
-verified, cleared and committed in `_spend_consent_nonce` before anything that
-can fail. The guard stays in front of that commit, so a wrong guess still writes
-nothing and nobody can burn a link they have not seen.
+**The canvases draw what the walk walks.** The neighbourhood and the estate
+map draw a role edge only when its roles control something
+(`AssetGraph.conveys`). Otherwise a Reader line would sit on a canvas of reach
+and say what the routes no longer do. The role is not lost: the access view
+lists it.
 
-**A limit that reads the header it runs ahead of is reading a claim.** The rate
-limiter picked its ceiling from the presence of `Authorization`, which it sees
-long before anything verifies one — so attaching any header at all bought five
-times the allowance on exactly the three routes the smaller ceiling was written
-for. The routes served without a token are now counted as anonymous whatever
-they carry, listed in `core/middleware.py` and cross-checked against the live
-route table by `tests/unit/test_middleware.py`, so a new unauthenticated route
-fails the build rather than quietly inheriting the larger ceiling.
+**Severance walks the same states.** §122's one-pass analysis intersects the
+necessary links per walk state and then per node over the states that count as
+reaching it. Without that, a Reader edge beside an Owner edge would read as a way
+round the Owner edge, and the what-if would promise nothing closes when
+everything does. `severance.py` is generic over the state and names only the
+graph's own links, because a lens is a way of standing on a node, not a link
+anybody could cut.
 
-**An exemption should name a path, not a prefix.** `/health` is exempt because
-the platform probes it on a schedule. `/health/ready` sat under the same prefix
-and opens a database connection per call, so the exemption handed an
-unauthenticated caller an unlimited supply of checkouts from the pool the request
-path shares. The exemption is now an exact match; Railway probes `/health`, which
-answers without touching anything, and that endpoint no longer names the
-environment either.
+**What cannot be established is not claimed.**
 
-**A header that exists in one of two deploy configs exists in neither.** The
-frontend's CSP and HSTS were added in §125 to `apps/web/vercel.json`. The
-repository root carries a second `vercel.json` so the build works from either
-Root Directory, and it had no `headers` block — so a deployment from the root
-shipped the application with no CSP, and the symptom was the absence of
-something. Both files now carry the same headers and
-`infrastructure/ci/check-deployment-headers.mjs` fails the build if they diverge.
+* A role whose definition was not read (`access: None`) controls nothing, and
+  the access view lists it as unread.
+* An ABAC condition is evaluated against request attributes CloudGuard never
+  sees, and applies to data actions and to role-assignment writes. An
+  assignment carrying one keeps what its control actions grant. It loses
+  whatever it had only through data actions, and is not drawn as
+  `CAN_GRANT_ROLES`: a condition is how a delegated administrator is confined
+  to handing out Reader, and calling that an escalation would be the false
+  alarm `_grants_role_assignment` was written to avoid.
+* An identity whose roles all control nothing is a new dead end,
+  `roles_without_control`. It is distinct from `identity_without_role`: there
+  is a role, and it is one change away from mattering.
 
-Two smaller ones alongside them: the SNS confirmation URL is parsed with
-`urlsplit` rather than cut up with `split`, so a credentialed or ported form is
-refused as what it is rather than by happening to miss a strict pattern; and the
-fix commands the UI hands a reader to paste quote what came out of the
-provider — bare only when the value is unambiguously one shell word, quoted
-when it is not, and left as a placeholder when the rule already put it inside
-quotes.
+**A stored scan keeps its routes until it is rescanned.** Metadata written
+before this change has no `access` key, and such an entry, or a role edge with
+no entry at all, walks with a lens that controls everything, exactly as before.
+Otherwise a deploy would silently empty every tenant's attack-path page until
+its next scan. The next scan replaces the entry with a verdict, and routes that
+existed only through read-only roles close then. The risk correlation resolves
+them the ordinary way, because they are no longer observed.
+
+**Assignments above the subscription are drawn.** A subscription's listing
+returns assignments made at a management group or the tenant root only when
+they apply to it. They were dropped because their scope was no node, so the
+estate's most powerful principals were drawn holding nothing. They are now
+drawn to the subscription, and the hop says where they came from ("Owner from
+management group contoso-root").
+
+**An asset says who holds it.** `GET /attack-paths/access/{id}` and the asset
+page's Access tab answer what a route cannot, because a route needs a way in:
+every role assigned on the asset or above it, grouped as can take what it
+holds, can change its configuration, can read its configuration, and could not
+be read, each with the workloads that run as the holder. On an identity's page
+the tab leads with every role it holds and counts the assets each one controls.
+It reads the same evaluation the routes are walked with, so a holder listed as
+able to take the asset is one a route may pass through. The one exception is a
+legacy entry, listed as unread while it is still walked.
+
+**Not built, and why.**
+
+* **Group membership.** Built in §126.
+* **PIM eligibility and deny assignments.** Eligibility is built in §130.
+  Deny assignments are deliberately not read (§130), and not subtracting them
+  errs towards claiming reach.
+* **Entra escalation.** Built in §128 and §129.
+
+## 126. One identity is one node, and a group's role reaches its members
+
+§125 made a role edge honest about what it controls. It could not make it
+honest about *who* holds it, for two reasons, one of them a bug that had been
+in every production scan.
+
+**The bug: a person was two nodes.** A scan normalizes the directory capture
+and each subscription capture separately (§108). The directory produced
+`/users/<id>`, the account: its MFA, its sign-ins, and a public exposure of
+HIGH, because an account is reachable from the internet by design. That makes
+it an entry point. The subscription produced a stand-in, `/principals/<id>`,
+minted from the role assignment and carrying the roles. The normalizer's
+attempt to reuse the directory node only worked when both were in one snapshot,
+which only the tests and the demo ever were. So in production the account was
+an entry point that reached nothing, and the roles belonged to an identity
+nothing could reach. A phished administrator holding Owner was never a route,
+and the Access tab named them "User 1a2b3c4d".
+
+The same split hid in plainer form. A principal holding roles in two
+subscriptions was minted once per subscription, one asset row each, and
+building the graph kept whichever row came last, with only that subscription's
+roles on it. §125's lens then found no entry for the other subscription's
+edge and walked it as legacy, which means as if it controlled everything.
+
+**The join happens when the graph is built** (`graph/identity.py`), because
+that is the only place both readings exist together. Captures stay what they
+are: pure, per-scope readings.
+
+* Copies of one node id merge, with their roles combined. The first copy keeps
+  its other fields.
+* A node the connector minted to stand in for an identity it did not read
+  itself is marked `stub`. It is folded into the node that carries the same
+  `identity_id` and is not a stub, which is the directory's record. Its roles
+  move across, and its edges are redrawn from the directory node. The normalizer now
+  writes `identity_id` on directory users, on every stand-in, and on groups.
+* The stand-in's id still resolves (`AssetGraph.resolve`). The asset rows keep
+  their ids, so findings and risks keep their anchors, and a page opened on a
+  stand-in row is answered about the person it stood for.
+* Neutral: the join reads `identity_id`, `stub`, `members` and `roles`, and no
+  provider id. Rows stored before this change carry no `identity_id` and are
+  not joined until their next scan, which is the same stance §125 takes on
+  stored roles.
+
+Routes change on the next scan. Every directory account holding a role that
+controls something becomes a way in to what it controls. That was always what
+the model meant; it now draws it. `patterns.py` already says a repeated route
+once (§123), so a hundred analysts reading one account collapse into one line
+with a count, not a hundred.
+
+**Groups.** A role assigned to a group was a principal named "Group 1a2b3c4d"
+that reached nobody. Now:
+
+* **Collected per subscription, for the groups that hold a role there**
+  (`role_group_members`). The subscription's role assignments are what say
+  which groups matter. Reading every group once per tenant would be a directory
+  dump to answer a question about a handful of them. Names come fifteen to a
+  call through Graph's `in` filter. Members come from `transitiveMembers`, so
+  someone two nested groups down is listed directly. Both run under
+  `Group.Read.All`, which every tenant has already consented to. There is no
+  new permission, no role version bump and no redeploy. The read is bounded at
+  `ROLE_GROUP_LIMIT` groups per subscription. A group whose members could not
+  be read is absent from the payload and the task reports partial. It is never
+  an empty list, because "this role reaches nobody" is the one wrong answer.
+* **A new type, `GROUP`.** The node id is unchanged (`/principals/<id>`), so
+  the asset rows keep their findings. The role-assignment rules now apply to
+  groups too, because a group was a service principal of unknown kind until it
+  had a type.
+* **Members are recorded on the group, and the edge is derived.** A member is
+  usually a directory account read in another capture, so the `MEMBER_OF` edge
+  from it can only exist once both are in one graph. It is drawn at build time
+  from the group's `members` and never stored, following §121's rule that
+  evidence is read off the nodes. `MEMBER_OF` is a capability edge and is
+  removable: taking a person out of a group is a fix, and severance counts it.
+  Nested groups are recorded and not walked, since the listing is already
+  transitive. A member no node holds, such as a guest the directory reading did
+  not include, is listed by name and cannot be walked through.
+
+**The access view names the people.** A group holding access lists its
+members: the accounts CloudGuard read, linked to them, then the names it read
+only as names, capped at `ACCESS_MEMBERS_LIMIT` and counted in full. A group
+whose membership was not read says so. A person's own page lists the roles
+they hold through each group, with the group named ("through Data analysts").
+
+The demo recording gains a group, Data analysts, holding Storage Blob Data
+Reader over the data resource group, with Normal User and a guest contractor
+as members. Normal User was a dead end and is now a route to the customer
+records, through a group edge the what-if can cut.
+
+## 127. Removing an Owner assignment is one cut, and the queue is in the order it says
+
+Two bugs, and a decision about where "route-aware" belongs.
+
+**An Owner assignment was never a choke point.** A principal that can write
+role assignments is drawn twice between itself and the scope: `GRANTS_ROLE`
+for what its roles do there, and `CAN_GRANT_ROLES` beside it for the ceiling
+(§19). Severance treated them as two removable links, so each was the other's
+way round. `GRANTS_ROLE` never severed anything. `CAN_GRANT_ROLES` severed
+only what the grant line alone reached. Removing the Owner assignment, the fix
+a customer most often makes, closed nothing on the ranked list, and the choke
+points offered "detach the identity" instead. The two lines are one fact: the
+same role assignments, which removing them takes away together.
+
+`AssetGraph.removal_key` names what removing a link removes. That is the link
+itself, except for an escalation line drawn beside a role line, which is keyed
+as the role line. The walk hands severance that key, so a choke point, the
+what-if on either line, the number drawn on each line of the route map and the
+routes each line sits on all speak of the assignment. The two oracle tests
+that rebuild the estate without a link now remove everything the removal key
+covers. They failed first, which is how the bug showed itself. Drawn edges keep
+their own keys, so the canvases and the route highlighting do not move.
+
+**The remediation queue was not in the order it claimed.** The page said
+"ordered by impact against effort". The API returned tasks newest first, and
+the page never sorted them. `GET /remediation` now orders on the server:
+
+1. Open work (to do, in progress) first, then done, then cancelled.
+2. Priority, which is already impact against effort (RISK_ENGINE.md §4).
+3. How many attack paths run through the finding's asset, wherever on them it
+   sits (`on_routes`, on each row).
+4. The finding's risk score, then the newest first.
+
+**Routes break ties; they do not change a score.** The open item from §125
+proposed raising a finding's score when its asset sits on a route. That would
+count the route twice. The risks queue already ranks a route above its parts,
+because a scenario's floor is its worst member plus an amplifier (§100), and
+§103 rejected listing a route beside its hops for the same reason. What was
+missing was in the work queue, where two equally urgent fixes are chosen
+between. There the one on a route should come first. The row says "on 3 attack
+paths", which is a fact about the asset. It does not say "closes 3", which
+would be a promise about the fix that only a link can keep. The link-level
+question stays with the choke points, now correct for role assignments.
+
+## 128. The directory's say over the estate is drawn as reach
+
+The graph drew Azure role assignments and nothing the directory decides. Two
+of the directory's powers are the shortest routes an attacker has, and neither
+was an edge.
+
+**A Global Administrator can make themselves owner of every subscription.**
+Entra lets a Global Administrator elevate to User Access Administrator at the
+tenant root, which covers every subscription below it. A Privileged Role
+Administrator can make themselves Global Administrator. A Privileged
+Authentication Administrator can reset a Global Administrator's credentials.
+None of the three holds an Azure role, so the graph showed the most powerful
+accounts in the tenant as reaching nothing. The directory reading already had
+the membership: `user_role_map` lists every directory role's members, for the
+MFA rule.
+
+**An application's owner, or its own credential, signs in as its service
+principal.** An owner can add a client secret to a registration and
+authenticate as the principal, holding every Azure role that principal holds.
+An Application Administrator or Cloud Application Administrator can do that
+to every registration. A registration holding a credential is itself a way in:
+its public exposure was already HIGH, for the reason a directory account's is,
+and now it leads somewhere.
+
+**Collection.** One new directory task, `application_owners`. It reads each
+registration's owners, one call each, bounded at `APPLICATION_OWNER_LIMIT`. It
+also reads the service principal each registration signs in as, fifteen app ids
+to a call through Graph's `in` filter. Role assignments name a principal by
+object id and a registration knows only its app id, so this is the join. Both
+run under `Application.Read.All`, already consented. There is no new permission
+and no redeploy. A registration whose owners could not be read has
+`controllers: None`, never an empty list, and the task reports partial.
+
+**Normalization, in neutral terms.** An account's directory roles become
+`directory_powers`, each naming the role it comes from:
+`control_all_scopes` for the three roles above, and `act_as_any_application`
+for the two application roles. Roles are matched by name, as `_mfa_policies`
+matches them, rather than by template ids recalled from memory. A registration
+records `acts_as`, the principal's object id; `controllers`, its owners; and
+`can_sign_in`, whether it holds a credential.
+
+**Edges, derived when the graph is built** (`graph/identity.py`), as §126 did
+for group membership, because the principal is minted in a subscription
+capture and the owner and the registration are read in the directory's.
+
+* `CAN_ACT_AS` runs from each owner, from the registration itself when it holds
+  a credential, and from every holder of `act_as_any_application`, to the
+  principal. It is drawn only to a principal the graph holds. One holding no
+  Azure role never reached a subscription's graph, and signing in as it
+  reaches nothing here.
+* `CAN_TAKE_OVER` runs from every holder of `control_all_scopes` to every
+  subscription. It is walked with a lens that controls everything, as
+  `CAN_GRANT_ROLES` is.
+* `CAN_TAKE_OVER` is its own relationship rather than a derived
+  `CAN_GRANT_ROLES`, because of §127. `removal_key` folds an escalation line into
+  the role line beside it, since both are one Azure assignment. A Global
+  Administrator who also holds Owner would then have had their directory role
+  folded into their Azure assignment, and the what-if would have promised that
+  removing Owner closes routes the directory role keeps open. They are two
+  fixes, done in two places, and severance now keys them apart.
+* Both are capability edges and both are removable: removing an owner,
+  revoking a directory role, or deleting a credential is a fix.
+* A hop names what somebody removes: the directory role, "owner of its
+  application registration", or "its own credentials".
+
+**An escalation over a scope already held is a loop.** A Global Administrator
+who takes the subscription can walk down to a machine whose identity may grant
+roles over that same subscription. That chain gains nothing, and raised as an
+escalation risk it doubled the real one. `escalation_chains` now drops a chain
+whose route already crossed a line that controls everything (`CAN_GRANT_ROLES`
+or `CAN_TAKE_OVER`) onto the scope or a container of it. A route that reached
+the scope through a narrower role, such as Virtual Machine Contributor, keeps
+its chain: there the escalation is real.
+
+`AssetGraph.build(..., derive=False)` takes edges exactly as given. A test
+that rebuilds an estate from another graph's `links()` to check a severance
+claim must not re-derive the link it just removed. That is how the oracle
+tests first failed.
+
+**The access view.** An asset's holders now include the directory roles that
+can take its subscription, marked `through_directory`, and on a service
+principal, whoever can sign in as it (`act_as`). An account's grants include
+each subscription its directory role can take over, with the assets under it
+counted, and the roles of every principal it can sign in as ("by signing in
+as ...").
+
+**What changes on the next scan.** Every Global Administrator is a way in to
+every sensitive asset. That is what the role means, and it now sits where the
+choke points put it, at the top. The demo's administrator, Arben K, is now its
+largest choke point. The recorded environment test now expects two ways in.
+
+**Not built.** Service principals and groups holding directory roles get no
+power, because the directory capture has no node to put it on; only users do.
+Service principal owners are not read, only application owners. Graph
+application permissions, which let a principal grant itself a directory role,
+are not drawn. PIM-eligible directory roles are not read, because
+`directoryRoles/{id}/members` lists active members only.
+
+## 129. A Graph permission that is a directory role by another name is drawn as one
+
+§128 drew the directory's powers for users and left a gap. A service principal
+or a managed identity holding a Global Administrator role, or granted a
+Microsoft Graph application permission that is one step from it, reached
+nothing. These are the principals attackers look for first, because their
+credentials sit in pipelines and on machines rather than behind MFA.
+
+**Which permissions.** Three, each matched on its own value:
+
+* `RoleManagement.ReadWrite.Directory` writes directory role assignments, so
+  it can make itself Global Administrator. That is `control_all_scopes`.
+* `AppRoleAssignment.ReadWrite.All` grants app roles, so it can grant itself
+  the permission above. Also `control_all_scopes`.
+* `Application.ReadWrite.All` adds credentials to any application. That is
+  `act_as_any_application`.
+
+The power's `via` names the permission ("Graph permission
+RoleManagement.ReadWrite.Directory"), which is what somebody revokes.
+
+**Reading them.** One directory task, `graph_permission_grants`, under
+`Application.Read.All`:
+
+* Graph's own catalogue, the `appRoles` on Microsoft Graph's service principal
+  in the tenant, turns an app role id into a permission name. No id is written
+  down here, for the reason `auth.py` gives about identifiers recalled from
+  memory. If Graph's principal is not found, the task reports partial rather
+  than an empty tenant.
+* Every grant is read from Graph's side (`appRoleAssignedTo`). One paged
+  listing covers every service principal and managed identity, instead of a
+  call per principal.
+
+The directory role reading also records each member's kind
+(`directory_role_member_types`), so a group holding a directory role is typed
+as one.
+
+**A node for them.** The directory capture produced a node for users only, so
+a principal's powers had nowhere to go. It now writes a record,
+`/principals/<id>`, for each non-user principal that holds a power, and only
+those; a record for every service principal would be a directory dump. That
+id is the one a subscription mints for the same principal from its role
+assignments or a workload's identity, so the graph merges the two when it is
+built. The merge now:
+
+* keeps the directory record's fields over a stand-in's, whichever copy arrives
+  first;
+* combines roles and powers;
+* keeps any key only one copy has;
+* takes a name a reading gave over one made up from an id (`unnamed`);
+* leaves the principal's kind to the stand-in, except for a group. Graph calls
+  a managed identity a service principal, and the stand-in knows it is managed.
+
+**What this draws.** A machine running as a managed identity granted
+`RoleManagement.ReadWrite.Directory` now has a route that crosses no Azure
+role: it runs as the identity, which can take ownership of every subscription.
+It is keyed as `CAN_TAKE_OVER` (§128), so the fix it names, revoking the
+permission, is never folded into an Azure assignment.
+
+**Known wrinkle, unchanged.** The role-assignment rules judge a directory
+record the way they already judge a directory user: it carries no Azure roles,
+so they answer UNKNOWN on it and judge the subscription's copy. That was true
+for every user before this change.
+
+## 130. A role that could be activated is listed, and is not a route
+
+Privileged Identity Management turns standing access into access on request.
+CloudGuard read only the roles a principal holds. An eligible Owner, the
+access pattern every PIM rollout aims for, was invisible. The Access tab said
+nobody could take the ledger when three people could activate Owner over it,
+and a tenant that had moved its Global Administrators to PIM looked the same
+as one that had removed them.
+
+**Collected in both places, and the role goes to v8.**
+
+* Azure eligibility is read per subscription from
+  `roleEligibilityScheduleInstances` (api-version `2020-10-01`), under one new
+  action, `Microsoft.Authorization/roleEligibilityScheduleInstances/read`. It
+  was verified on 2026-09-22 against the published operations reference, as
+  `rbac.py` requires. Instances, not schedules: an instance is an eligibility
+  in force now. Only `Provisioned` instances count.
+* Directory eligibility is read from Graph's
+  `roleManagement/directory/roleEligibilityScheduleInstances`, with the role
+  definition and principal expanded. It runs under `RoleManagement.Read.Directory`,
+  already consented. It needs Entra ID P2, so it goes through the licence-aware
+  call and has its own evidence key: a tenant without P2 loses only this
+  reading. Only eligibilities scoped to the whole directory (`/`) count. One
+  scoped to an administrative unit governs that unit, not the tenant.
+* Bumping to v8 prompts every connection for a redeploy. It costs a v7
+  connection nothing it had. `degraded_categories` names Authorization, and
+  the only key behind it is the new one, so every assignment, route and verdict
+  stays. The rules degrade per evidence key, never per category.
+
+**Recorded apart from the roles held.** An eligible Azure role goes into
+`eligible_roles`, not `roles`. The role-assignment rules read `roles`, and PIM
+is the fix they recommend: counting an eligible Owner as "a person holds full
+control" would fault the customer for following the advice. An eligible
+directory role becomes `eligible_directory_powers`, in the same neutral terms
+as §128. A non-user principal with one gets a directory record, as in §129.
+Merging an identity's copies combines these lists as it combines roles. The
+merge and the stand-in fold now share one step (`_absorb`), because the fold
+was carrying roles across and dropping everything else. The eligibility tests
+caught that.
+
+**Listed, never walked.** `ELIGIBLE_FOR` is not a capability edge. Activating
+can require MFA, a justification or an approver's decision, none of which
+CloudGuard reads. Walking an eligibility would claim standing reach that does
+not exist, the overclaim §125 removed from Reader. The access view lists
+eligible holders in their own group, "Eligible to activate", with what
+activating would give (`kinds`) and `controls` false. An identity's page lists
+the roles it could activate. An eligible role never widens the lens of the
+role held beside it.
+
+**Deny assignments: deliberately not read.** In practice they come only from
+managed applications, Azure Blueprints and deployment stacks. A customer
+cannot write one directly. Subtracting them would take per-resource deny sets
+inside the lens, evaluated at arrival, for a case most tenants never have. Not
+subtracting them errs towards claiming reach. The claim is still true of every
+principal a deny assignment excludes, and a managed application's own
+resource group is where one would sit. Revisit if a customer's estate shows a
+route through a resource group a deny assignment locks.
+
+## 131. `alembic_version` is closed to the API roles
+
+Supabase's advisor flagged `public.alembic_version` as the one table in
+`public` without row-level security. It was worse than unguarded. Alembic
+creates the table before the first migration runs, so migration 0001's
+`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO
+authenticated` included it, and Supabase's default privileges give every new
+`public` table to `anon` too. PostgREST serves `public`, so anyone holding the
+publishable key the web bundle ships could read the schema revision, and any
+signed-in user could rewrite it. That value decides what the next
+`alembic upgrade head` runs on deploy.
+
+Migration 0040 enables RLS on it with no policy, which denies every row to
+every role that does not own the table, and revokes `anon`'s and
+`authenticated`'s privileges. Migrations connect as the owner, and RLS does
+not constrain the owner unless forced, so Alembic keeps working. Nothing in
+the API reads the table.
+
+Moving it out of `public` (`version_table_schema`) would also hide it from
+PostgREST, but an existing database would then look unmigrated and re-run
+everything from 0001. Closing it in place changes nothing about how Alembic
+finds it.
+
+`test_rls.py` now fails if any table in `public` lacks RLS, so a table created
+without a policy block is caught in CI rather than by the advisor.
+
+## 132. An attack path is walked on the estate map, one hop at a time
+
+The estate map's list under the canvas said "32 attack paths through here" and
+then listed links: arrows between two boxes, each a toggle that lit its own
+two ends. Nobody could follow a route from where it starts to what it reaches.
+Picking a link also left the canvas where it was, and reach that ran back
+against the columns was drawn as a curve across every box in between, with
+labels over the boxes beside it.
+
+**The estate sends its routes.** `GET /attack-paths/estate` now carries the
+routes `routes_total` counts, shortest first, capped at `ESTATE_MAX_ROUTES`
+(100). Each is the attack-path page's own shape (`serialize_path` plus `key`
+and `pattern`) with one field added: `boxes`, the box each node of the route is
+drawn in under this lens, running entry first so that step `i` goes from
+`boxes[i]` to `boxes[i + 1]`. A node whose box this lens does not draw is
+`null`. A route that runs out to a neighbour of a neighbour passes somewhere
+the map does not show, and the page says so rather than lighting a box that is
+not there. Repeats are grouped by the same `route_patterns` the attack-path
+page uses (§123), and that serialization moved into `serialize_patterns` so
+both endpoints say one pattern in one sentence.
+
+**Routes first, links second.** (§133 folded these tabs, with the contents
+list, into one panel beside the canvas.) The panel beside the contents list is two
+tabs: **Attack paths**, the default whenever there are any, and **Links**,
+which is the old list unchanged. The route rows are the attack-path page's
+rows, moved to `components/graph/RouteRows.tsx` rather than copied.
+
+**Picking a route walks it.** The canvas frames the route's boxes. Each box
+gets a badge giving where the route visits it ("1", "3–5" for a route that
+runs down through one subscription), the route's arrows are drawn at full
+strength, and everything else fades. A step bar across the top of the frame, above the
+canvas rather than over it so it never hides the route's first row, reads one
+hop at a time: "Hop 2 of 4", the hop's own sentence with the role
+named (§121), and the scissors on the hop the route's `cheapest_break` names.
+The previous and next buttons, the arrow keys and a row of pressable hop
+segments all move along the route. The hop being read is ringed on both of its
+boxes, its arrow moves (except under reduced motion), and it alone shows its
+full label. The route's other arrows keep their short one. Stepping leaves the
+view where it is when the hop is already in frame, and pans at the same zoom
+when it is not. The route is framed two frames after it is picked, because
+the step bar arriving shrinks the canvas and React Flow learns the new size
+from a resize observer. A hop inside one
+box, or out of the lens, is still counted and is said in words. Escape puts the
+route down. From the bar, the graph around the entry opens with the route
+traced (`OpenInGraph`), which was already the way from a route to its
+neighbourhood.
+
+**Backward reach goes round the boxes.** An arrow into a box in the same column
+or an earlier one leaves its source's right side into the gap between
+columns, drops to a lane below every box, runs along it, and climbs the gap
+before its target to enter from the left like every other arrow. The gaps and
+the lane hold no boxes, so no arrow crosses one. Before, the arrow curved back
+across the canvas. A first version ran from under one box to under the other,
+and the harness showed it running straight down through whatever was stacked
+below in the same column. Each backward arrow has its own lane and gutter
+offset, so two never share a line. An invisible node below the last lane is
+what fitting the view, including the zoom buttons' fit, frames down to. The
+column gap widened from 380 to 440 to leave room for labels and gutters.
+
+A map where many boxes hold a way in, as the demo's subscription does, still
+draws most of its arrows backward: §111 puts every entry-holding box in the
+first column, so reach between them runs within it. Those arrows are legible
+now, but a layering that breaks cycles and places boxes by longest path
+would draw fewer of them. It would change §111's promise that a way in is
+always in the first column, so it is left as a decision rather than made
+here. (§134 made it.)
+
+**Short labels on the canvas.** An arrow carrying several kinds of reach reads
+as the commonest and a count ("can act over ×3 +2 more"). A picked link or a
+walked route shows the full label, and the Links tab always does.
+
+**Not built.** Putting the walked route in the URL was left out. The picked
+link was never in the URL either, and a route is placed on one lens's boxes, so
+a shared link would need both. (§133 put it in the URL: a route's key names it
+in every lens, and each lens places it on its own boxes.)
+
+## 133. The estate map is one frame, a click selects, and it owns walking a route
+
+After §132 the estate map was a canvas with three cards under it: the contents
+list, and the attack paths and links in tabs. Reading a route meant choosing it
+below the fold and finding it above. A press on a box opened it at once, so the
+canvas could not be asked "what runs through here" -- every question went
+through a list somewhere else. And the attack-path page traced routes as well,
+so two places each half-answered one question.
+
+**One frame.** The canvas and a panel beside it are the whole view, as tall as
+the window allows (`max(34rem, 100dvh − 15rem)` from `lg` up). Below `lg` the
+panel stacks under the canvas. With nothing selected, the panel is three tabs:
+**Paths** (the default whenever there are any), **Contents** (the list §112
+made of the hierarchy) and **Links** (the arrows as sentences). These are the
+map's text forms, and they are how the keyboard reaches an arrow, since arrows
+are not tab stops. The cards under the canvas are gone.
+
+**A click selects; opening is a second act.** Pressing a box selects it:
+`aria-pressed`, a ring, the box, its neighbours and the arrows between them
+kept, the rest faded. The panel then says what the box is, with the same marks
+it carries, gives an "Open" button, and lists the attack paths that run
+through it, each walkable from there. Pressing an arrow does the same for the
+arrow: its two ends, everything it carries, and the routes that run along it.
+A press on empty canvas clears the selection. Opening is a double click, Enter
+on the focused box, or the panel's button. A subscription or group redraws the
+map, an asset opens its page, and the fold lists what is in it. A row in the
+Contents or Links tab selects too, and brings its box or arrow into view. This
+reverses §111's "pressing a box opens it" and §112's "a row opens it". A single
+press that navigated left nothing to select with, and selecting is what makes
+the canvas answer questions. Only a selected arrow shows its full label. Around
+a selected box the arrows keep their short labels, because a hub touches most
+of the map and full labels would cover the boxes beside them.
+
+**Attack paths only, on by default.** A switch at the canvas's top left draws
+only the boxes a route passes through and the arrows a route runs along, and
+counts the rest as hidden. Whatever is selected is always drawn, so a box
+picked from Contents can be found. Contents marks a row "not on an attack path"
+when the switch is hiding its box. Turning the switch remounts the canvas, so
+the smaller picture is laid out afresh rather than keeping the holes. It is off
+by necessity when the lens has no routes.
+
+**The walk is in the URL, and follows the route down.** `walk` (the route's
+key) and `hop` sit beside the lens parameters. Stepping replaces the history
+entry, and opening a box pushes one, as before. Opening a box keeps the walk,
+so a route that runs into the box opened is still being walked there, placed
+on that lens's boxes. That is what the step bar's **Follow into …** button
+does: it appears when the hop lands in a subscription or group that has
+assets, and opens it at the same hop. A route therefore reads from the
+subscriptions down to the assets it runs through without being picked again.
+The button offers only where the hop lands. Offering where it came from read
+as a step backwards.
+
+**Linked routes are always found.** `GET /attack-paths/estate` takes
+`route=<entry|target>` and traces that route even past `ESTATE_MAX_ROUTES`.
+The map sends the walked route on every read. The key is not part of the
+query's cache key: a route picked from the list is already in the payload, and
+a linked one needs the parameter only on its first read of a lens.
+
+**The estate map owns walking a route.** The attack-path page keeps what only
+it does: the choke points, the cut simulated across every route, and the rail
+that ranks routes. Its traced-route card gains **Walk it on the estate map**,
+a link to `/assets?view=graph&walk=…`. Hop-by-hop reading lives in one place.
+
+**Checked in a browser.** This was built against the harness §132 used: the
+real map, with payloads computed by the real estate code from the demo
+recording. That harness found that selection panning inside a canvas with no
+size produced `NaN`, because d3's zoom interpolation divides by the width. The
+view no longer moves while the canvas has no size.
+
+**Not built.** Search inside the canvas (`/`) was left out, because it matters
+only past about 40 boxes, which a lens caps at anyway. A minimap was left out
+because panning is not the problem. Expanding a box in place was left out
+because it breaks the lens being the list's scope filter.
+
+## 134. The estate map is layered by longest reach, and every canvas selects the same way
+
+**Few arrows run back.** §111 placed every box at its shortest distance from
+where reach starts, and counted every box holding a way in as a start. On a
+tenant where many boxes hold a way in -- the demo's subscription is one -- they
+all stood in the first column, reach between them ran within it, and §132 had
+to route most of the map's arrows backwards round the boxes. `layoutEstate` is
+now a layered drawing in four steps:
+
+1. The wired boxes are put in one order that as few arrows as possible run
+   against (Eades, Lin and Smyth's greedy ordering): boxes that reach nothing
+   off the end, boxes nothing reaches off the front, and otherwise the box
+   whose arrows most run out. An arrow against the order is the one drawn back,
+   so an arrow runs back only where reach loops. Where a loop has to be entered
+   somewhere, a box holding a way in goes first, because an attacker starts
+   there, and the arrow drawn back is the one into it.
+2. Each box sits one column past the furthest box that reaches it, the arrows
+   drawn back counted reversed. Every other arrow runs strictly rightwards.
+3. An arrow crossing more than one gap gets a slot in each column between, a
+   row kept empty for it, and passes straight across the slot rather than over
+   the boxes stacked there. `layoutEstate` returns those slots as `bends`, and
+   `EstateCanvas` draws such an arrow as a `long` edge: the same curve a
+   one-gap arrow draws in each gap, joined by a straight run through each slot,
+   with its label in the first gap as a one-gap arrow's would be. A slot at the
+   top or bottom of its column is an empty node too, so fitting the view keeps
+   it in the frame.
+4. Sweeping right and left, each column is ordered by the average place of what
+   it joins in the column beside, and the order with the fewest crossings is
+   kept. Before, one rightward pass ordered each column by average height.
+
+This gives up §111's promise that a way in is always in the first column. A
+box nothing reaches is still there, so reach still reads from where it starts.
+A box holding a way in that another box reaches now sits after that box, and
+its globe says it is a way in, wherever it is. On the demo's subscription
+rg-build and rg-prod lead into the directory, rg-payments -- which holds a way
+in too -- sits where reach arrives at it, and two arrows run back where reach
+loops, where before most arrows did. The layering is
+wider: a chain of five boxes takes five columns, which shortest distance could
+fold into fewer by drawing the arrows back. The legend says how columns are
+read.
+
+**A click selects on every canvas.** §133 made a press on the estate map
+select, and the panel beside it answer, with opening a second act. The
+neighbourhood on an asset's page still re-centred on a press (§101), and the
+attack-path page's route map picked a box without showing which. So:
+
+- **The neighbourhood** is one frame of canvas and panel, as the map is. A
+  press on a box or an arrow selects it: `aria-pressed`, a ring, the box with
+  its neighbours and the arrows between them kept, the rest faded. The panel
+  says what an asset is -- its type, and its exposure, sensitive data and open
+  findings in words -- with **Centre the graph here** and **Open its page**,
+  and lists the routes here that run through it, each traceable. A fold says
+  what it counts, by type, with **Show them**. An arrow says its hop. With
+  nothing selected, the panel is the list of attack paths through the centre
+  that sat under the canvas; the traced route's line and the what-if cut stay
+  under the frame, where they have the width. A double click or Enter
+  re-centres on a box, opens the centre's page when it is not the page's own
+  asset, or draws a fold's members. The centre is a button like every other
+  box rather than a link, so a press on it selects too.
+- **The route map** rings the box picked and fades what it does not touch
+  while no route is traced and no cut simulated, and a press on the empty
+  canvas puts the box down. A press on a line still asks what cutting it
+  would do: that is the question this map is for.
+- What a selection keeps is one function, `kept` in `flowChrome.ts`, which all
+  three canvases call, as they share the tokens and the keys.
+
+**Pointing previews.** With nothing selected or walked, the box or arrow under
+the pointer, or the box the keyboard is on, fades the rest as a selection
+would, without selecting it. A hovered arrow shows its full label. It is off
+while something is selected, because the panel answers for the selection and a
+canvas redrawn under the pointer would contradict it, and off while a route is
+traced or a cut simulated, which draw their own fading.
+
+**Checked in a browser.** Against the §133 harness, rebuilt: the real
+components, fed estate and neighbourhood payloads computed by the real
+serializers from the demo recording, plus a made-up estate of twelve
+subscriptions with two loops and several long arrows. Light, dark, and phone
+width. That turned up an existing fault that is not fixed here: a `Link`
+carrying `buttonVariants({ variant: "outline" })` has no visible border,
+because `border-transparent` from the base classes wins over `border-border`
+in the generated CSS and `buttonVariants` does not merge them. `Button` is
+unaffected. It shows on every outline link, the neighbourhood's "Open its
+page" among them. (§135 fixed it.)
+
+**Not built.** A preview while something is selected, for the reason above.
+Edge bundling, which grouping repeated arrows would need. Compacting the
+columns a long chain makes, which would put arrows back.
+
+## 135. `buttonVariants` merges its classes
+
+§31 made a navigation styled as a button a `Link` carrying
+`buttonVariants({ variant, size })`. cva concatenates; it does not resolve
+conflicts. The base classes carry `border border-transparent` and the outline
+variant adds `border-border`, two border colours on one element, and whichever
+Tailwind emits later wins. That is `border-transparent`, so an outline link
+given the classes bare drew no border -- "Scan history" after a scan, "Run a
+scan" on an empty Assets page, the way back to the risk list, and the
+neighbourhood's "Open its page" -- while the `Button` beside it did, because
+`Button` already ran the classes through `cn` (`tailwind-merge`). The links
+that happened to wrap them in `cn` themselves, such as "Connect Azure" and the
+setup steps' way back, were already right.
+
+`buttonVariants` is now `cn` over the cva function, so a link and a button
+given the same variant get the same classes, and a class passed in replaces
+the variant's rather than competing with it. The cva function itself is
+`buttonStyles`, kept for `VariantProps`. This edits a vendored primitive, which
+§24 allows: the fix is two lines, and re-running the shadcn CLI over it would
+need them again, so the comment in `button.tsx` says why.
+
+`ui.test.tsx` pins it: an outline variant carries `border-border` and not
+`border-transparent`, a ghost one keeps its transparent border, and a class
+passed in wins.
+
+## 136. Every graph has a legend
+
+The estate map had a legend (§133): each mark once with its word, and how to
+read the map behind a question mark, because a paragraph under the canvas is
+the one place a legend is not read. The neighbourhood still had that
+paragraph, and the attack-path page's route map had one sentence of help under
+it and no key to its marks at all -- a line's thickness, the dashed green cut,
+the greyed boxes a cut would close.
+
+`GraphLegend` (`components/graph/GraphLegend.tsx`) is the estate map's legend
+made shared, and `MARKS` holds each mark drawn as the canvases draw it. The
+glyphs come from `lib/icons` (§86); the line marks -- a thin and a thick line
+for weight, a dashed line in `text-ok` for a cut -- are hand-drawn SVG, as a
+one-off visual is. One glyph therefore means one thing on all three graphs.
+
+- **Estate map**: unchanged in what it says; now built from the shared parts.
+- **Neighbourhood**: beside the depth buttons -- reachable from the internet,
+  exposure unknown, sensitive data, open findings, on an attack path, and
+  "counted, not drawn" only when a fold is drawn. How to read it moved into
+  the question mark. What stays under the canvas is what this drawing admits
+  about itself: the fold's cap and the node cap, which are facts about this
+  picture rather than how to read pictures.
+- **Route map**: above the drawing -- reachable from the internet, sensitive
+  data, open findings, and "thicker: closes more routes if cut"; while a cut is
+  being tried, also the dashed cut and "out of reach after the cut". Its help
+  sentence moved into the question mark; "drawing N of M routes" stays visible,
+  as a cap is. Its words are in `i18n/en.ts` with the rest of the page's.
+
+A legend entry appears only while its mark can: the fold's only with a fold,
+the cut's only during a cut. A key to marks that are not drawn is a list of
+things to look for and not find.
+
+**Checked in a browser**, light and dark, every mark in one legend on a scratch
+page. The dashed box first drew as a dashed circle at that size and the greyed
+box nearly vanished; both are now squarer, and the greyed one is filled from
+the muted foreground rather than faded. Tests read the words, not the pixels.
+
+## 137. The attack-path page's drawing and its routes are one frame
+
+The estate map (§133) and the neighbourhood (§134) are each one frame: the
+canvas, and a panel on its side that answers for it. The attack-path page was
+still two columns of cards -- the drawing in one, and beside it a stack of
+cards for the repeated routes, the other routes and, once a route was traced,
+the route itself at the foot of that stack, often below the fold and out of
+sight of the drawing it was tracing.
+
+Now it has the same shape. Above the frame, the title and the legend (§136).
+In it, the canvas, and a panel on its right -- below it on a narrow screen --
+that lists the repeated routes and then the rest, scrolling on its own. Tracing
+a route turns the panel into that route read hop by hop, with a button back to
+the list, as selecting a box does on the map. Pressing a box narrows the list to
+the routes through it, and the panel says whose routes they are with a button
+to show every route again. While a cut is being tried, a strip across the top
+of the frame says that nothing in Azure has changed, where the drawing it
+qualifies is.
+
+The changes that close the most stay above the frame as their own card: they
+are what to do about everything in it, and "Simulate the cut" acts on the
+drawing from there.
+
+**Not checked in a browser.** Checked by tests, which read the panel's words
+and find them beside the drawing, not the layout.
+
+## 138. The estate map explores connections; attack paths are read on their own page
+
+Supersedes the walking half of §132 and "the estate map owns walking a route"
+in §133.
+
+The estate map had become two tools in one frame. It drew how the estate is
+wired -- which subscription's identities reach which other, where the
+directory's principals land -- and it also listed every attack path, walked
+one hop at a time with the boxes numbered, and by default ("Attack paths
+only") drew nothing a route did not run through. The attack-path page, which
+ranks the routes, weighs the cuts and draws every route, then sent its reader
+to the map to walk one (§133, §137). A route was read in two places, and the
+map's default picture answered the page's question instead of its own.
+
+Now each answers one question.
+
+- **The estate map is for connections.** No paths tab, no walk, no step bar,
+  no "Attack paths only" switch, no numbered boxes, no darker arrows on a
+  route and no route count on a box. The panel lists the contents and the
+  links. A selected box lists what reaches it and what it reaches on this map,
+  each row selecting that arrow, and a selected arrow offers its two ends. A
+  quiet box is drawn like any other: this is a map of the estate, not of its
+  routes.
+- **It links to the routes, once.** Where attack paths run through a selected
+  box, one line -- "On 3 attack paths -- see them" -- opens the attack-path
+  page narrowed to it: an asset by `through=<provider id>`, a subscription by
+  `scope=`, a group by `scope=` and `group=` (an empty group is what sits
+  directly in the subscription). The fold has no one place and no link.
+- **The attack-path page walks a route.** Tracing one puts the step bar across
+  the top of the drawing, as it was on the map: previous and next, the hop's
+  own sentence with the role named (§121), whether cutting it severs the
+  route, pips for every hop, arrow keys to step and Escape to stop. The drawing
+  marks the hop in the primary colour with its two boxes ringed, frames the
+  route when it is traced, and pans only when the hop is out of view.
+- **Where each hop lands.** Each node on the route map now carries its
+  placement (`scope_id`, `scope_name`, `group`), read by `load_placements` as
+  the map reads it. The step bar says which subscription and group the hop
+  lands in, and the traced route's panel lists every place the route runs
+  through in order; each is a link to the estate map opened there. That is how
+  a route is followed down into a group now: by going to the map to see its
+  wiring, rather than by the map drawing the route.
+- **The page's state is in the URL.** `trace`, `hop`, `through`, `scope` and
+  `group`, so the map's link and any other opens on them. Each change replaces
+  the entry, as a step along a route did on the map. A simulated cut stays out
+  of the URL: it is a question asked, not a place.
+- **Old links still land.** `/assets?view=graph&walk=<key>&hop=<n>` redirects
+  to `/attack-paths?trace=<key>&hop=<n>`.
+
+**The API.** `GET /attack-paths/estate` sends no routes, patterns or `loose`
+any more, and takes no `route`; its edges lose `on_route`. A box still counts
+the routes through it (`routes`), which is the number its link carries, and
+the routes still decide which containment is drawn and which assets are drawn
+before the fold -- what a route runs through is still worth drawing, it is
+just not drawn as a route. `GET /attack-paths/graph` gains the placement on
+each node.
+
+The count on the map's link is the server's, over every route; the page it
+opens narrows the routes it has drawn, which past the drawing's cap can be
+fewer. The panel says how many it shows.
+
+The neighbourhood on an asset's page still lists and traces the routes
+through its asset. Whether it should also only link to them is left for now.
+
+**Not checked in a browser.** The page and the map were checked by tests,
+which read the step bar, the panel and the links, not the layout.
+
+## 139. The dashboard opens a risk's graph directly, and loads it on the way
+
+The ask was a card on the dashboard that expands smoothly into the node-link
+graph. Before any animation, the path from the dashboard to a graph was slow
+and indirect, and a transition played over that wait would have made it look
+worse, not better. Opening a route meant a round trip to
+`/assets/resolve` (the risk knew its assets by provider id, the page is
+addressed by row id), then the page's chunk, then React Flow's chunk, then the
+graph itself, each one waiting for the last. The dashboard's risk rows went
+only to the risk, and the shortest-path panel only to the unfiltered list.
+This entry fixes that path. The transition is a separate decision, left until
+this is measured.
+
+- **A risk says where its graph is.** Each `top_risks` row gains `asset_id`,
+  the asset a finding risk is about when it is about exactly one, and `route`,
+  the `entry_id` and `target_id` a scenario's route is keyed by on the
+  attack-path page. A risk grouped across several assets gets neither: there
+  is no single place to open, and sending the reader to the worst asset would
+  present that asset as if it were the whole risk. A tenant-scope finding is on
+  no asset.
+- **The link goes to the existing pages, not a new one.** A route opens
+  `/attack-paths?trace=<key>`, where routes are read (§138). An asset opens
+  `/assets/<id>?tab=connections`, centred on itself. An expansion on the
+  dashboard was considered and rejected: it would have been a third place
+  hosting a canvas, with its own selection and URL state, after §133 and §137
+  worked to reduce them to one frame per question.
+- **Beside the row, not instead of it.** The row still opens the risk, which
+  explains the rank. A small graph link sits next to it. A risk with no single
+  place to open keeps an empty slot of the same width, so the badges stay
+  aligned. The shortest-path panel gains "Trace this route".
+- **Loaded before the click.** `GraphLink` starts the page's chunk, the
+  canvas's chunk and the graph's query when the keyboard reaches the link, or
+  when a pointer has rested on it for 100ms. That delay is long enough that
+  sweeping down five rows does not request five graphs. An asset's
+  neighbourhood is addressed by provider id, so the asset row is fetched first
+  and the neighbourhood second. Every part is fire-and-forget: a failure leaves
+  the page to ask again and show its own error.
+- **The queries are declared once.** `components/graph/graphQueries.ts` holds
+  the asset, neighbourhood and route-map queries that the pages and the
+  prefetch share. A prefetch only helps if it fills the exact entry the page
+  reads, and a key changed on one side alone would silently turn every
+  prefetch into a wasted request.
+- **Arrival.** A page opened with `trace=` scrolls its drawing into view once,
+  since the drawing sits below the counts and the choke points. Tracing from
+  the rail afterwards does not scroll. A `trace=` that names a route missing
+  from the latest reading now says so, with a way to clear it, instead of
+  showing every route with no explanation.
+
+The risk page's "Explore in graph" still opens a scenario on the neighbourhood
+around its entry point, traced there, rather than on the attack-path page.
+Whether it should follow §138 is left for now.
+
+**Not checked in a browser.** Tests cover the links, the prefetch requests,
+the one arrival scroll and the missing-route notice. They do not show how long
+the handoff takes, which is the thing a transition would be judged against.
+
+## 140. A link into the graph grows into the graph's frame
+
+The step §139 left for later. A dashboard row, or the shortest-path panel,
+now grows into the frame of the graph it opens: the neighbourhood card on an
+asset's page, or the drawing on the attack-path page. The row is the thing
+that becomes the graph, so the reader never has to look for it on arrival.
+
+- **The browser's View Transitions API, not `motion`.** `motion` animates
+  elements React holds. The two ends of this movement are on two pages, and
+  the first is unmounted before the second mounts. `document.startViewTransition`
+  pictures the page before and after a change and moves between the two,
+  matching elements by name. It is called by hand, since React Router 6 only
+  offers it with a data router, and this app uses `<Routes>`. It is a platform
+  API, not a second animation kit: nothing is installed, and nothing is drawn
+  that the page does not already draw.
+- **What is named.** The click names the nearest `data-graph-source` (the risk
+  row, the panel), or the link itself when there is none. Once the first
+  picture is taken that name is cleared, and a class on `<html>` names the
+  destination's `data-graph-frame`. A frame is named only while a morph runs,
+  so an ordinary visit to the page is untouched, and two names never exist at
+  the same moment.
+- **It never holds the page long.** Between the browser's two pictures the page
+  is frozen. `morphInto` waits for a frame to appear (a mutation observer and
+  timers, not animation frames, which are not drawn while frozen), for at most
+  300ms, and then two more turns so an arrival scroll has already happened.
+  The preload from §139 means the frame is usually there at once. When it is
+  not, the morph goes ahead with the page as it stands, rather than freezing
+  it for a slow network.
+- **`PageTransition` holds its key across a morph.** Its exit is counted in
+  animation frames, which would never finish while the page is frozen, and
+  the new page would never mount. On a navigation carrying the morph's history
+  state, the same element takes the new page and the old one leaves at once.
+  The key still changes only with the pathname, so the next ordinary
+  navigation animates as it always did, and a later search change on the
+  arrived page does not remount it.
+- **Timings are `lib/motion.ts`'s.** The frame grows over `page` (240ms) on its
+  ease-out, clipped as it grows, from the source's top edge. The source's
+  picture leaves over `instant` (120ms) on the ease-in, so the two never read
+  as one image stretched. The rest of the page crossfades on the same two.
+- **An enhancement only.** Without the API, for a reader who has asked for
+  less motion, or for a modified or middle click, the link is the ordinary
+  link §139 made. The reduced-motion media query in `index.css` also removes
+  the view-transition animations, as a backstop. After a morph the attack-path
+  page's arrival scroll is instant rather than smooth, because the browser
+  pictures the page once it has scrolled.
+
+**Not checked in a browser.** Tests cover what is named when, that the frame's
+page is mounted before the second picture, that the old page leaves into the
+same element, and each fallback. jsdom has no View Transitions and draws
+nothing, so how the movement looks, and whether 300ms is the right wait, still
+need a real browser, in Chrome and Safari at least.
+
+## 141. Changes are simulated as a plan, in a tab beside the drawing
+
+The attack-path page could try one cut: a choke point's button, or a pressed
+line, greyed out what that link's severance closed. Nobody makes one change.
+What goes to a change window is a list, and a list is the one thing severance
+per link cannot answer: two network hops into one identity each close nothing,
+because each is the other's way round, and together close everything behind
+them. A page that added up the numbers on the lines would tell that customer
+the plan does nothing.
+
+- **The plan is answered whole, on the server.** `POST /attack-paths/simulate`
+  takes up to ten links, removes them all (`AssetGraph.without`, keyed by
+  `removal_key`, so an Owner assignment takes its escalation line, §127) and
+  enumerates the routes again from the resources and edges, the way the
+  severance oracle in the tests checks one link. The browser never derives a
+  plan's outcome from `closes`; the union of those is a lower bound, and a
+  lower bound shown as the answer is the overclaim §122 exists to avoid, pointed
+  the other way.
+- **Where the whole beats its parts, the page says so.** `together` names the
+  routes no single cut closes alone. That is the thing nobody could have read
+  off the drawing, and the reason to simulate rather than eyeball.
+- **Each change is weighed against the rest.** `alone` is the number on the
+  line; `needed_for` is how many routes reopen if the change is taken out of
+  the plan, found by rebuilding without it — one rebuild per cut, which is
+  what caps a plan at ten. A change with `needed_for` zero is work the rest of
+  the plan already does, and is marked "you can leave it out".
+- **What to add next is ranked with the plan made.** The choke points above
+  the drawing are the estate as it stands. Once the plan removes a link, a hop
+  that had a way round may be the only way left, so the tab's suggestions are
+  `choke_points` of the rebuilt estate against what remains. An empty tab starts
+  from the estate's own choke points.
+- **A tab, not a mode.** The panel beside the drawing has two tabs, Routes and
+  Simulate. Pressing a line adds it to the plan (or takes it out) and opens
+  Simulate; tracing a route or pressing a box opens Routes. The drawing shows
+  the plan in either tab — its lines dashed in the ok colour, what it closes
+  greyed — with a bar above saying how many changes are simulated and that
+  nothing in the cloud has changed.
+- **No choke-point card above the drawing.** It listed the same links the
+  Simulate tab starts from, so the page said one thing twice, and the card's
+  button only fed the tab. The tab now leads with them under the card's title
+  — each with what it closes, named, and "it sits on N" where it has a way
+  round — and the page goes from the counts straight to the drawing. The risks
+  queue still leads with the same rows, from `/choke-points`.
+- **The plan is in the URL.** `cut=source|relationship|target`, one per link,
+  so a plan can be sent to whoever makes the change, and the page opens on the
+  Simulate tab when a link names one. The API call is a POST body because ten
+  Azure ids three times over outgrow what some proxies accept; the page's own
+  URL never reaches the API. A link not in the latest reading comes back in
+  `missing` and is shown as such rather than failing the plan — a plan in a
+  URL outlives the scan that drew it, and one change already made should not
+  hide what the others still do.
+- **Still open, and longer.** Routes the plan leaves are listed with the hops
+  they now take. A route that runs longer goes round a cut, which is the plan
+  partly working; saying "4 → 6 hops" keeps that from reading as failure.
+- **"Copy the plan"** puts the changes and what they close on the clipboard,
+  for the ticket. No export format beyond that until somebody asks for one.
+
+**Cost.** One rebuild and traversal for the plan, one more per cut, and one
+severance pass over the rebuilt estate for the suggestions. A tenant whose
+route map is already slow will feel a ten-cut plan; the page keeps the last
+answer up, faded, while the next is checked, rather than emptying the panel.
+
+**Not checked in a browser.** Tests cover the plan in the URL, the request
+body, the together callout, a covered change, and a missing link. How the tab
+reads beside a large drawing still needs a real screen.
+
+## 142. A route is read in one navigator in the panel, stop by stop
+
+Supersedes the step bar in §138 and the traced-route panel in §137.
+
+A traced route was read twice, and the two readings did not agree. A step bar
+across the top of the drawing showed one hop at a time, with previous and next,
+the hop's sentence and six-pixel pips. The panel showed every hop as a spine,
+which could not be stepped along and did not mark the hop the bar was on. The
+bar said the hop's `detail`, the spine its `description`. The two found the
+cut differently: the bar matched the relationship, the spine did not, so where
+one pair of boxes is joined by a role and by a grant the spine could mark the
+wrong one. The bar and the plan's bar together took seven rows from a drawing
+of fixed height. The entry was never a hop, so nothing said why the route
+started there, and nothing said what the target held. Reading forty routes was
+back, press, back, press. And every hop carried numbers the page already had --
+what cutting it closes, whether there is a way round, the open findings where
+it lands -- and said none of them.
+
+Now there is one reading, in the panel (`RouteNavigator`).
+
+- **Stops and links.** A route of four hops is five stops joined by four links.
+  Every stop is always shown: its name (a link to the asset), its type, open
+  findings, the entry's exposure and the target's sensitivity, and where the
+  route enters a place -- the subscription and group, linked to the estate
+  map, said once where the route arrives rather than at every stop in it. The
+  links are what is walked. The one being read opens: its `detail` and facts,
+  and what cutting it would do.
+- **The cursor is on a link, never on a stop.** Stops are short enough to show
+  whole, so there is nothing to open on them, and keeping the cursor on links
+  leaves `hop` meaning what it has meant since §138 -- every link already
+  made still opens where it did. A press on a stop in the drawing reads the
+  link arriving at it.
+- **What cutting it does, from the line's numbers.** "Closes this route and N
+  others" only when the link's `closes` names this route; a link the route has
+  a way round says so, with what it closes elsewhere; "It sits on M" where
+  `on_routes` is larger than `severs`. Containment says it cannot be removed
+  and offers no cut. Two marks: the earliest place to cut, which is the
+  server's `cheapest_break`, and the link closing the most on this route, when
+  that is another link and closes more than this one. The earliest removable
+  link is the cheap one to reason about and often not the one worth making,
+  and a reader choosing between them needs both in front of them.
+- **"Add to the plan" is on the hop.** It plans the link without leaving the
+  route (§141's tab does not open), and once the server has answered for the
+  plan the navigator says whether it closes this route. The plan's bar above
+  the drawing still says a plan is being simulated, with a way to it.
+- **Route to route.** "Route 3 of 17", with previous and next, over the list
+  exactly as it stands -- narrowed by box, place and search, in its sort.
+  `listRoutes` (`routeOrder.ts`) is that order, and the list and the navigator
+  both read it, so neither can skip a route the other shows. A route in a
+  group says which group. A route the narrowed list does not hold shows no
+  counter rather than a wrong one.
+- **Keys where the reader is.** Up and down walk the links, left and right move
+  between routes, Escape goes back to the list, while the focus is in the
+  panel -- the drawing keeps its arrow keys for its boxes. A route chosen here
+  moves the focus to its name; one a link arrived with does not, since the page
+  has only just loaded. One live region says the hop being read, since a region
+  mounted with its words is not reliably read.
+- **The drawing selects what is being read.** A press on the traced route's own
+  line or box reads that hop, as a click selects on every canvas. A line off
+  the route still goes into the plan, and a box off it still narrows the list.
+  Before, a press on the line being read put it in the plan and switched tabs,
+  which took the reader away from the thing they were reading.
+- **The list.** Searched by any asset on a route, not only its ends (`q`), and
+  sorted by hops, sensitivity of what it reaches, exposure of where it starts,
+  or tracked risks first (`sort`); groups stay above the rest whatever the
+  sort, a group being one thing to decide about. Each row carries a dash per
+  hop with the earliest cut in the cut's colour, "Tracked" where the risks
+  queue has it, and "Closed by the plan", struck through, once the server has
+  answered. Pointing at a row, or reaching it by keyboard, previews its route
+  on the drawing -- faded around, but the view does not move and nothing
+  marches, so sweeping down the list does not set the drawing swimming. A
+  place narrowed to now narrows the groups' members too; before, only the
+  loose routes were narrowed.
+
+**Rejected.** Playing a route by itself, hop after hop on a timer: progress
+nobody asked for (§87). Keeping the step bar alongside: the fault was two
+readings. A cursor on stops: it would move what `hop` means under every link
+already made, for stops that have nothing to open.
+
+**Not checked in a browser.** Tests cover the navigator's walk, keys and URL,
+what a hop says about cutting it, the two marks, route to route with the focus,
+the plan from a hop, search, sort, the tracked mark and the narrowing. The
+canvas is not mounted in tests, so the press on the traced route and the
+preview on pointing are not covered by them, and how the panel reads beside a
+large drawing still needs a real screen.
+
+## 143. No label on the route map prints over another, and a group says what it holds on its row
+
+Two things seen on the live page, with thirty-two routes in eight groups.
+
+**Labels printed over each other.** Near the subscription the drawing read
+"can gra can act over ıle over". A role and the escalation it grants join one
+pair of boxes (§127), both are drawn along the same curve, and React Flow puts
+each label at its curve's midpoint -- the same spot, twice. Where several lines
+converge on one box, or a long line passes a short one, different pairs'
+midpoints crowd too.
+
+- **A pair speaks once.** `pairSpeakers` picks one line per pair of boxes to
+  carry the label, naming both ("can act over · can grant roles over"): the
+  line being read, then one on the traced route, then one in the plan, then the
+  one closing the most, then the role over its escalation, then by key.
+- **Then no label over another.** `placeLabels` estimates each label's box --
+  from its text length, not measured, so the drawing does not depend on which
+  font loaded -- at the midpoint of the two handles, and draws labels most
+  important first, leaving out any that would overlap one already drawn. The
+  order is what is picked or previewed, then the hop being read, the traced
+  route, the plan, what closes the most, and the key, so one estate drops the
+  same labels every time. A label left out is not lost: the line still carries
+  its weight, and picking either end or tracing a route through it brings it
+  back.
+
+**Groups filled the panel.** All thirty-two routes were grouped, so the panel
+was the three-line help about what a group is and then eight sentences, with
+nothing about any of them but "3 hops".
+
+- **The help is a question mark away**, beside "The same route, repeated · 8
+  groups", as the drawing's own help is (§136).
+- **Each group's row says what the rest of the list says of a route**: the
+  shape (a dash per hop, the earliest cut in the cut's colour), the hops, the
+  worst sensitivity it reaches, how many of its members are here when the list
+  is narrowed ("2 of 3 here"), how many a risk tracks, and how many the plan
+  closes. A chevron says it opens.
+
+**Not checked in a browser.** Tests cover the pair's one label, the placement,
+the group's row and the help behind its question mark. How many labels a
+crowded estate loses, and whether the estimate of a label's width is close
+enough, need the real page.
 
 ## Open items carried forward
 
@@ -6647,3 +7761,17 @@ requires.
 `subscription_id`, matching `DATABASE.md` §2. The child-table alternative the
 spec mentions is a migration away and no core logic assumes one subscription per
 tenant.
+
+**Identity reach beyond direct role assignments (§125, §126, §128, §130).**
+Read PIM activation policies, so an eligible role that activates without MFA or
+approval can be walked like a held one. Read service principal owners beside application owners. Expand the
+members of a role-assignable group that holds a directory role but no Azure
+role, whose members are read today only when it also holds an Azure role
+(§126). Delegated permissions (`oauth2PermissionGrants`) act only on a signed-in
+user's behalf and are not drawn.
+
+**What a finding's fix closes.** The remediation queue says how many routes
+run through a task's asset (§127), not which routes its fix would close. Saying
+that needs each rule to declare which links its fix removes: a role-assignment
+rule removes its principal's assignment, while an exposure rule may or may not
+stop an asset being a way in, depending on what else exposes it.

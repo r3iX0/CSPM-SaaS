@@ -76,6 +76,9 @@ class _RoleAssignmentRule(SecurityRule):
     applies_to: ClassVar[list[ResourceType]] = [
         ResourceType.USER,
         ResourceType.SERVICE_PRINCIPAL,
+        # A group holding a role holds it for everyone in it; it was a
+        # service principal of unknown kind until section 126 typed it.
+        ResourceType.GROUP,
     ]
     # Empty expectations, and the reason is the same for all three: what has to
     # change is a role *assignment*, which is not a field on the asset being

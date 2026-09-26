@@ -145,6 +145,11 @@ async def build_dashboard(session: AsyncSession, organization_id: UUID) -> dict:
         .scalars()
         .all()
     )
+    assets_by_risk = await _risk_assets(
+        session,
+        organization_id,
+        [r.id for r in top_risks if r.kind == RiskKind.FINDING],
+    )
 
     last_scan = (
         await session.execute(
@@ -209,6 +214,12 @@ async def build_dashboard(session: AsyncSession, organization_id: UUID) -> dict:
                 "internet_exposure": r.internet_exposure,
                 "data_sensitivity": r.data_sensitivity,
                 "asset_criticality": r.asset_criticality,
+                # Where the graph for this risk opens, carried so the dashboard
+                # links straight there rather than resolving an id first: the
+                # asset a finding risk is about, and the ends a route is keyed
+                # by on the attack-path page (DECISIONS.md §139).
+                "asset_id": single_asset(assets_by_risk.get(r.id, set())),
+                "route": route_ends(r.path) if r.kind == RiskKind.ATTACK_PATH else None,
             }
             for r in top_risks
         ],
@@ -236,6 +247,49 @@ async def build_dashboard(session: AsyncSession, organization_id: UUID) -> dict:
             else None
         ),
     }
+
+
+async def _risk_assets(
+    session: AsyncSession, organization_id: UUID, risk_ids: list[UUID]
+) -> dict[UUID, set[UUID]]:
+    """The assets each finding risk's findings are on, in one query for the list."""
+    if not risk_ids:
+        return {}
+    rows = (
+        await session.execute(
+            select(RiskFinding.risk_id, Finding.resource_id)
+            .join(Finding, Finding.id == RiskFinding.finding_id)
+            .where(
+                Finding.organization_id == organization_id,
+                RiskFinding.risk_id.in_(risk_ids),
+                Finding.resource_id.is_not(None),
+            )
+        )
+    ).all()
+    assets: dict[UUID, set[UUID]] = {}
+    for risk_id, resource_id in rows:
+        assets.setdefault(risk_id, set()).add(resource_id)
+    return assets
+
+
+def single_asset(asset_ids: set[UUID]) -> str | None:
+    """The asset a risk is about, when it is about exactly one.
+
+    A risk that groups one rule's findings across forty assets has no single
+    place to open, and picking the worst of them would send the reader to one
+    asset as though it were the risk. A tenant-scope finding is on no asset.
+    """
+    return str(next(iter(asset_ids))) if len(asset_ids) == 1 else None
+
+
+def route_ends(path: list) -> dict | None:
+    """Where a stored route starts and ends: the pair a route is keyed by."""
+    if not path:
+        return None
+    entry, target = path[0].get("source_id"), path[-1].get("target_id")
+    if not entry or not target:
+        return None
+    return {"entry_id": entry, "target_id": target}
 
 
 REMEDIATION_WEEKS = 8

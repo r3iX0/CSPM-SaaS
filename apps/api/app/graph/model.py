@@ -7,13 +7,23 @@ route through an environment nobody looked at in one go.
 """
 
 from collections import deque
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from enum import StrEnum
 
 from app.core.enums import Level, RelationshipType, ResourceType
 from app.domain.resource import CloudResource
+from app.graph.access import (
+    SCOPES,
+    AccessGrant,
+    AccessHolder,
+    Lens,
+    grants,
+    holders,
+    lens_for,
+)
 from app.graph.facts import edge_facts
+from app.graph.identity import join
 from app.graph.severance import EdgeKey, removable, severed_pairs
 
 # Exposure at or above which a node is somewhere an attacker could start.
@@ -44,7 +54,23 @@ RELATIONSHIP_VERBS = {
     RelationshipType.CAN_GRANT_ROLES: "can grant itself any role over",
     RelationshipType.CONTAINS: "contains",
     RelationshipType.NETWORK_ACCESS: "can reach over the network",
+    RelationshipType.MEMBER_OF: "is a member of",
+    RelationshipType.CAN_ACT_AS: "can sign in as",
+    RelationshipType.CAN_TAKE_OVER: "can take ownership of",
 }
+
+# Where a walk stands: a node, and the lens it arrived through -- None where it
+# holds the node (see ``AssetGraph._moves``).
+State = tuple[str, Lens | None]
+
+# The edges a walk crosses with a lens rather than holding what it lands on.
+_ROLE_EDGES = frozenset(
+    {
+        RelationshipType.GRANTS_ROLE,
+        RelationshipType.CAN_GRANT_ROLES,
+        RelationshipType.CAN_TAKE_OVER,
+    }
+)
 
 # How many neighbours one asset may contribute to a neighbourhood before the
 # rest are folded into a counted group. A subscription contains every resource
@@ -150,6 +176,12 @@ class DeadEndReason(StrEnum):
     # It runs as an identity, and the identity holds no role over anything this
     # scan saw.
     IDENTITY_WITHOUT_ROLE = "identity_without_role"
+    # It runs as an identity that does hold roles, and none of them controls
+    # anything: they read configuration, were not read, or carry a condition
+    # CloudGuard cannot evaluate (DECISIONS.md section 125). Distinct from the
+    # case above because the fix is not "this identity is harmless" -- a role
+    # is there, and it is one change away from mattering.
+    ROLES_WITHOUT_CONTROL = "roles_without_control"
     # It reaches assets, and none of them is classified as sensitive. The one
     # case where the answer may be wrong rather than reassuring, because
     # sensitivity is only what tags and names declare.
@@ -212,6 +244,45 @@ class CutOutcome:
 
 
 @dataclass(frozen=True)
+class SimulatedCut:
+    """One link in a simulated plan, weighed alone and against the rest."""
+
+    step: PathStep
+    #: Routes this link closes on its own -- the number drawn on its line.
+    alone: tuple[Path, ...]
+    #: Routes that reopen if this link is dropped from the plan. Empty means
+    #: the rest of the plan already closes everything it would.
+    needed_for: tuple[Path, ...]
+
+
+@dataclass(frozen=True)
+class Simulation:
+    """What several links removed together would do to the attack paths.
+
+    Answered by removing them all and enumerating the routes again, never by
+    adding up what each closes alone (see :meth:`AssetGraph.simulate`).
+    """
+
+    cuts: tuple[SimulatedCut, ...]
+    #: Links asked about that are not in the estate or cannot be removed.
+    missing: tuple[EdgeKey, ...]
+    #: Routes that no longer exist once every cut is made.
+    closed: tuple[Path, ...]
+    #: Routes still open, as they run with the cuts made -- round the cut
+    #: links where the route used to cross one.
+    remaining: tuple[Path, ...]
+    #: How many routes exist with nothing cut.
+    before: int
+    #: The links worth cutting next, ranked over the estate with the plan made.
+    next: tuple[ChokePoint, ...]
+
+
+def _ends(path: Path) -> tuple[str, str]:
+    """A route named by its ends, as ``route_key`` names it."""
+    return (path.entry.provider_resource_id, path.target.provider_resource_id)
+
+
+@dataclass(frozen=True)
 class FoldedGroup:
     """Neighbours of one asset that were counted rather than drawn.
 
@@ -267,7 +338,7 @@ class AssetGraph:
     )
     # Attack paths by depth, worked out once per graph. A graph is cached per
     # tenant (``services/graph.py``) and never changed after it is built --
-    # ``_without`` makes a new one -- so the routes are a fixed property of it,
+    # ``without`` makes a new one -- so the routes are a fixed property of it,
     # and the asset list asks for them on every page it serves.
     _paths: dict[int, list["Path"]] = field(
         default_factory=dict, repr=False, compare=False
@@ -279,15 +350,35 @@ class AssetGraph:
     _severance: dict[int, dict[EdgeKey, tuple["Path", ...]]] = field(
         default_factory=dict, repr=False, compare=False
     )
+    # A stand-in's id to the node it was folded into, so a page opened on the
+    # stand-in is answered about the identity it stood for.
+    _aliases: dict[str, str] = field(default_factory=dict, repr=False, compare=False)
+    # What each role edge controls, read off the principal's metadata once.
+    _lenses: dict[tuple[str, RelationshipType, str], Lens] = field(
+        default_factory=dict, repr=False, compare=False
+    )
 
     @classmethod
     def build(
         cls,
         resources: list[CloudResource],
         relationships: list[tuple[str, RelationshipType, str]],
+        *,
+        derive: bool = True,
     ) -> "AssetGraph":
-        graph = cls(nodes={r.provider_resource_id: r for r in resources})
-        for source, relationship, target in relationships:
+        """The graph, with the edges the nodes imply drawn in.
+
+        ``derive=False`` takes the edges exactly as given. For rebuilding an
+        estate from another graph's own :meth:`links`, which already carry the
+        derived edges -- re-deriving them would put back the very link a
+        what-if removed.
+        """
+        # Each identity one node, whichever capture each half of it came from
+        # (``graph/identity.py``, DECISIONS.md section 126).
+        joined = join(resources, relationships, derive=derive)
+        graph = cls(nodes={r.provider_resource_id: r for r in joined.resources})
+        graph._aliases = joined.aliases
+        for source, relationship, target in joined.relationships:
             # Both ends have to be nodes. A dangling edge is not a shorter path,
             # it is a path through something CloudGuard never saw -- and a
             # traversal that followed one would describe reach it cannot
@@ -298,6 +389,11 @@ class AssetGraph:
         return graph
 
     # ---------------------------------------------------------------- queries
+    def resolve(self, node_id: str) -> str:
+        """The node an id names: itself, or the identity a stand-in was folded
+        into when the graph was built."""
+        return self._aliases.get(node_id, node_id)
+
     def links(self) -> Iterator[tuple[str, RelationshipType, str]]:
         """Every edge, source first, in a stable order."""
         for source in sorted(self._out):
@@ -327,33 +423,137 @@ class AssetGraph:
         about the VM's configuration, not a way to get anywhere from the NSG,
         and walking it would produce routes that read as attack paths while
         describing nothing an attacker could do.
+
+        And a role edge only as far as the role reaches (``graph/access.py``).
+        The walk descends through the scope a role lands on, but an asset under
+        it counts as reached -- and is walked on from -- only when the role
+        controls it. Reader over a subscription reaches the subscription and
+        nothing in it.
         """
+        start = self.resolve(start)
         if start not in self.nodes:
             return {}
 
         found: dict[str, Path] = {}
-        queue: deque[tuple[str, tuple[PathStep, ...]]] = deque([(start, ())])
-        seen = {start}
+        origin = self._holding(start)
+        queue: deque[tuple[State, tuple[PathStep, ...]]] = deque([(origin, ())])
+        seen = {origin}
 
         while queue:
-            current, steps = queue.popleft()
+            state, steps = queue.popleft()
             if len(steps) >= max_depth:
                 continue
 
-            for relationship, target in self._out.get(current, []):
-                if not relationship.is_capability or target in seen:
+            current = state[0]
+            for relationship, target, ahead in self._moves(state):
+                if ahead in seen:
                     continue
-                seen.add(target)
+                seen.add(ahead)
                 route = (
                     *steps,
                     PathStep(self.nodes[current], relationship, self.nodes[target]),
                 )
-                found[target] = Path(
-                    entry=self.nodes[start], target=self.nodes[target], steps=route
-                )
-                queue.append((target, route))
+                if target != start and target not in found and self._reached(ahead):
+                    found[target] = Path(
+                        entry=self.nodes[start], target=self.nodes[target], steps=route
+                    )
+                queue.append((ahead, route))
 
         return found
+
+    # ------------------------------------------------------------- the walk
+    #
+    # A state is ``(node, lens)``. A lens of None means the walk holds the
+    # node -- it started there, or took it -- and may leave by any capability
+    # edge. A lens means the walk arrived through a role and is passing through
+    # the scope it landed on: it may only descend, and an asset below becomes
+    # held when the lens controls it.
+
+    def _moves(self, state: State) -> Iterator[tuple[RelationshipType, str, State]]:
+        """Every way on from a state: the edge taken, where it lands, and how."""
+        node, lens = state
+        if lens is None:
+            for relationship, target in self._out.get(node, []):
+                if not relationship.is_capability:
+                    continue
+                if relationship in _ROLE_EDGES:
+                    carried = self._lens(node, relationship, target)
+                    if carried.empty:
+                        continue
+                    yield relationship, target, self._arrive(target, carried)
+                else:
+                    yield relationship, target, (target, None)
+            return
+        for relationship, target in self._out.get(node, []):
+            if relationship is RelationshipType.CONTAINS:
+                yield relationship, target, self._arrive(target, lens)
+
+    def _arrive(self, node: str, lens: Lens) -> State:
+        resource = self.nodes[node]
+        if resource.resource_type in SCOPES:
+            return (node, lens)
+        return (node, None) if lens.controls(resource) else (node, lens)
+
+    def conveys(self, source: str, relationship: RelationshipType, target: str) -> bool:
+        """Whether a link is reach, for drawing it as reach.
+
+        A capability edge, and for a role edge one whose roles control
+        something. Reader over a group is a fact the access view lists; drawn
+        on a canvas of reach it would say the opposite of what the walk says.
+        """
+        if not relationship.is_capability:
+            return False
+        if relationship in _ROLE_EDGES and source in self.nodes:
+            return not self._lens(source, relationship, target).empty
+        return True
+
+    def _reached(self, state: State) -> bool:
+        """Whether standing here reaches the node: held, or a scope a role
+        landed on. An asset the walk only passed beneath is not reached."""
+        node, lens = state
+        return lens is None or self.nodes[node].resource_type in SCOPES
+
+    def _lens(self, source: str, relationship: RelationshipType, target: str) -> Lens:
+        key = (source, relationship, target)
+        if key not in self._lenses:
+            self._lenses[key] = lens_for(self.nodes[source], relationship, target)
+        return self._lenses[key]
+
+    def _successors(self, state: State) -> Iterator[tuple[EdgeKey | None, State]]:
+        """The walk as severance reads it: the removable link, or None."""
+        node = state[0]
+        for relationship, target, ahead in self._moves(state):
+            link = self.removal_key(node, relationship, target) if removable(relationship) else None
+            yield link, ahead
+
+    def removal_key(
+        self, source: str, relationship: RelationshipType, target: str
+    ) -> EdgeKey:
+        """The one thing somebody removes to take this link away.
+
+        Itself, for every link but one. An identity that may grant roles over a
+        scope is drawn twice between the same two nodes -- what its roles do
+        there, and that it can grant itself the rest -- and both lines are the
+        same role assignments. Counted as two links, each was a way round the
+        other: removing an Owner assignment, the fix a customer most often
+        makes, severed nothing on either line, and the choke points offered
+        "detach the identity" instead (DECISIONS.md section 127). So the
+        escalation line is keyed as the assignment it comes from.
+        """
+        if relationship is RelationshipType.CAN_GRANT_ROLES and (
+            RelationshipType.GRANTS_ROLE,
+            target,
+        ) in self._out.get(source, []):
+            return (source, RelationshipType.GRANTS_ROLE.value, target)
+        return (source, relationship.value, target)
+
+    @staticmethod
+    def _holding(node: str) -> State:
+        """Standing on a node the walk holds -- where every walk starts."""
+        return (node, None)
+
+    def _reached_node(self, state: State) -> str | None:
+        return state[0] if self._reached(state) else None
 
     def attack_paths(self, max_depth: int = MAX_DEPTH) -> list[Path]:
         """Routes from somewhere an attacker could start to something worth taking.
@@ -394,7 +594,7 @@ class AssetGraph:
         machines are what the customer came to ask about.
         """
         targets = {t.provider_resource_id for t in self.sensitive_targets()}
-        identities = {ResourceType.SERVICE_PRINCIPAL, ResourceType.USER}
+        identities = {ResourceType.SERVICE_PRINCIPAL, ResourceType.USER, ResourceType.GROUP}
         ends: list[DeadEnd] = []
         for entry in self.entry_points():
             start = entry.provider_resource_id
@@ -406,7 +606,16 @@ class AssetGraph:
             elif entry.resource_type not in identities and all(
                 self.nodes[node].resource_type in identities for node in reached
             ):
-                reason = DeadEndReason.IDENTITY_WITHOUT_ROLE
+                holding = any(
+                    relationship is RelationshipType.GRANTS_ROLE
+                    for node in reached
+                    for relationship, _ in self._out.get(node, [])
+                )
+                reason = (
+                    DeadEndReason.ROLES_WITHOUT_CONTROL
+                    if holding
+                    else DeadEndReason.IDENTITY_WITHOUT_ROLE
+                )
             else:
                 reason = DeadEndReason.NOTHING_SENSITIVE
             ends.append(DeadEnd(entry=entry, reason=reason, reached=len(reached)))
@@ -435,6 +644,7 @@ class AssetGraph:
         looking at one finding on either asset is looking at the same problem --
         so membership is asked of the whole route rather than of its endpoints.
         """
+        resource_id = self.resolve(resource_id)
         return [
             path
             for path in self.attack_paths(max_depth)
@@ -472,6 +682,11 @@ class AssetGraph:
                         continue
                     if scope_id not in self.nodes:
                         continue
+                    if self._already_controls(path, scope_id):
+                        # The route took full control of this scope, or of one
+                        # above it, before it got here: granting roles over it
+                        # now is a loop, not an escalation (section 128).
+                        continue
                     hop = PathStep(
                         self.nodes[node_id],
                         RelationshipType.CAN_GRANT_ROLES,
@@ -489,6 +704,27 @@ class AssetGraph:
         # exposed host whose own identity can grant roles -- is both likelier and
         # cheaper to explain than one that arrives through three intermediaries.
         return sorted(chains, key=lambda p: (p.hops, p.target.name))
+
+    def _already_controls(self, path: Path, scope_id: str) -> bool:
+        """Whether a route already holds everything over a scope by the time it
+        ends: it crossed a line that controls everything -- an escalation, or a
+        directory role taking the subscription -- onto the scope or a container
+        of it. A narrower role over the same scope does not count; an identity
+        with Virtual Machine Contributor that reaches a machine able to grant
+        roles over the group has escalated, and the chain is real."""
+        whole = {RelationshipType.CAN_GRANT_ROLES, RelationshipType.CAN_TAKE_OVER}
+        held = {s.target.provider_resource_id for s in path.steps if s.relationship in whole}
+        if not held:
+            return False
+        above = {scope_id}
+        queue: deque[str] = deque([scope_id])
+        while queue:
+            current = queue.popleft()
+            for relationship, parent in self._in.get(current, []):
+                if relationship is RelationshipType.CONTAINS and parent not in above:
+                    above.add(parent)
+                    queue.append(parent)
+        return bool(held & above)
 
     def link_severance(self, max_depth: int = MAX_DEPTH) -> dict[EdgeKey, tuple[Path, ...]]:
         """Every removable link, and the routes that close without it.
@@ -511,12 +747,13 @@ class AssetGraph:
             (p.entry.provider_resource_id, p.target.provider_resource_id): p for p in paths
         }
         closes = severed_pairs(
-            self._out,
+            self._successors,
+            self._reached_node,
             # The ways in that lead somewhere, rather than every way in. An
             # entry point with no route has nothing to lose, and a directory
             # full of accounts is mostly those -- walking each of them again
             # would double the cost of the page to learn nothing.
-            sorted({pair[0] for pair in by_pair}),
+            [(entry, self._holding(entry)) for entry in sorted({pair[0] for pair in by_pair})],
             {pair[1] for pair in by_pair},
             max_depth,
         )
@@ -542,7 +779,9 @@ class AssetGraph:
             for step in path.steps:
                 if not removable(step.relationship):
                     continue
-                on[step.key()] = on.get(step.key(), 0) + 1
+                source, _, target = step.key()
+                link = self.removal_key(source, step.relationship, target)
+                on[link] = on.get(link, 0) + 1
         return on
 
     def choke_points(
@@ -565,7 +804,12 @@ class AssetGraph:
             return []
 
         on_routes = self.links_on_routes(max_depth)
-        steps = {step.key(): step for path in self.attack_paths(max_depth) for step in path.steps}
+        # Keyed as severance keys them, and drawn as the assignment where the
+        # escalation line was folded into it: "can act over rg (Owner)" is the
+        # thing somebody removes.
+        steps = {
+            step.key(): step for path in self.attack_paths(max_depth) for step in path.steps
+        }
         found = [
             ChokePoint(
                 step=steps.get(link) or self._step(link),
@@ -603,18 +847,102 @@ class AssetGraph:
         """
         if not removable(relationship):
             return None
+        source, target = self.resolve(source), self.resolve(target)
         if (relationship, target) not in self._out.get(source, []):
             return None
 
-        closed = self.link_severance(max_depth).get(
-            (source, relationship.value, target), ()
-        )
+        link = self.removal_key(source, relationship, target)
+        closed = self.link_severance(max_depth).get(link, ())
         before = len(self.attack_paths(max_depth))
         return CutOutcome(
-            step=PathStep(self.nodes[source], relationship, self.nodes[target]),
+            step=self._step(link),
             closed=closed,
             before=before,
             after=before - len(closed),
+        )
+
+    def without(self, links: frozenset[EdgeKey]) -> "AssetGraph":
+        """The same estate with these links removed, keyed as :meth:`removal_key`
+        keys them -- so removing a role assignment takes its escalation line
+        with it (DECISIONS.md section 127)."""
+        return AssetGraph.build(
+            list(self.nodes.values()),
+            [edge for edge in self.links() if self.removal_key(*edge) not in links],
+            derive=False,
+        )
+
+    def simulate(
+        self,
+        links: Iterable[tuple[str, RelationshipType, str]],
+        *,
+        next_limit: int = 3,
+        max_depth: int = MAX_DEPTH,
+    ) -> Simulation:
+        """What happens to the attack paths if several links are removed together.
+
+        Not the sum of each link's severance, and the gap is the reason this
+        exists. Two network hops into the same identity each close nothing --
+        the other is a way round -- and together close every route through it;
+        adding up what each closes alone would say nothing happens. So the plan
+        is answered by removing every link at once and enumerating the routes
+        again, from the resources and edges, the way the severance oracle in the
+        tests checks a single link.
+
+        Each cut is then weighed against the rest of the plan: taken out of it,
+        how many routes reopen. A cut that reopens nothing is work the rest of
+        the plan has already done, and somebody deciding what to change wants
+        to know which of their changes that is.
+
+        A link that is not in the estate, or is not one anybody can remove, is
+        returned in ``missing`` rather than refusing the whole plan: a plan kept
+        in a link outlives the scan that drew it, and one change that has since
+        been made should not hide what the others still do.
+        """
+        planned: dict[EdgeKey, PathStep] = {}
+        missing: list[EdgeKey] = []
+        for raw_source, relationship, raw_target in links:
+            source, target = self.resolve(raw_source), self.resolve(raw_target)
+            if not removable(relationship) or (relationship, target) not in self._out.get(
+                source, []
+            ):
+                missing.append((raw_source, relationship.value, raw_target))
+                continue
+            link = self.removal_key(source, relationship, target)
+            planned.setdefault(link, self._step(link))
+
+        before = self.attack_paths(max_depth)
+        plan = frozenset(planned)
+        after = self.without(plan) if plan else self
+        remaining = after.attack_paths(max_depth)
+        still_open = {_ends(path) for path in remaining}
+        closed = tuple(path for path in before if _ends(path) not in still_open)
+
+        severance = self.link_severance(max_depth)
+        cuts = []
+        for link, step in planned.items():
+            if len(plan) == 1:
+                # Alone, the plan is the link: everything it closes needs it.
+                needed_for = closed
+            else:
+                reopened = {
+                    _ends(path) for path in self.without(plan - {link}).attack_paths(max_depth)
+                }
+                needed_for = tuple(path for path in closed if _ends(path) in reopened)
+            cuts.append(
+                SimulatedCut(step=step, alone=severance.get(link, ()), needed_for=needed_for)
+            )
+
+        return Simulation(
+            cuts=tuple(cuts),
+            missing=tuple(missing),
+            closed=closed,
+            remaining=tuple(remaining),
+            before=len(before),
+            next=(
+                tuple(after.choke_points(limit=next_limit, max_depth=max_depth))
+                if remaining
+                else ()
+            ),
         )
 
     def _step(self, link: EdgeKey) -> PathStep:
@@ -654,6 +982,7 @@ class AssetGraph:
         on from like any other asset; only ``max_nodes`` still applies, because
         opening a fold of four thousand must not draw four thousand boxes.
         """
+        focus = self.resolve(focus)
         if focus not in self.nodes:
             return None
 
@@ -671,7 +1000,12 @@ class AssetGraph:
                         {
                             (relationship, other)
                             for relationship, other in adjacency.get(current, [])
-                            if relationship.is_capability and other not in layers
+                            if other not in layers
+                            and (
+                                self.conveys(current, relationship, other)
+                                if sign > 0
+                                else self.conveys(other, relationship, current)
+                            )
                         },
                         key=lambda edge: self._drawing_order(edge[1]),
                     )
@@ -710,7 +1044,7 @@ class AssetGraph:
             (source, relationship, target)
             for source in layers
             for relationship, target in self._out.get(source, [])
-            if relationship.is_capability and target in layers
+            if target in layers and self.conveys(source, relationship, target)
         )
         return Neighborhood(
             focus=focus,
@@ -744,6 +1078,7 @@ class AssetGraph:
         here" while being asked "what is in here", and the two diverge exactly
         where the answer matters.
         """
+        scope_id = self.resolve(scope_id)
         structural = {ResourceType.SUBSCRIPTION, ResourceType.RESOURCE_GROUP}
         held: list[CloudResource] = []
         queue: deque[tuple[str, int]] = deque([(scope_id, 0)])
@@ -762,6 +1097,18 @@ class AssetGraph:
                     held.append(node)
                 queue.append((target, depth + 1))
         return held
+
+    def access_to(self, resource_id: str) -> list[AccessHolder]:
+        """Every role that reaches this asset, and what each lets its holder do.
+
+        Whether or not anything exposed leads to the holder -- the question an
+        attack path cannot answer, because it needs a way in (``graph/access.py``).
+        """
+        return holders(self.nodes, self._in, self.resolve(resource_id))
+
+    def access_of(self, principal_id: str) -> list[AccessGrant]:
+        """Every role one identity holds, and the assets each one controls."""
+        return grants(self.nodes, self._out, self.resolve(principal_id))
 
     def blast_radius(self, principal_id: str, max_depth: int = MAX_DEPTH) -> list[CloudResource]:
         """What one identity can act on.

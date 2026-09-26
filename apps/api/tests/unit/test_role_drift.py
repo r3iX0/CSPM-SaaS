@@ -83,6 +83,12 @@ V7_CATEGORIES = frozenset(
     }
 )
 
+# What v8 added: who is eligible for a role under PIM (DECISIONS.md section
+# 130). Every older version lacks it, and it is an Authorization read.
+V8_READS = {"Microsoft.Authorization/roleEligibilityScheduleInstances/read"}
+V8_CATEGORIES = frozenset({EvidenceCategory.AUTHORIZATION})
+BEHIND_SINCE_V7 = V7_CATEGORIES | V8_CATEGORIES
+
 
 # --------------------------------------------------------------- the guards
 def test_current_role_version_is_recorded_in_history() -> None:
@@ -263,15 +269,23 @@ class TestRoleUpgrades:
     redeploy, the rules behind it report UNKNOWN rather than PASS.
     """
 
-    def test_the_current_role_is_v7(self) -> None:
-        assert rbac.ROLE_VERSION == "v7"
-        assert rbac.role_is_current("v7")
+    def test_the_current_role_is_v8(self) -> None:
+        assert rbac.ROLE_VERSION == "v8"
+        assert rbac.role_is_current("v8")
 
-    def test_a_v6_role_lacks_exactly_the_v7_reads(self) -> None:
-        """Six reads and nothing else: Defender plans, blob recovery, the SQL
-        Entra administrator, one PostgreSQL parameter, and App Service."""
-        assert set(rbac.actions_missing_from("v6")) == V7_READS
-        assert rbac.categories_behind("v6") == V7_CATEGORIES
+    def test_a_v7_role_lacks_exactly_the_eligibility_read(self) -> None:
+        """One read, and only Authorization is behind -- a v7 customer keeps
+        every assignment, route and verdict, and the access view cannot list
+        who is eligible until the redeploy."""
+        assert set(rbac.actions_missing_from("v7")) == V8_READS
+        assert rbac.categories_behind("v7") == V8_CATEGORIES
+
+    def test_a_v6_role_lacks_exactly_the_v7_and_v8_reads(self) -> None:
+        """Six reads for v7 -- Defender plans, blob recovery, the SQL Entra
+        administrator, one PostgreSQL parameter, and App Service -- and v8's
+        eligibility read."""
+        assert set(rbac.actions_missing_from("v6")) == V7_READS | V8_READS
+        assert rbac.categories_behind("v6") == BEHIND_SINCE_V7
 
     def test_a_v6_role_keeps_every_category_v7_did_not_touch(self) -> None:
         """If this returned more, the upgrade would be costing a customer checks
@@ -280,7 +294,6 @@ class TestRoleUpgrades:
             EvidenceCategory.RESOURCES,
             EvidenceCategory.NETWORK,
             EvidenceCategory.LOGGING,
-            EvidenceCategory.AUTHORIZATION,
             EvidenceCategory.SECRETS,
         }
         assert not untouched & rbac.categories_behind("v6")
@@ -290,8 +303,9 @@ class TestRoleUpgrades:
             "Microsoft.Sql/servers/databases/read",
             "Microsoft.Sql/servers/databases/transparentDataEncryption/read",
             *V7_READS,
+            *V8_READS,
         }
-        assert rbac.categories_behind("v5") == V7_CATEGORIES
+        assert rbac.categories_behind("v5") == BEHIND_SINCE_V7
 
     def test_a_v4_role_lacks_the_defender_and_encryption_reads(self) -> None:
         assert set(rbac.actions_missing_from("v4")) == {
@@ -299,8 +313,9 @@ class TestRoleUpgrades:
             "Microsoft.Sql/servers/databases/read",
             "Microsoft.Sql/servers/databases/transparentDataEncryption/read",
             *V7_READS,
+            *V8_READS,
         }
-        assert rbac.categories_behind("v4") == V7_CATEGORIES
+        assert rbac.categories_behind("v4") == BEHIND_SINCE_V7
 
     def test_a_v3_role_lacks_the_auditing_encryption_and_defender_reads(self) -> None:
         assert set(rbac.actions_missing_from("v3")) == {
@@ -309,20 +324,21 @@ class TestRoleUpgrades:
             "Microsoft.Sql/servers/databases/transparentDataEncryption/read",
             "Microsoft.Security/assessments/read",
             *V7_READS,
+            *V8_READS,
         }
         assert not rbac.role_is_current("v3")
 
     def test_a_v3_role_loses_the_database_and_posture_categories(self) -> None:
-        assert rbac.categories_behind("v3") == V7_CATEGORIES
+        assert rbac.categories_behind("v3") == BEHIND_SINCE_V7
 
     def test_a_v2_role_is_behind_on_vaults_and_databases(self) -> None:
-        assert rbac.categories_behind("v2") == V7_CATEGORIES | {EvidenceCategory.SECRETS}
+        assert rbac.categories_behind("v2") == BEHIND_SINCE_V7 | {EvidenceCategory.SECRETS}
 
     def test_v1_still_reports_every_gap_it_has(self) -> None:
         """v2 added Resource Graph, v3 vaults, v4 SQL auditing. A history that
         quietly forgot an older gap would tell a v1 customer they were one
         action away when they are several."""
-        assert rbac.categories_behind("v1") == V7_CATEGORIES | {
+        assert rbac.categories_behind("v1") == BEHIND_SINCE_V7 | {
             EvidenceCategory.RESOURCES,
             EvidenceCategory.SECRETS,
         }
@@ -333,7 +349,7 @@ class TestRoleUpgrades:
         believed to grant, and ``actions_missing_from`` would stop reporting a
         gap that is still real.
         """
-        versions = ["v1", "v2", "v3", "v4", "v5", "v6", "v7"]
+        versions = ["v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8"]
         for older, newer in itertools.pairwise(versions):
             assert set(rbac.ROLE_HISTORY[older]) <= set(rbac.ROLE_HISTORY[newer]), (
                 f"{newer} dropped an action {older} granted"
@@ -431,11 +447,12 @@ class TestTheConnectionPayloadExplainsTheGap:
     def test_a_stale_role_names_the_checks_that_cannot_run(self) -> None:
         """The same categories the scanner uses to explain its own gaps, so the
         screen and the scan cannot disagree about which checks are affected."""
-        v7 = ["compute", "database", "posture", "storage"]
-        assert self._payload("v6")["degraded_categories"] == v7
-        assert self._payload("v5")["degraded_categories"] == v7
-        assert self._payload("v3")["degraded_categories"] == v7
-        assert self._payload("v2")["degraded_categories"] == sorted([*v7, "secrets"])
+        since_v7 = ["authorization", "compute", "database", "posture", "storage"]
+        assert self._payload("v7")["degraded_categories"] == ["authorization"]
+        assert self._payload("v6")["degraded_categories"] == since_v7
+        assert self._payload("v5")["degraded_categories"] == since_v7
+        assert self._payload("v3")["degraded_categories"] == since_v7
+        assert self._payload("v2")["degraded_categories"] == sorted([*since_v7, "secrets"])
 
 
 
