@@ -3,7 +3,8 @@ import { Link, useSearchParams } from "react-router-dom";
 import { PlusIcon } from "lucide-react";
 
 import { api } from "@/lib/api";
-import type { CloudConnection } from "@/lib/types";
+import type { CloudConnection, ProviderOption } from "@/lib/types";
+import { ProviderMark } from "@/components/security/ProviderMark";
 import { useT } from "@/i18n";
 import { ConnectEmpty } from "@/components/connections/ConnectEmpty";
 import { ConnectionRow } from "@/components/connections/ConnectionRow";
@@ -50,13 +51,13 @@ export function ConnectPage() {
   const isDemo = useIsDemo();
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         title={t.connection.title}
         description={t.connection.intro}
         actions={
           rows.length > 0 && !isDemo ? (
-            <Link to="/connections/new" className={cn(buttonVariants())}>
+            <Link to="/connections/new" className={cn(buttonVariants({ size: "sm" }))}>
               <PlusIcon data-icon="inline-start" aria-hidden />
               {t.connection.connectCloud}
             </Link>
@@ -81,14 +82,14 @@ export function ConnectPage() {
       {connections.isSuccess && rows.length === 0 && <ConnectEmpty />}
 
       {rows.length > 0 && (
-        <div className="overflow-hidden rounded-xl border border-border bg-card">
+        <div className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
           {/* Column labels, not a `<table>`: every row opens into a two-column
               panel, which a table cell cannot hold without either colspan
               gymnastics or a second nested grid. The labels are hidden on
               narrow screens, where each row stacks and carries its own. */}
           <div
             aria-hidden
-            className="hidden px-5 py-2.5 text-[11px] font-medium text-muted-foreground md:grid md:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_auto] md:gap-4"
+            className="hidden px-5 py-2.5 text-[11.5px] text-muted-foreground md:grid md:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_auto] md:gap-4"
           >
             <span>{t.connection.columnConnection}</span>
             <span>{t.connection.columnStatus}</span>
@@ -106,6 +107,63 @@ export function ConnectPage() {
           ))}
         </div>
       )}
+
+      {connections.isSuccess && <ComingSoon />}
     </div>
+  );
+}
+
+/** Platforms on the roadmap, named so a reader knows they were not overlooked. */
+const PLANNED = ["gcp", "kubernetes", "docker", "github", "gitlab"] as const;
+const PLANNED_NAMES: Record<string, string> = {
+  aws: "AWS",
+  gcp: "GCP",
+  kubernetes: "Kubernetes",
+  docker: "Docker",
+  github: "GitHub",
+  gitlab: "GitLab",
+};
+
+/**
+ * What Cleave cannot read yet, at the foot of what it does.
+ *
+ * AWS is listed only while the API says it is not offered: its connector
+ * exists and is gated until it has been run against a live account
+ * (`AWS_ENABLED`, docs/AWS_INTEGRATION.md). The same answer the setup's first
+ * step reads, so the two never disagree about whether AWS can be connected.
+ */
+function ComingSoon() {
+  const t = useT();
+  const providers = useQuery({
+    queryKey: ["cloud-providers"],
+    queryFn: () =>
+      api.get<ProviderOption[]>("/api/v1/cloud-connections/providers").then((r) => r.data),
+    retry: false,
+  });
+  if (!providers.isSuccess) return null;
+  const awsOffered = (providers.data ?? []).some(
+    (option) => option.id === "aws" && option.available,
+  );
+  const planned = [...(awsOffered ? [] : ["aws"]), ...PLANNED];
+
+  return (
+    <section aria-labelledby="coming-soon">
+      <h2 id="coming-soon" className="mb-2.5 text-[12.5px] font-medium text-muted-foreground">
+        {t.connection.comingSoon}
+      </h2>
+      <ul className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-2.5">
+        {planned.map((id) => (
+          <li
+            key={id}
+            className="flex items-center gap-2.5 rounded-[10px] border border-border bg-card px-3.5 py-2.5 opacity-60"
+          >
+            <ProviderMark provider={id} tile className="text-muted-foreground" />
+            <span className="text-[12.5px] font-medium text-muted-foreground">
+              {PLANNED_NAMES[id]}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

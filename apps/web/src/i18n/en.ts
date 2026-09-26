@@ -159,8 +159,9 @@ export const en = {
   connection: {
     title: "Environments",
     intro:
-      "One connection per trust boundary. Everything beneath it is discovered automatically.",
-    connectCloud: "Connect a cloud",
+      "Everything Cleave reads from. New subscriptions under a connection are picked up automatically.",
+    connectCloud: "Connect environment",
+    comingSoon: "Coming soon",
     noConnections: "No cloud environment connected yet.",
     noConnectionsHelp:
       "Connecting takes a few minutes and one deployment you run yourself. You will not be asked for any credential.",
