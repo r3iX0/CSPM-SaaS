@@ -60,14 +60,14 @@ export function OrganizationForm({ organization }: { organization: Organization 
     country !== (organization.country ?? "");
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card">
+    <div className="rounded-xl bg-card ring-1 ring-foreground/10">
       <form
         onSubmit={(event) => {
           event.preventDefault();
           save.mutate();
         }}
       >
-        <div className="flex flex-col gap-5 p-5 sm:p-6">
+        <div className="flex flex-col gap-3.5 p-5">
           {!editable && (
             <Alert>
               <AlertDescription>{t.settings.orgReadOnly}</AlertDescription>
@@ -83,11 +83,11 @@ export function OrganizationForm({ organization }: { organization: Organization 
               required
               disabled={!editable}
               onChange={(event) => setName(event.target.value)}
-              className="max-w-md"
+              className="max-w-[380px]"
             />
           </Field>
 
-          <div className="grid max-w-md gap-5 sm:grid-cols-[minmax(0,1fr)_7rem]">
+          <div className="grid max-w-[380px] gap-x-3 gap-y-3.5 sm:grid-cols-[minmax(0,1fr)_7rem]">
             <Field>
               <FieldLabel htmlFor="org-industry">{t.settings.orgIndustry}</FieldLabel>
               <Input
@@ -123,9 +123,9 @@ export function OrganizationForm({ organization }: { organization: Organization 
               value={organization.slug}
               readOnly
               disabled
-              className="max-w-md font-mono"
+              className="max-w-[380px] font-mono"
             />
-            <FieldDescription className="max-w-md">{t.settings.orgSlugHelp}</FieldDescription>
+            <FieldDescription className="max-w-[380px]">{t.settings.orgSlugHelp}</FieldDescription>
           </Field>
 
           {error && (
@@ -133,20 +133,19 @@ export function OrganizationForm({ organization }: { organization: Organization 
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
+
+          {editable && (
+            <div className="flex items-center gap-3">
+              <Button type="submit" disabled={!changed || save.isPending}>
+                {save.isPending ? t.settings.saving : t.settings.save}
+              </Button>
+              {saved && !save.isPending && (
+                <span className="text-xs text-ok">{t.settings.saved}</span>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* The save sits in a footer bar, the one place a reader looks for it
-            on every settings page they have used. */}
-        {editable && (
-          <div className="flex items-center justify-end gap-3 border-t border-border bg-muted/30 px-5 py-3 sm:px-6">
-            {saved && !save.isPending && (
-              <span className="text-xs text-ok">{t.settings.saved}</span>
-            )}
-            <Button type="submit" disabled={!changed || save.isPending}>
-              {save.isPending ? t.settings.saving : t.settings.save}
-            </Button>
-          </div>
-        )}
       </form>
     </div>
   );

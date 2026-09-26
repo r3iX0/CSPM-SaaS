@@ -1068,12 +1068,12 @@ export const en = {
   settings: {
     title: "Settings",
     intro:
-      "What Cleave knows about you and your environment that it could not find out by looking.",
+      "Everything else in Cleave is something it observed. This is the other half of the evidence: what you told it.",
 
     // The organization profile. A correction, not a statement: saving a name
     // must not clear a country nobody touched.
     orgTitle: "Organization",
-    orgHelp: "How this organization is named in Cleave and on its reports.",
+    orgHelp: "The name on reports and exported evidence.",
     orgName: "Name",
     orgIndustry: "Industry",
     orgCountry: "Country",
@@ -1093,7 +1093,7 @@ export const en = {
     // The declarations. This is the part that changes what CloudGuard reports.
     contextTitle: "What your environments are for",
     contextHelp:
-      "Cleave scores a finding by what it would cost you \u2014 how critical the asset is, how sensitive its data, how exposed it is. It infers those from names and tags where it can, and inference is the weakest evidence it has. Anything you declare here beats it.",
+      "The highest-leverage thing you can tell Cleave. The risk engine multiplies every finding by it, and it decides what counts as a sensitive target when routes are traced. Anything you declare beats what Cleave infers from names and tags.",
     contextEmpty: "Nothing has been discovered yet",
     contextEmptyDetail:
       "Connect a cloud environment and Cleave will discover what is beneath it. There is nothing to describe until then.",
