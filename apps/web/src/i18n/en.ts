@@ -949,7 +949,7 @@ export const en = {
   compliance: {
     title: "Compliance",
     intro:
-      "What Cleave's checks can evidence against each framework \u2014 and what they cannot.",
+      "Evidence toward each framework, with the controls nothing checks named rather than omitted.",
     notALegalClaim:
       "This is evidence, not a compliance verdict. A green control means specific misconfigurations were absent at the last scan; it is not a statement that a requirement is met in law or that an audit would pass.",
     coverage: "Assessable coverage",
