@@ -3,7 +3,7 @@ import { Link, Outlet, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
 import { api, auth } from "@/lib/api";
-import type { CloudAccount, Organization } from "@/lib/types";
+import type { CloudAccount, Dashboard, Organization } from "@/lib/types";
 import { Wordmark } from "@/components/Brand";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AccountMenu } from "@/components/AccountMenu";
@@ -34,7 +34,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { cn } from "@/lib/format";
+import { cn, formatRelative } from "@/lib/format";
 
 /** Where the rail preference lives. Per browser, like the theme. */
 const COLLAPSE_KEY = "cloudguard.sidebar.collapsed";
@@ -117,7 +117,7 @@ export function Shell() {
             is the sheet, which is why there is no second copy of the
             navigation here any more. */}
         <Sidebar collapsible="icon">
-          <SidebarHeader className="h-14 shrink-0 justify-center border-b group-data-[collapsible=icon]:items-center">
+          <SidebarHeader className="h-14 shrink-0 justify-center border-b px-3 group-data-[collapsible=icon]:items-center">
             <Link
               to="/"
               className="flex items-center gap-2.5 rounded-md px-2 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 group-data-[collapsible=icon]:px-0"
@@ -128,7 +128,7 @@ export function Shell() {
               />
             </Link>
           </SidebarHeader>
-          <SidebarContent>
+          <SidebarContent className="gap-3.5 p-3 group-data-[collapsible=icon]:px-2">
             <SidebarNav />
           </SidebarContent>
           <SidebarFooter className="flex-row items-center gap-1 border-t group-data-[collapsible=icon]:flex-col">
@@ -145,11 +145,12 @@ export function Shell() {
         </Sidebar>
 
         <SidebarInset>
-          <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:px-6">
+          <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-background/88 px-4 backdrop-blur-md sm:px-6">
             <NavToggle placement="header" />
+            <CommandPalette />
 
-            <div className="ml-auto flex items-center gap-3">
-              <CommandPalette />
+            <div className="ml-auto flex items-center gap-2.5">
+              <LastRead />
               <KeyboardShortcuts />
               <ScanIndicator />
               {/* After the scan indicator and before the settings: what is
@@ -162,7 +163,7 @@ export function Shell() {
 
           <DemoBanner />
 
-          <main className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 lg:py-8">
+          <main className="mx-auto w-full max-w-[1240px] px-4 pt-6 pb-16 sm:px-6">
             {/* Per-page, inside the chrome. A page that throws is one broken
                 screen the reader can navigate away from, rather than a product
                 that vanished -- and the root boundary is still behind this for
@@ -217,6 +218,38 @@ function NavToggle({ placement }: { placement: "sidebar" | "header" }) {
       aria-label={shown ? "Collapse navigation" : "Expand navigation"}
       aria-expanded={shown}
     />
+  );
+}
+
+/**
+ * When the environment was last read, in the header of every page.
+ *
+ * The age of the evidence is the one caveat every number in the product
+ * carries, so it sits where every page can see it. From the overview's payload
+ * (the same cache entry the navigation counts use); nothing is drawn until a
+ * completed read is known -- an absent date is not "just now".
+ */
+function LastRead() {
+  const { data } = useQuery({
+    queryKey: ["dashboard"],
+    queryFn: () => api.get<Dashboard>("/api/v1/dashboard").then((r) => r.data),
+    staleTime: 60_000,
+    retry: false,
+  });
+  const at = data?.last_scan?.completed_at;
+  if (!at) return null;
+  return (
+    <span className="hidden items-center gap-1.5 text-xs text-muted-foreground md:flex">
+      {/* Green only for a read that finished whole; one with gaps says so. */}
+      <span
+        className={cn(
+          "size-1.5 shrink-0 rounded-full",
+          data?.last_scan?.status === "COMPLETED" ? "bg-ok" : "bg-medium",
+        )}
+        aria-hidden
+      />
+      Last read <time dateTime={at}>{formatRelative(at)}</time>
+    </span>
   );
 }
 
@@ -283,7 +316,7 @@ function ConnectionBadge() {
     return (
       <Link
         to="/connections"
-        className="flex items-center gap-2 rounded-md border border-dashed px-2.5 py-2 text-xs text-muted-foreground transition-colors hover:border-solid hover:text-foreground"
+        className="flex items-center gap-2 rounded-md border border-dashed px-2.5 py-2 text-[11.5px] text-muted-foreground transition-colors hover:border-solid hover:text-foreground"
       >
         <span className={dot} />
         No cloud connected
@@ -292,7 +325,7 @@ function ConnectionBadge() {
   }
 
   return (
-    <div className="flex items-center gap-2 px-2.5 py-2 text-xs text-muted-foreground">
+    <div className="flex items-center gap-2 px-1.5 py-1.5 text-[11.5px] text-muted-foreground">
       <span className={dot} />
       {summary}
     </div>

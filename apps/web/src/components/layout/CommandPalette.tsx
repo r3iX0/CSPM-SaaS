@@ -208,16 +208,19 @@ export function CommandPalette() {
       {/* A palette nobody knows about is dead weight, and the shortcut is
           undiscoverable by construction -- so the header carries a real
           control that names the key it stands for. */}
+      {/* Says what it searches. Findings are not among them -- they are
+          reached through their rule or their asset -- so the placeholder does
+          not promise them. */}
       <Button
         variant="outline"
         size="sm"
         onClick={() => setOpen(true)}
-        className="gap-2 text-muted-foreground"
+        className="gap-2 font-normal text-muted-foreground sm:min-w-[220px] sm:justify-start sm:text-[12.5px]"
         aria-label="Search Cleave"
       >
-        <SearchIcon data-icon="inline-start" />
-        <span className="hidden sm:inline">Search</span>
-        <Kbd className="hidden sm:inline-flex">{shortcutLabel()}</Kbd>
+        <SearchIcon data-icon="inline-start" strokeWidth={1.5} />
+        <span className="hidden sm:inline">Search assets, rules, pages</span>
+        <Kbd className="ml-auto hidden font-mono sm:inline-flex">{shortcutLabel()}</Kbd>
       </Button>
 
       <CommandDialog

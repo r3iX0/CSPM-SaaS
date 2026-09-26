@@ -122,7 +122,7 @@ export function AccountMenu({
         aria-expanded={open}
         aria-label={t.account.menu}
         className={cn(
-          "flex items-center gap-2 rounded-lg border px-2 py-1.5 text-sm transition",
+          "flex items-center gap-2 rounded-lg border px-1 py-0.5 text-sm transition sm:pr-2",
           open
             ? "border-input bg-muted/40"
             : "border-transparent hover:border-border hover:bg-muted/40",
@@ -252,7 +252,7 @@ function Avatar({ name }: { name: string }) {
   return (
     <span
       aria-hidden="true"
-      className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary text-[11px] font-semibold text-primary-foreground"
+      className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-[11.5px] font-medium text-foreground"
     >
       {name.trim().charAt(0).toUpperCase() || "?"}
     </span>

@@ -39,8 +39,8 @@ export function ThemeToggle() {
       <DropdownMenuTrigger
         render={
           <Button
-            variant="ghost"
-            size="icon"
+            variant="outline"
+            size="icon-sm"
             // Names the state, not just the control: a screen reader user
             // otherwise has no way to tell which theme is currently on.
             aria-label={`Theme: ${choice}`}
