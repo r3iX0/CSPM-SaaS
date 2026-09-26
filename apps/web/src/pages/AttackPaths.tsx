@@ -36,6 +36,7 @@ import { StatStrip } from "@/components/common/StatStrip";
 import { SelectField } from "@/components/common/SelectField";
 import { ResourceTypeLabel } from "@/components/security/IconLabel";
 import { GraphLegend, MARKS } from "@/components/graph/GraphLegend";
+import { FACTOR_ICONS } from "@/lib/icons";
 import { PatternRow, RouteRow, type RouteMarks } from "@/components/graph/RouteRows";
 import { RouteNavigator } from "@/components/graph/RouteNavigator";
 import { hopKey, routeKeyOf } from "@/components/graph/routeKeys";
@@ -51,7 +52,7 @@ import {
 import { routeMapQuery } from "@/components/graph/graphQueries";
 import { usePrefersReducedMotion } from "@/lib/motion";
 import { arrivedByMorph } from "@/lib/viewTransition";
-import type { Hop } from "@/components/graph/RouteMapCanvas";
+import type { Hop, SimulatedPlan } from "@/components/graph/RouteMapCanvas";
 import { SimulationPanel } from "@/components/graph/SimulationPanel";
 import {
   CardsSkeleton,
@@ -296,7 +297,7 @@ export function AttackPathsPage() {
         .then((r) => r.data),
   });
   const result = plan.length > 0 ? simulation.data : undefined;
-  const simulated = useMemo(
+  const simulatedBase = useMemo(
     () =>
       plan.length > 0
         ? { links: plan, closes: new Set(result?.closed.map((route) => route.key)) }
@@ -307,12 +308,61 @@ export function AttackPathsPage() {
   // this plan, never the last one left up while it is checked.
   const settled =
     plan.length > 0 && simulation.isSuccess && !simulation.isFetching ? result : undefined;
+
+  // The cut, played (§146). When an answer settles, the routes it closes that
+  // the last settled answer did not are struck in list order, one every
+  // STAGGER_MS, and each target greys just after its last route. Kept as
+  // state updated during render -- the "previous value" pattern -- so the
+  // routes already closed never replay when an unrelated change re-renders.
+  const [played, setPlayed] = useState<{
+    answer: Simulation | undefined;
+    closed: ReadonlySet<string>;
+    fresh: string[];
+  }>({ answer: undefined, closed: new Set(), fresh: [] });
+  if (
+    (plan.length === 0 && played.closed.size > 0) ||
+    (settled !== undefined && settled !== played.answer)
+  ) {
+    const now = new Set(settled?.closed.map((route) => route.key) ?? []);
+    const order = listing?.order ?? [];
+    const listed = new Set(order);
+    const fresh = [
+      ...order.filter((key) => now.has(key) && !played.closed.has(key)),
+      ...[...now].filter((key) => !listed.has(key) && !played.closed.has(key)),
+    ];
+    setPlayed({ answer: settled, closed: now, fresh });
+  }
+  const stagger = SEQUENCED_CUT && !reduced ? STAGGER_MS : 0;
+  const closeDelay = useMemo(
+    () => new Map(played.fresh.map((key, index) => [key, index * stagger])),
+    [played.fresh, stagger],
+  );
+  const boxDelay = useMemo(() => {
+    const delays = new Map<string, number>();
+    if (stagger === 0 || !map) return delays;
+    const byKey = new Map(map.routes.map((route) => [route.key, route]));
+    played.fresh.forEach((key, index) => {
+      const route = byKey.get(key);
+      if (!route) return;
+      for (const id of [route.entry.id, ...route.steps.map((step) => step.target_id)]) {
+        delays.set(id, Math.max(delays.get(id) ?? 0, index * stagger + BOX_AFTER_MS));
+      }
+    });
+    return delays;
+  }, [played.fresh, stagger, map]);
+
+  const simulated = useMemo<SimulatedPlan | null>(
+    () => (simulatedBase ? { ...simulatedBase, delays: boxDelay } : null),
+    [simulatedBase, boxDelay],
+  );
+
   const marks = useMemo<RouteMarks>(
     () => ({
       tracked: trackedKeys,
       closed: new Set(settled?.closed.map((route) => route.key) ?? []),
+      closeDelay,
     }),
-    [trackedKeys, settled],
+    [trackedKeys, settled, closeDelay],
   );
 
   const at = tracedRoute && listing ? listing.order.indexOf(tracedRoute.key) : -1;
@@ -350,10 +400,15 @@ export function AttackPathsPage() {
                 value: data.meta.total,
                 alert: data.meta.total > 0,
               },
-              { label: t.attackPaths.entryPointsLabel, value: data.meta.entry_points },
+              {
+                label: t.attackPaths.entryPointsLabel,
+                value: data.meta.entry_points,
+                icon: FACTOR_ICONS.exposure,
+              },
               {
                 label: t.attackPaths.sensitiveTargetsLabel,
                 value: data.meta.sensitive_targets,
+                icon: FACTOR_ICONS.dataSensitivity,
               },
             ]}
           />
@@ -490,6 +545,17 @@ export function AttackPathsPage() {
  */
 const MAX_CUTS = 10;
 
+/**
+ * Whether a settled plan's newly closed routes are struck one after another
+ * (the redesign's `sequencedCut`). Off, or for a reader who asked for less
+ * motion, everything the answer closed lands at once.
+ */
+const SEQUENCED_CUT = true;
+/** Between one route being struck and the next. */
+const STAGGER_MS = 260;
+/** A target greys this long after the last route to it is struck. */
+const BOX_AFTER_MS = 180;
+
 type PanelTab = "routes" | "simulate";
 
 const cutKey = (link: Hop) => hopKey(link.source, link.relationship, link.target);
@@ -581,7 +647,7 @@ function RouteMapFrame({
   traced: MappedRoute | null;
   hop: number;
   preview: MappedRoute | null;
-  simulated: { links: Hop[]; closes: Set<string> } | null;
+  simulated: SimulatedPlan | null;
   tab: PanelTab;
   onTab: (tab: PanelTab) => void;
   routesPanel: ReactNode;
@@ -596,7 +662,7 @@ function RouteMapFrame({
   return (
     <section aria-labelledby="route-map-title" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="route-map-title" className="text-sm font-medium">
+        <h2 id="route-map-title" className="text-[13.5px] font-semibold">
           {t.attackPaths.mapTitle}
         </h2>
         <GraphLegend
@@ -621,7 +687,7 @@ function RouteMapFrame({
       {/* What a link from the dashboard grows into (DECISIONS.md §140). */}
       <div
         data-graph-frame=""
-        className="flex w-full flex-col overflow-hidden rounded-xl border border-border bg-card lg:h-[36rem]"
+        className="flex w-full flex-col overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10 lg:h-[36rem]"
       >
         {simulated && (
           <div className="flex items-center gap-2 border-b border-ok-border bg-ok-bg px-3 py-1.5 text-xs text-foreground">
@@ -655,7 +721,7 @@ function RouteMapFrame({
 
           <aside
             aria-label={t.attackPaths.panelLabel}
-            className="flex max-h-[30rem] min-h-0 flex-col border-t border-border lg:max-h-none lg:w-[22rem] lg:border-t-0 lg:border-l"
+            className="flex max-h-[30rem] min-h-0 flex-col border-t border-border lg:max-h-none lg:w-[20rem] lg:border-t-0 lg:border-l"
           >
             <Tabs
               value={tab}
@@ -811,7 +877,7 @@ function RouteList({
             placeholder={t.attackPaths.searchPlaceholder}
             aria-label={t.attackPaths.searchLabel}
             data-page-search
-            className="h-7 pl-8 text-xs"
+            className="h-8 pl-8 text-xs md:text-xs"
           />
         </div>
         <SelectField
@@ -820,7 +886,7 @@ function RouteList({
           options={ROUTE_SORTS.map((value) => ({ value, label: labels[value] }))}
           ariaLabel={t.attackPaths.sortLabel}
           idleValue="hops"
-          className="w-40"
+          className="w-36"
         />
       </div>
       <div className="flex flex-col gap-4 overflow-y-auto p-3">

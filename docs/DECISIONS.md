@@ -7710,6 +7710,25 @@ what stands at each step.
   per-severity sparklines. `GettingStarted` and the region map (§113) stay.
 - The intro says "your cloud posture", not "your Azure posture" (§78).
 
+## 146. The cut is played once its answer lands, never before
+
+The redesign's signature moment on the attack-path page: when a simulated
+plan's answer settles, the routes it newly closes are struck through one after
+another in list order, 260ms apart, "Closed by the plan" rising with each, and
+a target box greys 180ms after the last route to it.
+
+- **Only a settled answer plays.** While the next plan is checked the last
+  answer stays up at 60% with a spinner (§141); nothing is struck on a guess.
+- **Only what is new plays.** The page keeps the last settled closed set and
+  plays the difference, so an unrelated re-render, or a plan that adds a cut
+  closing nothing new, strikes nothing twice.
+- **The strike is a transition, not a new element.** A route's name is always
+  struck in a transparent line; closing fades the line and the text to muted
+  over 400ms after the route's delay. The mark arrives with `cg-rise`.
+- **Reduced motion lands everything at once.** The media query in `index.css`
+  shortens durations but not delays, so the delays themselves are zeroed when
+  `usePrefersReducedMotion` says so. `SEQUENCED_CUT` switches the stagger off.
+
 ## Open items carried forward
 
 **Data residency is not built (§113).** An organization setting for allowed

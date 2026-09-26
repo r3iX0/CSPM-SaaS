@@ -813,7 +813,7 @@ export const en = {
     takeOutOfPlan: "Take out of the plan",
     // The list's own controls.
     searchLabel: "Search routes",
-    searchPlaceholder: "Any asset on a route",
+    searchPlaceholder: "Search by asset",
     sortLabel: "Sort routes",
     sortHops: "Shortest first",
     sortSensitive: "Most sensitive target",
