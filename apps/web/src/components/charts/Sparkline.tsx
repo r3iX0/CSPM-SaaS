@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useId, useMemo } from "react";
 
 import { usePrefersReducedMotion } from "@/lib/motion";
 
@@ -21,15 +21,25 @@ export function Sparkline({
   values,
   label,
   tone = "currentColor",
+  fill = false,
   className,
 }: {
   values: number[];
   /** What the line is of, for the reader who cannot see it. */
   label: string;
   tone?: string;
+  /**
+   * A wash under the line, the tone at 18% fading to nothing. For a sparkline
+   * that stands alone (the overview's trend); one sitting inside a number
+   * stays a bare line.
+   */
+  fill?: boolean;
   className?: string;
 }) {
   const reduced = usePrefersReducedMotion();
+  // useId gives ":r1:", which a url() reference cannot hold.
+  const gradientId = `spark-${useId().replace(/:/g, "")}`;
+  const clipId = `${gradientId}-clip`;
 
   const path = useMemo(() => {
     if (values.length < 2) return null;
@@ -67,28 +77,48 @@ export function Sparkline({
       role="img"
       aria-label={`${label}: ${direction} from ${first} to ${last} across the last ${values.length} readings`}
     >
-      <path
-        d={path}
-        fill="none"
-        stroke={tone}
-        strokeWidth={1.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        vectorEffect="non-scaling-stroke"
-        // Drawn on, once, on mount. `pathLength` normalises the dash to 1 so
-        // the animation does not depend on how long the real path happens to
-        // be, and reduced motion gets the finished line rather than a slow one.
-        pathLength={1}
-        style={
-          reduced
-            ? undefined
-            : {
-                strokeDasharray: 1,
-                strokeDashoffset: 1,
-                animation: "cg-draw 700ms ease-out forwards",
-              }
-        }
-      />
+      <defs>
+        {fill && (
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={tone} stopOpacity={0.18} />
+            <stop offset="100%" stopColor={tone} stopOpacity={0} />
+          </linearGradient>
+        )}
+        {/* Drawn on, once, on mount, by uncovering it left to right. Not a
+            dash animation: `pathLength` does not survive `non-scaling-stroke`
+            under a stretched viewBox, and Chrome drew the line with holes in
+            it. Reduced motion gets the finished line rather than a slow one. */}
+        {!reduced && (
+          <clipPath id={clipId}>
+            <rect x="-2" y="-2" height="28" width="0">
+              <animate
+                attributeName="width"
+                from="0"
+                to="104"
+                dur="700ms"
+                fill="freeze"
+                calcMode="spline"
+                keySplines="0 0 0.58 1"
+                keyTimes="0;1"
+              />
+            </rect>
+          </clipPath>
+        )}
+      </defs>
+      <g clipPath={reduced ? undefined : `url(#${clipId})`}>
+        {fill && (
+          <path d={`${path} L100,24 L0,24 Z`} fill={`url(#${gradientId})`} stroke="none" />
+        )}
+        <path
+          d={path}
+          fill="none"
+          stroke={tone}
+          strokeWidth={1.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      </g>
     </svg>
   );
 }

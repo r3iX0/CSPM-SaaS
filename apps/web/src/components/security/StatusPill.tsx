@@ -7,8 +7,20 @@ import { cn, label } from "@/lib/format";
  * means *a scan observed the fix*, while ACCEPTED_RISK means a person decided
  * to live with it. Rendering the second as a success would let a dashboard
  * report risk that was waved through as risk that was fixed.
+ *
+ * So only a scan's proof gets a colour. Open, in progress and risk accepted
+ * are all states a person holds a finding in, and they share the neutral tone;
+ * the word tells them apart (DECISIONS.md §144).
  */
-export function StatusPill({ status }: { status: string }) {
+export function StatusPill({
+  status,
+  size = "default",
+  className,
+}: {
+  status: string;
+  size?: "default" | "sm";
+  className?: string;
+}) {
   const tone =
     status === "RESOLVED" || status === "COMPLETED" || status === "DONE"
       ? "bg-ok-bg text-ok border-ok-border"
@@ -16,17 +28,14 @@ export function StatusPill({ status }: { status: string }) {
         ? "bg-critical-bg text-critical border-critical-border"
         : status === "PARTIAL"
           ? "bg-medium-bg text-medium border-medium-border"
-          : // A finding says ACCEPTED_RISK and a risk says ACCEPTED; they are
-            // the same decision by a person, and the second used to fall
-            // through to the neutral tone and read as "no state yet".
-            status === "ACCEPTED_RISK" || status === "ACCEPTED"
-            ? "bg-unknown-bg text-unknown border-unknown-border"
-            : "bg-muted text-muted-foreground border-border";
+          : "bg-muted text-muted-foreground border-border";
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap",
+        "inline-flex items-center rounded-full border font-medium whitespace-nowrap",
+        size === "sm" ? "px-1.5 py-0 text-[10.5px] leading-4" : "px-2 py-px text-[11px]",
         tone,
+        className,
       )}
     >
       {label(status)}

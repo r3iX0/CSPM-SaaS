@@ -28,7 +28,7 @@ export function SeverityBadge({
     <span
       className={cn(
         "inline-flex items-center gap-1 rounded-full border font-medium whitespace-nowrap",
-        size === "sm" ? "px-1.5 py-0 text-[11px]" : "px-2 py-0.5 text-xs",
+        size === "sm" ? "px-1.5 py-0 text-[10.5px] leading-4" : "px-2 py-px text-[11px]",
         levelStyle(level),
         className,
       )}

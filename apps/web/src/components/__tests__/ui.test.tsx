@@ -3,6 +3,10 @@ import { describe, expect, it } from "vitest";
 import { SeverityBadge as Badge } from "../security/SeverityBadge";
 import { StatusPill } from "../security/StatusPill";
 import { ContextRow } from "../security/ContextProvenance";
+import { ProviderMark } from "../security/ProviderMark";
+import { ResourceIcon } from "../security/ResourceIcon";
+import { ScoreTile } from "../security/ScoreTile";
+import { StatStrip } from "../common/StatStrip";
 import { buttonVariants } from "../ui/button";
 
 describe("Badge", () => {
@@ -102,5 +106,49 @@ describe("buttonVariants", () => {
     const classes = buttonVariants({ variant: "outline", className: "h-auto" }).split(" ");
     expect(classes).toContain("h-auto");
     expect(classes).not.toContain("h-8");
+  });
+});
+
+describe("ScoreTile", () => {
+  it("shows a question mark, dashed, rather than a number it cannot stand behind", () => {
+    const { container } = render(<ScoreTile score={41} level="UNKNOWN" />);
+    expect(screen.getByText("?")).toBeInTheDocument();
+    expect(screen.queryByText("41")).not.toBeInTheDocument();
+    expect(container.firstElementChild?.className).toContain("border-dashed");
+    expect(screen.getByLabelText("Risk score: no verdict")).toBeInTheDocument();
+  });
+
+  it("names the level in its label, not only in its tint", () => {
+    render(<ScoreTile score={94.4} level="CRITICAL" />);
+    expect(screen.getByLabelText("Risk score 94, critical")).toBeInTheDocument();
+  });
+});
+
+describe("StatStrip", () => {
+  it("colours the figure by its level, never the cell", () => {
+    render(<StatStrip stats={[{ label: "Critical", value: 6, tone: "CRITICAL" }]} />);
+    const figure = screen.getByText("6");
+    expect(figure.className).toContain("text-critical");
+    expect(figure.parentElement?.className).not.toContain("critical");
+  });
+});
+
+describe("ResourceIcon", () => {
+  it("draws the same glyph the rest of the product uses for the type", () => {
+    const { container } = render(<ResourceIcon type="storage_account" />);
+    expect(container.querySelector("svg.lucide-cylinder")).toBeInTheDocument();
+    expect(container.firstElementChild).toHaveAttribute("aria-hidden");
+  });
+
+  it("falls back to a box for a type it does not know", () => {
+    const { container } = render(<ResourceIcon type="something_new" />);
+    expect(container.querySelector("svg.lucide-box")).toBeInTheDocument();
+  });
+});
+
+describe("ProviderMark", () => {
+  it("names the provider for a reader who cannot see the glyph, in a tile too", () => {
+    render(<ProviderMark provider="gcp" tile />);
+    expect(screen.getByRole("img", { name: "Google Cloud" })).toBeInTheDocument();
   });
 });
