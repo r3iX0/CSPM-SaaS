@@ -7684,6 +7684,32 @@ Also: `--radius` 0.625rem → 0.5rem (8px buttons, 12px cards), dark `--border`
 rather than level with them, and Geist Mono as `--font-mono` for evidence, rule
 ids and the mono link notation.
 
+## 145. The overview leads with the link to cut, and says what a scan proved
+
+The Cleave overview (`docs/design_handoff_cleave_redesign/`, "Overview") keeps
+the argument's order -- score, what it is made of, what to do -- and changes
+what stands at each step.
+
+- **The score is a ring.** The previous `ScorePanel` chose a bar over a gauge
+  so the digits stayed loudest. The ring here is 128px around 32px digits, so
+  they still are, and it keeps `role="meter"` with a spoken value.
+- **The trend is a sparkline, not a chart.** The Recharts `ScoreTrend` and its
+  hover values are gone from the page; the exact figures are the score and the
+  delta beside it. Under two readings nothing is drawn and the panel says the
+  trend starts at the next scan.
+- **"The link to cut" replaces "Shortest attack path".** The drawn route was
+  one route; the cut is the one change that closes the most, from the
+  choke-points the risks page already reads, and it opens the Simulate tab with
+  the cut in the plan (`GraphTarget` kind `cut`, §141). Its number is the
+  link's own `severs`, never summed across links.
+- **"Fixes proved" replaces remediation progress.** Verified closes in 30 days,
+  findings in progress (claimed, not proved), and what is still open. The
+  weekly activity bars and the status/risk-band breakdown are off the page.
+- **Removed, not moved:** `PostureBreakdown`, `RemediationProgress`,
+  `AttackPathPanel`, `ScoreTrend`, `StackedBar`, `ActivityBars` and the
+  per-severity sparklines. `GettingStarted` and the region map (§113) stay.
+- The intro says "your cloud posture", not "your Azure posture" (§78).
+
 ## Open items carried forward
 
 **Data residency is not built (§113).** An organization setting for allowed

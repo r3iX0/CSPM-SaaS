@@ -2,7 +2,7 @@ import { queryOptions, type QueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
 import type { Asset, Neighborhood, RouteMap, RouteMapMeta } from "@/lib/types";
-import { routeKeyOf } from "./routeKeys";
+import { hopKey, routeKeyOf } from "./routeKeys";
 
 /**
  * The graph pages' queries, declared once so a link can load them ahead.
@@ -53,14 +53,21 @@ export const routeMapQuery = queryOptions({
 /**
  * Where something opens in the graph. An asset opens on its Connections tab,
  * centred on itself; a route opens traced on the attack-path page, which is
- * where routes are read (§138).
+ * where routes are read (§138); a cut opens that page's Simulate tab with the
+ * link already in the plan (§141).
  */
 export type GraphTarget =
   | { kind: "asset"; assetId: string }
-  | { kind: "route"; entryId: string; targetId: string };
+  | { kind: "route"; entryId: string; targetId: string }
+  | { kind: "cut"; source: string; relationship: string; target: string };
 
 export function graphHref(target: GraphTarget): string {
   if (target.kind === "asset") return `/assets/${target.assetId}?tab=connections`;
+  if (target.kind === "cut") {
+    return `/attack-paths?${new URLSearchParams({
+      cut: hopKey(target.source, target.relationship, target.target),
+    })}`;
+  }
   return `/attack-paths?${new URLSearchParams({
     trace: routeKeyOf(target.entryId, target.targetId),
   })}`;
@@ -74,7 +81,7 @@ export function graphHref(target: GraphTarget): string {
  * `staleTime` keeps a pointer passing twice from asking twice.
  */
 export function preloadGraph(client: QueryClient, target: GraphTarget): void {
-  if (target.kind === "route") {
+  if (target.kind === "route" || target.kind === "cut") {
     quietly(import("@/pages/AttackPaths"), import("./RouteMapCanvas"));
     void client.prefetchQuery(routeMapQuery);
     return;

@@ -4,8 +4,8 @@ import { motion } from "motion/react";
 import { ApiError, api, auth } from "@/lib/api";
 import { supabaseSignOut } from "@/lib/supabase";
 import type {
-  AttackPath,
   ChangeEvent,
+  ChokePoint,
   CloudAccount,
   ComplianceFramework,
   Dashboard,
@@ -16,17 +16,17 @@ import { GettingStarted } from "@/components/dashboard/GettingStarted";
 import { PostureHeader } from "@/components/dashboard/PostureHeader";
 import { ScorePanel } from "@/components/dashboard/ScorePanel";
 import { SeverityStrip } from "@/components/dashboard/SeverityStrip";
-import { PostureBreakdown } from "@/components/dashboard/PostureBreakdown";
 import { ComplianceSummary } from "@/components/dashboard/ComplianceSummary";
 import { CoveragePanel } from "@/components/dashboard/CoveragePanel";
 import { RegionPanel } from "@/components/dashboard/RegionPanel";
 import { PriorityRisks } from "@/components/dashboard/PriorityRisks";
-import { AttackPathPanel } from "@/components/dashboard/AttackPathPanel";
-import { RemediationProgress } from "@/components/dashboard/RemediationProgress";
+import { CutPanel } from "@/components/dashboard/CutPanel";
+import { FixesProved } from "@/components/dashboard/FixesProved";
 import { RecentChanges } from "@/components/dashboard/RecentChanges";
 import { DashboardSkeleton, ErrorState } from "@/components/common/states";
 import { Button } from "@/components/ui/button";
 import { listContainer, listItem } from "@/lib/motion";
+import { useRiskCount } from "@/lib/useRiskCount";
 
 /** Scan statuses that mean CloudGuard is reading the cloud right now. */
 const RUNNING = new Set([
@@ -43,17 +43,18 @@ const RUNNING = new Set([
  *
  * The order is the argument, and each step is the precondition for the next:
  *
- *   where the posture stands, and which way it is moving      (score, trend)
+ *   where the posture stands, and what that means today       (score, trend)
  *   what that number is made of                               (severity)
+ *   what to deal with, and the one link that cuts the most    (risks, cut)
  *   how much of the estate the opinion was formed from        (coverage)
  *   and where in the world that estate, and its faults, run   (regions)
- *   what to deal with, and what those faults form together    (risks, path)
- *   whether any of it is actually getting fixed               (remediation)
+ *   whether any of it is actually getting fixed               (fixes proved)
  *   what moved while you were away                            (changes)
+ *   what the evidence adds up to for somebody who reports     (compliance)
  *
- * Coverage sits third on purpose. A score computed over half an environment is
- * a different claim from the same number computed over all of it, and a reader
- * who has already acted on the risks below has been told too late.
+ * The order is the Cleave redesign's. Coverage follows the risks rather than
+ * preceding them, and says in its own words that a verdict nobody could reach
+ * is never a pass.
  *
  * Inventory counts — assets, subscriptions, resources — are deliberately not on
  * this page as headline figures. They are true and they answer a different
@@ -82,10 +83,11 @@ export function DashboardPage() {
     retry: false,
   });
 
-  const paths = useQuery({
-    queryKey: ["dashboard-attack-paths"],
+  // The same key the risks page reads, so the two agree on the link to cut.
+  const chokes = useQuery({
+    queryKey: ["attack-paths", "choke-points"],
     queryFn: () =>
-      api.get<AttackPath[]>("/api/v1/attack-paths?limit=1").then((r) => r.data),
+      api.get<ChokePoint[]>("/api/v1/attack-paths/choke-points").then((r) => r.data),
     retry: false,
   });
 
@@ -119,12 +121,11 @@ export function DashboardPage() {
     return (
       <div className="flex flex-col gap-4">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">
+          <h1 className="text-[22px] font-semibold tracking-[-0.02em]">
             {t.dashboard.title}
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Your cloud security posture, and what Cleave could see while
-            forming it.
+          <p className="mt-1.5 max-w-[70ch] text-[13px] text-muted-foreground">
+            Your cloud posture, and what Cleave could see while forming it.
           </p>
         </div>
         {/* No score is rendered before a scan exists. A number over no evidence
@@ -173,46 +174,40 @@ export function DashboardPage() {
         />
       </motion.div>
 
-      {/* 1 — where we stand, and which way it is going */}
+      {/* 1 — where we stand, and what that means today */}
       <motion.div variants={listItem}>
         <ScorePanel
           score={data.security_score}
           delta={data.score_delta}
           history={data.history ?? []}
-          scannedAt={data.last_scan.completed_at}
+          summary={
+            <TodaySummary
+              dashboard={data}
+              choke={Array.isArray(chokes.data) ? chokes.data[0] : undefined}
+            />
+          }
         />
       </motion.div>
 
       {/* 2 — what that number is made of */}
       <motion.div variants={listItem}>
-        <SeverityStrip
-          counts={data.findings_by_severity}
-          unknown={data.coverage.unknown}
-          history={data.history ?? []}
-        />
+        <SeverityStrip counts={data.findings_by_severity} unknown={data.coverage.unknown} />
       </motion.div>
 
-      {/* 3 — what to deal with, and what those faults form together. Directly
-          under the numbers, because it is what a reader does about them: the
-          analysis below explains the score, this says where to start. */}
-      <motion.div variants={listItem} className="grid gap-4 lg:grid-cols-2">
+      {/* 3 — what to deal with, and the one change that closes the most */}
+      <motion.div
+        variants={listItem}
+        className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]"
+      >
         <PriorityRisks risks={data.top_risks} />
-        <AttackPathPanel
-          paths={paths.data}
-          loading={paths.isLoading}
-          history={data.history ?? []}
+        <CutPanel
+          chokes={Array.isArray(chokes.data) ? chokes.data : undefined}
+          loading={chokes.isLoading}
+          failed={chokes.isError}
         />
       </motion.div>
 
-      {/* 4 — the shape of what is open: mix, standing, and risk bands */}
-      <motion.div variants={listItem}>
-        <PostureBreakdown
-          byStatus={data.findings_by_status}
-          riskBands={data.risk_bands}
-        />
-      </motion.div>
-
-      {/* 4b — how much of the estate the opinion was formed from */}
+      {/* 4 — how much of the estate the opinion was formed from */}
       <motion.div variants={listItem}>
         <CoveragePanel
           ratio={data.coverage.ratio}
@@ -225,9 +220,8 @@ export function DashboardPage() {
         />
       </motion.div>
 
-      {/* 4c — where it runs, and where what is wrong with it runs. Beside
-          coverage because they finish one sentence: how much was seen, and
-          where. Absent until something is tied to a region. */}
+      {/* 4b — where it runs, and where what is wrong with it runs. Absent
+          until something is tied to a region. */}
       {data.regions?.some((region) => region.region !== null) && (
         <motion.div variants={listItem}>
           <RegionPanel regions={data.regions} />
@@ -235,12 +229,19 @@ export function DashboardPage() {
       )}
 
       {/* 5 — whether any of it is being fixed, and what moved meanwhile */}
-      <motion.div variants={listItem} className="grid gap-4 lg:grid-cols-2">
-        <RemediationProgress
-          rate={data.remediation_rate}
-          verifiedLast30Days={data.verified_resolved_last_30_days}
-          openFindings={data.open_finding_count}
-          activity={data.remediation_activity ?? []}
+      <motion.div
+        variants={listItem}
+        className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
+      >
+        <FixesProved
+          verified={data.verified_resolved_last_30_days}
+          inProgress={data.findings_by_status?.IN_PROGRESS ?? 0}
+          // `open_finding_count` counts in-progress findings as open too, so
+          // they come off it here rather than being counted in both cells.
+          open={Math.max(
+            0,
+            data.open_finding_count - (data.findings_by_status?.IN_PROGRESS ?? 0),
+          )}
         />
         <RecentChanges events={changes.data} loading={changes.isLoading} />
       </motion.div>
@@ -255,6 +256,51 @@ export function DashboardPage() {
         />
       </motion.div>
     </motion.div>
+  );
+}
+
+/**
+ * "What that means today", in one sentence of figures the page already has:
+ * how many risks, how many routes run from something exposed to something
+ * sensitive, and what the one best cut would close. Each clause is said only
+ * when its number is known.
+ */
+function TodaySummary({
+  dashboard,
+  choke,
+}: {
+  dashboard: Dashboard;
+  choke: ChokePoint | undefined;
+}) {
+  // The risks list's own count: the dashboard's bands hold finding risks
+  // only, and this sentence speaks for attack paths and escalations too.
+  const risks = useRiskCount();
+  const routes = dashboard.history?.[dashboard.history.length - 1]?.attack_path_count;
+  return (
+    <>
+      {risks !== null && (
+        <span className="font-medium tabular-nums">
+          {risks} {risks === 1 ? "risk" : "risks"}.
+        </span>
+      )}
+      {routes !== undefined && routes > 0 && (
+        <>
+          {" "}
+          <span className="tabular-nums">
+            {routes} {routes === 1 ? "route runs" : "routes run"} from something
+            exposed to something sensitive.
+          </span>
+        </>
+      )}
+      {choke && choke.severs > 0 && (
+        <>
+          {" "}
+          <span className="tabular-nums">
+            One link closes {choke.severs} of {choke.total_routes}.
+          </span>
+        </>
+      )}
+    </>
   );
 }
 

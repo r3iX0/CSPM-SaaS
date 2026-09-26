@@ -11,7 +11,6 @@ import { describe, expect, it } from "vitest";
 
 import { Sparkline } from "@/components/charts/Sparkline";
 import { SeverityStrip } from "@/components/dashboard/SeverityStrip";
-import { StackedBar } from "@/components/charts/StackedBar";
 import { Bars } from "@/components/charts/Bars";
 
 describe("Sparkline", () => {
@@ -42,37 +41,6 @@ describe("Sparkline", () => {
   });
 });
 
-describe("StackedBar", () => {
-  it("labels every segment, never colour alone", () => {
-    render(
-      <StackedBar
-        ariaLabel="Open findings by severity"
-        segments={[
-          { key: "CRITICAL", label: "Critical", value: 2, tone: "var(--sev-critical)" },
-          { key: "LOW", label: "Low", value: 6, tone: "var(--sev-low)" },
-        ]}
-      />,
-    );
-
-    expect(screen.getByText("Critical")).toBeInTheDocument();
-    expect(screen.getByText("Low")).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "Open findings by severity" })).toBeInTheDocument();
-  });
-
-  it("says there is nothing to break down rather than drawing an empty bar", () => {
-    render(
-      <StackedBar
-        ariaLabel="Open findings by severity"
-        segments={[
-          { key: "CRITICAL", label: "Critical", value: 0, tone: "var(--sev-critical)" },
-        ]}
-      />,
-    );
-
-    expect(screen.getByText(/Nothing open to break down/)).toBeInTheDocument();
-  });
-});
-
 describe("Bars", () => {
   it("measures every bar against the same scale", () => {
     const { container } = render(
@@ -97,44 +65,27 @@ describe("Bars", () => {
 });
 
 describe("SeverityStrip", () => {
-  const reading = (critical: number) => ({
-    observed_at: "2026-08-30T09:00:00Z",
-    security_score: 70,
-    open_finding_count: critical,
-    findings_by_severity: { CRITICAL: critical },
-    risk_bands: {},
-    attack_path_count: 0,
-  });
-
-  it("draws no trend line from a series with no movement in it", () => {
-    // Two identical readings is a straight line that says nothing, and a line
-    // saying nothing teaches a reader to skip the place trends live.
+  it("links each level to its findings, and no verdict to the scans that could not read it", () => {
     render(
       <MemoryRouter>
-        <SeverityStrip
-          counts={{ CRITICAL: 2 }}
-          unknown={0}
-          history={[reading(2), reading(2)]}
-        />
+        <SeverityStrip counts={{ CRITICAL: 2, HIGH: 0 }} unknown={5} />
       </MemoryRouter>,
     );
 
-    expect(screen.queryByRole("img", { name: /Critical findings/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Critical\s*2/ })).toHaveAttribute(
+      "href",
+      "/findings?severity=CRITICAL",
+    );
+    expect(screen.getByRole("link", { name: /No verdict\s*5/ })).toHaveAttribute("href", "/scans");
   });
 
-  it("draws one once the series actually moves", () => {
+  it("marks no verdict dashed, so it never reads as a quiet low", () => {
     render(
       <MemoryRouter>
-        <SeverityStrip
-          counts={{ CRITICAL: 3 }}
-          unknown={0}
-          history={[reading(1), reading(2), reading(3)]}
-        />
+        <SeverityStrip counts={{}} unknown={1} />
       </MemoryRouter>,
     );
 
-    expect(
-      screen.getByRole("img", { name: /Critical findings: risen from 1 to 3/ }),
-    ).toBeInTheDocument();
+    expect(screen.getByText("No verdict").className).toContain("border-dashed");
   });
 });

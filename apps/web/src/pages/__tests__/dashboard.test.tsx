@@ -85,7 +85,7 @@ describe("DashboardPage", () => {
     mount(dashboard());
 
     await waitFor(() =>
-      expect(screen.getByRole("link", { name: /Reports/ })).toHaveAttribute(
+      expect(screen.getByRole("link", { name: /Export evidence/ })).toHaveAttribute(
         "href",
         "/reports",
       ),
@@ -96,7 +96,7 @@ describe("DashboardPage", () => {
     mount(dashboard());
 
     // A button that opens the scan wizard, not a link to the scans page.
-    expect(await screen.findByRole("button", { name: /Scan now/ })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /Run scan/ })).toBeInTheDocument();
   });
 
   it("offers neither before there is a posture to read or report on", async () => {
@@ -107,7 +107,7 @@ describe("DashboardPage", () => {
     await waitFor(() =>
       expect(screen.getByText("Connect your cloud environment")).toBeInTheDocument(),
     );
-    expect(screen.queryByRole("link", { name: /Reports/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Export evidence/ })).not.toBeInTheDocument();
   });
 
   it("sends a ranked risk to that risk, not back to the unfiltered list", async () => {
@@ -238,8 +238,10 @@ describe("DashboardPage", () => {
 
     expect(await screen.findByText("Identity")).toBeInTheDocument();
     expect(screen.getByText("Network")).toBeInTheDocument();
-    // Never phrased as a security percentage: 75% coverage is not 75% secure.
-    expect(screen.getByText(/not a security percentage/)).toBeInTheDocument();
+    // Never phrased as security: 75% coverage is not 75% secure.
+    expect(screen.getByText(/not a security score/)).toBeInTheDocument();
+    // The incomplete category says how much, in words and not only in colour.
+    expect(screen.getByText(/3 of 4 readings incomplete/)).toBeInTheDocument();
   });
 
   it("counts checks that reached no verdict beside the severities", async () => {
@@ -286,5 +288,17 @@ describe("DashboardPage", () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole("meter", { name: "Security score" })).not.toBeInTheDocument();
     expect(screen.queryByText("84")).not.toBeInTheDocument();
+  });
+
+  it("does not count in-progress findings as still open too", async () => {
+    // `open_finding_count` includes IN_PROGRESS, so drawn beside the
+    // in-progress cell unadjusted it would count those 3 twice.
+    mount(dashboard({ findings_by_status: { OPEN: 7, IN_PROGRESS: 3 } }));
+
+    const stillOpen = await screen.findByText("Still open");
+    expect(stillOpen.nextElementSibling).toHaveTextContent("7");
+    expect(screen.getByText("In progress, not yet proved").nextElementSibling).toHaveTextContent(
+      "3",
+    );
   });
 });
