@@ -77,7 +77,6 @@ export function RulesPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        icon={ListChecksIcon}
         title={t.rules.title}
         description="Every check Cleave runs. Deterministic: the same environment always gives the same result."
       />

@@ -98,7 +98,6 @@ export function RemediationPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        icon={WrenchIcon}
         title={t.remediation.title}
         description={t.remediation.description}
       />

@@ -4,14 +4,13 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
   ArrowDownIcon,
   SearchIcon,
-  ShieldAlertIcon,
   ShieldCheckIcon,
   XIcon,
 } from "lucide-react";
-import { ResourceTypeLabel } from "@/components/security/IconLabel";
+import { ResourceIcon } from "@/components/security/ResourceIcon";
 
 import { api } from "@/lib/api";
-import type { Finding } from "@/lib/types";
+import type { Dashboard, Finding } from "@/lib/types";
 import { useT } from "@/i18n";
 import { StatusPill } from "@/components/security/StatusPill";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
@@ -42,7 +41,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Pager } from "@/components/common/Pager";
-import { cn, formatDate, formatRelative } from "@/lib/format";
+import { StatStrip } from "@/components/common/StatStrip";
+import { cn, formatDate, formatRelative, resourceTypeLabel } from "@/lib/format";
 import { stagger } from "@/lib/motion";
 import { useUrlFilters } from "@/lib/useUrlFilters";
 import { ROW_ACTIVE, useRowNavigation } from "@/lib/keyboard";
@@ -165,6 +165,17 @@ export function FindingsPage() {
 
   // Already filtered and ordered by the database; the page renders what it was
   // sent rather than re-deciding it.
+  // The headline counts are the estate's open findings, whatever the table
+  // below is narrowed to -- from the overview's payload, the one cache entry
+  // every page that counts findings shares.
+  const overview = useQuery({
+    queryKey: ["dashboard"],
+    queryFn: () => api.get<Dashboard>("/api/v1/dashboard").then((r) => r.data),
+    staleTime: 60_000,
+    retry: false,
+  });
+  const counts = overview.data?.findings_by_severity;
+
   const rows = data?.findings ?? [];
   const activeRow = useRowNavigation(rows.map((finding) => `/findings/${finding.id}`));
   const total = data?.total ?? 0;
@@ -182,10 +193,25 @@ export function FindingsPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        icon={ShieldAlertIcon}
         title={t.findings.title}
-        description="Misconfigurations Cleave observed, ranked by what they mean on the asset."
+        description="Misconfigurations Cleave observed, ranked by what they mean on the asset they were found on."
       />
+
+      {/* Drawn only once the counts are known: a strip of zeros while they
+          load would say the estate is clean. "No verdict" counts checks, not
+          findings -- a check that could not read its evidence raises nothing,
+          and is never a pass. */}
+      {counts && (
+        <StatStrip
+          stats={[
+            { label: "Critical", value: counts.CRITICAL ?? 0, tone: "CRITICAL" },
+            { label: "High", value: counts.HIGH ?? 0, tone: "HIGH" },
+            { label: "Medium", value: counts.MEDIUM ?? 0, tone: "MEDIUM" },
+            { label: "Low", value: counts.LOW ?? 0, tone: "LOW" },
+            { label: "No verdict", value: overview.data?.coverage.unknown ?? 0, tone: "UNKNOWN" },
+          ]}
+        />
+      )}
 
       {/* Which slice, then how to narrow it. Status is the view -- open is
           the queue, the rest are its history -- so every one of them is named
@@ -205,7 +231,7 @@ export function FindingsPage() {
         />
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative w-full sm:w-72">
+          <div className="relative w-full sm:w-auto sm:min-w-[260px]">
             <SearchIcon
               className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
               aria-hidden
@@ -216,7 +242,7 @@ export function FindingsPage() {
               placeholder="Search findings, rules or assets"
               aria-label="Search findings"
               data-page-search
-              className="pl-8"
+              className="h-8 pl-8 text-[12.5px]"
             />
           </div>
           {/* A select, like every other filter in the product: the trigger
@@ -326,9 +352,9 @@ export function FindingsPage() {
 
       {data && rows.length > 0 && (
         <>
-          <Card className="overflow-hidden py-0">
+          <Card className="gap-0 overflow-hidden py-0">
             <CardContent className="px-0">
-              <Table>
+              <Table className="min-w-[760px]">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
                     <TableHead className="w-[45%]">Finding</TableHead>
@@ -388,7 +414,7 @@ export function FindingsPage() {
                             render={
                               <Link
                                 to={`/findings/${finding.id}`}
-                                className="block truncate font-medium text-foreground after:absolute after:inset-0 hover:underline"
+                                className="block truncate text-[13.5px] font-medium text-foreground after:absolute after:inset-0 hover:underline"
                               />
                             }
                           >
@@ -419,27 +445,29 @@ export function FindingsPage() {
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {finding.resource ? (
-                          <>
-                            <span className="block max-w-[16rem] truncate text-foreground">
-                              {finding.resource.name}
+                          <span className="flex min-w-0 items-center gap-2">
+                            <ResourceIcon type={finding.resource.resource_type} />
+                            <span className="min-w-0">
+                              <span className="block max-w-[14rem] truncate text-[12.5px] text-foreground">
+                                {finding.resource.name}
+                              </span>
+                              <span className="block max-w-[14rem] truncate text-[11px]">
+                                {resourceTypeLabel(finding.resource.resource_type)}
+                              </span>
                             </span>
-                            <ResourceTypeLabel
-                              type={finding.resource.resource_type}
-                              className="max-w-[16rem] text-xs"
-                            />
-                          </>
+                          </span>
                         ) : (
-                          <span className="italic">Tenant-wide</span>
+                          <span className="text-[12.5px]">Tenant-wide</span>
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <RiskScore score={finding.risk_score} />
+                        <RiskScore score={finding.risk_score} className="text-[13px] text-foreground" />
                       </TableCell>
                       <TableCell>
                         <StatusPill status={finding.status} />
                       </TableCell>
                       <TableCell
-                        className="text-right text-muted-foreground tabular-nums"
+                        className="text-right text-xs text-muted-foreground tabular-nums"
                         title={formatDate(finding.last_detected_at)}
                       >
                         {formatRelative(finding.last_detected_at)}
@@ -449,22 +477,21 @@ export function FindingsPage() {
                 </TableBody>
               </Table>
             </CardContent>
+            <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-2.5">
+              <p className="text-xs text-muted-foreground tabular-nums">
+                {page * PAGE_SIZE + 1}–{page * PAGE_SIZE + rows.length} of {total}{" "}
+                finding
+                {total === 1 ? "" : "s"}
+                {filtered ? " matching these filters" : ""}
+              </p>
+              <Pager
+                page={page}
+                pages={pages}
+                onPage={setPage}
+                className="w-auto"
+              />
+            </div>
           </Card>
-
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs text-muted-foreground">
-              {page * PAGE_SIZE + 1}–{page * PAGE_SIZE + rows.length} of {total}{" "}
-              finding
-              {total === 1 ? "" : "s"}
-              {filtered ? " matching these filters" : ""}
-            </p>
-            <Pager
-              page={page}
-              pages={pages}
-              onPage={setPage}
-              className="w-auto"
-            />
-          </div>
         </>
       )}
     </div>

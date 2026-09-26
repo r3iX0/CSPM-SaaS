@@ -244,7 +244,6 @@ export function AssetsPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        icon={BoxesIcon}
         title={t.assets.title}
         description="Everything Cleave has discovered, with what it is worth and how exposed it is."
         actions={

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BoxesIcon, SettingsIcon } from "lucide-react";
+import { BoxesIcon } from "lucide-react";
 
 import { api, ApiError, auth } from "@/lib/api";
 import type { CloudAccount, Organization } from "@/lib/types";
@@ -67,7 +67,6 @@ export function SettingsPage() {
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
-        icon={SettingsIcon}
         title={t.settings.title}
         description={t.settings.intro}
       />

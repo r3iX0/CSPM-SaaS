@@ -167,7 +167,6 @@ export function RisksPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        icon={RadarIcon}
         title={t.risks.title}
         description="Everything worth deciding about — findings, attack paths and escalations — worst first. Select rows to mark them in progress, accept them or reopen them."
       />
