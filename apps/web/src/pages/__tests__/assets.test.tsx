@@ -290,4 +290,15 @@ describe("the assets page", () => {
 
     expect(await screen.findByText(/apply to the list only/)).toHaveTextContent("exposure");
   });
+
+  it("heads the list with the estate's own counts, each read from the API rather than the page", async () => {
+    mount([ASSET], { total: 40, unchecked: 3 });
+
+    const exposed = await screen.findByText("Internet-facing", { selector: "dt" });
+    expect(exposed.nextElementSibling).toHaveTextContent("40");
+    expect(screen.getByText("Unmodeled type", { selector: "dt" }).nextElementSibling).toHaveTextContent("3");
+    expect(requested.some((url) => url.includes("limit=1&entry_point=true"))).toBe(true);
+    expect(requested.some((url) => url.includes("limit=1&on_attack_path=true"))).toBe(true);
+  });
 });
+
