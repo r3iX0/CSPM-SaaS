@@ -93,7 +93,7 @@ export function RulesPage() {
             placeholder="Search rules"
             aria-label="Search rules"
             data-page-search
-            className="pl-8"
+            className="h-8 pl-8 text-[12.5px]"
           />
         </div>
         <SelectField
@@ -165,7 +165,7 @@ export function RulesPage() {
         <>
           {/* A catalogue, so a list: a hundred-odd rules as separate cards
               was a page to scroll, not to scan. */}
-          <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+          <div className="divide-y divide-border overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
             {rules.map((rule) => (
               <RuleCard key={rule.rule_id} rule={rule} />
             ))}
@@ -187,14 +187,14 @@ function RuleCard({ rule }: { rule: Rule }) {
 
   return (
     <div className={cn(!rule.enabled && "bg-unknown-bg/40")}>
-      <div className="flex flex-wrap items-start gap-x-4 gap-y-2 px-4 py-3.5 sm:px-5">
+      <div className="flex flex-wrap items-start gap-x-4 gap-y-2 px-5 py-3">
         <span className="w-[4.5rem] shrink-0 pt-0.5">
           <SeverityBadge level={rule.severity} />
         </span>
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-medium text-foreground">{rule.name}</p>
+            <p className="text-[13.5px] font-medium text-foreground">{rule.name}</p>
             {/* A tenant-wide rule is about the directory rather than any one
                 resource, which is why nothing in the asset list carries it. */}
             {rule.scope === "aggregate" && <Badge variant="secondary">Tenant-wide</Badge>}
@@ -202,13 +202,13 @@ function RuleCard({ rule }: { rule: Rule }) {
                 running is not a quieter rule -- it is one whose severity
                 describes what it used to check. */}
             {!rule.enabled && (
-              <span className="inline-flex items-center rounded-full border border-dashed border-unknown-border bg-unknown-bg px-2 py-0.5 text-xs font-medium text-unknown">
+              <span className="inline-flex items-center rounded-full border border-dashed border-unknown-border bg-unknown-bg px-2 py-px text-[11px] font-medium text-unknown">
                 {t.rules.withdrawn}
               </span>
             )}
           </div>
-          <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{rule.description}</p>
-          <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <p className="mt-0.5 line-clamp-1 text-[12.5px] text-muted-foreground">{rule.description}</p>
+          <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-muted-foreground">
             <code className="font-mono text-[11px]">
               {rule.rule_id} · v{rule.version}
             </code>
@@ -254,13 +254,13 @@ function RuleCard({ rule }: { rule: Rule }) {
       </div>
 
       {!rule.enabled && (
-        <p className="mx-4 mb-3 rounded-lg border border-dashed border-unknown-border bg-unknown-bg px-3 py-2 text-xs leading-relaxed text-foreground sm:mx-5">
+        <p className="mx-5 mb-3 rounded-lg border border-dashed border-unknown-border bg-unknown-bg px-3 py-2 text-xs leading-relaxed text-foreground">
           {t.rules.withdrawnHelp}
         </p>
       )}
 
       {open && (
-        <div className="flex flex-col gap-4 border-t border-border bg-muted/20 px-4 py-4 sm:px-5 sm:pl-[6.75rem]">
+        <div className="flex flex-col gap-4 border-t border-border bg-muted/40 px-5 py-4 sm:pl-[6.75rem]">
           {rule.rationale && (
             <div>
               <p className="text-xs font-medium text-muted-foreground">{t.rules.why}</p>
