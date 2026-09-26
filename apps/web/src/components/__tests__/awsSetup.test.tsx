@@ -90,10 +90,22 @@ describe("the AWS setup flow", () => {
   });
 
   it("gives the rail three rows, not four", () => {
-    render(<SetupRail stage="deploy" provider="aws" />);
+    render(<SetupRail stage="deploy" provider="aws" connection={null} />);
 
     expect(screen.queryByText(/grants admin consent/i)).toBeNull();
     expect(screen.getByText(/deploy the scanner stack/i)).toBeInTheDocument();
+  });
+
+  it("says under a finished step what it settled", () => {
+    render(
+      <SetupRail
+        stage="deploy"
+        provider="aws"
+        connection={connection({ scope_type: "ACCOUNT", scope_id: "111122223333" })}
+      />,
+    );
+
+    expect(screen.getByText("Account 111122223333")).toBeInTheDocument();
   });
 
   it("states one grant on the access panel rather than two", () => {

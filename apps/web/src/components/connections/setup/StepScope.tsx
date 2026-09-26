@@ -201,7 +201,7 @@ export function StepScope({
         create.mutate();
       }}
     >
-      <div className="flex flex-col gap-8 p-6 sm:p-8">
+      <div className="flex flex-col gap-7 p-6">
         <Section label={t.connection.cloud}>
           {providers.isLoading ? (
             <div className="grid gap-3 sm:grid-cols-2">
@@ -222,11 +222,9 @@ export function StepScope({
                   value={option.id}
                   disabled={!option.available}
                 >
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-background">
-                    <ProviderMark provider={option.id} className="size-5" />
-                  </span>
+                  <ProviderMark provider={option.id} tile />
                   <span className="min-w-0 flex-1">
-                    <span className="flex flex-wrap items-center gap-2 text-sm font-medium text-foreground">
+                    <span className="flex flex-wrap items-center gap-2 text-[13.5px] font-medium text-foreground">
                       {option.name}
                       {!option.available && (
                         <Badge variant="outline" className="font-normal text-muted-foreground">
@@ -289,7 +287,7 @@ export function StepScope({
                   stacked
                 >
                   <span className="flex items-center gap-2">
-                    <span className="flex size-8 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground">
+                    <span className="flex size-7 items-center justify-center rounded-md bg-muted text-muted-foreground">
                       <Icon className="size-4" aria-hidden />
                     </span>
                     {tag && (
@@ -298,7 +296,7 @@ export function StepScope({
                       </Badge>
                     )}
                   </span>
-                  <span className="mt-3 block text-sm font-medium text-foreground">
+                  <span className="mt-3 block text-[13.5px] font-medium text-foreground">
                     {scope.label}
                   </span>
                   <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
@@ -319,7 +317,7 @@ export function StepScope({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               transition={{ duration: DURATION.quick / 1000, ease: EASE_OUT }}
-              className="mt-3 flex items-start gap-3 rounded-lg border border-border bg-muted/40 px-4 py-3"
+              className="mt-3 flex items-start gap-3 rounded-[10px] bg-muted px-4 py-3"
             >
               <PermissionIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
               <p className="text-xs leading-relaxed text-muted-foreground">
@@ -345,14 +343,14 @@ export function StepScope({
         </Section>
 
         <Section label={copy.beforeYouStart}>
-          <ul className="divide-y divide-border rounded-xl border border-border">
+          <ul className="divide-y divide-border rounded-xl ring-1 ring-foreground/10">
             {needs.map(({ icon: Icon, title, detail }) => (
               <li key={title} className="flex items-start gap-3 px-4 py-3.5">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
                   <Icon className="size-4" aria-hidden />
                 </span>
                 <span className="min-w-0">
-                  <span className="block text-sm font-medium text-foreground">{title}</span>
+                  <span className="block text-[13px] font-medium text-foreground">{title}</span>
                   <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
                     {detail}
                   </span>
@@ -373,15 +371,14 @@ export function StepScope({
 
       {/* Sticky, so the way forward is on screen from the first field rather
           than below four sections of reading. */}
-      <div className="sticky bottom-0 flex flex-wrap items-center justify-between gap-3 rounded-b-xl border-t border-border bg-card/90 px-6 py-4 backdrop-blur supports-[backdrop-filter]:bg-card/75 sm:px-8">
+      <div className="sticky bottom-0 flex flex-wrap items-center justify-between gap-3 rounded-b-xl border-t border-border bg-card/90 px-6 py-3.5 backdrop-blur supports-[backdrop-filter]:bg-card/75">
         <p className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
           <ReadOnlyIcon className="size-3.5 shrink-0" aria-hidden />
           {copy.footerPromise}
         </p>
         <Button
           type="submit"
-          size="lg"
-          className="w-full px-4 sm:w-auto"
+          className="w-full sm:w-auto"
           disabled={create.isPending || !chosen?.available}
         >
           {create.isPending && <Spinner data-icon="inline-start" />}
@@ -396,7 +393,7 @@ export function StepScope({
 function Section({ label, children }: { label: string; children: ReactNode }) {
   return (
     <section>
-      <h3 className="mb-3 text-sm font-medium text-foreground">{label}</h3>
+      <h3 className="mb-2.5 text-xs font-medium text-foreground">{label}</h3>
       {children}
     </section>
   );
@@ -428,10 +425,10 @@ function ChoiceCard({
     <label
       htmlFor={id}
       className={cn(
-        "relative flex w-full cursor-pointer rounded-xl border border-border bg-card p-4 text-left transition-[border-color,background-color,box-shadow]",
+        "relative flex w-full cursor-pointer rounded-[10px] border border-border bg-card p-4 text-left transition-[border-color,background-color,box-shadow]",
         stacked ? "flex-col items-start" : "items-center gap-3 pr-11",
         "hover:border-foreground/25 hover:bg-muted/30",
-        "has-data-checked:border-foreground has-data-checked:bg-muted/40 has-data-checked:shadow-[0_0_0_1px_var(--foreground)]",
+        "has-data-checked:border-primary has-data-checked:bg-primary-soft has-data-checked:shadow-[0_0_0_1px_var(--primary)]",
         "has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
         disabled && "cursor-not-allowed opacity-60 hover:border-border hover:bg-card",
       )}

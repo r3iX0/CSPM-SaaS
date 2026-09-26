@@ -6,10 +6,8 @@ import { useT } from "@/i18n";
 import { SETUP_ICONS } from "@/lib/icons";
 import { DURATION, EASE_OUT } from "@/lib/motion";
 import { CopyButton } from "@/components/common/CopyButton";
-import { ProviderMark } from "@/components/security/ProviderMark";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/format";
 import { StepHeader } from "@/components/connections/setup/StepHeader";
 import { WaitingNote } from "@/components/connections/setup/WaitingNote";
 
@@ -60,7 +58,6 @@ export function StepConsent({
   return (
     <>
       <StepHeader
-        mark={<ProviderMark provider={connection.provider} className="size-5" />}
         title={t.setup.consentTitle}
         description={t.setup.consentBody}
       />
@@ -89,7 +86,7 @@ export function StepConsent({
             href={connection.consent_url}
             target="_blank"
             rel="noopener noreferrer"
-            className={cn(buttonVariants({ size: "lg" }), "px-4")}
+            className={buttonVariants()}
           >
             {t.connection.openConsent}
             <LeavesApp data-icon="inline-end" aria-hidden />
@@ -98,8 +95,6 @@ export function StepConsent({
             <Button
               type="button"
               variant="outline"
-              size="lg"
-              className="px-4"
               onClick={() => setHandoff(true)}
             >
               <Handoff data-icon="inline-start" aria-hidden />
@@ -119,14 +114,14 @@ export function StepConsent({
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: DURATION.quick / 1000, ease: EASE_OUT }}
-            className="rounded-xl border border-border bg-muted/30 p-4 sm:p-5"
+            className="rounded-[10px] bg-muted p-4"
           >
             <div className="flex items-start gap-3">
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-background text-muted-foreground ring-1 ring-border">
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-background text-muted-foreground ring-1 ring-border">
                 <Handoff className="size-4" aria-hidden />
               </span>
               <div className="min-w-0">
-                <p className="text-sm font-medium text-foreground">{t.setup.handoffTitle}</p>
+                <p className="text-[12.5px] font-medium text-foreground">{t.setup.handoffTitle}</p>
                 <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
                   {t.setup.handoffBody}
                 </p>
@@ -136,7 +131,7 @@ export function StepConsent({
                 message it will be. A bare URL pasted into a chat window asks a
                 Global Administrator to approve something unexplained, which is
                 the request they are right to refuse. */}
-            <p className="mt-4 whitespace-pre-wrap break-words rounded-lg border border-border bg-background px-4 py-3 text-sm leading-relaxed text-foreground shadow-xs">
+            <p className="mt-3.5 whitespace-pre-wrap break-words rounded-lg border border-border bg-background px-4 py-3 text-[13px] leading-relaxed text-foreground">
               {`${t.setup.handoffMessage}\n\n`}
               <span className="break-all font-mono text-xs text-muted-foreground">
                 {connection.consent_url}

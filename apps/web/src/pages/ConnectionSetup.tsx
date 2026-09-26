@@ -2,13 +2,11 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowLeftIcon, PauseIcon } from "lucide-react";
 
 import { api } from "@/lib/api";
 import type { CloudConnection, Provider } from "@/lib/types";
 import { useT } from "@/i18n";
 import { connectionStage, setupPath } from "@/lib/connectionStage";
-import { SETUP_ICONS } from "@/lib/icons";
 import { DURATION, EASE_IN, EASE_OUT } from "@/lib/motion";
 import { setupCopy } from "@/lib/setupCopy";
 import { SetupRail } from "@/components/connections/setup/SetupRail";
@@ -117,41 +115,33 @@ export function ConnectionSetupPage() {
   // whichever step is showing and never competes with the step's own action.
   const waiting = connection !== null && ["consent", "deploy", "discover"].includes(stage);
 
-  const meta = [
-    { icon: SETUP_ICONS.duration, label: copy.metaDuration },
-    { icon: SETUP_ICONS.readOnly, label: copy.metaReadOnly },
-    { icon: SETUP_ICONS.permission, label: copy.metaNoCredentials },
-  ];
+  const meta = [copy.metaDuration, copy.metaReadOnly, copy.metaNoCredentials];
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
-      <header className="flex flex-col gap-4">
+    <div className="mx-auto flex w-full max-w-[1000px] flex-col gap-7">
+      <header>
         <Link
           to="/connections"
-          className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          className="text-[12.5px] text-muted-foreground underline underline-offset-3 transition-colors hover:text-foreground"
         >
-          <ArrowLeftIcon className="size-3.5" />
           {t.setup.backToConnections}
         </Link>
 
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-4">
-            <span className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-border bg-card shadow-xs">
-              <ProviderMark provider={provider} className="size-6" />
+        <div className="mt-3.5 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3.5">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border bg-card">
+              <ProviderMark provider={provider} className="size-5" />
             </span>
             <div className="min-w-0">
-              <h1 className="truncate text-2xl font-semibold tracking-tight text-foreground">
+              <h1 className="truncate text-[22px] font-semibold tracking-[-0.02em] text-foreground">
                 {connection ? connection.name : copy.title}
               </h1>
               {/* What setup costs, which stops being worth saying once it is
                   paid: a connected environment is not "about 3 minutes". */}
               {!connection?.is_ready_to_scan && (
-                <ul className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                  {meta.map(({ icon: Icon, label }) => (
-                    <li key={label} className="flex items-center gap-1.5">
-                      <Icon className="size-3.5" aria-hidden />
-                      {label}
-                    </li>
+                <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+                  {meta.map((label) => (
+                    <li key={label}>{label}</li>
                   ))}
                 </ul>
               )}
@@ -162,13 +152,14 @@ export function ConnectionSetupPage() {
             <div className="flex shrink-0 items-center gap-2">
               <Button
                 variant="ghost"
+                size="sm"
                 onClick={() => setCancelled.mutate(true)}
                 disabled={setCancelled.isPending}
                 className="text-muted-foreground"
               >
                 {t.connection.cancelSetupAction}
               </Button>
-              <Button variant="outline" onClick={() => navigate("/connections")}>
+              <Button variant="outline" size="sm" onClick={() => navigate("/connections")}>
                 {t.setup.finishLater}
               </Button>
             </div>
@@ -176,20 +167,20 @@ export function ConnectionSetupPage() {
         </div>
       </header>
 
-      <div className="grid gap-8 lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start lg:gap-10">
-        <aside className="rounded-xl border border-border bg-card p-5 lg:sticky lg:top-24 lg:border-0 lg:bg-transparent lg:p-0 lg:pt-2">
-          <SetupRail stage={stage} provider={provider} />
+      <div className="grid gap-6 lg:grid-cols-[200px_minmax(0,1fr)] lg:items-start lg:gap-8">
+        <aside className="lg:sticky lg:top-24">
+          <SetupRail stage={stage} provider={provider} connection={connection} />
         </aside>
 
-        <div className="min-w-0 rounded-xl border border-border bg-card shadow-xs">
+        <div className="min-w-0 rounded-xl bg-card ring-1 ring-foreground/10">
           {connectionId && detail.isLoading && (
-            <div className="p-6 sm:p-8">
+            <div className="p-6">
               <CardsSkeleton count={1} />
             </div>
           )}
 
           {connectionId && detail.isError && (
-            <div className="p-6 sm:p-8">
+            <div className="p-6">
               <Alert variant="destructive">
                 <AlertTitle>This connection could not be loaded</AlertTitle>
                 <AlertDescription>
@@ -239,18 +230,15 @@ export function ConnectionSetupPage() {
               )}
 
               {connection && stage !== "scope" && (
-                <div className="flex flex-col gap-6 p-6 sm:p-8">
+                <div className="flex flex-col gap-5 p-6">
                   {stage === "paused" && (
                     <>
                       <StepHeader
-                        mark={<PauseIcon className="size-5 text-muted-foreground" />}
                         title={t.setup.paused}
                         description={connection.status_detail ?? t.setup.pausedBody}
                       />
                       <div>
                         <Button
-                          size="lg"
-                          className="px-4"
                           onClick={() => setCancelled.mutate(false)}
                           disabled={setCancelled.isPending}
                         >

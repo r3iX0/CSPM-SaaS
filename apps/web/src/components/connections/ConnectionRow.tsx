@@ -7,7 +7,7 @@ import { ProviderMark } from "@/components/security/ProviderMark";
 import { api, ApiError } from "@/lib/api";
 import type { CloudConnection, Scan } from "@/lib/types";
 import { useT } from "@/i18n";
-import { connectionStage, setupPath } from "@/lib/connectionStage";
+import { connectionStage, scopeName, setupPath } from "@/lib/connectionStage";
 import { cadenceSummary, lastReadAt, statusSummary } from "@/lib/connectionSummary";
 
 import { AccessPanel } from "@/components/connections/AccessPanel";
@@ -286,22 +286,9 @@ export function ConnectionRow({
 /**
  * What this connection covers, in one line and in its own cloud's words.
  *
- * Six scopes across two clouds rather than three, and the boundary is not the
- * same noun either: a tenant id and an organization id are the same column and
- * different things to whoever is reading the row.
+ * The scope, then the directory it sits in and the role version it was granted.
  */
 function scopeSummary(connection: CloudConnection): string {
-  const vocabulary = words(connection.provider);
-  const scope =
-    connection.scope_type === "TENANT_ROOT"
-      ? "Entire tenant"
-      : connection.scope_type === "ORGANIZATION"
-        ? `Organization ${connection.scope_id}`
-        : connection.scope_type === "MANAGEMENT_GROUP"
-          ? `Management group ${connection.scope_id}`
-          : connection.scope_type === "ORGANIZATIONAL_UNIT"
-            ? `Organizational unit ${connection.scope_id}`
-            : `${vocabulary.Account} ${connection.scope_id}`;
   const boundary = connection.tenant_id ? ` · ${connection.tenant_id}` : "";
-  return `${scope}${boundary} · ${connection.role_version}`;
+  return `${scopeName(connection)}${boundary} · ${connection.role_version}`;
 }

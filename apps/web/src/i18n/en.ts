@@ -380,7 +380,7 @@ export const en = {
     title: "Connect Azure",
     intro:
       "Two grants and about three minutes. You will not be asked for a tenant id, a subscription id, or any credential.",
-    backToConnections: "Environments",
+    backToConnections: "Back to environments",
     railTitle: "What the three minutes look like",
 
     stepScope: "Choose the scope, and name it",
@@ -400,9 +400,14 @@ export const en = {
     // Short on purpose -- each one states a fact the intro used to spend a
     // sentence on, so the page can be scanned rather than read.
     railHeading: "Setup",
+    // Under a finished row of the rail: what that step settled, read off the
+    // connection.
+    railDone: "Done",
+    railConsented: (date: string) => `Granted ${date}`,
+    railVerified: (date: string) => `Verified ${date}`,
     metaDuration: "About 3 minutes",
-    metaReadOnly: "Read-only access",
-    metaNoCredentials: "No credentials to hand over",
+    metaReadOnly: "Read-only",
+    metaNoCredentials: "No credential to hand over",
     footerPromise: "Read-only. Cleave never changes your resources.",
 
     // Step one, as cards rather than paragraphs.
