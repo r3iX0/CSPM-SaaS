@@ -4,10 +4,11 @@ import { motion } from "motion/react";
 import { CheckIcon, RotateCcwIcon, XIcon } from "lucide-react";
 
 import { api } from "@/lib/api";
-import type { FindingStatus, ScanDetail } from "@/lib/types";
+import type { EvidenceCitation, FindingStatus, ScanDetail } from "@/lib/types";
 import { DURATION, EASE_OUT } from "@/lib/motion";
 import { cn, formatDateTime } from "@/lib/format";
 import { IN_FLIGHT } from "@/components/scans/status";
+import { useScanEvents } from "@/lib/scanEvents";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -31,6 +32,10 @@ function phaseOf(status: string): number {
  * (`scan_id` from the rescan endpoint), phase by phase from its real status,
  * and when it ends it re-reads the finding and says what the scan concluded.
  *
+ * The phases come from the scan's own state, pushed over its event stream
+ * (`useScanEvents`) and polled only while the stream is not live -- so a
+ * phase lands when the scan reaches it, never on a timer (§87, §88).
+ *
  * The verdict is the finding's, never this panel's. A finished scan with the
  * finding still open is "still failing"; resolved is "verified fixed"; a scan
  * that failed proves nothing either way and says so. Nothing here is inferred
@@ -41,6 +46,7 @@ export function FixVerification({
   findingId,
   findingStatus,
   resourceName,
+  evidence,
   onRetry,
   onClose,
   retrying,
@@ -49,16 +55,24 @@ export function FixVerification({
   findingId: string;
   findingStatus: FindingStatus;
   resourceName: string | null;
+  /**
+   * The finding's citations. Once verified, the one this scan read is named
+   * with its hash -- and only one this scan read: a citation carried from an
+   * older reading would be proof of something else.
+   */
+  evidence?: EvidenceCitation[] | null;
   onRetry: () => void;
   onClose: () => void;
   retrying: boolean;
 }) {
   const queryClient = useQueryClient();
+  const live = useScanEvents(scanId);
 
   const scan = useQuery({
     queryKey: ["scan-detail", scanId],
     queryFn: () => api.get<ScanDetail>(`/api/v1/scans/${scanId}/detail`).then((r) => r.data),
     refetchInterval: (query) => {
+      if (live) return false;
       const status = (query.state.data as ScanDetail | undefined)?.status;
       return status && !IN_FLIGHT.includes(status) ? false : 3000;
     },
@@ -75,6 +89,7 @@ export function FixVerification({
     if (!finished || settled.current) return;
     settled.current = true;
     void queryClient.invalidateQueries({ queryKey: ["finding", findingId] });
+    void queryClient.invalidateQueries({ queryKey: ["finding-provenance", findingId] });
     void queryClient.invalidateQueries({ queryKey: ["findings"] });
     void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
   }, [finished, findingId, queryClient]);
@@ -82,6 +97,10 @@ export function FixVerification({
   const failedScan = finished && (status === "FAILED" || status === "CANCELLED");
   const verified = finished && !failedScan && findingStatus === "RESOLVED";
   const stillFailing = finished && !failedScan && findingStatus !== "RESOLVED";
+
+  const proof = verified
+    ? (evidence ?? []).find((c) => c.source_scan_id === scanId && c.content_hash)
+    : undefined;
 
   const tone = verified
     ? "border-ok-border bg-ok-bg"
@@ -122,7 +141,14 @@ export function FixVerification({
               {failedScan && "The scan could not finish"}
               {!finished && "Checking your fix"}
             </p>
-            <p className="mt-0.5 text-sm leading-relaxed text-muted-foreground">
+            {/* Foreground, not muted, on a verdict's tint: muted grey on the
+                critical tint is under 4.5:1. */}
+            <p
+              className={cn(
+                "mt-0.5 text-[13px] leading-relaxed",
+                finished ? "text-foreground" : "text-muted-foreground",
+              )}
+            >
               {verified &&
                 `A scan on ${formatDateTime(scan.data?.completed_at ?? null)} looked again and the problem is gone. The finding is closed.`}
               {stillFailing &&
@@ -152,7 +178,7 @@ export function FixVerification({
                 <motion.span
                   className={cn(
                     "block h-full rounded-full",
-                    verified ? "bg-ok" : stillFailing ? "bg-high" : failedScan ? "bg-critical" : "bg-foreground",
+                    verified ? "bg-ok" : stillFailing ? "bg-high" : failedScan ? "bg-critical" : "bg-primary",
                   )}
                   initial={false}
                   animate={{ width: done ? "100%" : active ? "50%" : "0%" }}
@@ -171,6 +197,13 @@ export function FixVerification({
           );
         })}
       </ol>
+
+      {proof && (
+        <p className="mt-4 font-mono text-[11.5px] break-all text-foreground/80">
+          evidence sha256 {proof.content_hash?.slice(0, 12)}… · {proof.evidence_key} · read{" "}
+          {proof.collected_at}
+        </p>
+      )}
 
       {(stillFailing || failedScan) && (
         <div className="mt-4">
