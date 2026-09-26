@@ -1045,7 +1045,7 @@ export const en = {
   reports: {
     title: "Reports",
     intro:
-      "The same evidence, fixed to a moment \u2014 to file, send to a board or hand to an auditor.",
+      "The same evidence, fixed to a moment and made portable. Nothing is stored here \u2014 a library of past reports would outlive the evidence behind it.",
     executive: "Executive report",
     executiveDetail:
       "For a reader who does not touch Azure: the posture score and where it is going, the worst risks by what they would actually cost, and compliance coverage. Deliberately lists no findings \u2014 a summary that ends in a four-hundred-row table is a technical report with a cover page.",
@@ -1055,11 +1055,6 @@ export const en = {
     download: "Download PDF",
     preparing: "Preparing\u2026",
     preview: "Preview",
-    // Regenerated on request rather than kept. Said plainly, because a
-    // customer who expects a library of past reports should not have to
-    // discover its absence.
-    freshNote:
-      "Reports are generated when you ask for one, from the evidence that exists at that moment. Cleave keeps no copies \u2014 a stored PDF outlives the evidence behind it, and there would be no honest way to say which of five was current.",
     // The one failure worth its own copy: the server is missing native
     // libraries, which is an operator problem and not something a retry fixes.
     noPdfTitle: "This server cannot produce PDFs",
