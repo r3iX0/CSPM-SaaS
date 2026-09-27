@@ -13,9 +13,10 @@ export type ThemeChoice = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";
 
 /**
- * Also spelled out in `index.html`, and it has to stay spelled out there.
+ * Also spelled out in `public/theme-init.js`, and it has to stay spelled out
+ * there.
  *
- * That inline script runs before React exists, which is the only way to avoid
+ * That script runs before React exists, which is the only way to avoid
  * painting a white screen and then correcting it -- a flash that is worse in a
  * dark room than no dark mode at all. The duplication is deliberate and
  * `__tests__/theme.test.ts` fails if the two ever disagree.

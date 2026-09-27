@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 // The real file, imported as text: reading it through the bundler rather than
 // through node:fs keeps the test working wherever it is run from.
 import html from "../../../index.html?raw";
+import preload from "../../../public/theme-init.js?raw";
 
 import {
   DARK_CLASS,
@@ -87,22 +88,27 @@ describe("choosing a theme", () => {
 /**
  * The one duplication in this feature, guarded.
  *
- * `index.html` repeats the key and the class in an inline script because that
- * script has to run before React exists -- otherwise the browser paints white
+ * `public/theme-init.js` repeats the key and the class because that script has
+ * to run before React exists -- otherwise the browser paints white
  * and corrects itself, which is the flash the whole arrangement is for. Two
  * copies of a constant drift, so the test asserts they have not.
  */
 describe("the pre-paint script", () => {
   it("reads the same storage key the store writes", () => {
-    expect(html).toContain(`"${THEME_STORAGE_KEY}"`);
+    expect(preload).toContain(`"${THEME_STORAGE_KEY}"`);
   });
 
   it("sets the same class the stylesheet is written against", () => {
-    expect(html).toContain(`classList.toggle("${DARK_CLASS}"`);
+    expect(preload).toContain(`classList.toggle("${DARK_CLASS}"`);
   });
 
   it("runs before the app script, or it is pointless", () => {
-    expect(html.indexOf("prefers-color-scheme")).toBeLessThan(html.indexOf("/src/main.tsx"));
+    expect(html).toContain('<script src="/theme-init.js"></script>');
+    expect(html.indexOf("/theme-init.js")).toBeLessThan(html.indexOf("/src/main.tsx"));
+  });
+
+  it("is not inline, which the CSP's script-src 'self' would refuse", () => {
+    expect(html).not.toContain("<script>");
   });
 });
 
