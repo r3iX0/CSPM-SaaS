@@ -1005,7 +1005,7 @@ export const en = {
   changes: {
     title: "Changes",
     intro:
-      "What moved between scans: assets that appeared, disappeared, or became more exposed.",
+      "What moved in the environment, rather than what is true in it now. A quiet week here is a genuinely quiet week.",
     empty: "Nothing moved in this window",
     emptyDetail:
       "No asset appeared, disappeared, or changed exposure, sensitivity or criticality in the period you are looking at. Widen the window to look further back.",
@@ -1018,7 +1018,7 @@ export const en = {
     kind: {
       APPEARED: "Appeared",
       DISAPPEARED: "Disappeared",
-      EXPOSURE_CHANGED: "Exposure changed",
+      EXPOSURE_CHANGED: "Internet exposure changed",
       SENSITIVITY_CHANGED: "Data sensitivity changed",
       CRITICALITY_CHANGED: "Criticality changed",
     },
@@ -1026,10 +1026,10 @@ export const en = {
     disappeared: "A scan that covered its scope did not see it",
     // The distinction that decides whether a DISAPPEARED row is history or a
     // job. The asset row is never deleted, so both readings are possible.
-    stillMissing: "Still missing",
-    returned: "Seen again since",
-    worse: "Got worse",
-    better: "Got better",
+    stillMissing: "still missing",
+    returned: "seen again since",
+    worse: "worse",
+    better: "better",
     windowLabel: "Look back",
     kindLabel: "Kind of change",
     windows: {
@@ -1038,7 +1038,7 @@ export const en = {
       30: "Last 30 days",
       90: "Last 90 days",
     },
-    allKinds: "All changes",
+    allKinds: "All kinds of change",
     count: "change",
     countPlural: "changes",
   },

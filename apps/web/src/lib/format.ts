@@ -138,6 +138,14 @@ export function formatDateTime(value: string | null): string {
   });
 }
 
+export function formatTime(value: string | null): string {
+  if (!value) return "—";
+  return new Date(value).toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 /**
  * How long ago, in the words a person would use.
  *
