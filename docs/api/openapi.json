@@ -4068,6 +4068,82 @@
         }
       }
     },
+    "/api/v1/attack-paths/access/{resource_id}": {
+      "get": {
+        "tags": [
+          "attack-paths"
+        ],
+        "summary": "Access",
+        "description": "Who holds access to one asset, and what one identity holds.\n\nWhether or not anything exposed leads there -- the half of the question a\nroute cannot answer, because a route needs a way in. Read from the same\nper-role evaluation the routes are walked with, so a principal listed here\nas controlling an asset is exactly one a route may pass through\n(DECISIONS.md section 125).",
+        "operationId": "access_api_v1_attack_paths_access__resource_id__get",
+        "parameters": [
+          {
+            "name": "resource_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Resource Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Access Api V1 Attack Paths Access  Resource Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/attack-paths/neighborhood/{resource_id}": {
       "get": {
         "tags": [
@@ -4353,6 +4429,83 @@
                 "schema": {
                   "type": "object",
                   "title": "Response What If Api V1 Attack Paths What If Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/attack-paths/simulate": {
+      "post": {
+        "tags": [
+          "attack-paths"
+        ],
+        "summary": "Simulate",
+        "description": "What closes if several links are removed together, across the organization.\n\nA POST because the plan is a body, not because anything is written: this\nchanges nothing, in CloudGuard or in the cloud, and a demo visitor may ask\nit like any other question. The answer is exact for the plan as a whole --\nnever the sum of what each link closes alone, which is the one number a\nplan of several changes cannot be read off (``AssetGraph.simulate``).",
+        "operationId": "simulate_api_v1_attack_paths_simulate_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimulationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Simulate Api V1 Attack Paths Simulate Post"
                 }
               }
             }
@@ -5530,6 +5683,7 @@
           "remediation"
         ],
         "summary": "List Tasks",
+        "description": "The queue, in the order the page says it is in.\n\nIt said \"ordered by impact against effort\" and was ordered by when each\ntask was created. Now: open work first; then priority, which is impact\nagainst effort (RISK_ENGINE.md section 4); then how many attack paths run\nthrough the finding's asset, so of two equally urgent fixes the one on a\nroute comes first; then the finding's own score (DECISIONS.md section 127).\n\nThe routes break ties rather than set the order. A finding on a route is\nalready outranked by the route itself in the risks queue, and scoring it\nup here as well would count the route twice.",
         "operationId": "list_tasks_api_v1_remediation_get",
         "parameters": [
           {
@@ -6613,7 +6767,11 @@
           "has_identity",
           "grants_role",
           "can_grant_roles",
-          "network_access"
+          "network_access",
+          "member_of",
+          "can_act_as",
+          "can_take_over",
+          "eligible_for"
         ],
         "title": "RelationshipType",
         "description": "How two assets are related, and what that lets someone do.\n\nThe first four are structural: they describe how an environment is put\ntogether. The last two are *capability* edges -- they describe what an\nidentity is able to reach -- and the difference matters because only the\nsecond kind composes into a path. Knowing an NSG protects a VM tells you\nabout configuration; knowing that VM's identity grants Contributor over the\nsubscription tells you what happens if the VM is taken."
@@ -6849,6 +7007,52 @@
           "CRITICAL"
         ],
         "title": "Severity"
+      },
+      "SimulatedLink": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Source"
+          },
+          "relationship": {
+            "$ref": "#/components/schemas/RelationshipType"
+          },
+          "target": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Target"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "relationship",
+          "target"
+        ],
+        "title": "SimulatedLink",
+        "description": "One link, named the way a drawn edge names it."
+      },
+      "SimulationRequest": {
+        "properties": {
+          "cuts": {
+            "items": {
+              "$ref": "#/components/schemas/SimulatedLink"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Cuts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cuts"
+        ],
+        "title": "SimulationRequest",
+        "description": "Links to remove together. A body rather than a query string, because\nten Azure ids three times over do not fit in a URL every proxy accepts."
       },
       "ValidationError": {
         "properties": {
