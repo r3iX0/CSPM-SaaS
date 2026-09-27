@@ -340,7 +340,7 @@ function StuckNote() {
         {status.data ? status.data.detail : t.scans.stuckDetail}
       </p>
       {status.data && status.data.workers === 0 && (
-        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+        <p className="mt-1 text-xs leading-relaxed text-foreground">
           {t.scans.stuckDetail}
         </p>
       )}

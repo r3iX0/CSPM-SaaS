@@ -94,7 +94,7 @@ describe("the connections page", () => {
     // fact that decides whether now is a good moment to start.
     mount([]);
 
-    expect(await screen.findByText(/what the three minutes look like/i)).toBeInTheDocument();
+    expect(await screen.findByText(/what the 3 minutes look like/i)).toBeInTheDocument();
     expect(
       screen.getByText(/a global administrator grants admin consent/i),
     ).toBeInTheDocument();

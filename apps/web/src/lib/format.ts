@@ -193,8 +193,23 @@ export function formatSeconds(seconds: number): string {
   return `${minutes}m ${String(Math.round(seconds % 60)).padStart(2, "0")}s`;
 }
 
+/** Words in a type name that are acronyms, said the way the provider says them. */
+const TYPE_ACRONYMS: Record<string, string> = {
+  api: "API",
+  aks: "AKS",
+  dns: "DNS",
+  ip: "IP",
+  nsg: "NSG",
+  sql: "SQL",
+  vm: "VM",
+};
+
 export const resourceTypeLabel = (type: string) =>
-  type.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+  type
+    .split("_")
+    .map((word) => TYPE_ACRONYMS[word.toLowerCase()] ?? word)
+    .join(" ")
+    .replace(/^./, (c) => c.toUpperCase());
 
 /**
  * A collection category, as a customer would name it.

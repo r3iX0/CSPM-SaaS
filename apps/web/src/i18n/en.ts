@@ -106,7 +106,7 @@ export const en = {
     progress: "{done} of {total} done",
     dismiss: "Hide this checklist",
     connectTitle: "Connect your cloud environment",
-    connectDetail: "Read-only access, granted by your administrator. About three minutes.",
+    connectDetail: "Read-only access, granted by your administrator. About 3 minutes.",
     connectAction: "Connect a cloud",
     continueAction: "Continue setup",
     scanTitle: "Run your first scan",
@@ -134,7 +134,7 @@ export const en = {
     // The prototype says the first scan "runs on its own" after connecting. It
     // does not: the setup wizard ends on "Run the first scan".
     intro:
-      "This takes about a minute. Next you connect your cloud, which takes about three more, and then run the first scan.",
+      "This takes about a minute. Next you connect your cloud, which takes about 3 more, and then run the first scan.",
     stepOrganization: "Name your organization",
     stepCloud: "Connect your cloud",
     orgNameHelp: "The name that appears on reports and exported evidence.",
@@ -204,7 +204,7 @@ export const en = {
     scheduleFirstRunNote:
       "The first automatic scan starts within a few minutes; after that it runs on the interval you chose.",
     scheduleNotReady:
-      "This connection cannot scan yet, so there is nothing to schedule. Finish the two grants above first.",
+      "This connection cannot scan yet, so there is nothing to schedule. Finish the 2 grants above first.",
     scheduleFloorNote:
       "An interval rather than a time of day: Cleave promises to read this environment at least this often, not to start at a particular minute.",
 
@@ -384,9 +384,9 @@ export const en = {
   setup: {
     title: "Connect Azure",
     intro:
-      "Two grants and about three minutes. You will not be asked for a tenant id, a subscription id, or any credential.",
+      "2 grants and about 3 minutes. You will not be asked for a tenant id, a subscription id, or any credential.",
     backToConnections: "Back to environments",
-    railTitle: "What the three minutes look like",
+    railTitle: "What the 3 minutes look like",
 
     stepScope: "Choose the scope, and name it",
     stepScopeDetail:
@@ -443,7 +443,7 @@ export const en = {
       + "has just consented. Cleave checks every few seconds and moves on by "
       + `itself; if it is still not there in ${left}, the reason will show here.`,
     deployHowTitle: "What happens next",
-    deployHow1: "Open Azure Portal",
+    deployHow1: "Open the Azure portal",
     deployHow1Detail: "Signed in as an Owner at the scope you chose.",
     deployHow2: "Review and create",
     deployHow2Detail: "The template is pre-filled. There is nothing to type.",
@@ -461,7 +461,7 @@ export const en = {
     aws: {
       title: "Connect AWS",
       intro:
-        "One stack and about two minutes. There is no consent screen and no credential to hand over \u2014 you deploy a read-only role, and Cleave proves it works by using it.",
+        "One stack and about 2 minutes. There is no consent screen and no credential to hand over \u2014 you deploy a read-only role, and Cleave proves it works by using it.",
       stepScope: "Choose the scope, and name it",
       stepScopeDetail:
         "A whole organization, one organizational unit, or a single account. Either way you name the account Cleave starts from.",
@@ -536,7 +536,7 @@ export const en = {
     deployToAzure: "Deploy to Azure",
     stalledTitle: "This is taking longer than a deployment should",
     stalledBody:
-      "The three things that usually explain it, in the order they are worth checking:",
+      "The 3 things that usually explain it, in the order they are worth checking:",
     stalledPropagation:
       "A role assigned in the last few minutes has not propagated yet. Waiting a little longer is the fix.",
     stalledScopeTenant:
@@ -1053,7 +1053,7 @@ export const en = {
       "The same evidence, fixed to a moment and made portable. Nothing is stored here \u2014 a library of past reports would outlive the evidence behind it.",
     executive: "Executive report",
     executiveDetail:
-      "For a reader who does not touch Azure: the posture score and where it is going, the worst risks by what they would actually cost, and compliance coverage. Deliberately lists no findings \u2014 a summary that ends in a four-hundred-row table is a technical report with a cover page.",
+      "For a reader who does not touch Azure: the posture score and where it is going, the worst risks by what they would actually cost, and compliance coverage. Deliberately lists no findings \u2014 a summary that ends in a 400-row table is a technical report with a cover page.",
     technical: "Technical report",
     technicalDetail:
       "Everything the executive report says, from the same numbers, and then every open finding worst first \u2014 the asset it was found on, when it was first seen, and what to change.",

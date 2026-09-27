@@ -212,10 +212,12 @@ export function AccountMenu({
               <button
                 role="menuitem"
                 onClick={() => setConfirming(current)}
-                className="mt-1 w-full px-3 py-2 text-left text-sm text-critical transition hover:bg-critical-bg"
+                className="group mt-1 w-full px-3 py-2 text-left text-sm text-critical transition hover:bg-critical-bg"
               >
                 {t.account.removeOrg}
-                <span className="ml-1 text-muted-foreground">· {current.name}</span>
+                {/* Muted text on the critical tint is 4.36:1, under AA; on
+                    hover the name takes the foreground instead. */}
+                <span className="ml-1 text-muted-foreground group-hover:text-foreground">· {current.name}</span>
               </button>
             )}
           </Section>

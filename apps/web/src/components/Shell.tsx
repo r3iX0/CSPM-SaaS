@@ -195,7 +195,7 @@ export function Shell() {
  * The control that opens and closes the navigation.
  *
  * A thin wrapper on the primitive's trigger for one reason: the primitive names
- * itself "Toggle Sidebar" in every state, and a control whose label does not
+ * itself "Toggle sidebar" in every state, and a control whose label does not
  * change is a control a screen-reader user cannot tell the state of. This says
  * which way it will go, and carries `aria-expanded` so assistive technology
  * does not have to infer it from the wording.

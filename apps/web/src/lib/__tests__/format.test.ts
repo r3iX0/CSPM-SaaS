@@ -7,6 +7,7 @@ import {
   levelStyle,
   label,
   outcomeStyle,
+  resourceTypeLabel,
   scoreColor,
 } from "../format";
 
@@ -124,5 +125,13 @@ describe("formatDay", () => {
     expect(formatDay(`${year}-09-25T12:00:00`)).not.toContain(String(year));
     expect(formatDay(`${year + 1}-09-25T12:00:00`)).toContain(String(year + 1));
     expect(formatDay(null)).toBe("—");
+  });
+});
+
+describe("resourceTypeLabel", () => {
+  it("keeps an acronym the way the provider writes it", () => {
+    expect(resourceTypeLabel("sql_database")).toBe("SQL database");
+    expect(resourceTypeLabel("public_ip")).toBe("Public IP");
+    expect(resourceTypeLabel("storage_account")).toBe("Storage account");
   });
 });
