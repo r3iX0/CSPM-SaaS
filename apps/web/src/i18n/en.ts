@@ -131,13 +131,18 @@ export const en = {
     country: "Country",
     create: "Create organization",
     step: "Step",
+    // The prototype says the first scan "runs on its own" after connecting. It
+    // does not: the setup wizard ends on "Run the first scan".
     intro:
-      "The workspace every finding, scan and report belongs to. It takes a few seconds; connecting a cloud comes next.",
-    stepOrganization: "Organization",
-    stepCloud: "Connect a cloud",
-    orgNameHelp: "Everything Cleave discovers is separated by organization.",
-    optional: "Optional",
+      "This takes about a minute. Next you connect your cloud, which takes about three more, and then run the first scan.",
+    stepOrganization: "Name your organization",
+    stepCloud: "Connect your cloud",
+    orgNameHelp: "The name that appears on reports and exported evidence.",
+    optional: "optional",
     countryHelp: "Two-letter code, used for compliance context.",
+    demoTitle: "Look around a recorded estate first",
+    demoDetail:
+      "A real scan of a demo environment — real rules, real risk engine, nothing of yours connected.",
   },
   connect: {
     title: "Connect your Azure environment",
