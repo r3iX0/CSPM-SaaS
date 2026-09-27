@@ -107,11 +107,11 @@ must possess to exploit the worst-case instance:
 | [AZ-DB-008](#az-db-008) | SQL server has no Entra administrator | Azure | database | MEDIUM | 3 | `sql_server` |
 | [AZ-DB-009](#az-db-009) | PostgreSQL server accepts connections without TLS | Azure | database | HIGH | 3 | `postgresql_server` |
 | [AZ-APP-001](#az-app-001) | Application credential valid for years | Azure | identity | MEDIUM | 3 | `application` |
-| [AZ-IAM-001](#az-iam-001) | Person holds full control of a subscription | Azure | identity | HIGH | 3 | `user`, `service_principal` |
-| [AZ-IAM-002](#az-iam-002) | Workload identity holds full control of a subscription | Azure | identity | HIGH | 3 | `user`, `service_principal` |
-| [AZ-IAM-003](#az-iam-003) | Identity can grant itself any role | Azure | identity | CRITICAL | 3 | `user`, `service_principal` |
+| [AZ-IAM-001](#az-iam-001) | Person holds full control of a subscription | Azure | identity | HIGH | 3 | `user`, `service_principal`, `group` |
+| [AZ-IAM-002](#az-iam-002) | Workload identity holds full control of a subscription | Azure | identity | HIGH | 3 | `user`, `service_principal`, `group` |
+| [AZ-IAM-003](#az-iam-003) | Identity can grant itself any role | Azure | identity | CRITICAL | 3 | `user`, `service_principal`, `group` |
 | [AZ-IAM-005](#az-iam-005) | Too many Owners on the subscription | Azure | identity | MEDIUM | 2 | Aggregate (Tenant-wide) |
-| [AZ-IAM-008](#az-iam-008) | Full control granted above the subscription | Azure | identity | HIGH | 3 | `user`, `service_principal` |
+| [AZ-IAM-008](#az-iam-008) | Full control granted above the subscription | Azure | identity | HIGH | 3 | `user`, `service_principal`, `group` |
 | [AZ-IAM-010](#az-iam-010) | Custom role grants unrestricted or self-granting permissions | Azure | identity | HIGH | 3 | `subscription` |
 | [AZ-ID-001](#az-id-001) | Privileged user without multi-factor authentication | Azure | identity | CRITICAL | 4 | `user` |
 | [AZ-ID-002](#az-id-002) | Excessive number of privileged users | Azure | identity | HIGH | 3 | Aggregate (Tenant-wide) |
@@ -538,7 +538,7 @@ Deleting a credential an application still uses stops that application, so issue
 
 - **Severity**: `HIGH` | **Exploitability**: `3/5` | **Effort**: `~45 min`
 - **Scope**: `per_resource`
-- **Applies to**: `user`, `service_principal`
+- **Applies to**: `user`, `service_principal`, `group`
 - **Compliance Mappings**: `GDPR: 5(1)(f), 32(1)(b)` &bull; `ISO_27001: A.5.15, A.5.18, A.8.2` &bull; `NIST_800_53: AC-6, AC-2` &bull; `NIST_CSF: PR.AC-1, PR.AC-4` &bull; `PCI_DSS_4: 7.2.1, 7.2.2` &bull; `SOC2: CC6.3`
 
 **Description**: A named user account holds Owner, Contributor or User Access Administrator directly over an entire subscription. Standing subscription-wide control on a person's day-to-day account means one phished session is one phished subscription.
@@ -562,7 +562,7 @@ Azure CLI:
 
 - **Severity**: `HIGH` | **Exploitability**: `3/5` | **Effort**: `~60 min`
 - **Scope**: `per_resource`
-- **Applies to**: `user`, `service_principal`
+- **Applies to**: `user`, `service_principal`, `group`
 - **Compliance Mappings**: `GDPR: 5(1)(f), 32(1)(b)` &bull; `ISO_27001: A.5.15, A.5.16, A.8.2` &bull; `NIST_800_53: AC-6, AC-3` &bull; `NIST_CSF: PR.AC-1, PR.AC-4` &bull; `PCI_DSS_4: 7.2.1, 7.2.2` &bull; `SOC2: CC6.3`
 
 **Description**: A service principal or managed identity holds Owner or Contributor over an entire subscription. A workload identity has no session to expire and no person to notice it being used, so its permissions are exactly what an attacker inherits by compromising whatever runs as it.
@@ -586,7 +586,7 @@ Azure CLI:
 
 - **Severity**: `CRITICAL` | **Exploitability**: `3/5` | **Effort**: `~60 min`
 - **Scope**: `per_resource`
-- **Applies to**: `user`, `service_principal`
+- **Applies to**: `user`, `service_principal`, `group`
 - **Compliance Mappings**: `GDPR: 5(1)(f), 32(1)(b)` &bull; `ISO_27001: A.5.15, A.5.18, A.8.2` &bull; `NIST_800_53: AC-6, AC-3` &bull; `NIST_CSF: PR.AC-4` &bull; `PCI_DSS_4: 7.2.2` &bull; `SOC2: CC6.3`
 
 **Description**: An identity holds a role that permits writing role assignments. Whatever it currently holds is not its effective permission: it can grant itself anything at that scope, so its reach has no ceiling below the scope itself.
@@ -631,7 +631,7 @@ Microsoft's own guidance is fewer than three permanent Owners per subscription, 
 
 - **Severity**: `HIGH` | **Exploitability**: `3/5` | **Effort**: `~45 min`
 - **Scope**: `per_resource`
-- **Applies to**: `user`, `service_principal`
+- **Applies to**: `user`, `service_principal`, `group`
 - **Compliance Mappings**: `GDPR: 32(1)(b), 5(1)(f)` &bull; `ISO_27001: A.5.15, A.8.2` &bull; `NIST_800_53: AC-6, AC-3` &bull; `NIST_CSF: PR.AC-4` &bull; `PCI_DSS_4: 7.2.1, 7.2.2` &bull; `SOC2: CC6.3`
 
 **Description**: An identity holds Owner, Contributor or User Access Administrator at a management group or at the tenant root rather than at a subscription. The grant is inherited by every subscription beneath that scope — including subscriptions created after the assignment was made, which nobody reviews because nobody granted them anything.
