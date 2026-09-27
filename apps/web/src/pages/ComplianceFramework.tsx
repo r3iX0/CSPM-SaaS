@@ -68,7 +68,7 @@ export function ComplianceFrameworkPage() {
     return (
       <ErrorState
         title="Could not load this page"
-        detail="CloudGuard could not reach its own API."
+        detail="Cleave could not reach its own API."
         impact="Nothing about your environment has changed — this is a problem displaying it."
         onRetry={() => refetch()}
       />
@@ -180,6 +180,11 @@ export function ComplianceFrameworkPage() {
           opening this page usually wants the failing ones, and scrolling a
           catalogue of ninety controls to collect nine is the job a filter
           exists to do. */}
+      <p className="text-[13px] text-muted-foreground">
+        Each verdict carries the readings it rests on — for the controls that
+        passed as much as the ones that failed.
+      </p>
+
       <SegmentedFilter
         label="Filter controls by verdict"
         value={verdict}
@@ -196,7 +201,7 @@ export function ComplianceFrameworkPage() {
 
       {groups.map(([group, controls]) => (
         <section key={`${verdict}-${group}`}>
-          <h2 className="mb-2 flex items-baseline gap-2 text-sm font-medium text-foreground">
+          <h2 className="mb-2 flex items-baseline gap-2 text-[13.5px] font-semibold text-foreground">
             {group}
             <span className="text-xs font-normal text-muted-foreground tabular-nums">
               {controls.length}

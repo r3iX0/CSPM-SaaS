@@ -131,7 +131,7 @@ export function SimulationPanel({
         {state === "error" && (
           <Alert variant="destructive">
             <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
-              CloudGuard could not check this plan.
+              Cleave could not check this plan.
               <Button variant="outline" size="sm" onClick={onRetry}>
                 Try again
               </Button>

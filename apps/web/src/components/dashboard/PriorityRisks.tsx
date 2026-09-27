@@ -1,6 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowRightIcon, RouteIcon } from "lucide-react";
-import { FACTOR_ICONS, GRAPH_ICON } from "@/lib/icons";
+import { GRAPH_ICON } from "@/lib/icons";
 
 import type { Dashboard } from "@/lib/types";
 import { ScoreTile } from "@/components/security/ScoreTile";
@@ -48,20 +47,19 @@ export function PriorityRisks({ risks }: { risks: Risk[] }) {
       className="gap-0 py-0 [--card-spacing:--spacing(5)]"
     >
       <CardHeader className="py-4">
-        <CardTitle id="priority-risks" className="text-sm font-semibold">
+        <CardTitle id="priority-risks" className="text-[13.5px] font-semibold">
           Priority risks
         </CardTitle>
-        <CardDescription className="text-xs">
+        <CardDescription className="mt-1 text-xs">
           Ranked by what each would cost this business, not by how many alerts
-          fired
+          fired.
         </CardDescription>
         <CardAction>
           <Link
             to="/risks"
-            className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "shrink-0")}
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "shrink-0")}
           >
             All risks
-            <ArrowRightIcon data-icon="inline-end" />
           </Link>
         </CardAction>
       </CardHeader>
@@ -85,26 +83,16 @@ export function PriorityRisks({ risks }: { risks: Risk[] }) {
             >
               <Link
                 to={`/risks/${risk.id}`}
-                className="group flex min-w-0 flex-1 items-center gap-3 py-3 pl-5 pr-3 transition-colors hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                className="flex min-w-0 flex-1 items-center gap-3 py-3 pr-3 pl-5 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset"
               >
-                <ScoreTile
-                  score={Number(risk.risk_score)}
-                  level={risk.risk_level}
-                  className="size-10 [&>span]:text-base"
-                />
+                <ScoreTile score={Number(risk.risk_score)} level={risk.risk_level} />
 
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{risk.title}</p>
+                  <p className="truncate text-[13.5px] font-medium">{risk.title}</p>
                   <RiskContext risk={risk} />
                 </div>
 
-                <div className="flex shrink-0 items-center gap-2.5">
-                  <SeverityBadge level={risk.risk_level} size="sm" />
-                  <ArrowRightIcon
-                    className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
-                    aria-hidden
-                  />
-                </div>
+                <SeverityBadge level={risk.risk_level} className="shrink-0" />
               </Link>
               <RiskGraphLink risk={risk} />
             </li>
@@ -157,40 +145,39 @@ function RiskGraphLink({ risk }: { risk: Risk }) {
  * high enough to be the reason — listing "exposure: LOW" beside a critical risk
  * would spend a line saying nothing. UNKNOWN is stated rather than skipped: not
  * knowing whether an asset is exposed is itself part of why a risk ranks where
- * it does.
+ * it does. A scenario says so first, because it groups findings that are
+ * already counted one by one.
  */
 function RiskContext({ risk }: { risk: Risk }) {
   const facts = [
-    { label: "Internet-facing", level: risk.internet_exposure, Icon: FACTOR_ICONS.exposure },
-    { label: "Sensitive data", level: risk.data_sensitivity, Icon: FACTOR_ICONS.dataSensitivity },
-    { label: "Business-critical", level: risk.asset_criticality, Icon: FACTOR_ICONS.criticality },
-  ].filter(
-    (fact) =>
-      fact.level === "CRITICAL" || fact.level === "HIGH" || fact.level === "UNKNOWN",
-  );
+    { label: "Internet-facing", level: risk.internet_exposure },
+    { label: "Sensitive data", level: risk.data_sensitivity },
+    { label: "Business-critical", level: risk.asset_criticality },
+  ]
+    .filter(
+      (fact) =>
+        fact.level === "CRITICAL" || fact.level === "HIGH" || fact.level === "UNKNOWN",
+    )
+    .map((fact) => (fact.level === "UNKNOWN" ? `${fact.label}: not known` : fact.label));
 
   if (risk.kind === "ATTACK_PATH" && facts.length === 0) {
     return (
-      <p className="mt-0.5 truncate text-xs text-muted-foreground">
+      <p className="mt-0.5 truncate text-[11.5px] text-muted-foreground">
         Scenario — findings already counted individually below
       </p>
     );
   }
 
-  if (facts.length === 0) return null;
+  const parts = risk.kind === "ATTACK_PATH" ? ["Scenario", ...facts] : facts;
+  if (parts.length === 0) return null;
 
   return (
-    <ul className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-      {risk.kind === "ATTACK_PATH" && (
-        <li className="flex items-center gap-1.5">
-          <RouteIcon className="size-3 shrink-0" aria-hidden />
-          Scenario
-        </li>
-      )}
-      {facts.map((fact) => (
-        <li key={fact.label} className="flex items-center gap-1.5">
-          <fact.Icon className="size-3 shrink-0" aria-hidden />
-          {fact.level === "UNKNOWN" ? `${fact.label}: not known` : fact.label}
+    // The separator is drawn, not written: it is punctuation for the eye, and
+    // a screen reader already hears the items as a list.
+    <ul className="mt-0.5 flex min-w-0 flex-wrap items-center text-[11.5px] text-muted-foreground [&>li+li]:before:mx-1 [&>li+li]:before:content-['·']">
+      {parts.map((part) => (
+        <li key={part} className="whitespace-nowrap">
+          {part}
         </li>
       ))}
     </ul>

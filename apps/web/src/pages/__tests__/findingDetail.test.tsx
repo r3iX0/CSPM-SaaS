@@ -306,7 +306,7 @@ describe("the provenance panel", () => {
     mount([], FINDING, { ...PROVENANCE, evidence: null });
 
     expect(
-      await screen.findByText(/raised before CloudGuard recorded/i),
+      await screen.findByText(/raised before Cleave recorded/i),
     ).toBeInTheDocument();
     expect(
       screen.queryByText("This check reads no collected evidence."),
@@ -320,7 +320,7 @@ describe("the provenance panel", () => {
       await screen.findByText("This check reads no collected evidence."),
     ).toBeInTheDocument();
     expect(
-      screen.queryByText(/raised before CloudGuard recorded/i),
+      screen.queryByText(/raised before Cleave recorded/i),
     ).not.toBeInTheDocument();
   });
 
@@ -366,7 +366,7 @@ describe("the provenance panel", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText("How we know")).not.toBeInTheDocument();
     expect(
-      screen.queryByText(/raised before CloudGuard recorded/i),
+      screen.queryByText(/raised before Cleave recorded/i),
     ).not.toBeInTheDocument();
   });
 });

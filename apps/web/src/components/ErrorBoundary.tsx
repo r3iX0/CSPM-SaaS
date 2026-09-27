@@ -64,7 +64,7 @@ export class ErrorBoundary extends Component<Props, State> {
     // what a reader is asked for when they say the page broke. There is no
     // error-reporting service wired up, and inventing one here would send a
     // customer's screen contents somewhere nobody agreed to.
-    console.error("CloudGuard failed to render", error, info.componentStack);
+    console.error("Cleave failed to render", error, info.componentStack);
   }
 
   private reload = (): void => {
@@ -103,10 +103,10 @@ export class ErrorBoundary extends Component<Props, State> {
           </h1>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
             {stale
-              ? "CloudGuard could not fetch part of the app. This usually means a " +
+              ? "Cleave could not fetch part of the app. This usually means a " +
                 "new version was released while this tab was open, or the " +
                 "connection dropped mid-load."
-              : "CloudGuard hit an error it could not recover from while drawing " +
+              : "Cleave hit an error it could not recover from while drawing " +
                 "this page. Nothing about your environment has changed, and no " +
                 "scan or finding was affected."}
           </p>
@@ -116,7 +116,7 @@ export class ErrorBoundary extends Component<Props, State> {
               onClick={this.reload}
               className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
             >
-              Reload CloudGuard
+              Reload Cleave
             </button>
             <a
               href="/"

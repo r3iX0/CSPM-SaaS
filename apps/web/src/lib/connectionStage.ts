@@ -1,4 +1,5 @@
 import type { CloudConnection, ConnectionScope, Provider } from "@/lib/types";
+import { words } from "@/lib/vocabulary";
 
 /**
  * Where a connection has got to in setup.
@@ -131,4 +132,26 @@ export function scopesFor(provider: Provider): ConnectionScope[] {
  */
 export function needsScopeId(provider: Provider, scope: ConnectionScope): boolean {
   return provider === "aws" || scope !== "TENANT_ROOT";
+}
+
+/**
+ * What a connection covers, in its own cloud's words: "Entire tenant",
+ * "Management group platform-mg", "Account 111122223333".
+ *
+ * Six scopes across two clouds rather than three, and the boundary is not the
+ * same noun either, which is why the id is named rather than printed bare.
+ */
+export function scopeName(connection: CloudConnection): string {
+  switch (connection.scope_type) {
+    case "TENANT_ROOT":
+      return "Entire tenant";
+    case "ORGANIZATION":
+      return `Organization ${connection.scope_id}`;
+    case "MANAGEMENT_GROUP":
+      return `Management group ${connection.scope_id}`;
+    case "ORGANIZATIONAL_UNIT":
+      return `Organizational unit ${connection.scope_id}`;
+    default:
+      return `${words(connection.provider).Account} ${connection.scope_id}`;
+  }
 }

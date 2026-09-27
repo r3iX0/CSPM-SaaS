@@ -153,6 +153,6 @@ describe("ReportsPage", () => {
     // discover its absence.
     mount();
 
-    expect(screen.getByText(/CloudGuard keeps no copies/)).toBeInTheDocument();
+    expect(screen.getByText(/Nothing is stored here/)).toBeInTheDocument();
   });
 });

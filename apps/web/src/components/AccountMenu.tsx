@@ -122,7 +122,7 @@ export function AccountMenu({
         aria-expanded={open}
         aria-label={t.account.menu}
         className={cn(
-          "flex items-center gap-2 rounded-lg border px-2 py-1.5 text-sm transition",
+          "flex items-center gap-2 rounded-lg border px-1 py-0.5 text-sm transition sm:pr-2",
           open
             ? "border-input bg-muted/40"
             : "border-transparent hover:border-border hover:bg-muted/40",
@@ -212,10 +212,12 @@ export function AccountMenu({
               <button
                 role="menuitem"
                 onClick={() => setConfirming(current)}
-                className="mt-1 w-full px-3 py-2 text-left text-sm text-critical transition hover:bg-critical-bg"
+                className="group mt-1 w-full px-3 py-2 text-left text-sm text-critical transition hover:bg-critical-bg"
               >
                 {t.account.removeOrg}
-                <span className="ml-1 text-muted-foreground">· {current.name}</span>
+                {/* Muted text on the critical tint is 4.36:1, under AA; on
+                    hover the name takes the foreground instead. */}
+                <span className="ml-1 text-muted-foreground group-hover:text-foreground">· {current.name}</span>
               </button>
             )}
           </Section>
@@ -252,7 +254,7 @@ function Avatar({ name }: { name: string }) {
   return (
     <span
       aria-hidden="true"
-      className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary text-[11px] font-semibold text-primary-foreground"
+      className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-[11.5px] font-medium text-foreground"
     >
       {name.trim().charAt(0).toUpperCase() || "?"}
     </span>

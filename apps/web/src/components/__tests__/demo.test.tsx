@@ -15,7 +15,7 @@ import type { Organization } from "@/lib/types";
 
 const DEMO: Organization = {
   id: "demo-1",
-  name: "CloudGuard demo",
+  name: "Cleave demo",
   slug: "cloudguard-demo",
   industry: null,
   country: null,
@@ -54,7 +54,7 @@ describe("the demo organization", () => {
     auth.organizationId = DEMO.id;
     mount(<DemoBanner />, [DEMO]);
 
-    expect(await screen.findByText("You are exploring the CloudGuard demo.")).toBeInTheDocument();
+    expect(await screen.findByText("You are exploring the Cleave demo.")).toBeInTheDocument();
     // No organization of their own yet: the way out is to make one.
     expect(screen.getByRole("link", { name: "Create your organization" })).toHaveAttribute(
       "href",
@@ -92,7 +92,7 @@ describe("the demo organization", () => {
     const post = vi.spyOn(api, "post").mockResolvedValue({ data: DEMO, meta: {} } as never);
     mount(<OnboardingPage />, [], "/onboarding");
 
-    fireEvent.click(await screen.findByRole("button", { name: /Explore a demo environment/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Look around a recorded estate/ }));
 
     await waitFor(() => expect(post).toHaveBeenCalledWith("/api/v1/organizations/demo/join"));
     await waitFor(() => expect(auth.organizationId).toBe(DEMO.id));

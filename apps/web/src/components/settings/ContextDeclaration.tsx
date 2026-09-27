@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/lib/api";
 import type { CloudAccount, ContextDeclaration, Level } from "@/lib/types";
 import { useT } from "@/i18n";
-import { formatDateTime } from "@/lib/format";
+import { cn, formatDateTime } from "@/lib/format";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
@@ -47,7 +47,7 @@ export function ContextDeclarationForm({ account }: { account: CloudAccount }) {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border p-4">
+      <div className="border-b border-border px-5 py-4">
         <Skeleton className="h-4 w-48" />
         <Skeleton className="mt-3 h-8 w-full" />
       </div>
@@ -119,96 +119,120 @@ function DeclarationFields({
   const declared = Boolean(declaration);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card">
-      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border px-5 py-3">
-        <p className="text-sm font-medium text-foreground">{account.account_name}</p>
-        <code className="text-[11px] text-muted-foreground">{account.subscription_id}</code>
-      </div>
-
-      <form
-        className="flex flex-col"
-        onSubmit={(event) => {
-          event.preventDefault();
-          save.mutate();
-        }}
-      >
-        <div className="flex flex-col gap-4 p-5">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Field>
-            <FieldLabel htmlFor={`env-${account.id}`}>{t.settings.environment}</FieldLabel>
-            <Input
-              id={`env-${account.id}`}
-              value={environment}
-              maxLength={64}
-              placeholder={t.settings.environmentPlaceholder}
-              onChange={(event) => setEnvironment(event.target.value)}
-            />
-          </Field>
-
-          <LevelField
-            id={`crit-${account.id}`}
-            label={t.settings.criticality}
-            value={criticality}
-            onChange={setCriticality}
-          />
-
-          <LevelField
-            id={`sens-${account.id}`}
-            label={t.settings.dataSensitivity}
-            value={sensitivity}
-            onChange={setSensitivity}
-          />
-        </div>
-
-        <Field>
-          <FieldLabel htmlFor={`note-${account.id}`}>{t.settings.note}</FieldLabel>
-          <Input
-            id={`note-${account.id}`}
-            value={note}
-            maxLength={2000}
-            onChange={(event) => setNote(event.target.value)}
-          />
-          <FieldDescription>{t.settings.noteHelp}</FieldDescription>
-        </Field>
-
-        {error && (
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-        </div>
-
-        <div className="flex flex-row-reverse flex-wrap items-center gap-3 border-t border-border bg-muted/30 px-5 py-3">
-          <Button type="submit" disabled={save.isPending}>
-            {save.isPending ? t.settings.saving : t.settings.declare}
-          </Button>
-          {/* Only offered where there is something to withdraw. On an
-              undeclared subscription it would be a button that does nothing
-              and reads as though it might. */}
-          {declared && (
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              disabled={clear.isPending}
-              onClick={() => clear.mutate()}
-            >
-              {clear.isPending ? t.settings.clearing : t.settings.clear}
-            </Button>
-          )}
-          {saved && !save.isPending && (
-            <span className="text-xs text-ok">{t.settings.saved}</span>
-          )}
-          {declared && declaration && (
-            <span className="mr-auto text-xs text-muted-foreground">
-              {t.settings.declaredBy} {formatDateTime(declaration.declared_at)}
+    // An undeclared row is drawn in the unknown style -- dashed, like every
+    // other place Cleave has not been told -- so the rows still to fill in are
+    // the ones the eye lands on.
+    <form
+      className={cn(
+        "flex flex-col gap-3.5 px-5 py-4",
+        declared
+          ? "border-b border-border"
+          : "border-b border-dashed border-unknown-border bg-[color-mix(in_oklab,var(--sev-unknown-bg)_40%,var(--card))]",
+      )}
+      onSubmit={(event) => {
+        event.preventDefault();
+        save.mutate();
+      }}
+    >
+      <div>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <p className="text-[13px] font-medium text-foreground">{account.account_name}</p>
+          {!declared && (
+            <span className="rounded-full border border-dashed border-unknown-border px-2 py-px text-[11px] text-unknown">
+              {t.settings.notDeclared}
             </span>
           )}
+          <code className="ml-auto text-[11px] text-muted-foreground">
+            {account.subscription_id}
+          </code>
         </div>
-      </form>
-    </div>
+        {!declared && (
+          <p className="mt-1.5 max-w-[76ch] text-xs leading-relaxed text-muted-foreground">
+            {t.settings.notDeclaredHelp}
+          </p>
+        )}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Field className="gap-1.5">
+          <FieldLabel htmlFor={`env-${account.id}`} className={LABEL}>
+            {t.settings.environment}
+          </FieldLabel>
+          <Input
+            id={`env-${account.id}`}
+            value={environment}
+            maxLength={64}
+            placeholder={t.settings.environmentPlaceholder}
+            onChange={(event) => setEnvironment(event.target.value)}
+          />
+        </Field>
+
+        <LevelField
+          id={`crit-${account.id}`}
+          label={t.settings.criticality}
+          value={criticality}
+          onChange={setCriticality}
+        />
+
+        <LevelField
+          id={`sens-${account.id}`}
+          label={t.settings.dataSensitivity}
+          value={sensitivity}
+          onChange={setSensitivity}
+        />
+      </div>
+
+      <Field className="gap-1.5">
+        <FieldLabel htmlFor={`note-${account.id}`} className={LABEL}>
+          {t.settings.note}
+        </FieldLabel>
+        <Input
+          id={`note-${account.id}`}
+          value={note}
+          maxLength={2000}
+          onChange={(event) => setNote(event.target.value)}
+        />
+        <FieldDescription className="text-xs">{t.settings.noteHelp}</FieldDescription>
+      </Field>
+
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="submit" variant="outline" size="sm" disabled={save.isPending}>
+          {save.isPending ? t.settings.saving : t.settings.declare}
+        </Button>
+        {/* Only offered where there is something to withdraw. On an
+            undeclared subscription it would be a button that does nothing
+            and reads as though it might. */}
+        {declared && (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="text-muted-foreground"
+            disabled={clear.isPending}
+            onClick={() => clear.mutate()}
+          >
+            {clear.isPending ? t.settings.clearing : t.settings.clear}
+          </Button>
+        )}
+        {saved && !save.isPending && <span className="text-xs text-ok">{t.settings.saved}</span>}
+        {declared && declaration && (
+          <span className="ml-auto text-xs text-muted-foreground">
+            {t.settings.declaredBy} {formatDateTime(declaration.declared_at)}
+          </span>
+        )}
+      </div>
+    </form>
   );
 }
+
+/** Field labels in a declaration row: small and muted, three to a line. */
+const LABEL = "text-[11.5px] font-normal text-muted-foreground";
 
 function LevelField({
   id,
@@ -223,8 +247,10 @@ function LevelField({
 }) {
   const t = useT();
   return (
-    <Field>
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+    <Field className="gap-1.5">
+      <FieldLabel htmlFor={id} className={LABEL}>
+        {label}
+      </FieldLabel>
       <SelectField
         id={id}
         value={value}

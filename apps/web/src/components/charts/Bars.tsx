@@ -14,6 +14,8 @@ export type Bar = {
   of?: number;
   /** Suppress the denominator where it would repeat on every row. */
   hideDenominator?: boolean;
+  /** Printed after the value, for a bar whose number is a share ("50%"). */
+  unit?: string;
   tone: string;
   to?: string;
 };
@@ -63,6 +65,7 @@ export function Bars({
               )}
             >
               {bar.value}
+              {bar.unit}
               {bar.of !== undefined && !bar.hideDenominator && (
                 <span className="text-muted-foreground">/{bar.of}</span>
               )}

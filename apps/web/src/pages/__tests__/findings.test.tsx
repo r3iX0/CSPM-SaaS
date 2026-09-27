@@ -29,6 +29,7 @@ function finding(index: number) {
 }
 
 let requested: string[] = [];
+let overview: unknown = null;
 
 function renderPage(entry = "/findings") {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -45,12 +46,21 @@ describe("the findings list", () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     requested = [];
+    overview = null;
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
         const url = String(input);
-        requested.push(url);
+        // Only the list's own requests; the page also reads the overview's counts.
+        if (url.includes("/findings")) requested.push(url);
         const params = new URL(url, "https://example.test").searchParams;
+        if (url.includes("/dashboard")) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ data: overview, error: null, meta: {} }),
+          } as Response;
+        }
         const limit = Number(params.get("limit") ?? 100);
         const offset = Number(params.get("offset") ?? 0);
         const page = Array.from({ length: Math.min(limit, TOTAL - offset) }, (_, i) =>
@@ -210,5 +220,25 @@ describe("the findings list", () => {
       "aria-pressed",
       "true",
     );
+  });
+
+  it("heads the list with the estate's open counts, no verdict among them", async () => {
+    overview = {
+      findings_by_severity: { CRITICAL: 6, HIGH: 9, MEDIUM: 8, LOW: 4 },
+      coverage: { unknown: 1 },
+    };
+    renderPage();
+
+    const critical = await screen.findByText("Critical", { selector: "dt" });
+    expect(critical.nextElementSibling).toHaveTextContent("6");
+    expect(critical.nextElementSibling?.className).toContain("text-critical");
+    expect(screen.getByText("No verdict", { selector: "dt" }).nextElementSibling).toHaveTextContent("1");
+  });
+
+  it("draws no counts until it has them, rather than a row of zeros", async () => {
+    renderPage();
+
+    expect(await screen.findByText(/of 120 findings/)).toBeInTheDocument();
+    expect(screen.queryByText("No verdict", { selector: "dt" })).not.toBeInTheDocument();
   });
 });

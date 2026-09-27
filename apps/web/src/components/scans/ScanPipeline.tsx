@@ -392,36 +392,41 @@ function CollectLanes({ stages }: { stages: ScanStage[] }) {
       </div>
 
       <ul className="flex flex-col gap-1.5">
-        {lanes.map((stage, i) => (
-          <motion.li
-            key={stage.scope ?? `scope-${i}`}
-            layout
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: DURATION.quick / 1000, ease: EASE_OUT }}
-            className={cn(
-              "flex flex-col gap-1 rounded-lg border px-3 py-2",
-              stage.status === "FAILED" && "border-critical-border bg-critical-bg",
-              stage.status === "RUNNING" && "border-primary/40",
-            )}
-          >
-            <div className="flex items-center gap-2.5">
-              <LaneMark status={stage.status} />
-              <span className="min-w-0 flex-1 truncate text-sm">{stage.scope ?? "Scope"}</span>
-              {stage.attempt > 1 && (
-                <span className="shrink-0 text-xs text-muted-foreground">attempt {stage.attempt}</span>
+        {lanes.map((stage, i) => {
+          // Muted text on the critical tint is 4.36:1, under AA, so a failed
+          // lane's secondary text takes the foreground.
+          const quiet = stage.status === "FAILED" ? "text-foreground" : "text-muted-foreground";
+          return (
+            <motion.li
+              key={stage.scope ?? `scope-${i}`}
+              layout
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: DURATION.quick / 1000, ease: EASE_OUT }}
+              className={cn(
+                "flex flex-col gap-1 rounded-lg border px-3 py-2",
+                stage.status === "FAILED" && "border-critical-border bg-critical-bg",
+                stage.status === "RUNNING" && "border-primary/40",
               )}
-              <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                {stage.duration_seconds != null && stage.status !== "PENDING"
-                  ? formatSeconds(stage.duration_seconds)
-                  : label(stage.status)}
-              </span>
-            </div>
-            {stage.status === "FAILED" && stage.error && (
-              <p className="pl-6 text-xs leading-relaxed text-critical">{stage.error}</p>
-            )}
-          </motion.li>
-        ))}
+            >
+              <div className="flex items-center gap-2.5">
+                <LaneMark status={stage.status} />
+                <span className="min-w-0 flex-1 truncate text-sm">{stage.scope ?? "Scope"}</span>
+                {stage.attempt > 1 && (
+                  <span className={cn("shrink-0 text-xs", quiet)}>attempt {stage.attempt}</span>
+                )}
+                <span className={cn("shrink-0 text-xs tabular-nums", quiet)}>
+                  {stage.duration_seconds != null && stage.status !== "PENDING"
+                    ? formatSeconds(stage.duration_seconds)
+                    : label(stage.status)}
+                </span>
+              </div>
+              {stage.status === "FAILED" && stage.error && (
+                <p className="pl-6 text-xs leading-relaxed text-critical">{stage.error}</p>
+              )}
+            </motion.li>
+          );
+        })}
       </ul>
     </div>
   );
@@ -445,7 +450,7 @@ const OUTCOME: Record<string, { title: string; tone: string; description: string
   PARTIAL: {
     title: "Completed with gaps",
     tone: "border-medium-border",
-    description: "Some scopes or categories could not be read. Checks that depend on them are UNKNOWN, not passed.",
+    description: "Some scopes or categories could not be read. Checks that depend on them reach no verdict, never a pass.",
   },
   FAILED: {
     title: "Scan failed",

@@ -253,4 +253,19 @@ describe("RiskDetailPage", () => {
 
     expect(await screen.findByText(/^until /)).toBeInTheDocument();
   });
+
+  it("prints the score in its level's colour, and no number for a risk it could not score", async () => {
+    mount(findingRisk({ risk_level: "UNKNOWN", risk_score: 41 }));
+
+    const score = await screen.findByLabelText("Risk score: no verdict");
+    expect(score).toHaveTextContent("?");
+    expect(score.className).toContain("text-unknown");
+  });
+
+  it("says beside the decision that deciding closes nothing", async () => {
+    mount(findingRisk());
+    expect(await screen.findByText("Nothing resolves without proof")).toBeInTheDocument();
+    expect(screen.getByText(/does not close the findings underneath it/)).toBeInTheDocument();
+  });
 });
+

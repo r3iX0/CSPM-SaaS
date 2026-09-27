@@ -11,7 +11,6 @@ import { StepHeader } from "@/components/connections/setup/StepHeader";
 import { useScanWizard } from "@/components/scans/ScanWizardProvider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/format";
 
 /**
  * The last step: what CloudGuard found, and what it will read.
@@ -51,23 +50,23 @@ export function StepSubscriptions({
   return (
     <>
       {connection.is_ready_to_scan ? (
-        <div className="flex flex-col gap-5 rounded-xl border border-ok-border bg-ok-bg p-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col gap-4 rounded-[10px] border border-ok-border bg-ok-bg p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3.5">
             {/* The one flourish in the flow, and it is earned: this is the
                 moment both grants have landed and something can be read. */}
             <motion.span
               initial={{ scale: 0.6, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ type: "spring", stiffness: 420, damping: 22 }}
-              className="flex size-11 shrink-0 items-center justify-center rounded-full bg-ok text-background shadow-sm"
+              className="flex size-9 shrink-0 items-center justify-center rounded-full bg-ok text-background"
             >
-              <CheckIcon className="size-5" strokeWidth={3} aria-hidden />
+              <CheckIcon className="size-4" strokeWidth={3} aria-hidden />
             </motion.span>
             <div className="min-w-0">
-              <h2 className="text-base font-semibold tracking-tight text-foreground">
+              <h2 className="text-[15px] font-semibold tracking-[-0.015em] text-foreground">
                 {t.setup.doneHeadline.replace("{name}", connection.name)}
               </h2>
-              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+              <p className="mt-0.5 text-xs leading-relaxed text-foreground">
                 {t.setup.doneSummary
                   .replace("{inScope}", String(scoped.length))
                   .replace("{total}", String(subscriptions.length))
@@ -78,11 +77,11 @@ export function StepSubscriptions({
           <div className="flex shrink-0 flex-wrap gap-2">
             <Link
               to="/connections"
-              className={cn(buttonVariants({ variant: "outline", size: "lg" }), "px-4")}
+              className={buttonVariants({ variant: "outline" })}
             >
               {t.setup.backToList}
             </Link>
-            <Button size="lg" className="px-4" onClick={() => scanWizard.start(connection.id)}>
+            <Button onClick={() => scanWizard.start(connection.id)}>
               <PlayIcon data-icon="inline-start" aria-hidden />
               {t.setup.runFirstScan}
             </Button>
@@ -94,7 +93,7 @@ export function StepSubscriptions({
 
       <div>
         {connection.is_ready_to_scan && (
-          <p className="mb-3 text-sm font-medium text-foreground">{t.setup.reviewTitle}</p>
+          <p className="mb-2.5 text-[12.5px] font-medium text-foreground">{t.setup.reviewTitle}</p>
         )}
         <SubscriptionScopeList connection={connection} onError={onError} />
       </div>

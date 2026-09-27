@@ -1,17 +1,12 @@
 import { lazy, Suspense, useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  CheckIcon,
-  ClockIcon,
-  TriangleAlertIcon,
-} from "lucide-react";
+import { ClockIcon } from "lucide-react";
 
 import type { Dashboard } from "@/lib/types";
 import { groupCauses } from "@/lib/collectionErrors";
-import { DonutLegend, type Slice } from "@/components/charts/DonutLegend";
+import type { Slice } from "@/components/charts/DonutLegend";
 import { Skeleton } from "@/components/ui/skeleton";
 import { buttonVariants } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn, label } from "@/lib/format";
 
 type Category = NonNullable<Dashboard["coverage"]["categories"]>[number];
@@ -73,21 +68,13 @@ export function CoveragePanel({
     >
       <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-4 px-5 py-4">
         <div className="min-w-0">
-          <h2
-            id="assessment-coverage"
-            className="flex items-center gap-2 text-sm font-semibold"
-          >
+          <h2 id="assessment-coverage" className="text-[13.5px] font-semibold">
             Assessment coverage
-            {complete ? (
-              <CheckIcon className="size-4 text-ok" aria-hidden />
-            ) : (
-              <TriangleAlertIcon className="size-4 text-medium" aria-hidden />
-            )}
           </h2>
-          <p className="mt-0.5 max-w-xl text-xs leading-relaxed text-muted-foreground">
+          <p className="mt-1 max-w-xl text-xs leading-relaxed text-muted-foreground">
             {complete
-              ? "Every applicable check reached a verdict from evidence CloudGuard could read."
-              : "The share of checks that reached a verdict — not a security percentage. What could not be evaluated reports UNKNOWN, and UNKNOWN is never a pass."}
+              ? "Every applicable check reached a verdict from evidence Cleave could read."
+              : "Share of checks that reached a verdict — not a security score. What can't be read reports no verdict, never a pass."}
           </p>
         </div>
 
@@ -116,43 +103,24 @@ export function CoveragePanel({
               that reached a verdict, and checks that could not. The percentage
               in the middle is the same number the sentence uses. */}
           {pct !== null && (
-            <div className="flex items-center gap-4">
-              <Suspense fallback={<Skeleton className="size-24 rounded-full" />}>
+            <div className="flex items-center gap-3">
+              <Suspense fallback={<Skeleton className="size-16 rounded-full" />}>
                 <Donut
                   slices={verdictSlices(conclusive, unknown)}
                   centerValue={`${pct}%`}
-                  centerLabel="verdicts"
+                  centerLabel=""
                   ariaLabel={`${conclusive} checks reached a verdict, ${unknown} did not`}
-                  className="size-24 shrink-0"
+                  className="size-16 shrink-0"
+                  valueClassName="text-[14.5px]"
                 />
               </Suspense>
-              <DonutLegend
-                slices={verdictSlices(conclusive, unknown)}
-                className="shrink-0"
-              />
+              <span className="text-xs text-muted-foreground">
+                of <span className="tabular-nums">{conclusive + unknown}</span> checks verdicted
+              </span>
             </div>
           )}
         </div>
       </div>
-
-      {pct !== null && (
-        <div
-          className="h-1 w-full bg-muted"
-          role="meter"
-          aria-valuenow={pct}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-label="Assessment coverage"
-        >
-          <div
-            className={cn(
-              "h-full transition-[width] duration-700",
-              pct >= 95 ? "bg-ok" : pct >= 75 ? "bg-medium" : "bg-high",
-            )}
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-      )}
 
       {categories.length > 0 && (
         <ul className="flex flex-wrap gap-x-5 gap-y-2 border-t px-5 py-3">
@@ -169,14 +137,14 @@ export function CoveragePanel({
               {context.unclassified} of{" "}
               {context.unclassified + context.classified} open risks
             </span>{" "}
-            sit on assets CloudGuard could not classify. They are ranked as
+            sit on assets Cleave could not classify. They are ranked as
             though they matter, so nothing important hides behind a missing
             label — but the score is only charged for what was established.{" "}
             <Link
               to="/settings"
               className="font-medium text-foreground underline underline-offset-2"
             >
-              Tell CloudGuard what these subscriptions hold
+              Tell Cleave what these subscriptions hold
             </Link>{" "}
             and the number will move to match.
           </p>
@@ -184,7 +152,7 @@ export function CoveragePanel({
       )}
 
       {gaps.length > 0 && (
-        <div className="flex flex-col gap-2.5 border-t border-dashed bg-medium-bg/30 px-5 py-4">
+        <div className="flex flex-col gap-2.5 border-t border-dashed border-medium-border bg-medium-bg px-5 py-4">
           <p className="text-xs font-medium text-medium">
             {gaps.length} {gaps.length === 1 ? "category" : "categories"} could not
             be collected
@@ -225,38 +193,23 @@ export function CoveragePanel({
  *
  * PARTIAL counts as incomplete rather than as read: a truncated listing cannot
  * support "none of them are public", which is the same rule the engine applies
- * one layer up. The tick and the warning triangle carry the meaning as well as
- * the colour, so the distinction survives a reader who cannot separate green
- * from amber.
+ * one layer up. The state is written out beside the name, and the incomplete
+ * one is in the caution tone as well, so it does not rest on colour.
  */
 function CategoryChip({ category }: { category: Category }) {
   const clean = category.incomplete === 0;
 
   return (
-    <li>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <span className="flex cursor-default items-center gap-1.5 text-xs" />
-          }
-        >
-          {clean ? (
-            <CheckIcon className="size-3.5 shrink-0 text-ok" aria-hidden />
-          ) : (
-            <TriangleAlertIcon className="size-3.5 shrink-0 text-medium" aria-hidden />
-          )}
-          <span className={clean ? "text-muted-foreground" : "font-medium"}>
-            {label(category.name)}
-          </span>
-        </TooltipTrigger>
-        <TooltipContent>
-          {clean
-            ? `${category.readings} reading${category.readings === 1 ? "" : "s"}, all complete`
-            : `${category.incomplete} of ${category.readings} reading${
-                category.readings === 1 ? "" : "s"
-              } incomplete — checks over this evidence report UNKNOWN`}
-        </TooltipContent>
-      </Tooltip>
+    <li className={cn("text-xs", clean ? "text-muted-foreground" : "font-medium text-medium")}>
+      <span>{label(category.name)}</span>
+      <span>
+        {" · "}
+        {clean
+          ? "complete"
+          : `${category.incomplete} of ${category.readings} reading${
+              category.readings === 1 ? "" : "s"
+            } incomplete`}
+      </span>
     </li>
   );
 }

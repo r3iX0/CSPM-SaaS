@@ -3,7 +3,9 @@ import { Link, useLocation } from "react-router-dom";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { BoxesIcon, SearchIcon, XIcon } from "lucide-react";
 import { RISK_KIND_ICONS, resourceTypeIcon } from "@/lib/icons";
-import { ResourceTypeLabel } from "@/components/security/IconLabel";
+import { ResourceIcon } from "@/components/security/ResourceIcon";
+import { StatStrip } from "@/components/common/StatStrip";
+import { FACTOR_ICONS } from "@/lib/icons";
 
 import { api } from "@/lib/api";
 import type { Asset } from "@/lib/types";
@@ -237,6 +239,32 @@ export function AssetsPage() {
   const pages = Math.ceil(total / PAGE_SIZE);
 
   /** A filter change re-slices the whole set, so the page resets with it. */
+  // The estate's own counts, whatever the list is narrowed to: each is one
+  // row of the same endpoint with one filter, read for `meta.total`. There is
+  // no criticality filter to count "critical" by, so the fourth figure is what
+  // the map marks instead -- assets on an attack path.
+  const counts = useQuery({
+    queryKey: ["assets", "counts"],
+    queryFn: async () => {
+      const read = (query: string) =>
+        api.get<Asset[]>(`/api/v1/assets?limit=1${query}`).then(
+          (r) => r.meta as { total?: number; unchecked?: number } | undefined,
+        );
+      const [all, entry, route] = await Promise.all([
+        read(""),
+        read("&entry_point=true"),
+        read("&on_attack_path=true"),
+      ]);
+      return {
+        total: all?.total ?? 0,
+        unchecked: all?.unchecked ?? 0,
+        entry: entry?.total ?? 0,
+        route: route?.total ?? 0,
+      };
+    },
+    retry: false,
+  });
+
   function resetTo(key: "type" | "environment" | "exposure" | "signal" | "region") {
     return (value: string | null) => update({ [key]: value ?? "all", page: null });
   }
@@ -244,9 +272,8 @@ export function AssetsPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        icon={BoxesIcon}
         title={t.assets.title}
-        description="Everything CloudGuard has discovered, with what it is worth and how exposed it is."
+        description="Everything Cleave has discovered, with what it is worth and how exposed it is. Ranked by open findings, not by name."
         actions={
           // Two readings of one inventory: the queue and the map. The list
           // ranks by what is wrong; the map says which part of the estate --
@@ -264,6 +291,22 @@ export function AssetsPage() {
           />
         }
       />
+
+      {counts.data && (
+        <StatStrip
+          stats={[
+            { label: "Total", value: counts.data.total },
+            { label: "Internet-facing", value: counts.data.entry, icon: FACTOR_ICONS.exposure },
+            {
+              label: "On an attack path",
+              value: counts.data.route,
+              icon: RISK_KIND_ICONS.ATTACK_PATH,
+              alert: counts.data.route > 0,
+            },
+            { label: "Unmodeled type", value: counts.data.unchecked, tone: counts.data.unchecked > 0 ? "MEDIUM" : undefined },
+          ]}
+        />
+      )}
 
       {view === "graph" && (
         <MapIgnoresFilters
@@ -363,7 +406,7 @@ export function AssetsPage() {
             value={groupBy}
             onValueChange={(value) => update({ group: value || "none" })}
             ariaLabel="Group assets"
-            className="w-[150px]"
+            className="w-[180px]"
             options={[
               { value: "none", label: "No grouping" },
               { value: "scope", label: "By resource group" },
@@ -419,7 +462,7 @@ export function AssetsPage() {
       {view === "list" && error && (
         <ErrorState
           title="Could not load your assets"
-          detail="CloudGuard could not reach its own API to read the inventory."
+          detail="Cleave could not reach its own API to read the inventory."
           impact="Nothing about your environment has changed — this is a problem displaying it."
           onRetry={() => refetch()}
         />
@@ -497,7 +540,7 @@ export function AssetsPage() {
                         <TableRow className="hover:bg-transparent">
                           <TableCell
                             colSpan={7}
-                            className="bg-muted/50 py-1.5 text-xs font-medium text-muted-foreground"
+                            className="bg-muted/60 py-1.5 font-mono text-[11.5px] font-medium text-muted-foreground"
                           >
                             {groupName}
                             <span className="ml-2 tabular-nums opacity-70">{rows.length}</span>
@@ -518,11 +561,12 @@ export function AssetsPage() {
                           data-active={activeRow === rowIndex.get(asset.id)}
                         >
                           <TableCell className="max-w-0">
-                            <span className="flex min-w-0 items-center gap-1.5">
+                            <span className="flex min-w-0 items-center gap-2">
+                              <ResourceIcon type={asset.resource_type} />
                               <Link
                                 to={`/assets/${asset.id}`}
                                 state={returnTo}
-                                className="block truncate font-medium text-foreground after:absolute after:inset-0 hover:underline"
+                                className="block truncate text-[13.5px] font-medium text-foreground after:absolute after:inset-0 hover:underline"
                               >
                                 {asset.name}
                               </Link>
@@ -534,10 +578,11 @@ export function AssetsPage() {
                             </span>
                           </TableCell>
                           <TableCell className="text-muted-foreground">
-                            <ResourceTypeLabel
-                              type={asset.resource_type}
-                              label={asset.azure_type}
-                            />
+                            {/* An unmodelled resource is named by the provider's own
+                                type, so the reader sees what is unchecked. */}
+                            <span className="text-[12.5px]">
+                              {asset.azure_type ?? resourceTypeLabel(asset.resource_type)}
+                            </span>
                           </TableCell>
                           <TableCell className="text-muted-foreground">
                             {asset.environment ?? "—"}
@@ -617,7 +662,7 @@ function OnRouteMark() {
   return (
     <span
       title="On an attack path"
-      className="inline-flex shrink-0 items-center gap-1 rounded-md border border-foreground/30 px-1 py-px text-[11px] font-medium text-foreground"
+      className="inline-flex shrink-0 items-center gap-1 rounded-md border border-primary-border bg-primary-soft px-1 py-px text-[10.5px] font-medium text-foreground"
     >
       <Route className="size-3" aria-hidden />
       <span className="sr-only">On an attack path</span>

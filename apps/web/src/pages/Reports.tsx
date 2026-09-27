@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { DownloadIcon, ExternalLinkIcon, FileTextIcon } from "lucide-react";
+import { DownloadIcon, ExternalLinkIcon } from "lucide-react";
 
 import { api, ApiError } from "@/lib/api";
 import { openBlob, saveBlob } from "@/lib/download";
@@ -154,7 +154,6 @@ export function ReportsPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        icon={FileTextIcon}
         title={t.reports.title}
         description={t.reports.intro}
       />
@@ -190,17 +189,18 @@ export function ReportsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">What to include</CardTitle>
-          <CardDescription>
-            Both documents always carry the posture, how old the evidence is and
-            what could not be read. Those are the terms the numbers are read on,
-            so they are not optional.
+          <CardTitle>What to include</CardTitle>
+          <CardDescription className="max-w-[84ch] text-[12.5px] leading-relaxed">
+            Every report carries the posture, the evidence's age, and what
+            couldn't be read — the terms the numbers are read on, so they're not
+            optional. Anything unticked is named on the cover as excluded, not
+            silently dropped.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-5">
           <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">Activity window</span>
+              <span className="text-[12.5px] font-medium">Activity window</span>
               <SelectField
                 value={String(days)}
                 onValueChange={(value) => setDays(Number(value))}
@@ -219,7 +219,7 @@ export function ReportsPage() {
             </p>
           </div>
 
-          <ul className="grid gap-2 sm:grid-cols-2">
+          <ul className="grid gap-3 sm:grid-cols-2">
             {SECTIONS.map((section) => (
               <li key={section.id} className="flex items-start gap-2.5">
                 {/* Labelled by the visible text rather than wrapped in a
@@ -234,11 +234,11 @@ export function ReportsPage() {
                 <div>
                   <span
                     id={`section-${section.id}-label`}
-                    className="block text-sm text-foreground"
+                    className="block text-[13px] text-foreground"
                   >
                     {section.label}
                   </span>
-                  <span className="block text-xs leading-snug text-muted-foreground">
+                  <span className="block text-[11.5px] leading-snug text-muted-foreground">
                     {section.detail}
                   </span>
                 </div>
@@ -246,19 +246,8 @@ export function ReportsPage() {
             ))}
           </ul>
 
-          {/* Said here rather than discovered on the cover page: a section
-              left out is named in the document, so nobody reads an omission
-              somebody chose as an absence of evidence. */}
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            Anything left unticked is named on the report's cover as excluded,
-            so a reader downstream can tell a choice from a gap.
-          </p>
         </CardContent>
       </Card>
-
-      <p className="max-w-3xl text-xs leading-relaxed text-muted-foreground">
-        {t.reports.freshNote}
-      </p>
     </div>
   );
 }
@@ -283,13 +272,8 @@ function ReportCard({
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center gap-3">
-          <span className="flex size-10 items-center justify-center rounded-lg border border-border bg-muted/40 text-muted-foreground">
-            <FileTextIcon className="size-5" aria-hidden />
-          </span>
-          <CardTitle className="text-base">{title}</CardTitle>
-        </div>
-        <CardDescription className="mt-2 leading-relaxed">{detail}</CardDescription>
+        <CardTitle className="text-[15px]">{title}</CardTitle>
+        <CardDescription className="mt-1.5 text-[13px] leading-[1.65]">{detail}</CardDescription>
       </CardHeader>
       <CardContent className="mt-auto flex flex-wrap gap-2">
         <Button disabled={disabled} onClick={onDownload}>

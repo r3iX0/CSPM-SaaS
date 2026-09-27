@@ -1,4 +1,5 @@
 import { NavLink, useMatch } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 
 import { NAV_GROUPS } from "@/components/layout/nav";
 import {
@@ -10,8 +11,36 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { api } from "@/lib/api";
+import type { Dashboard } from "@/lib/types";
+import { useRiskCount } from "@/lib/useRiskCount";
 
 type NavItem = (typeof NAV_GROUPS)[number]["items"][number];
+
+/**
+ * How many of each thing is open, beside the three destinations that are
+ * lists of problems. Read from the overview's own payload -- the same cache
+ * entry, so the overview and the navigation never disagree -- and absent until
+ * it has arrived: a count that is not known is left out, never drawn as 0.
+ */
+function useNavCounts(): Partial<Record<string, number>> {
+  const { data } = useQuery({
+    queryKey: ["dashboard"],
+    queryFn: () => api.get<Dashboard>("/api/v1/dashboard").then((r) => r.data),
+    staleTime: 60_000,
+    retry: false,
+  });
+  // The list's own count: the dashboard's bands leave out attack paths and
+  // escalations, which the risks list shows.
+  const risks = useRiskCount();
+  if (!data || typeof data.open_finding_count !== "number") return {};
+  const latest = data.history?.[data.history.length - 1];
+  return {
+    "/findings": data.open_finding_count,
+    ...(risks !== null ? { "/risks": risks } : {}),
+    ...(latest ? { "/attack-paths": latest.attack_path_count } : {}),
+  };
+}
 
 /**
  * The navigation, in two widths.
@@ -32,24 +61,28 @@ export function SidebarNav() {
   // On mobile the sidebar is a sheet at full width, so it is never the rail
   // even when the desktop preference says collapsed.
   const collapsed = state === "collapsed" && !isMobile;
+  const counts = useNavCounts();
 
   return (
     <>
       {NAV_GROUPS.map((group) => (
-        <SidebarGroup key={group.label}>
+        <SidebarGroup key={group.label} className="p-0">
           {collapsed ? (
             // A rule rather than a heading: the grouping is still information
             // even when there is no room to name it.
             <span className="mx-2 mb-1 border-t" aria-hidden />
           ) : (
-            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+            <SidebarGroupLabel className="mb-1 h-auto px-2 text-[11px] tracking-[0.04em] text-muted-foreground uppercase">
+              {group.label}
+            </SidebarGroupLabel>
           )}
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="gap-0.5">
               {group.items.map((item) => (
                 <NavRow
                   key={item.to}
                   item={item}
+                  count={counts[item.to]}
                   // On a phone the navigation is a sheet covering the page it
                   // navigates to, so following a link has to close it. The
                   // shell used to pass this down; it belongs here, where the
@@ -79,9 +112,11 @@ export function SidebarNav() {
  */
 function NavRow({
   item,
+  count,
   onNavigate,
 }: {
   item: NavItem;
+  count?: number;
   onNavigate?: () => void;
 }) {
   const exact = "end" in item && item.end === true;
@@ -96,9 +131,23 @@ function NavRow({
         isActive={match !== null}
         tooltip={item.label}
         render={<NavLink to={item.to} end={exact} onClick={onNavigate} />}
+        // The selected row is the brand's one job in the navigation: a soft
+        // fill and a ring, the same weight of type as its neighbours.
+        className="h-auto rounded-lg px-2.5 py-[7px] text-[13.5px] data-active:bg-primary-soft data-active:font-normal data-active:text-foreground data-active:ring-1 data-active:ring-primary-border data-active:ring-inset"
       >
-        <item.icon aria-hidden />
-        <span>{item.label}</span>
+        <item.icon aria-hidden strokeWidth={1.5} />
+        <span className="min-w-0 flex-1 truncate">
+          {item.label}
+          {count !== undefined && <span className="sr-only">, {count} open</span>}
+        </span>
+        {count !== undefined && (
+          <span
+            aria-hidden
+            className="ml-auto text-[11.5px] text-muted-foreground tabular-nums group-data-[collapsible=icon]:hidden"
+          >
+            {count}
+          </span>
+        )}
       </SidebarMenuButton>
     </SidebarMenuItem>
   );

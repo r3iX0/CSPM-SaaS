@@ -88,7 +88,7 @@ describe("the change-events control", () => {
 
     await waitFor(() =>
       expect(
-        screen.getByText("CloudGuard has no public address to receive deliveries"),
+        screen.getByText("Cleave has no public address to receive deliveries"),
       ).toBeInTheDocument(),
     );
     expect(

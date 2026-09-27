@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { ChevronRightIcon, RadarIcon } from "lucide-react";
 
 import type { MappedRoute, RoutePattern } from "@/lib/types";
@@ -19,6 +19,19 @@ export interface RouteMarks {
   tracked: ReadonlySet<string>;
   /** Closed by the simulated plan, once the server has said. */
   closed: ReadonlySet<string>;
+  /**
+   * How long each route closed by the latest answer waits before it is struck
+   * through, in ms -- the cut played in list order (§146). Absent, or 0, lands
+   * at once: routes that were already closed, and a reader who asked for less
+   * motion.
+   */
+  closeDelay?: ReadonlyMap<string, number>;
+}
+
+/** The strike and the "closed" mark arrive together, after the route's delay. */
+function closeTiming(marks: RouteMarks, key: string): CSSProperties | undefined {
+  const delay = marks.closeDelay?.get(key) ?? 0;
+  return delay > 0 ? { transitionDelay: `${delay}ms`, animationDelay: `${delay}ms` } : undefined;
 }
 
 export function PatternRow({
@@ -109,9 +122,12 @@ export function PatternRow({
                   className="flex w-full items-center gap-2 py-1.5 pr-2.5 pl-8 text-left text-xs hover:bg-muted/60"
                 >
                   <span
+                    style={closeTiming(marks, member.route)}
                     className={cn(
-                      "min-w-0 flex-1 truncate",
-                      marks.closed.has(member.route) && "text-muted-foreground line-through",
+                      "min-w-0 flex-1 truncate line-through decoration-transparent",
+                      "transition-[color,text-decoration-color] duration-[400ms] ease-out",
+                      marks.closed.has(member.route) &&
+                        "text-muted-foreground decoration-muted-foreground",
                     )}
                   >
                     {member.name}
@@ -152,10 +168,15 @@ export function RouteRow({
       className="rounded-lg border border-border px-3 py-2 text-left transition-colors hover:bg-muted/60"
     >
       <span className="flex items-baseline justify-between gap-3">
+        {/* Always struck, in a transparent line, so closing is the line
+            and the colour fading in -- a strike that appeared at once would
+            be the whole cut in one frame. */}
         <span
+          style={closeTiming(marks, route.key)}
           className={cn(
-            "min-w-0 truncate text-xs font-medium text-foreground",
-            closed && "text-muted-foreground line-through",
+            "min-w-0 truncate text-xs font-medium text-foreground line-through decoration-transparent",
+            "transition-[color,text-decoration-color] duration-[400ms] ease-out",
+            closed && "text-muted-foreground decoration-muted-foreground",
           )}
         >
           {route.entry.name} <span className="text-muted-foreground">→</span>{" "}
@@ -206,7 +227,12 @@ function Marks({ routeKey, marks }: { routeKey: string; marks: RouteMarks }) {
   return (
     <>
       {marks.closed.has(routeKey) && (
-        <span className="text-[11px] text-ok">{t.attackPaths.closedByPlan}</span>
+        <span
+          style={closeTiming(marks, routeKey)}
+          className="animate-[cg-rise_300ms_ease-out_both] text-[11px] text-ok"
+        >
+          {t.attackPaths.closedByPlan}
+        </span>
       )}
       {marks.tracked.has(routeKey) && (
         <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground">

@@ -24,10 +24,10 @@ export function ScoreDelta({ delta }: { delta: number | null }) {
   const t = useT();
 
   if (delta === null) {
-    return <p className="mt-1 text-xs text-muted-foreground">{t.dashboard.noPreviousScan}</p>;
+    return <p className="text-xs text-muted-foreground">{t.dashboard.noPreviousScan}</p>;
   }
   if (delta === 0) {
-    return <p className="mt-1 text-xs text-muted-foreground">No change since last scan</p>;
+    return <p className="text-xs text-muted-foreground">No change since last scan</p>;
   }
 
   const improved = delta > 0;
@@ -35,8 +35,8 @@ export function ScoreDelta({ delta }: { delta: number | null }) {
     <p
       className={
         improved
-          ? "mt-1 inline-flex items-center gap-1 rounded-full bg-ok-bg px-2.5 py-1 text-xs font-medium text-ok"
-          : "mt-1 inline-flex items-center gap-1 rounded-full bg-critical-bg px-2.5 py-1 text-xs font-medium text-critical"
+          ? "inline-flex items-center gap-1 rounded-full border border-ok-border bg-ok-bg px-2 py-px text-[11.5px] font-medium tabular-nums text-ok"
+          : "inline-flex items-center gap-1 rounded-full border border-critical-border bg-critical-bg px-2 py-px text-[11.5px] font-medium tabular-nums text-critical"
       }
     >
       <span aria-hidden="true">{improved ? "\u2191" : "\u2193"}</span>{" "}

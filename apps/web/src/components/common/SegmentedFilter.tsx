@@ -34,7 +34,7 @@ export function SegmentedFilter({
       role="group"
       aria-label={label}
       className={cn(
-        "inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-lg border border-border bg-muted/40 p-0.5",
+        "inline-flex max-w-full items-stretch overflow-x-auto rounded-[9px] border border-border bg-card",
         className,
       )}
     >
@@ -46,12 +46,15 @@ export function SegmentedFilter({
             type="button"
             aria-pressed={active}
             onClick={() => onChange(segment.value)}
+            // The chosen slice is the brand's soft fill with a 2px rule along
+            // its foot, the way a selected tab reads; the rest are muted words
+            // divided by a hairline.
             className={cn(
-              "h-7 shrink-0 rounded-md px-3 text-sm whitespace-nowrap transition-colors outline-none",
-              "focus-visible:ring-3 focus-visible:ring-ring/50",
+              "shrink-0 border-l border-border px-3 py-1.5 text-[12.5px] whitespace-nowrap transition-colors outline-none first:border-l-0",
+              "focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset",
               active
-                ? "bg-background font-medium text-foreground shadow-xs ring-1 ring-border"
-                : "text-muted-foreground hover:text-foreground",
+                ? "bg-primary-soft font-medium text-foreground shadow-[inset_0_-2px_0_var(--primary)]"
+                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
             )}
           >
             {segment.label}

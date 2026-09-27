@@ -79,7 +79,7 @@ export function VerificationPanel({ verification }: { verification: Verification
         {verification.expected_state.length > 0 && (
           <div>
             <p className="text-xs font-medium text-muted-foreground">
-              What CloudGuard is looking for
+              What Cleave is looking for
             </p>
             <ul className="mt-1.5 flex flex-col gap-1">
               {verification.expected_state.map((state) => (
