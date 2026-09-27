@@ -241,7 +241,7 @@ are one flow and were fixed as one change; 4–6 are independent.
 into `core/signing.py`, where `sign_state` stamps it and `verify_state` demands it, both as
 keyword arguments with no default — a new round trip cannot be added without naming one, and
 the callback that forgot to check cannot forget again. The consent link now carries a nonce
-whose counterpart is stored on the connection row (`0039_consent_nonce`), so it is redeemable
+whose counterpart is stored on the connection row (`0041_consent_nonce`), so it is redeemable
 once rather than replayable until expiry; it is reissued identically while live, so polling
 the wizard does not invalidate a link the customer has already sent to their administrator.
 The link is minted only for a caller who passes the owner/admin check, so reading a connection
