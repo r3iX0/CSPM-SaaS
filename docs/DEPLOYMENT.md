@@ -357,8 +357,14 @@ Node installed on your machine.
      AWS_SECRET_ACCESS_KEY=<same as the API>
      ```
 
-     `SCANNER_DATABASE_URL` is a plain psycopg URL (no `+asyncpg`), and it must
-     be the scanner role -- never the owner or `cloudguard_app`. The service
+     `SCANNER_DATABASE_URL` is a plain `postgresql://` URL (a `+asyncpg` suffix
+     is dropped), and it must be the scanner role -- never the owner or
+     `cloudguard_app`. Percent-encode `/`, `@`, `:` or `#` in the password
+     (`/` is `%2F`), or choose one without them: an unencoded `/` is not an
+     error to libpq, it silently reads the user name as the host. The worker
+     checks all of this when it starts and refuses without printing the URL.
+     Set it from stdin so it never lands in shell history:
+     `railway variable set SCANNER_DATABASE_URL --stdin --service <scanner>`. The service
      runs third-party code with customer credentials in memory, and that role
      can read nothing but the scope it is handed and settle nothing but ASSESS
      steps (migration 0043).

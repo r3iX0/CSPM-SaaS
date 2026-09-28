@@ -12,9 +12,12 @@ One step per child process is what keeps two customers apart; Prowler's own
 API service runs its workers the same way for the same reason.
 """
 
-from celery import Celery
+from typing import Any
+
+from celery import Celery, signals
 
 from cloudguard_scanner.config import settings
+from cloudguard_scanner.store import connection_url
 
 # Must equal ASSESS_QUEUE and ASSESS_TASK in apps/api/app/workers/celery_app.py.
 ASSESS_QUEUE = "assess"
@@ -46,3 +49,15 @@ celery_app.conf.update(
     worker_max_tasks_per_child=1,
     broker_connection_retry_on_startup=True,
 )
+
+
+def refuse_a_bad_database_url(**_: Any) -> None:
+    """Fail the deploy, not the first scan, on an unusable SCANNER_DATABASE_URL.
+
+    Checked when the worker starts rather than at import, so the tests that
+    import this module need no database URL (DECISIONS.md section 152).
+    """
+    connection_url(settings.database_url)
+
+
+signals.worker_init.connect(refuse_a_bad_database_url)

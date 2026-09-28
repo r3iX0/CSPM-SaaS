@@ -8211,6 +8211,15 @@ scanner's Dockerfile path and start command are set on the service through the
 Railway API (`docs/DEPLOYMENT.md` §2); `scanner.json` stays as the record of
 them, and `test_scan_lease.py` still holds its queue list to the step kinds.
 
+The first check of the deployed scanner found its `SCANNER_DATABASE_URL` in
+the API's `postgresql+asyncpg://` form, with a `/` in the password. psycopg
+refuses the first and its error quotes the whole string, password included --
+into the log of every step it would have run. libpq does not refuse the second;
+it reads the user name as the host. `store.connection_url` now drops a driver
+suffix, refuses a URL that does not parse or does not sign in as
+`cloudguard_scanner` with a message that names no part of it, and runs when the
+worker starts, so a bad value fails the deploy rather than the first scan.
+
 Config as Code stops working on 2026-12-01. Before then all three services move
 to Railway's infrastructure-as-code file (`.railway/railway.ts`); see the open
 items. `railway config migrate` cannot do it unassisted: it maps the one root

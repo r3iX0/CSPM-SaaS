@@ -443,3 +443,29 @@ def test_run_stops_at_its_deadline_and_keeps_what_it_finished() -> None:
     assert outcome.completed == ["a", "b"]
     assert "time budget" in outcome.errors["stopped"]
     assert outcome.outcome == "PARTIAL"
+
+
+# ------------------------------------------------------------------ store
+
+
+def test_the_database_url_takes_the_apis_form_and_never_echoes_it() -> None:
+    from cloudguard_scanner.store import connection_url
+
+    secret = "hunter2secret"
+    good = f"postgresql+asyncpg://cloudguard_scanner.ref:{secret}@db.example:5432/postgres"
+    assert connection_url(good).startswith("postgresql://cloudguard_scanner.ref:")
+
+    refused = [
+        "",
+        f"mysql://cloudguard_scanner:{secret}@db/x",
+        # An unencoded slash: libpq reads the user name as the host.
+        f"postgresql://cloudguard_scanner.ref:{secret}/x@db.example:5432/postgres",
+        f"postgresql://postgres.ref:{secret}@db.example:5432/postgres",
+    ]
+    for url in refused:
+        with pytest.raises(RuntimeError) as error:
+            connection_url(url)
+        assert secret not in str(error.value)
+
+    encoded = f"postgresql://cloudguard_scanner.ref:{secret}%2Fx@db.example:5432/postgres"
+    assert connection_url(encoded) == encoded

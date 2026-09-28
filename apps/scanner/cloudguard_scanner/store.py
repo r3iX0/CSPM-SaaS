@@ -22,6 +22,7 @@ there is no organization yet to be held to.
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -30,6 +31,7 @@ from typing import Any
 from uuid import UUID
 
 import psycopg
+from psycopg.conninfo import conninfo_to_dict
 from psycopg.rows import dict_row
 
 from cloudguard_scanner.capture import RunOutcome, encode
@@ -73,18 +75,61 @@ class Scope:
     connection_id: UUID | None
 
 
+_SCHEME = re.compile(r"^postgres(?:ql)?(?:\+[a-z0-9_]+)?://", re.IGNORECASE)
+# The role migration 0042 creates. Supabase's pooler names it
+# ``cloudguard_scanner.<project ref>``.
+SCANNER_ROLE = "cloudguard_scanner"
+
+
+def connection_url(url: str) -> str:
+    """``SCANNER_DATABASE_URL`` as psycopg takes it, or a refusal that names no secret.
+
+    Three mistakes are caught before the first connection, because each fails
+    badly after it (DECISIONS.md section 152):
+
+    * the API's ``postgresql+asyncpg://`` form, which psycopg rejects -- with
+      an error that quotes the whole string, password included, into the log
+      of every step. The driver suffix is dropped instead;
+    * a password with an unencoded ``/``, ``@`` or ``:``, which libpq does not
+      reject but misreads -- the user name becomes the host;
+    * any role but the scanner's. Third-party code runs in this process, and
+      the owner or ``cloudguard_app`` URL would hand it every table.
+
+    No message here includes the URL or any part of it.
+    """
+    url = url.strip()
+    if not url:
+        raise RuntimeError(
+            "SCANNER_DATABASE_URL is not set. The scanner connects as "
+            "cloudguard_scanner (migration 0042) and has nothing else to use."
+        )
+    if not _SCHEME.match(url):
+        raise RuntimeError("SCANNER_DATABASE_URL is not a postgresql:// URL.")
+    url = _SCHEME.sub("postgresql://", url, count=1)
+    try:
+        parts = conninfo_to_dict(url)
+    except psycopg.Error:
+        raise RuntimeError(
+            "SCANNER_DATABASE_URL could not be parsed. Percent-encode any /, @, : or # "
+            "in the password."
+        ) from None
+    user = str(parts.get("user") or "")
+    if user != SCANNER_ROLE and not user.startswith(SCANNER_ROLE + "."):
+        raise RuntimeError(
+            "SCANNER_DATABASE_URL does not sign in as cloudguard_scanner. If the password "
+            "contains /, @, : or #, percent-encode it; otherwise use the scanner's role, "
+            "never the owner's or the API's."
+        )
+    return url
+
+
 def _uuid(value: Any) -> UUID | None:
     return UUID(str(value)) if value else None
 
 
 class Store:
     def __init__(self, url: str) -> None:
-        if not url:
-            raise RuntimeError(
-                "SCANNER_DATABASE_URL is not set. The scanner connects as "
-                "cloudguard_scanner (migration 0042) and has nothing else to use."
-            )
-        self.url = url
+        self.url = connection_url(url)
 
     @contextmanager
     def _transaction(self, organization_id: UUID | None) -> Iterator[psycopg.Cursor[Any]]:
