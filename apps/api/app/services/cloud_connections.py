@@ -615,8 +615,25 @@ def grant_upgrade_available(connection: CloudConnection) -> bool:
     bumping it to ship a check needing a new permission would leave every
     existing customer silently collecting UNKNOWN for it, with no prompt and no
     explanation.
+
+    Also true when the grant is current but too narrow for the extended checks:
+    redeploying is the fix for both, so both raise the same prompt.
     """
-    return flow(connection).grant_is_behind(connection)
+    onboarding = flow(connection)
+    return onboarding.grant_is_behind(connection) or onboarding.extended_checks_blocked(
+        connection
+    )
+
+
+def extended_checks_blocked(connection: CloudConnection) -> bool:
+    """Whether this connection's grant is known to be too narrow for the
+    extended checks, which then read as unknown until it is redeployed.
+
+    Separate from the role version because it does not follow from it, and the
+    screen has to say which of the two a redeploy is for (DECISIONS.md section
+    153).
+    """
+    return flow(connection).extended_checks_blocked(connection)
 
 
 def required_grant_version(connection: CloudConnection) -> str | None:
@@ -644,25 +661,38 @@ async def refresh_grant_version(
 ) -> str | None:
     """Record what the deployed grant actually allows. Returns the new version.
 
-    Returns None when nothing changed, so a caller can tell "checked, same
-    answer" from "checked, and this connection just gained the checks it was
-    missing". A provider that cannot answer returns None too, and the recorded
-    version is left alone rather than replaced by a probe that did not land.
+    Returns None when the version did not change, so a caller can tell
+    "checked, same answer" from "checked, and this connection just gained the
+    checks it was missing". What else the reading established -- on Azure,
+    whether the grant allows every read -- is recorded in ``provider_ref`` and
+    committed whether or not the version moved. A provider that cannot answer
+    returns None too, and the recorded grant is left alone rather than replaced
+    by a probe that did not land.
     """
-    detected = await flow(connection).detect_grant_version(connection)
-    if detected is None or detected == connection.role_version:
+    reading = await flow(connection).detect_grant(connection)
+    if reading is None:
+        return None
+
+    recorded = dict(connection.provider_ref or {})
+    reference = {**recorded, **reading.reference}
+    detected = reading.version
+    if detected == connection.role_version and reference == recorded:
         return None
 
     previous = connection.role_version
     connection.role_version = detected
+    # A new dict rather than an update in place: JSONB is not tracked for
+    # mutation, so an edited dict would never reach the database.
+    connection.provider_ref = reference
     await commit_unless_externally_managed(session)
     log.info(
         "connection.grant_version_changed",
         connection_id=str(connection.id),
         previous=previous,
         detected=detected,
+        reference=reading.reference,
     )
-    return detected
+    return detected if detected != previous else None
 
 
 async def recheck_access(
@@ -869,9 +899,9 @@ async def try_auto_validate(
     # A grant believed to be behind is re-read on each detail request, so a
     # customer who redeploys and comes back to the page finds the banner gone
     # without having to press anything. Costs one listing, and only while the
-    # connection is behind: once the current grant is recorded, nothing here
-    # asks again.
-    if grant_upgrade_available(connection):
+    # connection is behind or has something unanswered about its grant: once
+    # the current grant is recorded, nothing here asks again.
+    if onboarding.grant_needs_reading(connection):
         await refresh_grant_version(session, connection)
 
     return connection

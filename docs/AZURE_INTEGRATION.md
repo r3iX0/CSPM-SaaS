@@ -298,6 +298,18 @@ The connection page re-reads it on demand
 role is believed to be behind, so a customer who redeploys and comes back finds
 the prompt gone without having to press anything (`DECISIONS.md` §65).
 
+**The same reading says whether the grant allows every read.** The extended
+checks read through the built-in `Reader` the template assigns beside the custom
+role (`DECISIONS.md` §150), and the custom role did not change when that was
+added, so no version measures it. The definitions already resolved for the
+version are asked whether any allows `Microsoft.CleaveProbe/anything/read` -- a
+read no role names, so only `*/read` or `*` covers it -- and the answer is kept
+as `provider_ref.every_read`. While the scanner service runs (`ASSESS_ENABLED`),
+a connection whose answer is not yet yes is read on each detail request, and one
+whose answer is no gets the redeploy prompt with "Reader missing" on the role
+line. Assignments are listed with `$filter=atScope()`, so only those at the
+connection's scope or above it count (`DECISIONS.md` §153).
+
 ### Permission modes
 
 `Reader` (`*/read`) is the default: one line, never needs revisiting. The

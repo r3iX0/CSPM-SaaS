@@ -524,6 +524,65 @@ class TestReadingTheGrantedActions:
         assert rbac.version_of_granted(granted) == ROLE_VERSION
 
 
+class TestEveryRead:
+    """Whether a grant carries the breadth the extended checks read through.
+
+    Asked of what the definitions allow, like the version, so the built-in
+    Reader, Contributor and Owner all answer yes and the custom role -- which
+    names only the reads Cleave's own collectors make -- answers no.
+    """
+
+    @staticmethod
+    def _permissions(*actions: str, denied: tuple[str, ...] = ()) -> list[dict]:
+        return [{"actions": list(actions), "notActions": list(denied)}]
+
+    def test_the_built_in_reader_allows_every_read(self) -> None:
+        assert rbac.grants_every_read(self._permissions("*/read"))
+
+    def test_a_broader_role_allows_every_read(self) -> None:
+        assert rbac.grants_every_read(self._permissions("*"))
+
+    def test_the_custom_role_alone_does_not(self) -> None:
+        """The connection this exists for: a current role and no Reader."""
+        assert not rbac.grants_every_read(self._permissions(*ARM_READ_ACTIONS))
+
+    def test_a_provider_wide_read_is_not_every_read(self) -> None:
+        assert not rbac.grants_every_read(self._permissions("Microsoft.Storage/*/read"))
+
+    def test_a_notaction_on_every_read_takes_it_away(self) -> None:
+        assert not rbac.grants_every_read(self._permissions("*", denied=("*/read",)))
+
+    def test_one_role_carrying_it_is_enough(self) -> None:
+        assert rbac.grants_every_read(
+            [*self._permissions(*ARM_READ_ACTIONS), *self._permissions("*/read")]
+        )
+
+
+async def test_the_grant_is_read_only_at_and_above_the_connection_scope() -> None:
+    """Unfiltered, ARM's listing includes every assignment beneath the scope,
+    and Reader on one resource group would read as Reader over the whole
+    connection -- the prompt withheld from a grant that cannot serve it."""
+    import httpx
+
+    from app.connectors.azure.client import ArmClient
+
+    requested: list[httpx.URL] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requested.append(request.url)
+        return httpx.Response(200, json={"value": []})
+
+    class Tokens:
+        def arm_token(self) -> str:
+            return "arm-token"
+
+    http = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    async with ArmClient(Tokens(), http) as arm:
+        await arm.list_role_assignments_at_scope("/subscriptions/sub-1")
+
+    assert [url.params.get("$filter") for url in requested] == ["atScope()"]
+
+
 class FakeArm:
     """An ArmClient that answers from a prepared tenant."""
 
@@ -642,6 +701,9 @@ class TestTheDeployedRoleIsRecorded:
         from app.services import cloud_connections as service
 
         connection = self._connection(ROLE_VERSION)
+        # Already read once: the first reading records whether the grant allows
+        # every read, which is a change of its own.
+        connection.provider_ref = {"every_read": False}
         self._deploy(ARM_READ_ACTIONS)
         session = FakeSession()
 
@@ -657,7 +719,7 @@ class TestTheDeployedRoleIsRecorded:
         connection = self._connection("v2")
         FakeArm.fails = True
 
-        assert await AzureOnboarding().detect_grant_version(connection) is None
+        assert await AzureOnboarding().detect_grant(connection) is None
         assert await service.refresh_grant_version(FakeSession(), connection) is None
         assert connection.role_version == "v2"
 
@@ -669,7 +731,7 @@ class TestTheDeployedRoleIsRecorded:
         connection = self._connection("v2")
         self._deploy(ARM_READ_ACTIONS, principal="00000000-0000-0000-0000-00000000beef")
 
-        assert await AzureOnboarding().detect_grant_version(connection) is None
+        assert await AzureOnboarding().detect_grant(connection) is None
         assert connection.role_version == "v2"
 
     async def test_a_role_deployed_at_the_old_version_still_reads_current(self) -> None:
@@ -684,7 +746,163 @@ class TestTheDeployedRoleIsRecorded:
         connection = self._connection("v2")
         self._deploy(ARM_READ_ACTIONS)
 
-        assert await AzureOnboarding().detect_grant_version(connection) == ROLE_VERSION
+        reading = await AzureOnboarding().detect_grant(connection)
+        assert reading is not None and reading.version == ROLE_VERSION
+
+
+class TestTheExtendedChecksReader:
+    """A current role is not a complete grant while the scanner service runs.
+
+    The template has assigned Reader beside the custom role since the extended
+    checks shipped, and the custom role did not change, so no version bump
+    said so. A connection deployed before then read a current role, showed no
+    prompt, and had Prowler refused on storage file services, SQL encryption
+    protectors and every other type the custom role does not name
+    (DECISIONS.md section 153).
+    """
+
+    PRINCIPAL = TestTheDeployedRoleIsRecorded.PRINCIPAL
+    CUSTOM = "/providers/.../roleDefinitions/custom"
+    READER = f"/providers/Microsoft.Authorization/roleDefinitions/{rbac.READER_ROLE_DEFINITION_ID}"
+
+    @pytest.fixture(autouse=True)
+    def azure(self, monkeypatch: pytest.MonkeyPatch):
+        from app.connectors.azure import auth
+        from app.core.config import settings
+
+        class FakeTokens:
+            def __init__(self, tenant_id: str) -> None:
+                self.tenant_id = tenant_id
+
+        monkeypatch.setattr(auth, "TokenProvider", FakeTokens)
+        monkeypatch.setattr("app.connectors.azure.onboarding.ArmClient", FakeArm)
+        monkeypatch.setattr(settings, "assess_enabled", True)
+        FakeArm.assignments = []
+        FakeArm.definitions = {
+            self.CUSTOM: [{"actions": list(ARM_READ_ACTIONS), "notActions": []}],
+            self.READER: [{"actions": ["*/read"], "notActions": []}],
+        }
+        FakeArm.fails = False
+        FakeArm.scopes_read = []
+        return settings
+
+    def _assign(self, *definitions: str) -> None:
+        FakeArm.assignments = [
+            {"properties": {"principalId": self.PRINCIPAL, "roleDefinitionId": d}}
+            for d in definitions
+        ]
+
+    def _connection(self) -> CloudConnection:
+        connection = make_connection(ROLE_VERSION)
+        connection.id = uuid.uuid4()
+        connection.tenant_id = "8e482025-7ac9-4323-81e5-bc9fa528afd7"
+        connection.service_principal_object_id = self.PRINCIPAL
+        connection.rbac_verified_at = datetime.now(UTC)
+        connection.created_at = datetime.now(UTC)
+        return connection
+
+    async def test_a_current_role_without_reader_is_prompted_to_redeploy(self) -> None:
+        from app.services import cloud_connections as service
+
+        connection = self._connection()
+        self._assign(self.CUSTOM)
+        session = FakeSession()
+
+        # The version did not move, so nothing new is returned -- but what was
+        # learned is recorded.
+        assert await service.refresh_grant_version(session, connection) is None
+        assert session.commits == 1
+        assert connection.provider_ref == {"every_read": False}
+
+        assert service.extended_checks_blocked(connection) is True
+        assert grant_upgrade_available(connection) is True
+        # Cleave's own collectors are unaffected: nothing they read is missing.
+        assert degraded_categories(connection) == {}
+
+    async def test_the_payload_says_which_redeploy_it_is(self) -> None:
+        """The panel must not print "v8, behind (v8)" for a current role."""
+        from app.services import cloud_connections as service
+
+        connection = self._connection()
+        self._assign(self.CUSTOM)
+        await service.refresh_grant_version(FakeSession(), connection)
+
+        payload = routes._serialize(connection)
+        assert payload["role_upgrade_available"] is True
+        assert payload["extended_checks_blocked"] is True
+        assert payload["role_version"] == payload["role_required_version"]
+        assert payload["degraded_categories"] == []
+
+    async def test_redeploying_with_reader_clears_the_prompt(self) -> None:
+        from app.services import cloud_connections as service
+
+        connection = self._connection()
+        self._assign(self.CUSTOM)
+        await service.refresh_grant_version(FakeSession(), connection)
+
+        self._assign(self.CUSTOM, self.READER)
+        session = FakeSession()
+        await service.refresh_grant_version(session, connection)
+
+        assert connection.provider_ref == {"every_read": True}
+        assert session.commits == 1
+        assert service.extended_checks_blocked(connection) is False
+        assert grant_upgrade_available(connection) is False
+        assert AzureOnboarding().grant_needs_reading(connection) is False
+
+    async def test_reader_alone_is_a_complete_grant(self) -> None:
+        """A customer who assigned Reader instead of deploying the template has
+        every read both engines need."""
+        from app.services import cloud_connections as service
+
+        connection = self._connection()
+        self._assign(self.READER)
+        await service.refresh_grant_version(FakeSession(), connection)
+
+        assert connection.role_version == ROLE_VERSION
+        assert grant_upgrade_available(connection) is False
+
+    async def test_other_reference_entries_survive_the_reading(self) -> None:
+        from app.services import cloud_connections as service
+
+        connection = self._connection()
+        connection.provider_ref = {"note": "kept"}
+        self._assign(self.CUSTOM)
+        await service.refresh_grant_version(FakeSession(), connection)
+
+        assert connection.provider_ref == {"note": "kept", "every_read": False}
+
+    def test_a_grant_never_read_is_read_but_not_flagged(self) -> None:
+        """Every connection deployed before this shipped has no answer yet.
+        Unknown is not missing: it is read on the next look, and raises
+        nothing until then."""
+        connection = self._connection()
+
+        assert AzureOnboarding().grant_needs_reading(connection) is True
+        assert AzureOnboarding().extended_checks_blocked(connection) is False
+        assert grant_upgrade_available(connection) is False
+
+    def test_nothing_is_asked_while_the_scanner_service_is_off(self, azure) -> None:
+        """With no second engine, the breadth serves nothing, and a prompt for
+        it would be asking a customer for access Cleave has no use for."""
+        azure.assess_enabled = False
+        connection = self._connection()
+        connection.provider_ref = {"every_read": False}
+
+        assert AzureOnboarding().extended_checks_blocked(connection) is False
+        assert AzureOnboarding().grant_needs_reading(connection) is False
+        assert grant_upgrade_available(connection) is False
+
+    async def test_a_failed_reading_records_nothing(self) -> None:
+        from app.services import cloud_connections as service
+
+        connection = self._connection()
+        FakeArm.fails = True
+        session = FakeSession()
+
+        assert await service.refresh_grant_version(session, connection) is None
+        assert session.commits == 0
+        assert connection.provider_ref in ({}, None)
 
 
 def test_the_redeploy_template_grants_the_current_role() -> None:

@@ -82,6 +82,11 @@ class CloudConnectionOut(BaseModel):
     # until the customer redeploys, so this drives a prompt rather than leaving
     # them to wonder why a rule reports UNKNOWN.
     role_upgrade_available: bool = False
+    # True when the role is current but the grant lacks the every-read breadth
+    # the extended checks need -- a connection deployed before the template
+    # assigned Reader for them. Also raises ``role_upgrade_available``, since a
+    # redeploy is the fix (DECISIONS.md section 153).
+    extended_checks_blocked: bool = False
     # Verified *and* holding at least one subscription that can be scanned.
     # ``is_verified`` alone says both grants work, which is true of a connection
     # with nothing beneath it.

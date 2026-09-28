@@ -646,6 +646,13 @@ export interface CloudConnection {
    * painting the role green.
    */
   role_upgrade_available: boolean;
+  /**
+   * The role is current but the grant lacks the Reader the extended checks
+   * read through -- a connection deployed before the template assigned it.
+   * Also raises `role_upgrade_available`: a redeploy is the fix for both, and
+   * this says which one it is for (DECISIONS.md §153).
+   */
+  extended_checks_blocked: boolean;
   /** The role version CloudGuard needs today, to redeploy toward. */
   role_required_version: string;
   /**

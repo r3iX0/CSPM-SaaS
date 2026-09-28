@@ -564,6 +564,29 @@ def actions_granted_by(permissions: Iterable[Mapping[str, Any]]) -> frozenset[st
     return frozenset(granted)
 
 
+# A read no collector makes and no role names specifically, so only a pattern
+# covering every read allows it: ``*/read`` on the built-in Reader, ``*`` on
+# Contributor or Owner. The extended checks read several hundred resource types
+# the custom role never names, and the deployment template assigns Reader for
+# them (DECISIONS.md section 150); this is how a deployed grant is asked whether
+# it carries that breadth, by what it allows rather than by a role's name or id.
+# Evaluated locally and never sent to Azure.
+EVERY_READ_PROBE = "Microsoft.CleaveProbe/anything/read"
+
+
+def grants_every_read(permissions: Iterable[Mapping[str, Any]]) -> bool:
+    """Whether any of these ARM permission blocks allows every read.
+
+    Per block, as ``actions_granted_by`` does: a ``notActions`` entry narrows
+    only the role it is written in, and ARM grants the union of the rest.
+    """
+    return any(
+        _permits(EVERY_READ_PROBE, tuple(block.get("actions") or ()))
+        and not _permits(EVERY_READ_PROBE, tuple(block.get("notActions") or ()))
+        for block in permissions
+    )
+
+
 def version_of_granted(granted: Collection[str]) -> str | None:
     """The newest recorded role version these actions fully cover, or None.
 

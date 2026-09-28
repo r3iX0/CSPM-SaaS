@@ -42,6 +42,7 @@ from app.connectors.evidence import EvidenceCategory
 from app.connectors.onboarding import (
     DeploymentArtifact,
     DiscoveredAccount,
+    GrantReading,
     ProviderOnboarding,
 )
 from app.core.enums import ConnectionScope, Provider
@@ -287,7 +288,7 @@ class AwsOnboarding(ProviderOnboarding):
             for category in categories_behind(connection.role_version)
         }
 
-    async def detect_grant_version(self, connection: CloudConnection) -> str | None:
+    async def detect_grant(self, connection: CloudConnection) -> GrantReading | None:
         """What the deployed role actually allows, read from the role.
 
         From the policy document rather than from the stack's version tag,
@@ -320,7 +321,8 @@ class AwsOnboarding(ProviderOnboarding):
 
         if not statements:
             return None
-        return version_of_granted(actions_granted_by(statements))
+        version = version_of_granted(actions_granted_by(statements))
+        return GrantReading(version=version) if version else None
 
     # ------------------------------------------------------------ teardown
 

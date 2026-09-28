@@ -8025,7 +8025,8 @@ the calls Cleave's collectors make, and Prowler reads several hundred other
 resource types. The deployment template therefore also assigns the built-in
 Reader role -- every `*/read`, no `listKeys`, no data plane -- so the claim that
 Cleave cannot perform a write still holds. A connection deployed before this
-reads those services as UNKNOWN until it is redeployed. On AWS the role already
+reads those services as UNKNOWN until it is redeployed, and is prompted to
+redeploy (§153). On AWS the role already
 carries SecurityAudit and ViewOnlyAccess, which is what Prowler documents.
 
 ### Frameworks
@@ -8224,6 +8225,57 @@ Config as Code stops working on 2026-12-01. Before then all three services move
 to Railway's infrastructure-as-code file (`.railway/railway.ts`); see the open
 items. `railway config migrate` cannot do it unassisted: it maps the one root
 file onto the wrong service.
+
+## 153. A connection without the extended checks' Reader is told to redeploy
+
+§150 made the template assign the built-in Reader beside the custom role and
+said a connection deployed before then "reads those services as UNKNOWN until it
+is redeployed". Nothing told the customer. The custom role's actions did not
+change, so `ROLE_VERSION` stayed v8, the access panel said the role was current,
+and the first live scan showed why that mattered: Prowler was refused
+`Microsoft.Storage/storageAccounts/fileServices/read` and
+`Microsoft.Sql/servers/encryptionProtector/read` -- both inside `*/read` -- and
+storage and SQL server read as unknown, with no prompt anywhere.
+
+**The answer comes from the reading that already exists.** The grant-version
+probe lists the assignments Cleave's principal holds and resolves each
+definition; the same definitions are now asked whether any allows every read,
+tested with a read no role names (`Microsoft.CleaveProbe/anything/read`), so
+Reader, Contributor and Owner answer yes and the custom role answers no. By what
+the grant allows rather than by Reader's role id, for the reason the version is
+read that way: a customer who granted something broader is not missing
+anything. Scan snapshots also hold the subscription's role assignments, and were
+considered and not used: the prompt lives on the connection and has to clear
+the moment a redeploy lands, not after the next scan.
+
+**It is not a role version.** A v9 whose only difference was the Reader would
+have created a second, identical custom role definition in every tenant that
+redeployed, and a version is a set of custom-role actions -- `ARM_READ_ACTIONS`
+stays exactly what the collectors call. So the answer is its own fact,
+`provider_ref.every_read`, carried back through `ProviderOnboarding.detect_grant`
+(which now returns a `GrantReading`: the version, and anything else the reading
+established) and merged into the reference. `grant_upgrade_available` is true
+for either cause, since the fix is the same redeploy; `extended_checks_blocked`
+says which, so the panel reads "v8, Reader missing" instead of "v8, behind (v8)",
+and `degraded_categories` stays about Cleave's own collectors, which lose
+nothing.
+
+**Only while the scanner service runs.** With `ASSESS_ENABLED` off nothing needs
+the breadth, and prompting for it would be asking for access Cleave has no use
+for. Unknown is not missing: a connection never read raises nothing, and is read
+on its next detail request -- which is how every connection deployed before this
+gets an answer without a migration. A no is read again on each detail request
+until it becomes a yes, as a behind role already was.
+
+**Only assignments at the scope or above it count.** The assignment listing was
+unfiltered, and ARM then returns assignments beneath the scope too: Reader on one
+resource group would have read as Reader over the whole connection, and the
+version probe had the same gap. It now asks with `$filter=atScope()`, Microsoft's
+documented form for "at or above", not yet exercised against a live tenant. Its
+failure would be quiet rather than wrong: a refused or empty listing makes the
+reading answer nothing, the recorded grant is left alone and no prompt appears.
+So the first connection page after this deploys is the check --
+`connection.grant_version_changed` in the API log, carrying `every_read`.
 
 ## Open items carried forward
 

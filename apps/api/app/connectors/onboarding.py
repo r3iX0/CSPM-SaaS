@@ -75,6 +75,21 @@ class PrincipalLookup:
 
 
 @dataclass(frozen=True)
+class GrantReading:
+    """What the provider says a connection's deployed grant allows.
+
+    ``version`` is the permission set it covers. ``reference`` is anything else
+    the same reading established that only this cloud has a word for, merged
+    into ``provider_ref``: on Azure, whether the grant also carries the every-read
+    breadth the extended checks need, which no role version measures because
+    the custom role never names those reads.
+    """
+
+    version: str
+    reference: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
 class DeploymentArtifact:
     """The thing a customer deploys, rendered for one connection.
 
@@ -257,6 +272,28 @@ class ProviderOnboarding(ABC):
     def grant_is_behind(self, connection: CloudConnection) -> bool:
         return connection.role_version != self.grant_version()
 
+    def extended_checks_blocked(self, connection: CloudConnection) -> bool:
+        """Whether the deployed grant is known to be too narrow for the
+        extended checks (DECISIONS.md section 150).
+
+        A second question beside ``grant_is_behind``, because the answer does
+        not follow from the role version: on Azure the extended checks read
+        through a Reader assignment the template makes beside the custom role,
+        and a connection deployed before the template made it has a current
+        role and no Reader. False for a cloud whose grant already covers them.
+        """
+        return False
+
+    def grant_needs_reading(self, connection: CloudConnection) -> bool:
+        """Whether the deployed grant should be read back from the provider on
+        the next look at this connection.
+
+        While it is behind, so a redeploy clears the prompt without anybody
+        pressing anything. A provider with more to establish than the version
+        adds its own cases.
+        """
+        return self.grant_is_behind(connection)
+
     def degraded_categories(
         self, connection: CloudConnection
     ) -> dict[EvidenceCategory, str]:
@@ -268,12 +305,12 @@ class ProviderOnboarding(ABC):
         """
         return {}
 
-    async def detect_grant_version(self, connection: CloudConnection) -> str | None:
+    async def detect_grant(self, connection: CloudConnection) -> GrantReading | None:
         """What the provider says is actually deployed, read from the provider.
 
         ``None`` means the question could not be answered -- which is not the
-        same as "behind", and the caller leaves the recorded version alone
-        rather than replacing a fact with a probe that did not land.
+        same as "behind", and the caller leaves the recorded grant alone rather
+        than replacing a fact with a probe that did not land.
         """
         return None
 

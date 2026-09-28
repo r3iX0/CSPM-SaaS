@@ -76,6 +76,9 @@ def _serialize(
     # the same function the scanner uses to explain the gaps, so the screen and
     # the scan cannot disagree about which checks are affected.
     data["role_required_version"] = service.required_grant_version(connection)
+    # A redeploy prompt on a current role, for the Reader the extended checks
+    # read through. Its own field, so the panel does not print "v8, behind (v8)".
+    data["extended_checks_blocked"] = service.extended_checks_blocked(connection)
     data["degraded_categories"] = sorted(
         category.value for category in service.degraded_categories(connection)
     )

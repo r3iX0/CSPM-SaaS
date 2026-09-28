@@ -687,10 +687,15 @@ class ArmClient(_BaseClient):
         Separate from ``list_role_assignments`` because a tenant-scoped
         connection's grant lives above any subscription, so there is no
         subscription to ask about when confirming it.
+
+        Filtered to ``atScope()``: the assignments at the scope and above it,
+        which are the ones that hold over all of it. Unfiltered, the listing
+        also returns every assignment beneath the scope, and Reader on one
+        resource group would have read as Reader over the whole connection.
         """
         return await self.get_all(
             f"{scope}/providers/Microsoft.Authorization"
-            "/roleAssignments?api-version=2022-04-01"
+            "/roleAssignments?api-version=2022-04-01&$filter=atScope()"
         )
 
     async def list_role_definitions(self, subscription_id: str) -> list[dict[str, Any]]:
