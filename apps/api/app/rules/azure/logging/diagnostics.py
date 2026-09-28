@@ -80,7 +80,7 @@ class AzureLoggingRule(SecurityRule):
             "network rules': a diagnostic setting is created rather than "
             "configured, so the artifact would be a DeployIfNotExists policy "
             "with a remediation task and a managed identity behind it. That is "
-            "a deployment CloudGuard would be asking a customer to trust, not a "
+            "a deployment Cleave would be asking a customer to trust, not a "
             "condition -- and it is worth building deliberately rather than "
             "generating from a one-line declaration."
         ),

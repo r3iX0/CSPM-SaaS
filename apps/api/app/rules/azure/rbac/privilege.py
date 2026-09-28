@@ -212,7 +212,7 @@ class AzureWorkloadWithSubscriptionControlRule(_RoleAssignmentRule):
     exploitability = 3
     estimated_effort_minutes = 60
     rationale = (
-        "This is the second half of nearly every cloud attack path CloudGuard finds: "
+        "This is the second half of nearly every cloud attack path Cleave finds: "
         "reach a workload, inherit its identity, act everywhere that identity can act. A "
         "deployment pipeline that needs to write to three resource groups does not need "
         "the subscription, and the difference is the entire blast radius."

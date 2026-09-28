@@ -77,7 +77,7 @@ def cloudguard_principal_arn() -> str:
     """
     if not settings.aws_principal_arn:
         raise NotConfigured(
-            "AWS_PRINCIPAL_ARN is not set, so CloudGuard cannot tell a customer "
+            "AWS_PRINCIPAL_ARN is not set, so Cleave cannot tell a customer "
             "which principal their scanner role should trust "
             "(docs/AWS_INTEGRATION.md §2)."
         )
@@ -131,7 +131,7 @@ class RoleAssumer:
             # require one, which is exactly the misconfiguration this guard
             # exists to keep CloudGuard from participating in.
             raise NotConfigured(
-                "This connection has no external id. CloudGuard will not assume "
+                "This connection has no external id. Cleave will not assume "
                 "a role without one."
             )
         self.role_arn = role_arn
@@ -149,7 +149,7 @@ class RoleAssumer:
     async def _assume(self) -> Credentials:
         if not settings.aws_access_key_id or not settings.aws_secret_access_key:
             raise NotConfigured(
-                "CloudGuard's own AWS credentials are not configured "
+                "Cleave's own AWS credentials are not configured "
                 "(AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY). Nothing can be "
                 "assumed without them (docs/AWS_INTEGRATION.md §2)."
             )

@@ -274,7 +274,7 @@ async def test_a_refused_lookup_names_the_app_registration(monkeypatch) -> None:
     problem = await resolve_with(monkeypatch, raises=AzureApiError("denied", 403))
     assert problem is not None
     assert "app registration" in problem
-    assert "CloudGuard's side" in problem
+    assert "Cleave's side" in problem
 
 
 async def test_an_unpublished_principal_says_to_wait(monkeypatch) -> None:

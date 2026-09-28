@@ -133,7 +133,7 @@ async def accept_risk(
         session,
         tenant.organization_id,
         finding.id,
-        reason="The risk was accepted, so CloudGuard stopped checking for a fix.",
+        reason="The risk was accepted, so Cleave stopped checking for a fix.",
     )
 
     session.add(
@@ -176,7 +176,7 @@ async def set_status(
     if status == FindingStatus.RESOLVED:
         raise ValidationFailed(
             "Findings cannot be marked resolved by hand. Fix the issue and run a "
-            "rescan — CloudGuard resolves it once a scan confirms the fix."
+            "rescan — Cleave resolves it once a scan confirms the fix."
         )
 
     _record_event(session, tenant, finding, FindingEvent.STATUS_CHANGED, status)

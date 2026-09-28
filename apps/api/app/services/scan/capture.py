@@ -409,7 +409,7 @@ async def directory_gap(
     scope_words = words(connection.provider if connection else None)
     if step is None:
         reason = (
-            "This scan has no cloud connection behind it, so CloudGuard has "
+            "This scan has no cloud connection behind it, so Cleave has "
             f"no grant to read its {scope_words.directory}. Reconnect it "
             "from the connections page."
         )

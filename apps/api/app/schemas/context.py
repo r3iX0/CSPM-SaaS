@@ -31,7 +31,7 @@ class ContextDeclarationIn(BaseModel):
     def _not_unknown(cls, value: Level | None) -> Level | None:
         if value is Level.UNKNOWN:
             raise ValueError(
-                "UNKNOWN is what CloudGuard says when nothing is known. To say "
+                "UNKNOWN is what Cleave says when nothing is known. To say "
                 "nothing about this, leave the field out."
             )
         return value

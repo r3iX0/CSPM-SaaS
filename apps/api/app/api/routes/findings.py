@@ -385,7 +385,7 @@ async def rescan_finding(finding_id: UUID, session: DbSession, tenant: Tenant) -
             "scan_id": str(scan.id),
             "finding_id": str(finding.id),
             "message": (
-                "Rescan queued. If the issue is fixed, CloudGuard will resolve this "
+                "Rescan queued. If the issue is fixed, Cleave will resolve this "
                 "finding automatically when the scan completes."
             ),
         }

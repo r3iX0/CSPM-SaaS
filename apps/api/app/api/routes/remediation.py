@@ -213,7 +213,7 @@ async def update_task(
         # Marking work done does not resolve the finding. Only an observation
         # does -- but the customer no longer has to remember to ask for one.
         payload_out["note"] = (
-            "Marked done. CloudGuard will check the environment shortly and "
+            "Marked done. Cleave will check the environment shortly and "
             "again after that if the change has not appeared yet, then close "
             "the finding once the check passes."
         )

@@ -277,7 +277,7 @@ class AwsOnboarding(ProviderOnboarding):
         if not self.grant_is_behind(connection):
             return {}
         explanation = (
-            f"CloudGuard's scanner policy was updated to {POLICY_VERSION} and "
+            f"Cleave's scanner policy was updated to {POLICY_VERSION} and "
             f"this connection still has {connection.role_version}, which does "
             "not grant the permissions these checks need. Redeploy the stack "
             "from the connection page to enable them."
@@ -366,9 +366,9 @@ class AwsOnboarding(ProviderOnboarding):
                 },
             ],
             "why_manual": (
-                "CloudGuard holds read-only access and no write permission of "
+                "Cleave holds read-only access and no write permission of "
                 "any kind, so it cannot remove its own access. These run under "
-                "your credentials, not CloudGuard's."
+                "your credentials, not Cleave's."
             ),
             "portal_url": (
                 f"https://{CONSOLE_REGION}.console.aws.amazon.com/cloudformation/home"

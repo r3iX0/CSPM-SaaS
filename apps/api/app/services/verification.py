@@ -218,9 +218,9 @@ def observe(
         verification.next_attempt_at = following
         verification.detail = (
             "Checked, and the environment does not show the fix yet. "
-            "CloudGuard will look again."
+            "Cleave will look again."
             if state is RuleState.FAIL
-            else "CloudGuard could not read enough to tell yet, and will try again."
+            else "Cleave could not read enough to tell yet, and will try again."
         )
         return VerificationStatus.PENDING
 
@@ -237,8 +237,8 @@ def observe(
         f"{_span(verification, now)}, and the check still fails."
         if verification.observed_failure
         else (
-            "CloudGuard could not gather the evidence this check needs, so it "
-            "cannot say whether the fix worked. This is a gap in what CloudGuard "
+            "Cleave could not gather the evidence this check needs, so it "
+            "cannot say whether the fix worked. This is a gap in what Cleave "
             "could read, not a failed fix."
         )
     )

@@ -13,6 +13,7 @@ that settles it: after the callback has failed, what does a *fresh* session see
 in the column?
 """
 
+import asyncio
 import uuid
 from typing import Any
 
@@ -122,3 +123,48 @@ async def test_a_wrong_nonce_leaves_the_link_alone(organization: uuid.UUID) -> N
             await service.record_consent(session, connection_id, "tenant-a", nonce="guess")
 
     assert await stored_nonce(connection_id) == "link-sent-to-the-administrator"
+
+
+async def test_two_callbacks_with_one_link_bind_only_once(
+    organization: uuid.UUID, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The race the row lock closes: one link, presented twice at once.
+
+    Each callback runs in a transaction of its own, as two requests would.
+    Unlocked, both read the live nonce and both got through; locked, the second
+    waits for the first's spend and then finds nothing to match.
+    """
+    connection_id = await make_connection(organization)
+
+    class _Quiet:
+        ready_to_deploy_detail = "ready"
+
+        async def ensure_principal(self, _connection: CloudConnection) -> Any:
+            return type("Lookup", (), {"object_id": None, "problem": None})()
+
+        async def grant_problem(self, _connection: CloudConnection) -> None:
+            return None
+
+        async def missing_grants(self, _connection: CloudConnection) -> None:
+            return None
+
+    monkeypatch.setattr(service, "flow", lambda _connection: _Quiet())
+
+    async def callback(tenant_id: str) -> CloudConnection:
+        async with service_session() as session:
+            return await service.record_consent(
+                session, connection_id, tenant_id, nonce="link-sent-to-the-administrator"
+            )
+
+    outcomes = await asyncio.gather(
+        callback("tenant-a"), callback("tenant-b"), return_exceptions=True
+    )
+
+    bound = [outcome for outcome in outcomes if isinstance(outcome, CloudConnection)]
+    refused = [outcome for outcome in outcomes if isinstance(outcome, ValidationFailed)]
+    assert len(bound) == 1
+    assert len(refused) == 1
+    async with service_session() as session:
+        row = await session.get(CloudConnection, connection_id)
+        assert row is not None
+        assert row.tenant_id == bound[0].tenant_id

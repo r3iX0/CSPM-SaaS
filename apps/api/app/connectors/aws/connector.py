@@ -111,7 +111,7 @@ class AwsConnector(CloudConnector):
                 identity = await sts.call("get_caller_identity")
         except Exception as exc:
             check.problems.append(
-                f"CloudGuard could not assume the scanner role: {exc}"
+                f"Cleave could not assume the scanner role: {exc}"
             )
             check.detail = "The scanner role could not be assumed"
             return check
@@ -160,10 +160,10 @@ class AwsConnector(CloudConnector):
                 {
                     "name": "Cross-account scanner role",
                     "detail": (
-                        "A role in your account that CloudGuard assumes to read "
+                        "A role in your account that Cleave assumes to read "
                         "your security configuration. It requires an external id "
-                        "that CloudGuard generates and that only your trust "
-                        "policy and CloudGuard know."
+                        "that Cleave generates and that only your trust "
+                        "policy and Cleave know."
                     ),
                     "managed_policies": list(MANAGED_POLICY_ARNS),
                     "inline_actions": list(INLINE_READ_ACTIONS),

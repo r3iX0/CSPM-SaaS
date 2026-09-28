@@ -70,7 +70,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(
-    title="CloudGuard API",
+    title="Cleave API",
     version="0.1.0",
     description="Azure-first Cloud Security Posture Management.",
     lifespan=lifespan,

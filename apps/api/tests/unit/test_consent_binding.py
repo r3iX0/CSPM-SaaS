@@ -62,8 +62,13 @@ class _Session:
         # transaction this is. Empty means "yours", which is what a service
         # called outside a request sees.
         self.info: dict[str, object] = {}
+        # How the row was asked for: whether the read locked it.
+        self.get_options: dict[str, object] = {}
 
-    async def get(self, _model: object, _pk: object) -> CloudConnection | None:
+    async def get(
+        self, _model: object, _pk: object, **options: object
+    ) -> CloudConnection | None:
+        self.get_options = options
         return self.row
 
     async def commit(self) -> None:
@@ -147,6 +152,22 @@ async def test_a_redeemed_link_does_not_work_twice() -> None:
 
     with pytest.raises(ValidationFailed):
         await service.record_consent(session, row.id, "tenant-a", nonce="one-time")
+
+
+async def test_the_row_is_locked_before_the_nonce_is_read() -> None:
+    """Two callbacks with one link must not both read it live.
+
+    The lock is what makes the second wait for the first's spend, and
+    ``populate_existing`` is what makes it then see that spend rather than a
+    copy of the row the session already held. The race itself needs two real
+    transactions; ``tests/integration/test_consent_nonce.py`` runs it.
+    """
+    row = connection(consent_nonce="one-time")
+    session = _Session(row)
+
+    await service.record_consent(session, row.id, "tenant-a", nonce="one-time")
+
+    assert session.get_options == {"with_for_update": True, "populate_existing": True}
 
 
 async def test_a_second_directory_cannot_take_over_a_bound_connection() -> None:

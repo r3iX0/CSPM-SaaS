@@ -371,7 +371,7 @@ async def _spend_consent_nonce(
     if not expected or not hmac.compare_digest(nonce, expected):
         raise ValidationFailed(
             "This consent link is no longer valid. Open the connection in "
-            "CloudGuard and send a fresh one."
+            "Cleave and send a fresh one."
         )
 
     connection.consent_nonce = None
@@ -412,8 +412,20 @@ async def record_consent(
     answer would let a stale or stolen link move a customer's connection onto a
     directory somebody else controls. Changing it is a delete-and-reconnect,
     which is a decision with a person behind it.
+
+    **The row is locked while the nonce is checked.** Without the lock, two
+    callbacks carrying one link -- a double click, or a replay racing the
+    genuine one -- would both read the live nonce, both pass the comparison and
+    both commit the spend, and both go on to bind a tenant: the second one
+    before the first had written its tenant, so the rebind refusal would not
+    stop it either. ``FOR UPDATE`` makes the second wait for the first's spend
+    to commit, and PostgreSQL then hands it the row as committed -- with no
+    nonce on it, so it is refused. The lock is released by that same commit,
+    before any provider call.
     """
-    connection = await session.get(CloudConnection, connection_id)
+    connection = await session.get(
+        CloudConnection, connection_id, with_for_update=True, populate_existing=True
+    )
     if connection is None:
         raise CloudAccountNotFound("Connection not found")
 
@@ -735,7 +747,7 @@ async def set_scan_schedule(
     if interval_hours is not None and not connection.is_verified:
         raise ValidationFailed(
             "This connection is not ready to scan yet, so there is nothing to "
-            "schedule. Finish granting CloudGuard read access first."
+            "schedule. Finish granting Cleave read access first."
         )
 
     connection.scan_interval_hours = interval_hours
@@ -790,7 +802,7 @@ def deploy_stalled_detail(connection: CloudConnection) -> str:
     """
     scope_words = words(connection.provider)
     return (
-        "CloudGuard still cannot read this environment. The "
+        "Cleave still cannot read this environment. The "
         f"{scope_words.artifact} may not have been deployed yet, or it may have "
         "been deployed at a different scope than this connection covers. Check "
         f"that the deployment succeeded in {scope_words.console} and that its "
@@ -973,13 +985,13 @@ async def rediscover_subscriptions(
     if not connection.is_verified:
         raise ValidationFailed(
             "This connection is not verified yet, so there is nothing to "
-            "discover with. Finish granting CloudGuard read access first."
+            "discover with. Finish granting Cleave read access first."
         )
 
     accounts = await _auto_discover(session, connection)
     if not accounts:
         raise ValidationFailed(
-            "CloudGuard could not see any accounts with this connection. Check "
+            "Cleave could not see any accounts with this connection. Check "
             "that the grant is in place at the scope you deployed it to, and "
             "that the accounts sit beneath it. A grant made moments ago can "
             "take a few minutes to appear."
@@ -1113,13 +1125,13 @@ async def check_access_revoked(connection: CloudConnection) -> dict:
         return {
             "revoked": False,
             "detail": (
-                "CloudGuard can still read this environment. The grant is in "
+                "Cleave can still read this environment. The grant is in "
                 "place; a provider can take a minute to apply a removal."
             ),
         }
     return {
         "revoked": True,
-        "detail": "Confirmed: CloudGuard can no longer read this environment.",
+        "detail": "Confirmed: Cleave can no longer read this environment.",
     }
 
 
@@ -1173,7 +1185,7 @@ async def set_change_events(
     if enabled and not connection.is_verified:
         raise ValidationFailed(
             "This connection is not ready to scan yet, so a change in it could "
-            "not be read. Finish granting CloudGuard read access first."
+            "not be read. Finish granting Cleave read access first."
         )
 
     connection.change_events_enabled = enabled
@@ -1320,7 +1332,7 @@ def _aws_problem() -> str | None:
     """
     if not settings.aws_configured:
         return (
-            "CloudGuard has no AWS identity on this deployment. Set "
+            "Cleave has no AWS identity on this deployment. Set "
             "AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_PRINCIPAL_ARN "
             "(docs/AWS_INTEGRATION.md §2)."
         )

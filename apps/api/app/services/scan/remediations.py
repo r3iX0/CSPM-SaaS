@@ -128,7 +128,7 @@ async def verify_remediations(
             current_status=FindingStatus.RESOLVED,
             detail=(
                 "A scan observed the check passing on the same asset, "
-                "so CloudGuard closed it."
+                "so Cleave closed it."
             ),
             observed_at=now,
         )

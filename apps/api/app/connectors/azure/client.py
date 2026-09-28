@@ -142,7 +142,7 @@ EDGE_BLOCK_MESSAGE = (
     "Blocked by Microsoft's network edge before the request reached Azure. "
     "This is not a permission problem: the scanner role and admin consent are "
     "never consulted for a request refused here. Azure's front door refused "
-    "calls from CloudGuard's outbound network address; quote the reference "
+    "calls from Cleave's outbound network address; quote the reference "
     "below to Microsoft support, or send the calls from a different address."
 )
 
@@ -175,7 +175,7 @@ def _registration_hint(detail: str, url: str) -> str:
         return ""
     return (
         f" The subscription has not registered the {found.group(1)} resource "
-        "provider. CloudGuard cannot register it, because it holds no write "
+        "provider. Cleave cannot register it, because it holds no write "
         "permission; someone with Contributor on the subscription can run "
         f"`az provider register -n {found.group(1)}`."
     )
@@ -466,7 +466,7 @@ class ArmClient(_BaseClient):
     # custom role landed, and a customer sent to look for a Reader assignment
     # will not find one even on a correctly configured connection.
     access_denied_hint: ClassVar[str] = (
-        "CloudGuard's scanner role is not assigned on this scope. Redeploy it "
+        "Cleave's scanner role is not assigned on this scope. Redeploy it "
         "from the connection page, or check Access control (IAM) on the "
         "subscription. This is not affected by admin consent."
     )
@@ -731,7 +731,7 @@ class ResourceGraphClient(_BaseClient):
 
     base_url = ARM_BASE
     access_denied_hint: ClassVar[str] = (
-        "CloudGuard's scanner role does not grant Resource Graph queries on "
+        "Cleave's scanner role does not grant Resource Graph queries on "
         "this scope. Redeploy the role from the connection page -- a role "
         "deployed before Resource Graph inventory shipped will not have it. "
         "This is not affected by admin consent."
@@ -851,7 +851,7 @@ class GraphClient(_BaseClient):
     # Everything in the identity category comes through here, and none of it
     # goes anywhere near Azure RBAC.
     access_denied_hint: ClassVar[str] = (
-        "Admin consent for CloudGuard's directory permissions is missing or "
+        "Admin consent for Cleave's directory permissions is missing or "
         "incomplete. A Global Administrator must grant it under Microsoft "
         "Entra ID > Enterprise applications > CloudGuard > Permissions. "
         "Azure role assignments do not affect this."

@@ -73,7 +73,7 @@ async def create_scan(payload: ScanCreate, session: DbSession, tenant: Tenant) -
         log.warning("scan.enqueue_failed", scan_id=str(scan.id), error=str(exc))
         scan.status = ScanStatus.FAILED
         scan.error_message = (
-            "CloudGuard could not put this scan on the queue. The task broker "
+            "Cleave could not put this scan on the queue. The task broker "
             f"is unreachable: {exc}"
         )
         await session.commit()
@@ -144,7 +144,7 @@ async def replay_scan_endpoint(scan_id: UUID, session: DbSession, tenant: Tenant
         log.warning("scan.replay_enqueue_failed", scan_id=str(scan.id), error=str(exc))
         scan.status = ScanStatus.FAILED
         scan.error_message = (
-            "CloudGuard could not put this replay on the queue. The task broker "
+            "Cleave could not put this replay on the queue. The task broker "
             f"is unreachable: {exc}"
         )
         await session.commit()

@@ -414,7 +414,7 @@ class Settings(BaseSettings):
         problems = self.config_problems()
         if problems:
             raise ConfigurationError(
-                "CloudGuard cannot start: the environment is incomplete.\n  - "
+                "Cleave cannot start: the environment is incomplete.\n  - "
                 + "\n  - ".join(problems)
             )
 

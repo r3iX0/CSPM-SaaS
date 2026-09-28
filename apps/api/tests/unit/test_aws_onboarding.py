@@ -208,7 +208,7 @@ def test_revocation_is_a_stack_deletion_the_customer_runs() -> None:
 
     commands = " ".join(step["command"] for step in steps["steps"])
     assert "cloudformation delete-stack" in commands
-    assert "your credentials, not CloudGuard's" in steps["why_manual"]
+    assert "your credentials, not Cleave's" in steps["why_manual"]
 
 
 def test_the_scope_reads_as_something_a_customer_recognises() -> None:

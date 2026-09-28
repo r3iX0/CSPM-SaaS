@@ -173,7 +173,7 @@ async def test_a_truncated_listing_still_reports_its_own_reason() -> None:
     snapshot = await collect(truncate={"Microsoft.Sql/servers"})
 
     assert snapshot.coverage["sql_servers"]["outcome"] == "PARTIAL"
-    assert "longer than CloudGuard reads" in snapshot.coverage["sql_servers"]["detail"]
+    assert "longer than Cleave reads" in snapshot.coverage["sql_servers"]["detail"]
 
 
 async def test_a_fully_read_listing_is_still_complete() -> None:

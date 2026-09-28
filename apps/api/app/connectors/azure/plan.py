@@ -318,7 +318,7 @@ class AzurePlanBuilder:
                 return outcome
 
             truncation = (
-                "the listing was longer than CloudGuard reads in one scan, "
+                "the listing was longer than Cleave reads in one scan, "
                 "so these results are incomplete and cannot support a pass"
             )
             return TaskData(

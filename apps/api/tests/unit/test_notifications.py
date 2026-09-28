@@ -295,7 +295,7 @@ async def test_a_coverage_drop_says_it_in_cloudguards_own_words(reachable) -> No
     """
     reachable(set())
     provider_words = (
-        "Access denied. Admin consent for CloudGuard's directory permissions is "
+        "Access denied. Admin consent for Cleave's directory permissions is "
         "missing or incomplete. A Global Administrator must grant it under "
         "Microsoft Entra ID > Enterprise applications > CloudGuard > Permissions."
     )

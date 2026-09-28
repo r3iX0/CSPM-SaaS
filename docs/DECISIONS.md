@@ -7671,6 +7671,11 @@ keeps its reason by narrowing what the one hue may mean.
   as a bug. `--primary-soft` and `--primary-border` are mixed from `--primary`
   per theme rather than written out, so they cannot drift from it.
 - **`destructive` is still not `critical`.** Neither token moved to the brand.
+- **Only a scan's proof gets a status colour.** `StatusPill` draws open, in
+  progress and risk accepted in one neutral tone and lets the word tell them
+  apart; verified fixed is `ok`, and a failed or partial scan keeps its level.
+  Risk accepted used to borrow the unknown tint, which drew a person's decision
+  in the colour of the scanner's own gaps.
 
 The severity scale keeps its hues and gains chroma in the tints, so a pill reads
 at a glance in a dense row. Measured with the sRGB contrast formula against the
@@ -7728,6 +7733,77 @@ a target box greys 180ms after the last route to it.
 - **Reduced motion lands everything at once.** The media query in `index.css`
   shortens durations but not delays, so the delays themselves are zeroed when
   `usePrefersReducedMotion` says so. `SEQUENCED_CUT` switches the stagger off.
+
+## 147. What every request passes through, and a consent link redeemed once
+
+PR #7 hardened the API alongside the redesign. None of it changes what a
+customer sees when things go right; all of it changes what a stranger can do
+when they go wrong.
+
+**A signed token names what it is for, and the signer checks it.**
+`sign_state` stamps a `Purpose` (consent, template, event feed) and
+`verify_state` demands one, both as keyword arguments with no default. The three
+kinds share a secret and differ only by that field, so a caller that skipped the
+check would accept the wrong kind -- and one of three did, the consent callback,
+which is the one that binds a tenant. The purpose strings are wire format inside
+webhook URLs customers already hold, so they never change.
+
+**A consent link is redeemable once.** It is a bearer credential travelling to
+an administrator who may hold no account, so it carries a nonce whose
+counterpart is on the connection row (`consent_nonce`, migration 0041).
+
+- While it is live, polling reissues the *same* link, so the copy already sent
+  keeps working; a new one is minted only when none is live.
+- The callback spends the nonce in a commit of its own, before any provider
+  call, so a refused rebind or a directory timeout cannot roll the spend back
+  and hand the link to whoever else holds it.
+- The row is read `FOR UPDATE`. Without the lock, two callbacks with one link
+  both read the nonce live, both passed and both bound a tenant -- the second
+  before the first had written its tenant, so the rebind refusal missed it.
+- A connection bound to a tenant is never repointed by a callback; that is a
+  delete and reconnect.
+- The link is returned only to a caller who may administer the connection.
+
+**Every request passes four layers, in an order that is load-bearing**
+(`core/middleware.py`, ordered in `main.py`): the body-size limit innermost,
+then the unhandled-error handler and the rate limit inside CORS so a browser can
+read their refusals, and security headers outermost so every response carries
+them.
+
+- **Body size**: 1 MiB, from `Content-Length` and then counted as it arrives,
+  because a chunked body declares nothing. The webhook is why: unauthenticated
+  and parsed with `request.json()`.
+- **Rate limit**: a fixed window counted in Redis, not in the process, since a
+  per-instance counter hands out its allowance per instance. The smaller
+  ceiling is chosen by *path* -- the routes open by design -- never by the
+  presence of an `Authorization` header, which nothing has verified yet. The
+  caller is the `X-Forwarded-For` entry `trusted_proxy_hops` from the right, the
+  one the platform wrote. It fails open: an abuse control is not worth an
+  outage.
+- **Headers**: a CSP of `default-src 'none'` (the API serves JSON and one
+  self-contained HTML report), `nosniff`, `DENY`, no referrer. HSTS only when
+  the caller's connection was HTTPS -- judged from the proxy's own
+  `X-Forwarded-Proto` when a proxy is configured, because Railway ends TLS and
+  forwards plain HTTP, and uvicorn trusts forwarded headers only from
+  127.0.0.1. On the scheme alone HSTS was never sent in production.
+- `/health` answers `ok` and nothing else; which environment a deployment is
+  was a field any stranger could read.
+
+**Around it**: the API image runs as an unprivileged user with the compiler
+purged from its layer. CI refuses a drifted `openapi.json` or `RULE_CATALOG.md`,
+headers that differ between the two `vercel.json` files (Vercel reads whichever
+matches its root directory, and one of them used to carry none), npm advisories
+of high or above, and any Python advisory not on a named triage list -- a list
+that should only get shorter (`docs/SECURITY_AUDIT_2026-09.md` §6).
+
+**The rename reaches sentences, not names.** Every message the API writes for a
+person says Cleave. What exists by name in a customer's cloud keeps CloudGuard:
+the Azure scanner role and its description, the AWS stack, role and policies,
+generated Azure Policy definitions, the change-event resources, and the Entra
+app registration with its service principal -- a customer told to find
+"Cleave" in their portal would find nothing, and renaming a deployed role is a
+migration, not a copy change. This is §78's line between identifiers and
+sentences, applied to the product's own name.
 
 ## Open items carried forward
 

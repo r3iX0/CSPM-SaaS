@@ -177,10 +177,10 @@ class AzureOnboarding(ProviderOnboarding):
 
         total = len(auth.REQUIRED_GRAPH_PERMISSIONS)
         if len(absent) == total:
-            scale = f"any of the {total} directory permissions CloudGuard needs"
+            scale = f"any of the {total} directory permissions Cleave needs"
         else:
             scale = (
-                f"{len(absent)} of the {total} directory permissions CloudGuard needs"
+                f"{len(absent)} of the {total} directory permissions Cleave needs"
             )
         return (
             f"{GRANT_INCOMPLETE_PREFIX} {scale}: {', '.join(absent)}. Subscription "
@@ -231,10 +231,10 @@ class AzureOnboarding(ProviderOnboarding):
                 return PrincipalLookup(
                     ready=False,
                     problem=(
-                        "Microsoft Graph refused this lookup. CloudGuard's own app "
+                        "Microsoft Graph refused this lookup. Cleave's own app "
                         "registration is most likely missing its API permissions, so "
                         "admin consent had nothing to grant. This is a setup step on "
-                        "CloudGuard's side (AZURE_INTEGRATION.md §2.1)."
+                        "Cleave's side (AZURE_INTEGRATION.md §2.1)."
                     ),
                 )
             return PrincipalLookup(
@@ -257,7 +257,7 @@ class AzureOnboarding(ProviderOnboarding):
         return PrincipalLookup(
             ready=False,
             problem=(
-                "Admin consent completed, but CloudGuard's service principal is not "
+                "Admin consent completed, but Cleave's service principal is not "
                 "visible in this directory yet. Entra can take a minute to publish it."
             ),
         )
@@ -407,7 +407,7 @@ class AzureOnboarding(ProviderOnboarding):
         if not self.grant_is_behind(connection):
             return {}
         explanation = (
-            f"CloudGuard's scanner role was updated to {ROLE_VERSION} and this "
+            f"Cleave's scanner role was updated to {ROLE_VERSION} and this "
             f"connection still has {connection.role_version}, which does not grant "
             "the permissions these checks need. Redeploy the role from the "
             "connection page to enable them."
@@ -502,7 +502,7 @@ class AzureOnboarding(ProviderOnboarding):
             steps.append(
                 {
                     "title": "Remove the scanner role assignment",
-                    "detail": "Ends CloudGuard's ability to read Azure resources.",
+                    "detail": "Ends Cleave's ability to read Azure resources.",
                     "command": (
                         f"az role assignment delete --assignee {principal} "
                         f"--scope {scope}"
@@ -521,7 +521,7 @@ class AzureOnboarding(ProviderOnboarding):
         if principal:
             steps.append(
                 {
-                    "title": "Remove CloudGuard from your directory",
+                    "title": "Remove Cleave from your directory",
                     "detail": (
                         "Withdraws admin consent by deleting the enterprise "
                         "application, ending directory access as well."
@@ -538,9 +538,9 @@ class AzureOnboarding(ProviderOnboarding):
             "steps": steps,
             # Stated plainly so nobody expects a button that cannot exist.
             "why_manual": (
-                "CloudGuard holds read-only access and no write permission of any "
+                "Cleave holds read-only access and no write permission of any "
                 "kind, so it cannot remove its own access. These run under your "
-                "credentials, not CloudGuard's."
+                "credentials, not Cleave's."
             ),
             "portal_url": (
                 "https://portal.azure.com/#view/Microsoft_AAD_IAM/"

@@ -94,7 +94,7 @@ CIS_AZURE = Framework(
     ),
     scope_note=(
         "Every recommendation in the published benchmark, leaf by leaf. Controls "
-        "without a CloudGuard check behind them are listed so the gap is visible "
+        "without a Cleave check behind them are listed so the gap is visible "
         "rather than absent, and the few that describe a review process rather "
         "than a setting are marked as beyond what a scanner can observe."
     ),
@@ -570,7 +570,7 @@ NIST_CSF = Framework(
         "as a common vocabulary when an organization already reports against it."
     ),
     scope_note=(
-        "The Protect and Detect subcategories CloudGuard's rules speak to. The "
+        "The Protect and Detect subcategories Cleave's rules speak to. The "
         "Identify, Respond and Recover functions are largely organizational."
     ),
     controls=(
@@ -914,7 +914,7 @@ PCI_DSS = Framework(
         "and can lose the ability to take payments."
     ),
     scope_note=(
-        "PCI applies to the cardholder data environment, and CloudGuard does "
+        "PCI applies to the cardholder data environment, and Cleave does "
         "not know which of your resources are in it. That is the caveat that "
         "matters most on this page. Scope is a decision a QSA makes with you "
         "about network segmentation, data flows and where card data actually "
@@ -1077,7 +1077,7 @@ CIS_AWS = Framework(
     scope_note=(
         "A subset of the published benchmark: the controls a read-only posture "
         "scanner could reach, plus the account-level ones it cannot. Controls "
-        "listed without a CloudGuard check behind them are shown so the gap is "
+        "listed without a Cleave check behind them are shown so the gap is "
         "visible rather than absent -- a catalogue of only what this product "
         "checks would report full coverage for ever, which is the same class of "
         "misleading number the coverage ledger exists to prevent."

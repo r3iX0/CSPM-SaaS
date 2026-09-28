@@ -151,7 +151,7 @@ class AwsSecurityHubRule(_RegionalServiceRule):
         expected=(),
         cli=("aws securityhub enable-security-hub --region <region>",),
         notes=(
-            "CloudGuard reads whether the hub exists, not what it holds: it "
+            "Cleave reads whether the hub exists, not what it holds: it "
             "reaches its own verdicts rather than re-reporting somebody else's."
         ),
     )

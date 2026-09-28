@@ -782,7 +782,7 @@ class AwsSupportRoleRule(SecurityRule):
         "    --assume-role-policy-document file://trust.json\n"
         "  aws iam attach-role-policy --role-name AWSSupportAccess \\\n"
         "    --policy-arn arn:aws:iam::aws:policy/AWSSupportAccess\n\n"
-        "Confirm it took, which is also how CloudGuard checks it:\n"
+        "Confirm it took, which is also how Cleave checks it:\n"
         "  aws iam list-entities-for-policy "
         "--policy-arn arn:aws:iam::aws:policy/AWSSupportAccess\n\n"
         "The policy grants support-case management and nothing else — it reads "

@@ -260,7 +260,7 @@ class TokenProvider:
     def __init__(self, tenant_id: str) -> None:
         if not settings.azure_configured:
             raise NotConfigured(
-                "CloudGuard's Azure application identity is not configured on this server"
+                "Cleave's Azure application identity is not configured on this server"
             )
         self.tenant_id = tenant_id
         self._cache: dict[str, AccessToken] = {}

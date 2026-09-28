@@ -400,7 +400,7 @@ class AzureAppServiceIdentityRule(SecurityRule):
     rationale = (
         "A managed identity is the difference between a connection string in an app "
         "setting and no secret at all. It is Low because an app that calls nothing "
-        "needs no identity, and CloudGuard cannot see what the app calls -- but an app "
+        "needs no identity, and Cleave cannot see what the app calls -- but an app "
         "that calls anything and has none is holding a credential somewhere."
     )
     remediation = (

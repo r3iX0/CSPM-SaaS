@@ -321,7 +321,7 @@ async def estate(
     routes = graph.attack_paths()
     mapped = estate_map(graph, placements.of, Lens(subscription_id, resource_group), routes)
     if mapped is None:
-        raise NotFound("Nothing CloudGuard holds sits there")
+        raise NotFound("Nothing Cleave holds sits there")
 
     findings = await graph_service.open_findings(session, tenant.organization_id, None)
     return envelope(

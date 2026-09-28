@@ -399,7 +399,7 @@ class ScanPipeline:
             if account is None:
                 raise CollectionUnavailable(
                     f"This {scope_words.account} is no longer connected to "
-                    "CloudGuard."
+                    "Cleave."
                 )
 
             await collect_account(

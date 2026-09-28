@@ -86,7 +86,7 @@ class _DefenderRule(SecurityRule):
         ),
         notes=(
             "No expected state and no policy. What has to change is on the machine "
-            "-- a patch applied, an agent installed -- and CloudGuard reads neither "
+            "-- a patch applied, an agent installed -- and Cleave reads neither "
             "directly: it reads what Defender concluded. The command lists the open "
             "assessments so the finding can be followed back to Defender, which is "
             "where the remediation actually happens."
@@ -132,7 +132,7 @@ class AzureExposedVulnerableMachineRule(_DefenderRule):
         "This is the pairing that turns a patch backlog into an incident. A "
         "vulnerable machine behind a private network is work to schedule; the same "
         "machine with a public address is work that was already due. Defender "
-        "reports the vulnerability and CloudGuard supplies the half Defender does "
+        "reports the vulnerability and Cleave supplies the half Defender does "
         "not weigh -- whether anything outside can reach it."
     )
     remediation = (
@@ -223,7 +223,7 @@ class AzureMissingEndpointProtectionRule(_DefenderRule):
     applies_to: ClassVar[list[ResourceType]] = [ResourceType.VIRTUAL_MACHINE]
     estimated_effort_minutes = 60
     rationale = (
-        "Every framework that mentions malware wants this and CloudGuard could "
+        "Every framework that mentions malware wants this and Cleave could "
         "not answer it: nothing in an ARM configuration says whether an agent is "
         "installed and healthy, and only the machine knows. Defender does, so "
         "this is the check that turns four uncoverable controls -- NIST SI-2, "

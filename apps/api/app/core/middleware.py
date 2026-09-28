@@ -68,7 +68,7 @@ class SecurityHeadersMiddleware:
             await self.app(scope, receive, send)
             return
 
-        secure = scope.get("scheme") == "https"
+        secure = arrived_over_https(scope)
 
         async def stamped(message: Message) -> None:
             if message["type"] == "http.response.start":
@@ -83,6 +83,31 @@ class SecurityHeadersMiddleware:
             await send(message)
 
         await self.app(scope, receive, stamped)
+
+
+def arrived_over_https(scope: Scope) -> bool:
+    """Whether the caller's connection was HTTPS, wherever TLS ended.
+
+    Not simply the ASGI scheme. Railway terminates TLS and forwards plain HTTP,
+    and uvicorn only rewrites the scheme from ``X-Forwarded-Proto`` for proxies
+    in ``--forwarded-allow-ips`` -- by default 127.0.0.1, which Railway's proxy
+    is not. So behind the platform every request reads as ``http`` and HSTS was
+    never sent.
+
+    The header is believed on the same terms as ``X-Forwarded-For`` in
+    :func:`client_address`: only with a proxy configured, and only its last
+    entry, the one that proxy wrote. A caller who forges it gains nothing -- the
+    worst it buys is an HSTS header over a plain connection, which browsers
+    ignore there.
+    """
+    if scope.get("scheme") == "https":
+        return True
+    if settings.trusted_proxy_hops <= 0:
+        return False
+    forwarded = Headers(scope=scope).get("x-forwarded-proto")
+    if not forwarded:
+        return False
+    return forwarded.split(",")[-1].strip().lower() == "https"
 
 
 class RequestSizeLimitMiddleware:
@@ -364,6 +389,7 @@ __all__ = [
     "RateLimitMiddleware",
     "RequestSizeLimitMiddleware",
     "SecurityHeadersMiddleware",
+    "arrived_over_https",
     "client_address",
     "is_open_route",
 ]

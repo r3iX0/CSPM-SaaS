@@ -317,7 +317,7 @@ Azure CLI:
 
 **Description**: An App Service app has no managed identity, so anything it calls -- a database, a storage account, a key vault -- has to be reached with a secret stored in the app's settings.
 
-**Rationale**: A managed identity is the difference between a connection string in an app setting and no secret at all. It is Low because an app that calls nothing needs no identity, and CloudGuard cannot see what the app calls -- but an app that calls anything and has none is holding a credential somewhere.
+**Rationale**: A managed identity is the difference between a connection string in an app setting and no secret at all. It is Low because an app that calls nothing needs no identity, and Cleave cannot see what the app calls -- but an app that calls anything and has none is holding a credential somewhere.
 
 **Remediation**:
 ```bash
@@ -567,7 +567,7 @@ Azure CLI:
 
 **Description**: A service principal or managed identity holds Owner or Contributor over an entire subscription. A workload identity has no session to expire and no person to notice it being used, so its permissions are exactly what an attacker inherits by compromising whatever runs as it.
 
-**Rationale**: This is the second half of nearly every cloud attack path CloudGuard finds: reach a workload, inherit its identity, act everywhere that identity can act. A deployment pipeline that needs to write to three resource groups does not need the subscription, and the difference is the entire blast radius.
+**Rationale**: This is the second half of nearly every cloud attack path Cleave finds: reach a workload, inherit its identity, act everywhere that identity can act. A deployment pipeline that needs to write to three resource groups does not need the subscription, and the difference is the entire blast radius.
 
 **Remediation**:
 ```bash
@@ -1159,7 +1159,7 @@ Each plan is billed per protected resource. Check the pricing page before enabli
 
 **Description**: Microsoft Defender for Cloud reports that this machine has no endpoint protection installed, or that what is installed is not reporting healthy.
 
-**Rationale**: Every framework that mentions malware wants this and CloudGuard could not answer it: nothing in an ARM configuration says whether an agent is installed and healthy, and only the machine knows. Defender does, so this is the check that turns four uncoverable controls -- NIST SI-2, SOC 2 CC6.8, PCI 5.2.1 among them -- into ones with evidence behind them.
+**Rationale**: Every framework that mentions malware wants this and Cleave could not answer it: nothing in an ARM configuration says whether an agent is installed and healthy, and only the machine knows. Defender does, so this is the check that turns four uncoverable controls -- NIST SI-2, SOC 2 CC6.8, PCI 5.2.1 among them -- into ones with evidence behind them.
 
 **Remediation**:
 ```bash
@@ -1177,7 +1177,7 @@ Azure Portal: Defender for Cloud > Recommendations > 'Endpoint protection should
 
 **Description**: Microsoft Defender for Cloud reports unremediated vulnerabilities on a machine that also answers the internet. Either fact is ordinary on its own; together they are a host an attacker can reach and a way in once they have.
 
-**Rationale**: This is the pairing that turns a patch backlog into an incident. A vulnerable machine behind a private network is work to schedule; the same machine with a public address is work that was already due. Defender reports the vulnerability and CloudGuard supplies the half Defender does not weigh -- whether anything outside can reach it.
+**Rationale**: This is the pairing that turns a patch backlog into an incident. A vulnerable machine behind a private network is work to schedule; the same machine with a public address is work that was already due. Defender reports the vulnerability and Cleave supplies the half Defender does not weigh -- whether anything outside can reach it.
 
 **Remediation**:
 ```bash
@@ -1457,7 +1457,7 @@ Attach AWS's own managed policy to whoever handles incidents. A role your respon
   aws iam attach-role-policy --role-name AWSSupportAccess \
     --policy-arn arn:aws:iam::aws:policy/AWSSupportAccess
 
-Confirm it took, which is also how CloudGuard checks it:
+Confirm it took, which is also how Cleave checks it:
   aws iam list-entities-for-policy --policy-arn arn:aws:iam::aws:policy/AWSSupportAccess
 
 The policy grants support-case management and nothing else — it reads and writes cases, and touches no resource in the account.
@@ -2004,7 +2004,7 @@ The `--alarm-actions` is not optional. An alarm with no action changes a colour 
 
 **Description**: No CloudWatch alarm fires on failed console sign-ins. One is somebody mistyping a password; several hundred against one account is a password spray, and the two look identical until somebody counts.
 
-**Rationale**: Lowest of the thirteen, and deliberately: a password policy and enforced MFA are preventive, this is only detective, and CloudGuard checks both of those separately. It still earns its place — a spray that eventually succeeds produces a *successful* sign-in nothing else distinguishes from a Monday morning.
+**Rationale**: Lowest of the thirteen, and deliberately: a password policy and enforced MFA are preventive, this is only detective, and Cleave checks both of those separately. It still earns its place — a spray that eventually succeeds produces a *successful* sign-in nothing else distinguishes from a Monday morning.
 
 **Remediation**:
 ```bash
@@ -2256,7 +2256,7 @@ The `--alarm-actions` is not optional. An alarm with no action changes a colour 
 
 **Description**: No CloudWatch alarm fires when an organization's structure or its policies change. A service control policy is the one boundary an account's own administrator cannot argue with, and detaching one is a single call.
 
-**Rationale**: Everything CloudGuard checks in a member account is checked under the assumption that the organization above it still constrains that account. `LeaveOrganization` and `DetachPolicy` end that assumption without changing anything inside the account, so no other check in this product would notice.
+**Rationale**: Everything Cleave checks in a member account is checked under the assumption that the organization above it still constrains that account. `LeaveOrganization` and `DetachPolicy` end that assumption without changing anything inside the account, so no other check in this product would notice.
 
 **Remediation**:
 ```bash

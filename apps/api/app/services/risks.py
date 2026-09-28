@@ -72,7 +72,7 @@ async def set_status(
     if status == RiskStatus.RESOLVED:
         raise ValidationFailed(
             "Risks cannot be marked resolved by hand. Fix the issue and run a "
-            "rescan — CloudGuard resolves it once a scan confirms the fix."
+            "rescan — Cleave resolves it once a scan confirms the fix."
         )
     if status == RiskStatus.ACCEPTED and not reason:
         raise ValidationFailed("Accepting a risk needs a reason")

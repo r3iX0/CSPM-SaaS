@@ -101,7 +101,7 @@ class AzureConnector(CloudConnector):
         if absent:
             check.problems.append(
                 f"Admin consent in this tenant did not grant {len(absent)} of the "
-                f"{len(REQUIRED_GRAPH_PERMISSIONS)} directory permissions CloudGuard "
+                f"{len(REQUIRED_GRAPH_PERMISSIONS)} directory permissions Cleave "
                 f"needs: {', '.join(absent)}. Add them to the CloudGuard app "
                 "registration as application permissions, then re-run admin consent "
                 "-- consent covers only what the registration declared at the moment "
@@ -114,7 +114,7 @@ class AzureConnector(CloudConnector):
                     await probe(graph)
                 except Exception as exc:
                     check.problems.append(
-                        f"CloudGuard cannot read {subject}. Grant {permission} as an "
+                        f"Cleave cannot read {subject}. Grant {permission} as an "
                         "application permission on the app registration, then re-run "
                         "admin consent for this tenant. Consent covers the permissions "
                         "configured at the moment it is granted, so a permission added "
@@ -140,7 +140,7 @@ class AzureConnector(CloudConnector):
                     )
                 elif self.subscription_id and self.subscription_id not in visible:
                     check.problems.append(
-                        f"Subscription {self.subscription_id} is not visible to CloudGuard. "
+                        f"Subscription {self.subscription_id} is not visible to Cleave. "
                         "Check that the Reader role is assigned on that subscription."
                     )
                 else:
@@ -173,7 +173,7 @@ class AzureConnector(CloudConnector):
                     await resource_graph.probe_inventory(check.subscription_id)
                 except Exception as exc:
                     check.notes.append(
-                        "Resource inventory cannot be collected: CloudGuard's "
+                        "Resource inventory cannot be collected: Cleave's "
                         "scanner role on this scope does not allow Azure Resource "
                         "Graph queries. Redeploy the role from the connection page "
                         "-- a role deployed before inventory moved to Resource "

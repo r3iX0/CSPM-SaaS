@@ -88,6 +88,32 @@ async def test_hsts_is_sent_only_over_https() -> None:
         assert "Strict-Transport-Security" not in (await plain.get("/thing")).headers
 
 
+async def test_hsts_is_sent_behind_a_proxy_that_ended_tls(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Railway forwards plain HTTP, so the scheme alone never says https.
+
+    The proxy's own ``X-Forwarded-Proto`` does -- the last entry, the one it
+    wrote, and only while a proxy is configured.
+    """
+    app = app_with((SecurityHeadersMiddleware, {}))
+    monkeypatch.setattr(mw.settings, "trusted_proxy_hops", 1)
+
+    async with client_for(app, base="http://api.example.com") as proxied:
+        response = await proxied.get("/thing", headers={"X-Forwarded-Proto": "https"})
+        assert "Strict-Transport-Security" in response.headers
+
+        forged_left = await proxied.get(
+            "/thing", headers={"X-Forwarded-Proto": "https, http"}
+        )
+        assert "Strict-Transport-Security" not in forged_left.headers
+
+    monkeypatch.setattr(mw.settings, "trusted_proxy_hops", 0)
+    async with client_for(app, base="http://api.example.com") as direct:
+        response = await direct.get("/thing", headers={"X-Forwarded-Proto": "https"})
+        assert "Strict-Transport-Security" not in response.headers
+
+
 async def test_an_error_response_is_stamped_too() -> None:
     """The headers matter most on the responses nobody wrote by hand."""
     app = app_with((SecurityHeadersMiddleware, {}))

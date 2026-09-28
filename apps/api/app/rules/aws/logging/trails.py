@@ -920,7 +920,7 @@ class AwsUnauthorizedApiMonitoringRule(_MonitoredEventRule):
             "--evaluation-periods 1 --alarm-actions <sns-topic-arn>",
         ),
         notes=(
-            "CloudGuard checks that the filter names the fields this event is "
+            "Cleave checks that the filter names the fields this event is "
             "about and that an alarm with an action watches the metric it "
             "publishes. It does not evaluate CloudWatch's filter-pattern "
             "language: the matched pattern is shown in the finding so it can be "
@@ -1038,7 +1038,7 @@ _PUT_ALARM = (
     "--evaluation-periods 1 --alarm-actions <sns-topic-arn>"
 )
 _SPEC_NOTES = (
-    "CloudGuard checks that a filter on the trail's log group names the fields "
+    "Cleave checks that a filter on the trail's log group names the fields "
     "this event is about, and that an alarm with an action watches the metric "
     "that filter publishes. It does not evaluate CloudWatch's filter-pattern "
     "language: the matched pattern is shown in the finding so it can be read "
@@ -1256,7 +1256,7 @@ class AwsConsoleAuthFailureMonitoringRule(_MonitoredEventRule):
     estimated_effort_minutes = 30
     rationale = (
         "Lowest of the thirteen, and deliberately: a password policy and "
-        "enforced MFA are preventive, this is only detective, and CloudGuard "
+        "enforced MFA are preventive, this is only detective, and Cleave "
         "checks both of those separately. It still earns its place — a spray "
         "that eventually succeeds produces a *successful* sign-in nothing else "
         "distinguishes from a Monday morning."
@@ -1681,7 +1681,7 @@ class AwsOrganizationsChangeMonitoringRule(_MonitoredEventRule):
     )
     estimated_effort_minutes = 30
     rationale = (
-        "Everything CloudGuard checks in a member account is checked under the "
+        "Everything Cleave checks in a member account is checked under the "
         "assumption that the organization above it still constrains that "
         "account. `LeaveOrganization` and `DetachPolicy` end that assumption "
         "without changing anything inside the account, so no other check in this "

@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "CloudGuard API",
+    "title": "Cleave API",
     "description": "Azure-first Cloud Security Posture Management.",
     "version": "0.1.0"
   },
