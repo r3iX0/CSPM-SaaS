@@ -2,17 +2,16 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
-import type { Scan, ScanDetail, WorkerStatus } from "@/lib/types";
+import type { Scan, WorkerStatus } from "@/lib/types";
 import { useT } from "@/i18n";
 import { StatusPill } from "@/components/security/StatusPill";
-import { ScanProgress } from "@/components/scans/ScanProgress";
-import { ScanDetailPanel } from "@/components/scans/ScanDetailPanel";
+import { useScanWizard } from "@/components/scans/ScanWizardProvider";
 import { DeleteScanConfirm } from "@/components/scans/DeleteScanConfirm";
 import { Button } from "@/components/ui/button";
 import { IN_FLIGHT } from "@/components/scans/status";
 import { useIsDemo } from "@/lib/useDemo";
-import { cn, formatDateTime, formatRelative, label } from "@/lib/format";
-import { ChevronDownIcon, RotateCcwIcon, Trash2Icon } from "lucide-react";
+import { formatDateTime, formatRelative, formatSeconds } from "@/lib/format";
+import { RotateCcwIcon, Trash2Icon } from "lucide-react";
 
 /**
  * The statuses that guarantee a stored snapshot to re-evaluate.
@@ -25,20 +24,22 @@ import { ChevronDownIcon, RotateCcwIcon, Trash2Icon } from "lucide-react";
  */
 const REPLAYABLE = ["COMPLETED", "PARTIAL"];
 
-/** One run: what it found, what it could not read, and what can be done to it. */
+/**
+ * One run: what it found, what it could not read, and what can be done to it.
+ *
+ * Watching a run, stopping it and reading its steps are the scan wizard's: the
+ * row opens it on this scan. The row once carried its own smaller live view,
+ * polled on its own clock, and the two drew the same scan differently
+ * (DECISIONS.md §154).
+ */
 export function ScanCard({ scan }: { scan: Scan }) {
   const t = useT();
   const queryClient = useQueryClient();
+  const wizard = useScanWizard();
   const running = IN_FLIGHT.includes(scan.status);
 
-  const [open, setOpen] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [replayError, setReplayError] = useState<string | null>(null);
-
-  const cancel = useMutation({
-    mutationFn: () => api.post<Scan>(`/api/v1/scans/${scan.id}/cancel`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["scans"] }),
-  });
 
   const replay = useMutation({
     mutationFn: () => api.post<Scan>(`/api/v1/scans/${scan.id}/replay`),
@@ -98,7 +99,7 @@ export function ScanCard({ scan }: { scan: Scan }) {
 
         <dl className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
           {scan.duration_seconds != null && (
-            <Stat label={t.scans.duration} value={formatDuration(scan.duration_seconds)} />
+            <Stat label={t.scans.duration} value={formatSeconds(scan.duration_seconds)} />
           )}
           <Stat label={t.scans.resources} value={scan.resource_count} />
           <Stat label={t.scans.rules} value={scan.rule_count} />
@@ -113,16 +114,6 @@ export function ScanCard({ scan }: { scan: Scan }) {
             -- read by assistive tech and shown on hover -- rather than a
             paragraph printed under every run in the history. */}
         <div className="flex items-center justify-end gap-1 sm:w-64">
-          {running && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => cancel.mutate()}
-              disabled={cancel.isPending}
-            >
-              {cancel.isPending ? t.scans.cancelling : t.scans.cancel}
-            </Button>
-          )}
           {/* Offered on any run that stored a capture, including a replay --
               the endpoint resolves that back to the scan that collected, so
               re-evaluating twice is the ordinary thing a reader expects and
@@ -146,17 +137,11 @@ export function ScanCard({ scan }: { scan: Scan }) {
             </>
           )}
           <Button
-            variant="ghost"
+            variant={running ? "secondary" : "ghost"}
             size="sm"
-            aria-expanded={open}
-            onClick={() => setOpen((v) => !v)}
+            onClick={() => wizard.watch(scan.id)}
           >
-            {open ? t.scans.hideDetails : t.scans.details}
-            <ChevronDownIcon
-              data-icon="inline-end"
-              aria-hidden
-              className={cn("transition-transform", open && "rotate-180")}
-            />
+            {running ? t.scans.watch : t.scans.open}
           </Button>
           {!running && !isDemo && (
             <Button
@@ -172,12 +157,6 @@ export function ScanCard({ scan }: { scan: Scan }) {
           )}
         </div>
       </div>
-
-      {running && (
-        <div className="mt-3">
-          <LiveProgress scanId={scan.id} status={scan.status} />
-        </div>
-      )}
 
       {/* What a replay's numbers are allowed to mean. The two cases differ
           in the only way that matters -- whether any finding moved -- and a
@@ -203,8 +182,8 @@ export function ScanCard({ scan }: { scan: Scan }) {
         </div>
       )}
 
-      {/* Queued far longer than a worker takes to collect one. The progress
-          bar above keeps implying imminent work, so the reason has to say
+      {/* Queued far longer than a worker takes to collect one. A status of
+          "Queued" keeps implying imminent work, so the reason has to say
           otherwise -- this is almost always no worker running at all. */}
       {scan.stuck_in_queue && <StuckNote />}
 
@@ -252,7 +231,7 @@ export function ScanCard({ scan }: { scan: Scan }) {
       {/* A summary, not the full text of every failure. The reasons are
           sentences long and there is one per subscription per category, which
           on a tenant-wide scan turns the row into a wall nobody reads. The
-          structured breakdown lives in Details. */}
+          structured breakdown is the wizard's Details tab. */}
       {Object.keys(scan.collection_errors).length > 0 && (
         <div className="mt-3 rounded-lg border border-medium-border bg-medium-bg px-3 py-2">
           <p className="text-xs font-medium text-medium">{t.scans.partial}</p>
@@ -274,41 +253,6 @@ export function ScanCard({ scan }: { scan: Scan }) {
         </div>
       )}
 
-      {open && (
-        <div className="mt-3">
-          <ScanDetailPanel scanId={scan.id} />
-        </div>
-      )}
-    </div>
-  );
-}
-
-/**
- * Progress, read from the steps the scan is actually made of.
- *
- * Polled separately from the scan list and only while something is running. The
- * list refetches every two seconds to keep a status current; this reads a
- * second endpoint per open scan, and doing that for a page of finished scans
- * would be a request per card per tick for information that cannot change.
- */
-function LiveProgress({ scanId, status }: { scanId: string; status: string }) {
-  const detail = useQuery({
-    queryKey: ["scan-detail", scanId],
-    queryFn: () => api.get<ScanDetail>(`/api/v1/scans/${scanId}/detail`).then((r) => r.data),
-    refetchInterval: 3000,
-  });
-
-  const stages = detail.data?.stages ?? [];
-
-  return (
-    <div className="rounded-lg border bg-muted/30 p-3">
-      {stages.length > 0 ? (
-        <ScanProgress stages={stages} />
-      ) : (
-        // Before PLAN has claimed anything there are no steps to show, and the
-        // status is the only honest thing to say.
-        <p className="text-xs text-muted-foreground">{label(status)}</p>
-      )}
     </div>
   );
 }
@@ -355,14 +299,6 @@ function Stat({ label: text, value }: { label: string; value: number | string })
       <dd className="font-medium tabular-nums text-foreground">{value}</dd>
     </div>
   );
-}
-
-/** Human duration. Minutes and seconds, because scans are minutes-long. */
-function formatDuration(seconds: number): string {
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  const rest = seconds % 60;
-  return `${minutes}m ${String(rest).padStart(2, "0")}s`;
 }
 
 /** The first sentence of a multi-sentence remedy, for the summary line. */

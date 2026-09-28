@@ -867,9 +867,10 @@ export const en = {
     resources: "Resources",
     rules: "Rules run",
     findings: "Findings",
-    cancel: "Cancel scan",
-    details: "Details",
-    hideDetails: "Hide details",
+    // A row opens the scan wizard on its scan: live while it runs, its result
+    // once it has finished.
+    watch: "Watch",
+    open: "Open",
     history: "History",
     duration: "Duration",
     startedAt: "Started",
@@ -882,7 +883,6 @@ export const en = {
     // "Scheduled": somebody did ask for this one, and we no longer
     // know who.
     manualUnknownUser: "Started by hand",
-    breakdown: "Open findings from this scan",
     deleteScan: "Delete",
     deleting: "Deleting\u2026",
     deleteTitle: "Delete this scan record?",
@@ -896,7 +896,6 @@ export const en = {
     deleteWithFindings: "Delete record and its unresolved findings",
     deleteWithFindingsDetail:
       "Also deletes the unresolved findings this scan last detected. Verified fixes are never deleted \u2014 each one is the evidence a remediation worked.",
-    cancelling: "Cancelling\u2026",
     // Replay. Every scan stores the provider's own JSON before interpreting
     // it, so a rule written after that scan ran can still be applied to it --
     // and doing so costs nothing in the customer's cloud.
@@ -920,7 +919,7 @@ export const en = {
       "A scan is collected by Cleave's worker within seconds of being queued. Minutes of silence means no worker is running \u2014 check that the Celery worker service is deployed and can reach Redis.",
     nothingFound: "No resources were found here",
     nothingFoundHelp:
-      "Every resource category Cleave reads returned successfully and was empty, so there is nothing here to assess. If that is unexpected, check in Details what this scan covered \u2014 a connection discovers everything it can see, including empty environments.",
+      "Every resource category Cleave reads returned successfully and was empty, so there is nothing here to assess. If that is unexpected, open the scan and check in Details what it covered \u2014 a connection discovers everything it can see, including empty environments.",
     nothingFoundPartial:
       "Nothing was assessed, and some categories could not be read at all \u2014 see the gaps below. A category that failed is not the same as a category that was empty.",
     supportsOne: "1 finding rests on this",

@@ -1,27 +1,19 @@
-import { useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { m } from "motion/react";
 import { CheckIcon, MinusIcon, XIcon } from "lucide-react";
 
-import { api } from "@/lib/api";
 import type { Scan, ScanDetail, ScanStage } from "@/lib/types";
 import { cn, formatSeconds, label } from "@/lib/format";
 import { DURATION, EASE_OUT, fadeUp, useCountUp } from "@/lib/motion";
 import { IN_FLIGHT } from "@/components/scans/status";
-import { useScanEvents } from "@/lib/scanEvents";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 
 type Phase = Exclude<ScanStage["stage"], "ASSESS">;
@@ -68,7 +60,7 @@ function stepsOf(stages: ScanStage[], phase: Phase): ScanStage[] {
 const SEVERITY_ORDER = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN"];
 
 /**
- * A scan, as it runs and as it ended.
+ * A scan's steps, as it runs and as it ended.
  *
  * Everything that moves here moves because the API said something changed.
  * There is no percentage invented from elapsed time and no sub-phase the
@@ -78,87 +70,24 @@ const SEVERITY_ORDER = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN"];
  * seams. A progress bar that advances on a timer is a claim about work nobody
  * measured.
  *
- * Pushed over `GET /scans/{id}/events` while that stream is live, and polled
- * whenever it is not -- the two write the same query, so which one delivered a
- * state is invisible on screen. Neither runs once the scan has finished. The result replaces the
- * pipeline in place, and the lists that a finished scan changes -- findings,
- * the dashboard -- are invalidated once, when it finishes.
+ * Drawing only: the scan is read and kept current by `useLiveScan`, and the
+ * controls that act on it are the wizard's footer. That is what lets the same
+ * drawing be the live view while a scan runs and the record of its steps in a
+ * finished scan's Details.
  */
-export function ScanPipeline({
-  scanId,
-  onRunAnother,
-  onMinimize,
-}: {
-  scanId: string;
-  onRunAnother: () => void;
-  onMinimize: () => void;
-}) {
-  const queryClient = useQueryClient();
-  const live = useScanEvents(scanId);
-  const detail = useQuery({
-    queryKey: ["scan-detail", scanId],
-    queryFn: () => api.get<ScanDetail>(`/api/v1/scans/${scanId}/detail`).then((r) => r.data),
-    refetchInterval: (query) => {
-      if (live) return false;
-      const status = (query.state.data as ScanDetail | undefined)?.status;
-      return !status || IN_FLIGHT.includes(status) ? 2500 : false;
-    },
-  });
-
-  const scans = useQuery({
-    queryKey: ["scans"],
-    queryFn: () => api.get<Scan[]>("/api/v1/scans").then((r) => r.data),
-  });
-
-  const cancel = useMutation({
-    mutationFn: () => api.post<Scan>(`/api/v1/scans/${scanId}/cancel`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["scan-detail", scanId] }),
-  });
-
-  const data = detail.data;
-  const running = !data || IN_FLIGHT.includes(data.status);
-
-  // Once, on the transition to finished: a scan that ends changes findings,
-  // the score and the scan list, and none of those poll on their own.
-  const settled = useRef(false);
-  useEffect(() => {
-    if (!data || running || settled.current) return;
-    settled.current = true;
-    for (const key of ["scans", "findings", "risks", "dashboard"]) {
-      queryClient.invalidateQueries({ queryKey: [key] });
-    }
-  }, [data, running, queryClient]);
-
-  if (detail.isLoading || !data) {
-    return (
-      <div className="flex flex-col gap-3 py-4">
-        <Skeleton className="h-14 w-full" />
-        <Skeleton className="h-24 w-full" />
-      </div>
-    );
-  }
-
-  const stages = data.stages ?? [];
-  const previous = (scans.data ?? [])
-    .filter(
-      (s) =>
-        s.id !== data.id &&
-        s.connection_id != null &&
-        s.connection_id === data.connection_id &&
-        (s.status === "COMPLETED" || s.status === "PARTIAL") &&
-        s.created_at < data.created_at,
-    )
-    .sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+export function ScanPipeline({ scan }: { scan: ScanDetail }) {
+  const stages = scan.stages ?? [];
+  const running = IN_FLIGHT.includes(scan.status);
 
   return (
-    <div className="flex flex-col gap-5 py-4">
-      <PhaseTrack stages={stages} status={data.status} />
+    <div className="flex flex-col gap-5">
+      <PhaseTrack stages={stages} status={scan.status} />
 
-      <AnalyzeDetail step={stages.find((s) => s.stage === "ANALYZE")} scan={data} />
+      <AnalyzeDetail step={stages.find((s) => s.stage === "ANALYZE")} scan={scan} />
 
       {running && stages.length === 0 && (
         <p className="text-sm text-muted-foreground">
-          {data.stuck_in_queue
+          {scan.stuck_in_queue
             ? "Nothing has picked this scan up yet. That usually means no worker is running."
             : "Queued. A worker picks a scan up within seconds."}
         </p>
@@ -182,24 +111,6 @@ export function ScanPipeline({
             <AlertDescription>{s.error}</AlertDescription>
           </Alert>
         ))}
-
-      {running ? (
-        <div className="flex items-center justify-between gap-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={cancel.isPending}
-            onClick={() => cancel.mutate()}
-          >
-            {cancel.isPending ? "Cancelling…" : "Cancel scan"}
-          </Button>
-          <Button variant="ghost" size="sm" onClick={onMinimize}>
-            Minimize
-          </Button>
-        </div>
-      ) : (
-        <ScanResult scan={data} previous={previous} onRunAnother={onRunAnother} />
-      )}
     </div>
   );
 }
@@ -505,19 +416,20 @@ const OUTCOME: Record<string, { title: string; tone: string; description: string
 /**
  * How the scan ended, and what changed because of it.
  *
+ * The wizard's Result step. Where to go from here -- the findings, another
+ * run -- is the wizard's footer, not a second row of buttons inside the card.
+ *
  * A partial scan ends amber, never green: data came back, and it still cannot
  * support a pass for what it did not read. The comparison is with the last
  * finished scan of the same connection, and is left out rather than guessed
  * when there is none.
  */
-function ScanResult({
+export function ScanResult({
   scan,
   previous,
-  onRunAnother,
 }: {
   scan: ScanDetail;
   previous: Scan | undefined;
-  onRunAnother: () => void;
 }) {
   const outcome = OUTCOME[scan.status] ?? {
     title: label(scan.status),
@@ -587,17 +499,6 @@ function ScanResult({
             </ul>
           )}
         </CardContent>
-        <CardFooter className="flex flex-wrap gap-2">
-          <Link to="/findings" className={buttonVariants({ size: "sm" })}>
-            View findings
-          </Link>
-          <Link to="/scans" className={buttonVariants({ variant: "outline", size: "sm" })}>
-            Scan history
-          </Link>
-          <Button variant="ghost" size="sm" className="ml-auto" onClick={onRunAnother}>
-            Run another
-          </Button>
-        </CardFooter>
       </Card>
     </m.div>
   );

@@ -4,18 +4,18 @@ import { api } from "@/lib/api";
 import type { ScanDetail } from "@/lib/types";
 import { useT } from "@/i18n";
 import { words } from "@/lib/vocabulary";
-import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { ProviderMark } from "@/components/security/ProviderMark";
-import { ScanProgress } from "@/components/scans/ScanProgress";
+import { ScanPipeline } from "@/components/scans/ScanPipeline";
 import { CollectionPanel } from "@/components/scans/CollectionPanel";
 import { Skeleton } from "@/components/ui/skeleton";
-import { label } from "@/lib/format";
 
 /**
- * Scope, identity and severity breakdown for one scan.
+ * What one scan covered, who it read as, and how each of its steps went.
  *
- * Loaded only when opened. The list renders every scan an organization has ever
- * run, and this reads two more tables and aggregates findings per row.
+ * The Details tab of a finished scan in the scan wizard. The severity breakdown
+ * is the Result tab's, so it is not repeated here; the steps are the same
+ * `ScanPipeline` the scan was watched through while it ran, so a lane that
+ * failed reads the same afterwards as it did live.
  */
 export function ScanDetailPanel({ scanId }: { scanId: string }) {
   const t = useT();
@@ -24,15 +24,15 @@ export function ScanDetailPanel({ scanId }: { scanId: string }) {
     queryFn: () => api.get<ScanDetail>(`/api/v1/scans/${scanId}/detail`).then((r) => r.data),
   });
 
-  if (detail.isLoading) return <Skeleton className="mt-3 h-24 w-full" />;
+  if (detail.isLoading) return <Skeleton className="h-24 w-full" />;
   if (!detail.data) return null;
 
-  const { scope, findings_by_severity: severities } = detail.data;
+  const { scope } = detail.data;
   const vocabulary = words(scope.provider);
   const scanned = detail.data.progress_total ?? 0;
 
   return (
-    <div className="mt-3 grid gap-4 rounded-lg border bg-muted/40 px-4 py-3 sm:grid-cols-2">
+    <div className="grid gap-5 sm:grid-cols-2">
       <div>
         <SectionLabel>{t.scans.scope}</SectionLabel>
         <dl className="mt-1.5 flex flex-col gap-1 text-xs">
@@ -82,24 +82,11 @@ export function ScanDetailPanel({ scanId }: { scanId: string }) {
         </dl>
       </div>
 
-      {Object.keys(severities).length > 0 && (
-        <div className="sm:col-span-2">
-          <SectionLabel>{t.scans.breakdown}</SectionLabel>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {Object.entries(severities).map(([severity, count]) => (
-              <SeverityBadge key={severity} level={severity}>
-                {label(severity)} {count}
-              </SeverityBadge>
-            ))}
-          </div>
-        </div>
-      )}
-
       {(detail.data.stages?.length ?? 0) > 0 && (
         <div className="sm:col-span-2">
           <SectionLabel>Stages</SectionLabel>
           <div className="mt-2">
-            <ScanProgress stages={detail.data.stages ?? []} />
+            <ScanPipeline scan={detail.data} />
           </div>
         </div>
       )}

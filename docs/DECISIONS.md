@@ -4335,6 +4335,9 @@ icon there would cost the asset name its room.
 
 ## 87. A scan is started and followed in a wizard that lives in the shell
 
+*The sheet became a dialog, the result became its own step, and the scan cards'
+own progress went — §154.*
+
 The scans page started a scan with a subscription select and a button, and
 followed it as a row of chips under a card on that page only. Two things were
 wrong with that, and neither was how it looked.
@@ -8276,6 +8279,58 @@ failure would be quiet rather than wrong: a refused or empty listing makes the
 reading answer nothing, the recorded grant is left alone and no prompt appears.
 So the first connection page after this deploys is the check --
 `connection.grant_version_changed` in the API log, carrying `every_read`.
+
+## 154. The scan wizard is a dialog, and the one view of any scan
+
+§87 put the wizard in a side sheet and left the scan cards on the scans page
+their own progress and details. That left two live views of one scan: the
+sheet's pipeline, pushed over SSE, and a row of chips under the running card
+(`ScanProgress`), polled on its own three-second clock and drawn from a
+different vocabulary. A finished scan's steps were the chips again, inside
+the card's expandable details. Three places drew a scan, and none agreed on
+what it looked like.
+
+**It is a dialog.** A centred `Dialog`, `sm:max-w-2xl`, the whole screen on a
+phone, where the sheet's narrow column had squeezed the lanes. The header holds
+the step bar, the body scrolls, and every step's actions sit in a footer that
+does not. Closing still minimises -- the header's indicator reopens it -- and
+while a scan runs the footer's main button says so: **Run in background**.
+**Cancel scan** asks once more in place, because a scan stopped by a stray
+click reads the whole estate again from the top.
+
+**Four steps: Environment, Review, Scan, Result.** Finishing is a step the bar
+reaches, not only a body swapped under a bar still on "Scan". Environment is
+skipped when only one connection can be scanned, since there is nothing to
+choose; Back still reaches the list.
+
+**It is the one view of any scan.** A history row opens the wizard on its
+scan -- **Watch** while it runs, **Open** once it has finished -- rather than
+expanding in place. A finished scan opens on Result, with a **Details** tab:
+what it covered, the identity it read as, its steps drawn by the same
+`ScanPipeline` it was watched through, and `CollectionPanel`. `ScanProgress`
+is deleted, and with it the row's live block, its Cancel and its detail poll.
+`ScanPipeline` only draws; the scan is read by `useLiveScan` (stream, poll,
+the once-on-finish invalidation, the previous run) so the step bar and footer
+turn on the same answer the body does. The list itself still polls while a
+scan is in flight: with the dialog closed nothing else keeps a row's status
+current.
+
+**The scan is in the URL.** `?scan=<id>`, over whatever page it was opened
+on, so a scan is a link and survives a reload mid-run. Every change replaces
+the history entry, as the attack-path page's reading state does. Once a scan
+exists the URL alone holds the dialog open, so following **View findings** or
+**Scan history** out of it closes it without a handler. Choosing an
+environment is not in the URL: nothing exists yet for a link to name.
+
+**It is loaded when first opened.** The provider stays in the entry chunk;
+the dialog is `lazy()` and kept mounted after the first opening, the command
+palette's arrangement (§149). Moving the details panel and the tabs into the
+shell had taken the entry chunk from 472 kB to 488 kB; loading the wizard late
+takes it to 423 kB.
+
+`IN_FLIGHT` in `components/scans/status.ts` is now the only list of running
+statuses -- the header indicator and the dashboard each had a copy -- and the
+card's own duration formatter gave way to `formatSeconds`.
 
 ## Open items carried forward
 

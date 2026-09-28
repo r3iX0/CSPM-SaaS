@@ -27,15 +27,7 @@ import { DashboardSkeleton, ErrorState } from "@/components/common/states";
 import { Button } from "@/components/ui/button";
 import { listContainer, listItem } from "@/lib/motion";
 import { useRiskCount } from "@/lib/useRiskCount";
-
-/** Scan statuses that mean CloudGuard is reading the cloud right now. */
-const RUNNING = new Set([
-  "QUEUED",
-  "DISCOVERING",
-  "NORMALIZING",
-  "EVALUATING",
-  "CALCULATING_RISK",
-]);
+import { IN_FLIGHT } from "@/components/scans/status";
 
 /**
  * The page that answers "how secure am I right now", read top to bottom as one
@@ -142,7 +134,7 @@ export function DashboardPage() {
   }
 
   const scanning = Array.isArray(scans.data)
-    ? scans.data.some((scan) => RUNNING.has(scan.status))
+    ? scans.data.some((scan) => IN_FLIGHT.includes(scan.status))
     : false;
   const gaps = Object.entries(data.last_scan.collection_errors ?? {});
 

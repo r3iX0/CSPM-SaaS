@@ -2,7 +2,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { MemoryRouter, useLocation } from "react-router-dom";
+
 import { ScanCard } from "@/components/scans/ScanCard";
+import { ScanWizardProvider } from "@/components/scans/ScanWizardProvider";
 import { api } from "@/lib/api";
 import type { Scan } from "@/lib/types";
 
@@ -23,6 +26,11 @@ function scan(overrides: Partial<Scan> = {}): Scan {
   } as Scan;
 }
 
+function Location() {
+  const location = useLocation();
+  return <output data-testid="location">{location.search}</output>;
+}
+
 function mount(value: Scan) {
   vi.spyOn(api, "get").mockResolvedValue({ data: null, meta: {} });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -33,9 +41,27 @@ function mount(value: Scan) {
   );
 }
 
+/** Inside the shell's wizard, where a row's button has somewhere to go. */
+function mountInShell(value: Scan) {
+  vi.spyOn(api, "get").mockResolvedValue({ data: null, meta: {} });
+  vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 404 }) as Response));
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter>
+        <ScanWizardProvider>
+          <ScanCard scan={value} />
+          <Location />
+        </ScanWizardProvider>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
 describe("a scan card", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it("separates finding nothing from failing to look", () => {
@@ -72,9 +98,14 @@ describe("a scan card", () => {
     expect(screen.getByText("and 2 more")).toBeInTheDocument();
   });
 
-  it("offers Cancel only while something is still running", () => {
-    mount(scan({ status: "EVALUATING" }));
-    expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument();
+  it("sends a running scan to the wizard rather than drawing a second live view", () => {
+    // The row once polled its own progress and drew it differently from the
+    // wizard; stopping it is the wizard's too, behind a confirmation.
+    mountInShell(scan({ status: "EVALUATING" }));
+
+    expect(screen.queryByRole("button", { name: /cancel/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Watch" }));
+    expect(screen.getByTestId("location")).toHaveTextContent("?scan=s1");
   });
 
   it("does not offer to delete a scan that is still running", () => {
@@ -83,12 +114,12 @@ describe("a scan card", () => {
     expect(screen.queryByRole("button", { name: /delete/i })).not.toBeInTheDocument();
   });
 
-  it("keeps details closed until asked, because opening costs two requests", () => {
-    mount(scan());
-    expect(screen.getByRole("button", { name: /details/i })).toHaveAttribute(
-      "aria-expanded",
-      "false",
-    );
+  it("opens a finished scan in the wizard, where its details are", () => {
+    mountInShell(scan());
+
+    expect(screen.getByTestId("location")).toBeEmptyDOMElement();
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    expect(screen.getByTestId("location")).toHaveTextContent("?scan=s1");
   });
 
   it("offers to re-evaluate a run that stored a capture", async () => {

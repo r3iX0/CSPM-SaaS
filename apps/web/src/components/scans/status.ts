@@ -1,9 +1,11 @@
 /**
  * The states in which a scan is still doing something.
  *
- * Its own module because both the page (which polls while any scan is in one of
- * these) and the card (which decides whether to offer Cancel) read it, and a
- * constant exported beside a component defeats fast refresh for that file.
+ * The one list: the scans page polls while any scan is in one of these, the
+ * card offers Watch rather than Open, the header's indicator and the dashboard
+ * show a scan under way, and the wizard chooses between its Scan and Result
+ * steps. Its own module because a constant exported beside a component defeats
+ * fast refresh for that file.
  */
 export const IN_FLIGHT = [
   "QUEUED",

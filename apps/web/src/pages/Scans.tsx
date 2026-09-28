@@ -17,16 +17,15 @@ import { Button } from "@/components/ui/button";
 /**
  * Every run, and the button that starts the next one.
  *
- * The page is a list and a control; a scan's own card is
- * `components/scans/ScanCard.tsx`, and everything it can open -- the stage
- * breakdown, what was and was not collected, the two-way delete -- lives beside
- * it. That split is not tidying: the card polls two endpoints on its own
- * schedule and the panels below it fetch only when opened, and keeping those
- * lifetimes in one 600-line file made it genuinely hard to see which request
- * fired when.
+ * The page is a list and a control; a scan's own row is
+ * `components/scans/ScanCard.tsx`, with what acts on a finished run --
+ * re-evaluate, the two-way delete -- beside it.
  *
- * Starting a scan is the scan wizard's job (`ScanWizard.tsx`), mounted in the
- * shell so a run can be followed from any page. The button here only opens it.
+ * Starting a scan, watching one and reading one are the scan wizard's
+ * (`ScanWizard.tsx`), mounted in the shell so a run can be followed from any
+ * page: the button here and every row only open it. The list still polls while
+ * something is in flight, because with the wizard closed nothing else keeps a
+ * row's status current.
  */
 export function ScansPage() {
   const t = useT();

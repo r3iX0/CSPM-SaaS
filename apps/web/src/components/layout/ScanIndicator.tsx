@@ -5,16 +5,8 @@ import { api } from "@/lib/api";
 import type { Scan } from "@/lib/types";
 import { label } from "@/lib/format";
 import { useScanWizard } from "@/components/scans/ScanWizardProvider";
+import { IN_FLIGHT } from "@/components/scans/status";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-
-/** Statuses that mean a scan is currently reading the customer's cloud. */
-const RUNNING = new Set([
-  "QUEUED",
-  "DISCOVERING",
-  "NORMALIZING",
-  "EVALUATING",
-  "CALCULATING_RISK",
-]);
 
 /**
  * Whether CloudGuard is reading the environment right now.
@@ -24,9 +16,9 @@ const RUNNING = new Set([
  * so a user who kicked one off and navigated away had no idea whether the
  * numbers in front of them were about to change.
  *
- * It is also where a minimised scan wizard lives: clicking it reopens the live
- * view of the running scan, wherever the reader is, rather than navigating
- * away from the page they were on.
+ * It is also where a minimised scan wizard lives: clicking it reopens the
+ * dialog on the running scan, over whatever page the reader is on, rather
+ * than navigating away from it.
  *
  * It also surfaces the one failure that used to be invisible: a scan that has
  * sat QUEUED long enough that no worker can plausibly be coming for it. That
@@ -42,12 +34,12 @@ export function ScanIndicator() {
     // not poll a finished scan every ten seconds until the tab is closed.
     refetchInterval: (query) => {
       const scans = query.state.data as Scan[] | undefined;
-      return scans?.some((s) => RUNNING.has(s.status)) ? 10_000 : false;
+      return scans?.some((s) => IN_FLIGHT.includes(s.status)) ? 10_000 : false;
     },
     retry: false,
   });
 
-  const active = data?.find((s) => RUNNING.has(s.status));
+  const active = data?.find((s) => IN_FLIGHT.includes(s.status));
   if (!active) return null;
 
   const stalled = active.stuck_in_queue === true;

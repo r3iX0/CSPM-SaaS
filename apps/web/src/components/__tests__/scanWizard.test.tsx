@@ -3,13 +3,14 @@
  *
  * The wizard's promises are the ones worth pinning: it starts a scan through
  * the connection's own subscription, it shows what the API reports and nothing
- * it does not, it ends a partial scan amber rather than green, and a refusal
+ * it does not, it ends a partial scan amber rather than green, a refusal
  * because a scan is already running lands the reader on that scan instead of on
- * an error they can do nothing about.
+ * an error they can do nothing about, the scan it is open on is in the URL, and
+ * a scan is not stopped by one stray click.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -56,14 +57,26 @@ function detail(overrides: Record<string, unknown> = {}) {
   };
 }
 
+const second = {
+  ...connection,
+  id: "conn-2",
+  name: "Staging tenant",
+  subscriptions: [
+    { id: "acct-3", subscription_id: "s-3", display_name: "Sandbox", in_scope: true, status: "ACTIVE", discovered_at: null, last_scan_at: null, is_scannable: true },
+  ],
+};
+
 let posted: unknown[] = [];
+let cancelled: string[] = [];
 
 function stubApi({
+  connections = [connection] as unknown[],
   scans = [] as unknown[],
   scanDetail = detail() as unknown,
   postStatus = 202,
 } = {}) {
   posted = [];
+  cancelled = [];
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -75,7 +88,12 @@ function stubApi({
           json: async () => ({ data, error, meta: {} }),
         }) as Response;
 
-      if (path.endsWith("/cloud-connections")) return reply(200, [connection]);
+      if (path.endsWith("/cloud-connections")) return reply(200, connections);
+      if (path.endsWith("/events")) return reply(404, null);
+      if (path.endsWith("/cancel")) {
+        cancelled.push(path);
+        return reply(202, detail({ status: "CANCELLED" }));
+      }
       if (path.endsWith("/detail")) return reply(200, scanDetail);
       if (path.endsWith("/api/v1/scans") && init?.method === "POST") {
         posted.push(JSON.parse(String(init.body)));
@@ -98,18 +116,25 @@ function Opener({ scanId }: { scanId?: string }) {
   );
 }
 
-function mount(scanId?: string) {
+/** Where the router is, so a test can read what the wizard wrote into the URL. */
+function Location() {
+  const location = useLocation();
+  return <output data-testid="location">{location.pathname + location.search}</output>;
+}
+
+function mount(scanId?: string, { at = "/" }: { at?: string } = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[at]}>
         <ScanWizardProvider>
           <Opener scanId={scanId} />
+          <Location />
         </ScanWizardProvider>
       </MemoryRouter>
     </QueryClientProvider>,
   );
-  fireEvent.click(screen.getByRole("button", { name: "open wizard" }));
+  if (at === "/") fireEvent.click(screen.getByRole("button", { name: "open wizard" }));
 }
 
 describe("the scan wizard", () => {
@@ -122,10 +147,10 @@ describe("the scan wizard", () => {
   });
 
   it("walks from an environment to a live scan of it", async () => {
-    stubApi();
+    stubApi({ connections: [connection, second] });
     mount();
 
-    expect(await screen.findByText("Production tenant")).toBeInTheDocument();
+    expect(await screen.findByText("Staging tenant")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
     // Review says what will be read before anything is.
@@ -135,6 +160,10 @@ describe("the scan wizard", () => {
     // Scoped through one of the connection's own subscriptions; the worker
     // resolves the rest.
     await waitFor(() => expect(posted).toEqual([{ cloud_account_id: "acct-1" }]));
+    // The scan is now a link.
+    await waitFor(() =>
+      expect(screen.getByTestId("location")).toHaveTextContent("/?scan=scan-1"),
+    );
 
     // The lanes are the API's steps, failure text included.
     expect(await screen.findByText("Reader role missing on Data.")).toBeInTheDocument();
@@ -162,6 +191,44 @@ describe("the scan wizard", () => {
 
     expect(await screen.findByText("Completed with gaps")).toBeInTheDocument();
     expect(screen.queryByText("Scan complete")).not.toBeInTheDocument();
+    // Finishing is a step of its own, not only a body swapped in place.
+    const steps = screen.getByRole("list", { name: "Scan steps" });
+    expect(steps.querySelector("[aria-current=step]")?.closest("li")).toHaveTextContent("Result");
+    // What the scan covered is one tab away, in the same dialog.
+    expect(screen.getByRole("tab", { name: "Details" })).toBeInTheDocument();
+  });
+
+  it("skips choosing when only one environment can be scanned", async () => {
+    stubApi();
+    mount();
+
+    // Straight to review; Back still reaches the list.
+    expect(await screen.findByText("Payments")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Continue" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(await screen.findByText("Which environment?")).toBeInTheDocument();
+  });
+
+  it("opens on the scan a link names", async () => {
+    stubApi();
+    mount(undefined, { at: "/findings?scan=scan-1" });
+
+    expect(await screen.findByText("Reader role missing on Data.")).toBeInTheDocument();
+    // Running in the background is closing: the scan leaves the URL, the page stays.
+    fireEvent.click(screen.getByRole("button", { name: "Run in background" }));
+    await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent(/^\/findings$/));
+  });
+
+  it("asks once more before stopping a scan", async () => {
+    stubApi();
+    mount("scan-1");
+
+    await screen.findByText("Reader role missing on Data.");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel scan" }));
+    expect(cancelled).toEqual([]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Stop scan" }));
+    await waitFor(() => expect(cancelled).toEqual(["/api/v1/scans/scan-1/cancel"]));
   });
 
   it("follows the scan already running rather than reporting the conflict", async () => {
@@ -171,8 +238,6 @@ describe("the scan wizard", () => {
     });
     mount();
 
-    await screen.findByText("Production tenant");
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     fireEvent.click(await screen.findByRole("button", { name: /Start scan/ }));
 
     expect(await screen.findByText("Reader role missing on Data.")).toBeInTheDocument();
