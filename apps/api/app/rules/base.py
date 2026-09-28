@@ -20,7 +20,14 @@ from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
 from app.connectors.evidence import EvidenceKey
-from app.core.enums import Provider, ResourceType, RuleScope, RuleState, Severity
+from app.core.enums import (
+    Provider,
+    ResourceType,
+    RuleEngineKind,
+    RuleScope,
+    RuleState,
+    Severity,
+)
 from app.domain.resource import CloudResource
 from app.remediation import RemediationSpec
 from app.risk.grouping import RiskGrouping
@@ -254,6 +261,11 @@ class SecurityRule(ABC):
     # layer stops repeating one sentence and stops charging the security score
     # once per repetition.
     risk_grouping: ClassVar[RiskGrouping | None] = None
+    # Which engine reaches this rule's verdicts. Every rule in ``app/rules`` is
+    # native; the Prowler checks registered in ``app/prowler/rules.py`` are not,
+    # and the rule engine never evaluates them -- their verdicts arrive from the
+    # scanner service's capture (DECISIONS.md section 150).
+    engine: ClassVar[RuleEngineKind] = RuleEngineKind.NATIVE
 
     def effective_exploitability(self, result: RuleResult) -> int:
         """What the risk formula should use for this finding.

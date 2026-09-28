@@ -4,6 +4,7 @@ from sqlalchemy import select
 from app.core.deps import DbSession, Tenant
 from app.core.errors import NotFound, envelope
 from app.models.rule import Rule
+from app.prowler.rules import prowler_detail
 from app.services import findings as findings_service
 
 router = APIRouter(prefix="/rules", tags=["rules"])
@@ -35,6 +36,12 @@ def _serialize(rule: Rule) -> dict:
         # a row: a policy stored in the database could outlive the rule that
         # generated it.
         "remediation_spec": findings_service.remediation_detail(rule.rule_id),
+        # Which engine reaches this rule's verdicts, and -- for a Prowler
+        # check -- which check and release, with its own remediation code
+        # (DECISIONS.md section 150).
+        "engine": rule.engine,
+        "engine_version": rule.engine_version,
+        "prowler": prowler_detail(rule.rule_id),
     }
 
 

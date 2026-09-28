@@ -14,6 +14,8 @@ import {
   WrenchIcon,
 } from "lucide-react";
 
+import { ENGINE_AUDIT_ICON } from "@/lib/icons";
+
 /**
  * Navigation grouped by the question each screen answers.
  *
@@ -61,6 +63,9 @@ export const NAV_GROUPS = [
     items: [
       { to: "/scans", label: "Scans", icon: ActivityIcon },
       { to: "/rules", label: "Rules", icon: ListChecksIcon },
+      // Beside the rules it audits: where Cleave's rules and the extended
+      // checks disagreed about the same asset (DECISIONS.md §150).
+      { to: "/engine-audit", label: "Engine audit", icon: ENGINE_AUDIT_ICON },
       { to: "/connections", label: "Environments", icon: CloudIcon },
       // Last, and in this group on purpose: everything here is something a
       // person told CloudGuard, which is evidence of exactly the same kind as

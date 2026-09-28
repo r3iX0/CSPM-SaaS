@@ -141,6 +141,22 @@ class RuleScope(StrEnum):
     AGGREGATE = "aggregate"
 
 
+class RuleEngineKind(StrEnum):
+    """Which engine reached a rule's verdicts (DECISIONS.md section 150).
+
+    ``NATIVE`` rules are evaluated by ``app/rules/engine.py`` over the raw
+    captures Cleave's own collectors stored. ``PROWLER`` rules are Prowler's
+    checks, run by the scanner service against the same scope and read back
+    from the capture it stored. Everything downstream of a verdict -- findings,
+    risks, verification, compliance -- treats the two alike; the difference is
+    where the verdict came from, which is what a customer disputing one needs
+    to know first.
+    """
+
+    NATIVE = "native"
+    PROWLER = "prowler"
+
+
 class TaskOutcome(StrEnum):
     """What became of one unit of collection.
 
@@ -207,11 +223,11 @@ class ScanTrigger(StrEnum):
 class ScanStepKind(StrEnum):
     """The stages a scan runs as separately durable units.
 
-    Three, not a general DAG. A scan's shape is decided in code and has been
-    the same shape since the pipeline existed -- resolve what to read, read it,
-    interpret it -- so edges between arbitrary steps would be a mechanism with
-    one configuration, and cycle checking for a graph nobody can author.
-    Ordering by kind says the same thing in a query.
+    Four, not a general DAG. A scan's shape is decided in code -- resolve what
+    to read, read it (twice, by two engines), interpret it -- so edges between
+    arbitrary steps would be a mechanism with one configuration, and cycle
+    checking for a graph nobody can author. The dependencies are stated once, in
+    ``orchestrator.runnable``.
     """
 
     # Resolve what this scan covers, and create the COLLECT steps for it.
@@ -223,6 +239,12 @@ class ScanStepKind(StrEnum):
     # what came back. One step each, so a tenant of fifty subscriptions is
     # fifty retryable units rather than one that has to survive them all.
     COLLECT = "COLLECT"
+    # Run the second engine -- Prowler's checks -- against one scope, and store
+    # what it said. Performed by the scanner service (``apps/scanner``), not by
+    # this codebase's worker: Prowler's dependency pins cannot share a process
+    # with this one's. Parallel to COLLECT, and ANALYZE waits for both to
+    # settle (DECISIONS.md section 150).
+    ASSESS = "ASSESS"
     # Interpret every capture this scan stored: normalize, evaluate, score,
     # verify. Runs once the COLLECT steps have settled, which is not the same
     # as having succeeded -- a subscription CloudGuard could not read is a gap

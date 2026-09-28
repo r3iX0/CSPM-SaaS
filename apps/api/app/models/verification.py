@@ -77,7 +77,7 @@ class RemediationVerification(UUIDPrimaryKey, TenantOwned, Timestamps, Base):
     # What must be observed, spelled out rather than implied by the finding.
     # A finding can be reclassified or its rule retired; the expectation is a
     # statement about a moment and has to survive both.
-    rule_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    rule_id: Mapped[str] = mapped_column(String(128), nullable=False)
     resource_id: Mapped[uuid.UUID | None] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("cloud_resources.id", ondelete="CASCADE")
     )

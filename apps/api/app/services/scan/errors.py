@@ -38,6 +38,15 @@ class NothingToAnalyze(ScanStepError):
     """Every collection failed, so there is nothing to interpret."""
 
 
+class AssessmentMisrouted(ScanStepError):
+    """An ASSESS step reached this codebase's worker instead of the scanner.
+
+    Prowler runs in its own service because its dependency pins cannot share a
+    process with this one's (DECISIONS.md section 150). A misrouted message
+    fails the same way on every attempt, so it is not retried here.
+    """
+
+
 class StepLeaseLost(ScanStepError):
     """This worker is no longer the one running this step.
 

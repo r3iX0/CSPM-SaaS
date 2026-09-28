@@ -30,9 +30,10 @@ bytes that have just gone.
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.assessment import AssessmentCapture
 from app.models.scan import CloudSnapshot, EvidenceBlob
 
 
@@ -260,6 +261,54 @@ async def prune_blobs(
     return int(result.rowcount or 0)
 
 
+async def prune_assessments(
+    session: AsyncSession, organization_id: UUID, *, keep_days: int
+) -> int:
+    """Let go of old Prowler results, keeping the record that the run happened.
+
+    The payload goes and the row stays, the same split ``Evidence`` and
+    ``EvidenceBlob`` make: a capture whose results were pruned still says which
+    Prowler release ran over which scope, when, and what it could not read.
+    Replaying the scan then reports those checks as UNKNOWN rather than as never
+    having run (``app/services/scan/assessment.py``).
+
+    Never the newest run of a scope, whatever its age -- an applied replay of
+    the latest scan reads it, exactly as it reads the newest snapshot.
+    """
+    cutoff = datetime.now(UTC) - timedelta(days=keep_days)
+    ranked = (
+        select(
+            AssessmentCapture.id,
+            func.row_number()
+            .over(
+                partition_by=(
+                    AssessmentCapture.cloud_account_id,
+                    AssessmentCapture.connection_id,
+                    AssessmentCapture.cloud_account_id.is_(None),
+                ),
+                order_by=(AssessmentCapture.created_at.desc(), AssessmentCapture.id.desc()),
+            )
+            .label("rank"),
+            AssessmentCapture.created_at,
+        )
+        .where(
+            AssessmentCapture.organization_id == organization_id,
+            AssessmentCapture.payload_compressed.is_not(None),
+        )
+        .subquery()
+    )
+    doomed = select(ranked.c.id).where(ranked.c.rank > 1, ranked.c.created_at < cutoff)
+    result = await session.execute(
+        update(AssessmentCapture)
+        .where(
+            AssessmentCapture.organization_id == organization_id,
+            AssessmentCapture.id.in_(doomed),
+        )
+        .values(payload_compressed=None, stored_bytes=0)
+    )
+    return int(result.rowcount or 0)
+
+
 async def prune(
     session: AsyncSession,
     organization_id: UUID,
@@ -276,4 +325,7 @@ async def prune(
         keep_per_scope=snapshot_max_per_scope,
     )
     blobs = await prune_blobs(session, organization_id, keep_days=evidence_days)
-    return {"snapshots": snapshots, "blobs": blobs}
+    assessments = await prune_assessments(
+        session, organization_id, keep_days=snapshot_days
+    )
+    return {"snapshots": snapshots, "blobs": blobs, "assessments": assessments}

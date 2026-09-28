@@ -217,7 +217,7 @@ class ScanRuleResult(UUIDPrimaryKey, TenantOwned, Base):
     scan_id: Mapped[uuid.UUID] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("scans.id", ondelete="CASCADE"), nullable=False
     )
-    rule_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    rule_id: Mapped[str] = mapped_column(String(128), nullable=False)
 
     evaluated_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     passed_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -243,7 +243,7 @@ class ScanEvaluationGap(UUIDPrimaryKey, TenantOwned, Base):
     scan_id: Mapped[uuid.UUID] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("scans.id", ondelete="CASCADE"), nullable=False
     )
-    rule_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    rule_id: Mapped[str] = mapped_column(String(128), nullable=False)
     # NULL for AGGREGATE-scope rules, which are not about any single resource,
     # and for a per-resource rule whose listing failed and so returned none --
     # a verdict about the scan rather than about an asset, because there is no
@@ -579,9 +579,12 @@ class ScanStep(UUIDPrimaryKey, TenantOwned, Base):
 
     @property
     def is_directory(self) -> bool:
-        """Whether this COLLECT step reads the trust boundary rather than one
-        account beneath it."""
-        return self.kind == ScanStepKind.COLLECT and self.cloud_account_id is None
+        """Whether this COLLECT or ASSESS step reads the trust boundary rather
+        than one account beneath it."""
+        return (
+            self.kind in (ScanStepKind.COLLECT, ScanStepKind.ASSESS)
+            and self.cloud_account_id is None
+        )
 
     def describe(self, provider: Provider | None = None) -> str:
         """What this step is, for a log line or an error message.
@@ -590,11 +593,17 @@ class ScanStep(UUIDPrimaryKey, TenantOwned, Base):
         and "one subscription" is the wrong noun for an AWS account. The columns
         keep Azure's names (``DECISIONS.md`` §70); the words do not.
         """
-        if self.kind != ScanStepKind.COLLECT:
+        if self.kind not in (ScanStepKind.COLLECT, ScanStepKind.ASSESS):
             return self.kind.value.lower()
         vocabulary = words(provider)
-        return (
+        scope = (
             f"the {vocabulary.directory}"
             if self.is_directory
             else f"one {vocabulary.account}"
         )
+        # The second engine's steps say so: "the extended checks for one
+        # subscription failed" sends someone to the scanner service, where
+        # "one subscription failed" sends them to the customer's role.
+        if self.kind == ScanStepKind.ASSESS:
+            return f"the extended checks for {scope}"
+        return scope

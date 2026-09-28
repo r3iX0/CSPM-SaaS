@@ -29,7 +29,7 @@ class Finding(UUIDPrimaryKey, TenantOwned, Timestamps, Base):
     scan_id: Mapped[uuid.UUID] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("scans.id", ondelete="SET NULL"), nullable=True
     )
-    rule_id: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    rule_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     # NULL for AGGREGATE-scope findings that are about the tenant, not a resource.
     resource_id: Mapped[uuid.UUID | None] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("cloud_resources.id", ondelete="CASCADE")

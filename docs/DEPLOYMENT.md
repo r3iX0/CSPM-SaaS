@@ -130,7 +130,7 @@ Node installed on your machine.
 
 ---
 
-## 2. Railway — API, worker, Redis
+## 2. Railway — API, worker, Redis, scanner
 
 1. **New Project** at [railway.app](https://railway.app) → **Deploy from GitHub
    repo** → select `ReiZaimi/CSPM-SaaS`. Railway will try to auto-detect a
@@ -311,6 +311,57 @@ Node installed on your machine.
 
 6. Push to `main` (or click **Deploy**) — Railway builds both services from the
    same Dockerfile and redeploys automatically on every push from here on.
+
+7. **Optional: the scanner service (extended checks).** A fourth service that
+   runs Prowler for the ASSESS scan step (DECISIONS.md §150). Scans work
+   without it; they run Cleave's own rules alone.
+
+   - **+ New** → **GitHub Repo** → same repo, Root Directory empty, and set
+     **Config-as-code** to `infrastructure/railway/scanner.json`. It builds
+     `infrastructure/docker/scanner.Dockerfile`, a separate image: Prowler's
+     dependency pins cannot share the API's.
+   - Give `cloudguard_scanner` a password (the last block of
+     `infrastructure/supabase/roles.sql`, pasted into the SQL Editor with the
+     placeholder replaced there, never in the file). Migration 0042 created the
+     role without one.
+   - Set on the **scanner** service only:
+
+     ```
+     REDIS_URL=${{Redis.REDIS_URL}}
+     SCANNER_DATABASE_URL=postgresql://cloudguard_scanner:<password>@<host>:5432/postgres?sslmode=require
+     AZURE_CLIENT_ID=<same as the API>
+     AZURE_CLIENT_SECRET=<same as the API>
+     # Only if AWS is offered:
+     AWS_ACCESS_KEY_ID=<same as the API>
+     AWS_SECRET_ACCESS_KEY=<same as the API>
+     ```
+
+     `SCANNER_DATABASE_URL` is a plain psycopg URL (no `+asyncpg`), and it must
+     be the scanner role -- never the owner or `cloudguard_app`. The service
+     runs third-party code with customer credentials in memory, and that role
+     can read nothing but the scope it is handed and settle nothing but ASSESS
+     steps (migration 0043).
+   - Only once the scanner service is running, set `ASSESS_ENABLED=true` on
+     the **API and worker**. Set earlier, every scan would wait three queue
+     leases for an ASSESS step nobody consumes and then fail it.
+   - `ASSESS_QUEUE_SECONDS` (API and worker, default 14400) is how long a
+     claimed ASSESS step may wait on the `assess` queue before it is reaped.
+     The scanner runs one step per process, so a step can wait behind several
+     long runs; raise it if scans queue deeper than four hours, or add scanner
+     replicas. Once a scanner picks a step up, the ordinary ten-minute lease
+     applies.
+   - `SCANNER_RUN_BUDGET` (scanner, default `SCANNER_SOFT_TIME_LIMIT` minus 30
+     minutes) is when a run stops starting checks. Prowler swallows Celery's
+     soft time limit, so this is what stops a long run cleanly: what finished
+     is stored, the rest reads unknown and the scan is partial. Keep it well
+     below `SCANNER_SOFT_TIME_LIMIT`.
+   - Existing Azure connections need their deployment template redeployed to
+     gain the built-in Reader assignment the extended checks read through;
+     until then those services read as unknown, never as passing.
+   - Keep `--max-tasks-per-child=1` in the start command. Prowler holds each
+     service client in a module global, and a reused process would scan the
+     next tenant with the previous one's; the scanner refuses to run if it
+     detects that.
 
 ---
 

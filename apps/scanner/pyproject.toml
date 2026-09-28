@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cloudguard-scanner"
+version = "0.1.0"
+description = "Runs Prowler for Cleave's ASSESS scan steps (DECISIONS.md section 150)."
+requires-python = ">=3.12,<3.13"
+# Its own package, never a dependency of apps/api. Prowler pins botocore and
+# pydantic to versions the API's aiobotocore and FastAPI cannot share, so the
+# two live in separate images and talk only through the database and the
+# broker. The Prowler pin must match tools/prowler/curation.json; the catalogue
+# is built from the same release (tools/prowler/build_catalog.py).
+dependencies = [
+  "prowler==5.43.0",
+  "celery[redis]==5.4.0",
+  "redis==5.2.1",
+  "psycopg[binary]==3.2.3",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest==8.3.4",
+  "ruff==0.8.4",
+  "mypy==1.14.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["cloudguard_scanner*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "RUF"]
+# As in apps/api: errors are named for what happened (LeaseLost), not "...Error".
+ignore = ["N818"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+disallow_untyped_defs = true
+
+# Prowler ships without type information; the scanner's own code is typed and
+# checked, and the boundary with Prowler is the handful of calls in runner.py.
+[[tool.mypy.overrides]]
+module = ["prowler.*", "celery.*"]
+ignore_missing_imports = true
+
+# Celery's task decorator is untyped; the task body it wraps is checked.
+[[tool.mypy.overrides]]
+module = ["cloudguard_scanner.tasks"]
+disallow_untyped_decorators = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

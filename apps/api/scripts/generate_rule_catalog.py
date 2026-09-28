@@ -231,8 +231,66 @@ def build_markdown_catalog(rules: list[Any]) -> str:
 
     render_provider_rules("Azure Rules", azure_rules, is_aws=False)
     render_provider_rules("AWS Rules (Preview)", aws_rules, is_aws=True)
+    lines.extend(extended_checks_section())
 
     return "\n".join(lines).strip() + "\n"
+
+
+def extended_checks_section() -> list[str]:
+    """The second engine's checks, one line each (DECISIONS.md section 150).
+
+    Listed apart from the native rules and more briefly, because their
+    descriptions and remediation live in the generated catalogue
+    (apps/api/app/prowler/data/catalog.json) and are Prowler's words rather
+    than CloudGuard's. What this section is for is the one question a reader
+    of this file cannot otherwise answer: which checks the second engine runs,
+    which it does not and why, and which a native rule already answers.
+    """
+    from app.prowler.catalog import load
+
+    catalog = load()
+    checks = sorted(
+        catalog.checks.values(), key=lambda c: (c.provider.value, c.service, c.check_id)
+    )
+    enabled = [c for c in checks if c.enabled]
+    lines = [
+        "",
+        "## Extended checks (Prowler)",
+        "",
+        f"Run by the scanner service on Prowler {catalog.prowler_version}. "
+        f"{len(enabled)} of {len(checks)} checks are enabled; "
+        f"{sum(1 for c in enabled if c.covered_by)} of those are answered by a native rule, "
+        "which raises the finding while the check's verdict is compared against it. "
+        "Generated from `tools/prowler/curation.json` by `tools/prowler/build_catalog.py`.",
+        "",
+    ]
+    for provider in ("azure", "aws"):
+        rows = [c for c in enabled if c.provider.value == provider]
+        lines.extend([
+            f"### {'Azure' if provider == 'azure' else 'AWS'} ({len(rows)})",
+            "",
+            "| Rule ID | Severity | Check | Answered by |",
+            "|---|---|---|---|",
+        ])
+        for c in rows:
+            title = c.title.replace("|", "\\|")
+            lines.append(
+                f"| `{c.rule_id}` | {c.severity.value} | {title} | "
+                f"{', '.join(c.covered_by) or '-'} |"
+            )
+        lines.append("")
+    excluded = [c for c in checks if not c.enabled]
+    lines.extend([
+        f"### Not run ({len(excluded)})",
+        "",
+        "| Check | Why not |",
+        "|---|---|",
+    ])
+    for c in excluded:
+        reason = (c.excluded_reason or "").replace("|", "\\|")
+        lines.append(f"| `{c.check_id}` | {reason} |")
+    lines.append("")
+    return lines
 
 
 def main() -> int:

@@ -26,6 +26,15 @@ Requires PostgreSQL 16, Redis 7, and env vars: `DATABASE_URL`, `DATABASE_OWNER_U
 
 `DATABASE_URL` must use the RLS-constrained `cloudguard_app` role, not the owner. `DATABASE_OWNER_URL` is the owner connection for migrations only.
 
+### Scanner (apps/scanner) — the second engine, Prowler
+
+```bash
+pip install -e "apps/scanner[dev]"            # its own venv: Prowler's pins cannot share the API's
+python tools/prowler/build_catalog.py         # regenerate apps/api/app/prowler/data/catalog.json
+python tools/prowler/build_catalog.py --check # CI: fail on a stale catalogue
+cd apps/scanner && ruff check . && mypy cloudguard_scanner && pytest -q
+```
+
 ### Frontend (apps/web)
 
 ```bash
@@ -45,7 +54,9 @@ npm test                         # vitest run
 
 **Scanner pipeline** (`app/services/scan/`): Collect raw Azure JSON → store snapshot → normalize to `CloudResource` → evaluate rules → score risk → persist findings. Raw JSON is stored verbatim for later re-evaluation against new rules. `pipeline.py` drives the steps, `analyze.py` orders the stages, and each stage is its own module taking one `AnalyzeContext` (DECISIONS.md §108).
 
-**Scan execution** (`app/services/orchestrator.py`): a scan is durable `scan_steps` — PLAN, one COLLECT per subscription plus one for the tenant directory, then ANALYZE — claimed under a lease and routed to the `collect`/`analyze` queues. Every write a running step makes is fenced on the attempt it was claimed under: a step commits only through `ScanWriter.commit` (`app/services/scan/writer.py`), which checks the step row `FOR SHARE` inside the transaction and rolls back if the step was taken. Never call `session.commit()` in the scan package; append-only rows (events, coverage, citations, edges, links) go through `writer.add` and are sent in bulk (§108).
+**Scan execution** (`app/services/orchestrator.py`): a scan is durable `scan_steps` — PLAN, one COLLECT per subscription plus one for the tenant directory, beside them an ASSESS per scope when `ASSESS_ENABLED` (the scanner service, §150), then ANALYZE once all have settled — claimed under a lease and routed to the `collect`/`assess`/`analyze` queues. Every write a running step makes is fenced on the attempt it was claimed under: a step commits only through `ScanWriter.commit` (`app/services/scan/writer.py`), which checks the step row `FOR SHARE` inside the transaction and rolls back if the step was taken. Never call `session.commit()` in the scan package; append-only rows (events, coverage, citations, edges, links) go through `writer.add` and are sent in bulk (§108).
+
+**Second engine** (`apps/scanner`, `app/prowler/`): an ASSESS step per scope runs Prowler in a separate service (its own image, the `assess` queue, one step per process because Prowler's clients are module globals, the `cloudguard_scanner` DB role with column grants only) and stores its results in `assessment_captures`; ANALYZE reads them back. Never import `prowler` under `apps/api` — a test fails the build. Silence is never a pass: a check whose service or execution errored is UNKNOWN. A check a native rule already answers (`covered_by` in `tools/prowler/curation.json`) raises no finding of its own; its verdict is compared and disagreements go to `engine_divergences` (the Engine audit page). Everything is gated by `ASSESS_ENABLED`. Edit `curation.json` and rerun `build_catalog.py`; never edit `catalog.json` (DECISIONS.md §150).
 
 **Multi-tenancy**: Dual-enforced. App layer derives `organization_id` from JWT. PostgreSQL RLS policies enforce row-level isolation via the `cloudguard_app` role.
 
@@ -110,4 +121,6 @@ npm test                         # vitest run
 - One shared demo organization (`organizations.is_demo`): joined as VIEWER through a SECURITY DEFINER function, visitors see only their own membership, and every write is refused there by flag as well as role (§99)
 - A plan of cuts is simulated whole on the server; each cut is weighed against the rest (`needed_for`), and what to add next is ranked over the estate with the plan made (§141)
 - A signed token names its purpose and the signer checks it; a consent link carries a nonce spent once, under a row lock, before any provider call; the API's own messages say Cleave, while names that exist in a customer's cloud or directory keep CloudGuard (§147)
+- Prowler runs as a second engine in its own service; its checks are rules with id `PRW-<cloud>-<check>`, the catalogue is generated and pinned to one Prowler release in three places, and where a native rule covers a check the two are audited against each other rather than both reported (§150)
+- An ASSESS message carries its attempt and a stale one is refused; an ASSESS step is leased for its queue wait until the scanner renews on pickup; a run stops at its own budget because Prowler swallows Celery's soft limit; a refusal Prowler logs as a WARNING or from shared code is still a gap; a scope-level verdict lands on its account's asset, one verdict per check and asset; the scanner role settles ASSESS steps only (§151)
 - The Azure demo replays `tests/fixtures/azure_raw/snapshot_demo.json`, generated by `build_snapshot_demo.py` as a superset of `snapshot_mixed.json` — edit the script, not the JSON (§102)

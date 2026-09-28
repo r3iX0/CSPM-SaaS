@@ -23,6 +23,15 @@ from app.core.config import settings
 # and the first narrowed to ``-Q celery,collect``.
 COLLECT_QUEUE = "collect"
 ANALYZE_QUEUE = "analyze"
+# The second engine's runs. Consumed by the scanner service (``apps/scanner``),
+# never by this codebase's worker: Prowler's dependency pins cannot share a
+# process with this one's, and Prowler keeps its clients in module globals, so
+# the scanner runs one step per child process (DECISIONS.md section 150).
+ASSESS_QUEUE = "assess"
+# The scanner's task, named rather than imported. This process cannot import
+# it, so the name is the whole contract -- ``tests/unit/test_prowler_engine.py``
+# holds the two sides to the same string.
+ASSESS_TASK = "cloudguard.run_assess_step"
 # Everything else: starting a scan, advancing it, reaping, replay. All short,
 # all database-only.
 DEFAULT_QUEUE = "celery"

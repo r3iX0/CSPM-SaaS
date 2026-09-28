@@ -43,6 +43,15 @@ ROLE_VERSION = "v8"
 
 ROLE_NAME = "CloudGuard Security Scanner"
 
+# The built-in Reader role, which the deployment template also assigns for the
+# extended checks (DECISIONS.md section 150). A well-known id Microsoft
+# publishes and never changes, not a string recalled from memory: see
+# https://learn.microsoft.com/azure/role-based-access-control/built-in-roles#reader.
+READER_ROLE_DEFINITION_ID = "acdd72a7-3385-48ef-bd42-f606fba81ae7"
+# Seeds the assignment's name, so a redeployment is a no-op rather than a
+# second assignment.
+EXTENDED_CHECKS_ASSIGNMENT = "cloudguard-extended-checks-reader"
+
 # ARM read actions required for MVP scanning. Organized by resource category.
 # Every action here is ``*/read`` -- no writes, no data actions.
 ARM_READ_ACTIONS: tuple[str, ...] = (
@@ -699,6 +708,27 @@ def arm_template(context: TemplateContext) -> str:
                     f"guid({target}.id, 'cloudguard-scanner', '{context.role_version}'))]",
                     "principalId": "[variables('principalId')]",
                     "principalType": "ServicePrincipal",
+                },
+            },
+            # The extended checks (DECISIONS.md section 150). Prowler reads
+            # several hundred resource types -- AKS, Cosmos DB, Databricks,
+            # API Management -- that no collector call of Cleave's own reaches,
+            # so the custom role above, trimmed to exactly those calls, cannot
+            # serve it. The built-in Reader can: every ``*/read`` and nothing
+            # else, so the claim at the top of this module still holds -- no
+            # write, no ``listKeys``, no data plane.
+            {
+                "type": "Microsoft.Authorization/roleAssignments",
+                "apiVersion": "2022-04-01",
+                "name": f"[guid({target}.id, variables('principalId'), "
+                f"'{EXTENDED_CHECKS_ASSIGNMENT}')]",
+                "properties": {
+                    "roleDefinitionId": "[tenantResourceId("
+                    "'Microsoft.Authorization/roleDefinitions', "
+                    f"'{READER_ROLE_DEFINITION_ID}')]",
+                    "principalId": "[variables('principalId')]",
+                    "principalType": "ServicePrincipal",
+                    "description": "Cleave extended checks: read-only, no data plane.",
                 },
             },
         ],

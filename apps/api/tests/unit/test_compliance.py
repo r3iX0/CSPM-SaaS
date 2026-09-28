@@ -363,11 +363,29 @@ def test_a_framework_about_an_organization_applies_to_every_cloud() -> None:
         assert framework_id in shown
 
 
-def test_an_organization_with_no_connections_sees_everything() -> None:
+def test_an_organization_with_no_connections_sees_everything(monkeypatch) -> None:
     """There is nothing to scope by, and answering "what does this product
     check?" with silence would be worse than showing a benchmark they may not
     end up needing."""
     from app.compliance.catalog import FRAMEWORKS
+    from app.core.config import settings
     from app.services.compliance import frameworks_for
 
+    monkeypatch.setattr(settings, "assess_enabled", True)
     assert len(frameworks_for(set())) == len(FRAMEWORKS)
+
+
+def test_the_extended_frameworks_wait_for_the_scanner_service(monkeypatch) -> None:
+    """A framework measured only by Prowler's checks shows every control as
+    never assessed until the scanner service runs, so it is not listed before
+    then (DECISIONS.md section 150)."""
+    from app.core.config import settings
+    from app.services.compliance import PROWLER_FRAMEWORK_IDS, frameworks_for
+
+    monkeypatch.setattr(settings, "assess_enabled", False)
+    shown = {f.id for f in frameworks_for(set())}
+    assert PROWLER_FRAMEWORK_IDS and not shown & PROWLER_FRAMEWORK_IDS
+    assert "CIS_AZURE_2.0" in shown
+
+    monkeypatch.setattr(settings, "assess_enabled", True)
+    assert {f.id for f in frameworks_for(set())} >= PROWLER_FRAMEWORK_IDS

@@ -10,6 +10,7 @@ from app.api.routes import (
     cloud_connections,
     compliance,
     dashboard,
+    engine_audit,
     events,
     findings,
     notifications,
@@ -36,6 +37,7 @@ api_router.include_router(risks.router)
 api_router.include_router(remediation.router)
 api_router.include_router(rules.router)
 api_router.include_router(compliance.router)
+api_router.include_router(engine_audit.router)
 api_router.include_router(dashboard.router)
 api_router.include_router(reports.router)
 # Called by Azure rather than by the app, and guarded by a signed token.

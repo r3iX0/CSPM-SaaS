@@ -17,29 +17,46 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SelectField } from "@/components/common/SelectField";
 import { RemediationPanel } from "@/components/security/RemediationPanel";
+import { EngineBadge, ProwlerPanel } from "@/components/security/EnginePanel";
 import { cn, formatEffort, resourceTypeLabel } from "@/lib/format";
 
 const SEVERITIES = ["CRITICAL", "HIGH", "MEDIUM", "LOW"] as const;
+
+/**
+ * A Prowler check the deployment is not running: the scanner service is not
+ * switched on, so it is mirrored disabled (DECISIONS.md §150). Not withdrawn --
+ * nothing about the check changed -- and not listed as a check Cleave runs.
+ */
+function dormant(rule: Rule): boolean {
+  return rule.engine === "prowler" && !rule.enabled;
+}
 
 /**
  * Every check CloudGuard runs.
  *
  * Filtered in the browser, and that is not the compromise it would be
  * elsewhere: the catalogue is the product's own rulebook, it arrives whole in
- * one request, and it is dozens of entries rather than an estate's worth. There
- * is nothing here that a search could fail to see.
+ * one request, and it is several hundred entries rather than an estate's worth.
+ * There is nothing here that a search could fail to see.
  */
 export function RulesPage() {
   const t = useT();
   // In the URL so a filtered catalogue is a link. The search filters in the
   // browser -- the whole catalogue arrives in one request -- so writing it on
   // every key costs no request, and `replace` keeps it out of the history.
-  const [filters, update] = useUrlFilters({ q: "", severity: "all", withdrawn: "" });
+  const [filters, update] = useUrlFilters({
+    q: "",
+    severity: "all",
+    withdrawn: "",
+    engine: "all",
+  });
   const search = filters.q;
   const severity = filters.severity;
+  const engine = filters.engine;
   const showWithdrawn = filters.withdrawn === "1";
   const setSearch = (value: string) => update({ q: value || null });
   const setSeverity = (value: string) => update({ severity: value });
+  const setEngine = (value: string) => update({ engine: value });
   const setShowWithdrawn = (next: (value: boolean) => boolean) =>
     update({ withdrawn: next(showWithdrawn) ? "1" : null });
 
@@ -52,7 +69,12 @@ export function RulesPage() {
   // toggle has to say how many rules it would reveal, which is a fact about
   // the catalogue rather than about the current search.
   const withdrawnCount = useMemo(
-    () => (data ?? []).filter((rule) => !rule.enabled).length,
+    () => (data ?? []).filter((rule) => !rule.enabled && !dormant(rule)).length,
+    [data],
+  );
+  const dormantCount = useMemo(() => (data ?? []).filter(dormant).length, [data]);
+  const extendedLive = useMemo(
+    () => (data ?? []).some((rule) => rule.engine === "prowler" && rule.enabled),
     [data],
   );
 
@@ -62,17 +84,19 @@ export function RulesPage() {
       // A withdrawn rule no longer runs. Listing it beside the live ones under
       // a heading that says "every check CloudGuard runs" overstated what is
       // being checked, so it is out unless asked for.
+      if (dormant(rule)) return false;
       if (!rule.enabled && !showWithdrawn) return false;
       if (severity !== "all" && rule.severity !== severity) return false;
+      if (engine !== "all" && (rule.engine ?? "native") !== engine) return false;
       if (!needle) return true;
       return `${rule.name} ${rule.rule_id} ${rule.description} ${rule.category}`
         .toLowerCase()
         .includes(needle);
     });
-  }, [data, search, severity, showWithdrawn]);
+  }, [data, search, severity, showWithdrawn, engine]);
 
-  const live = (data ?? []).length - withdrawnCount;
-  const filtering = search.trim().length > 0 || severity !== "all";
+  const live = (data ?? []).length - withdrawnCount - dormantCount;
+  const filtering = search.trim().length > 0 || severity !== "all" || engine !== "all";
 
   return (
     <div className="flex flex-col gap-4">
@@ -110,6 +134,22 @@ export function RulesPage() {
             })),
           ]}
         />
+        {/* Two engines answer the catalogue (DECISIONS.md §150): Cleave's own
+            rules, and the extended checks Prowler runs beside them. */}
+        {extendedLive && (
+          <SelectField
+            value={engine}
+            onValueChange={(value) => setEngine(value || "all")}
+            ariaLabel="Filter by engine"
+            className="w-[180px]"
+            idleValue="all"
+            options={[
+              { value: "all", label: "Both engines" },
+              { value: "native", label: "Cleave rules" },
+              { value: "prowler", label: "Extended checks" },
+            ]}
+          />
+        )}
         {/* Offered only when there is something to reveal. A permanent toggle
             on a catalogue with nothing withdrawn implies rules are missing. */}
         {withdrawnCount > 0 && (
@@ -151,7 +191,7 @@ export function RulesPage() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  update({ q: null, severity: null });
+                  update({ q: null, severity: null, engine: null });
                 }}
               >
                 Clear filters
@@ -174,6 +214,12 @@ export function RulesPage() {
             {rules.length} of {live} rule{live === 1 ? "" : "s"} Cleave runs
             {withdrawnCount > 0 && `, and ${withdrawnCount} ${t.rules.withdrawnCount}`}
           </p>
+          {dormantCount > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {dormantCount} extended checks are catalogued and not running: this deployment has
+              not switched the scanner service on.
+            </p>
+          )}
         </>
       )}
     </div>
@@ -198,6 +244,7 @@ function RuleCard({ rule }: { rule: Rule }) {
             {/* A tenant-wide rule is about the directory rather than any one
                 resource, which is why nothing in the asset list carries it. */}
             {rule.scope === "aggregate" && <Badge variant="secondary">Tenant-wide</Badge>}
+            <EngineBadge engine={rule.engine} version={rule.engine_version} />
             {/* Dashed and named rather than greyed. A rule that has stopped
                 running is not a quieter rule -- it is one whose severity
                 describes what it used to check. */}
@@ -274,6 +321,7 @@ function RuleCard({ rule }: { rule: Rule }) {
             spec={rule.remediation_spec}
             effortMinutes={rule.estimated_effort_minutes}
           />
+          <ProwlerPanel detail={rule.prowler} />
         </div>
       )}
     </div>

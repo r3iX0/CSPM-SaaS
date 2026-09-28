@@ -31,6 +31,7 @@ from sqlalchemy import Table
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.assessment import EngineDivergence
 from app.models.base import Base
 from app.models.finding import FindingEvidence
 from app.models.history import AssetChangeEvent, FindingEventRecord
@@ -53,6 +54,7 @@ from app.services.scan.lease import StepFence
 # thing twice and should fail loudly rather than quietly keep the first.
 APPEND_ONLY: dict[type[Base], bool] = {
     AssetChangeEvent: False,
+    EngineDivergence: False,
     Evidence: False,
     FindingEventRecord: False,
     FindingEvidence: False,

@@ -46,9 +46,11 @@ from app.core.logging import get_logger, log_context
 from app.core.vocabulary import words
 from app.models.cloud_account import CloudAccount
 from app.models.scan import Scan, ScanStep
+from app.prowler.ingest import StoredAssessment
 from app.rules.engine import RuleEngine
 from app.services import orchestrator
 from app.services.scan.analyze import evaluate
+from app.services.scan.assessment import stored_assessments
 from app.services.scan.capture import (
     directory_gap,
     reconstruct,
@@ -63,6 +65,7 @@ from app.services.scan.collection import (
     resolve_scope,
 )
 from app.services.scan.errors import (
+    AssessmentMisrouted,
     CollectionUnavailable,
     NothingToAnalyze,
     ScanScopeEmpty,
@@ -188,6 +191,15 @@ class ScanPipeline:
                 try:
                     if kind == ScanStepKind.PLAN:
                         await self.plan(fence)
+                    elif kind == ScanStepKind.ASSESS:
+                        # Routed to the scanner service's queue, never here:
+                        # Prowler cannot be imported into this process. Reaching
+                        # this line means a message was misrouted, and retrying
+                        # it here would fail the same way three times.
+                        raise AssessmentMisrouted(
+                            "The extended checks run in the scanner service; "
+                            "this worker cannot perform them."
+                        )
                     elif kind == ScanStepKind.COLLECT:
                         await self.collect(step_id, _StepHeartbeat(keeper), fence)
                     else:
@@ -333,6 +345,16 @@ class ScanPipeline:
                 # fail.
                 directory=connection is not None and bool(connection.tenant_id),
             )
+            # The second engine reads the same scopes, in parallel with the
+            # first (DECISIONS.md section 150). Nothing is created while the
+            # scanner service is not deployed.
+            await orchestrator.create_assess_steps(
+                session,
+                scan,
+                accounts,
+                provider=connection.provider if connection else accounts[0].provider,
+                directory=connection is not None and bool(connection.tenant_id),
+            )
             await writer.commit()
             log.info(
                 "scan.planned",
@@ -438,6 +460,21 @@ class ScanPipeline:
             state = await reconstruct(session, scan, stored)
             state.errors.update(await directory_gap(session, scan, state))
             scan.collection_errors = state.errors
+            # What the second engine stored for this scan, if it ran
+            # (DECISIONS.md section 150). Read here rather than inside the
+            # stages so a replay can hand over an earlier scan's runs instead.
+            assessments = await stored_assessments(session, scan.organization_id, scan.id)
+            # A Prowler run that could not read everything is a gap in the
+            # report exactly as a failed listing is, so the scan is PARTIAL
+            # for it and says where (DECISIONS.md section 150).
+            for assessment in assessments:
+                if assessment.outcome != "COMPLETE":
+                    scan.collection_errors = {
+                        **scan.collection_errors,
+                        f"extended checks: {assessment.scope_label}": _assessment_gap(
+                            assessment
+                        ),
+                    }
             await writer.commit()
 
             await evaluate(
@@ -455,6 +492,7 @@ class ScanPipeline:
                 # be a second source of truth for it.
                 finalize=False,
                 on_phase=report_phase,
+                assessments=assessments,
             )
 
     async def _require_scan(self, session: AsyncSession) -> Scan | None:
@@ -540,6 +578,12 @@ class ScanPipeline:
 
                 scan.evaluation_only = not state.is_current
                 scan.collection_errors = state.errors
+                # The replayed scan's Prowler runs, re-interpreted under
+                # today's catalogue exactly as its captures are under today's
+                # rules. A run from another Prowler release reads UNKNOWN.
+                assessments = await stored_assessments(
+                    session, org_id, scan.replay_of_scan_id
+                ) if scan.replay_of_scan_id else []
                 await writer.commit()
 
                 await evaluate(
@@ -555,6 +599,7 @@ class ScanPipeline:
                     mutate_findings=state.is_current,
                     degraded=bool(state.errors),
                     directory=state.directory,
+                    assessments=assessments,
                 )
 
                 # ``last_scan_at`` is deliberately left alone: it records when
@@ -575,3 +620,22 @@ class ScanPipeline:
         # expire, so the reaper's index does not carry finished work.
         scan.lease_until = None
         await session.commit()
+
+
+def _assessment_gap(assessment: StoredAssessment) -> str:
+    """One line on why a Prowler run was incomplete, for the scan's gap list."""
+    if assessment.fatal:
+        return f"could not run: {assessment.fatal}"
+    services = sorted((assessment.errors.get("services") or {}).keys())
+    checks = len(assessment.errors.get("checks") or {})
+    other = len(assessment.errors.get("other") or [])
+    parts = []
+    if services:
+        parts.append("could not read " + ", ".join(services[:6]))
+    if checks:
+        parts.append(f"{checks} checks raised")
+    if assessment.stopped:
+        parts.append("stopped at its time budget")
+    if other:
+        parts.append(f"{other} other errors")
+    return "; ".join(parts) or "did not finish every check"

@@ -5,7 +5,7 @@
 -- Unlike local Docker (infrastructure/docker/postgres-init.sql), Supabase
 -- already provides `authenticated`, `anon`, and `service_role` -- creating
 -- them again would fail. What this project needs that Supabase doesn't already
--- have is two login roles of its own, and neither owns any table, so both are
+-- have is three login roles of its own, and none owns any table, so all are
 -- fully subject to the RLS policies the migrations create.
 -- See docs/DECISIONS.md #1 for why that ownership split is the whole point.
 --
@@ -17,11 +17,16 @@
 --                      leave DATABASE_WORKER_URL unset and the worker keeps
 --                      using the owner connection, which is what it did before
 --                      and which RLS does not constrain at all.
+--   cloudguard_scanner the scanner service, which runs Prowler (DECISIONS.md
+--                      section 150). Reads the scope it is handed, keeps its
+--                      step's lease, writes its capture, and nothing else.
+--                      Only needed once the scanner service is deployed.
 --
--- CHANGE BOTH PASSWORDS when you paste this into the Supabase SQL Editor --
+-- CHANGE ALL THREE PASSWORDS when you paste this into the Supabase SQL Editor --
 -- in the editor, NOT in this file. Whatever you choose becomes a live database
 -- credential and belongs only in Railway's DATABASE_URL and
--- DATABASE_WORKER_URL, never in git.
+-- DATABASE_WORKER_URL, and the scanner service's SCANNER_DATABASE_URL, never in
+-- git.
 --
 -- CI fails the build if the placeholder below has been edited, precisely
 -- because saving a real password here is an easy and expensive mistake.
@@ -52,3 +57,19 @@ BEGIN
 END $$;
 
 GRANT CONNECT ON DATABASE postgres TO cloudguard_worker;
+
+-- Migration 0042 creates this role NOLOGIN. Give it a password here when the
+-- scanner service is deployed, and not before: until then nothing should be
+-- able to sign in as it. It is deliberately granted neither `authenticated`
+-- nor cloudguard_worker -- it runs third-party code with a customer's
+-- credentials in memory, and holds only the column grants 0042 gives it.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'cloudguard_scanner') THEN
+    CREATE ROLE cloudguard_scanner LOGIN PASSWORD 'CHANGE-ME-BEFORE-RUNNING' NOSUPERUSER NOCREATEDB NOCREATEROLE;
+  ELSE
+    ALTER ROLE cloudguard_scanner LOGIN PASSWORD 'CHANGE-ME-BEFORE-RUNNING';
+  END IF;
+END $$;
+
+GRANT CONNECT ON DATABASE postgres TO cloudguard_scanner;

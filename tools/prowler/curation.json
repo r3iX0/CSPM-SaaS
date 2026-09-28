@@ -1,0 +1,173 @@
+{
+  "$comment": "Hand-maintained. build_catalog.py reads this beside the pinned Prowler install and writes apps/api/app/prowler/data/catalog.json. Edit this file and rerun the script; never edit the generated catalogue. See docs/DECISIONS.md section 150.",
+  "prowler_version": "5.43.0",
+  "providers": ["azure", "aws"],
+  "directory_services": {
+    "azure": ["entra"]
+  },
+  "exclude_severities": ["informational"],
+  "exclude_categories": {
+    "threat-detection": "Reads activity records (sign-ins, API calls, log contents) rather than configuration. Cleave assesses posture and does not ingest a customer's event stream."
+  },
+  "exclude_patterns": [
+    {
+      "pattern": "(no_secrets|find_secrets|secrets_user_data|document_secrets|no_environment_secrets)",
+      "reason": "Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print."
+    }
+  ],
+  "exclude": {
+    "app_function_access_keys_configured": "Needs Microsoft.Web/sites/host/listkeys/action, which returns the function keys themselves. The scanner holds Reader and no list-keys action.",
+    "network_public_ip_shodan": "Sends the customer's public IP addresses to Shodan, a third party, and needs an API key of its own.",
+    "apim_threat_detection_llm_jacking": "Queries the customer's log contents rather than reading configuration.",
+    "vm_desired_sku_size": "Judges against a list of approved sizes the customer has not given Cleave; with Prowler's empty default every machine fails.",
+    "vm_ensure_using_approved_images": "Judges against a list of approved images the customer has not given Cleave; with Prowler's empty default every machine fails."
+  },
+  "covered_by": {
+    "AZ-ID-001": ["entra_privileged_user_has_mfa"],
+    "AZ-ID-004": ["entra_non_privileged_user_has_mfa"],
+    "AZ-ID-005": ["entra_security_defaults_enabled"],
+    "AZ-ID-006": ["entra_security_defaults_enabled"],
+    "AZ-ID-002": ["entra_global_admin_in_less_than_five_users"],
+    "AZ-ID-003": ["entra_user_with_recent_sign_in"],
+    "AZ-APP-001": ["entra_app_registration_credential_not_expired"],
+    "AZ-NET-001": ["network_rdp_internet_access_restricted"],
+    "AZ-NET-002": ["network_ssh_internet_access_restricted"],
+    "AZ-NET-009": ["network_udp_internet_access_restricted"],
+    "AZ-STO-001": [
+      "storage_blob_public_access_level_is_disabled",
+      "storage_default_network_access_rule_is_denied",
+      "storage_account_public_network_access_disabled"
+    ],
+    "AZ-STO-002": ["storage_account_key_access_disabled"],
+    "AZ-STO-003": [
+      "storage_ensure_minimum_tls_version_12",
+      "storage_secure_transfer_required_is_enabled"
+    ],
+    "AZ-STO-004": ["storage_cross_tenant_replication_disabled"],
+    "AZ-STO-005": ["storage_ensure_soft_delete_is_enabled"],
+    "AZ-DB-001": [
+      "sqlserver_unrestricted_inbound_access",
+      "postgresql_flexible_server_allow_access_services_disabled"
+    ],
+    "AZ-DB-003": ["sqlserver_auditing_enabled"],
+    "AZ-DB-006": ["sqlserver_tde_encryption_enabled"],
+    "AZ-DB-007": ["sqlserver_recommended_minimal_tls_version"],
+    "AZ-DB-008": ["sqlserver_azuread_administrator_enabled"],
+    "AZ-DB-009": ["postgresql_flexible_server_enforce_ssl_enabled"],
+    "AZ-LOG-002": ["monitor_diagnostic_settings_exists"],
+    "AZ-LOG-004": ["keyvault_logging_enabled"],
+    "AZ-CMP-002": ["network_subnet_nsg_associated"],
+    "AZ-CMP-003": ["vm_ensure_using_managed_disks"],
+    "AZ-IAM-010": ["iam_subscription_roles_owner_custom_not_created"],
+    "AZ-KV-001": ["keyvault_recoverable"],
+    "AZ-KV-002": ["keyvault_private_endpoints", "keyvault_access_only_through_private_endpoints"],
+    "AZ-KV-003": ["keyvault_rbac_enabled"],
+    "AZ-VULN-001": ["defender_ensure_system_updates_are_applied"],
+    "AZ-MAL-001": ["defender_assessments_vm_endpoint_protection_installed"],
+    "AZ-DEF-001": [
+      "defender_ensure_defender_for_app_services_is_on",
+      "defender_ensure_defender_for_arm_is_on",
+      "defender_ensure_defender_for_azure_sql_databases_is_on",
+      "defender_ensure_defender_for_containers_is_on",
+      "defender_ensure_defender_for_cosmosdb_is_on",
+      "defender_ensure_defender_for_databases_is_on",
+      "defender_ensure_defender_for_dns_is_on",
+      "defender_ensure_defender_for_keyvault_is_on",
+      "defender_ensure_defender_for_os_relational_databases_is_on",
+      "defender_ensure_defender_for_server_is_on",
+      "defender_ensure_defender_for_sql_servers_is_on",
+      "defender_ensure_defender_for_storage_is_on"
+    ],
+    "AZ-WEB-001": ["app_ensure_http_is_redirected_to_https", "app_function_ensure_http_is_redirected_to_https"],
+    "AZ-WEB-002": ["app_minimum_tls_version_12"],
+    "AZ-WEB-003": ["app_ftp_deployment_disabled", "app_function_ftps_deployment_disabled"],
+    "AZ-WEB-005": ["app_register_with_identity", "app_function_identity_is_configured"],
+    "AWS-STO-001": [
+      "s3_bucket_level_public_access_block",
+      "s3_account_level_public_access_blocks",
+      "s3_bucket_public_access"
+    ],
+    "AWS-STO-002": ["s3_bucket_default_encryption"],
+    "AWS-STO-003": ["s3_bucket_secure_transport_policy"],
+    "AWS-NET-001": ["ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_22"],
+    "AWS-NET-002": ["ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_3389"],
+    "AWS-NET-003": [
+      "ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_mysql_3306",
+      "ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_postgres_5432",
+      "ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_sql_server_1433_1434",
+      "ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_oracle_1521_2483",
+      "ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_mongodb_27017_27018",
+      "ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_redis_6379",
+      "ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_cassandra_7199_9160_8888"
+    ],
+    "AWS-NET-004": [
+      "ec2_networkacl_allow_ingress_tcp_port_22",
+      "ec2_networkacl_allow_ingress_tcp_port_3389",
+      "ec2_networkacl_allow_ingress_any_port"
+    ],
+    "AWS-NET-005": ["ec2_securitygroup_default_restrict_traffic"],
+    "AWS-DB-001": ["rds_instance_no_public_access"],
+    "AWS-DB-002": ["rds_instance_storage_encrypted"],
+    "AWS-DB-003": ["rds_instance_minor_version_upgrade_enabled"],
+    "AWS-IAM-001": ["iam_user_mfa_enabled_console_access"],
+    "AWS-IAM-002": ["iam_no_root_access_key"],
+    "AWS-IAM-003": ["iam_user_accesskey_unused"],
+    "AWS-IAM-004": ["iam_password_policy_minimum_length_14", "iam_password_policy_reuse_24"],
+    "AWS-IAM-005": ["iam_root_mfa_enabled"],
+    "AWS-IAM-006": ["iam_customer_attached_policy_no_administrative_privileges"],
+    "AWS-IAM-007": ["iam_no_expired_server_certificates_stored"],
+    "AWS-IAM-008": ["accessanalyzer_enabled"],
+    "AWS-IAM-009": ["iam_support_role_created"],
+    "AWS-CMP-001": ["ec2_ebs_default_encryption"],
+    "AWS-CMP-002": ["ec2_instance_imdsv2_enabled"],
+    "AWS-SEC-001": ["kms_cmk_rotation_enabled"],
+    "AWS-LOG-001": ["cloudtrail_multi_region_enabled"],
+    "AWS-LOG-002": ["cloudtrail_log_file_validation_enabled"],
+    "AWS-LOG-003": ["config_recorder_all_regions_enabled"],
+    "AWS-LOG-004": ["cloudtrail_logs_s3_bucket_access_logging_enabled"],
+    "AWS-LOG-005": ["cloudtrail_kms_encryption_enabled"],
+    "AWS-LOG-006": ["vpc_flow_logs_enabled"],
+    "AWS-LOG-007": ["cloudwatch_log_metric_filter_unauthorized_api_calls"],
+    "AWS-LOG-008": ["cloudwatch_log_metric_filter_root_usage"],
+    "AWS-LOG-009": ["cloudwatch_log_metric_filter_sign_in_without_mfa"],
+    "AWS-LOG-010": ["cloudwatch_log_metric_filter_policy_changes"],
+    "AWS-LOG-011": ["cloudwatch_log_metric_filter_and_alarm_for_cloudtrail_configuration_changes_enabled"],
+    "AWS-LOG-012": ["cloudwatch_log_metric_filter_authentication_failures"],
+    "AWS-LOG-013": ["cloudwatch_log_metric_filter_disable_or_scheduled_deletion_of_kms_cmk"],
+    "AWS-LOG-014": ["cloudwatch_log_metric_filter_for_s3_bucket_policy_changes"],
+    "AWS-LOG-015": ["cloudwatch_log_metric_filter_and_alarm_for_aws_config_configuration_changes_enabled"],
+    "AWS-LOG-016": ["cloudwatch_log_metric_filter_security_group_changes"],
+    "AWS-LOG-017": ["cloudwatch_changes_to_network_acls_alarm_configured"],
+    "AWS-LOG-018": ["cloudwatch_changes_to_network_gateways_alarm_configured"],
+    "AWS-LOG-019": ["cloudwatch_changes_to_network_route_tables_alarm_configured"],
+    "AWS-LOG-020": ["cloudwatch_changes_to_vpcs_alarm_configured"],
+    "AWS-LOG-021": ["cloudwatch_log_metric_filter_aws_organizations_changes"],
+    "AWS-POS-001": ["guardduty_is_enabled"],
+    "AWS-POS-002": ["securityhub_enabled"]
+  },
+  "divergence_notes": {
+    "AZ-ID-005": "Cleave passes a tenant whose Conditional Access requires MFA everywhere; Prowler's check asks only whether security defaults are on, so it fails that tenant. Expected to disagree wherever Conditional Access is used.",
+    "AZ-ID-006": "Cleave looks for a policy blocking legacy protocols; Prowler's nearest check is security defaults, which is one way of blocking them. Expected to disagree wherever Conditional Access does it instead.",
+    "AZ-ID-002": "Cleave sizes the threshold to the tenant; Prowler counts Global Administrators against five.",
+    "AZ-ID-003": "Cleave asks whether a privileged account is dormant; Prowler asks whether any user signed in recently.",
+    "AZ-APP-001": "Cleave fails credentials valid for years; Prowler fails credentials that have already expired. The two look at the same object from opposite ends.",
+    "AZ-STO-002": "Cleave's check is broader (transport, TLS and shared-key authorization); only the shared-key half has a Prowler counterpart.",
+    "AZ-CMP-002": "Cleave asks about the machine (NIC or subnet); Prowler asks about the subnet alone.",
+    "AZ-VULN-001": "Cleave raises a Defender vulnerability only where the machine is reachable from the internet (DECISIONS.md section 62); Prowler repeats Defender's verdict for every machine.",
+    "AZ-KV-002": "Cleave fails a vault open to every network; Prowler fails a vault with no private endpoint, which is stricter.",
+    "AZ-DB-001": "Cleave covers SQL and PostgreSQL public access together; the counterparts are split per engine.",
+    "AWS-IAM-004": "Cleave judges the policy as a whole; Prowler has one check per clause."
+  },
+  "exploitability": {
+    "storage_blob_public_access_level_is_disabled": 5,
+    "s3_bucket_public_access": 5,
+    "s3_bucket_policy_public_write_access": 5,
+    "s3_bucket_public_write_acl": 5,
+    "s3_bucket_public_list_acl": 5,
+    "s3_bucket_object_public": 5,
+    "ec2_ebs_public_snapshot": 5,
+    "aks_clusters_public_access_disabled": 4,
+    "cosmosdb_account_public_network_access_disabled": 4,
+    "containerregistry_admin_user_disabled": 3
+  }
+}

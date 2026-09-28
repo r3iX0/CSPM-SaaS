@@ -7865,7 +7865,346 @@ palette at 58.2 kB (19.9 kB) when somebody opens it. The entry is now mostly
 report; React Router 7 (§148) sits in the separate `react` chunk and does not
 touch these figures.
 
+## 150. A second engine: Prowler's checks, run beside Cleave's rules and audited against them
+
+Cleave's native rule engine is deep and narrow: 98 rules, each reading evidence
+its own collectors stored verbatim, each feeding the graph. Prowler is the
+opposite shape -- over eight hundred Azure and AWS checks and the compliance
+frameworks mapped to them, with no graph at all. This decision runs Prowler as a
+second engine inside every scan: it supplies breadth, and it checks the first
+engine's answers where the two overlap.
+
+### Where it runs: its own service, one step per process
+
+Prowler cannot be imported into the API or its worker. It pins botocore 1.40 and
+pydantic 2.12; the API's aiobotocore needs botocore 1.43. So it lives in
+`apps/scanner`, its own package and image (`infrastructure/docker/scanner.Dockerfile`,
+`infrastructure/railway/scanner.json`), sharing only the database and the broker.
+A seam test fails the build if anything under `apps/api/app` imports `prowler`.
+
+It is driven through `prowler.lib.scan.scan.Scan`, the interface Prowler's own
+API service uses, rather than its CLI: results arrive per check, the run stops
+between checks when its lease is gone, and nothing is written to disk.
+Credentials go to the provider's constructor and nowhere else -- never
+`os.environ`, never a command line.
+
+Prowler keeps each service client in a module global built from a process-wide
+"current provider". A second scan in the same process would run against the
+first tenant's clients and data. The worker therefore runs
+`--max-tasks-per-child=1`, as Prowler's own workers do, and
+`refuse_reused_process` stops a step outright if Prowler service modules are
+already loaded -- a changed start command should fail loudly, not scan one
+customer with another's clients.
+
+### A fourth step kind
+
+`ScanStepKind.ASSESS`: created by PLAN for the same scopes COLLECT reads (plus
+the directory where Prowler has directory checks -- Entra ID), runnable once PLAN
+succeeds, parallel with COLLECT, and ANALYZE waits for both to settle. A scan
+therefore takes as long as the slower engine, not both in sequence. The API's
+worker claims the step and sends it by task name (`cloudguard.run_assess_step`)
+to the `assess` queue; the scanner settles it and sends the next advance back.
+
+The scanner cannot import the orchestrator, so it restates the step fence in SQL
+(`apps/scanner/cloudguard_scanner/store.py`): renewals, settles and the capture
+write all name the attempt the step was claimed at, and the capture is written
+in a transaction holding the step row `FOR SHARE`. A heartbeat thread renews the
+lease on a third of its length, because one Prowler service can spend minutes
+building its clients before the first check runs. The names, the lease length
+and the capture columns are held equal on both sides by
+`tests/unit/test_prowler_engine.py`.
+
+Nothing is created while `ASSESS_ENABLED` is off. A step nobody consumes would
+hold ANALYZE back for three leases and then fail on every scan.
+
+### A role that can do almost nothing
+
+The scanner runs third-party code with a customer's credentials in memory, so it
+connects as `cloudguard_scanner` (migration 0042) and holds column grants only:
+read the scope it was handed, update its own step's lease and status, write its
+capture (0043 narrowed "its own step" to ASSESS steps, §151). It cannot read a
+finding, an asset, a snapshot or a consent nonce. It
+learns a scan's organization through `app.scan_owner`, a one-column SECURITY
+DEFINER lookup, because that is the one read before there is an organization to
+be held to; every other statement runs under `app.organization_id` and the
+policies 0042 adds for that role.
+
+### Silence is never a pass
+
+Prowler fails quietly. A service whose listing is denied logs an error and
+leaves its resource list empty; every check over it then emits nothing. A check
+that raises is caught, logged, and also emits nothing -- and is still counted as
+completed. Read naively, both are a clean estate.
+
+So the scanner captures Prowler's log for the length of the run
+(`ErrorCapture`), filing each ERROR under the service whose module raised it or
+the check whose id begins the message, and stores that beside the results. The
+API (`app/prowler/ingest.py`) then applies the rule the native engine applies:
+
+- a check that raised, or did not finish, is UNKNOWN for the scope;
+- a check whose service errored is UNKNOWN for the scope *and* for every asset
+  of its type Cleave inventoried that it said nothing about -- while whatever it
+  did say stands, because a FAIL is an observation whatever failed around it;
+- MANUAL is UNKNOWN;
+- a run that could not start, whose results were pruned, or that came from a
+  different Prowler release than the catalogue is UNKNOWN for every check it
+  was asked to run;
+- a check that ran cleanly and emitted nothing had nothing to judge. It counts
+  as run -- so a control is not "never assessed" -- and raises no verdict.
+
+An incomplete run also makes the scan PARTIAL, named in `collection_errors`
+exactly as a failed listing is.
+
+### Every result on an asset Cleave knows
+
+Prowler names resources its own way. `AssetResolver` joins its ids to the
+inventory case-blind, then through ARM parents (a vault's key belongs to the
+vault), then by last segment (an ARN's instance id), refusing a segment two
+assets share. A result that still joins nothing but is plainly a resource
+becomes an inventory asset of type UNKNOWN -- deliberately untyped, so no native
+rule ever evaluates metadata it does not carry. Anything else is a verdict about
+the scope.
+
+What is stored per result is what a finding needs: status, message, resource id
+and name, region, tags, Prowler's short description. Not `resource_metadata`,
+which is the whole service object Prowler built -- configuration the customer
+never asked Cleave to keep for months.
+
+### One question, one finding -- and the engines audit each other
+
+Every enabled check becomes a `SecurityRule` subclass (`app/prowler/rules.py`,
+rule id `PRW-<cloud>-<check>`), so findings, risks, verification and compliance
+treat its verdicts exactly as a native rule's. `matches` is always false and
+`evaluate` answers UNKNOWN: the native engine never evaluates one, and cannot by
+mistake. Rule ids are up to 101 characters, so every `rule_id` column went from
+32 to 128.
+
+Where a native rule already answers what a check asks, the catalogue records it
+(`covered_by`, hand-curated in `tools/prowler/curation.json`). That check is not
+registered as a rule. Its verdicts are compared with the native rule's, asset by
+asset -- or, where the two never name the same asset (an aggregate rule against
+per-plan checks), scope against scope -- and every disagreement becomes an
+`engine_divergences` row: NATIVE_MISSED, PROWLER_MISSED, or one engine unable to
+tell. Pairs that ask slightly different questions are recorded with a note
+(`divergence_notes`) and listed as expected. `GET /engine-audit` and the Engine
+audit page read them; an unexpected disagreement is a bug in one engine or the
+other.
+
+This is how §62's line is kept. Defender's vulnerability verdicts stay evidence
+paired with exposure: Prowler's `defender_ensure_system_updates_are_applied` is
+covered by AZ-VULN-001 and never raises a finding of its own.
+
+A native rule also inherits the controls its counterparts map to, for frameworks
+it does not map itself -- never overriding a hand-written mapping, and never for
+a pair recorded as disagreeing by design.
+
+### The catalogue is generated and pinned
+
+`tools/prowler/build_catalog.py` reads the installed Prowler beside
+`curation.json` and writes `apps/api/app/prowler/data/catalog.json`: every check,
+its severity, remediation, derived exploitability, scope, and its compliance
+mappings translated into Cleave's control ids. The API reads it to interpret
+results; the scanner reads the same file to choose what to run. The Prowler
+release is pinned in `curation.json`, `apps/scanner/pyproject.toml` and the
+scanner Dockerfile, a unit test holds the three equal, and CI rebuilds the
+catalogue from the pinned release and fails on any difference.
+
+Thirty-seven checks are excluded, and excluded means never requested rather
+than filtered afterwards: those that scan code, environment variables, user data
+or logs for secrets; those that read activity records rather than
+configuration; the one that sends public IPs to Shodan; the one that needs
+Microsoft.Web list-keys; and two that judge against approved lists the customer
+has not given.
+
+### Permissions
+
+On Azure the Graph permissions Prowler needs are ones Cleave's application
+already holds. ARM is different: the custom scanner role is trimmed to exactly
+the calls Cleave's collectors make, and Prowler reads several hundred other
+resource types. The deployment template therefore also assigns the built-in
+Reader role -- every `*/read`, no `listKeys`, no data plane -- so the claim that
+Cleave cannot perform a write still holds. A connection deployed before this
+reads those services as UNKNOWN until it is redeployed. On AWS the role already
+carries SecurityAudit and ViewOnlyAccess, which is what Prowler documents.
+
+### Frameworks
+
+Six frameworks come from Prowler's compliance files: CIS Azure 6.0, CIS AWS 7.0,
+AWS FSBP, NIS2, HIPAA and MITRE ATT&CK. They list every requirement, so
+coverage is measured against the whole framework. They are hidden while the
+scanner service is off, when every control would read never assessed.
+
+Their control titles are the benchmarks' own requirement names as Prowler
+carries them -- the one place the catalogue does not use Cleave's own words,
+which `app/compliance/catalog.py` otherwise requires because CIS text is
+copyrighted. **This needs a licensing decision before the CIS frameworks are
+offered commercially**; the fallback is identifiers only, with titles written
+here.
+
+Building the crosswalk also found a catalogue error: AWS-STO-002 and AWS-STO-003
+were mapped to CIS AWS 1.x numbering. In 3.0, 2.1.1 is the HTTPS control and
+bucket encryption has no control, so AWS-STO-003 now maps 2.1.1 and AWS-STO-002
+maps no CIS control. The catalogue's 2.1.x titles are corrected, and 2.1.3 is
+added.
+
+### What replay gives up
+
+A native capture can be re-evaluated against new rules. A Prowler capture can
+only be re-interpreted -- new mappings, new severities, a new pairing -- because
+Prowler's checks ran against the cloud, not against anything Cleave stored. A
+capture from another Prowler release reads UNKNOWN rather than being read under
+check ids whose meaning may have changed. Retention prunes old capture payloads
+on the snapshot schedule, keeping the row and the newest run of every scope.
+
+### Not done yet
+
+- The scanner image installs Prowler's pinned direct dependencies but not a
+  hash-locked transitive set; generate one on Linux and install with
+  `--require-hashes`.
+- No run has been made against a real tenant or account. The first sandbox run
+  should be read through the engine audit before `ASSESS_ENABLED` is set in
+  production.
+- The demo organization replays native captures only, so it shows no extended
+  checks.
+
+## 151. The second engine, audited: stale messages, queue waits, silent refusals, and whose scope a verdict is
+
+An audit of §150 against Prowler 5.43.0's own source found six places where the
+second engine could run twice, never run, read silence as a clean estate, or
+let one subscription answer for another. Each is fixed here; none changes what
+§150 decided, only whether the code does it.
+
+### A message says which attempt it is for
+
+The API claims an ASSESS step and publishes `[scan_id, step_id]`. The scanner
+read the attempt off the row. So a message that sat on the queue past its lease
+-- reaped, the step returned to PENDING, reclaimed at the next attempt with a
+message of its own -- was later picked up and ran *as the new attempt*, beside
+the scanner running the new attempt's message. Both passed the fence, because
+both named the same attempt. Two Prowler runs against one customer, and two
+capture writes racing on the unique index.
+
+`orchestrator.claim` now returns the attempt each step was won at (`Claim`), and
+`advance_scan` sends `[scan_id, step_id, attempt]`. The scanner refuses a
+message whose attempt is not the row's (`NOT_OURS`). A message without one --
+queued before this change -- is still read the old way.
+
+### Waiting on the queue is not a lost lease
+
+A claim leased every step for ten minutes. A COLLECT step is picked up in
+seconds; an ASSESS step waits for a scanner process, and the scanner runs one
+step per process for hours. Behind two or three long runs, a queued ASSESS step
+was reaped before it ever started, re-sent to the back of the queue, and failed
+on its third attempt having run nothing.
+
+A claim now leases an ASSESS step for `assess_queue_seconds` (four hours by
+default), and the scanner's heartbeat renews once on entry, before Prowler
+starts. That first renewal replaces the queue lease with the ordinary one, so a
+scanner that dies mid-run is still noticed in minutes, and a step already taken
+is refused before a single check runs. A message genuinely lost costs the queue
+lease to notice instead of ten minutes; the dispatcher's nudge (§65) does not
+change that, and it is the rare case.
+
+### The run's own deadline, because the soft time limit never fires
+
+Prowler's `Scan.scan()` wraps each check in `except Exception` and logs it.
+Celery's `SoftTimeLimitExceeded` is an `Exception`, so it was swallowed as one
+check's error and the run carried on until the hard limit killed the process --
+nothing stored, nothing settled, the lease left to expire and the whole run
+retried to the same end three times.
+
+The runner now takes a deadline (`SCANNER_RUN_BUDGET`, by default the soft
+limit less thirty minutes) and checks it between checks, where it already checks
+the lease. At the deadline it stops, stores what finished with
+`errors["stopped"]`, and settles SUCCEEDED: the capture is PARTIAL, every check
+it never reached reads UNKNOWN "did not complete", and the scan's gap list says
+it stopped at its budget. A retry would stop in the same place, so it is a
+result, not a failure. The soft and hard limits remain as the backstop for one
+check that hangs.
+
+### Refusals Prowler logs quietly
+
+`ErrorCapture` filed ERROR records by the path they were logged from. Reading
+Prowler's source showed three ways a refusal escaped it:
+
+- An Azure resource group Prowler could not list is logged at WARNING (by
+  `AzureService.list_with_rg_scope`), as is a key vault whose data plane refused
+  it. Those services then report on nothing, which read as nothing to judge.
+- The base class that builds every Azure service's clients logs its failure from
+  `providers/azure/lib/service/service.py`, which names no service -- so it was
+  filed under "other", which nothing read.
+- "Other" errors never made a run PARTIAL.
+
+Now a WARNING is kept when its message names a refusal (`_REFUSAL`:
+AuthorizationFailed, AccessDenied, Forbidden, 403 and the like); Prowler's many
+"not supported in this region" and "not found" warnings stay out. A record whose
+path names no service is filed under the service whose module is on the stack
+that logged it, found by walking the frames -- `emit` runs synchronously in
+the logging thread, so the caller is a few frames up. What still belongs to
+nothing makes the run PARTIAL, and the scan's gap list counts it. The scanner's
+own and Celery's loggers are ignored, so a database blip during a lease renewal
+is not mistaken for the cloud refusing something.
+
+One silence remains that the log cannot show: `Scan.scan()` drops a finding it
+fails to convert (`except Exception: continue`) without logging, and
+`__threading_call__` swallows a worker thread's exception when the called
+function did not log it. Neither can be seen from outside Prowler without
+patching it, which this codebase does not do.
+
+### Whose scope a verdict is
+
+A result that joined no asset, and every UNKNOWN about "the scope" (a service
+that errored, a check that raised, a run that could not start), was a verdict
+on no asset. Findings are unique on (organization, rule, resource), and a scope
+verdict's resource was nothing -- the same nothing in every subscription of a
+tenant-wide scan. Two subscriptions' FAILs were one finding; one subscription's
+PASS resolved another's FAIL.
+
+A verdict about one account's scope now lands on that account's own asset
+(`/subscriptions/<id>`, or the AWS account), which every account's normalized
+state carries. Where there is none -- the account's collection failed while
+Prowler's succeeded -- a PASS with nowhere to go is UNKNOWN rather than a
+tenant-wide pass, and a FAIL is kept as an observation. The directory is one
+scope per connection and keeps its verdicts on no asset.
+
+And each (check, asset) now gets exactly one verdict. The UNKNOWNs raised for a
+service error or a check that did not complete were appended beside the
+results' verdicts rather than combined with them, so one asset could carry a
+FAIL and an UNKNOWN for one check -- a finding and a gap for one question. They
+go through the same worst-wins combination as several results on one asset do.
+What a check said about the scope itself still stands beside a service error:
+the scope is marked unknown only where the check said nothing about it.
+
+### The scanner settles ASSESS steps and nothing else
+
+0042's policies held `cloudguard_scanner` to the organization it declared, and
+no narrower. Within it, the scanner could update any step: fail a COLLECT,
+succeed an ANALYZE. Migration 0043 adds `kind = 'ASSESS'` to its select and
+update policies on `scan_steps`, and `tests/integration/test_scanner_role.py`
+proves the role's reach against the real grants for the first time -- what it
+may settle, what it cannot see, what it cannot read at all.
+
+What the policies cannot do is stop the role declaring another organization:
+`app.organization_id` is its own `set_config`, as it is for `cloudguard_worker`.
+Isolation between tenants rests there on the organization and scan ids being
+unguessable, and on the queue message being the only place the scanner learns a
+scan id. That is a weaker boundary than the request path's, and it is named
+here rather than implied away. The larger exposure is not the database at all:
+the scanner holds Cleave's multi-tenant Entra secret and its AWS identity, which
+reach every customer who has granted access. See the open items.
+
 ## Open items carried forward
+
+**The scanner holds long-lived credentials for every customer (§151).** It
+runs Prowler and several hundred dependencies with Cleave's multi-tenant Entra
+secret and its AWS identity in memory, and learns tenant ids and role ARNs from
+the broker and the database. One compromised dependency is every customer's
+cloud. The fix is for the API to mint what one step needs -- an STS session for
+that account's role, ARM and Graph tokens for that tenant -- bound to the step
+and attempt, and for the scanner to hold no secret of its own; Prowler's AWS
+provider takes session credentials, its Azure provider would need a static
+token credential. Until then, an egress allowlist on the scanner service and
+the hash-locked install in §150 are the mitigations.
 
 **Data residency is not built (§113).** An organization setting for allowed
 regions, a rule over `CloudResource.region` per provider (never one rule that

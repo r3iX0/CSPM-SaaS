@@ -38,3 +38,19 @@ BEGIN
 END $$;
 
 GRANT CONNECT ON DATABASE cloudguard TO cloudguard_worker;
+
+-- The scanner service's role (migration 0042). Same reasoning as the worker's
+-- above: the migration creates it NOLOGIN, and the scanner's own tests must
+-- connect as it or they would prove its narrow grants against a role that
+-- bypasses them.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'cloudguard_scanner') THEN
+    CREATE ROLE cloudguard_scanner LOGIN PASSWORD 'cloudguard_scanner'
+      NOSUPERUSER NOCREATEDB NOCREATEROLE;
+  ELSE
+    ALTER ROLE cloudguard_scanner LOGIN PASSWORD 'cloudguard_scanner';
+  END IF;
+END $$;
+
+GRANT CONNECT ON DATABASE cloudguard TO cloudguard_scanner;

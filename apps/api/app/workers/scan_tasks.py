@@ -37,6 +37,8 @@ from app.services import verification as verification_service
 from app.services.scan import ScanPipeline
 from app.workers.celery_app import (
     ANALYZE_QUEUE,
+    ASSESS_QUEUE,
+    ASSESS_TASK,
     COLLECT_QUEUE,
     DEFAULT_QUEUE,
     STEP_SOFT_TIME_LIMIT,
@@ -104,7 +106,18 @@ def advance_scan(self: object, scan_id: str) -> dict:
     configure_logging()
     with log_context(scan_id=scan_id, task="advance_scan"):
         claimed = asyncio.run(_advance(UUID(scan_id)))
-    for step_id, kind in claimed:
+    for step_id, kind, attempt in claimed:
+        if kind == ScanStepKind.ASSESS:
+            # The second engine runs in the scanner service, which this
+            # process cannot import; the task is sent by name to its queue.
+            # The scanner settles the step and sends the next advance itself.
+            # The attempt travels with it: a copy queued for an attempt the
+            # reaper gave up on must not run beside the one that replaced it
+            # (DECISIONS.md section 151).
+            celery_app.send_task(
+                ASSESS_TASK, args=[scan_id, str(step_id), attempt], queue=ASSESS_QUEUE
+            )
+            continue
         # Routed by what the step costs rather than by what it is called.
         # Collection waits on Azure and wants many in flight; analysis holds a
         # whole tenant in memory and wants few, and one pool sized for either
@@ -249,11 +262,12 @@ def prune_evidence(self: object) -> dict:
     """
     configure_logging()
     totals = asyncio.run(_prune_all_evidence())
-    if totals["snapshots"] or totals["blobs"]:
+    if totals["snapshots"] or totals["blobs"] or totals["assessments"]:
         log.info(
             "retention.pruned",
             snapshots=totals["snapshots"],
             blobs=totals["blobs"],
+            assessments=totals["assessments"],
         )
     return totals
 
@@ -349,12 +363,14 @@ def queue_for(kind: ScanStepKind) -> str:
     """
     if kind == ScanStepKind.COLLECT:
         return COLLECT_QUEUE
+    if kind == ScanStepKind.ASSESS:
+        return ASSESS_QUEUE
     if kind == ScanStepKind.ANALYZE:
         return ANALYZE_QUEUE
     return DEFAULT_QUEUE
 
 
-async def _advance(scan_id: UUID) -> list[tuple[UUID, ScanStepKind]]:
+async def _advance(scan_id: UUID) -> list[orchestrator.Claim]:
     try:
         async with service_session() as session:
             scan = await session.get(Scan, scan_id)
@@ -672,7 +688,7 @@ async def _prune_all_evidence() -> dict[str, int]:
     notification sweep: a run that failed halfway would otherwise give back the
     space it had correctly reclaimed for everybody before the one that broke.
     """
-    totals = {"snapshots": 0, "blobs": 0}
+    totals = {"snapshots": 0, "blobs": 0, "assessments": 0}
     try:
         async with service_session() as session:
             org_ids = list(
@@ -694,6 +710,7 @@ async def _prune_all_evidence() -> dict[str, int]:
                     await session.commit()
                 totals["snapshots"] += result["snapshots"]
                 totals["blobs"] += result["blobs"]
+                totals["assessments"] += result["assessments"]
             except Exception:  # pragma: no cover - one tenant must not stop the rest
                 log.exception("retention.prune_failed", organization_id=str(org_id))
         return totals

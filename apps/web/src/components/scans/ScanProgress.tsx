@@ -16,12 +16,14 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 const STAGE_LABELS: Record<ScanStage["stage"], string> = {
   PLAN: "Plan",
   COLLECT: "Collect",
+  ASSESS: "Extended checks",
   ANALYZE: "Analyze",
 };
 
 const STAGE_BLURB: Record<ScanStage["stage"], string> = {
   PLAN: "Work out what this scan covers",
   COLLECT: "Read each scope and store what came back",
+  ASSESS: "Run Prowler's checks over each scope, beside collection",
   ANALYZE: "Interpret every capture: normalize, evaluate, score",
 };
 
@@ -67,7 +69,7 @@ export function ScanProgress({ stages }: { stages: ScanStage[] }) {
 
   return (
     <div className="flex flex-col gap-3">
-      {(["PLAN", "COLLECT", "ANALYZE"] as const).map((stage) => {
+      {(["PLAN", "COLLECT", "ASSESS", "ANALYZE"] as const).map((stage) => {
         const steps = stages.filter((s) => s.stage === stage);
         if (steps.length === 0) return null;
 

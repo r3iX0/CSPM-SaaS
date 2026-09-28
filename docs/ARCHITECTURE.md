@@ -154,11 +154,16 @@ cloudguard/
 |       |   |-- graph/           # AssetGraph: attack paths, escalation chains, severance, patterns
 |       |   |-- rules/azure/{identity,rbac,network,storage,compute,database,logging,secrets,posture}/
 |       |   |-- rules/{base.py, controls.py, registry.py}
+|       |   |-- prowler/         # the second engine's catalogue, rules and ingest -- no Prowler import
 |       |   |-- risk/{config.py, scorer.py, grouping.py}
 |       |   |-- remediation/     # RemediationSpec: the machine-readable half of a fix
 |       |   |-- compliance/, reports/
 |       |   `-- workers/{celery_app.py, scan_tasks.py}
 |       `-- tests/{unit/, integration/, fixtures/}
+|   `-- scanner/                  # the second engine: runs Prowler for ASSESS steps,
+|       |                         # its own image, never imported by api (DECISIONS §150)
+|       `-- cloudguard_scanner/{tasks, runner, store, capture, heartbeat, catalog}.py
+|-- tools/prowler/                # curation.json + build_catalog.py -> api/app/prowler/data/catalog.json
 |-- database/{migrations/, seed/}
 |-- infrastructure/{docker/, supabase/, railway/, azure/, ci/}
 |-- docs/
@@ -173,6 +178,13 @@ and names and then overruled by what a customer declared — the multiplier the
 risk engine applies, kept apart from both the connector that read the tags and
 the scorer that uses the result. `graph/` is the second question asked of one
 scan's normalized state: not "what is wrong" but "what is wrong *together*".
+
+`apps/scanner` and `app/prowler/` are the second engine (DECISIONS.md §150).
+Beside every COLLECT step, an ASSESS step runs Prowler over the same scope in a
+separate service and stores what it said; ANALYZE reads it back, turns it into
+verdicts under the same rule that UNKNOWN is never PASS, raises findings for the
+checks no native rule answers, and records where the two engines disagree on the
+checks one does.
 
 ---
 

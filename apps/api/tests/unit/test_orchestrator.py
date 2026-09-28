@@ -228,3 +228,75 @@ def test_a_step_failure_degrades_a_scan_without_being_told() -> None:
         step(ScanStepKind.ANALYZE, ScanStepStatus.SUCCEEDED),
     ]
     assert orchestrator.status_for(steps, degraded=False) == ScanStatus.PARTIAL
+
+
+# ------------------------------------------------- the second engine's steps
+def test_assessment_runs_beside_collection_once_the_plan_is_done() -> None:
+    """The two engines read the same scope in parallel, so a scan takes as long
+    as the slower of them rather than the two in sequence (DECISIONS.md §150)."""
+    plan = step(ScanStepKind.PLAN, ScanStepStatus.SUCCEEDED)
+    collect = step(ScanStepKind.COLLECT, account=uuid.uuid4())
+    assess = step(ScanStepKind.ASSESS, account=uuid.uuid4())
+    ready = orchestrator.runnable([plan, collect, assess, step(ScanStepKind.ANALYZE)])
+    assert ready == [collect, assess]
+
+    waiting = step(ScanStepKind.PLAN, ScanStepStatus.RUNNING)
+    assert orchestrator.runnable([waiting, step(ScanStepKind.ASSESS)]) == []
+
+
+def test_analysis_waits_for_the_second_engine_too() -> None:
+    plan = step(ScanStepKind.PLAN, ScanStepStatus.SUCCEEDED)
+    collected = step(ScanStepKind.COLLECT, ScanStepStatus.SUCCEEDED, account=uuid.uuid4())
+    analyze = step(ScanStepKind.ANALYZE)
+
+    running = step(ScanStepKind.ASSESS, ScanStepStatus.RUNNING, account=uuid.uuid4())
+    assert orchestrator.runnable([plan, collected, running, analyze]) == []
+
+    # Settled, not succeeded: a Prowler run that failed leaves its checks
+    # unknown, and the native verdicts still stand.
+    failed = step(ScanStepKind.ASSESS, ScanStepStatus.FAILED, account=uuid.uuid4())
+    assert orchestrator.runnable([plan, collected, failed, analyze]) == [analyze]
+
+
+def test_a_running_assessment_reads_as_discovery() -> None:
+    steps = [
+        step(ScanStepKind.PLAN, ScanStepStatus.SUCCEEDED),
+        step(ScanStepKind.COLLECT, ScanStepStatus.SUCCEEDED, account=uuid.uuid4()),
+        step(ScanStepKind.ASSESS, ScanStepStatus.RUNNING, account=uuid.uuid4()),
+        step(ScanStepKind.ANALYZE),
+    ]
+    assert orchestrator.status_for(steps) == ScanStatus.DISCOVERING
+
+
+def test_a_failed_assessment_leaves_the_scan_partial_and_says_whose() -> None:
+    steps = [
+        step(ScanStepKind.PLAN, ScanStepStatus.SUCCEEDED),
+        step(ScanStepKind.COLLECT, ScanStepStatus.SUCCEEDED, account=uuid.uuid4()),
+        step(
+            ScanStepKind.ASSESS,
+            ScanStepStatus.FAILED,
+            account=uuid.uuid4(),
+            error="ClientAuthenticationError",
+        ),
+        step(ScanStepKind.ANALYZE, ScanStepStatus.SUCCEEDED),
+    ]
+    assert orchestrator.status_for(steps) == ScanStatus.PARTIAL
+    _finished, _degraded, problems = orchestrator.summarize(steps)
+    assert problems == ["the extended checks for one subscription: ClientAuthenticationError"]
+
+
+async def test_no_assessment_steps_while_the_scanner_is_not_deployed(monkeypatch) -> None:
+    """An ASSESS step nobody consumes would hold ANALYZE back for three leases
+    and then fail, on every scan."""
+    from app.core.config import settings
+    from app.core.enums import Provider
+
+    monkeypatch.setattr(settings, "assess_enabled", False)
+    created = await orchestrator.create_assess_steps(
+        None,  # type: ignore[arg-type]  -- never reached
+        None,  # type: ignore[arg-type]
+        [],
+        provider=Provider.AZURE,
+        directory=True,
+    )
+    assert created == []

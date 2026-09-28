@@ -69,6 +69,7 @@ GET    /attack-paths/what-if?source=&relationship=&target=
 POST   /attack-paths/simulate            { cuts: [{source, relationship, target}] }  (1..10)
 
 GET    /rules                              GET    /rules/{rule_id}
+GET    /engine-audit?scan_id=
 GET    /compliance                         GET    /compliance/{framework_id}
 GET    /compliance/{framework_id}/export?format=csv|json
 
@@ -156,6 +157,16 @@ subscription itself: that is a write in their tenant, and it holds no write
 permission anywhere. An event does not start a scan directly — a burst marks the
 connection, the scan waits for the environment to go quiet, and a floor stops an
 afternoon of deployments becoming an afternoon of scans.
+
+Rules come from two engines (DECISIONS.md §150). `/rules` and `/findings/{id}`
+carry `engine` (`native` or `prowler`) and `prowler`: for a Prowler check its
+check id, release and Prowler's own fix (CLI, Terraform, native template); for a
+native rule the Prowler checks that cross-check it and, where the two differ by
+design, why. `/engine-audit` answers, for one scan or the newest the extended
+checks ran in, what each Prowler run covered and could not read, and every asset
+where a native rule and its Prowler counterparts disagreed -- unexpected
+disagreements first. A Prowler check is listed `enabled: false` while the
+deployment has not switched the scanner service on (`ASSESS_ENABLED`).
 
 `/rules/{rule_id}` and `/findings/{id}` carry `remediation_spec` beside the
 remediation prose: the settings that must be true for the finding to close, the

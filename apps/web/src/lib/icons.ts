@@ -32,6 +32,7 @@ import {
   PanelsTopLeftIcon,
   PlusIcon,
   RouteIcon,
+  ScaleIcon,
   ScrollTextIcon,
   SendIcon,
   ShieldAlertIcon,
@@ -190,6 +191,12 @@ export const DIRECTORY_ICON = UsersIcon;
 
 /** The shared demo organization, wherever it is named (DECISIONS.md §99). */
 export const DEMO_ICON = FlaskConicalIcon;
+
+/**
+ * The two engines weighed against each other: the engine audit, and a native
+ * rule's note that Prowler cross-checks it (DECISIONS.md §150).
+ */
+export const ENGINE_AUDIT_ICON = ScaleIcon;
 
 /** The kinds of thing the risks page ranks. */
 export const RISK_KIND_ICONS: Record<string, LucideIcon> = {

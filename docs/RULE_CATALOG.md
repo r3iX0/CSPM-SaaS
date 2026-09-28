@@ -2493,7 +2493,7 @@ Where content genuinely must be public, serve it through CloudFront with an orig
 - **Severity**: `MEDIUM` | **Exploitability**: `1/5` | **Effort**: `~10 min`
 - **Scope**: `per_resource`
 - **Applies to**: `storage_account`
-- **Compliance Mappings**: `CIS_AWS_3.0: 2.1.1` &bull; `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-28` &bull; `NIST_CSF: PR.DS-1` &bull; `PCI_DSS_4: 3.5.1` &bull; `SOC2: CC6.1`
+- **Compliance Mappings**: `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-28` &bull; `NIST_CSF: PR.DS-1` &bull; `PCI_DSS_4: 3.5.1` &bull; `SOC2: CC6.1`
 
 **Description**: A bucket has no default server-side encryption, so an object written without encryption headers is stored in the clear.
 
@@ -2515,7 +2515,7 @@ SSE-S3 (`AES256`) is the zero-effort option; a customer-managed KMS key adds an 
 - **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~15 min`
 - **Scope**: `per_resource`
 - **Applies to**: `storage_account`
-- **Compliance Mappings**: `CIS_AWS_3.0: 2.1.2` &bull; `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-8` &bull; `NIST_CSF: PR.DS-2` &bull; `PCI_DSS_4: 4.2.1` &bull; `SOC2: CC6.7`
+- **Compliance Mappings**: `CIS_AWS_3.0: 2.1.1` &bull; `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-8` &bull; `NIST_CSF: PR.DS-2` &bull; `PCI_DSS_4: 4.2.1` &bull; `SOC2: CC6.7`
 
 **Description**: A bucket has no policy denying requests made without TLS, so an object can be read or written over plaintext HTTP by anything that can reach the endpoint.
 
@@ -2535,3 +2535,876 @@ Add a deny to the bucket policy:
 
 Both ARNs matter: the bucket for operations on the bucket itself, and the wildcard for the objects in it.
 ```
+
+
+## Extended checks (Prowler)
+
+Run by the scanner service on Prowler 5.43.0. 816 of 853 checks are enabled; 111 of those are answered by a native rule, which raises the finding while the check's verdict is compared against it. Generated from `tools/prowler/curation.json` by `tools/prowler/build_catalog.py`.
+
+### Azure (184)
+
+| Rule ID | Severity | Check | Answered by |
+|---|---|---|---|
+| `PRW-AZ-aisearch_service_not_publicly_accessible` | HIGH | AI Search service has public network access disabled | - |
+| `PRW-AZ-aks_cluster_auto_upgrade_enabled` | MEDIUM | AKS cluster has automatic upgrade enabled | - |
+| `PRW-AZ-aks_cluster_azure_monitor_enabled` | MEDIUM | AKS cluster has Azure Monitor metrics enabled | - |
+| `PRW-AZ-aks_cluster_local_accounts_disabled` | HIGH | AKS cluster has local accounts disabled | - |
+| `PRW-AZ-aks_cluster_rbac_enabled` | HIGH | AKS cluster has RBAC enabled | - |
+| `PRW-AZ-aks_clusters_created_with_private_nodes` | HIGH | AKS cluster nodes do not have public IP addresses | - |
+| `PRW-AZ-aks_clusters_public_access_disabled` | HIGH | AKS cluster has a private endpoint and node public access is disabled | - |
+| `PRW-AZ-aks_network_policy_enabled` | MEDIUM | AKS cluster has network policy enabled | - |
+| `PRW-AZ-app_client_certificates_on` | MEDIUM | Web app requires incoming client certificates | - |
+| `PRW-AZ-app_ensure_auth_is_set_up` | MEDIUM | App Service app has App Service Authentication enabled | - |
+| `PRW-AZ-app_ensure_http_is_redirected_to_https` | HIGH | App Service web app redirects HTTP to HTTPS | AZ-WEB-001 |
+| `PRW-AZ-app_ensure_java_version_is_latest` | LOW | App Service web app uses the latest supported Java version or 17 by default | - |
+| `PRW-AZ-app_ensure_php_version_is_latest` | LOW | App Service web app uses the latest supported PHP version or 8.2 by default | - |
+| `PRW-AZ-app_ensure_python_version_is_latest` | LOW | App Service web app uses the latest supported Python version or 3.12 by default | - |
+| `PRW-AZ-app_ensure_using_http20` | LOW | App Service web app has HTTP/2.0 enabled | - |
+| `PRW-AZ-app_ftp_deployment_disabled` | HIGH | App Service web app has FTP disabled or FTPS-only enforced | AZ-WEB-003 |
+| `PRW-AZ-app_function_application_insights_enabled` | MEDIUM | Function App has Application Insights configured | - |
+| `PRW-AZ-app_function_ensure_http_is_redirected_to_https` | HIGH | Function app redirects HTTP to HTTPS | AZ-WEB-001 |
+| `PRW-AZ-app_function_ftps_deployment_disabled` | MEDIUM | Function app has FTP and FTPS deployments disabled | AZ-WEB-003 |
+| `PRW-AZ-app_function_identity_is_configured` | MEDIUM | Function app has a system-assigned or user-assigned managed identity enabled | AZ-WEB-005 |
+| `PRW-AZ-app_function_identity_without_admin_privileges` | HIGH | Function app managed identity is not assigned Owner, Contributor, User Access Administrator, or Role Based Access Control Administrator roles | - |
+| `PRW-AZ-app_function_latest_runtime_version` | MEDIUM | Function app uses the latest supported runtime version (~4) | - |
+| `PRW-AZ-app_function_not_publicly_accessible` | HIGH | Function app is not publicly accessible | - |
+| `PRW-AZ-app_function_vnet_integration_enabled` | MEDIUM | Function app has Virtual Network integration enabled | - |
+| `PRW-AZ-app_http_logs_enabled` | LOW | App Service web app has HTTP logs enabled in diagnostic settings | - |
+| `PRW-AZ-app_minimum_tls_version_12` | MEDIUM | App Service web app has minimum TLS version set to 1.2 or 1.3 | AZ-WEB-002 |
+| `PRW-AZ-app_register_with_identity` | MEDIUM | App Service web app has a managed identity configured | AZ-WEB-005 |
+| `PRW-AZ-appinsights_ensure_is_configured` | LOW | Subscription has at least one Application Insights resource configured | - |
+| `PRW-AZ-containerregistry_admin_user_disabled` | HIGH | Container Registry admin user is disabled | - |
+| `PRW-AZ-containerregistry_not_publicly_accessible` | HIGH | Container Registry public network access is disabled | - |
+| `PRW-AZ-containerregistry_uses_private_link` | HIGH | Container Registry uses a private endpoint (Private Link) | - |
+| `PRW-AZ-cosmosdb_account_automatic_failover_enabled` | MEDIUM | Cosmos DB account has automatic failover enabled | - |
+| `PRW-AZ-cosmosdb_account_backup_policy_continuous` | MEDIUM | Cosmos DB account uses continuous backup policy | - |
+| `PRW-AZ-cosmosdb_account_firewall_use_selected_networks` | MEDIUM | Cosmos DB account firewall allows access only from selected networks | - |
+| `PRW-AZ-cosmosdb_account_minimum_tls_version` | MEDIUM | Cosmos DB account enforces TLS 1.2 or higher | - |
+| `PRW-AZ-cosmosdb_account_public_network_access_disabled` | MEDIUM | Cosmos DB account has public network access disabled | - |
+| `PRW-AZ-cosmosdb_account_use_aad_and_rbac` | HIGH | Cosmos DB account has local authentication disabled and uses Azure AD authentication with Azure RBAC | - |
+| `PRW-AZ-cosmosdb_account_use_private_endpoints` | HIGH | Cosmos DB account uses private endpoint connections | - |
+| `PRW-AZ-databricks_workspace_cmk_encryption_enabled` | HIGH | Databricks workspace uses a customer-managed key (CMK) for encryption at rest | - |
+| `PRW-AZ-databricks_workspace_no_public_ip_enabled` | MEDIUM | Databricks workspace has secure cluster connectivity (no public IP) | - |
+| `PRW-AZ-databricks_workspace_public_network_access_disabled` | HIGH | Databricks workspace has public network access disabled | - |
+| `PRW-AZ-databricks_workspace_vnet_injection_enabled` | HIGH | Databricks workspace is deployed in a customer-managed VNet (VNet Injection enabled) | - |
+| `PRW-AZ-defender_additional_email_configured_with_a_security_contact` | LOW | Security contact has additional email addresses configured | - |
+| `PRW-AZ-defender_assessments_vm_endpoint_protection_installed` | HIGH | All virtual machines in the subscription have endpoint protection installed | AZ-MAL-001 |
+| `PRW-AZ-defender_attack_path_notifications_properly_configured` | HIGH | Security contact has attack path email notifications enabled at or above the configured minimum risk level | - |
+| `PRW-AZ-defender_auto_provisioning_log_analytics_agent_vms_on` | HIGH | Defender auto-provisioning of Log Analytics agent for Azure VMs is enabled | - |
+| `PRW-AZ-defender_auto_provisioning_vulnerabilty_assessments_machines_on` | MEDIUM | All virtual machines in the subscription have a vulnerability assessment solution installed | - |
+| `PRW-AZ-defender_container_images_resolved_vulnerabilities` | CRITICAL | All Azure running container images in the subscription have no unresolved vulnerabilities | - |
+| `PRW-AZ-defender_container_images_scan_enabled` | HIGH | Subscription has container image vulnerability scanning enabled | - |
+| `PRW-AZ-defender_ensure_defender_for_app_services_is_on` | HIGH | Defender for App Services is set to On (Standard pricing tier) | AZ-DEF-001 |
+| `PRW-AZ-defender_ensure_defender_for_arm_is_on` | HIGH | Defender for Azure Resource Manager is set to On (Standard pricing tier) | AZ-DEF-001 |
+| `PRW-AZ-defender_ensure_defender_for_azure_sql_databases_is_on` | HIGH | Defender for Azure SQL databases is set to On (Standard pricing tier) | AZ-DEF-001 |
+| `PRW-AZ-defender_ensure_defender_for_containers_is_on` | HIGH | Defender for Containers is set to On (Standard pricing tier) | AZ-DEF-001 |
+| `PRW-AZ-defender_ensure_defender_for_cosmosdb_is_on` | HIGH | Defender for Cosmos DB is set to On (Standard pricing tier) | AZ-DEF-001 |
+| `PRW-AZ-defender_ensure_defender_for_databases_is_on` | HIGH | Defender for Databases is set to On (Standard pricing tier) | AZ-DEF-001 |
+| `PRW-AZ-defender_ensure_defender_for_dns_is_on` | HIGH | Defender for DNS is set to On (Standard pricing tier) | AZ-DEF-001 |
+| `PRW-AZ-defender_ensure_defender_for_keyvault_is_on` | HIGH | Defender for Key Vaults is set to On (Standard pricing tier) | AZ-DEF-001 |
+| `PRW-AZ-defender_ensure_defender_for_os_relational_databases_is_on` | HIGH | Defender for Open-Source Relational Databases is set to On (Standard pricing tier) | AZ-DEF-001 |
+| `PRW-AZ-defender_ensure_defender_for_server_is_on` | HIGH | Defender for Servers is set to On (Standard pricing tier) | AZ-DEF-001 |
+| `PRW-AZ-defender_ensure_defender_for_sql_servers_is_on` | HIGH | Defender for SQL servers on machines is set to On (Standard pricing tier) | AZ-DEF-001 |
+| `PRW-AZ-defender_ensure_defender_for_storage_is_on` | HIGH | Defender for Storage is set to On (Standard pricing tier) | AZ-DEF-001 |
+| `PRW-AZ-defender_ensure_iot_hub_defender_is_on` | HIGH | Defender for IoT Hub is set to On | - |
+| `PRW-AZ-defender_ensure_mcas_is_enabled` | MEDIUM | Defender for Cloud Apps is enabled | - |
+| `PRW-AZ-defender_ensure_notify_alerts_severity_is_high` | HIGH | Security contact has alert notifications enabled with minimum severity High or lower | - |
+| `PRW-AZ-defender_ensure_notify_emails_to_owners` | MEDIUM | Security contact notifications include the Owner role | - |
+| `PRW-AZ-defender_ensure_system_updates_are_applied` | HIGH | All virtual machines in the subscription have system updates applied | AZ-VULN-001 |
+| `PRW-AZ-defender_ensure_wdatp_is_enabled` | HIGH | Defender for Endpoint is enabled | - |
+| `PRW-AZ-entra_app_registration_credential_not_expired` | HIGH | App registration credentials are not expired or expiring soon | AZ-APP-001 |
+| `PRW-AZ-entra_authentication_methods_policy_strong_auth_enforced` | HIGH | Strong authentication methods are enabled with registration enforcement | - |
+| `PRW-AZ-entra_conditional_access_policy_require_mfa_for_admin_portals` | MEDIUM | Conditional Access policy requires MFA for Microsoft Admin Portals | - |
+| `PRW-AZ-entra_conditional_access_policy_require_mfa_for_management_api` | MEDIUM | Multifactor Authentication is required for Windows Azure Service Management API | - |
+| `PRW-AZ-entra_global_admin_in_less_than_five_users` | HIGH | Global Administrator role has fewer than 5 members | AZ-ID-002 |
+| `PRW-AZ-entra_non_privileged_user_has_mfa` | MEDIUM | Non-privileged user has multi-factor authentication enabled | AZ-ID-004 |
+| `PRW-AZ-entra_policy_default_users_cannot_create_security_groups` | MEDIUM | Authorization policy disallows non-privileged users from creating security groups | - |
+| `PRW-AZ-entra_policy_ensure_default_user_cannot_create_apps` | HIGH | Tenant does not allow non-admin users to register applications | - |
+| `PRW-AZ-entra_policy_ensure_default_user_cannot_create_tenants` | MEDIUM | Authorization policy restricts non-admin users from creating tenants | - |
+| `PRW-AZ-entra_policy_guest_invite_only_for_admin_roles` | HIGH | Tenant authorization policy restricts guest invitations to users with specific admin roles or disables guest invitations | - |
+| `PRW-AZ-entra_policy_guest_users_access_restrictions` | MEDIUM | Authorization policy restricts guest user access to properties and memberships of their own directory objects | - |
+| `PRW-AZ-entra_policy_restricts_user_consent_for_apps` | HIGH | Entra authorization policy disallows user consent for applications | - |
+| `PRW-AZ-entra_policy_user_consent_for_verified_apps` | HIGH | Entra tenant does not allow users to consent to non-verified applications | - |
+| `PRW-AZ-entra_privileged_user_has_mfa` | HIGH | Privileged user has multi-factor authentication enabled | AZ-ID-001 |
+| `PRW-AZ-entra_security_defaults_enabled` | CRITICAL | Microsoft Entra ID tenant has Security Defaults enabled | AZ-ID-005, AZ-ID-006 |
+| `PRW-AZ-entra_trusted_named_locations_exists` | LOW | Entra tenant has a trusted named location with IP ranges defined | - |
+| `PRW-AZ-entra_user_with_recent_sign_in` | MEDIUM | Enabled user has signed in within the last 90 days | AZ-ID-003 |
+| `PRW-AZ-entra_user_with_vm_access_has_mfa` | HIGH | Entra ID user with VM access has multi-factor authentication enabled | - |
+| `PRW-AZ-entra_users_cannot_create_microsoft_365_groups` | MEDIUM | Microsoft 365 group creation by users is disabled | - |
+| `PRW-AZ-iam_custom_role_has_permissions_to_administer_resource_locks` | MEDIUM | Custom role has permission to administer resource locks | - |
+| `PRW-AZ-iam_role_user_access_admin_restricted` | HIGH | Role assignment does not grant the User Access Administrator role | - |
+| `PRW-AZ-iam_subscription_roles_owner_custom_not_created` | HIGH | Custom role is not a subscription owner role | AZ-IAM-010 |
+| `PRW-AZ-keyvault_access_only_through_private_endpoints` | HIGH | Key Vault using private endpoints has public network access disabled | AZ-KV-002 |
+| `PRW-AZ-keyvault_key_expiration_set_in_non_rbac` | HIGH | Key in non-RBAC Key Vault has expiration date set | - |
+| `PRW-AZ-keyvault_key_rotation_enabled` | HIGH | Key Vault key has automatic rotation enabled | - |
+| `PRW-AZ-keyvault_logging_enabled` | HIGH | Key Vault has at least one diagnostic setting with audit logging enabled | AZ-LOG-004 |
+| `PRW-AZ-keyvault_non_rbac_secret_expiration_set` | MEDIUM | Secret in non-RBAC Key Vault has expiration date set | - |
+| `PRW-AZ-keyvault_private_endpoints` | HIGH | Key Vault uses private endpoints | AZ-KV-002 |
+| `PRW-AZ-keyvault_rbac_enabled` | HIGH | Key Vault uses Azure RBAC for access control | AZ-KV-003 |
+| `PRW-AZ-keyvault_rbac_key_expiration_set` | MEDIUM | Key in RBAC-enabled Key Vault has expiration date set | - |
+| `PRW-AZ-keyvault_rbac_secret_expiration_set` | MEDIUM | Secret in RBAC-enabled Key Vault has expiration date set | - |
+| `PRW-AZ-keyvault_recoverable` | HIGH | Key Vault has soft delete and purge protection enabled | AZ-KV-001 |
+| `PRW-AZ-monitor_alert_create_policy_assignment` | MEDIUM | Subscription has an Azure Monitor activity log alert for policy assignment creation | - |
+| `PRW-AZ-monitor_alert_create_update_nsg` | HIGH | Subscription has an Activity Log alert for Network Security Group create or update operations | - |
+| `PRW-AZ-monitor_alert_create_update_public_ip_address_rule` | MEDIUM | Subscription has an Activity Log Alert for Public IP address create or update operations | - |
+| `PRW-AZ-monitor_alert_create_update_security_solution` | MEDIUM | Subscription has Activity Log alert for Security Solution create or update | - |
+| `PRW-AZ-monitor_alert_create_update_sqlserver_fr` | MEDIUM | Subscription has an Activity Log alert for SQL Server firewall rule create or update events | - |
+| `PRW-AZ-monitor_alert_delete_nsg` | HIGH | Subscription has an Activity Log alert for Network Security Group delete operations | - |
+| `PRW-AZ-monitor_alert_delete_policy_assignment` | HIGH | Subscription has an Activity Log alert for policy assignment deletion | - |
+| `PRW-AZ-monitor_alert_delete_public_ip_address_rule` | MEDIUM | Azure subscription has an Activity Log alert for public IP address deletion | - |
+| `PRW-AZ-monitor_alert_delete_security_solution` | MEDIUM | Subscription has an Azure Monitor Activity Log alert for Microsoft.Security/securitySolutions delete operations | - |
+| `PRW-AZ-monitor_alert_delete_sqlserver_fr` | MEDIUM | Subscription has an Activity Log Alert for SQL Server firewall rule deletions | - |
+| `PRW-AZ-monitor_alert_service_health_exists` | MEDIUM | Azure subscription has an enabled Activity Log alert for Service Health incidents | - |
+| `PRW-AZ-monitor_diagnostic_setting_with_appropriate_categories` | HIGH | Subscription has a diagnostic setting capturing Administrative, Security, Alert, and Policy categories | - |
+| `PRW-AZ-monitor_diagnostic_settings_exists` | HIGH | Subscription has an Activity Log diagnostic setting | AZ-LOG-002 |
+| `PRW-AZ-monitor_storage_account_with_activity_logs_cmk_encrypted` | MEDIUM | Storage account storing Activity Log data is encrypted with a customer-managed key | - |
+| `PRW-AZ-monitor_storage_account_with_activity_logs_is_private` | HIGH | Storage account storing activity logs does not allow public blob access | - |
+| `PRW-AZ-mysql_flexible_server_audit_log_connection_activated` | MEDIUM | MySQL flexible server has audit_log_events including CONNECTION | - |
+| `PRW-AZ-mysql_flexible_server_audit_log_enabled` | MEDIUM | MySQL flexible server has audit_log_enabled set to ON | - |
+| `PRW-AZ-mysql_flexible_server_geo_redundant_backup_enabled` | MEDIUM | MySQL flexible server has geo-redundant backup enabled | - |
+| `PRW-AZ-mysql_flexible_server_high_availability_enabled` | MEDIUM | MySQL flexible server has high availability enabled | - |
+| `PRW-AZ-mysql_flexible_server_minimum_tls_version_12` | HIGH | MySQL flexible server enforces TLS 1.2 or higher | - |
+| `PRW-AZ-mysql_flexible_server_ssl_connection_enabled` | HIGH | MySQL Flexible Server enforces SSL connections | - |
+| `PRW-AZ-network_bastion_host_exists` | MEDIUM | Azure subscription has at least one Bastion Host | - |
+| `PRW-AZ-network_flow_log_captured_sent` | HIGH | Network Watcher has flow logs enabled and sent to a Log Analytics workspace | - |
+| `PRW-AZ-network_flow_log_more_than_90_days` | MEDIUM | Network Watcher has all flow logs enabled with retention set to 0 or at least 90 days | - |
+| `PRW-AZ-network_http_internet_access_restricted` | HIGH | Network security group restricts inbound HTTP (port 80) access from the Internet | - |
+| `PRW-AZ-network_rdp_internet_access_restricted` | HIGH | Network security group does not allow inbound RDP (TCP 3389) from the Internet | AZ-NET-001 |
+| `PRW-AZ-network_ssh_internet_access_restricted` | HIGH | Network security group does not allow inbound SSH (TCP port 22) from the Internet | AZ-NET-002 |
+| `PRW-AZ-network_subnet_nsg_associated` | HIGH | Subnet has a network security group associated | AZ-CMP-002 |
+| `PRW-AZ-network_udp_internet_access_restricted` | HIGH | Network security group does not allow inbound UDP from the Internet | AZ-NET-009 |
+| `PRW-AZ-network_vnet_ddos_protection_enabled` | MEDIUM | Virtual network has Azure DDoS Network Protection enabled | - |
+| `PRW-AZ-network_watcher_enabled` | HIGH | Network Watcher is enabled for all locations in the subscription | - |
+| `PRW-AZ-policy_ensure_asc_enforcement_enabled` | MEDIUM | Security Center built-in policy assignment has enforcement mode set to Default | - |
+| `PRW-AZ-postgresql_flexible_server_allow_access_services_disabled` | HIGH | PostgreSQL flexible server has 'Allow public access from any Azure service' disabled | AZ-DB-001 |
+| `PRW-AZ-postgresql_flexible_server_connection_throttling_on` | MEDIUM | Flexible PostgreSQL server has connection_throttling enabled | - |
+| `PRW-AZ-postgresql_flexible_server_enforce_ssl_enabled` | HIGH | PostgreSQL Flexible Server enforces SSL connections | AZ-DB-009 |
+| `PRW-AZ-postgresql_flexible_server_entra_id_authentication_enabled` | MEDIUM | Microsoft Entra ID authentication is enabled for PostgreSQL Flexible Server | - |
+| `PRW-AZ-postgresql_flexible_server_geo_redundant_backup_enabled` | MEDIUM | PostgreSQL flexible server has geo-redundant backup enabled | - |
+| `PRW-AZ-postgresql_flexible_server_high_availability_enabled` | MEDIUM | PostgreSQL flexible server has high availability enabled | - |
+| `PRW-AZ-postgresql_flexible_server_log_checkpoints_on` | LOW | PostgreSQL Flexible Server has checkpoint logging enabled | - |
+| `PRW-AZ-postgresql_flexible_server_log_connections_on` | MEDIUM | PostgreSQL flexible server has log_connections enabled | - |
+| `PRW-AZ-postgresql_flexible_server_log_disconnections_on` | MEDIUM | PostgreSQL Flexible Server has disconnection logging enabled | - |
+| `PRW-AZ-postgresql_flexible_server_log_retention_days_greater_3` | MEDIUM | PostgreSQL flexible server log_retention_days is between 4 and 7 days | - |
+| `PRW-AZ-recovery_vault_backup_policy_retention_adequate` | MEDIUM | Recovery Services backup policy has at least 30 days retention | - |
+| `PRW-AZ-recovery_vault_has_protected_items` | MEDIUM | Recovery Services vault has backup protected items configured | - |
+| `PRW-AZ-sqlserver_auditing_enabled` | HIGH | SQL Server has an auditing policy configured | AZ-DB-003 |
+| `PRW-AZ-sqlserver_auditing_retention_90_days` | MEDIUM | SQL server has auditing enabled with retention greater than 90 days | - |
+| `PRW-AZ-sqlserver_azuread_administrator_enabled` | MEDIUM | SQL Server has an Azure Active Directory administrator configured | AZ-DB-008 |
+| `PRW-AZ-sqlserver_microsoft_defender_enabled` | HIGH | SQL Server has Microsoft Defender for SQL enabled | - |
+| `PRW-AZ-sqlserver_recommended_minimal_tls_version` | MEDIUM | SQL server enforces minimal TLS version 1.2 or 1.3 | AZ-DB-007 |
+| `PRW-AZ-sqlserver_tde_encrypted_with_cmk` | CRITICAL | SQL server uses a customer-managed key for the TDE protector and all databases have TDE enabled | - |
+| `PRW-AZ-sqlserver_tde_encryption_enabled` | HIGH | SQL database has Transparent Data Encryption (TDE) enabled | AZ-DB-006 |
+| `PRW-AZ-sqlserver_unrestricted_inbound_access` | CRITICAL | Azure SQL Server does not have firewall rules allowing 0.0.0.0-255.255.255.255 | AZ-DB-001 |
+| `PRW-AZ-sqlserver_va_emails_notifications_admins_enabled` | MEDIUM | SQL Server has Vulnerability Assessment enabled and email notifications to subscription admins configured | - |
+| `PRW-AZ-sqlserver_va_periodic_recurring_scans_enabled` | MEDIUM | SQL Server has Vulnerability Assessment periodic recurring scans enabled | - |
+| `PRW-AZ-sqlserver_va_scan_reports_configured` | MEDIUM | SQL server has Vulnerability Assessment enabled and scan report recipients configured | - |
+| `PRW-AZ-sqlserver_vulnerability_assessment_enabled` | MEDIUM | SQL server has vulnerability assessment enabled with storage container configured | - |
+| `PRW-AZ-storage_account_key_access_disabled` | HIGH | Storage account has shared key access disabled | AZ-STO-002 |
+| `PRW-AZ-storage_account_public_network_access_disabled` | HIGH | Storage account has 'Public Network Access' disabled | AZ-STO-001 |
+| `PRW-AZ-storage_blob_public_access_level_is_disabled` | HIGH | Storage account has 'Allow Blob Anonymous Access' disabled | AZ-STO-001 |
+| `PRW-AZ-storage_blob_versioning_is_enabled` | MEDIUM | Storage account has blob versioning enabled | - |
+| `PRW-AZ-storage_cross_tenant_replication_disabled` | HIGH | Storage account has cross-tenant replication disabled | AZ-STO-004 |
+| `PRW-AZ-storage_default_network_access_rule_is_denied` | HIGH | Storage account default network access rule is set to Deny | AZ-STO-001 |
+| `PRW-AZ-storage_default_to_entra_authorization_enabled` | MEDIUM | Storage account uses Microsoft Entra authorization by default | - |
+| `PRW-AZ-storage_ensure_azure_services_are_trusted_to_access_is_enabled` | MEDIUM | Storage account has 'Allow trusted Microsoft services to access this storage account' enabled | - |
+| `PRW-AZ-storage_ensure_encryption_with_customer_managed_keys` | HIGH | Azure Storage account uses customer-managed keys (CMKs) for encryption | - |
+| `PRW-AZ-storage_ensure_file_shares_soft_delete_is_enabled` | MEDIUM | Storage account has soft delete enabled for file shares | - |
+| `PRW-AZ-storage_ensure_minimum_tls_version_12` | MEDIUM | Storage account minimum TLS version is 1.2 | AZ-STO-003 |
+| `PRW-AZ-storage_ensure_private_endpoints_in_storage_accounts` | MEDIUM | Storage account has private endpoint connections | - |
+| `PRW-AZ-storage_ensure_soft_delete_is_enabled` | MEDIUM | Storage account has soft delete for containers enabled | AZ-STO-005 |
+| `PRW-AZ-storage_geo_redundant_enabled` | MEDIUM | Azure Storage account uses geo-redundant replication (GRS, GZRS, RA-GRS, or RA-GZRS) | - |
+| `PRW-AZ-storage_infrastructure_encryption_is_enabled` | LOW | Storage account has infrastructure encryption enabled | - |
+| `PRW-AZ-storage_key_rotation_90_days` | MEDIUM | Storage account has access key expiration period set to 90 days or less | - |
+| `PRW-AZ-storage_secure_transfer_required_is_enabled` | HIGH | Storage account has secure transfer required enabled | AZ-STO-003 |
+| `PRW-AZ-storage_smb_channel_encryption_with_secure_algorithm` | MEDIUM | Storage account uses AES-256-GCM for SMB channel encryption on file shares | - |
+| `PRW-AZ-storage_smb_protocol_version_is_latest` | MEDIUM | Storage account allows only the latest SMB protocol version for file shares | - |
+| `PRW-AZ-vm_backup_enabled` | HIGH | Virtual Machine is protected by Azure Backup | - |
+| `PRW-AZ-vm_ensure_attached_disks_encrypted_with_cmk` | MEDIUM | Virtual Machine OS or data disk is encrypted with a customer-managed key (CMK) | - |
+| `PRW-AZ-vm_ensure_unattached_disks_encrypted_with_cmk` | MEDIUM | Unattached disk is encrypted with a customer-managed key (CMK) | - |
+| `PRW-AZ-vm_ensure_using_managed_disks` | HIGH | Virtual Machine uses managed disks for OS and data disks | AZ-CMP-003 |
+| `PRW-AZ-vm_jit_access_enabled` | MEDIUM | Virtual Machine has Just-in-Time (JIT) access enabled | - |
+| `PRW-AZ-vm_linux_enforce_ssh_authentication` | HIGH | Linux Virtual Machine has password authentication disabled (SSH key authentication enforced) | - |
+| `PRW-AZ-vm_scaleset_associated_with_load_balancer` | MEDIUM | Virtual Machine Scale Set is associated with a load balancer backend pool | - |
+| `PRW-AZ-vm_scaleset_not_empty` | MEDIUM | Virtual Machine Scale Set has at least one VM instance | - |
+| `PRW-AZ-vm_sufficient_daily_backup_retention_period` | MEDIUM | Virtual Machine has a backup policy with a daily retention period meeting the configured minimum | - |
+| `PRW-AZ-vm_trusted_launch_enabled` | MEDIUM | Virtual Machine has Trusted Launch with Secure Boot and vTPM enabled | - |
+
+### AWS (632)
+
+| Rule ID | Severity | Check | Answered by |
+|---|---|---|---|
+| `PRW-AWS-accessanalyzer_enabled` | LOW | IAM Access Analyzer is enabled | AWS-IAM-008 |
+| `PRW-AWS-accessanalyzer_enabled_without_findings` | LOW | IAM Access Analyzer analyzer is active and has no active findings | - |
+| `PRW-AWS-account_maintain_current_contact_details` | MEDIUM | AWS account contact information is current | - |
+| `PRW-AWS-account_maintain_different_contact_details_to_security_billing_and_operations` | MEDIUM | AWS account has distinct Security, Billing, and Operations contact details, different from each other and from the root contact | - |
+| `PRW-AWS-account_security_contact_information_is_registered` | MEDIUM | AWS account has security alternate contact registered | - |
+| `PRW-AWS-account_security_questions_are_registered_in_the_aws_account` | MEDIUM | [DEPRECATED] AWS root user has security challenge questions configured | - |
+| `PRW-AWS-acm_certificates_expiration_check` | HIGH | ACM certificate expires in more than the configured threshold of days | - |
+| `PRW-AWS-acm_certificates_transparency_logs_enabled` | MEDIUM | ACM certificate is imported or has Certificate Transparency logging enabled | - |
+| `PRW-AWS-acm_certificates_with_secure_key_algorithms` | HIGH | ACM certificate uses a secure key algorithm | - |
+| `PRW-AWS-acmpca_certificate_authority_pqc_key_algorithm` | LOW | AWS Private CA certificate authorities use a post-quantum (ML-DSA) key algorithm | - |
+| `PRW-AWS-apigateway_domain_name_pqc_tls_enabled` | LOW | API Gateway custom domain names use a post-quantum TLS security policy | - |
+| `PRW-AWS-apigateway_restapi_authorizers_enabled` | MEDIUM | API Gateway REST API has an authorizer at API level or all methods are authorized | - |
+| `PRW-AWS-apigateway_restapi_cache_encrypted` | MEDIUM | API Gateway REST API stage cache data is encrypted at rest | - |
+| `PRW-AWS-apigateway_restapi_client_certificate_enabled` | MEDIUM | API Gateway REST API stage has client certificate enabled | - |
+| `PRW-AWS-apigateway_restapi_logging_enabled` | MEDIUM | API Gateway REST API stage has logging enabled | - |
+| `PRW-AWS-apigateway_restapi_public` | MEDIUM | API Gateway REST API endpoint is private | - |
+| `PRW-AWS-apigateway_restapi_public_with_authorizer` | MEDIUM | API Gateway REST API with a public endpoint has an authorizer configured | - |
+| `PRW-AWS-apigateway_restapi_tracing_enabled` | LOW | API Gateway REST API stage has X-Ray tracing enabled | - |
+| `PRW-AWS-apigateway_restapi_waf_acl_attached` | MEDIUM | API Gateway stage has a WAF Web ACL attached | - |
+| `PRW-AWS-apigatewayv2_api_access_logging_enabled` | MEDIUM | API Gateway V2 API stage has access logging enabled | - |
+| `PRW-AWS-apigatewayv2_api_authorizers_enabled` | MEDIUM | API Gateway V2 API has an authorizer configured | - |
+| `PRW-AWS-appstream_fleet_default_internet_access_disabled` | MEDIUM | AppStream fleet has default internet access disabled | - |
+| `PRW-AWS-appstream_fleet_maximum_session_duration` | MEDIUM | AppStream fleet maximum user session duration is less than 10 hours | - |
+| `PRW-AWS-appstream_fleet_session_disconnect_timeout` | MEDIUM | AppStream fleet session disconnect timeout is 5 minutes or less | - |
+| `PRW-AWS-appstream_fleet_session_idle_disconnect_timeout` | MEDIUM | AppStream fleet session idle disconnect timeout is 10 minutes or less | - |
+| `PRW-AWS-appsync_field_level_logging_enabled` | MEDIUM | AWS AppSync API has field-level logging set to ALL or ERROR | - |
+| `PRW-AWS-appsync_graphql_api_no_api_key_authentication` | HIGH | AWS AppSync GraphQL API does not use API key authentication | - |
+| `PRW-AWS-athena_workgroup_encryption` | MEDIUM | Athena workgroup encrypts query results in S3 with server-side encryption | - |
+| `PRW-AWS-athena_workgroup_enforce_configuration` | MEDIUM | Athena workgroup enforces workgroup configuration and cannot be overridden by client-side settings | - |
+| `PRW-AWS-athena_workgroup_logging_enabled` | MEDIUM | Amazon Athena workgroup has CloudWatch logging enabled | - |
+| `PRW-AWS-autoscaling_group_capacity_rebalance_enabled` | MEDIUM | Amazon EC2 Auto Scaling group has Capacity Rebalancing enabled | - |
+| `PRW-AWS-autoscaling_group_elb_health_check_enabled` | LOW | Auto Scaling group associated with a load balancer has ELB health checks enabled | - |
+| `PRW-AWS-autoscaling_group_launch_configuration_no_public_ip` | HIGH | Auto Scaling group associated launch configuration does not assign a public IP address | - |
+| `PRW-AWS-autoscaling_group_launch_configuration_requires_imdsv2` | HIGH | Auto Scaling group enforces IMDSv2 or disables the instance metadata service | - |
+| `PRW-AWS-autoscaling_group_multiple_az` | MEDIUM | Auto Scaling group uses multiple Availability Zones | - |
+| `PRW-AWS-autoscaling_group_multiple_instance_types` | MEDIUM | Auto Scaling group spans multiple Availability Zones and has multiple instance types per Availability Zone | - |
+| `PRW-AWS-autoscaling_group_using_ec2_launch_template` | MEDIUM | Amazon EC2 Auto Scaling group uses an EC2 launch template | - |
+| `PRW-AWS-awslambda_function_env_vars_not_encrypted_with_cmk` | MEDIUM | Lambda function environment variables are encrypted with a customer-managed KMS key | - |
+| `PRW-AWS-awslambda_function_inside_vpc` | LOW | Lambda function is deployed inside a VPC | - |
+| `PRW-AWS-awslambda_function_invoke_api_operations_cloudtrail_logging_enabled` | LOW | Lambda function Invoke API calls are recorded by CloudTrail | - |
+| `PRW-AWS-awslambda_function_no_dead_letter_queue` | MEDIUM | Lambda function has a Dead Letter Queue configured | - |
+| `PRW-AWS-awslambda_function_not_publicly_accessible` | CRITICAL | Lambda function resource-based policy does not allow public access | - |
+| `PRW-AWS-awslambda_function_url_cors_policy` | MEDIUM | Lambda function URL CORS does not allow wildcard origins (*) | - |
+| `PRW-AWS-awslambda_function_url_public` | HIGH | Lambda function URL is not publicly accessible | - |
+| `PRW-AWS-awslambda_function_using_cross_account_layers` | HIGH | Lambda function does not use cross-account layers | - |
+| `PRW-AWS-awslambda_function_using_supported_runtimes` | MEDIUM | Lambda function uses a supported runtime | - |
+| `PRW-AWS-awslambda_function_vpc_multi_az` | MEDIUM | Lambda function is configured with VPC subnets in at least two Availability Zones | - |
+| `PRW-AWS-backup_plans_exist` | LOW | At least one AWS Backup plan exists | - |
+| `PRW-AWS-backup_recovery_point_encrypted` | MEDIUM | AWS Backup recovery point is encrypted at rest | - |
+| `PRW-AWS-backup_reportplans_exist` | LOW | At least one AWS Backup report plan exists | - |
+| `PRW-AWS-backup_vaults_encrypted` | MEDIUM | AWS Backup vault is encrypted at rest | - |
+| `PRW-AWS-backup_vaults_exist` | LOW | At least one AWS Backup vault exists | - |
+| `PRW-AWS-bedrock_agent_guardrail_enabled` | HIGH | Amazon Bedrock agent uses a guardrail to protect agent sessions | - |
+| `PRW-AWS-bedrock_agent_role_least_privilege` | HIGH | Amazon Bedrock agent execution role follows least privilege | - |
+| `PRW-AWS-bedrock_agent_role_not_shared_across_agents` | HIGH | Bedrock Agent has a dedicated execution role | - |
+| `PRW-AWS-bedrock_api_key_no_administrative_privileges` | HIGH | Amazon Bedrock API key does not have administrative privileges, privilege escalation paths, or full Bedrock service access | - |
+| `PRW-AWS-bedrock_api_key_no_long_term_credentials` | HIGH | Amazon Bedrock long-term API key has expired | - |
+| `PRW-AWS-bedrock_custom_model_encrypted_with_cmk` | CRITICAL | Bedrock custom model is encrypted with a customer-managed KMS key | - |
+| `PRW-AWS-bedrock_full_access_policy_attached` | HIGH | IAM role does not have AmazonBedrockFullAccess managed policy attached | - |
+| `PRW-AWS-bedrock_guardrail_contextual_grounding_filter_enabled` | HIGH | Bedrock guardrail blocks ungrounded and irrelevant model responses | - |
+| `PRW-AWS-bedrock_guardrail_prompt_attack_filter_enabled` | HIGH | Amazon Bedrock guardrail has prompt attack filter strength set to HIGH | - |
+| `PRW-AWS-bedrock_guardrail_sensitive_information_filter_enabled` | HIGH | Amazon Bedrock guardrail blocks or masks sensitive information | - |
+| `PRW-AWS-bedrock_guardrails_configured` | MEDIUM | Bedrock has at least one guardrail configured in the audited region | - |
+| `PRW-AWS-bedrock_knowledge_base_encrypted_with_cmk` | HIGH | Bedrock knowledge base data source is encrypted with a customer-managed KMS key | - |
+| `PRW-AWS-bedrock_model_invocation_logging_enabled` | MEDIUM | Amazon Bedrock model invocation logging is enabled | - |
+| `PRW-AWS-bedrock_model_invocation_logs_encryption_enabled` | HIGH | Amazon Bedrock model invocation logs are encrypted in the S3 bucket and KMS-encrypted in the CloudWatch log group | - |
+| `PRW-AWS-bedrock_prompt_encrypted_with_cmk` | MEDIUM | Amazon Bedrock prompt is encrypted at rest with a customer-managed KMS key | - |
+| `PRW-AWS-bedrock_prompt_management_exists` | LOW | Amazon Bedrock Prompt Management prompts exist in the region | - |
+| `PRW-AWS-bedrock_vpc_endpoints_configured` | MEDIUM | VPC endpoints ensure private connectivity for all Bedrock APIs | - |
+| `PRW-AWS-cloudformation_stack_cdktoolkit_bootstrap_version` | HIGH | CDKToolkit CloudFormation stack has Bootstrap version 21 or higher | - |
+| `PRW-AWS-cloudformation_stacks_termination_protection_enabled` | MEDIUM | CloudFormation stack has termination protection enabled | - |
+| `PRW-AWS-cloudfront_distributions_custom_ssl_certificate` | MEDIUM | CloudFront distribution uses a custom SSL/TLS certificate | - |
+| `PRW-AWS-cloudfront_distributions_default_root_object` | HIGH | CloudFront distribution has a default root object configured | - |
+| `PRW-AWS-cloudfront_distributions_field_level_encryption_enabled` | LOW | CloudFront distribution has Field Level Encryption enabled | - |
+| `PRW-AWS-cloudfront_distributions_geo_restrictions_enabled` | LOW | CloudFront distribution has Geo restrictions enabled | - |
+| `PRW-AWS-cloudfront_distributions_https_enabled` | MEDIUM | CloudFront distribution has viewer protocol policy set to HTTPS only or redirect to HTTPS | - |
+| `PRW-AWS-cloudfront_distributions_https_sni_enabled` | LOW | CloudFront distribution serves HTTPS requests using SNI | - |
+| `PRW-AWS-cloudfront_distributions_logging_enabled` | MEDIUM | CloudFront distribution has logging enabled | - |
+| `PRW-AWS-cloudfront_distributions_multiple_origin_failover_configured` | LOW | CloudFront distribution has origin failover configured with at least two origins | - |
+| `PRW-AWS-cloudfront_distributions_origin_traffic_encrypted` | MEDIUM | CloudFront distribution encrypts traffic to custom origins | - |
+| `PRW-AWS-cloudfront_distributions_pqc_tls_enabled` | LOW | CloudFront distributions enforce a post-quantum TLS 1.3 security policy | - |
+| `PRW-AWS-cloudfront_distributions_s3_origin_access_control` | MEDIUM | CloudFront distribution uses Origin Access Control (OAC) for all S3 origins | - |
+| `PRW-AWS-cloudfront_distributions_s3_origin_non_existent_bucket` | HIGH | CloudFront distribution S3 origins reference existing buckets | - |
+| `PRW-AWS-cloudfront_distributions_using_deprecated_ssl_protocols` | LOW | CloudFront distribution does not use SSLv3, TLSv1, or TLSv1.1 for origin connections | - |
+| `PRW-AWS-cloudfront_distributions_using_waf` | MEDIUM | CloudFront distribution uses an AWS WAF web ACL | - |
+| `PRW-AWS-cloudtrail_bedrock_logging_enabled` | MEDIUM | CloudTrail logs Amazon Bedrock API calls for security auditing | - |
+| `PRW-AWS-cloudtrail_bucket_requires_mfa_delete` | MEDIUM | CloudTrail trail S3 bucket has MFA delete enabled | - |
+| `PRW-AWS-cloudtrail_cloudwatch_logging_enabled` | LOW | CloudTrail trail has delivered logs to CloudWatch Logs in the last 24 hours | - |
+| `PRW-AWS-cloudtrail_insights_exist` | LOW | CloudTrail trail has Insights enabled | - |
+| `PRW-AWS-cloudtrail_kms_encryption_enabled` | MEDIUM | CloudTrail trail logs are encrypted at rest with a KMS key | AWS-LOG-005 |
+| `PRW-AWS-cloudtrail_log_file_validation_enabled` | MEDIUM | CloudTrail trail has log file validation enabled | AWS-LOG-002 |
+| `PRW-AWS-cloudtrail_logs_s3_bucket_access_logging_enabled` | MEDIUM | CloudTrail trail destination S3 bucket has access logging enabled | AWS-LOG-004 |
+| `PRW-AWS-cloudtrail_logs_s3_bucket_is_not_publicly_accessible` | CRITICAL | CloudTrail trail S3 bucket is not publicly accessible | - |
+| `PRW-AWS-cloudtrail_multi_region_enabled` | HIGH | Region has at least one CloudTrail trail logging | AWS-LOG-001 |
+| `PRW-AWS-cloudtrail_multi_region_enabled_logging_management_events` | LOW | CloudTrail trail logs management events for read and write operations | - |
+| `PRW-AWS-cloudtrail_s3_dataevents_read_enabled` | LOW | CloudTrail trail records S3 object-level read events for all S3 buckets | - |
+| `PRW-AWS-cloudtrail_s3_dataevents_write_enabled` | LOW | CloudTrail trail records all S3 object-level API operations for all buckets | - |
+| `PRW-AWS-cloudwatch_alarm_actions_alarm_state_configured` | HIGH | CloudWatch metric alarm has actions configured for the ALARM state | - |
+| `PRW-AWS-cloudwatch_alarm_actions_enabled` | HIGH | CloudWatch metric alarm has actions enabled | - |
+| `PRW-AWS-cloudwatch_changes_to_network_acls_alarm_configured` | MEDIUM | CloudWatch log metric filter and alarm exist for Network ACL (NACL) change events | AWS-LOG-017 |
+| `PRW-AWS-cloudwatch_changes_to_network_gateways_alarm_configured` | MEDIUM | CloudWatch Logs metric filter and alarm exist for changes to network gateways | AWS-LOG-018 |
+| `PRW-AWS-cloudwatch_changes_to_network_route_tables_alarm_configured` | MEDIUM | Account monitors VPC route table changes with a CloudWatch Logs metric filter and alarm | AWS-LOG-019 |
+| `PRW-AWS-cloudwatch_changes_to_vpcs_alarm_configured` | MEDIUM | AWS account has a CloudWatch Logs metric filter and alarm for VPC changes | AWS-LOG-020 |
+| `PRW-AWS-cloudwatch_cross_account_sharing_disabled` | MEDIUM | CloudWatch does not allow cross-account sharing | - |
+| `PRW-AWS-cloudwatch_log_group_agentcore_data_protection_policy_enabled` | MEDIUM | Bedrock AgentCore log groups have a CloudWatch Logs data protection policy activated | - |
+| `PRW-AWS-cloudwatch_log_group_kms_encryption_enabled` | MEDIUM | CloudWatch log group is encrypted with an AWS KMS key | - |
+| `PRW-AWS-cloudwatch_log_group_not_publicly_accessible` | HIGH | CloudWatch Log Group is not publicly accessible | - |
+| `PRW-AWS-cloudwatch_log_group_retention_policy_specific_days_enabled` | MEDIUM | CloudWatch log group has a retention policy of at least the configured minimum days or never expires | - |
+| `PRW-AWS-cloudwatch_log_metric_filter_and_alarm_for_aws_config_configuration_changes_enabled` | MEDIUM | CloudWatch Logs metric filter and alarm exist for AWS Config configuration changes | AWS-LOG-015 |
+| `PRW-AWS-cloudwatch_log_metric_filter_and_alarm_for_cloudtrail_configuration_changes_enabled` | MEDIUM | CloudWatch Logs metric filter and alarm exist for CloudTrail configuration changes | AWS-LOG-011 |
+| `PRW-AWS-cloudwatch_log_metric_filter_authentication_failures` | MEDIUM | Account has a CloudWatch Logs metric filter and alarm for AWS Management Console authentication failures | AWS-LOG-012 |
+| `PRW-AWS-cloudwatch_log_metric_filter_aws_organizations_changes` | MEDIUM | CloudWatch Logs metric filter and alarm exist for AWS Organizations changes | AWS-LOG-021 |
+| `PRW-AWS-cloudwatch_log_metric_filter_disable_or_scheduled_deletion_of_kms_cmk` | MEDIUM | Account has a CloudWatch log metric filter and alarm for disabling or scheduled deletion of customer-managed KMS keys | AWS-LOG-013 |
+| `PRW-AWS-cloudwatch_log_metric_filter_for_s3_bucket_policy_changes` | MEDIUM | CloudWatch log metric filter and alarm exist for S3 bucket policy changes | AWS-LOG-014 |
+| `PRW-AWS-cloudwatch_log_metric_filter_policy_changes` | MEDIUM | CloudWatch Logs metric filter and alarm exist for IAM policy changes | AWS-LOG-010 |
+| `PRW-AWS-cloudwatch_log_metric_filter_root_usage` | MEDIUM | Account has a CloudWatch Logs metric filter and alarm for root account usage | AWS-LOG-008 |
+| `PRW-AWS-cloudwatch_log_metric_filter_security_group_changes` | MEDIUM | CloudWatch Logs metric filter and alarm exist for security group changes | AWS-LOG-016 |
+| `PRW-AWS-cloudwatch_log_metric_filter_sign_in_without_mfa` | MEDIUM | CloudWatch log metric filter and alarm exist for Management Console sign-in without MFA | AWS-LOG-009 |
+| `PRW-AWS-cloudwatch_log_metric_filter_unauthorized_api_calls` | MEDIUM | CloudWatch Logs metric filter and alarm exist for unauthorized API calls | AWS-LOG-007 |
+| `PRW-AWS-codeartifact_packages_external_public_publishing_disabled` | CRITICAL | Internal CodeArtifact package does not allow publishing versions already present in external public sources | - |
+| `PRW-AWS-codebuild_project_logging_enabled` | MEDIUM | CodeBuild project has CloudWatch Logs or S3 logging enabled | - |
+| `PRW-AWS-codebuild_project_not_publicly_accessible` | HIGH | CodeBuild project visibility is private | - |
+| `PRW-AWS-codebuild_project_older_90_days` | MEDIUM | CodeBuild project has been invoked in the last 90 days | - |
+| `PRW-AWS-codebuild_project_s3_logs_encrypted` | LOW | CodeBuild project S3 logs are encrypted at rest | - |
+| `PRW-AWS-codebuild_project_source_repo_url_no_sensitive_credentials` | CRITICAL | CodeBuild project source repository URLs do not contain sensitive credentials | - |
+| `PRW-AWS-codebuild_project_user_controlled_buildspec` | MEDIUM | CodeBuild project does not use a user-controlled buildspec file | - |
+| `PRW-AWS-codebuild_project_uses_allowed_github_organizations` | HIGH | CodeBuild project using GitHub uses an allowed GitHub organization | - |
+| `PRW-AWS-codebuild_project_webhook_filters_use_anchored_patterns` | HIGH | CodeBuild project webhook filters use anchored regex patterns | - |
+| `PRW-AWS-codebuild_report_group_export_encrypted` | MEDIUM | CodeBuild report group exports to S3 are encrypted at rest | - |
+| `PRW-AWS-codepipeline_project_repo_private` | MEDIUM | CodePipeline pipeline should use private repository source with authenticated connection | - |
+| `PRW-AWS-cognito_identity_pool_guest_access_disabled` | MEDIUM | Cognito identity pool has guest access disabled | - |
+| `PRW-AWS-cognito_user_pool_client_prevent_user_existence_errors` | MEDIUM | Amazon Cognito user pool client has Prevent User Existence Errors enabled | - |
+| `PRW-AWS-cognito_user_pool_client_token_revocation_enabled` | MEDIUM | Amazon Cognito user pool client has token revocation enabled | - |
+| `PRW-AWS-cognito_user_pool_deletion_protection_enabled` | MEDIUM | Cognito user pool has deletion protection enabled | - |
+| `PRW-AWS-cognito_user_pool_mfa_enabled` | MEDIUM | Amazon Cognito user pool requires Multi-Factor Authentication (MFA) | - |
+| `PRW-AWS-cognito_user_pool_password_policy_lowercase` | MEDIUM | Cognito user pool password policy requires at least one lowercase letter | - |
+| `PRW-AWS-cognito_user_pool_password_policy_minimum_length_14` | MEDIUM | Cognito user pool has a password policy with a minimum length of 14 characters or more | - |
+| `PRW-AWS-cognito_user_pool_password_policy_number` | MEDIUM | Cognito user pool password policy requires at least one number | - |
+| `PRW-AWS-cognito_user_pool_password_policy_symbol` | MEDIUM | Cognito user pool password policy requires at least one symbol | - |
+| `PRW-AWS-cognito_user_pool_password_policy_uppercase` | MEDIUM | Cognito user pool password policy requires at least one uppercase letter | - |
+| `PRW-AWS-cognito_user_pool_self_registration_disabled` | MEDIUM | Amazon Cognito user pool has self registration disabled | - |
+| `PRW-AWS-cognito_user_pool_temporary_password_expiration` | MEDIUM | Cognito user pool has temporary password expiration set to 7 days or less | - |
+| `PRW-AWS-config_delegated_admin_and_org_aggregator_all_regions` | HIGH | AWS Config has a delegated administrator and an organization aggregator covering all AWS regions | - |
+| `PRW-AWS-config_recorder_all_regions_enabled` | MEDIUM | AWS Config recorder is enabled and not in failure state or disabled | AWS-LOG-003 |
+| `PRW-AWS-config_recorder_using_aws_service_role` | MEDIUM | AWS Config recorder uses the AWSServiceRoleForConfig service-linked role | - |
+| `PRW-AWS-datasync_task_logging_enabled` | HIGH | DataSync task has CloudWatch Logs log group configured for logging | - |
+| `PRW-AWS-directconnect_connection_redundancy` | MEDIUM | Direct Connect connections span at least two locations per region | - |
+| `PRW-AWS-directconnect_virtual_interface_redundancy` | MEDIUM | Direct Connect gateway or virtual private gateway has at least two virtual interfaces on different Direct Connect connections | - |
+| `PRW-AWS-directoryservice_directory_log_forwarding_enabled` | MEDIUM | Directory Service directory has log forwarding to CloudWatch Logs enabled | - |
+| `PRW-AWS-directoryservice_directory_monitor_notifications` | MEDIUM | Directory Service directory has SNS notifications enabled | - |
+| `PRW-AWS-directoryservice_directory_snapshots_limit` | LOW | Directory Service directory has adequate remaining manual snapshot quota | - |
+| `PRW-AWS-directoryservice_ldap_certificate_expiration` | MEDIUM | Directory Service LDAP certificate expires in more than 90 days | - |
+| `PRW-AWS-directoryservice_radius_server_security_protocol` | MEDIUM | Directory Service directory RADIUS server uses MS-CHAPv2 | - |
+| `PRW-AWS-directoryservice_supported_mfa_radius_enabled` | MEDIUM | AWS Directory Service directory has RADIUS-based MFA enabled | - |
+| `PRW-AWS-dlm_ebs_snapshot_lifecycle_policy_exists` | MEDIUM | Region with EBS snapshots has at least one EBS snapshot lifecycle policy defined | - |
+| `PRW-AWS-dms_endpoint_mongodb_authentication_enabled` | MEDIUM | DMS MongoDB endpoint has an authentication mechanism enabled | - |
+| `PRW-AWS-dms_endpoint_neptune_iam_authorization_enabled` | MEDIUM | DMS endpoint for Neptune has IAM authorization enabled | - |
+| `PRW-AWS-dms_endpoint_redis_in_transit_encryption_enabled` | MEDIUM | DMS endpoint for Redis OSS is encrypted in transit | - |
+| `PRW-AWS-dms_endpoint_ssl_enabled` | HIGH | DMS endpoint has SSL enabled | - |
+| `PRW-AWS-dms_instance_minor_version_upgrade_enabled` | MEDIUM | DMS replication instance has auto minor version upgrade enabled | - |
+| `PRW-AWS-dms_instance_multi_az_enabled` | MEDIUM | DMS replication instance has Multi-AZ enabled | - |
+| `PRW-AWS-dms_instance_no_public_access` | CRITICAL | DMS replication instance is not publicly exposed to the Internet | - |
+| `PRW-AWS-dms_replication_task_source_logging_enabled` | MEDIUM | DMS replication task has logging enabled and SOURCE_CAPTURE and SOURCE_UNLOAD components set to at least Default severity | - |
+| `PRW-AWS-dms_replication_task_target_logging_enabled` | MEDIUM | DMS replication task has TARGET_APPLY and TARGET_LOAD logging enabled with at least default severity | - |
+| `PRW-AWS-documentdb_cluster_backup_enabled` | MEDIUM | DocumentDB cluster has automated backups enabled with retention period of at least 7 days | - |
+| `PRW-AWS-documentdb_cluster_cloudwatch_log_export` | MEDIUM | DocumentDB cluster exports audit and profiler logs to CloudWatch Logs | - |
+| `PRW-AWS-documentdb_cluster_deletion_protection` | MEDIUM | DocumentDB cluster has deletion protection enabled | - |
+| `PRW-AWS-documentdb_cluster_multi_az_enabled` | MEDIUM | DocumentDB cluster has Multi-AZ enabled | - |
+| `PRW-AWS-documentdb_cluster_public_snapshot` | CRITICAL | DocumentDB manual cluster snapshot is not shared publicly | - |
+| `PRW-AWS-documentdb_cluster_storage_encrypted` | MEDIUM | DocumentDB cluster storage is encrypted at rest | - |
+| `PRW-AWS-drs_job_exist` | MEDIUM | Region has AWS Elastic Disaster Recovery (DRS) enabled with at least one recovery job | - |
+| `PRW-AWS-dynamodb_accelerator_cluster_encryption_enabled` | MEDIUM | DynamoDB DAX cluster has encryption at rest enabled | - |
+| `PRW-AWS-dynamodb_accelerator_cluster_in_transit_encryption_enabled` | MEDIUM | DynamoDB Accelerator (DAX) cluster has encryption in transit enabled | - |
+| `PRW-AWS-dynamodb_accelerator_cluster_multi_az` | MEDIUM | DynamoDB Accelerator (DAX) cluster has nodes in multiple Availability Zones | - |
+| `PRW-AWS-dynamodb_table_autoscaling_enabled` | MEDIUM | DynamoDB table uses on-demand capacity or has auto scaling enabled for read and write capacity units | - |
+| `PRW-AWS-dynamodb_table_cross_account_access` | MEDIUM | DynamoDB table resource-based policy does not allow cross-account access | - |
+| `PRW-AWS-dynamodb_table_deletion_protection_enabled` | MEDIUM | DynamoDB table has deletion protection enabled | - |
+| `PRW-AWS-dynamodb_table_protected_by_backup_plan` | MEDIUM | DynamoDB table is protected by a backup plan | - |
+| `PRW-AWS-dynamodb_tables_kms_cmk_encryption_enabled` | MEDIUM | DynamoDB table is encrypted at rest with AWS KMS | - |
+| `PRW-AWS-dynamodb_tables_pitr_enabled` | MEDIUM | DynamoDB table has point-in-time recovery (PITR) enabled | - |
+| `PRW-AWS-ec2_ami_account_block_public_access` | MEDIUM | AMI block public access is enabled at the account level | - |
+| `PRW-AWS-ec2_ami_public` | CRITICAL | EC2 AMI owned by the account is not public | - |
+| `PRW-AWS-ec2_client_vpn_endpoint_connection_logging_enabled` | LOW | EC2 Client VPN endpoint has client connection logging enabled | - |
+| `PRW-AWS-ec2_confidential_workload_host_imdsv2_not_enforced` | HIGH | Confidential-workload host enforces IMDSv2 | - |
+| `PRW-AWS-ec2_confidential_workload_host_not_running` | MEDIUM | Nitro Enclave parent instance is in the running state | - |
+| `PRW-AWS-ec2_confidential_workload_host_public_ip` | MEDIUM | Confidential-workload host is not exposed to the internet | - |
+| `PRW-AWS-ec2_confidential_workload_host_unrestricted_ingress` | HIGH | Confidential-workload host does not expose non-standard ports to the internet | - |
+| `PRW-AWS-ec2_confidential_workload_host_vsock_proxy_exposed` | MEDIUM | Confidential-workload host does not expose likely vsock-proxy TCP ports to the internet | - |
+| `PRW-AWS-ec2_ebs_default_encryption` | HIGH | EBS default encryption is enabled | AWS-CMP-001 |
+| `PRW-AWS-ec2_ebs_public_snapshot` | CRITICAL | EBS snapshot is not public | - |
+| `PRW-AWS-ec2_ebs_snapshot_account_block_public_access` | HIGH | All EBS snapshots have public access blocked | - |
+| `PRW-AWS-ec2_ebs_snapshots_encrypted` | HIGH | EBS snapshot is encrypted | - |
+| `PRW-AWS-ec2_ebs_volume_encryption` | HIGH | EBS volume is encrypted | - |
+| `PRW-AWS-ec2_ebs_volume_protected_by_backup_plan` | MEDIUM | EBS volume is protected by a backup plan | - |
+| `PRW-AWS-ec2_ebs_volume_snapshots_exists` | HIGH | EBS volume has at least one snapshot | - |
+| `PRW-AWS-ec2_elastic_ip_shodan` | MEDIUM | EC2 Elastic IP address is not listed in Shodan | - |
+| `PRW-AWS-ec2_elastic_ip_unassigned` | LOW | Elastic IP is associated with an instance or network interface | - |
+| `PRW-AWS-ec2_instance_account_imdsv2_enabled` | HIGH | IMDSv2 is required by default for EC2 instances at the account level | - |
+| `PRW-AWS-ec2_instance_detailed_monitoring_enabled` | LOW | EC2 instance has detailed monitoring enabled | - |
+| `PRW-AWS-ec2_instance_imdsv2_enabled` | HIGH | EC2 instance requires IMDSv2 or has the instance metadata service disabled | AWS-CMP-002 |
+| `PRW-AWS-ec2_instance_internet_facing_with_instance_profile` | HIGH | EC2 instance is not internet-facing with an instance profile attached | - |
+| `PRW-AWS-ec2_instance_managed_by_ssm` | MEDIUM | EC2 instance is managed by AWS Systems Manager or not running | - |
+| `PRW-AWS-ec2_instance_older_than_specific_days` | MEDIUM | EC2 instance is not older than the configured maximum age or is not running | - |
+| `PRW-AWS-ec2_instance_paravirtual_type` | MEDIUM | EC2 instance virtualization type is HVM | - |
+| `PRW-AWS-ec2_instance_port_cassandra_exposed_to_internet` | CRITICAL | EC2 instance does not have Cassandra ports (TCP 7000, 7001, 7199, 9042, 9160) open to the Internet | - |
+| `PRW-AWS-ec2_instance_port_cifs_exposed_to_internet` | CRITICAL | EC2 instance does not allow Internet ingress to TCP ports 139 or 445 (CIFS) | - |
+| `PRW-AWS-ec2_instance_port_elasticsearch_kibana_exposed_to_internet` | CRITICAL | EC2 instance does not allow ingress from the Internet to Elasticsearch and Kibana ports (TCP 9200, 9300, 5601) | - |
+| `PRW-AWS-ec2_instance_port_ftp_exposed_to_internet` | CRITICAL | EC2 instance does not allow ingress from the Internet to TCP ports 20 or 21 (FTP) | - |
+| `PRW-AWS-ec2_instance_port_kafka_exposed_to_internet` | CRITICAL | EC2 instance does not allow ingress from the Internet to TCP port 9092 (Kafka) | - |
+| `PRW-AWS-ec2_instance_port_kerberos_exposed_to_internet` | CRITICAL | EC2 instance does not allow ingress from the Internet to TCP ports 88, 464, 749, or 750 (Kerberos) | - |
+| `PRW-AWS-ec2_instance_port_ldap_exposed_to_internet` | CRITICAL | EC2 instance does not allow ingress from the Internet to TCP ports 389 or 636 (LDAP/LDAPS) | - |
+| `PRW-AWS-ec2_instance_port_memcached_exposed_to_internet` | CRITICAL | EC2 instance does not allow ingress from the Internet to TCP port 11211 (Memcached) | - |
+| `PRW-AWS-ec2_instance_port_mongodb_exposed_to_internet` | CRITICAL | EC2 instance does not allow ingress from the Internet to TCP ports 27017 or 27018 (MongoDB) | - |
+| `PRW-AWS-ec2_instance_port_mysql_exposed_to_internet` | CRITICAL | EC2 instance does not allow ingress from the Internet to TCP port 3306 (MySQL) | - |
+| `PRW-AWS-ec2_instance_port_oracle_exposed_to_internet` | CRITICAL | EC2 instance does not allow ingress from the Internet to TCP ports 1521, 2483, or 2484 (Oracle) | - |
+| `PRW-AWS-ec2_instance_port_postgresql_exposed_to_internet` | CRITICAL | EC2 instance does not allow ingress from the Internet to TCP port 5432 (PostgreSQL) | - |
+| `PRW-AWS-ec2_instance_port_rdp_exposed_to_internet` | CRITICAL | EC2 instance does not allow ingress from the Internet to TCP port 3389 (RDP) | - |
+| `PRW-AWS-ec2_instance_port_redis_exposed_to_internet` | CRITICAL | EC2 instance does not allow ingress from the Internet to TCP port 6379 (Redis) | - |
+| `PRW-AWS-ec2_instance_port_sqlserver_exposed_to_internet` | CRITICAL | EC2 instance does not allow ingress from the Internet to TCP ports 1433 or 1434 (SQL Server) | - |
+| `PRW-AWS-ec2_instance_port_ssh_exposed_to_internet` | CRITICAL | EC2 instance does not allow ingress from the Internet to TCP port 22 (SSH) | - |
+| `PRW-AWS-ec2_instance_port_telnet_exposed_to_internet` | CRITICAL | EC2 instance does not allow ingress from the Internet to TCP port 23 (Telnet) | - |
+| `PRW-AWS-ec2_instance_profile_attached` | MEDIUM | EC2 instance is associated with an IAM instance profile role | - |
+| `PRW-AWS-ec2_instance_public_ip` | MEDIUM | EC2 instance does not have a public IP address | - |
+| `PRW-AWS-ec2_instance_stopped_older_than_specific_days` | LOW | EC2 instance has not been stopped longer than the configured maximum days | - |
+| `PRW-AWS-ec2_instance_uses_single_eni` | LOW | EC2 instance has no more than one Elastic Network Interface (ENI) attached | - |
+| `PRW-AWS-ec2_instance_with_outdated_ami` | MEDIUM | EC2 instance uses a non-deprecated Amazon AMI | - |
+| `PRW-AWS-ec2_launch_template_imdsv2_required` | HIGH | EC2 launch template has IMDSv2 enabled and required or instance metadata service disabled | - |
+| `PRW-AWS-ec2_launch_template_no_public_ip` | HIGH | Amazon EC2 launch template has no public IP addresses configured on network interfaces | - |
+| `PRW-AWS-ec2_networkacl_allow_ingress_any_port` | HIGH | Network ACL does not allow ingress from 0.0.0.0/0 to any port | AWS-NET-004 |
+| `PRW-AWS-ec2_networkacl_allow_ingress_tcp_port_22` | MEDIUM | Network ACL does not allow ingress from the Internet to TCP port 22 (SSH) | AWS-NET-004 |
+| `PRW-AWS-ec2_networkacl_allow_ingress_tcp_port_3389` | MEDIUM | Network ACL does not allow ingress from the Internet to TCP port 3389 (RDP) | AWS-NET-004 |
+| `PRW-AWS-ec2_networkacl_unused` | LOW | Non-default network ACL is associated with a subnet | - |
+| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_all_ports` | CRITICAL | Security group does not have all ports open to the Internet | - |
+| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_any_port` | HIGH | Security group has no 0.0.0.0/0 or ::/0 ingress to any port, or is attached only to allowed interface types or instance owners | - |
+| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_any_port_from_ip` | MEDIUM | Security group does not have any port open to a specific public IP address | - |
+| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_high_risk_tcp_ports` | HIGH | Security group does not allow ingress from 0.0.0.0/0 or ::/0 to high-risk TCP ports | - |
+| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_22` | HIGH | Security group does not allow ingress from 0.0.0.0/0 or ::/0 to TCP port 22 (SSH) | AWS-NET-001 |
+| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_3389` | HIGH | Security group does not allow ingress from the Internet to TCP port 3389 (RDP) | AWS-NET-002 |
+| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_cassandra_7199_9160_8888` | HIGH | Security group does not allow ingress from 0.0.0.0/0 or ::/0 to Cassandra TCP ports 7199, 9160, or 8888 | AWS-NET-003 |
+| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_elasticsearch_kibana_9200_9300_5601` | HIGH | Security group does not allow ingress from 0.0.0.0/0 or ::/0 to Elasticsearch/Kibana TCP ports 9200, 9300, and 5601 | - |
+| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_ftp_20_21` | HIGH | Security group does not allow ingress from 0.0.0.0/0 or ::/0 to FTP ports 20 or 21 | - |
+| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_kafka_9092` | HIGH | Security group does not allow ingress from 0.0.0.0/0 or ::/0 to TCP port 9092 (Kafka) | - |
+| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_memcached_11211` | HIGH | Security group does not allow ingress from 0.0.0.0/0 or ::/0 to Memcached TCP port 11211 | - |
+| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_mongodb_27017_27018` | HIGH | Security group does not allow ingress from 0.0.0.0/0 or ::/0 to MongoDB TCP ports 27017 and 27018 | AWS-NET-003 |
+| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_mysql_3306` | HIGH | Security group does not allow ingress from 0.0.0.0/0 or ::/0 to MySQL port 3306 | AWS-NET-003 |
+| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_oracle_1521_2483` | HIGH | Security group does not allow ingress from 0.0.0.0/0 or ::/0 to Oracle TCP ports 1521 or 2483 | AWS-NET-003 |
+| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_postgres_5432` | HIGH | Security group does not allow ingress from 0.0.0.0/0 or ::/0 to Postgres TCP port 5432 | AWS-NET-003 |
+| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_redis_6379` | HIGH | Security group does not allow ingress from 0.0.0.0/0 or ::/0 to Redis TCP port 6379 | AWS-NET-003 |
+| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_sql_server_1433_1434` | HIGH | Security group does not allow ingress from 0.0.0.0/0 or ::/0 to Microsoft SQL Server ports 1433 and 1434 | AWS-NET-003 |
+| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_telnet_23` | HIGH | Security group does not allow ingress from the Internet to TCP port 23 (Telnet) | - |
+| `PRW-AWS-ec2_securitygroup_allow_wide_open_public_ipv4` | HIGH | Security group has no ingress or egress rules with public IPv4 CIDR ranges from /1 to /23 | - |
+| `PRW-AWS-ec2_securitygroup_default_restrict_traffic` | HIGH | VPC default security group has no inbound or outbound rules | AWS-NET-005 |
+| `PRW-AWS-ec2_securitygroup_from_launch_wizard` | MEDIUM | Security group not created using the EC2 Launch Wizard | - |
+| `PRW-AWS-ec2_securitygroup_not_used` | LOW | Non-default EC2 security group is in use | - |
+| `PRW-AWS-ec2_securitygroup_with_many_ingress_egress_rules` | MEDIUM | Security group has 50 or fewer inbound rules and 50 or fewer outbound rules | - |
+| `PRW-AWS-ec2_transitgateway_auto_accept_vpc_attachments` | HIGH | Amazon EC2 Transit Gateway does not automatically accept shared VPC attachments | - |
+| `PRW-AWS-ecr_registry_enhanced_scanning_enabled` | MEDIUM | ECR registry has enhanced scanning enabled | - |
+| `PRW-AWS-ecr_registry_scan_images_on_push_enabled` | MEDIUM | ECR registry has automated image scanning enabled for all repositories | - |
+| `PRW-AWS-ecr_repositories_lifecycle_policy_enabled` | LOW | ECR repository has a lifecycle policy configured | - |
+| `PRW-AWS-ecr_repositories_not_publicly_accessible` | CRITICAL | ECR repository is not publicly accessible | - |
+| `PRW-AWS-ecr_repositories_scan_images_on_push_enabled` | MEDIUM | [DEPRECATED] ECR repository has image scanning on push enabled | - |
+| `PRW-AWS-ecr_repositories_scan_vulnerabilities_in_latest_image` | MEDIUM | ECR repository latest image is scanned with no vulnerabilities at or above the configured minimum severity | - |
+| `PRW-AWS-ecr_repositories_tag_immutability` | MEDIUM | ECR repository has image tag immutability enabled | - |
+| `PRW-AWS-ecs_cluster_container_insights_enabled` | MEDIUM | ECS cluster has Container Insights enabled or enhanced | - |
+| `PRW-AWS-ecs_service_fargate_latest_platform_version` | MEDIUM | ECS Fargate service uses the latest Fargate platform version | - |
+| `PRW-AWS-ecs_service_no_assign_public_ip` | HIGH | ECS service does not have automatic public IP assignment | - |
+| `PRW-AWS-ecs_task_definitions_containers_readonly_access` | HIGH | ECS task definition has all containers with read-only root filesystems | - |
+| `PRW-AWS-ecs_task_definitions_host_namespace_not_shared` | HIGH | ECS task definition does not share the host's process namespace with its containers | - |
+| `PRW-AWS-ecs_task_definitions_host_networking_mode_users` | HIGH | Amazon ECS task definition does not use host network mode, or non-privileged containers specify a non-root user | - |
+| `PRW-AWS-ecs_task_definitions_logging_block_mode` | LOW | ECS task definition has container logging in non-blocking mode | - |
+| `PRW-AWS-ecs_task_definitions_logging_enabled` | HIGH | ECS task definition has logging configured for all containers | - |
+| `PRW-AWS-ecs_task_definitions_no_privileged_containers` | HIGH | ECS task definition has no privileged containers | - |
+| `PRW-AWS-ecs_task_set_no_assign_public_ip` | HIGH | ECS task set does not automatically assign a public IP address | - |
+| `PRW-AWS-efs_access_point_enforce_root_directory` | MEDIUM | EFS file system has no access points allowing access to the root directory | - |
+| `PRW-AWS-efs_access_point_enforce_user_identity` | MEDIUM | EFS file system has all access points with a defined POSIX user | - |
+| `PRW-AWS-efs_encryption_at_rest_enabled` | MEDIUM | EFS file system has encryption at rest enabled | - |
+| `PRW-AWS-efs_have_backup_enabled` | MEDIUM | EFS file system has backup enabled | - |
+| `PRW-AWS-efs_mount_target_not_publicly_accessible` | MEDIUM | EFS file system has no publicly accessible mount targets | - |
+| `PRW-AWS-efs_multi_az_enabled` | MEDIUM | EFS file system is Multi-AZ with more than one mount target | - |
+| `PRW-AWS-efs_not_publicly_accessible` | MEDIUM | EFS file system policy does not allow access to any client within the VPC | - |
+| `PRW-AWS-eks_cluster_deletion_protection_enabled` | HIGH | EKS cluster has deletion protection enabled | - |
+| `PRW-AWS-eks_cluster_kms_cmk_encryption_in_secrets_enabled` | MEDIUM | EKS cluster has Kubernetes secrets encryption enabled | - |
+| `PRW-AWS-eks_cluster_network_policy_enabled` | HIGH | EKS cluster has network policy enabled | - |
+| `PRW-AWS-eks_cluster_not_publicly_accessible` | HIGH | EKS cluster endpoint is not publicly accessible from 0.0.0.0/0 | - |
+| `PRW-AWS-eks_cluster_private_nodes_enabled` | HIGH | EKS cluster has private endpoint access enabled | - |
+| `PRW-AWS-eks_cluster_uses_a_supported_version` | HIGH | EKS cluster uses a supported Kubernetes version | - |
+| `PRW-AWS-eks_cluster_vpc_cni_network_policy_enforced` | MEDIUM | EKS cluster enforces Kubernetes network policies through the Amazon VPC CNI add-on | - |
+| `PRW-AWS-eks_control_plane_logging_all_types_enabled` | MEDIUM | EKS cluster has control plane logging enabled for api, audit, authenticator, controllerManager, and scheduler | - |
+| `PRW-AWS-elasticache_cluster_uses_public_subnet` | MEDIUM | ElastiCache cluster is not using public subnets | - |
+| `PRW-AWS-elasticache_redis_cluster_auto_minor_version_upgrades` | HIGH | ElastiCache Redis cache cluster has automatic minor version upgrades enabled | - |
+| `PRW-AWS-elasticache_redis_cluster_automatic_failover_enabled` | MEDIUM | ElastiCache Redis cluster has automatic failover enabled | - |
+| `PRW-AWS-elasticache_redis_cluster_backup_enabled` | HIGH | ElastiCache Redis cache cluster has automated snapshot backups enabled with retention of at least 7 days | - |
+| `PRW-AWS-elasticache_redis_cluster_in_transit_encryption_enabled` | MEDIUM | ElastiCache Redis cache cluster has in-transit encryption enabled | - |
+| `PRW-AWS-elasticache_redis_cluster_multi_az_enabled` | MEDIUM | ElastiCache Redis replication group has Multi-AZ enabled | - |
+| `PRW-AWS-elasticache_redis_cluster_rest_encryption_enabled` | MEDIUM | ElastiCache Redis cache cluster has at rest encryption enabled | - |
+| `PRW-AWS-elasticache_redis_replication_group_auth_enabled` | MEDIUM | ElastiCache Redis replication group with engine version < 6.0 has Redis OSS AUTH enabled | - |
+| `PRW-AWS-elasticbeanstalk_environment_cloudwatch_logging_enabled` | HIGH | Elastic Beanstalk environment streams logs to CloudWatch Logs | - |
+| `PRW-AWS-elasticbeanstalk_environment_enhanced_health_reporting` | LOW | Elastic Beanstalk environment has enhanced health reporting enabled | - |
+| `PRW-AWS-elasticbeanstalk_environment_managed_updates_enabled` | HIGH | Elastic Beanstalk environment has managed platform updates enabled | - |
+| `PRW-AWS-elb_connection_draining_enabled` | MEDIUM | Classic Load Balancer has connection draining enabled | - |
+| `PRW-AWS-elb_cross_zone_load_balancing_enabled` | MEDIUM | Classic Load Balancer has cross-zone load balancing enabled | - |
+| `PRW-AWS-elb_desync_mitigation_mode` | MEDIUM | Classic Load Balancer desync mitigation mode is defensive or strictest | - |
+| `PRW-AWS-elb_insecure_ssl_ciphers` | MEDIUM | Elastic Load Balancer HTTPS listeners, if present, use the ELBSecurityPolicy-TLS-1-2-2017-01 policy | - |
+| `PRW-AWS-elb_internet_facing` | MEDIUM | Elastic Load Balancer is not internet-facing | - |
+| `PRW-AWS-elb_is_in_multiple_az` | MEDIUM | Classic Load Balancer is in multiple Availability Zones | - |
+| `PRW-AWS-elb_logging_enabled` | MEDIUM | Elastic Load Balancer has access logs to S3 configured | - |
+| `PRW-AWS-elb_ssl_listeners` | MEDIUM | Elastic Load Balancer has only HTTPS or SSL listeners | - |
+| `PRW-AWS-elb_ssl_listeners_use_acm_certificate` | MEDIUM | Classic Load Balancer HTTPS/SSL listeners use ACM-issued certificates | - |
+| `PRW-AWS-elbv2_alb_drop_invalid_header_fields_enabled` | MEDIUM | Application Load Balancer should be configured to drop invalid HTTP header fields | - |
+| `PRW-AWS-elbv2_cross_zone_load_balancing_enabled` | MEDIUM | ELBv2 Network or Gateway Load Balancer has cross-zone load balancing enabled | - |
+| `PRW-AWS-elbv2_deletion_protection` | MEDIUM | ELBv2 load balancer has deletion protection enabled | - |
+| `PRW-AWS-elbv2_desync_mitigation_mode` | MEDIUM | Application Load Balancer has desync mitigation mode set to strictest or defensive, or drops invalid header fields | - |
+| `PRW-AWS-elbv2_insecure_ssl_ciphers` | MEDIUM | ELBv2 load balancer uses a secure SSL policy on HTTPS listeners | - |
+| `PRW-AWS-elbv2_internet_facing` | MEDIUM | Application Load Balancer is not publicly accessible (no inbound TCP from 0.0.0.0/0 or ::/0) | - |
+| `PRW-AWS-elbv2_is_in_multiple_az` | MEDIUM | ELBv2 load balancer is configured across multiple Availability Zones | - |
+| `PRW-AWS-elbv2_listener_fips_tls_enabled` | LOW | ELBv2 HTTPS/TLS listeners use a FIPS TLS security policy | - |
+| `PRW-AWS-elbv2_listener_pqc_tls_enabled` | LOW | ELBv2 HTTPS/TLS listeners use a post-quantum TLS security policy | - |
+| `PRW-AWS-elbv2_listeners_underneath` | MEDIUM | ELBv2 load balancer has at least one listener | - |
+| `PRW-AWS-elbv2_logging_enabled` | MEDIUM | ELBv2 Application Load Balancer has access logs to S3 configured | - |
+| `PRW-AWS-elbv2_nlb_tls_termination_enabled` | MEDIUM | ELBv2 Network Load Balancer has TLS termination enabled | - |
+| `PRW-AWS-elbv2_ssl_listeners` | MEDIUM | ELBv2 Application Load Balancer listeners use HTTPS or redirect HTTP to HTTPS | - |
+| `PRW-AWS-elbv2_waf_acl_attached` | MEDIUM | Application Load Balancer has a WAF Web ACL attached | - |
+| `PRW-AWS-emr_cluster_account_public_block_enabled` | HIGH | EMR account has Block Public Access enabled | - |
+| `PRW-AWS-emr_cluster_master_nodes_no_public_ip` | MEDIUM | EMR Cluster without Public IP. | - |
+| `PRW-AWS-emr_cluster_publicly_accesible` | MEDIUM | EMR cluster is not publicly accessible | - |
+| `PRW-AWS-eventbridge_bus_cross_account_access` | HIGH | AWS EventBridge event bus does not allow cross-account access | - |
+| `PRW-AWS-eventbridge_bus_exposed` | HIGH | AWS EventBridge event bus policy does not allow public access | - |
+| `PRW-AWS-eventbridge_global_endpoint_event_replication_enabled` | MEDIUM | EventBridge global endpoint has event replication enabled | - |
+| `PRW-AWS-eventbridge_schema_registry_cross_account_access` | HIGH | AWS EventBridge schema registry does not allow cross-account access | - |
+| `PRW-AWS-firehose_stream_encrypted_at_rest` | MEDIUM | Kinesis Data Firehose delivery stream is encrypted at rest | - |
+| `PRW-AWS-fms_policy_compliant` | MEDIUM | All AWS FMS policies in the admin account are compliant for all accounts | - |
+| `PRW-AWS-fsx_file_system_copy_tags_to_backups_enabled` | LOW | FSx file system has copy tags to backups enabled | - |
+| `PRW-AWS-fsx_file_system_copy_tags_to_volumes_enabled` | LOW | FSx file system has copy tags to volumes enabled | - |
+| `PRW-AWS-fsx_windows_file_system_multi_az_enabled` | LOW | FSx Windows file system is configured for Multi-AZ deployment | - |
+| `PRW-AWS-glacier_vaults_policy_public_access` | CRITICAL | S3 Glacier vault has no policy or its policy does not allow access to everyone | - |
+| `PRW-AWS-glue_data_catalogs_connection_passwords_encryption_enabled` | HIGH | Glue data catalog connection password is encrypted with a KMS key | - |
+| `PRW-AWS-glue_data_catalogs_metadata_encryption_enabled` | MEDIUM | Glue Data Catalog metadata is encrypted with KMS | - |
+| `PRW-AWS-glue_data_catalogs_not_publicly_accessible` | HIGH | Glue Data Catalog is not publicly accessible via its resource policy | - |
+| `PRW-AWS-glue_database_connections_ssl_enabled` | HIGH | Glue connection has SSL enabled | - |
+| `PRW-AWS-glue_development_endpoints_cloudwatch_logs_encryption_enabled` | MEDIUM | Glue development endpoint has CloudWatch Logs encryption enabled | - |
+| `PRW-AWS-glue_development_endpoints_job_bookmark_encryption_enabled` | MEDIUM | Glue development endpoint has Job Bookmark encryption enabled | - |
+| `PRW-AWS-glue_development_endpoints_s3_encryption_enabled` | MEDIUM | Glue development endpoint has S3 encryption enabled | - |
+| `PRW-AWS-glue_etl_jobs_amazon_s3_encryption_enabled` | HIGH | Glue job has S3 encryption enabled | - |
+| `PRW-AWS-glue_etl_jobs_cloudwatch_logs_encryption_enabled` | MEDIUM | Glue ETL job has CloudWatch Logs encryption enabled | - |
+| `PRW-AWS-glue_etl_jobs_job_bookmark_encryption_enabled` | MEDIUM | Glue ETL job has Job bookmark encryption enabled | - |
+| `PRW-AWS-glue_etl_jobs_logging_enabled` | MEDIUM | Glue ETL job has continuous CloudWatch logging enabled | - |
+| `PRW-AWS-glue_ml_transform_encrypted_at_rest` | MEDIUM | Glue ML Transform is encrypted at rest | - |
+| `PRW-AWS-guardduty_ai_protection_enabled` | HIGH | GuardDuty detector has AI Protection enabled | - |
+| `PRW-AWS-guardduty_centrally_managed` | MEDIUM | GuardDuty detector is managed by an administrator account or is the administrator with member accounts | - |
+| `PRW-AWS-guardduty_delegated_admin_enabled_all_regions` | HIGH | GuardDuty has delegated admin configured and is enabled in all regions with organization auto-enable | - |
+| `PRW-AWS-guardduty_ec2_malware_protection_enabled` | HIGH | GuardDuty detector has Malware Protection for EC2 enabled | - |
+| `PRW-AWS-guardduty_eks_audit_log_enabled` | HIGH | GuardDuty detector has EKS Audit Log Monitoring enabled | - |
+| `PRW-AWS-guardduty_eks_runtime_monitoring_enabled` | MEDIUM | GuardDuty detector has EKS Runtime Monitoring enabled | - |
+| `PRW-AWS-guardduty_is_enabled` | HIGH | GuardDuty detector is enabled and not suspended | AWS-POS-001 |
+| `PRW-AWS-guardduty_lambda_protection_enabled` | HIGH | GuardDuty detector has Lambda Protection enabled | - |
+| `PRW-AWS-guardduty_no_high_severity_findings` | HIGH | GuardDuty detector has no high severity findings | - |
+| `PRW-AWS-guardduty_rds_protection_enabled` | HIGH | GuardDuty detector has RDS Protection enabled | - |
+| `PRW-AWS-guardduty_runtime_monitoring_enabled` | HIGH | GuardDuty detector has Runtime Monitoring enabled | - |
+| `PRW-AWS-guardduty_s3_protection_enabled` | HIGH | GuardDuty detector has S3 Protection enabled | - |
+| `PRW-AWS-iam_administrator_access_with_mfa` | HIGH | IAM group members granted AdministratorAccess have MFA enabled | - |
+| `PRW-AWS-iam_avoid_root_usage` | HIGH | AWS account root user has not been used in the last day | - |
+| `PRW-AWS-iam_aws_attached_policy_no_administrative_privileges` | CRITICAL | Attached AWS-managed IAM policy does not allow '*:*' administrative privileges | - |
+| `PRW-AWS-iam_check_saml_providers_sts` | LOW | IAM SAML provider exists in the account | - |
+| `PRW-AWS-iam_customer_attached_policy_no_administrative_privileges` | HIGH | Attached IAM customer-managed policy does not allow '*:*' administrative privileges | AWS-IAM-006 |
+| `PRW-AWS-iam_customer_unattached_policy_no_administrative_privileges` | MEDIUM | Unattached customer managed IAM policy does not allow '*:*' administrative privileges | - |
+| `PRW-AWS-iam_group_administrator_access_policy` | HIGH | IAM group does not have AdministratorAccess policy attached | - |
+| `PRW-AWS-iam_inline_policy_allows_privilege_escalation` | HIGH | IAM inline policy does not allow privilege escalation | - |
+| `PRW-AWS-iam_inline_policy_no_administrative_privileges` | CRITICAL | Inline IAM policy does not allow '*:*' administrative privileges | - |
+| `PRW-AWS-iam_inline_policy_no_full_access_to_cloudtrail` | HIGH | Inline IAM policy does not allow 'cloudtrail:*' privileges | - |
+| `PRW-AWS-iam_inline_policy_no_full_access_to_kms` | MEDIUM | Inline IAM policy does not allow kms:* privileges | - |
+| `PRW-AWS-iam_inline_policy_no_wildcard_marketplace_subscribe` | MEDIUM | Inline IAM policy does not allow 'aws-marketplace:Subscribe' on all resources | - |
+| `PRW-AWS-iam_no_custom_policy_permissive_role_assumption` | HIGH | Custom IAM policy does not allow STS role assumption on wildcard resources | - |
+| `PRW-AWS-iam_no_expired_server_certificates_stored` | HIGH | IAM server certificate is not expired | AWS-IAM-007 |
+| `PRW-AWS-iam_no_root_access_key` | CRITICAL | Root account has no active access keys | AWS-IAM-002 |
+| `PRW-AWS-iam_password_policy_expires_passwords_within_90_days_or_less` | MEDIUM | IAM account password policy enforces password expiration within 90 days or less | - |
+| `PRW-AWS-iam_password_policy_lowercase` | LOW | IAM password policy requires at least one lowercase letter | - |
+| `PRW-AWS-iam_password_policy_minimum_length_14` | MEDIUM | IAM password policy requires passwords to be at least 14 characters long | AWS-IAM-004 |
+| `PRW-AWS-iam_password_policy_number` | MEDIUM | IAM password policy requires at least one number | - |
+| `PRW-AWS-iam_password_policy_reuse_24` | MEDIUM | IAM password policy prevents reuse of the last 24 passwords | AWS-IAM-004 |
+| `PRW-AWS-iam_password_policy_symbol` | MEDIUM | IAM password policy requires at least one symbol | - |
+| `PRW-AWS-iam_password_policy_uppercase` | MEDIUM | IAM password policy requires at least one uppercase letter | - |
+| `PRW-AWS-iam_policy_allows_privilege_escalation` | HIGH | Customer managed IAM policy does not allow actions that can lead to privilege escalation | - |
+| `PRW-AWS-iam_policy_attached_only_to_group_or_roles` | LOW | IAM user has no inline or attached policies | - |
+| `PRW-AWS-iam_policy_cloudshell_admin_not_attached` | MEDIUM | No IAM users, groups, or roles have the AWSCloudShellFullAccess policy attached | - |
+| `PRW-AWS-iam_policy_no_agentcore_workload_access_token_wildcard` | HIGH | Custom IAM policy scopes Bedrock AgentCore workload access token retrieval to workload identity ARNs | - |
+| `PRW-AWS-iam_policy_no_full_access_to_cloudtrail` | MEDIUM | Customer managed IAM policy does not allow cloudtrail:* privileges | - |
+| `PRW-AWS-iam_policy_no_full_access_to_kms` | MEDIUM | Custom IAM policy does not allow 'kms:*' privileges | - |
+| `PRW-AWS-iam_policy_no_wildcard_marketplace_subscribe` | MEDIUM | Custom IAM policy does not allow 'aws-marketplace:Subscribe' on all resources | - |
+| `PRW-AWS-iam_policy_passrole_to_bedrock_agentcore_restricted` | HIGH | Custom IAM policy restricts iam:PassRole to Bedrock AgentCore to specific roles | - |
+| `PRW-AWS-iam_role_access_not_stale_to_bedrock` | MEDIUM | Regular Bedrock access ensures IAM roles retain only actively used permissions | - |
+| `PRW-AWS-iam_role_administratoraccess_policy` | HIGH | IAM role does not have AdministratorAccess policy attached | - |
+| `PRW-AWS-iam_role_cross_account_readonlyaccess_policy` | HIGH | IAM role does not grant ReadOnlyAccess to external AWS accounts | - |
+| `PRW-AWS-iam_role_cross_service_confused_deputy_prevention` | HIGH | IAM service role prevents cross-service confused deputy attack | - |
+| `PRW-AWS-iam_role_service_trust_restricts_source_to_account` | MEDIUM | IAM role trust policy confines AWS service principals to a specific source account | - |
+| `PRW-AWS-iam_root_credentials_management_enabled` | HIGH | AWS Organization has centralized root credentials management enabled | - |
+| `PRW-AWS-iam_root_hardware_mfa_enabled` | CRITICAL | Root account has a hardware MFA device enabled | - |
+| `PRW-AWS-iam_root_mfa_enabled` | CRITICAL | Root account has MFA enabled | AWS-IAM-005 |
+| `PRW-AWS-iam_rotate_access_key_90_days` | MEDIUM | IAM user does not have active access keys older than 90 days | - |
+| `PRW-AWS-iam_securityaudit_role_created` | LOW | At least one IAM role has the SecurityAudit AWS managed policy attached | - |
+| `PRW-AWS-iam_support_role_created` | LOW | At least one IAM role has the AWSSupportAccess managed policy attached | AWS-IAM-009 |
+| `PRW-AWS-iam_user_access_not_stale_to_bedrock` | MEDIUM | Regular Bedrock access ensures IAM users retain only actively used permissions | - |
+| `PRW-AWS-iam_user_access_not_stale_to_sagemaker` | MEDIUM | Regular SageMaker access ensures IAM users retain only actively used permissions | - |
+| `PRW-AWS-iam_user_accesskey_unused` | MEDIUM | IAM user does not have unused access keys older than 45 days | AWS-IAM-003 |
+| `PRW-AWS-iam_user_administrator_access_policy` | CRITICAL | IAM user does not have AdministratorAccess policy attached | - |
+| `PRW-AWS-iam_user_console_access_unused` | MEDIUM | IAM user console access is disabled, used within the configured inactivity period, or never used | - |
+| `PRW-AWS-iam_user_hardware_mfa_enabled` | HIGH | IAM user has hardware MFA enabled | - |
+| `PRW-AWS-iam_user_mfa_enabled_console_access` | HIGH | IAM user has MFA enabled for console access or no console password is set | AWS-IAM-001 |
+| `PRW-AWS-iam_user_no_setup_initial_access_key` | MEDIUM | IAM user does not have active access keys that have never been used | - |
+| `PRW-AWS-iam_user_two_active_access_key` | MEDIUM | IAM user has at most one active access key | - |
+| `PRW-AWS-iam_user_with_temporary_credentials` | HIGH | IAM user does not use long-lived credentials to access services other than IAM or STS | - |
+| `PRW-AWS-inspector2_active_findings_exist` | HIGH | Inspector2 is enabled with no active findings | - |
+| `PRW-AWS-inspector2_active_findings_kev_within_due_date` | CRITICAL | Inspector2 has no active findings for CISA Known Exploited Vulnerabilities past their remediation due date | - |
+| `PRW-AWS-inspector2_active_findings_no_known_exploited_vulnerabilities` | HIGH | Inspector2 has no active findings for CISA Known Exploited Vulnerabilities | - |
+| `PRW-AWS-inspector2_active_findings_within_max_age` | MEDIUM | Inspector2 has no active findings older than the configured maximum age | - |
+| `PRW-AWS-inspector2_coverage_recently_scanned` | MEDIUM | Inspector2 covered resource was scanned within the configured number of days | - |
+| `PRW-AWS-inspector2_coverage_scan_status_active` | MEDIUM | Inspector2 covered resource is actively scanned | - |
+| `PRW-AWS-inspector2_is_enabled` | MEDIUM | Inspector2 is enabled for Amazon EC2 instances, ECR container images, Lambda functions, and Lambda code | - |
+| `PRW-AWS-kafka_cluster_encryption_at_rest_uses_cmk` | MEDIUM | Kafka cluster has encryption at rest enabled with a customer managed key (CMK) or is serverless | - |
+| `PRW-AWS-kafka_cluster_enhanced_monitoring_enabled` | MEDIUM | Amazon MSK cluster has enhanced monitoring enabled | - |
+| `PRW-AWS-kafka_cluster_in_transit_encryption_enabled` | HIGH | Kafka cluster has encryption in transit enabled | - |
+| `PRW-AWS-kafka_cluster_is_public` | CRITICAL | Kafka cluster is not publicly accessible | - |
+| `PRW-AWS-kafka_cluster_mutual_tls_authentication_enabled` | HIGH | Kafka cluster has TLS authentication enabled | - |
+| `PRW-AWS-kafka_cluster_unrestricted_access_disabled` | CRITICAL | Kafka cluster requires authentication | - |
+| `PRW-AWS-kafka_cluster_uses_latest_version` | MEDIUM | MSK cluster uses the latest Kafka version or is serverless with AWS-managed version | - |
+| `PRW-AWS-kafka_connector_in_transit_encryption_enabled` | HIGH | MSK Connect connector has encryption in transit enabled | - |
+| `PRW-AWS-kinesis_stream_data_retention_period` | MEDIUM | Kinesis stream retains data for at least the required minimum hours | - |
+| `PRW-AWS-kinesis_stream_encrypted_at_rest` | HIGH | Kinesis stream is encrypted at rest with KMS | - |
+| `PRW-AWS-kms_cmk_are_used` | LOW | KMS customer managed key is enabled or scheduled for deletion | - |
+| `PRW-AWS-kms_cmk_not_deleted_unintentionally` | CRITICAL | AWS KMS customer managed key is not scheduled for deletion | - |
+| `PRW-AWS-kms_cmk_not_multi_region` | MEDIUM | AWS KMS customer managed key is single-Region | - |
+| `PRW-AWS-kms_cmk_rotation_enabled` | HIGH | KMS customer-managed symmetric CMK has automatic rotation enabled | AWS-SEC-001 |
+| `PRW-AWS-kms_key_enclave_attestation_bypassable_path` | HIGH | KMS enclave key has no authorization path that bypasses attestation | - |
+| `PRW-AWS-kms_key_enclave_attestation_not_enforced` | HIGH | KMS enclave key requires kms:RecipientAttestation conditions on sensitive actions | - |
+| `PRW-AWS-kms_key_enclave_attestation_pcr_mismatch` | MEDIUM | KMS enclave key attestation PCRs match customer-supplied golden values | - |
+| `PRW-AWS-kms_key_enclave_attestation_unknown_image` | MEDIUM | No enclave with an unknown image identity has called this KMS key | - |
+| `PRW-AWS-kms_key_enclave_debug_attestation_detected` | HIGH | No Nitro Enclave debug-mode attestation observed against this KMS key | - |
+| `PRW-AWS-kms_key_not_publicly_accessible` | CRITICAL | Cloud KMS key does not grant access to allUsers or allAuthenticatedUsers | - |
+| `PRW-AWS-lightsail_database_public` | HIGH | Lightsail database public access disabled | - |
+| `PRW-AWS-lightsail_instance_automated_snapshots` | MEDIUM | Lightsail instance has automated snapshots enabled | - |
+| `PRW-AWS-lightsail_instance_public` | HIGH | Lightsail instance has no publicly accessible ports | - |
+| `PRW-AWS-lightsail_static_ip_unused` | LOW | Lightsail static IP is associated with an instance | - |
+| `PRW-AWS-macie_automated_sensitive_data_discovery_enabled` | HIGH | Macie automated sensitive data discovery is enabled | - |
+| `PRW-AWS-macie_is_enabled` | MEDIUM | Amazon Macie is enabled | - |
+| `PRW-AWS-memorydb_cluster_auto_minor_version_upgrades` | MEDIUM | MemoryDB cluster has automatic minor version upgrades enabled | - |
+| `PRW-AWS-memorydb_cluster_in_transit_encryption_enabled` | MEDIUM | MemoryDB cluster has in-transit encryption enabled | - |
+| `PRW-AWS-mq_broker_active_deployment_mode` | LOW | Apache ActiveMQ broker is configured in active/standby Multi-AZ deployment mode | - |
+| `PRW-AWS-mq_broker_auto_minor_version_upgrades` | LOW | Amazon MQ broker has automated minor version upgrades enabled | - |
+| `PRW-AWS-mq_broker_cluster_deployment_mode` | MEDIUM | MQ RabbitMQ broker has cluster (multi-AZ) deployment mode | - |
+| `PRW-AWS-mq_broker_logging_enabled` | LOW | MQ broker has general logging enabled and, for ActiveMQ, audit logging enabled | - |
+| `PRW-AWS-mq_broker_not_publicly_accessible` | HIGH | Amazon MQ broker is not publicly accessible | - |
+| `PRW-AWS-neptune_cluster_backup_enabled` | MEDIUM | Neptune cluster has automated backups enabled with retention period equal to or greater than the configured minimum | - |
+| `PRW-AWS-neptune_cluster_copy_tags_to_snapshots` | LOW | Neptune DB cluster is configured to copy tags to snapshots. | - |
+| `PRW-AWS-neptune_cluster_deletion_protection` | MEDIUM | Neptune cluster has deletion protection enabled | - |
+| `PRW-AWS-neptune_cluster_iam_authentication_enabled` | MEDIUM | Neptune cluster has IAM authentication enabled | - |
+| `PRW-AWS-neptune_cluster_integration_cloudwatch_logs` | MEDIUM | Neptune cluster has CloudWatch audit logs enabled | - |
+| `PRW-AWS-neptune_cluster_multi_az` | MEDIUM | Neptune cluster has Multi-AZ enabled | - |
+| `PRW-AWS-neptune_cluster_public_snapshot` | CRITICAL | NeptuneDB cluster snapshot is not publicly shared | - |
+| `PRW-AWS-neptune_cluster_snapshot_encrypted` | MEDIUM | Neptune DB cluster snapshot is encrypted at rest | - |
+| `PRW-AWS-neptune_cluster_storage_encrypted` | HIGH | Neptune cluster storage is encrypted at rest | - |
+| `PRW-AWS-neptune_cluster_uses_public_subnet` | MEDIUM | Neptune cluster is not using public subnets | - |
+| `PRW-AWS-networkfirewall_deletion_protection` | MEDIUM | Network Firewall has deletion protection enabled | - |
+| `PRW-AWS-networkfirewall_in_all_vpc` | MEDIUM | VPC has Network Firewall enabled | - |
+| `PRW-AWS-networkfirewall_logging_enabled` | HIGH | Network Firewall has logging enabled | - |
+| `PRW-AWS-networkfirewall_multi_az` | HIGH | Network Firewall firewall is deployed across multiple Availability Zones | - |
+| `PRW-AWS-networkfirewall_policy_default_action_fragmented_packets` | HIGH | Network Firewall policy drops or forwards fragmented packets by default | - |
+| `PRW-AWS-networkfirewall_policy_default_action_full_packets` | HIGH | Network Firewall firewall policy default stateless action for full packets is drop or forward | - |
+| `PRW-AWS-networkfirewall_policy_rule_group_associated` | HIGH | Network Firewall policy has at least one rule group associated | - |
+| `PRW-AWS-opensearch_service_domains_access_control_enabled` | HIGH | Amazon OpenSearch Service domain has fine-grained access control enabled | - |
+| `PRW-AWS-opensearch_service_domains_audit_logging_enabled` | HIGH | Amazon OpenSearch Service domain has audit logging enabled | - |
+| `PRW-AWS-opensearch_service_domains_cloudwatch_logging_enabled` | LOW | Amazon OpenSearch Service domain publishes search and index slow logs to CloudWatch Logs | - |
+| `PRW-AWS-opensearch_service_domains_encryption_at_rest_enabled` | CRITICAL | Amazon OpenSearch Service domain has encryption at rest enabled | - |
+| `PRW-AWS-opensearch_service_domains_fault_tolerant_data_nodes` | MEDIUM | OpenSearch domain has at least 3 data nodes and Zone Awareness enabled | - |
+| `PRW-AWS-opensearch_service_domains_fault_tolerant_master_nodes` | MEDIUM | OpenSearch domain has at least 3 dedicated master nodes | - |
+| `PRW-AWS-opensearch_service_domains_https_communications_enforced` | HIGH | OpenSearch domain has HTTPS enforcement enabled | - |
+| `PRW-AWS-opensearch_service_domains_internal_user_database_enabled` | MEDIUM | Amazon OpenSearch Service domain has internal user database disabled | - |
+| `PRW-AWS-opensearch_service_domains_node_to_node_encryption_enabled` | HIGH | Amazon OpenSearch Service domain has node-to-node encryption enabled | - |
+| `PRW-AWS-opensearch_service_domains_not_publicly_accessible` | CRITICAL | Amazon OpenSearch Service domain is not publicly accessible | - |
+| `PRW-AWS-opensearch_service_domains_updated_to_the_latest_service_software_version` | HIGH | Amazon OpenSearch Service domain is updated to the latest service software version | - |
+| `PRW-AWS-opensearch_service_domains_use_cognito_authentication_for_kibana` | MEDIUM | Amazon OpenSearch Service domain has either Amazon Cognito or SAML authentication enabled for Kibana | - |
+| `PRW-AWS-organizations_account_part_of_organizations` | MEDIUM | AWS account is a member of an active AWS Organization | - |
+| `PRW-AWS-organizations_delegated_administrators` | CRITICAL | AWS Organization has only trusted delegated administrators | - |
+| `PRW-AWS-organizations_opt_out_ai_services_policy` | MEDIUM | AWS Organization has opted out of all AI services and child accounts cannot override the policy | - |
+| `PRW-AWS-organizations_scp_check_deny_regions` | HIGH | AWS Organization restricts operations to only the configured AWS Regions with SCP policies | - |
+| `PRW-AWS-organizations_tags_policies_enabled_and_attached` | LOW | AWS Organization has tag policies enabled and attached | - |
+| `PRW-AWS-rds_cluster_backtrack_enabled` | LOW | RDS Aurora MySQL cluster has Backtrack enabled | - |
+| `PRW-AWS-rds_cluster_copy_tags_to_snapshots` | LOW | RDS DB cluster has copy tags to snapshots enabled | - |
+| `PRW-AWS-rds_cluster_critical_event_subscription` | MEDIUM | RDS cluster event subscription is enabled for maintenance and failure categories | - |
+| `PRW-AWS-rds_cluster_default_admin` | MEDIUM | RDS cluster master username is not admin or postgres | - |
+| `PRW-AWS-rds_cluster_deletion_protection` | MEDIUM | RDS cluster has deletion protection enabled | - |
+| `PRW-AWS-rds_cluster_iam_authentication_enabled` | MEDIUM | RDS cluster has IAM authentication enabled | - |
+| `PRW-AWS-rds_cluster_integration_cloudwatch_logs` | MEDIUM | RDS cluster has CloudWatch Logs export enabled | - |
+| `PRW-AWS-rds_cluster_minor_version_upgrade_enabled` | MEDIUM | RDS cluster has automatic minor version upgrades enabled | - |
+| `PRW-AWS-rds_cluster_multi_az` | MEDIUM | RDS cluster has Multi-AZ enabled | - |
+| `PRW-AWS-rds_cluster_non_default_port` | LOW | RDS cluster uses a non-default port for its database engine | - |
+| `PRW-AWS-rds_cluster_protected_by_backup_plan` | HIGH | RDS cluster is protected by an AWS Backup plan | - |
+| `PRW-AWS-rds_cluster_storage_encrypted` | HIGH | RDS cluster storage is encrypted | - |
+| `PRW-AWS-rds_instance_backup_enabled` | MEDIUM | RDS instance has backup retention period greater than 0 days | - |
+| `PRW-AWS-rds_instance_certificate_expiration` | HIGH | RDS instance SSL/TLS certificate has more than 3 months of validity remaining | - |
+| `PRW-AWS-rds_instance_copy_tags_to_snapshots` | LOW | RDS DB instance has copy tags to snapshots enabled | - |
+| `PRW-AWS-rds_instance_critical_event_subscription` | MEDIUM | RDS instance event subscription is enabled for maintenance, configuration change, and failure categories | - |
+| `PRW-AWS-rds_instance_default_admin` | MEDIUM | RDS instance does not use the default master username (admin or postgres) | - |
+| `PRW-AWS-rds_instance_deletion_protection` | MEDIUM | RDS instance has deletion protection enabled | - |
+| `PRW-AWS-rds_instance_deprecated_engine_version` | HIGH | RDS instance uses a supported engine version | - |
+| `PRW-AWS-rds_instance_enhanced_monitoring_enabled` | LOW | RDS instance has enhanced monitoring enabled | - |
+| `PRW-AWS-rds_instance_event_subscription_parameter_groups` | LOW | RDS DB parameter group event subscription is enabled and subscribes to configuration change events or all categories | - |
+| `PRW-AWS-rds_instance_event_subscription_security_groups` | MEDIUM | RDS event subscription for DB security groups is enabled for configuration change and failure events | - |
+| `PRW-AWS-rds_instance_extended_support` | MEDIUM | RDS instance is not enrolled in RDS Extended Support | - |
+| `PRW-AWS-rds_instance_iam_authentication_enabled` | MEDIUM | RDS instance has IAM database authentication enabled | - |
+| `PRW-AWS-rds_instance_inside_vpc` | HIGH | RDS instance is deployed in a VPC | - |
+| `PRW-AWS-rds_instance_integration_cloudwatch_logs` | MEDIUM | RDS instance exports logs to CloudWatch Logs | - |
+| `PRW-AWS-rds_instance_minor_version_upgrade_enabled` | MEDIUM | RDS instance has minor version upgrade enabled | AWS-DB-003 |
+| `PRW-AWS-rds_instance_multi_az` | MEDIUM | RDS instance has Multi-AZ enabled | - |
+| `PRW-AWS-rds_instance_no_public_access` | CRITICAL | RDS instance is not publicly exposed to the Internet | AWS-DB-001 |
+| `PRW-AWS-rds_instance_non_default_port` | LOW | RDS instance uses a non-default port for its engine | - |
+| `PRW-AWS-rds_instance_protected_by_backup_plan` | HIGH | RDS instance is protected by an AWS Backup plan | - |
+| `PRW-AWS-rds_instance_storage_encrypted` | HIGH | RDS DB instance storage is encrypted at rest | AWS-DB-002 |
+| `PRW-AWS-rds_instance_transport_encrypted` | HIGH | RDS instance or cluster enforces SSL/TLS encryption for client connections | - |
+| `PRW-AWS-rds_snapshots_encrypted` | HIGH | RDS DB instance snapshot or DB cluster snapshot is encrypted | - |
+| `PRW-AWS-rds_snapshots_public_access` | CRITICAL | RDS snapshot is not publicly shared | - |
+| `PRW-AWS-redshift_cluster_audit_logging` | MEDIUM | Redshift cluster has audit logging enabled | - |
+| `PRW-AWS-redshift_cluster_automated_snapshot` | HIGH | Redshift cluster has automated snapshots enabled | - |
+| `PRW-AWS-redshift_cluster_automatic_upgrades` | MEDIUM | Redshift cluster has automatic version upgrade enabled | - |
+| `PRW-AWS-redshift_cluster_encrypted_at_rest` | CRITICAL | Redshift cluster is encrypted at rest | - |
+| `PRW-AWS-redshift_cluster_enhanced_vpc_routing` | MEDIUM | Redshift cluster has Enhanced VPC Routing enabled | - |
+| `PRW-AWS-redshift_cluster_in_transit_encryption_enabled` | HIGH | Redshift cluster is encrypted in transit | - |
+| `PRW-AWS-redshift_cluster_multi_az_enabled` | MEDIUM | Redshift cluster has Multi-AZ enabled | - |
+| `PRW-AWS-redshift_cluster_non_default_database_name` | LOW | Redshift cluster does not use the default database name dev | - |
+| `PRW-AWS-redshift_cluster_non_default_username` | MEDIUM | Amazon Redshift cluster does not use the default admin username | - |
+| `PRW-AWS-redshift_cluster_public_access` | CRITICAL | Redshift cluster is not publicly exposed to the Internet | - |
+| `PRW-AWS-resourceexplorer2_indexes_found` | LOW | Resource Explorer indexes exist | - |
+| `PRW-AWS-rolesanywhere_profile_restricts_session_permissions` | MEDIUM | IAM Roles Anywhere profiles scope down the vended session permissions | - |
+| `PRW-AWS-rolesanywhere_trust_anchor_pqc_pki` | LOW | IAM Roles Anywhere trust anchors are backed by a post-quantum (ML-DSA) PKI | - |
+| `PRW-AWS-route53_dangling_ip_subdomain_takeover` | HIGH | Route53 record does not point to a dangling AWS resource | - |
+| `PRW-AWS-route53_domains_privacy_protection_enabled` | MEDIUM | Route 53 domain has admin contact privacy protection enabled | - |
+| `PRW-AWS-route53_domains_transferlock_enabled` | HIGH | Route 53 domain has Transfer Lock enabled | - |
+| `PRW-AWS-route53_public_hosted_zones_cloudwatch_logging_enabled` | MEDIUM | Route53 public hosted zone has query logging enabled to a CloudWatch Logs log group | - |
+| `PRW-AWS-s3_access_point_public_access_block` | CRITICAL | S3 access point has all Block Public Access settings enabled | - |
+| `PRW-AWS-s3_account_level_public_access_blocks` | HIGH | S3 account-level Block Public Access ignores public ACLs and restricts public buckets | AWS-STO-001 |
+| `PRW-AWS-s3_bucket_acl_prohibited` | MEDIUM | S3 bucket has bucket ACLs disabled | - |
+| `PRW-AWS-s3_bucket_cross_account_access` | HIGH | S3 bucket policy does not allow cross-account access | - |
+| `PRW-AWS-s3_bucket_cross_region_replication` | LOW | S3 bucket has cross-region replication configured to a bucket in a different region | - |
+| `PRW-AWS-s3_bucket_default_encryption` | MEDIUM | [DEPRECATED] S3 bucket has default server-side encryption (SSE) enabled | AWS-STO-002 |
+| `PRW-AWS-s3_bucket_event_notifications_enabled` | LOW | S3 bucket has event notifications enabled | - |
+| `PRW-AWS-s3_bucket_kms_encryption` | MEDIUM | S3 bucket has server-side encryption with AWS KMS | - |
+| `PRW-AWS-s3_bucket_level_public_access_block` | HIGH | S3 bucket has Block Public Access with IgnorePublicAcls and RestrictPublicBuckets enabled at bucket or account level | AWS-STO-001 |
+| `PRW-AWS-s3_bucket_lifecycle_enabled` | LOW | S3 bucket has a lifecycle configuration enabled | - |
+| `PRW-AWS-s3_bucket_no_mfa_delete` | MEDIUM | S3 bucket has MFA Delete enabled | - |
+| `PRW-AWS-s3_bucket_object_lock` | LOW | S3 bucket has Object Lock enabled | - |
+| `PRW-AWS-s3_bucket_object_public` | LOW | Spot-check S3 bucket objects for public ACLs | - |
+| `PRW-AWS-s3_bucket_object_versioning` | MEDIUM | S3 bucket has object versioning enabled | - |
+| `PRW-AWS-s3_bucket_policy_public_write_access` | CRITICAL | S3 bucket policy does not allow public write access | - |
+| `PRW-AWS-s3_bucket_public_access` | CRITICAL | S3 bucket is not publicly accessible to Everyone or Authenticated Users | AWS-STO-001 |
+| `PRW-AWS-s3_bucket_public_list_acl` | CRITICAL | S3 bucket is not publicly listable by Everyone or any authenticated AWS user | - |
+| `PRW-AWS-s3_bucket_public_write_acl` | CRITICAL | S3 bucket ACL does not grant write access to Everyone or any AWS customer | - |
+| `PRW-AWS-s3_bucket_secure_transport_policy` | MEDIUM | S3 bucket policy denies requests over insecure transport | AWS-STO-003 |
+| `PRW-AWS-s3_bucket_server_access_logging_enabled` | MEDIUM | S3 bucket has server access logging enabled | - |
+| `PRW-AWS-s3_bucket_shadow_resource_vulnerability` | HIGH | S3 bucket is not a known shadow resource owned by another account | - |
+| `PRW-AWS-s3_multi_region_access_point_public_access_block` | HIGH | S3 Multi-Region Access Point has all Block Public Access settings enabled | - |
+| `PRW-AWS-sagemaker_clarify_exists` | LOW | Amazon SageMaker Clarify processing jobs exist in the region | - |
+| `PRW-AWS-sagemaker_domain_sso_configured` | MEDIUM | SageMaker domains use SSO authentication instead of IAM mode | - |
+| `PRW-AWS-sagemaker_endpoint_config_kms_encryption_enabled` | MEDIUM | SageMaker endpoint configuration is encrypted with a KMS key | - |
+| `PRW-AWS-sagemaker_endpoint_config_prod_variant_instances` | MEDIUM | SageMaker endpoint configuration has all production variants with at least two initial instances | - |
+| `PRW-AWS-sagemaker_models_monitor_enabled` | LOW | Amazon SageMaker has a monitoring schedule scheduled | - |
+| `PRW-AWS-sagemaker_models_network_isolation_enabled` | HIGH | Amazon SageMaker model has network isolation enabled | - |
+| `PRW-AWS-sagemaker_models_registry_in_use` | LOW | Amazon SageMaker Model Registry should have at least one approved model package | - |
+| `PRW-AWS-sagemaker_models_vpc_settings_configured` | MEDIUM | Amazon SageMaker model has VPC settings enabled | - |
+| `PRW-AWS-sagemaker_notebook_instance_encryption_enabled` | HIGH | SageMaker notebook instance is encrypted with a KMS key | - |
+| `PRW-AWS-sagemaker_notebook_instance_root_access_disabled` | MEDIUM | Amazon SageMaker notebook instance has root access disabled | - |
+| `PRW-AWS-sagemaker_notebook_instance_vpc_settings_configured` | HIGH | Amazon SageMaker notebook instance has VPC settings configured | - |
+| `PRW-AWS-sagemaker_notebook_instance_without_direct_internet_access_configured` | HIGH | Amazon SageMaker notebook instance has direct internet access disabled | - |
+| `PRW-AWS-sagemaker_training_jobs_intercontainer_encryption_enabled` | MEDIUM | Amazon SageMaker training job has inter-container traffic encryption enabled | - |
+| `PRW-AWS-sagemaker_training_jobs_network_isolation_enabled` | HIGH | Amazon SageMaker training job has network isolation enabled | - |
+| `PRW-AWS-sagemaker_training_jobs_volume_and_output_encryption_enabled` | HIGH | Amazon SageMaker training job volume has KMS encryption enabled | - |
+| `PRW-AWS-sagemaker_training_jobs_vpc_settings_configured` | HIGH | Amazon SageMaker training job has VPC configuration enabled | - |
+| `PRW-AWS-secretsmanager_automatic_rotation_enabled` | HIGH | Secrets Manager secret has rotation enabled | - |
+| `PRW-AWS-secretsmanager_has_restrictive_resource_policy` | HIGH | Secrets Manager secret has a restrictive resource-based policy | - |
+| `PRW-AWS-secretsmanager_not_publicly_accessible` | HIGH | Secrets Manager secret resource policy does not allow public access | - |
+| `PRW-AWS-secretsmanager_secret_rotated_periodically` | MEDIUM | AWS Secrets Manager secret is rotated within the configured maximum number of days | - |
+| `PRW-AWS-secretsmanager_secret_unused` | MEDIUM | Secrets Manager secret has been accessed within the last 90 days | - |
+| `PRW-AWS-securityhub_delegated_admin_enabled_all_regions` | HIGH | Security Hub has delegated admin configured and is enabled in all regions with organization auto-enable | - |
+| `PRW-AWS-securityhub_enabled` | HIGH | Security Hub is enabled with standards or integrations configured | AWS-POS-002 |
+| `PRW-AWS-servicecatalog_portfolio_shared_within_organization_only` | HIGH | Service Catalog portfolio is shared only within the AWS Organization | - |
+| `PRW-AWS-ses_identity_dkim_enabled` | MEDIUM | SES identity has DKIM signing enabled | - |
+| `PRW-AWS-ses_identity_not_publicly_accessible` | HIGH | SES identity resource policy does not allow public access | - |
+| `PRW-AWS-shield_advanced_protection_in_associated_elastic_ips` | MEDIUM | Elastic IP address is protected by AWS Shield Advanced | - |
+| `PRW-AWS-shield_advanced_protection_in_classic_load_balancers` | MEDIUM | Classic Load Balancer is protected by AWS Shield Advanced | - |
+| `PRW-AWS-shield_advanced_protection_in_cloudfront_distributions` | MEDIUM | CloudFront distribution is protected by AWS Shield Advanced | - |
+| `PRW-AWS-shield_advanced_protection_in_global_accelerators` | MEDIUM | Global Accelerator accelerator is protected by AWS Shield Advanced | - |
+| `PRW-AWS-shield_advanced_protection_in_internet_facing_load_balancers` | MEDIUM | Internet-facing Application Load Balancer is protected by AWS Shield Advanced | - |
+| `PRW-AWS-shield_advanced_protection_in_route53_hosted_zones` | MEDIUM | Route53 hosted zone is protected by AWS Shield Advanced | - |
+| `PRW-AWS-sns_subscription_not_using_http_endpoints` | HIGH | SNS subscription uses an HTTPS endpoint | - |
+| `PRW-AWS-sns_topics_kms_encryption_at_rest_enabled` | HIGH | SNS topic is encrypted at rest with KMS | - |
+| `PRW-AWS-sns_topics_not_publicly_accessible` | HIGH | SNS topic is not publicly accessible | - |
+| `PRW-AWS-sqs_queues_not_publicly_accessible` | CRITICAL | SQS queue policy does not allow public access | - |
+| `PRW-AWS-sqs_queues_server_side_encryption_enabled` | MEDIUM | SQS queue has server-side encryption enabled | - |
+| `PRW-AWS-ssm_documents_set_as_public` | HIGH | SSM document is not public and shared only with trusted AWS accounts | - |
+| `PRW-AWS-ssm_managed_compliant_patching` | HIGH | EC2 managed instance is compliant with Systems Manager patching requirements | - |
+| `PRW-AWS-ssmincidents_enabled_with_plans` | MEDIUM | SSM Incidents replication set is ACTIVE and has at least one response plan | - |
+| `PRW-AWS-stepfunctions_statemachine_encrypted_with_cmk` | MEDIUM | Step Functions state machine is encrypted at rest with a customer-managed KMS key | - |
+| `PRW-AWS-stepfunctions_statemachine_logging_enabled` | MEDIUM | Step Functions state machine has logging enabled | - |
+| `PRW-AWS-storagegateway_fileshare_encryption_enabled` | MEDIUM | Storage Gateway file share is encrypted with KMS CMK | - |
+| `PRW-AWS-storagegateway_gateway_fault_tolerant` | MEDIUM | AWS Storage Gateway gateway is not hosted on EC2 | - |
+| `PRW-AWS-transfer_server_fips_security_policy_enabled` | LOW | AWS Transfer Family server uses a FIPS security policy | - |
+| `PRW-AWS-transfer_server_in_transit_encryption_enabled` | HIGH | Transfer Family server has encryption in transit enabled | - |
+| `PRW-AWS-transfer_server_pqc_ssh_kex_enabled` | LOW | AWS Transfer Family server uses a post-quantum hybrid SSH key exchange security policy | - |
+| `PRW-AWS-trustedadvisor_errors_and_warnings` | MEDIUM | Trusted Advisor check has no errors or warnings | - |
+| `PRW-AWS-trustedadvisor_premium_support_plan_subscribed` | LOW | AWS account is subscribed to an AWS Premium Support plan | - |
+| `PRW-AWS-vpc_different_regions` | MEDIUM | VPCs are present in more than one region | - |
+| `PRW-AWS-vpc_endpoint_connections_trust_boundaries` | HIGH | VPC endpoint policy allows access only from trusted AWS accounts | - |
+| `PRW-AWS-vpc_endpoint_for_ec2_enabled` | MEDIUM | VPC has an Amazon EC2 VPC endpoint | - |
+| `PRW-AWS-vpc_endpoint_multi_az_enabled` | MEDIUM | Amazon VPC interface endpoint has subnets in multiple Availability Zones | - |
+| `PRW-AWS-vpc_endpoint_services_allowed_principals_trust_boundaries` | HIGH | VPC endpoint service allows only trusted principals or none | - |
+| `PRW-AWS-vpc_flow_logs_enabled` | MEDIUM | VPC flow logs are enabled | AWS-LOG-006 |
+| `PRW-AWS-vpc_peering_routing_tables_with_least_privilege` | MEDIUM | VPC peering connection route tables do not include 0.0.0.0/0 or entire requester/accepter VPC CIDR routes | - |
+| `PRW-AWS-vpc_subnet_different_az` | MEDIUM | VPC has subnets in more than one Availability Zone | - |
+| `PRW-AWS-vpc_subnet_no_public_ip_by_default` | HIGH | VPC subnet does not assign public IP addresses by default | - |
+| `PRW-AWS-vpc_subnet_separate_private_public` | MEDIUM | VPC has both public and private subnets | - |
+| `PRW-AWS-vpc_vpn_connection_tunnels_up` | MEDIUM | AWS Site-to-Site VPN connection has both tunnels up | - |
+| `PRW-AWS-waf_global_rule_with_conditions` | MEDIUM | AWS WAF Classic Global rule has at least one condition | - |
+| `PRW-AWS-waf_global_rulegroup_not_empty` | HIGH | AWS WAF Classic global rule group has at least one rule | - |
+| `PRW-AWS-waf_global_webacl_logging_enabled` | MEDIUM | AWS WAF Classic Global Web ACL has logging enabled | - |
+| `PRW-AWS-waf_global_webacl_with_rules` | MEDIUM | AWS WAF Classic global Web ACL has at least one rule or rule group | - |
+| `PRW-AWS-waf_regional_rule_with_conditions` | MEDIUM | AWS WAF Classic Regional rule has at least one condition | - |
+| `PRW-AWS-waf_regional_rulegroup_not_empty` | MEDIUM | AWS WAF Classic Regional rule group has at least one rule | - |
+| `PRW-AWS-waf_regional_webacl_logging_enabled` | MEDIUM | AWS WAF Classic Regional Web ACL has logging enabled | - |
+| `PRW-AWS-waf_regional_webacl_with_rules` | MEDIUM | AWS WAF Classic Regional Web ACL has at least one rule or rule group | - |
+| `PRW-AWS-wafv2_webacl_logging_enabled` | MEDIUM | AWS WAFv2 Web ACL has logging enabled | - |
+| `PRW-AWS-wafv2_webacl_rule_logging_enabled` | MEDIUM | AWS WAFv2 Web ACL has Amazon CloudWatch metrics enabled for all rules and rule groups | - |
+| `PRW-AWS-wafv2_webacl_with_rules` | HIGH | AWS WAFv2 Web ACL has at least one rule or rule group attached | - |
+| `PRW-AWS-wellarchitected_workload_no_high_or_medium_risks` | MEDIUM | AWS Well-Architected Tool workload has no high or medium risks | - |
+| `PRW-AWS-workspaces_volume_encryption_enabled` | HIGH | Amazon WorkSpaces workspace root and user volumes are encrypted | - |
+| `PRW-AWS-workspaces_vpc_2private_1public_subnets_nat` | HIGH | Workspace is in a private subnet and its VPC has at least 1 public subnet, 2 private subnets, and a NAT Gateway | - |
+
+### Not run (37)
+
+| Check | Why not |
+|---|---|
+| `amplify_app_no_secrets_in_environment` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
+| `apigateway_restapi_no_secrets_in_stage_variables` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
+| `autoscaling_find_secrets_ec2_launch_configuration` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
+| `awslambda_function_no_secrets_in_code` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
+| `awslambda_function_no_secrets_in_variables` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
+| `awslambda_layer_no_secrets_in_content` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
+| `batch_job_definition_no_secrets` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
+| `cloudformation_stack_outputs_find_secrets` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
+| `cloudtrail_threat_detection_enumeration` | Reads activity records (sign-ins, API calls, log contents) rather than configuration. Cleave assesses posture and does not ingest a customer's event stream. |
+| `cloudtrail_threat_detection_llm_jacking` | Reads activity records (sign-ins, API calls, log contents) rather than configuration. Cleave assesses posture and does not ingest a customer's event stream. |
+| `cloudtrail_threat_detection_privilege_escalation` | Reads activity records (sign-ins, API calls, log contents) rather than configuration. Cleave assesses posture and does not ingest a customer's event stream. |
+| `cloudwatch_log_group_no_secrets_in_logs` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
+| `codebuild_project_no_secrets_in_variables` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
+| `codecommit_repository_no_secrets` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
+| `cognito_user_pool_advanced_security_enabled` | Reads activity records (sign-ins, API calls, log contents) rather than configuration. Cleave assesses posture and does not ingest a customer's event stream. |
+| `cognito_user_pool_blocks_compromised_credentials_sign_in_attempts` | Reads activity records (sign-ins, API calls, log contents) rather than configuration. Cleave assesses posture and does not ingest a customer's event stream. |
+| `cognito_user_pool_blocks_potential_malicious_sign_in_attempts` | Reads activity records (sign-ins, API calls, log contents) rather than configuration. Cleave assesses posture and does not ingest a customer's event stream. |
+| `cognito_user_pool_waf_acl_attached` | Reads activity records (sign-ins, API calls, log contents) rather than configuration. Cleave assesses posture and does not ingest a customer's event stream. |
+| `datapipeline_pipeline_no_secrets_in_definition` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
+| `ec2_instance_secrets_user_data` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
+| `ec2_launch_template_no_secrets` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
+| `ecr_repository_image_no_secrets` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
+| `ecs_task_definitions_no_environment_secrets` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
+| `elasticbeanstalk_environment_no_secrets_in_configuration` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
+| `glue_catalog_connection_no_secrets` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
+| `glue_etl_jobs_no_secrets_in_arguments` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
+| `kms_key_enclave_attestation_no_deployment_binding` | Informational: Prowler reports it without saying anything is wrong. |
+| `sagemaker_notebook_instance_no_secrets` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
+| `ssm_document_secrets` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
+| `stepfunctions_statemachine_no_secrets_in_definition` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
+| `aks_cluster_defender_enabled` | Reads activity records (sign-ins, API calls, log contents) rather than configuration. Cleave assesses posture and does not ingest a customer's event stream. |
+| `apim_threat_detection_llm_jacking` | Queries the customer's log contents rather than reading configuration. |
+| `app_function_access_keys_configured` | Needs Microsoft.Web/sites/host/listkeys/action, which returns the function keys themselves. The scanner holds Reader and no list-keys action. |
+| `defender_ensure_defender_cspm_is_on` | Reads activity records (sign-ins, API calls, log contents) rather than configuration. Cleave assesses posture and does not ingest a customer's event stream. |
+| `network_public_ip_shodan` | Sends the customer's public IP addresses to Shodan, a third party, and needs an API key of its own. |
+| `vm_desired_sku_size` | Judges against a list of approved sizes the customer has not given Cleave; with Prowler's empty default every machine fails. |
+| `vm_ensure_using_approved_images` | Judges against a list of approved images the customer has not given Cleave; with Prowler's empty default every machine fails. |

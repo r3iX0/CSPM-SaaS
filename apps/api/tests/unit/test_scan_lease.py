@@ -96,18 +96,15 @@ def test_every_queue_a_step_is_routed_to_is_actually_consumed() -> None:
     from app.core.enums import ScanStepKind
     from app.workers.scan_tasks import queue_for
 
-    config = json.loads(
-        (
-            Path(__file__).resolve().parents[4]
-            / "infrastructure"
-            / "railway"
-            / "worker.json"
-        ).read_text()
-    )
-    command = config["deploy"]["startCommand"]
-    consumed = next(
-        part.split("=", 1)[1] for part in command.split() if part.startswith("--queues=")
-    ).split(",")
+    railway = Path(__file__).resolve().parents[4] / "infrastructure" / "railway"
+    consumed: list[str] = []
+    # The API's worker, and the scanner service that consumes the second
+    # engine's queue (DECISIONS.md section 150).
+    for service in ("worker.json", "scanner.json"):
+        command = json.loads((railway / service).read_text())["deploy"]["startCommand"]
+        consumed += next(
+            part.split("=", 1)[1] for part in command.split() if part.startswith("--queues=")
+        ).split(",")
 
     for kind in ScanStepKind:
         assert queue_for(kind) in consumed, (

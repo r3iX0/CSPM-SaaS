@@ -35,6 +35,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { AttackPathRoute } from "@/components/graph/AttackPathRoute";
 import { RemediationPanel } from "@/components/security/RemediationPanel";
+import { EngineBadge, ProwlerPanel } from "@/components/security/EnginePanel";
 import { TrackFix } from "@/components/security/TrackFix";
 import { FixVerification } from "@/components/security/FixVerification";
 import { placeholderValues } from "@/lib/remediationFill";
@@ -189,6 +190,7 @@ export function FindingDetailPage() {
             <span className="font-mono text-xs text-muted-foreground">
               {data.rule_id} · v{data.rule_version}
             </span>
+            <EngineBadge engine={data.engine} version={data.rule_version} />
           </div>
           <h1 className="mt-3 text-2xl font-semibold tracking-[-0.02em] text-foreground">
             {data.title}
@@ -289,6 +291,9 @@ export function FindingDetailPage() {
             }
             footer={
               <div className="flex flex-col gap-4">
+                {/* Prowler's own fix for a Prowler finding; for a Cleave rule
+                    Prowler cross-checks, which check and why they may differ. */}
+                <ProwlerPanel detail={data.prowler} />
                 <TrackFix
                   findingId={data.id}
                   status={data.status}

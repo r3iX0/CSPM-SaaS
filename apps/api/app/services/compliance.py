@@ -41,13 +41,18 @@ from app.compliance.coverage import (
     status_counts,
     summarize_readings,
 )
+from app.core.config import settings
 from app.core.enums import FindingStatus, Provider, ScanStatus, TaskOutcome
 from app.models.cloud_connection import CloudConnection
 from app.models.finding import Finding
 from app.models.rule import Rule
 from app.models.scan import Evidence, EvidenceBlob, Scan, ScanEvaluationGap, ScanRuleResult
+from app.prowler.catalog import prowler_frameworks
 
 OPEN_STATUSES = [FindingStatus.OPEN, FindingStatus.IN_PROGRESS]
+
+# The frameworks built from Prowler's compliance files rather than written here.
+PROWLER_FRAMEWORK_IDS = frozenset(framework.id for framework in prowler_frameworks())
 
 
 class _Snapshot:
@@ -404,11 +409,19 @@ def frameworks_for(providers: set[Provider]) -> list[Framework]:
     connected anything would answer "what does this product check?" with
     silence.
     """
-    if not providers:
-        return list(FRAMEWORKS)
-    return [
+    offered = [
         framework
         for framework in FRAMEWORKS
+        # The frameworks the extended checks brought are measured by nothing
+        # until the scanner service runs; listing them before then would show
+        # every control as never assessed (DECISIONS.md section 150).
+        if settings.assess_enabled or framework.id not in PROWLER_FRAMEWORK_IDS
+    ]
+    if not providers:
+        return offered
+    return [
+        framework
+        for framework in offered
         if framework.provider is None or framework.provider in providers
     ]
 

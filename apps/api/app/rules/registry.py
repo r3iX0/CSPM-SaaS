@@ -3,8 +3,13 @@
 The ``rules`` database table is a read-mirror of this list, synced at startup.
 Adding a rule means adding it here and writing its tests; it never means
 inserting a database row (RULE_ENGINE.md section 4).
+
+``RULE_REGISTRY`` is the native engine's list. The Prowler checks the scanner
+service runs are registered beside it, not in it (``app/prowler/rules.py``), and
+:func:`catalogue_rules` is the two together (DECISIONS.md section 150).
 """
 
+from app.prowler.rules import get_prowler_rule, prowler_rules
 from app.rules.aws.compute.exposure import AwsInstanceMetadataRule
 from app.rules.aws.database.exposure import (
     AwsDatabaseEncryptionRule,
@@ -252,18 +257,31 @@ RULE_REGISTRY: list[SecurityRule] = [
 
 
 def enabled_rules() -> list[SecurityRule]:
+    """The rules the native engine evaluates. Never the Prowler checks."""
     return list(RULE_REGISTRY)
 
 
+def catalogue_rules() -> list[SecurityRule]:
+    """Every rule Cleave can raise a finding for, from either engine.
+
+    What the ``rules`` mirror, the compliance view and a finding's rule lookup
+    read. The native engine reads :func:`enabled_rules` instead: a Prowler
+    check's verdict comes from the scanner's capture, never from evaluating it
+    here (DECISIONS.md section 150).
+    """
+    return [*RULE_REGISTRY, *prowler_rules()]
+
+
 def get_rule(rule_id: str) -> SecurityRule | None:
-    return next((r for r in RULE_REGISTRY if r.rule_id == rule_id), None)
+    native = next((r for r in RULE_REGISTRY if r.rule_id == rule_id), None)
+    return native if native is not None else get_prowler_rule(rule_id)
 
 
 def _assert_unique_rule_ids() -> None:
     """A duplicate rule_id would silently overwrite findings for another rule,
     since findings are keyed on (organization, rule_id, resource)."""
     seen: set[str] = set()
-    for rule in RULE_REGISTRY:
+    for rule in catalogue_rules():
         if rule.rule_id in seen:
             raise RuntimeError(f"Duplicate rule_id in registry: {rule.rule_id}")
         seen.add(rule.rule_id)

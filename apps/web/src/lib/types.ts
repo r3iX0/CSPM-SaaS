@@ -259,6 +259,9 @@ export interface FindingDetail extends Finding {
   remediation_spec?: RemediationSpec | null;
   verification?: Verification | null;
   timeline?: FindingEvent[];
+  /** Which engine raised it, and Prowler's side of the rule (DECISIONS.md §150). */
+  engine?: RuleEngine;
+  prowler?: ProwlerDetail | null;
 }
 
 export interface Scan {
@@ -451,6 +454,31 @@ export interface Rule {
   compliance_mappings: Record<string, string[]>;
   /** What "fixed" means for this rule: the settings, commands and policy. */
   remediation_spec?: RemediationSpec | null;
+  /** Which engine reaches this rule's verdicts (DECISIONS.md §150). */
+  engine?: RuleEngine;
+  engine_version?: string | null;
+  prowler?: ProwlerDetail | null;
+}
+
+export type RuleEngine = "native" | "prowler";
+
+/** The second engine's side of a rule: its check, or the checks cross-checking it. */
+export interface ProwlerDetail {
+  check_id?: string;
+  service?: string;
+  prowler_version?: string;
+  resource_type?: string;
+  categories?: string[];
+  remediation?: {
+    cli: string;
+    terraform: string;
+    native_iac: string;
+    other: string;
+    url: string;
+  };
+  additional_urls?: string[];
+  cross_checked_by?: string[];
+  divergence_note?: string | null;
 }
 
 export interface RemediationTask {
@@ -1268,13 +1296,18 @@ export interface ScanScope {
  * One durable stage of a scan.
  *
  * A scan is not one task: it is PLAN, then a COLLECT per subscription plus one
- * for the tenant directory, then ANALYZE. Each is claimed under a lease and
+ * for the tenant directory -- beside an ASSESS for each where the extended
+ * checks run -- then ANALYZE. Each is claimed under a lease and
  * retried on its own, which is why `attempt` matters — a step on its second
  * attempt is a step that was interrupted, and that is the first thing to know
  * about a scan taking twice as long as usual.
  */
 export interface ScanStage {
-  stage: "PLAN" | "COLLECT" | "ANALYZE";
+  /**
+   * ASSESS is the second engine: Prowler's checks, run by the scanner service
+   * over the same scope as COLLECT and in parallel with it (DECISIONS.md §150).
+   */
+  stage: "PLAN" | "COLLECT" | "ASSESS" | "ANALYZE";
   /** The subscription this stage read, or the tenant directory. */
   scope: string | null;
   status: "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED" | "SKIPPED";
@@ -1426,4 +1459,50 @@ export interface AppNotification {
   link: string | null;
   /** When it happened, which is not when the row was written. */
   event_at: string;
+}
+
+/** `GET /engine-audit`: how the two engines checked each other (DECISIONS.md §150). */
+export interface EngineAudit {
+  engine: {
+    enabled: boolean;
+    prowler_version: string;
+    checks_enabled: number;
+    checks_covered: number;
+    native_rules: number;
+  };
+  scan: { id: string; status: string; completed_at: string | null } | null;
+  assessments: {
+    scope: string | null;
+    provider: string;
+    outcome: "COMPLETE" | "PARTIAL" | "FAILED";
+    engine_version: string;
+    checks_requested: number;
+    checks_completed: number;
+    result_count: number;
+    fatal: string | null;
+    services_unread: string[];
+    checks_raised: string[];
+    duration_seconds: number | null;
+  }[];
+  summary: { total: number; unexpected: number; by_kind: Record<string, number> };
+  pairs: {
+    rule_id: string;
+    rule_name: string | null;
+    checks: string[];
+    count: number;
+    expected: boolean;
+    note: string | null;
+  }[];
+  divergences: {
+    rule_id: string;
+    rule_name: string | null;
+    check_id: string;
+    kind: string;
+    native_state: string;
+    prowler_state: string;
+    expected: boolean;
+    detail: string | null;
+    resource: { id: string; name: string | null; resource_type: string | null } | null;
+    provider_resource_id: string | null;
+  }[];
 }

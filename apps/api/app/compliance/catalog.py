@@ -34,6 +34,7 @@ requirement, attributed to a framework -- the chain in ROADMAP.md, no further.
 from dataclasses import dataclass
 
 from app.core.enums import Provider
+from app.prowler.catalog import CatalogFramework, prowler_frameworks
 
 
 @dataclass(frozen=True)
@@ -1179,10 +1180,20 @@ CIS_AWS = Framework(
             "Identity and Access Management",
         ),
         # 2 -- Storage
-        Control("2.1.1", "S3 buckets apply encryption by default", "Storage"),
+        # Numbered as 3.0 numbers them. These three were listed under 1.x's
+        # numbering -- encryption at 2.1.1, HTTPS at 2.1.2 -- until the
+        # crosswalk against Prowler's CIS 3.0 index put the two engines' answers
+        # side by side (DECISIONS.md section 150). 3.0 dropped the encryption
+        # control: S3 has encrypted every new object by default since 2023.
         Control(
-            "2.1.2",
+            "2.1.1",
             "S3 bucket policies deny requests that are not over HTTPS",
+            "Storage",
+        ),
+        Control("2.1.2", "S3 buckets require MFA to delete object versions", "Storage"),
+        Control(
+            "2.1.3",
+            "Data held in S3 is discovered and classified",
             "Storage",
         ),
         Control("2.1.4", "S3 buckets block public access", "Storage"),
@@ -1326,6 +1337,50 @@ CIS_AWS = Framework(
 )
 
 
+def _from_prowler(framework: CatalogFramework) -> Framework:
+    """A framework whose controls come from Prowler's compliance files.
+
+    Built rather than written out, because the catalogue behind it is generated
+    (``tools/prowler/build_catalog.py``) and hand-copying 286 AWS FSBP controls
+    would be a second copy to drift. The titles are the benchmark's own
+    requirement names as Prowler carries them -- the one place this catalogue
+    does not use CloudGuard's own words, recorded in DECISIONS.md section 150.
+
+    Everything the frameworks written by hand promise still holds: controls no
+    check reaches are listed and resolve to NOT_COVERED, and a requirement the
+    benchmark itself marks manual is not technically assessable.
+    """
+    assessable = sum(1 for control in framework.controls if control.technically_assessable)
+    return Framework(
+        id=framework.id,
+        name=framework.name,
+        short_name=framework.short_name,
+        version=framework.version,
+        authority=framework.authority,
+        url=framework.url,
+        summary=(
+            f"{framework.name}, as mapped by the extended checks. "
+            f"{len(framework.controls)} requirements, {assessable} of them technically "
+            "assessable."
+        ),
+        scope_note=(
+            "Every requirement in the published framework is listed. Evidence comes "
+            "from the extended checks (Prowler) mapped to it; a requirement no check "
+            "reaches is shown as not covered rather than left out."
+        ),
+        controls=tuple(
+            Control(
+                control.id,
+                control.title,
+                control.group,
+                technically_assessable=control.technically_assessable,
+            )
+            for control in framework.controls
+        ),
+        provider=framework.provider,
+    )
+
+
 FRAMEWORKS: tuple[Framework, ...] = (
     CIS_AZURE,
     CIS_AWS,
@@ -1335,6 +1390,9 @@ FRAMEWORKS: tuple[Framework, ...] = (
     NIST_800_53,
     SOC2,
     PCI_DSS,
+    # Frameworks the extended checks brought: the current CIS benchmarks, AWS
+    # FSBP, NIS2, HIPAA and ATT&CK (DECISIONS.md section 150).
+    *(_from_prowler(framework) for framework in prowler_frameworks()),
 )
 
 

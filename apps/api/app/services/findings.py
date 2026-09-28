@@ -23,6 +23,7 @@ from app.models.risk import Risk, RiskFinding
 from app.models.rule import Rule
 from app.models.scan import Evidence, EvidenceBlob
 from app.models.verification import RemediationVerification
+from app.prowler.rules import compliance_mappings_for, prowler_detail
 from app.remediation import Comparison, ExpectedState, azure_policy, terraform_hints
 from app.risk.scorer import default_scorer
 from app.risk.triage import acceptance_expiry, finding_risk_status
@@ -369,7 +370,6 @@ def rule_metadata(rule_id: str) -> dict:
         "rule_name": rule.name,
         "rationale": rule.rationale,
         "category": rule.category,
-        "compliance_mappings": rule.compliance_mappings,
         "estimated_effort_minutes": rule.estimated_effort_minutes,
         # The machine-readable half of the remediation, beside the prose the
         # finding already carries. Read from the registry rather than the
@@ -379,6 +379,14 @@ def rule_metadata(rule_id: str) -> dict:
         # that is no longer the one being checked would be worse than not being
         # told at all.
         "remediation_spec": remediation_detail(rule_id),
+        # Which engine raised it (DECISIONS.md section 150): the first thing to
+        # know about a disputed finding is whose verdict it is. For a Prowler
+        # check, which check and release, and its own remediation code.
+        "engine": rule.engine.value,
+        "prowler": prowler_detail(rule_id),
+        # Every control this rule is evidence toward, including those a native
+        # rule inherits from the Prowler checks it covers.
+        "compliance_mappings": compliance_mappings_for(rule),
     }
 
 

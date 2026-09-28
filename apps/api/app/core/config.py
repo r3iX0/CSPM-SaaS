@@ -172,6 +172,27 @@ class Settings(BaseSettings):
     # cloud nobody has scanned.
     aws_enabled: bool = False
 
+    # Whether scans run the second engine: Prowler's checks, executed by the
+    # scanner service (``apps/scanner``) on the ``assess`` queue.
+    #
+    # A deployment switch rather than a product toggle, because what it guards
+    # is whether that service exists. An ASSESS step nobody consumes is claimed,
+    # sits on an unread queue until its queue lease runs out
+    # (``assess_queue_seconds``), and is retried to failure -- three of those
+    # leases of every scan spent waiting for a worker that was never deployed.
+    # Set it once the scanner service is running (DEPLOYMENT.md, DECISIONS.md
+    # section 150).
+    assess_enabled: bool = False
+
+    # How long a claimed ASSESS step may wait on the ``assess`` queue before
+    # the reaper decides nobody is coming for it. Not the step's lease: the
+    # scanner runs one step per process, so a step can wait behind several
+    # multi-hour runs, and a wait counted against the ten-minute lease would
+    # be reaped, re-sent to the back of the queue and failed on its third
+    # attempt without ever running. The scanner replaces this with the usual
+    # lease the moment it picks the step up (DECISIONS.md section 151).
+    assess_queue_seconds: int = 4 * 3600
+
     sentry_dsn: str = ""
 
     # NoDecode is load-bearing. pydantic-settings treats any list field as

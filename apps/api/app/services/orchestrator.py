@@ -18,18 +18,20 @@ the opposite of a scan, where a subscription that could not be read is a gap in
 the report rather than a reason to withhold it. Temporal supplies everything
 below and costs a cluster to run plus a second source of truth for workflow
 state, outside the database whose row-level security is the tenant boundary.
-For a pipeline with three stages, PostgreSQL is the smaller correct answer.
+For a pipeline with four kinds of step, PostgreSQL is the smaller correct answer.
 """
 
 import os
 import socket
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
+from typing import NamedTuple
 from uuid import UUID
 
-from sqlalchemy import and_, func, or_, select, update
+from sqlalchemy import and_, case, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.enums import (
     AnalyzePhase,
     Provider,
@@ -54,6 +56,13 @@ WORKER_ID = f"{socket.gethostname()}:{os.getpid()}"
 # killed under memory pressure -- from work that will fail every time it is
 # tried, which is worth reporting rather than retrying forever.
 DEFAULT_MAX_ATTEMPTS = 3
+
+# The clouds the second engine runs over, and those where it also has checks
+# about the directory rather than any one account (Entra ID). Mirrors
+# ``tools/prowler/curation.json``: a provider missing here gets no ASSESS step,
+# and a provider missing there would get a step with nothing to run.
+ASSESSED_PROVIDERS = frozenset({Provider.AZURE, Provider.AWS})
+DIRECTORY_ASSESSED_PROVIDERS = frozenset({Provider.AZURE})
 
 
 async def create_initial_steps(session: AsyncSession, scan: Scan) -> list[ScanStep]:
@@ -146,6 +155,69 @@ async def create_collect_steps(
     return created
 
 
+async def create_assess_steps(
+    session: AsyncSession,
+    scan: Scan,
+    accounts: Sequence[CloudAccount],
+    *,
+    provider: Provider | None,
+    directory: bool,
+) -> list[ScanStep]:
+    """One step per scope the second engine will run over. Written by PLAN.
+
+    The same scopes COLLECT reads, run by Prowler in the scanner service
+    rather than by this codebase's collectors (DECISIONS.md section 150). The
+    directory gets a step of its own only where Prowler has directory checks to
+    run for that cloud -- Entra ID on Azure -- because an empty run would still
+    authenticate against the customer's tenant and store nothing.
+
+    Nothing is created while ``ASSESS_ENABLED`` is off: a step with no service
+    consuming its queue would hold ANALYZE back for three leases and then fail,
+    on every scan (``config.assess_enabled``).
+
+    Idempotent the way :func:`create_collect_steps` is, by the unique index on
+    (scan, kind, scope), and for the same reason.
+    """
+    if not settings.assess_enabled or provider not in ASSESSED_PROVIDERS:
+        return []
+
+    wanted: list[UUID | None] = [
+        account.id for account in accounts if account.provider in ASSESSED_PROVIDERS
+    ]
+    if directory and provider in DIRECTORY_ASSESSED_PROVIDERS:
+        wanted.append(None)
+
+    existing = {
+        step.cloud_account_id
+        for step in (
+            await session.execute(
+                select(ScanStep).where(
+                    ScanStep.scan_id == scan.id,
+                    ScanStep.kind == ScanStepKind.ASSESS,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    }
+
+    created: list[ScanStep] = []
+    for account_id in wanted:
+        if account_id in existing:
+            continue
+        step = ScanStep(
+            organization_id=scan.organization_id,
+            scan_id=scan.id,
+            kind=ScanStepKind.ASSESS,
+            cloud_account_id=account_id,
+            max_attempts=DEFAULT_MAX_ATTEMPTS,
+        )
+        session.add(step)
+        created.append(step)
+    await session.flush()
+    return created
+
+
 async def steps_for(session: AsyncSession, scan_id: UUID) -> list[ScanStep]:
     return list(
         (
@@ -170,10 +242,14 @@ def runnable(steps: Sequence[ScanStep]) -> list[ScanStep]:
       practice this is already true, and the check is what makes a COLLECT step
       left behind by a half-finished PLAN wait rather than run against a scope
       nothing resolved.
-    * ANALYZE needs every COLLECT to have **settled**, which is not the same as
-      succeeded. A subscription CloudGuard could not read is a gap in the
-      report; holding the whole report back over it would turn a partial answer
-      into no answer.
+    * ASSESS needs PLAN, exactly as COLLECT does, and nothing else: the two
+      engines read the same scope in parallel, so a scan takes as long as the
+      slower of them rather than the two in sequence.
+    * ANALYZE needs every COLLECT and every ASSESS to have **settled**, which is
+      not the same as succeeded. A subscription CloudGuard could not read is a
+      gap in the report; holding the whole report back over it would turn a
+      partial answer into no answer. The same holds for a Prowler run that
+      failed: its checks read UNKNOWN, and the native verdicts stand.
     """
     by_kind: dict[ScanStepKind, list[ScanStep]] = {}
     for step in steps:
@@ -182,13 +258,17 @@ def runnable(steps: Sequence[ScanStep]) -> list[ScanStep]:
     plan_done = all(
         s.status == ScanStepStatus.SUCCEEDED for s in by_kind.get(ScanStepKind.PLAN, [])
     )
-    collects = by_kind.get(ScanStepKind.COLLECT, [])
-    collection_settled = plan_done and all(s.status.is_settled for s in collects)
+    reads = [
+        *by_kind.get(ScanStepKind.COLLECT, []),
+        *by_kind.get(ScanStepKind.ASSESS, []),
+    ]
+    reading_settled = plan_done and all(s.status.is_settled for s in reads)
 
     satisfied = {
         ScanStepKind.PLAN: True,
         ScanStepKind.COLLECT: plan_done,
-        ScanStepKind.ANALYZE: collection_settled,
+        ScanStepKind.ASSESS: plan_done,
+        ScanStepKind.ANALYZE: reading_settled,
     }
     return [
         step
@@ -197,9 +277,18 @@ def runnable(steps: Sequence[ScanStep]) -> list[ScanStep]:
     ]
 
 
-async def claim(
-    session: AsyncSession, step_ids: Sequence[UUID]
-) -> list[tuple[UUID, ScanStepKind]]:
+class Claim(NamedTuple):
+    """One step won by :func:`claim`, and the attempt it was won at."""
+
+    id: UUID
+    kind: ScanStepKind
+    # Sent with an ASSESS step's message so the scanner can tell a stale copy
+    # -- one queued for an attempt the reaper has since given up on -- from the
+    # message for the attempt that now holds the step (DECISIONS.md section 151).
+    attempt: int
+
+
+async def claim(session: AsyncSession, step_ids: Sequence[UUID]) -> list[Claim]:
     """Take ownership of these steps, and report which were actually won.
 
     The whole concurrency story is this statement. ``status = 'PENDING'`` in the
@@ -207,10 +296,21 @@ async def claim(
     and is simply absent from the result -- so two workers advancing the same
     scan at the same moment split the work rather than duplicating it, with no
     lock held between the read and the write.
+
+    An ASSESS step is leased for as long as it may wait on the scanner's queue
+    (``assess_queue_seconds``) rather than for one step lease; the scanner cuts
+    it back to the ordinary lease when it starts (DECISIONS.md section 151).
     """
     if not step_ids:
         return []
     now = datetime.now(UTC)
+    lease = case(
+        (
+            ScanStep.kind == ScanStepKind.ASSESS,
+            now + timedelta(seconds=settings.assess_queue_seconds),
+        ),
+        else_=now + timedelta(seconds=ScanStep.LEASE_SECONDS),
+    )
     claimed = (
         await session.execute(
             update(ScanStep)
@@ -221,7 +321,7 @@ async def claim(
             .values(
                 status=ScanStepStatus.RUNNING,
                 attempt=ScanStep.attempt + 1,
-                lease_until=now + timedelta(seconds=ScanStep.LEASE_SECONDS),
+                lease_until=lease,
                 worker_id=WORKER_ID,
                 # A reclaimed analysis starts again from its first phase, so the
                 # mark the interrupted attempt left must not survive into this one.
@@ -234,11 +334,11 @@ async def claim(
             # The kind comes back with the id because the caller routes on it:
             # collection and analysis have opposite resource profiles and go to
             # different queues.
-            .returning(ScanStep.id, ScanStep.kind)
+            .returning(ScanStep.id, ScanStep.kind, ScanStep.attempt)
         )
     ).all()
     await session.commit()
-    return [(row.id, ScanStepKind(row.kind)) for row in claimed]
+    return [Claim(row.id, ScanStepKind(row.kind), int(row.attempt)) for row in claimed]
 
 
 async def renew(session: AsyncSession, step_id: UUID, attempt: int) -> bool:

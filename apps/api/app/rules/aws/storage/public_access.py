@@ -200,8 +200,10 @@ class AwsBucketEncryptionRule(SecurityRule):
             "SCP. Neither is generated yet."
         ),
     )
+    # No CIS AWS 3.0 control: 3.0 dropped bucket encryption, since S3 encrypts
+    # every new object by default. 2.1.1 is the HTTPS control, answered by
+    # AWS-STO-003 (DECISIONS.md section 150).
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
-        "CIS_AWS_3.0": ["2.1.1"],
         "ISO_27001": ["A.8.24"],
         "NIST_CSF": ["PR.DS-1"],
         "GDPR": ["32(1)(a)"],
@@ -297,7 +299,7 @@ class AwsBucketTransportRule(SecurityRule):
         ),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
-        "CIS_AWS_3.0": ["2.1.2"],
+        "CIS_AWS_3.0": ["2.1.1"],
         "ISO_27001": ["A.8.24"],
         "NIST_CSF": ["PR.DS-2"],
         "GDPR": ["32(1)(a)"],
