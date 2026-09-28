@@ -7654,6 +7654,81 @@ the group's row and the help behind its question mark. How many labels a
 crowded estate loses, and whether the estimate of a label's width is close
 enough, need the real page.
 
+## 144. Cleave: one brand hue in the chrome, and a severity scale with more chroma
+
+The redesign (`docs/design_handoff_cleave_redesign/`) renames the product to
+Cleave and gives `--primary` a deep teal. §50 removed the last saturated hue from
+the chrome on the grounds that a colour meaning nothing sits badly beside a scale
+where every colour means something. This entry supersedes that part of §50, and
+keeps its reason by narrowing what the one hue may mean.
+
+- **Teal means "selected" or "the primary action", nothing about risk.** The
+  selected nav item, the active tab, a traced route, the one filled button per
+  view. It is 196° -- well clear of every severity hue (24°, 42°, 78°, 150°,
+  263°) -- so it is not read as a level.
+- **It appears in both modes** (`oklch(0.45 0.072 196)` light, `0.74 0.082 194`
+  dark), which answers §50's other objection: an accent in one mode only reads
+  as a bug. `--primary-soft` and `--primary-border` are mixed from `--primary`
+  per theme rather than written out, so they cannot drift from it.
+- **`destructive` is still not `critical`.** Neither token moved to the brand.
+
+The severity scale keeps its hues and gains chroma in the tints, so a pill reads
+at a glance in a dense row. Measured with the sRGB contrast formula against the
+token values, every foreground clears 4.5:1 on its own `-bg`: light 4.86
+(critical) to 7.12 (unknown), dark 5.51 (critical) to 7.81 (medium); on the page
+the lowest is 5.96 (light ok). `--primary-foreground` on `--primary` is 6.98
+light, 8.41 dark.
+
+Also: `--radius` 0.625rem → 0.5rem (8px buttons, 12px cards), dark `--border`
+10% → 12% and `--sidebar` 0.205 → 0.185 so the sidebar sits below the cards
+rather than level with them, and Geist Mono as `--font-mono` for evidence, rule
+ids and the mono link notation.
+
+## 145. The overview leads with the link to cut, and says what a scan proved
+
+The Cleave overview (`docs/design_handoff_cleave_redesign/`, "Overview") keeps
+the argument's order -- score, what it is made of, what to do -- and changes
+what stands at each step.
+
+- **The score is a ring.** The previous `ScorePanel` chose a bar over a gauge
+  so the digits stayed loudest. The ring here is 128px around 32px digits, so
+  they still are, and it keeps `role="meter"` with a spoken value.
+- **The trend is a sparkline, not a chart.** The Recharts `ScoreTrend` and its
+  hover values are gone from the page; the exact figures are the score and the
+  delta beside it. Under two readings nothing is drawn and the panel says the
+  trend starts at the next scan.
+- **"The link to cut" replaces "Shortest attack path".** The drawn route was
+  one route; the cut is the one change that closes the most, from the
+  choke-points the risks page already reads, and it opens the Simulate tab with
+  the cut in the plan (`GraphTarget` kind `cut`, §141). Its number is the
+  link's own `severs`, never summed across links.
+- **"Fixes proved" replaces remediation progress.** Verified closes in 30 days,
+  findings in progress (claimed, not proved), and what is still open. The
+  weekly activity bars and the status/risk-band breakdown are off the page.
+- **Removed, not moved:** `PostureBreakdown`, `RemediationProgress`,
+  `AttackPathPanel`, `ScoreTrend`, `StackedBar`, `ActivityBars` and the
+  per-severity sparklines. `GettingStarted` and the region map (§113) stay.
+- The intro says "your cloud posture", not "your Azure posture" (§78).
+
+## 146. The cut is played once its answer lands, never before
+
+The redesign's signature moment on the attack-path page: when a simulated
+plan's answer settles, the routes it newly closes are struck through one after
+another in list order, 260ms apart, "Closed by the plan" rising with each, and
+a target box greys 180ms after the last route to it.
+
+- **Only a settled answer plays.** While the next plan is checked the last
+  answer stays up at 60% with a spinner (§141); nothing is struck on a guess.
+- **Only what is new plays.** The page keeps the last settled closed set and
+  plays the difference, so an unrelated re-render, or a plan that adds a cut
+  closing nothing new, strikes nothing twice.
+- **The strike is a transition, not a new element.** A route's name is always
+  struck in a transparent line; closing fades the line and the text to muted
+  over 400ms after the route's delay. The mark arrives with `cg-rise`.
+- **Reduced motion lands everything at once.** The media query in `index.css`
+  shortens durations but not delays, so the delays themselves are zeroed when
+  `usePrefersReducedMotion` says so. `SEQUENCED_CUT` switches the stagger off.
+
 ## Open items carried forward
 
 **Data residency is not built (§113).** An organization setting for allowed

@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { updatePassword } from "@/lib/supabase";
 import { useAuthToken } from "@/lib/useAuth";
 import { useT } from "@/i18n";
-import { ShieldMark } from "@/components/Brand";
+import { Wordmark } from "@/components/Brand";
 
 /**
  * Where a password-reset email lands.
@@ -55,8 +55,7 @@ export function ResetPasswordPage() {
     <div className="flex min-h-screen items-center justify-center bg-muted/40 px-6">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex items-center gap-2.5">
-          <ShieldMark className="h-7 w-7 text-foreground" />
-          <span className="text-base font-semibold tracking-tight">{t.app.name}</span>
+          <Wordmark />
         </div>
 
         {token ? (

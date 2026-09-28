@@ -1,25 +1,18 @@
 import { Link } from "react-router-dom";
-import { ArrowRightIcon } from "lucide-react";
 
 import type { ComplianceFramework } from "@/lib/types";
-import { Bars } from "@/components/charts/Bars";
 import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/format";
 
 /**
- * Where each framework stands, as evidence rather than as a verdict.
+ * How much of each framework Cleave can speak to -- coverage, never a verdict.
  *
- * Bars, because this is a ranking across frameworks and a ranking is compared
- * along a shared baseline. One neutral colour for all of them on purpose: these
- * are four measurements of the same kind, and giving each framework its own hue
- * would invite the reader to think the colours meant something about the
- * frameworks.
- *
- * The sentence under it is not decoration. A covered control means specific
- * misconfigurations were absent at the last scan; it is not a statement that a
- * requirement is met in law, and a green bar in a compliance panel is exactly
- * where that gets forgotten.
+ * The figure is `coverage_ratio`: the share of a framework's catalogued
+ * controls that reached a conclusion (passing or failing) at the last scan.
+ * It is deliberately not "share passing", which would be a compliance score,
+ * and this product does not issue those. The count under it says the same
+ * thing in controls, so the percentage is never read as a grade.
  */
 export function ComplianceSummary({
   frameworks,
@@ -37,64 +30,74 @@ export function ComplianceSummary({
     >
       <header className="flex items-start justify-between gap-4 px-5 py-4">
         <div>
-          <h2 id="compliance-summary" className="text-sm font-semibold">
+          <h2 id="compliance-summary" className="text-[13.5px] font-semibold">
             Compliance coverage
           </h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            The share of controls CloudGuard reached a conclusion on
+          <p className="mt-1 text-xs text-muted-foreground">
+            What Cleave can speak to, never a verdict.
           </p>
         </div>
         <Link
           to="/compliance"
-          className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "shrink-0")}
+          className={cn(buttonVariants({ variant: "outline", size: "sm" }), "shrink-0")}
         >
-          Frameworks
-          <ArrowRightIcon data-icon="inline-end" />
+          All frameworks
         </Link>
       </header>
 
-      <div className="flex flex-1 flex-col gap-3 border-t px-5 py-4">
-        {loading && (
-          <div className="flex flex-col gap-2.5">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-4 w-full" />
-            ))}
-          </div>
-        )}
+      {loading && (
+        <div className="grid grid-cols-2 gap-3 border-t px-5 py-4 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full" />
+          ))}
+        </div>
+      )}
 
-        {!loading && rows.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            No framework has been assessed yet. Coverage appears once a scan has
-            run against the rule catalogue.
-          </p>
-        )}
+      {!loading && rows.length === 0 && (
+        <p className="border-t px-5 py-4 text-[13px] text-muted-foreground">
+          No framework has been assessed yet. Coverage appears once a scan has
+          run against the rule catalogue.
+        </p>
+      )}
 
-        {!loading && rows.length > 0 && (
-          <>
-            <Bars
-              ariaLabel="Assessable coverage by framework"
-              bars={rows.map((framework) => ({
-                key: framework.id,
-                label: framework.short_name,
-                // Null is not zero: a framework nothing has been assessed
-                // against has no ratio, and 0% would read as total failure.
-                value:
-                  framework.coverage_ratio === null
-                    ? 0
-                    : Math.round(framework.coverage_ratio * 100),
-                of: 100,
-                tone: "var(--foreground)",
-                to: `/compliance/${framework.id}`,
-              }))}
-            />
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              Evidence, not a verdict. A covered control means specific
-              misconfigurations were absent at the last scan — not that a
-              requirement is met in law or that an audit would pass.
-            </p>
-          </>
-        )}
-      </div>
+      {!loading && rows.length > 0 && (
+        // Hairlines drawn by each cell rather than by a gap over a border
+        // fill: with fewer frameworks than columns, a gap-filled grid painted
+        // the empty places as a solid grey block. The right and bottom lines
+        // of the last column and row fall under the card's edge.
+        <ul className="-mr-px -mb-px grid grid-cols-1 border-t sm:grid-cols-2 lg:grid-cols-4">
+          {rows.map((framework) => {
+            // Null is not zero: a framework nothing has been assessed against
+            // has no ratio, and 0% would read as total failure.
+            const concluded =
+              framework.coverage_ratio === null
+                ? null
+                : Math.round(framework.coverage_ratio * framework.control_count);
+            return (
+              <li key={framework.id} className="border-r border-b bg-card">
+                <Link
+                  to={`/compliance/${framework.id}`}
+                  className="flex h-full flex-col gap-1 px-5 py-4 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset"
+                >
+                  <span className="truncate text-[12.5px] font-medium">
+                    {framework.short_name}
+                  </span>
+                  <span className="text-[19px] leading-tight font-semibold tabular-nums">
+                    {framework.coverage_ratio === null
+                      ? "—"
+                      : `${Math.round(framework.coverage_ratio * 100)}%`}
+                  </span>
+                  <span className="text-[11.5px] text-muted-foreground tabular-nums">
+                    {concluded === null
+                      ? "Not assessed yet"
+                      : `${concluded} of ${framework.control_count} controls reached a conclusion`}
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </section>
   );
 }

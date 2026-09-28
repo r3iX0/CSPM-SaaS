@@ -230,11 +230,11 @@ describe("a connection row", () => {
               data: {
                 principal_id: "sp-1",
                 scope_path: "/subscriptions/x",
-                why_manual: "CloudGuard holds read-only access.",
+                why_manual: "Cleave holds read-only access.",
                 steps: [
                   {
                     title: "Remove the scanner role assignment",
-                    detail: "Ends CloudGuard's ability to read Azure resources.",
+                    detail: "Ends Cleave's ability to read Azure resources.",
                     command: "az role assignment delete --assignee sp-1",
                   },
                 ],

@@ -63,7 +63,9 @@ def test_aws_has_no_consent_step_to_wait_for() -> None:
     PENDING.
     """
     assert AwsOnboarding().has_separate_consent is False
-    assert AwsOnboarding().start_url(connection()) == (None, None)
+    assert AwsOnboarding().start_url(
+        connection(), nonce="unused", issued_at=0.0
+    ) == (None, None)
 
 
 def test_every_scope_names_an_account_including_the_widest() -> None:

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BoxesIcon, SettingsIcon } from "lucide-react";
+import { BoxesIcon } from "lucide-react";
 
 import { api, ApiError, auth } from "@/lib/api";
 import type { CloudAccount, Organization } from "@/lib/types";
@@ -55,7 +55,7 @@ export function SettingsPage() {
     return (
       <ErrorState
         title="Could not load your organization"
-        detail="CloudGuard could not reach its own API."
+        detail="Cleave could not reach its own API."
         impact="Nothing about your environment has changed — this is a problem displaying it."
         onRetry={() => organizations.refetch()}
       />
@@ -65,56 +65,44 @@ export function SettingsPage() {
   if (!current) return null;
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex max-w-[820px] flex-col gap-7">
       <PageHeader
-        icon={SettingsIcon}
         title={t.settings.title}
         description={t.settings.intro}
       />
 
-      <div>
-        <SettingsSection title={t.settings.orgTitle} description={t.settings.orgHelp}>
-          {/* Keyed, so switching organization remounts the form with the new
-              values rather than leaving the previous one's name in the boxes. */}
-          <OrganizationForm key={current.id} organization={current} />
-        </SettingsSection>
+      <SettingsSection title={t.settings.orgTitle} description={t.settings.orgHelp}>
+        {/* Keyed, so switching organization remounts the form with the new
+            values rather than leaving the previous one's name in the boxes. */}
+        <OrganizationForm key={current.id} organization={current} />
+      </SettingsSection>
 
-        <SettingsSection
-          title={t.settings.contextTitle}
-          description={t.settings.contextHelp}
-        >
-          <div className="flex flex-col gap-3">
-            {accounts.isLoading && <CardsSkeleton count={1} />}
+      <SettingsSection title={t.settings.contextTitle} description={t.settings.contextHelp}>
+        {accounts.isLoading && <CardsSkeleton count={1} />}
 
-            {accounts.data && accounts.data.length === 0 && (
-              <EmptyState
-                icon={BoxesIcon}
-                title={t.settings.contextEmpty}
-                detail={t.settings.contextEmptyDetail}
-              />
-            )}
+        {accounts.data && accounts.data.length === 0 && (
+          <EmptyState
+            icon={BoxesIcon}
+            title={t.settings.contextEmpty}
+            detail={t.settings.contextEmptyDetail}
+          />
+        )}
 
-            {accounts.data?.map((account) => (
+        {accounts.data && accounts.data.length > 0 && (
+          <div className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
+            {accounts.data.map((account) => (
               <ContextDeclarationForm key={account.id} account={account} />
             ))}
-
-            {accounts.data && accounts.data.length > 0 && (
-              <>
-                {/* Two things the form cannot say for itself, and both change
-                    what a reader expects to happen after they click Save. */}
-                <p className="text-xs leading-relaxed text-muted-foreground">
-                  {t.settings.notDeclaredHelp}
-                </p>
-                <p className="text-xs leading-relaxed text-muted-foreground">
-                  {t.settings.appliesNext}
-                </p>
-              </>
-            )}
+            {/* What the form cannot say for itself, and it changes what a
+                reader expects to happen after they click Save. */}
+            <p className="px-5 py-3 text-xs leading-relaxed text-muted-foreground">
+              {t.settings.appliesNext}
+            </p>
           </div>
-        </SettingsSection>
+        )}
+      </SettingsSection>
 
-        <DangerZone organization={current} />
-      </div>
+      <DangerZone organization={current} />
     </div>
   );
 }
@@ -154,11 +142,11 @@ function DangerZone({ organization }: { organization: Organization }) {
       description={t.settings.dangerHelp}
       tone="danger"
     >
-      <div className="rounded-xl border border-critical-border bg-card p-5 sm:p-6">
+      <div className="max-w-[420px] rounded-xl border border-critical-border bg-card p-5">
         {!owner ? (
-          <p className="text-sm text-muted-foreground">{t.settings.dangerOwnerOnly}</p>
+          <p className="text-[13px] text-muted-foreground">{t.settings.dangerOwnerOnly}</p>
         ) : (
-          <div className="flex max-w-md flex-col gap-3">
+          <div className="flex flex-col gap-3">
             <Field>
               <FieldLabel htmlFor="confirm-name">
                 {t.settings.dangerConfirmLabel}
@@ -178,8 +166,8 @@ function DangerZone({ organization }: { organization: Organization }) {
             )}
 
             <Button
-              variant="destructive"
-              className="self-start"
+              variant="outline"
+              className="self-start border-critical-border bg-critical-bg text-critical hover:bg-critical-bg hover:text-critical"
               disabled={typed !== organization.name || remove.isPending}
               onClick={() => remove.mutate()}
             >

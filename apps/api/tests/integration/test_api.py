@@ -704,15 +704,14 @@ class TestChangeEventWebhook:
     stranger the ability to make a tenant scan itself on demand.
     """
 
-    def _token(self, connection_id: str, purpose: str = "event_grid") -> str:
-        from app.core.signing import sign_state
+    def _token(self, connection_id: str, purpose: str = "EVENT_FEED") -> str:
+        # The purpose is stamped by sign_state itself, and required there
+        # (DECISIONS.md #126): a payload key would be overwritten.
+        from app.core.signing import Purpose, sign_state
 
         return sign_state(
-            {
-                "cloud_connection_id": connection_id,
-                "purpose": purpose,
-                "issued_at": time.time(),
-            }
+            {"cloud_connection_id": connection_id, "issued_at": time.time()},
+            purpose=Purpose[purpose],
         )
 
     async def test_no_token_is_refused(self, client) -> None:
@@ -732,7 +731,7 @@ class TestChangeEventWebhook:
         connection_id = str(uuid.uuid4())
         response = await client.post(
             f"/api/v1/events/azure/{connection_id}"
-            f"?token={self._token(connection_id, purpose='template')}",
+            f"?token={self._token(connection_id, purpose='TEMPLATE')}",
             json=[],
         )
         assert response.status_code == 400

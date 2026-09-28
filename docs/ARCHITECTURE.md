@@ -7,7 +7,7 @@ See `PRODUCT_SPEC.md` for vision/scope. This doc covers the technical shape: sta
 ## 1. Tech Stack
 
 | Layer | Choice |
-|---|---|
+| --- | --- |
 | Frontend | React, TypeScript, Vite, Tailwind CSS, shadcn/ui, React Router, TanStack Query, Recharts, Motion |
 | Backend | Python, FastAPI, Pydantic, SQLAlchemy 2, Alembic, Pytest, Ruff, MyPy |
 | Database / Auth | Supabase PostgreSQL + Supabase Auth + PostgreSQL Row-Level Security (a real security boundary, not a frontend convenience) |
@@ -25,19 +25,98 @@ Do not change this stack unless development proves it necessary.
 
 ## 2. Request / Data Flow
 
-```
-React (TS/Vite) → FastAPI (REST) → Supabase PostgreSQL (+RLS)
-                              → Redis queue → Celery worker
-                                              → Azure/Entra Connector → Azure Cloud
-                                              → Cloud Snapshot → Normalization
-                                              → Rule Engine → Risk Engine → Findings → PostgreSQL
+```mermaid
+graph TB
+    subgraph Client ["Client Tier (Vercel)"]
+        UI["React SPA (Vite + TS)"]
+    end
+
+    subgraph API_Tier ["API Tier (Railway)"]
+        FastAPI["FastAPI Modular Monolith"]
+        AuthMid["Auth & RLS Context Middleware"]
+        Router["API v1 Routers (/api/v1/*)"]
+    end
+
+    subgraph Data_Tier ["Data & Auth Tier (Supabase)"]
+        SupaAuth["Supabase Auth (Entra / OAuth)"]
+        PG[("PostgreSQL 16")]
+        RLS["Row-Level Security (cloudguard_app)"]
+    end
+
+    subgraph Worker_Tier ["Async Worker Tier (Railway)"]
+        Redis[("Redis 7 (Broker & Leases)")]
+        CeleryWorker["Celery Worker Cluster"]
+        ScanPlan["Step: PLAN"]
+        ScanCollect["Queue: collect (Parallel)"]
+        ScanAnalyze["Queue: analyze (Single / Fenced)"]
+    end
+
+    subgraph Cloud_Providers ["Cloud Targets (Read-Only)"]
+        Azure["Azure ARM & Microsoft Graph REST"]
+        AWS["AWS APIs (aiobotocore / SigV4)"]
+    end
+
+    UI -->|JWT Auth| SupaAuth
+    UI -->|HTTPS REST| FastAPI
+    FastAPI --> AuthMid --> Router
+    Router -->|RLS-Scoped Query| RLS --> PG
+    Router -->|Enqueue Step| Redis
+    Redis --> CeleryWorker
+    CeleryWorker --> ScanPlan
+    ScanPlan -->|Dispatch| ScanCollect
+    ScanCollect -->|REST JSON| Azure
+    ScanCollect -->|SigV4 JSON| AWS
+    ScanCollect -->|Verbatim RawSnapshot| PG
+    ScanCollect -->|Advance to| ScanAnalyze
+    ScanAnalyze -->|Normalize & Rules| PG
 ```
 
-Full detail on the Azure-specific parts of this pipeline (collection architecture, auth model) is in `AZURE_INTEGRATION.md`. Rule/risk engine detail is in `RULE_ENGINE.md` and `RISK_ENGINE.md`.
+### Scan Step Orchestration Sequence
 
-**A scan is not one queued task.** It is a set of durable steps -- PLAN, one
-COLLECT per subscription plus one for the tenant directory, then ANALYZE --
-recorded in `scan_steps` and claimed under a lease by whichever worker is free.
+A scan is not one queued task. It is a set of durable steps — `PLAN`, one `COLLECT` per subscription plus one for the tenant directory, then `ANALYZE` — recorded in `scan_steps` and claimed under a lease by whichever worker is free.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant API as FastAPI Router
+    participant DB as PostgreSQL (RLS)
+    participant Redis as Redis Queue
+    participant W_Coll as Celery (Collect Queue)
+    participant W_Ana as Celery (Analyze Queue)
+    participant Cloud as Cloud Provider (Azure / AWS)
+
+    User->>API: POST /api/v1/scans {connection_id}
+    API->>DB: Insert scan (PENDING) & PLAN step
+    API->>Redis: Enqueue PLAN task
+    Redis->>W_Coll: Claim PLAN step
+    W_Coll->>DB: Discover subscriptions beneath connection
+    W_Coll->>DB: Create COLLECT steps (per sub + tenant) & ANALYZE step
+    W_Coll->>Redis: Dispatch COLLECT tasks
+
+    par Parallel Collection Steps
+        Redis->>W_Coll: Claim COLLECT (Subscription A) [Lease + Attempt N]
+        W_Coll->>Cloud: Read resources via REST / SigV4
+        W_Coll->>DB: Save verbatim RawSnapshot (fenced on attempt N)
+    and
+        Redis->>W_Coll: Claim COLLECT (Tenant Directory) [Lease + Attempt M]
+        W_Coll->>Cloud: Read users, roles, Conditional Access
+        W_Coll->>DB: Save verbatim RawSnapshot (fenced on attempt M)
+    end
+
+    W_Coll->>Redis: Trigger ANALYZE step once all collections complete
+    Redis->>W_Ana: Claim ANALYZE step [Lease + Attempt K]
+    W_Ana->>DB: Load RawSnapshots for scan
+    W_Ana->>W_Ana: 1. Normalize to CloudResource domain model
+    W_Ana->>W_Ana: 2. Evaluate SecurityRule registry (deterministic)
+    W_Ana->>W_Ana: 3. Calculate Risk scores (Severity x Criticality x Exposure)
+    W_Ana->>W_Ana: 4. Build Attack Path Graph & severance choke points
+    W_Ana->>DB: ScanWriter.commit (fenced on lease claim - atomic commit)
+    W_Ana->>DB: Transition scan to COMPLETED
+    User->>API: GET /api/v1/scans/{id}/detail
+    API-->>User: Scan findings, risks, and verified resolutions
+```
+
 Collection and analysis go to different queues because they cost opposite
 things: collection waits on Azure and wants many in flight, analysis holds a
 tenant in memory and wants few. What makes it survivable is that the state lives
@@ -101,6 +180,29 @@ scan's normalized state: not "what is wrong" but "what is wrong *together*".
 
 Every customer is an Organization. Every tenant-owned record carries `organization_id`. The backend derives organization from the authenticated user's membership — **a client-supplied `organization_id` is never trusted.** PostgreSQL RLS independently enforces isolation as a second, database-level boundary, not just an application-layer check. Full schema and RLS policy pattern: `DATABASE.md`.
 
+```mermaid
+graph LR
+    subgraph Inbound ["1. Inbound Request"]
+        JWT["Supabase JWT (Bearer Token)"]
+    end
+
+    subgraph App_Tier ["2. Application Boundary (FastAPI)"]
+        Verify["Verify JWT Signature (ES256/RS256)"]
+        Lookup["Lookup Verified Org Membership"]
+        Context["Bind organization_id to rls_session"]
+    end
+
+    subgraph DB_Tier ["3. Database Boundary (PostgreSQL)"]
+        Role["Connect as cloudguard_app (Non-Owner Role)"]
+        SetVar["SET LOCAL app.current_organization_id = ..."]
+        Policy["RLS Policy: organization_id = current_setting(...)"]
+        Data[("Tenant Tables: assets, findings, risks, scans")]
+    end
+
+    JWT --> Verify --> Lookup --> Context
+    Context --> SetVar --> Role --> Policy --> Data
+```
+
 ---
 
 ## 5. Roles
@@ -108,7 +210,7 @@ Every customer is an Organization. Every tenant-owned record carries `organizati
 MVP permissions kept simple:
 
 | Role | MVP permissions |
-|---|---|
+| --- | --- |
 | OWNER | Everything |
 | ADMIN | Everything except deleting the organization |
 | SECURITY_ANALYST | Security data: read/write remediation |
@@ -151,3 +253,39 @@ assignments, Conditional Access) come from one, resource reads from the other.
 The core data model (`CloudResource`, `RawSnapshot`, `NormalizedState`,
 `SecurityRule`, `Finding`, `Risk`) stays cloud-neutral; cloud-specific logic
 lives under `connectors/`.
+
+---
+
+## 7. Attack Path Graph & Severance Model
+
+The graph engine (`app/graph/`) models asset relationships, exposure reachability, and identity escalation chains to identify the shortest routes from internet entry points to critical assets.
+
+```mermaid
+graph TD
+    subgraph Entry ["1. Exposure Surface"]
+        Internet(("Public Internet"))
+        NSG["NSG Rule: 0.0.0.0/0:22 (Public SSH)"]
+        VM["Jumpbox VM (Public IP)"]
+    end
+
+    subgraph Escalation ["2. Lateral Movement & Escalation"]
+        MSI["Managed Service Identity"]
+        RoleAssign["Subscription Contributor Assignment"]
+    end
+
+    subgraph CrownJewels ["3. Target Assets (Critical Impact)"]
+        Vault["Key Vault (Production Secrets)"]
+        DB[("Production Customer Database")]
+    end
+
+    Internet -->|Reaches| NSG -->|Guards| VM
+    VM -->|Uses Identity| MSI -->|Grants Role| RoleAssign
+    RoleAssign -->|Controls| Vault
+    RoleAssign -->|Controls| DB
+
+    classDef choke fill:#b91c1c,stroke:#f87171,stroke-width:2px,color:#fff;
+    class NSG,MSI choke;
+```
+
+- **Severance Analysis (`severance.py`)**: Computes which single relationship cuts (choke points, shown in red above) sever the greatest number of viable attack routes. Remediating a single choke point eliminates entire attack trees.
+- **Evidence-backed hops (`facts.py`)**: A hop's evidence (the role, network rule, or identity type) is read dynamically from the assets rather than stamped statically on edges.

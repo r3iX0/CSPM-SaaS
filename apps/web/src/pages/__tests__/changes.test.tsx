@@ -54,17 +54,17 @@ describe("ChangesPage", () => {
     mount([event()]);
 
     await waitFor(() => expect(screen.getByText("customerdata")).toBeInTheDocument());
-    expect(screen.getByText("Exposure changed")).toBeInTheDocument();
+    expect(screen.getByText("Internet exposure changed")).toBeInTheDocument();
     expect(screen.getByText("Low")).toBeInTheDocument();
     expect(screen.getByText("Critical")).toBeInTheDocument();
-    expect(screen.getByText("Got worse")).toBeInTheDocument();
+    expect(screen.getByText("worse")).toBeInTheDocument();
   });
 
   it("does not call a de-escalation a deterioration", async () => {
     mount([event({ previous_value: "CRITICAL", current_value: "LOW" })]);
 
-    await waitFor(() => expect(screen.getByText("Got better")).toBeInTheDocument());
-    expect(screen.queryByText("Got worse")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("better")).toBeInTheDocument());
+    expect(screen.queryByText("worse")).not.toBeInTheDocument();
   });
 
   it("treats a move into UNKNOWN as neither better nor worse", async () => {
@@ -72,9 +72,9 @@ describe("ChangesPage", () => {
     // improvement, which is the one thing this product must never do.
     mount([event({ previous_value: "HIGH", current_value: "UNKNOWN" })]);
 
-    await waitFor(() => expect(screen.getByText("Exposure changed")).toBeInTheDocument());
-    expect(screen.queryByText("Got better")).not.toBeInTheDocument();
-    expect(screen.queryByText("Got worse")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("Internet exposure changed")).toBeInTheDocument());
+    expect(screen.queryByText("better")).not.toBeInTheDocument();
+    expect(screen.queryByText("worse")).not.toBeInTheDocument();
   });
 
   it("says a disappeared asset is still missing", async () => {
@@ -93,8 +93,9 @@ describe("ChangesPage", () => {
       }),
     ]);
 
-    await waitFor(() => expect(screen.getByText("Still missing")).toBeInTheDocument());
-    expect(screen.queryByText("Seen again since")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("still missing")).toBeInTheDocument());
+    expect(screen.getByText("A scan that covered its scope did not see it")).toBeInTheDocument();
+    expect(screen.queryByText("seen again since")).not.toBeInTheDocument();
   });
 
   it("says a disappeared asset that came back came back", async () => {
@@ -113,14 +114,14 @@ describe("ChangesPage", () => {
       }),
     ]);
 
-    await waitFor(() => expect(screen.getByText("Seen again since")).toBeInTheDocument());
-    expect(screen.queryByText("Still missing")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("seen again since")).toBeInTheDocument());
+    expect(screen.queryByText("still missing")).not.toBeInTheDocument();
   });
 
   it("groups the feed by the day each change was observed", async () => {
     mount([
-      event({ id: "c-1", observed_at: "2026-08-30T09:15:00+00:00" }),
-      event({ id: "c-2", observed_at: "2026-08-30T18:40:00+00:00" }),
+      event({ id: "c-1", observed_at: "2026-08-30T11:15:00+00:00" }),
+      event({ id: "c-2", observed_at: "2026-08-30T12:40:00+00:00" }),
       event({ id: "c-3", observed_at: "2026-08-28T11:00:00+00:00" }),
     ]);
 

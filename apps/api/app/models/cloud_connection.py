@@ -98,6 +98,25 @@ class CloudConnection(Base, UUIDPrimaryKey, TenantOwned, Timestamps):
         StrEnumType(ConsentStatus, 16), nullable=False, default=ConsentStatus.PENDING
     )
     consented_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # The half of the consent link that is *not* in the signed token.
+    #
+    # A consent link is a bearer credential handed to somebody who may have no
+    # CloudGuard account at all -- the customer's Global Administrator, reached
+    # by whatever channel the customer uses. The signature alone cannot make it
+    # single-use, because a signature is verifiable forever by anyone holding
+    # the string. This is what makes it redeemable once: the callback matches
+    # the nonce in the token against the one stored here and clears it, so a
+    # link that has been used, or that was superseded, no longer opens anything.
+    #
+    # Reused rather than regenerated while it is live, which is the whole reason
+    # the issue time is stored beside it. The setup wizard polls the connection,
+    # and minting a new nonce per read would invalidate the link the customer
+    # had already sent on -- the failure being a Global Administrator following
+    # a link that says the request expired, hours after it was sent.
+    consent_nonce: Mapped[str | None] = mapped_column(String(64))
+    consent_nonce_issued_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
     # What the consent left out, as the provider's own permission names, read
     # from the grant rather than from the callback. NULL is "not checked", an
     # empty list is "nothing missing": a GRANTED callback is Entra saying the

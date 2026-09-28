@@ -144,7 +144,7 @@ async function send(
     if (err instanceof DOMException && err.name === "AbortError") {
       throw new ApiError(
         "TIMEOUT",
-        `CloudGuard's API did not answer within ${Math.round(timeoutMs / 1000)} seconds.`,
+        `Cleave's API did not answer within ${Math.round(timeoutMs / 1000)} seconds.`,
         0,
       );
     }
@@ -153,7 +153,7 @@ async function send(
     // own "Failed to fetch", which reads to a customer as a bug in CloudGuard.
     throw new ApiError(
       "NETWORK_ERROR",
-      "CloudGuard could not reach its API. Check your connection and try again.",
+      "Cleave could not reach its API. Check your connection and try again.",
       0,
     );
   } finally {

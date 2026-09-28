@@ -16,7 +16,7 @@ dependencies = [
   "celery[redis]==5.4.0",
   "redis==5.2.1",
   "httpx==0.28.1",
-  "pyjwt==2.10.1",
+  "pyjwt==2.13.0",
   "msal==1.31.1",
   # AWS. The connector stores the provider's own response verbatim, exactly as
   # the Azure one does -- what this handles is the layer beneath that, which
@@ -25,12 +25,12 @@ dependencies = [
   "aiobotocore==3.9.0",
   "structlog==24.4.0",
   "sentry-sdk[fastapi]==2.19.2",
-  "jinja2==3.1.5",
+  "jinja2==3.1.6",
   # PDF reports. Needs native pango/cairo/harfbuzz, installed in the API image
   # and in CI; app.reports.render imports it lazily so a machine without them
   # can still render, and test, the HTML the PDF is printed from.
   "weasyprint==63.1",
-  "python-multipart==0.0.20",
+  "python-multipart==0.0.31",
 ]
 
 [project.optional-dependencies]

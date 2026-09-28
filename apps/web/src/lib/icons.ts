@@ -14,6 +14,7 @@ import {
   CircleXIcon,
   ClockIcon,
   CrownIcon,
+  CylinderIcon,
   DatabaseIcon,
   EthernetPortIcon,
   ExternalLinkIcon,
@@ -21,22 +22,21 @@ import {
   FlaskConicalIcon,
   FolderTreeIcon,
   GlobeIcon,
-  HardDriveIcon,
   KeyRoundIcon,
   UserRoundKeyIcon,
   LayersIcon,
   LockIcon,
   MapPinIcon,
   MinusIcon,
-  NetworkIcon,
+  MonitorIcon,
   PanelsTopLeftIcon,
   PlusIcon,
   RouteIcon,
   ScrollTextIcon,
   SendIcon,
-  ServerIcon,
   ShieldAlertIcon,
   ShieldCheckIcon,
+  Share2Icon,
   TableIcon,
   TagIcon,
   TrendingUpIcon,
@@ -65,17 +65,24 @@ import type { AssetChange, ConnectionScope } from "./types";
  * anything the word did not.
  */
 
-/** What a resource is, by the neutral type the rules match on. */
+/**
+ * What a resource is, by the neutral type the rules match on. Drawn at 1.5
+ * stroke in a muted tile by `ResourceIcon` beside a resource's name in a row,
+ * and bare on the graph canvases -- one shape per type everywhere. A machine is
+ * a screen and storage a cylinder (the Cleave redesign); a service principal
+ * stays a bot rather than a person, because the graph draws users and service
+ * principals side by side and they must not look alike (§126).
+ */
 const RESOURCE_TYPE_ICONS: Record<string, LucideIcon> = {
   subscription: LayersIcon,
   resource_group: FolderIcon,
-  virtual_machine: ServerIcon,
+  virtual_machine: MonitorIcon,
   network_security_group: BrickWallIcon,
   network_interface: EthernetPortIcon,
   public_ip: GlobeIcon,
-  virtual_network: NetworkIcon,
+  virtual_network: Share2Icon,
   subnet: WaypointsIcon,
-  storage_account: HardDriveIcon,
+  storage_account: CylinderIcon,
   sql_server: DatabaseIcon,
   sql_database: TableIcon,
   postgresql_server: DatabaseIcon,

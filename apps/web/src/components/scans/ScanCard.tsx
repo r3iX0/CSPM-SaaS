@@ -72,15 +72,15 @@ export function ScanCard({ scan }: { scan: Scan }) {
   const helpId = `scan-replay-help-${scan.id}`;
 
   return (
-    <div className="px-4 py-3.5 sm:px-5">
+    <div className="px-5 py-3">
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <StatusPill status={scan.status} />
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-foreground">
+            <p className="truncate text-[13.5px] font-medium text-foreground tabular-nums">
               {formatDateTime(scan.completed_at ?? scan.started_at ?? scan.created_at)}
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[11.5px] text-muted-foreground">
               {formatRelative(scan.completed_at ?? scan.started_at ?? scan.created_at)}
               {scan.trigger === "SCHEDULED" && ` · ${t.scans.scheduled}`}
               {scan.trigger === "MANUAL" && ` · ${t.scans.manualUnknownUser}`}
@@ -90,7 +90,7 @@ export function ScanCard({ scan }: { scan: Scan }) {
               sits in the list looking like a scan that went and checked,
               which is the one thing it did not do. */}
           {scan.replay_of_scan_id && (
-            <span className="inline-flex shrink-0 items-center rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+            <span className="inline-flex shrink-0 items-center rounded-full border border-border bg-muted px-2 py-px text-[11px] font-medium text-muted-foreground">
               {t.scans.replayOfLabel}
             </span>
           )}
@@ -340,7 +340,7 @@ function StuckNote() {
         {status.data ? status.data.detail : t.scans.stuckDetail}
       </p>
       {status.data && status.data.workers === 0 && (
-        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+        <p className="mt-1 text-xs leading-relaxed text-foreground">
           {t.scans.stuckDetail}
         </p>
       )}

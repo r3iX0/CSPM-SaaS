@@ -8,8 +8,17 @@ import { ConnectPage } from "@/pages/Connect";
 import { api } from "@/lib/api";
 import type { CloudConnection } from "@/lib/types";
 
-function mount(rows: CloudConnection[]) {
+function mount(rows: CloudConnection[], awsAvailable = false) {
   vi.spyOn(api, "get").mockImplementation((path: string) => {
+    if (path === "/api/v1/cloud-connections/providers") {
+      return Promise.resolve({
+        data: [
+          { id: "azure", name: "Microsoft Azure", available: true, unavailable_reason: null },
+          { id: "aws", name: "Amazon Web Services", available: awsAvailable, unavailable_reason: null },
+        ],
+        meta: {},
+      }) as never;
+    }
     if (path.startsWith("/api/v1/cloud-accounts/azure/permissions")) {
       return Promise.resolve({
         data: {
@@ -85,11 +94,11 @@ describe("the connections page", () => {
     // fact that decides whether now is a good moment to start.
     mount([]);
 
-    expect(await screen.findByText(/what the three minutes look like/i)).toBeInTheDocument();
+    expect(await screen.findByText(/what the 3 minutes look like/i)).toBeInTheDocument();
     expect(
       screen.getByText(/a global administrator grants admin consent/i),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /connect a cloud/i })[0]).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: /connect environment/i })[0]).toHaveAttribute(
       "href",
       "/connections/new",
     );
@@ -101,7 +110,7 @@ describe("the connections page", () => {
     mount([]);
 
     await userEvent.click(
-      await screen.findByRole("button", { name: /read what cloudguard will do/i }),
+      await screen.findByRole("button", { name: /read what cleave will do/i }),
     );
 
     expect(await screen.findByText("Directory.Read.All")).toBeInTheDocument();
@@ -117,4 +126,19 @@ describe("the connections page", () => {
     expect(screen.getByText("new_architecture")).toBeInTheDocument();
     expect(screen.getByText("sandbox")).toBeInTheDocument();
   });
+
+  it("names what cannot be read yet, and AWS only while it is not offered", async () => {
+    mount([]);
+    const soon = await screen.findByRole("region", { name: "Coming soon" });
+    expect(soon).toHaveTextContent("AWS");
+    expect(soon).toHaveTextContent("GitLab");
+  });
+
+  it("leaves AWS off the roster once the API offers it", async () => {
+    mount([], true);
+    const soon = await screen.findByRole("region", { name: "Coming soon" });
+    expect(soon).not.toHaveTextContent("AWS");
+    expect(soon).toHaveTextContent("GCP");
+  });
 });
+

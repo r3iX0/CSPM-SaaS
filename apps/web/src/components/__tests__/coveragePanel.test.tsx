@@ -14,9 +14,9 @@ import { CoveragePanel } from "@/components/dashboard/CoveragePanel";
 import { groupCauses } from "@/lib/collectionErrors";
 
 const CONSENT_FAILURE =
-  "Access denied. Admin consent for CloudGuard's directory permissions is " +
+  "Access denied. Admin consent for Cleave's directory permissions is " +
   "missing or incomplete. A Global Administrator must grant it under Microsoft " +
-  "Entra ID > Enterprise applications > CloudGuard > Permissions.";
+  "Entra ID > Enterprise applications > Cleave > Permissions.";
 
 describe("collection failures", () => {
   it("states one cause once, naming everything it cost", () => {
@@ -63,7 +63,7 @@ describe("collection failures", () => {
   });
 });
 
-describe("assets CloudGuard could not classify", () => {
+describe("assets Cleave could not classify", () => {
   it("states what the score is not charging for, and what to do about it", () => {
     // The half of coverage the score used to spend silently. Missing evidence
     // never becomes a finding; missing context did reach the number, because an
@@ -83,7 +83,7 @@ describe("assets CloudGuard could not classify", () => {
 
     expect(screen.getByText("9 of 12 open risks")).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: /Tell CloudGuard what these subscriptions hold/ }),
+      screen.getByRole("link", { name: /Tell Cleave what these subscriptions hold/ }),
     ).toHaveAttribute("href", "/settings");
   });
 

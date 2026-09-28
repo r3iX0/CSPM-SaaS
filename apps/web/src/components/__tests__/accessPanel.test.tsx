@@ -119,7 +119,7 @@ describe("the access panel", () => {
     expect(screen.queryByText(/behind/)).not.toBeInTheDocument();
   });
 
-  it("still states that CloudGuard holds no write permission", () => {
+  it("still states that Cleave holds no write permission", () => {
     /** The product's central claim about itself. It sits on this panel, and a
      * new alert above it must not be what pushes it off the screen. */
     mount({ role_upgrade_available: true });

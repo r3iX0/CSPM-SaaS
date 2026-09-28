@@ -28,6 +28,7 @@ hosts are accepted, and anything else is refused rather than fetched.
 import json
 import re
 from typing import Any
+from urllib.parse import urlsplit
 
 # SNS's own message types. ``SubscriptionConfirmation`` is the handshake: until
 # the URL inside it is fetched, the subscription exists and delivers nothing --
@@ -101,12 +102,33 @@ def confirmation_url(event: dict[str, Any]) -> str | None:
     reachable by anyone holding the connection's token, and a URL taken on trust
     would make CloudGuard fetch whatever an attacker named -- including
     addresses only CloudGuard's own network can reach.
+
+    Parsed with ``urlsplit`` rather than by cutting the string up. The two
+    agree on every URL either would accept today, and they stop agreeing the
+    moment somebody relaxes the pattern below: a hand-rolled split reads
+    ``https://sns.us-east-1.amazonaws.com@evil.example/`` as a host that merely
+    fails to match, while the parser reads it as what it is -- credentials in
+    front of a different host. A guard that is only correct because the thing
+    after it is strict is a guard waiting for the thing after it to change.
     """
     url = str(event.get("SubscribeURL") or "")
-    if not url.startswith("https://"):
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        # An address the parser itself refuses -- a malformed IPv6 literal, for
+        # instance. Nothing to fetch.
         return None
-    host = url.removeprefix("https://").split("/", 1)[0].split(":", 1)[0]
-    return url if SNS_HOST.fullmatch(host) else None
+
+    if parts.scheme != "https":
+        return None
+    # Anything that is not purely a host is somebody steering the request:
+    # credentials before an ``@`` point the fetch elsewhere while reading as an
+    # AWS host, and a port names a service AWS does not answer SNS on.
+    if parts.username or parts.password or parts.port is not None:
+        return None
+    if not parts.hostname or not SNS_HOST.fullmatch(parts.hostname):
+        return None
+    return url
 
 
 def is_relevant(event: dict[str, Any]) -> bool:

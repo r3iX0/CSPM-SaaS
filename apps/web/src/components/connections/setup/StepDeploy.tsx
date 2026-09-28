@@ -7,8 +7,6 @@ import { setupCopy } from "@/lib/setupCopy";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { CopyButton } from "@/components/common/CopyButton";
-import { ProviderMark } from "@/components/security/ProviderMark";
-import { cn } from "@/lib/format";
 import { StepHeader } from "@/components/connections/setup/StepHeader";
 import { WaitingNote } from "@/components/connections/setup/WaitingNote";
 
@@ -104,7 +102,6 @@ export function StepDeploy({
   return (
     <>
       <StepHeader
-        mark={<ProviderMark provider={connection.provider} className="size-5" />}
         title={copy.deployTitle}
         description={copy.deployBody}
       />
@@ -115,10 +112,10 @@ export function StepDeploy({
           value only they and CloudGuard know. Somebody who cannot see it cannot
           check that the stack they ran actually asks for it. */}
       {externalId && (
-        <div className="rounded-xl border border-border bg-muted/30 p-4">
-          <p className="text-sm font-medium text-foreground">{t.setup.aws.externalIdTitle}</p>
+        <div className="rounded-[10px] bg-muted p-4">
+          <p className="text-[12.5px] font-medium text-foreground">{t.setup.aws.externalIdTitle}</p>
           <div className="mt-2.5 flex items-center gap-2">
-            <code className="min-w-0 flex-1 truncate rounded-lg border border-border bg-background px-3 py-2 font-mono text-[13px] text-foreground">
+            <code className="min-w-0 flex-1 truncate rounded-lg border border-border bg-background px-3 py-2 font-mono text-xs text-foreground">
               {externalId}
             </code>
             <CopyButton text={externalId} label={t.setup.aws.externalIdTitle} />
@@ -130,17 +127,15 @@ export function StepDeploy({
       )}
 
       <div>
-        <p className="mb-3 text-sm font-medium text-foreground">{copy.deployHowTitle}</p>
-        <ol className="grid gap-3 sm:grid-cols-3">
+        <p className="text-[12.5px] font-medium text-foreground">{copy.deployHowTitle}</p>
+        <ol className="mt-2 flex flex-col gap-1.5">
           {how.map((item, index) => (
-            <li key={item.title} className="rounded-xl border border-border p-4">
-              <span className="flex size-6 items-center justify-center rounded-full bg-muted text-[11px] font-semibold tabular-nums text-muted-foreground">
-                {index + 1}
+            <li key={item.title} className="flex gap-2.5 text-[12.5px] leading-relaxed">
+              <span className="w-3 shrink-0 tabular-nums text-muted-foreground">{index + 1}</span>
+              <span className="min-w-0">
+                <span className="font-medium text-foreground">{item.title}</span>
+                <span className="text-muted-foreground"> — {item.detail}</span>
               </span>
-              <p className="mt-3 text-sm font-medium text-foreground">{item.title}</p>
-              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                {item.detail}
-              </p>
             </li>
           ))}
         </ol>
@@ -153,7 +148,7 @@ export function StepDeploy({
           href={connection.template_url}
           target="_blank"
           rel="noopener noreferrer"
-          className={cn(buttonVariants({ size: "lg" }), "px-4")}
+          className={buttonVariants()}
         >
           {connection.provider === "aws" ? t.setup.aws.launchStack : t.setup.deployToAzure}
           <LeavesApp data-icon="inline-end" aria-hidden />
@@ -162,11 +157,11 @@ export function StepDeploy({
       </div>
 
       {connection.deploy_stalled ? (
-        <div className="overflow-hidden rounded-xl border border-high-border">
+        <div className="overflow-hidden rounded-[10px] border border-high-border">
           <div className="flex items-start gap-3 bg-high-bg px-4 py-3.5">
             <Stalled className="mt-0.5 size-4 shrink-0 text-high" aria-hidden />
             <div className="min-w-0">
-              <p className="text-sm font-medium text-high">{t.setup.stalledTitle}</p>
+              <p className="text-[13px] font-medium text-high">{t.setup.stalledTitle}</p>
               <p className="mt-0.5 text-xs leading-relaxed text-foreground">
                 {connection.status_detail ?? t.setup.stalledBody}
               </p>
@@ -185,11 +180,16 @@ export function StepDeploy({
             )}
           </ol>
           <div className="flex flex-wrap gap-2 border-t border-border bg-card px-4 py-3">
-            <Button variant="secondary" onClick={onRecheck} disabled={rechecking}>
+            <Button variant="outline" size="sm" onClick={onRecheck} disabled={rechecking}>
               {rechecking ? t.setup.checking : t.setup.checkAgain}
             </Button>
             {!confirmingDiscard && (
-              <Button variant="ghost" onClick={() => setConfirmingDiscard(true)}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground"
+                onClick={() => setConfirmingDiscard(true)}
+              >
                 {t.setup.changeScope}
               </Button>
             )}
@@ -200,7 +200,7 @@ export function StepDeploy({
               Nothing has been scanned yet, which is what makes discarding the
               cheap answer -- and what the confirmation says. */}
           {confirmingDiscard && (
-            <div className="border-t border-border bg-muted/30 px-4 py-3">
+            <div className="border-t border-border bg-muted px-4 py-3">
               <p className="text-xs font-medium text-foreground">{t.connection.discardTitle}</p>
               <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
                 {t.connection.discardDetail}
@@ -215,7 +215,7 @@ export function StepDeploy({
                   {discarding ? t.connection.discarding : t.connection.discard}
                 </Button>
                 <Button
-                  variant="secondary"
+                  variant="outline"
                   size="sm"
                   onClick={() => setConfirmingDiscard(false)}
                 >

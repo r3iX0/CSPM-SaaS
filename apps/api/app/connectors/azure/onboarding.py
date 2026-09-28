@@ -14,7 +14,6 @@ second. Both are proven by being used, never by the customer saying they did it.
 """
 
 import json
-import time
 from urllib.parse import quote
 
 # Imported as a module, not by name. Every entry point here is exercised by
@@ -46,7 +45,7 @@ from app.core.config import settings
 from app.core.enums import ConnectionScope, ConsentStatus, Provider
 from app.core.errors import NotConfigured, ValidationFailed
 from app.core.logging import get_logger
-from app.core.signing import sign_state
+from app.core.signing import Purpose, sign_state
 from app.models.cloud_connection import CloudConnection
 
 log = get_logger(__name__)
@@ -91,15 +90,18 @@ class AzureOnboarding(ProviderOnboarding):
             else None
         )
 
-    def start_url(self, connection: CloudConnection) -> tuple[str | None, str | None]:
-        """A fresh consent link, or the reason there cannot be one.
+    def start_url(
+        self, connection: CloudConnection, *, nonce: str, issued_at: float
+    ) -> tuple[str | None, str | None]:
+        """A consent link, or the reason there cannot be one.
 
-        Regenerated on every read rather than stored, for two reasons. The
-        state is signed with a 30-minute TTL, so a URL persisted at creation
-        would be dead long before most customers get their administrator's
-        attention. And it used to be returned *only* from the create response,
-        which meant a page reload lost the consent button entirely and stranded
-        the connection in PENDING with no way forward but deleting it.
+        Not stored, and not minted here either. The state is signed with a
+        30-minute TTL, so a URL written down at creation would be dead long
+        before most customers get their administrator's attention -- and it used
+        to be returned *only* from the create response, which meant a page
+        reload lost the consent button entirely and stranded the connection in
+        PENDING with no way forward but deleting it. So it is rebuilt on demand,
+        from the nonce and issue time the caller is keeping against the row.
 
         The failure reason is returned rather than swallowed. A deployment
         whose Entra credentials are wrong cannot produce this URL at all, and
@@ -110,8 +112,10 @@ class AzureOnboarding(ProviderOnboarding):
                 {
                     "cloud_connection_id": str(connection.id),
                     "organization_id": str(connection.organization_id),
-                    "issued_at": time.time(),
-                }
+                    "nonce": nonce,
+                    "issued_at": issued_at,
+                },
+                purpose=Purpose.CONSENT,
             )
             return auth.build_consent_url(state), None
         except NotConfigured as exc:

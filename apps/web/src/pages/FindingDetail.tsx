@@ -154,7 +154,7 @@ export function FindingDetailPage() {
     return (
       <ErrorState
         title="Could not load this finding"
-        detail="CloudGuard could not reach its own API."
+        detail="Cleave could not reach its own API."
         impact="Nothing about your environment has changed — this is a problem displaying it."
         onRetry={() => refetch()}
       />
@@ -164,7 +164,7 @@ export function FindingDetailPage() {
   const components = data.risk?.score_breakdown?.components ?? {};
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <Breadcrumbs
         trail={[
           { label: t.findings.title, to: "/findings" },
@@ -190,10 +190,10 @@ export function FindingDetailPage() {
               {data.rule_id} · v{data.rule_version}
             </span>
           </div>
-          <h1 className="mt-3 text-2xl font-semibold tracking-tight text-foreground">
+          <h1 className="mt-3 text-2xl font-semibold tracking-[-0.02em] text-foreground">
             {data.title}
           </h1>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted-foreground">
             {data.description}
           </p>
         </div>
@@ -236,6 +236,7 @@ export function FindingDetailPage() {
           findingId={data.id}
           findingStatus={data.status}
           resourceName={data.resource?.name ?? null}
+          evidence={provenance.data?.evidence}
           retrying={rescan.isPending}
           onRetry={() => rescan.mutate()}
           onClose={() => setVerifyScanId(null)}
@@ -257,8 +258,8 @@ export function FindingDetailPage() {
         </Alert>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="flex flex-col gap-6 lg:col-span-2">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="flex min-w-0 flex-col gap-4">
           {/* WHY */}
           {data.rationale && (
             <Card>
@@ -342,7 +343,7 @@ export function FindingDetailPage() {
 
         </div>
 
-        <div className="flex flex-col gap-6">
+        <div className="flex min-w-0 flex-col gap-4">
           {/* HOW BAD */}
           {data.risk && (
             <Card>
@@ -351,7 +352,7 @@ export function FindingDetailPage() {
               </CardHeader>
               <CardContent>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-semibold tabular-nums text-foreground">
+                  <span className="text-[36px] leading-none font-semibold tabular-nums text-foreground">
                     {Number(data.risk.risk_score).toFixed(0)}
                   </span>
                   <SeverityBadge level={data.risk.risk_level} />
@@ -599,7 +600,7 @@ function EvidencePanel({ evidence }: { evidence: unknown }) {
     <Card>
       <CardHeader>
         <CardTitle>{t.findings.evidence}</CardTitle>
-        <CardDescription>Exactly what CloudGuard observed</CardDescription>
+        <CardDescription>Exactly what Cleave observed</CardDescription>
       </CardHeader>
       <CardContent>
         <Collapsible open={expanded || !long} onOpenChange={setExpanded}>
@@ -875,7 +876,7 @@ function AttackPathContext({
           // sensitive is something the customer declares, so an estate that
           // has declared nothing produces no routes at all.
           <p className="text-sm leading-relaxed text-muted-foreground">
-            CloudGuard traced no route from an internet-facing asset to a
+            Cleave traced no route from an internet-facing asset to a
             sensitive one through this one. What counts as sensitive is
             declared per subscription in Settings — an estate where nothing has
             been classified will also show none.

@@ -3,13 +3,12 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/format";
 
 /**
- * One settings topic: what it is on the left, the controls on the right.
+ * One settings topic: a heading, one line on what it is for, then its card.
  *
- * The page used to be a column of cards, each opening with its own heading and
- * paragraph above its fields, so the explanation and the form competed for the
- * same width and every section read as the same weight. Two columns let a
- * reader scan the left edge for the topic they came for and only then look at
- * its fields -- the layout every settings page they already use has taught them.
+ * Stacked rather than two columns. The page is narrow on purpose -- a form is
+ * read top to bottom -- and at 820px a side column of explanation left the
+ * fields a width no field needs while pushing the reason for them out of the
+ * reading line.
  */
 export function SettingsSection({
   title,
@@ -24,21 +23,21 @@ export function SettingsSection({
   children: ReactNode;
 }) {
   return (
-    <section className="grid gap-5 border-t border-border py-8 first:border-t-0 first:pt-0 lg:grid-cols-[17rem_minmax(0,1fr)] lg:gap-12">
-      <div>
-        <h2
-          className={cn(
-            "text-sm font-semibold",
-            tone === "danger" ? "text-critical" : "text-foreground",
-          )}
-        >
-          {title}
-        </h2>
-        {description && (
-          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{description}</p>
+    <section>
+      <h2
+        className={cn(
+          "text-sm font-semibold",
+          tone === "danger" ? "text-critical" : "text-foreground",
         )}
-      </div>
-      <div className="min-w-0">{children}</div>
+      >
+        {title}
+      </h2>
+      {description && (
+        <p className="mt-1 max-w-[76ch] text-[12.5px] leading-relaxed text-muted-foreground">
+          {description}
+        </p>
+      )}
+      <div className="mt-3.5 min-w-0">{children}</div>
     </section>
   );
 }

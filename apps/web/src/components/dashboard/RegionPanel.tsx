@@ -295,7 +295,7 @@ function RegionRow({
           <span className="truncate font-medium">{info?.name ?? region.region}</span>
           <span className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
             <span className="truncate">
-              {(place || !info) && `${place ?? "location not known to CloudGuard"} · `}
+              {(place || !info) && `${place ?? "location not known to Cleave"} · `}
               <span className="tabular-nums">
                 {region.assets} {region.assets === 1 ? "asset" : "assets"}
               </span>

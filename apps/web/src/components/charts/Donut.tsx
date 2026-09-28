@@ -29,12 +29,15 @@ export function Donut({
   centerLabel,
   ariaLabel,
   className,
+  valueClassName,
 }: {
   slices: Slice[];
   centerValue: string;
   centerLabel: string;
   ariaLabel: string;
   className?: string;
+  /** The centre figure, sized to the ring: the 64px coverage ring reads 14.5px. */
+  valueClassName?: string;
 }) {
   const reduced = usePrefersReducedMotion();
   const total = slices.reduce((sum, slice) => sum + slice.value, 0);
@@ -54,7 +57,7 @@ export function Donut({
             data={slices}
             dataKey="value"
             nameKey="label"
-            innerRadius="70%"
+            innerRadius="72%"
             outerRadius="100%"
             startAngle={90}
             endAngle={-270}
@@ -103,7 +106,7 @@ export function Donut({
       {/* The headline sits in the hole, in text ink rather than a series
           colour: the ring carries identity, the number carries the value. */}
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-xl font-semibold leading-none tabular-nums">
+        <span className={cn("text-xl leading-none font-semibold tabular-nums", valueClassName)}>
           {centerValue}
         </span>
         <span className="mt-0.5 text-[10px] leading-tight text-muted-foreground">

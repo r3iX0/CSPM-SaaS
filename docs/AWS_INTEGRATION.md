@@ -45,8 +45,9 @@ the read fails several minutes into a scan with `AccessDenied`.
 | 16 | A trail's `CloudWatchLogsLogGroupArn` has the shape `arn:aws:logs:<region>:<account>:log-group:<name>:*` | The log group name is parsed out of it; a different shape reads as "no filter on the trail's log group" |
 | 17 | `logs:DescribeMetricFilters` returns `metricTransformations` with `metricNamespace` and `metricName` as spelled | The alarm is matched to the filter on exactly that pair |
 | 18 | `iam:ListEntitiesForPolicy` accepts `arn:aws:iam::aws:policy/AWSSupportAccess` and answers with `PolicyRoles` / `PolicyUsers` / `PolicyGroups` | All three lists are read; a fourth shape or a different ARN reads as "nobody holds it" |
+| 19 | A real delivery carries `SignatureVersion`, `Signature` and `SigningCertURL`, and the certificate URL is an `sns.<region>.amazonaws.com` host | Nothing verifies the signature today: the connection token is the only thing behind a delivery, so a token that leaked is a feed anybody can write to. Verification can only be written against a message AWS actually signed (`docs/SECURITY_REVIEW_2026-09-20.md`, finding 7) |
 
-Once all eighteen pass: remove the `# UNVERIFIED` markers in
+Once all nineteen pass: remove the `# UNVERIFIED` markers in
 `app/connectors/aws/iam.py`, drop the warnings from the module docstrings in
 `app/connectors/aws/`, and enable AWS in the provider picker.
 

@@ -229,6 +229,15 @@ function mount(
   );
 }
 
+
+/**
+ * The list of routes beside the drawing. Asset names are looked up inside it:
+ * once the lazily loaded canvas has drawn, the same name is also a box on it.
+ */
+function routesPanel() {
+  return screen.findByRole("complementary", { name: "The routes" });
+}
+
 describe("AttackPathsPage", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -247,7 +256,7 @@ describe("AttackPathsPage", () => {
       },
     ]);
 
-    await userEvent.click(await screen.findByText(/jump-01/));
+    await userEvent.click(await within(await routesPanel()).findByText(/jump-01/));
 
     expect(
       await screen.findByRole("link", { name: "Tracked as a risk" }),
@@ -257,7 +266,7 @@ describe("AttackPathsPage", () => {
   it("says when a route is reach rather than a risk", async () => {
     mount(oneRoute(), { total: 1, entry_points: 1, sensitive_targets: 1 });
 
-    await userEvent.click(await screen.findByText(/jump-01/));
+    await userEvent.click(await within(await routesPanel()).findByText(/jump-01/));
 
     expect(
       await screen.findByText("Not a risk: nothing on this route fails a check"),
@@ -269,10 +278,11 @@ describe("AttackPathsPage", () => {
 
     // Nothing but the summary until a route is chosen: the rail ranks, and the
     // hops are what one route says.
-    await waitFor(() => expect(screen.getByText(/jump-01/)).toBeInTheDocument());
+    const panel = await routesPanel();
+    await waitFor(() => expect(within(panel).getByText(/jump-01/)).toBeInTheDocument());
     expect(screen.queryByText("mi-jump-01 can act over sub-1")).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByText(/jump-01/));
+    await userEvent.click(within(panel).getByText(/jump-01/));
 
     // Every hop is a row to read; the one being read says what it is in full.
     const hops = await screen.findByRole("list", { name: "Hops" });
@@ -377,7 +387,7 @@ describe("AttackPathsPage", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Runs as an identity that holds no role over anything CloudGuard scanned.",
+        "Runs as an identity that holds no role over anything Cleave scanned.",
       ),
     ).toBeInTheDocument();
     expect(

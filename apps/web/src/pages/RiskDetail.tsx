@@ -6,7 +6,6 @@ import { api, ApiError } from "@/lib/api";
 import type { RiskDetail } from "@/lib/types";
 import { useT } from "@/i18n";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
-import { ScoreTile } from "@/components/security/ScoreTile";
 import { StatusPill } from "@/components/security/StatusPill";
 import { AttackPathRoute } from "@/components/graph/AttackPathRoute";
 import { OpenInGraph } from "@/components/graph/OpenInGraph";
@@ -72,7 +71,7 @@ export function RiskDetailPage() {
           detail={
             missing
               ? t.risks.notFoundDetail
-              : "CloudGuard could not reach its own API."
+              : "Cleave could not reach its own API."
           }
           impact={
             missing
@@ -108,7 +107,7 @@ export function RiskDetailPage() {
   const capped = (breakdown.uncapped ?? 0) > 100;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <Breadcrumbs
         trail={[
           { label: t.risks.title, to: "/risks" },
@@ -117,7 +116,7 @@ export function RiskDetailPage() {
       />
 
       <div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <SeverityBadge level={data.risk_level} />
           <StatusPill status={data.status} />
           {data.accepted_until && (
@@ -128,7 +127,10 @@ export function RiskDetailPage() {
           {/* Says which formula scored this, so the arithmetic below is read
               against the right one. */}
           {scenario && (
-            <Badge variant="outline">
+            <Badge
+              variant="outline"
+              className="rounded-md bg-muted font-normal text-muted-foreground"
+            >
               {data.kind === "ESCALATION"
                 ? t.risks.escalationBadge
                 : t.risks.scenarioBadge}
@@ -137,10 +139,10 @@ export function RiskDetailPage() {
         </div>
         <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            <h1 className="text-2xl font-semibold tracking-[-0.02em] text-foreground">
               {data.title}
             </h1>
-            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+            <p className="mt-1.5 max-w-[78ch] text-[13.5px] leading-relaxed text-muted-foreground">
               {data.description}
             </p>
             {/* The one place a risk -- and so a finding -- is decided about
@@ -152,19 +154,31 @@ export function RiskDetailPage() {
               </div>
             )}
           </div>
-          <div className="flex shrink-0 flex-col items-center gap-1.5">
-            <ScoreTile
-              score={Number(data.risk_score)}
-              level={data.risk_level}
-              className="size-16 [&>span]:text-2xl"
-            />
-            <p className="text-xs text-muted-foreground">risk score</p>
+          {/* The figure itself, in its level's colour -- "?" for a score
+              over evidence that could not be read, never a number to rank. */}
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <span
+              className={cn(
+                "text-[36px] leading-none font-semibold tabular-nums",
+                LEVEL_TEXT[data.risk_level] ?? "text-unknown",
+              )}
+              aria-label={
+                data.risk_level === "UNKNOWN"
+                  ? "Risk score: no verdict"
+                  : `Risk score ${Math.round(Number(data.risk_score))}, ${data.risk_level.toLowerCase()}`
+              }
+            >
+              {data.risk_level === "UNKNOWN" ? "?" : Math.round(Number(data.risk_score))}
+            </span>
+            <span className="text-[11.5px] text-muted-foreground" aria-hidden>
+              risk score
+            </span>
           </div>
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="flex flex-col gap-6 lg:col-span-2">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="flex min-w-0 flex-col gap-4">
           {scenario && data.path.length > 0 && (
             <Card>
               <CardHeader>
@@ -234,13 +248,13 @@ export function RiskDetailPage() {
                       <div className="flex flex-wrap items-center gap-2">
                         <SeverityBadge level={finding.severity} size="sm" />
                         <StatusPill status={finding.status} />
-                        <code className="text-[11px] text-muted-foreground">
+                        <code className="font-mono text-[11px] text-muted-foreground">
                           {finding.rule_id}
                         </code>
                       </div>
                       <Link
                         to={`/findings/${finding.id}`}
-                        className="mt-1 block text-sm font-medium text-foreground underline-offset-4 hover:underline"
+                        className="mt-1 block text-[13.5px] font-medium text-foreground underline-offset-4 hover:underline"
                       >
                         {finding.title}
                       </Link>
@@ -252,7 +266,7 @@ export function RiskDetailPage() {
           </Card>
         </div>
 
-        <div className="flex flex-col gap-6">
+        <div className="flex min-w-0 flex-col gap-4">
           <Card>
             <CardHeader>
               <CardTitle>{t.risks.theArithmetic}</CardTitle>
@@ -342,11 +356,36 @@ export function RiskDetailPage() {
               </CardContent>
             </Card>
           )}
+
+          {/* What a decision here does and does not do, where the decision is
+              made: accepting records a person's call, and only a scan closes
+              anything (DECISIONS.md §107). */}
+          <Card className="bg-muted/40">
+            <CardHeader>
+              <CardTitle>Nothing resolves without proof</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-[13px] leading-relaxed text-muted-foreground">
+                Accepting a risk records a decision and a date. It does not
+                close the findings underneath it, and a route stays drawn until
+                a scan stops tracing it.
+              </p>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
   );
 }
+
+/** A score's figure in its level's colour. */
+const LEVEL_TEXT: Record<string, string> = {
+  CRITICAL: "text-critical",
+  HIGH: "text-high",
+  MEDIUM: "text-medium",
+  LOW: "text-low",
+  UNKNOWN: "text-unknown",
+};
 
 function BackLink({ label }: { label: string }) {
   return (

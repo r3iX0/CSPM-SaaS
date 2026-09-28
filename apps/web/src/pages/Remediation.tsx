@@ -24,7 +24,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatStrip } from "@/components/common/StatStrip";
 import { useIsDemo } from "@/lib/useDemo";
 import { Spinner } from "@/components/ui/spinner";
-import { cn, formatDate, formatEffort, resourceTypeLabel } from "@/lib/format";
+import { cn, formatDay, formatEffort, resourceTypeLabel } from "@/lib/format";
 
 /**
  * The work queue.
@@ -85,7 +85,7 @@ export function RemediationPage() {
       toast.success("Marked done", {
         description:
           task.note ??
-          "CloudGuard will check the environment and close the finding once the change appears.",
+          "Cleave will check the environment and close the finding once the change appears.",
       });
     },
     onError: (err) =>
@@ -98,7 +98,6 @@ export function RemediationPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        icon={WrenchIcon}
         title={t.remediation.title}
         description={t.remediation.description}
       />
@@ -108,7 +107,7 @@ export function RemediationPage() {
       {error && (
         <ErrorState
           title="Could not load the remediation queue"
-          detail="CloudGuard could not reach its own API."
+          detail="Cleave could not reach its own API."
           impact="Nothing about your environment has changed — this is a problem displaying it."
           onRetry={() => refetch()}
         />
@@ -134,23 +133,24 @@ export function RemediationPage() {
 
       {/* One queue, one container. Divided rows read as a list to work down;
           a stack of separate cards read as a pile of separate problems. */}
-      <div
-        className={
-          data && data.length > 0
-            ? "divide-y divide-border overflow-hidden rounded-xl border border-border bg-card"
-            : undefined
-        }
-      >
-        {data?.map((task) => (
-          <TaskCard
-            key={task.id}
-            task={task}
-            finding={findings.find((q) => q.data?.id === task.finding_id)?.data}
-            marking={update.isPending && update.variables?.id === task.id}
-            onDone={() => update.mutate({ id: task.id, status: "DONE" })}
-          />
-        ))}
-      </div>
+      {data && data.length > 0 && (
+        <div className="divide-y divide-border overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
+          {data.map((task) => (
+            <TaskCard
+              key={task.id}
+              task={task}
+              finding={findings.find((q) => q.data?.id === task.finding_id)?.data}
+              marking={update.isPending && update.variables?.id === task.id}
+              onDone={() => update.mutate({ id: task.id, status: "DONE" })}
+            />
+          ))}
+          {/* Said where the button is, every time: the one thing a reader
+              might assume about "done" is the one thing it does not do. */}
+          <p className="bg-muted/60 px-5 py-3 text-xs leading-relaxed text-muted-foreground">
+            {t.remediation.doneNote}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -180,7 +180,12 @@ function TaskCard({
   const overdue = !done && task.due_date !== null && new Date(task.due_date) < new Date();
 
   return (
-    <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3.5 transition-colors hover:bg-muted/30 sm:px-5">
+    <div
+      className={cn(
+        "flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-3 transition-colors hover:bg-muted/60",
+        done && "opacity-70",
+      )}
+    >
       <div className="flex min-w-0 flex-1 items-center gap-3">
         {/* A fixed column, so titles line up whatever the badge says. */}
         <span className="w-[4.5rem] shrink-0">
@@ -191,7 +196,7 @@ function TaskCard({
             <Link
               to={`/findings/${task.finding_id}`}
               className={cn(
-                "block truncate text-sm font-medium hover:underline",
+                "block truncate text-[13.5px] font-medium hover:underline",
                 done ? "text-muted-foreground line-through decoration-muted-foreground/50" : "text-foreground",
               )}
             >
@@ -202,7 +207,7 @@ function TaskCard({
             // does not reflow under the reader's cursor.
             <Skeleton className="h-4 w-72 max-w-full" />
           )}
-          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+          <p className="mt-0.5 truncate text-[11.5px] text-muted-foreground">
             {finding?.resource
               ? `${finding.resource.name} · ${resourceTypeLabel(finding.resource.resource_type)}`
               : finding
@@ -224,14 +229,26 @@ function TaskCard({
       </div>
 
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
-        <StatusPill status={task.status} />
+        {/* Only a state a person put it in is a pill here; to do is the
+            queue itself. Done is work claimed, and says what it waits on:
+            the finding closes when a scan sees the fix, or not at all. */}
+        {task.status === "IN_PROGRESS" && <StatusPill status={task.status} />}
+        {done &&
+          (finding?.status === "RESOLVED" ? (
+            <StatusPill status="RESOLVED" />
+          ) : (
+            <span className="inline-flex rounded-full border border-border bg-muted px-2 py-px text-[11px] font-medium">
+              {t.remediation.waitingOnScan}
+            </span>
+          ))}
         <span className="w-14 tabular-nums">{formatEffort(task.estimated_effort_minutes)}</span>
-        {task.due_date && (
-          <span className={cn("w-28 tabular-nums", overdue && "font-medium text-critical")}>
-            {overdue ? "Overdue · " : "Due "}
-            {formatDate(task.due_date)}
-          </span>
-        )}
+        <span className={cn("w-[130px] tabular-nums", overdue && "font-medium text-critical")}>
+          {done && task.completed_at
+            ? t.remediation.doneOn(formatDay(task.completed_at))
+            : task.due_date
+              ? `${overdue ? "Overdue · " : "Due "}${formatDay(task.due_date)}`
+              : null}
+        </span>
         <span className="flex w-24 justify-end">
           {!done && !isDemo && (
             <Button variant="outline" size="sm" disabled={marking} onClick={onDone}>

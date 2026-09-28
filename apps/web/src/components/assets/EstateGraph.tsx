@@ -151,7 +151,7 @@ export function EstateGraph({ scopeId, group }: { scopeId: string; group: string
       return (
         <ErrorState
           title="Could not draw your estate"
-          detail="CloudGuard could not reach its own API to read the map."
+          detail="Cleave could not reach its own API to read the map."
           impact="Nothing about your environment has changed — this is a problem displaying it."
           onRetry={() => refetch()}
         />
@@ -161,7 +161,7 @@ export function EstateGraph({ scopeId, group }: { scopeId: string; group: string
       <Card>
         <CardContent className="flex flex-col items-start gap-3">
           <p className="text-sm">
-            CloudGuard holds nothing in that {opened ? "resource group" : "scope"}. It may
+            Cleave holds nothing in that {opened ? "resource group" : "scope"}. It may
             have been removed since the link was made, or not have been in the most recent scan.
           </p>
           <Button variant="outline" size="sm" onClick={() => open({ scope: null, group: null })}>

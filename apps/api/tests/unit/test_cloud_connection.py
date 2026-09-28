@@ -301,7 +301,7 @@ def test_consent_url_is_regenerated_not_stored(monkeypatch) -> None:
     """
     from app.connectors.azure import auth
     from app.core.config import Settings
-    from app.services.cloud_connections import grant_start_url
+    from app.services.cloud_connections import issue_consent_url
 
     monkeypatch.setattr(
         auth,
@@ -315,7 +315,7 @@ def test_consent_url_is_regenerated_not_stored(monkeypatch) -> None:
             azure_consent_state_secret="a-real-random-32-character-string-here",
         ),
     )
-    url, problem = grant_start_url(connection())
+    url, problem = issue_consent_url(connection())
     assert problem is None
     assert url is not None and url.startswith("https://login.microsoftonline.com/")
 
@@ -324,7 +324,7 @@ def test_a_misconfigured_deployment_returns_the_reason(monkeypatch) -> None:
     """Not None-and-silence: without the reason the card renders empty."""
     from app.connectors.azure import auth
     from app.core.config import Settings
-    from app.services.cloud_connections import grant_start_url
+    from app.services.cloud_connections import issue_consent_url
 
     monkeypatch.setattr(
         auth,
@@ -339,7 +339,7 @@ def test_a_misconfigured_deployment_returns_the_reason(monkeypatch) -> None:
             azure_consent_state_secret="a-real-random-32-character-string-here",
         ),
     )
-    url, problem = grant_start_url(connection())
+    url, problem = issue_consent_url(connection())
     assert url is None
     assert problem is not None and "Secret ID" in problem
 

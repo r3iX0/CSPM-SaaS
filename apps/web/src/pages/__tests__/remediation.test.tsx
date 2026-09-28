@@ -113,4 +113,15 @@ describe("the remediation queue", () => {
     await screen.findByText(/prodstorage/);
     expect(screen.queryByText(/on \d+ attack path/)).toBeNull();
   });
+
+  it("says work marked done waits on a scan, and never that the finding closed", async () => {
+    tasks = [{ ...TASK, status: "DONE", completed_at: "2026-09-21T10:00:00Z" }];
+    renderPage();
+
+    expect(await screen.findByText("Waiting on a scan")).toBeInTheDocument();
+    expect(screen.queryByText("Verified fixed")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Mark done/ })).not.toBeInTheDocument();
+    expect(screen.getByText(/Marked done does not close a finding/)).toBeInTheDocument();
+  });
 });
+

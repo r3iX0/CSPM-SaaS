@@ -112,6 +112,13 @@ class ValidationFailed(AppError):
     status_code_default = status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
+class PayloadTooLarge(AppError):
+    """Request body is too large"""
+
+    code = "PAYLOAD_TOO_LARGE"
+    status_code_default = status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+
+
 class ConflictError(AppError):
     """Conflicting state"""
 

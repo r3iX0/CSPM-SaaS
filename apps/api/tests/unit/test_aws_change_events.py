@@ -58,7 +58,11 @@ def test_only_an_sns_host_is_worth_fetching() -> None:
         "https://sns.eu-west-1.amazonaws.com.evil.test/",
         "https://evil.test/sns.eu-west-1.amazonaws.com",
         "https://sns.eu-west-1.amazonaws.com@evil.test/",
+        "https://user:pass@sns.eu-west-1.amazonaws.com/",
+        "https://sns.eu-west-1.amazonaws.com:8080/",
+        "https://SNS.eu-west-1.amazonaws.com@evil.test:443/",
         "http://sns.eu-west-1.amazonaws.com/",
+        "//sns.eu-west-1.amazonaws.com/",
         "",
     ],
 )
@@ -66,9 +70,20 @@ def test_anything_else_is_refused_rather_than_fetched(url: str) -> None:
     """Each of these is a way a host check gets written wrongly.
 
     A suffix test passes the third, a substring test passes the fourth, and
-    userinfo before the host passes anything that splits on the wrong character.
+    userinfo before the host passes anything that splits on the wrong
+    character. The credentialed forms are the reason this is parsed rather than
+    cut up: each one reads as an AWS host to a string split and names a
+    different host to anything that actually resolves it. A port is refused for
+    its own reason -- AWS answers SNS on 443, and a named port is a service
+    somebody else chose.
     """
     assert feed.confirmation_url(confirmation(url)) is None
+
+
+def test_the_host_is_matched_whatever_case_it_arrives_in() -> None:
+    """DNS is case-insensitive, and so is the pattern; the parser lowercases."""
+    url = "https://SNS.eu-west-1.AMAZONAWS.com/?Action=ConfirmSubscription"
+    assert feed.confirmation_url(confirmation(url)) == url
 
 
 def test_the_china_partition_is_a_customer_too() -> None:

@@ -89,8 +89,13 @@ When a later scan runs the same rule against the same resource and returns PASS 
 
 ## 5. The Rule Set
 
+> 📖 **Full Rule Reference**: For the complete, auto-generated catalog of all 98 registered rules (52 Azure + 46 AWS), including severity, exploitability, compliance mappings, and remediation commands, see [`docs/RULE_CATALOG.md`](RULE_CATALOG.md).
+> Generator script: [`apps/api/scripts/generate_rule_catalog.py`](../apps/api/scripts/generate_rule_catalog.py).
+
+Below is the initial baseline rule set:
+
 | Rule | Category | Severity | Exploitability |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | AZ-ID-001 — MFA missing for privileged user | Identity | CRITICAL | 4 |
 | AZ-ID-002 — Excessive privileged users (AGGREGATE) | Identity | HIGH | 3 |
 | AZ-ID-003 — Privileged account is dormant | Identity | HIGH | 3 |
@@ -218,7 +223,7 @@ Exploitability (0–5) is a proposed starting value for each rule — tune after
 What the attacker must **already have**:
 
 | | Needs |
-|---|---|
+| --- | --- |
 | 5 | nothing — anonymous, from the internet, today |
 | 4 | a credential of the kind routinely phished or sprayed, or a guessable identifier |
 | 3 | a valid credential, or an existing foothold in the environment |
@@ -231,7 +236,7 @@ What the attacker must **already have**:
 **A ceiling, not a constant.** The class value describes the *worst* instance of the misconfiguration. Where the evidence shows one instance is less exploitable, `evaluate` returns a lower value on that `RuleResult` and the risk formula uses it:
 
 | Rule | Steps down when | To |
-|---|---|---|
+| --- | --- | --- |
 | AZ-NET-001/002/003 | the NSG protects nothing — nobody can reach a machine it does not guard | 1 |
 | AZ-STO-001 | the account is open to every network but anonymous blob access is off, so a key or SAS is still needed | 3 |
 | AZ-DB-001 | the only over-broad firewall rule is Azure's `0.0.0.0-0.0.0.0` shortcut: every Azure tenant, not the open internet | 3 |
@@ -251,7 +256,7 @@ Three rules, in `app/rules/controls.py`:
 Implemented for AZ-ID-001, from evidence read under `Policy.Read.All` and `Group.Read.All` — both already consented, so no customer grants anything new:
 
 | Control | Applies when | Leaves |
-|---|---|---|
+| --- | --- | --- |
 | Entra security defaults | `isEnabled` is true — every account is challenged | 3 |
 | A Conditional Access policy | enabled (not report-only), grants MFA unambiguously, covers **all** applications, covers this account by `All`, by user id or by a directory role, and does not exclude it | 3 |
 

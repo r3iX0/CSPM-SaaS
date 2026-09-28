@@ -77,7 +77,7 @@ export function AssetAccessPanel({
     return (
       <ErrorState
         title={t.access.failed}
-        detail="CloudGuard could not reach its own API to read the graph."
+        detail="Cleave could not reach its own API to read the graph."
         impact="Nothing about your environment has changed — this is a problem displaying it."
         onRetry={() => refetch()}
       />

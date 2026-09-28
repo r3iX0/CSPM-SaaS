@@ -71,7 +71,7 @@ function renderPalette() {
 }
 
 function open() {
-  fireEvent.click(screen.getByRole("button", { name: "Search CloudGuard" }));
+  fireEvent.click(screen.getByRole("button", { name: "Search Cleave" }));
 }
 
 async function type(value: string) {

@@ -338,7 +338,7 @@ export function AssetNeighborhood({
         {asked && error && !(error instanceof ApiError && error.status === 404) && (
           <ErrorState
             title="Could not draw the graph"
-            detail="CloudGuard could not reach its own API to read the graph."
+            detail="Cleave could not reach its own API to read the graph."
             impact="Nothing about your environment has changed — this is a problem displaying it."
             onRetry={() => refetch()}
           />
@@ -346,7 +346,7 @@ export function AssetNeighborhood({
 
         {alone && (
           <p className="text-sm text-muted-foreground">
-            Nothing reaches {centreName}, and it reaches nothing else CloudGuard has seen.
+            Nothing reaches {centreName}, and it reaches nothing else Cleave has seen.
           </p>
         )}
 
@@ -800,7 +800,7 @@ function WhatIfCut({
       <div aria-live="polite" className="text-sm">
         {state === "error" && (
           <p className="text-muted-foreground">
-            CloudGuard could not check this cut. The graph may have changed since it was drawn.
+            Cleave could not check this cut. The graph may have changed since it was drawn.
           </p>
         )}
         {state !== "error" && !current && (

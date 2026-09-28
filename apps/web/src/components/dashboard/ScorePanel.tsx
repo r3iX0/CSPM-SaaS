@@ -1,137 +1,125 @@
-import { Suspense, lazy } from "react";
+import type { ReactNode } from "react";
 
 import type { PostureReading } from "@/lib/types";
 import { ScoreDelta } from "@/components/ScoreDelta";
+import { Sparkline } from "@/components/charts/Sparkline";
 import { useCountUp } from "@/lib/motion";
-import { Skeleton } from "@/components/ui/skeleton";
-import { cn, formatDateTime } from "@/lib/format";
-
-/**
- * The chart, fetched after the panel it sits in.
- *
- * Recharts is by a wide margin the largest thing this app ships and it draws
- * one line on one screen. Loaded inline it made the score — the part somebody
- * came for — wait on a library that only decorates it.
- */
-const ScoreTrend = lazy(() =>
-  import("@/components/ScoreTrend").then((m) => ({ default: m.ScoreTrend })),
-);
+import { cn } from "@/lib/format";
 
 /** What a score *means*, so the number is not left to speak for itself. */
-function band(score: number): { label: string; tone: string; bar: string } {
-  if (score >= 85) return { label: "Good", tone: "text-ok", bar: "bg-ok" };
+function band(score: number): { label: string; tone: string; color: string } {
+  if (score >= 85) return { label: "Good", tone: "text-ok", color: "var(--sev-ok)" };
   if (score >= 60)
-    return { label: "Needs attention", tone: "text-medium", bar: "bg-medium" };
-  if (score >= 40) return { label: "Poor", tone: "text-high", bar: "bg-high" };
-  return { label: "Critical", tone: "text-critical", bar: "bg-critical" };
+    return { label: "Needs attention", tone: "text-medium", color: "var(--sev-medium)" };
+  if (score >= 40) return { label: "Poor", tone: "text-high", color: "var(--sev-high)" };
+  return { label: "Critical", tone: "text-critical", color: "var(--sev-critical)" };
 }
 
 /**
- * The dashboard's anchor: where the posture stands, and which way it is going.
+ * The dashboard's anchor: where the posture stands, and what that means today.
  *
- * One panel rather than two cards, because they are one thought — a score
+ * One panel rather than two cards, because they are one thought -- a score
  * without its direction is a number somebody has to remember last week's value
- * to use. The score keeps the visual weight and the trend sits beside it as
- * context, which is the ranking a reader actually needs: *what* first, *since
- * when* second.
+ * to use.
  *
- * The meter is a bar, not a gauge. A radial gauge spends a 150px square to
- * encode one fraction and reads as a speedometer; a bar encodes the same
- * fraction in a fifth of the space and leaves the digits as the loudest thing
- * on the page, which is what they should be.
+ * The score is a ring filled to the number in its band's colour, with the rest
+ * of the circle left muted (the Cleave redesign). The ring is decoration around
+ * the digits, which stay the loudest thing on the page; the proportion is also
+ * a `meter`, so it is not a picture only.
+ *
+ * The trend is a sparkline in the same colour, washed underneath. It has no
+ * axes and no hover -- the exact figures are the score and the delta beside it
+ * -- and it is only drawn once there are two readings to draw between: a line
+ * through one point would claim a direction nobody measured.
  */
 export function ScorePanel({
   score,
   delta,
   history,
-  scannedAt,
+  summary,
 }: {
   score: number;
   delta: number | null;
   history: PostureReading[];
-  scannedAt: string | null;
+  /** "What that means today", in a sentence the page composes from its data. */
+  summary?: ReactNode;
 }) {
   const clamped = Math.max(0, Math.min(100, Math.round(score)));
-  const { label, tone, bar } = band(clamped);
-  // Counts to the score on mount and whenever it actually changes — never on a
+  const { label, tone, color } = band(clamped);
+  // Counts to the score on mount and whenever it actually changes -- never on a
   // refetch that returned the same number, which would make a page nobody
   // touched twitch every twenty seconds.
   const shown = Math.round(useCountUp(clamped));
+  const series = history.map((reading) => reading.security_score);
 
   return (
     <section
       aria-labelledby="posture-score"
-      className="grid gap-px overflow-hidden rounded-xl bg-border ring-1 ring-foreground/10 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]"
+      className="grid gap-px overflow-hidden rounded-xl bg-border ring-1 ring-foreground/10 lg:grid-cols-[320px_minmax(0,1fr)]"
     >
-      <div className="flex flex-col justify-between gap-5 bg-card p-5">
-        <div>
-          {/* How the number is made is the heading's description rather than
-              a paragraph under the bar: it is read once, and after that it
-              is the same sentence on every visit. */}
-          <h2
-            id="posture-score"
-            className="text-xs font-medium text-muted-foreground"
-            title="Deducted against each finding's risk band — what it means on the asset it was found on — not the number of alerts raised."
-          >
-            Security score
-          </h2>
+      <div className="flex flex-col items-center gap-3 bg-card px-5 py-5 text-center">
+        <h2
+          id="posture-score"
+          className="self-start text-[13.5px] font-semibold"
+          title="Deducted against each finding's risk band — what it means on the asset it was found on — not the number of alerts raised."
+        >
+          Security score
+        </h2>
 
-          <div className="mt-3 flex items-baseline gap-2">
-            <span
-              className={cn(
-                "text-6xl font-semibold leading-none tracking-tight tabular-nums",
-                tone,
-              )}
-            >
+        <div
+          className="relative size-32 shrink-0 rounded-full"
+          style={{
+            background: `conic-gradient(${color} ${clamped * 3.6}deg, var(--muted) 0)`,
+          }}
+          role="meter"
+          aria-valuenow={clamped}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Security score"
+          aria-valuetext={`${clamped} of 100, ${label.toLowerCase()}`}
+        >
+          <div className="absolute inset-3 flex flex-col items-center justify-center rounded-full bg-card">
+            <span className={cn("text-[32px] leading-none font-semibold tabular-nums", tone)}>
               {shown}
             </span>
-            <span className="text-xl text-muted-foreground">/ 100</span>
+            <span className="mt-1 text-[11px] text-muted-foreground">/ 100</span>
           </div>
-
-          <p className={cn("mt-2 text-sm font-medium", tone)}>{label}</p>
         </div>
 
-        <div className="flex flex-col gap-3">
-          <div
-            className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
-            role="meter"
-            aria-valuenow={clamped}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-label="Security score"
-          >
-            <div
-              className={cn(
-                "h-full rounded-full transition-[width] duration-700 ease-out",
-                bar,
-              )}
-              style={{ width: `${clamped}%` }}
-            />
-          </div>
-
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-            <ScoreDelta delta={delta} />
-            {scannedAt && (
-              <>
-                <span aria-hidden>·</span>
-                <span>assessed {formatDateTime(scannedAt)}</span>
-              </>
-            )}
-          </div>
-
-
-        </div>
+        <p className={cn("text-[13px] font-medium", tone)}>{label}</p>
+        <ScoreDelta delta={delta} />
+        <p className="text-[11.5px] text-muted-foreground">Scored by risk band, not alert count</p>
       </div>
 
-      <div className="flex flex-col gap-3 bg-card p-5">
-        <h3 className="text-xs font-medium text-muted-foreground">
-          Posture trend
-        </h3>
-        {/* Sized to the chart it replaces, so nothing moves under the reader
-            when the line arrives. */}
-        <Suspense fallback={<Skeleton className="h-40 w-full" />}>
-          <ScoreTrend history={history} />
-        </Suspense>
+      <div className="flex min-w-0 flex-col gap-3 bg-card px-5 py-5">
+        <div className="flex items-baseline justify-between gap-3">
+          <h3 className="text-[13.5px] font-semibold">What that means today</h3>
+          {/* The history is the last readings by count, one per scan, not a
+              window of days: several scans a day cover hours, weekly ones
+              months. So the span is said in scans. */}
+          {series.length >= 2 && (
+            <span className="text-[11.5px] tabular-nums text-muted-foreground">
+              Last {series.length} scans
+            </span>
+          )}
+        </div>
+        {summary && <p className="max-w-[70ch] text-[13.5px] leading-relaxed">{summary}</p>}
+
+        <div className="mt-auto">
+          {series.length >= 2 ? (
+            <Sparkline
+              values={series}
+              label="Security score"
+              tone={color}
+              fill
+              className="h-16 w-full"
+            />
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              One scan so far. The trend starts at the next one.
+            </p>
+          )}
+        </div>
       </div>
     </section>
   );

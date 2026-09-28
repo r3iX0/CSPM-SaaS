@@ -9,7 +9,7 @@ import {
 } from "@/lib/supabase";
 import { useAuthToken } from "@/lib/useAuth";
 import { useT } from "@/i18n";
-import { ShieldMark } from "@/components/Brand";
+import { Wordmark } from "@/components/Brand";
 import { ScoreTile } from "@/components/security/ScoreTile";
 
 /**
@@ -118,11 +118,10 @@ export function SignInPage() {
       <BrandPanel />
 
       <main className="flex flex-1 items-center justify-center px-6 py-12">
-        <div className="w-full max-w-sm">
+        <div className="w-full max-w-[360px]">
           {/* The mark repeats on mobile, where the left panel is hidden. */}
           <div className="mb-10 flex items-center gap-2.5 lg:hidden">
-            <ShieldMark className="h-7 w-7 text-foreground" />
-            <span className="text-base font-semibold tracking-tight">{t.app.name}</span>
+            <Wordmark />
           </div>
 
           {sent ? (
@@ -135,14 +134,14 @@ export function SignInPage() {
             />
           ) : (
             <>
-              <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+              <h1 className="text-2xl font-semibold tracking-[-0.02em] text-foreground">
                 {mode === "signup"
                   ? t.auth.signUp
                   : mode === "reset"
                     ? t.auth.resetTitle
                     : t.auth.signIn}
               </h1>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              <p className="mt-2 text-[13px] leading-[1.65] text-muted-foreground">
                 {mode === "signup"
                   ? "Start with your work email. You can connect Azure once you're in."
                   : mode === "reset"
@@ -161,8 +160,8 @@ export function SignInPage() {
                 </>
               )}
 
-              <form onSubmit={submit} className={mode === "reset" ? "mt-8" : "mt-6"}>
-                <label htmlFor="email" className="block text-sm font-medium text-foreground">
+              <form onSubmit={submit} className={mode === "reset" ? "mt-7" : "mt-[22px]"}>
+                <label htmlFor="email" className="block text-[13px] font-medium text-foreground">
                   {t.auth.email}
                 </label>
                 <input
@@ -193,7 +192,7 @@ export function SignInPage() {
                         <button
                           type="button"
                           onClick={() => switchTo("reset")}
-                          className="text-xs font-medium text-muted-foreground underline underline-offset-2 transition hover:text-foreground"
+                          className="text-[11.5px] text-muted-foreground underline underline-offset-[3px] transition hover:text-foreground"
                         >
                           {t.auth.forgotPassword}
                         </button>
@@ -214,7 +213,7 @@ export function SignInPage() {
                 <button
                   type="submit"
                   disabled={busy}
-                  className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring/50 focus:ring-offset-2 focus:ring-offset-background disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
+                  className="mt-[22px] flex h-[42px] w-full items-center justify-center gap-2 rounded-[9px] bg-primary px-4 text-[13.5px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
                 >
                   {busy && (
                     <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current/30 border-t-current" />
@@ -229,7 +228,7 @@ export function SignInPage() {
                   none: there is no password typed here yet and no Microsoft
                   button on screen to qualify. */}
               {mode !== "reset" && (
-                <p className="mt-8 border-t border-border pt-6 text-xs leading-relaxed text-muted-foreground">
+                <p className="mt-[26px] border-t border-border pt-5 text-[11.5px] leading-[1.7] text-muted-foreground">
                   {needsPassword ? t.auth.passwordNotice : t.auth.microsoftHint}
                 </p>
               )}
@@ -242,7 +241,7 @@ export function SignInPage() {
 }
 
 const FIELD_CLASS =
-  "mt-2 w-full rounded-lg border border-input bg-background px-3.5 py-2.5 text-sm text-foreground shadow-sm transition placeholder:text-muted-foreground hover:border-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/20";
+  "mt-2 h-10 w-full rounded-[9px] border border-input bg-background px-[13px] text-[13.5px] text-foreground transition-colors placeholder:text-muted-foreground hover:border-ring focus-visible:border-ring focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
 
 function submitLabel(mode: Mode, busy: boolean, t: ReturnType<typeof useT>): string {
   if (busy) {
@@ -290,9 +289,9 @@ function authErrorMessage(err: unknown): string {
 
 function Divider({ label }: { label: string }) {
   return (
-    <div className="mt-6 flex items-center gap-3" aria-hidden="true">
+    <div className="mt-[22px] flex items-center gap-3" aria-hidden="true">
       <span className="h-px flex-1 bg-border" />
-      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="text-[11.5px] text-muted-foreground">{label}</span>
       <span className="h-px flex-1 bg-border" />
     </div>
   );
@@ -312,7 +311,7 @@ function MicrosoftButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="mt-8 flex w-full items-center justify-center gap-2.5 rounded-lg border border-input bg-background px-4 py-2.5 text-sm font-medium text-foreground shadow-sm transition hover:border-ring hover:bg-muted/40 focus:outline-none focus:ring-2 focus:ring-ring/20 disabled:cursor-not-allowed disabled:text-muted-foreground"
+      className="mt-7 flex h-[42px] w-full items-center justify-center gap-2.5 rounded-[9px] border border-border bg-card px-4 text-[13.5px] font-medium text-foreground transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:text-muted-foreground"
     >
       <MicrosoftMark />
       {label}
@@ -323,7 +322,7 @@ function MicrosoftButton({
 /** Microsoft's four-square mark, at its published brand colors. */
 function MicrosoftMark() {
   return (
-    <svg viewBox="0 0 16 16" className="h-4 w-4 shrink-0" aria-hidden="true">
+    <svg viewBox="0 0 16 16" className="size-[15px] shrink-0" aria-hidden="true">
       <path fill="#f25022" d="M0 0h7.6v7.6H0z" />
       <path fill="#7fba00" d="M8.4 0H16v7.6H8.4z" />
       <path fill="#00a4ef" d="M0 8.4h7.6V16H0z" />
@@ -355,7 +354,7 @@ function PasswordField({
   return (
     <div className="mt-4">
       <div className="flex items-baseline justify-between gap-3">
-        <label htmlFor={id} className="block text-sm font-medium text-foreground">
+        <label htmlFor={id} className="block text-[13px] font-medium text-foreground">
           {label}
         </label>
         {trailing}
@@ -403,14 +402,14 @@ function AlternateRoutes({ mode, onSwitch }: { mode: Mode; onSwitch: (mode: Mode
 
   if (mode === "reset") {
     return (
-      <div className="mt-6 text-center">
+      <div className="mt-[22px] text-center text-[13px]">
         <TextLink onClick={() => onSwitch("signin")}>{t.auth.backToSignIn}</TextLink>
       </div>
     );
   }
 
   return (
-    <div className="mt-6 space-y-3 text-center text-sm">
+    <div className="mt-[22px] space-y-3 text-center text-[13px]">
       <p>
         <TextLink onClick={() => onSwitch(mode === "magic" ? "signin" : "magic")}>
           {mode === "magic" ? t.auth.passwordInstead : t.auth.magicLinkInstead}
@@ -431,7 +430,7 @@ function TextLink({ onClick, children }: { onClick: () => void; children: React.
     <button
       type="button"
       onClick={onClick}
-      className="font-medium text-muted-foreground underline underline-offset-4 transition hover:text-foreground"
+      className="text-muted-foreground underline underline-offset-[3px] transition-colors hover:text-foreground"
     >
       {children}
     </button>
@@ -439,55 +438,32 @@ function TextLink({ onClick, children }: { onClick: () => void; children: React.
 }
 
 function BrandPanel() {
-  const t = useT();
   return (
-    // `dark` scopes the dark theme's tokens to this panel, so it is drawn from
-    // the same background, border and severity values as the product in dark
-    // mode -- in both themes -- rather than from a palette of its own.
-    <aside className="dark relative hidden w-[48%] max-w-2xl flex-col justify-between overflow-hidden border-r border-border bg-background p-12 text-foreground lg:flex">
-      {/* A faint grid fading out from the top, and one soft wash of light. The
-          texture says "instrument" without imagery that would date. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 opacity-[0.35] [mask-image:radial-gradient(ellipse_at_30%_20%,black,transparent_70%)]"
-        style={{
-          backgroundImage:
-            "linear-gradient(to right, var(--border) 1px, transparent 1px), linear-gradient(to bottom, var(--border) 1px, transparent 1px)",
-          backgroundSize: "44px 44px",
-        }}
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -top-40 -left-40 size-[36rem] rounded-full bg-foreground/[0.06] blur-3xl"
-      />
+    // A muted wash of the page's own background, in either theme: the panel
+    // belongs to the product rather than standing in front of it.
+    <aside className="hidden w-[46%] max-w-[660px] shrink-0 flex-col justify-between border-r border-border bg-[color-mix(in_oklab,var(--muted)_45%,var(--background))] p-12 text-foreground lg:flex">
+      <Wordmark className="gap-2.5" markClassName="size-[22px]" labelClassName="text-[17px]" />
 
-      <div className="relative flex items-center gap-2.5">
-        <ShieldMark className="h-8 w-8 text-foreground" />
-        <span className="text-base font-semibold tracking-tight">{t.app.name}</span>
-      </div>
-
-      <div className="relative">
-        <h2 className="max-w-md text-4xl leading-[1.1] font-semibold tracking-tight">
-          Know what's exposed.
-          <br />
-          <span className="text-muted-foreground">Fix what matters.</span>
+      <div>
+        <h2 className="max-w-[15ch] text-4xl leading-[1.12] font-semibold tracking-[-0.03em]">
+          Cut the one link that matters.
         </h2>
-        <p className="mt-5 max-w-md text-sm leading-relaxed text-muted-foreground">
-          CloudGuard reads your Azure environment, ranks what it finds by real
-          business risk, and confirms your fixes actually worked.
+        <p className="mt-[18px] max-w-[46ch] text-sm leading-[1.7] text-muted-foreground">
+          Cleave reads your Azure environment, ranks what it finds by what it
+          would cost this business, and proves the fix worked on the next scan.
         </p>
 
         <ProductPreview />
 
-        <ul className="mt-10 space-y-3.5">
-          <Assurance>Read-only access. CloudGuard never changes your resources.</Assurance>
+        <ul className="mt-7 flex flex-col gap-3">
+          <Assurance>Read-only. Cleave never changes your resources.</Assurance>
           <Assurance>No Azure credential to hand over — consent, not secrets.</Assurance>
           <Assurance>Your data is isolated at the database level, not just in code.</Assurance>
         </ul>
       </div>
 
-      <p className="relative text-xs text-muted-foreground">
-        Azure-first Cloud Security Posture Management
+      <p className="text-[11.5px] text-muted-foreground">
+        Azure-first cloud security posture management
       </p>
     </aside>
   );
@@ -506,23 +482,22 @@ function BrandPanel() {
  */
 function ProductPreview() {
   const rows = [
-    { score: 98, level: "CRITICAL", title: "Internet → vm-jumpbox → storage account", tag: "Attack path" },
-    { score: 94, level: "CRITICAL", title: "SSH open to the internet on a production VM", tag: "Internet-facing" },
-    { score: 82, level: "HIGH", title: "Service principal holds Owner on a subscription", tag: "Identity" },
+    { score: 98, level: "CRITICAL", title: "Internet → vm-jumpbox → storage-prod-01", tag: "Attack path" },
+    { score: 94, level: "CRITICAL", title: "RDP reachable from the internet on prod-vm-01", tag: "Internet-facing" },
   ];
 
   return (
     <div
       aria-hidden="true"
-      className="mt-10 max-w-md overflow-hidden rounded-xl border border-border bg-card/80 shadow-2xl shadow-black/40 backdrop-blur"
+      className="mt-8 max-w-[440px] overflow-hidden rounded-xl border border-border bg-card"
     >
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-baseline gap-2">
-          <span className="text-3xl font-semibold tracking-tight text-medium tabular-nums">71</span>
-          <span className="text-xs text-muted-foreground">/ 100 security score</span>
+          <span className="text-[26px] font-semibold tracking-[-0.02em] text-medium tabular-nums">71</span>
+          <span className="text-[11.5px] text-muted-foreground">/ 100 security score</span>
         </div>
         <span className="rounded-full border border-ok-border bg-ok-bg px-2 py-0.5 text-[11px] font-medium text-ok">
-          ↑ 5 since last scan
+          +5 since last scan
         </span>
       </div>
       <ul className="divide-y divide-border">
@@ -542,9 +517,9 @@ function ProductPreview() {
 
 function Assurance({ children }: { children: React.ReactNode }) {
   return (
-    <li className="flex items-start gap-3 text-sm text-foreground/85">
-      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ok-bg text-ok">
-        <svg viewBox="0 0 16 16" className="h-3 w-3" aria-hidden="true">
+    <li className="flex items-start gap-2.5 text-[13px] leading-[1.6] text-foreground">
+      <span className="mt-px flex size-[18px] shrink-0 items-center justify-center rounded-full bg-ok-bg text-ok">
+        <svg viewBox="0 0 16 16" className="size-[11px]" aria-hidden="true">
           <path
             fill="none"
             stroke="currentColor"
@@ -588,15 +563,15 @@ function SentNotice({ sent, onUseAnother }: { sent: Sent; onUseAnother: () => vo
         </svg>
       </div>
 
-      <h1 className="mt-5 text-2xl font-semibold tracking-tight text-foreground">
+      <h1 className="mt-5 text-2xl font-semibold tracking-[-0.02em] text-foreground">
         {t.auth.checkEmail}
       </h1>
-      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+      <p className="mt-2 text-[13px] leading-[1.65] text-muted-foreground">
         {lead} <strong className="text-foreground">{sent.email}</strong>.{" "}
         {t.auth.openOnThisDevice}
       </p>
 
-      <p className="mt-6 rounded-lg bg-muted/40 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
+      <p className="mt-6 rounded-[10px] bg-muted px-4 py-3 text-[11.5px] leading-[1.7] text-muted-foreground">
         The link works once and expires after an hour. If nothing arrives, check
         spam — and note that some disposable inboxes open links automatically,
         which uses the link up before you get to it.
@@ -604,7 +579,7 @@ function SentNotice({ sent, onUseAnother }: { sent: Sent; onUseAnother: () => vo
 
       <button
         onClick={onUseAnother}
-        className="mt-6 text-sm font-medium text-muted-foreground underline underline-offset-4 transition hover:text-foreground"
+        className="mt-6 text-[13px] text-muted-foreground underline underline-offset-[3px] transition-colors hover:text-foreground"
       >
         {t.auth.useAnotherAddress}
       </button>

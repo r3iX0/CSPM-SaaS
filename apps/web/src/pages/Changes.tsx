@@ -1,23 +1,23 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
+  ArrowDownIcon,
   ArrowRightIcon,
+  ArrowUpIcon,
   GitCompareArrowsIcon,
   MinusIcon,
   PlusIcon,
-  TrendingDownIcon,
-  TrendingUpIcon,
 } from "lucide-react";
 
 import { api } from "@/lib/api";
 import type { AssetChange, ChangeEvent } from "@/lib/types";
 import { useUrlFilters } from "@/lib/useUrlFilters";
 import { useT } from "@/i18n";
-import { cn, formatDate, formatDateTime } from "@/lib/format";
+import { cn, formatDate, formatTime } from "@/lib/format";
 import { changeDirection, type Direction } from "@/lib/changes";
 import { CHANGE_KIND_ICONS } from "@/lib/icons";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
-import { IconLabel, ResourceTypeLabel } from "@/components/security/IconLabel";
+import { ResourceTypeLabel } from "@/components/security/IconLabel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -83,7 +83,6 @@ export function ChangesPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        icon={GitCompareArrowsIcon}
         title={t.changes.title}
         description={t.changes.intro}
       />
@@ -122,7 +121,7 @@ export function ChangesPage() {
       {error && (
         <ErrorState
           title="Could not load the change feed"
-          detail="CloudGuard could not reach its own API."
+          detail="Cleave could not reach its own API."
           impact="Nothing about your environment has changed — this is a problem displaying it."
           onRetry={() => refetch()}
         />
@@ -156,8 +155,8 @@ export function ChangesPage() {
               from timestamps. */}
           {groupByDay(events).map(([day, rows]) => (
             <section key={day} className="flex flex-col gap-2">
-              <h2 className="text-xs font-medium text-muted-foreground">
-                {formatDate(day)}
+              <h2 className="mt-1 text-xs font-medium text-muted-foreground">
+                {formatDate(rows[0].observed_at)}
               </h2>
               <Card className="py-0">
                 <CardContent className="p-0">
@@ -189,11 +188,17 @@ export function ChangesPage() {
   );
 }
 
-/** Calendar days, newest first, preserving the order the API returned. */
+/**
+ * Calendar days in the reader's own time zone, newest first, preserving the
+ * order the API returned. Local rather than the UTC date in the timestamp,
+ * because each row shows only its local time: a change at 01:30 must sit under
+ * the day that time belongs to.
+ */
 function groupByDay(events: ChangeEvent[]): [string, ChangeEvent[]][] {
   const days = new Map<string, ChangeEvent[]>();
   for (const event of events) {
-    const day = event.observed_at.slice(0, 10);
+    const at = new Date(event.observed_at);
+    const day = `${at.getFullYear()}-${at.getMonth()}-${at.getDate()}`;
     const existing = days.get(day);
     if (existing) existing.push(event);
     else days.set(day, [event]);
@@ -209,30 +214,31 @@ function ChangeRow({ event }: { event: ChangeEvent }) {
     : "neutral";
 
   return (
-    <li className="flex flex-wrap items-start gap-x-3 gap-y-2 border-b px-4 py-3 last:border-0">
+    <li className="flex items-start gap-3 border-b px-5 py-3 last:border-0">
       <ChangeMark change={event.change} moved={moved} />
 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <Link
             to={`/assets/${event.asset.id}`}
-            className="truncate text-sm font-medium text-foreground underline-offset-4 hover:underline"
+            className="truncate text-[13px] font-medium text-foreground underline-offset-4 hover:underline"
           >
             {event.asset.name}
           </Link>
           <ResourceTypeLabel
             type={event.asset.resource_type}
-            className="text-xs text-muted-foreground"
+            className="text-[13px] text-muted-foreground"
           />
           {event.asset.environment && (
             <Badge variant="outline">{event.asset.environment}</Badge>
           )}
         </div>
 
-        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-          <IconLabel icon={CHANGE_KIND_ICONS[event.change]}>
-            {t.changes.kind[event.change]}
-          </IconLabel>
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11.5px] text-muted-foreground">
+          {/* An appearance or a disappearance says it in its own sentence; the
+              kind would only repeat it. */}
+          {attribute && <span>{t.changes.kind[event.change]}</span>}
+          {event.change === "DISAPPEARED" && <span>{t.changes.disappeared}</span>}
 
           {attribute && (
             <span className="flex items-center gap-1.5">
@@ -258,20 +264,28 @@ function ChangeRow({ event }: { event: ChangeEvent }) {
               The asset row is never deleted when a scan stops seeing it, so a
               DISAPPEARED event says nothing on its own about whether the thing
               is gone now. */}
-          {event.change === "DISAPPEARED" &&
-            (event.asset.absent_since ? (
-              <span className="font-medium text-high">
-                {t.changes.stillMissing}
-              </span>
-            ) : (
-              <span className="font-medium text-ok">{t.changes.returned}</span>
-            ))}
+          {event.change === "DISAPPEARED" && (
+            <>
+              <span aria-hidden>·</span>
+              {event.asset.absent_since ? (
+                <span className="font-medium text-high">
+                  {t.changes.stillMissing}
+                </span>
+              ) : (
+                <span className="font-medium text-ok">{t.changes.returned}</span>
+              )}
+            </>
+          )}
         </div>
       </div>
 
-      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-        {formatDateTime(event.observed_at)}
-      </span>
+      {/* The day is the heading above; the row only needs the hour. */}
+      <time
+        dateTime={event.observed_at}
+        className="shrink-0 text-[11.5px] tabular-nums text-muted-foreground"
+      >
+        {formatTime(event.observed_at)}
+      </time>
     </li>
   );
 }
@@ -296,9 +310,9 @@ function ChangeMark({
       : change === "DISAPPEARED"
         ? MinusIcon
         : moved === "worse"
-          ? TrendingUpIcon
+          ? ArrowUpIcon
           : moved === "better"
-            ? TrendingDownIcon
+            ? ArrowDownIcon
             : GitCompareArrowsIcon;
 
   const tone =
@@ -313,11 +327,11 @@ function ChangeMark({
   return (
     <span
       className={cn(
-        "mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border",
+        "mt-px flex size-[22px] shrink-0 items-center justify-center rounded-full border",
         tone,
       )}
     >
-      <Icon className="size-3.5" aria-hidden />
+      <Icon className="size-3" aria-hidden />
     </span>
   );
 }

@@ -8,9 +8,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FixVerification } from "@/components/security/FixVerification";
 import { api } from "@/lib/api";
-import type { FindingStatus } from "@/lib/types";
+import type { EvidenceCitation, FindingStatus } from "@/lib/types";
 
-function mount(scanStatus: string, findingStatus: FindingStatus, error: string | null = null) {
+function mount(
+  scanStatus: string,
+  findingStatus: FindingStatus,
+  error: string | null = null,
+  evidence: EvidenceCitation[] | null = null,
+) {
   vi.spyOn(api, "get").mockResolvedValue({
     data: { id: "s1", status: scanStatus, completed_at: "2026-09-18T10:00:00Z", error_message: error },
     meta: {},
@@ -23,6 +28,7 @@ function mount(scanStatus: string, findingStatus: FindingStatus, error: string |
         findingId="f1"
         findingStatus={findingStatus}
         resourceName="stprod"
+        evidence={evidence}
         onRetry={() => {}}
         onClose={() => {}}
         retrying={false}
@@ -57,5 +63,32 @@ describe("verifying a fix", () => {
     expect(await screen.findByText("The scan could not finish")).toBeInTheDocument();
     expect(screen.getByText("The scanner role could not list subscriptions.")).toBeInTheDocument();
     expect(screen.queryByText("Still failing")).not.toBeInTheDocument();
+  });
+
+  const citation = (scan: string): EvidenceCitation => ({
+    evidence_key: "network.nsg_rules",
+    cloud_account_id: "a1",
+    outcome: "COMPLETE",
+    item_count: 3,
+    permissions: [],
+    endpoints: [],
+    content_hash: "4c1f9ab77e02d5aa0000000000000000000000000000000000000000000000ff",
+    collected_at: "2026-09-18T09:58:00Z",
+    age_seconds: 120,
+    source_scan_id: scan,
+    payload_available: true,
+  });
+
+  it("names the reading that proved the fix, with its hash", async () => {
+    mount("COMPLETED", "RESOLVED", null, [citation("s1")]);
+    expect(
+      await screen.findByText(/evidence sha256 4c1f9ab77e02… · network\.nsg_rules · read 2026-09-18T09:58:00Z/),
+    ).toBeInTheDocument();
+  });
+
+  it("never offers a reading from another scan as the proof", async () => {
+    mount("COMPLETED", "RESOLVED", null, [citation("older-scan")]);
+    expect(await screen.findByText("Verified fixed")).toBeInTheDocument();
+    expect(screen.queryByText(/evidence sha256/)).not.toBeInTheDocument();
   });
 });

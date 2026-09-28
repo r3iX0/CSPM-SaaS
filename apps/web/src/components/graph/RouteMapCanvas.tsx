@@ -55,12 +55,26 @@ export interface Hop {
   target: string;
 }
 
+/**
+ * A plan being simulated: its links, the routes the server said it closes,
+ * and -- while the cut is being played -- how long each box waits before it
+ * greys, so a target goes out of reach just after the last route to it is
+ * struck in the list.
+ */
+export interface SimulatedPlan {
+  links: Hop[];
+  closes: Set<string>;
+  delays?: ReadonlyMap<string, number>;
+}
+
 type AssetFlowNode = Node<
   Pick<RouteMapNode, keyof RouteMapNode> & {
     /** Faded, because a route is traced and this box is not on it. */
     dimmed: boolean;
     /** Out of reach if the planned links were cut. The point of simulating. */
     closed: boolean;
+    /** How long it waits to grey out, in ms: the sequenced cut (§146). */
+    closeDelay: number;
     /** One end of the hop being read on the traced route. */
     current: boolean;
     /** Which column it arrives with, so the drawing reads outside-in once. */
@@ -108,7 +122,7 @@ export interface RouteMapCanvasProps {
    * Links somebody is considering cutting together, and the routes the server
    * said close with them -- for the plan as a whole, never summed per link.
    */
-  simulated?: { links: Hop[]; closes: Set<string> } | null;
+  simulated?: SimulatedPlan | null;
   /** The box picked, whose routes the rail is showing. */
   picked?: string | null;
   /**
@@ -315,7 +329,15 @@ function Canvas({
         lit: around?.boxes ?? null,
       }}
     >
-      <div ref={frame} className="size-full" onKeyDown={onKeyDown}>
+      {/* An 18px dot grid, from the text colour at 9%, so the drawing reads as
+          a surface to press on in either theme without a canvas background
+          kit (base.css only, §101). It does not pan with the view: it is
+          texture, not coordinates. */}
+      <div
+        ref={frame}
+        className="size-full bg-[radial-gradient(color-mix(in_oklab,var(--foreground)_9%,transparent)_1px,transparent_1px)] bg-[length:18px_18px]"
+        onKeyDown={onKeyDown}
+      >
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -371,7 +393,7 @@ function toFlow(
   map: RouteMap,
   traced: MappedRoute | null,
   hop: number | null,
-  simulated: { links: Hop[]; closes: Set<string> } | null,
+  simulated: SimulatedPlan | null,
   reduced: boolean,
 ): {
   nodes: Node[];
@@ -460,6 +482,7 @@ function toFlow(
       ...node,
       dimmed: tracedNodes !== null && !tracedNodes.has(node.id),
       closed: closedNodes.has(node.id),
+      closeDelay: simulated?.delays?.get(node.id) ?? 0,
       current:
         reading !== undefined &&
         (node.id === reading.source_id || node.id === reading.target_id),
@@ -576,10 +599,13 @@ function AssetNode({ id, data }: NodeProps<AssetFlowNode>) {
         onPointerEnter={() => actions.preview(id)}
         onPointerLeave={() => actions.preview(null)}
         onClick={() => actions.pick(id)}
-        style={{ animationDelay: `${Math.min(data.arrival, 6) * 60}ms` }}
+        style={{
+          animationDelay: `${Math.min(data.arrival, 6) * 60}ms`,
+          transitionDelay: data.closed ? `${data.closeDelay}ms` : undefined,
+        }}
         className={cn(
           "nopan flex w-[220px] cursor-pointer items-center gap-2 rounded-lg border bg-card px-2 py-1.5 text-left",
-          "transition-[opacity,filter] hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+          "transition-[opacity,filter] duration-500 hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
           data.arrival > 0 && "animate-[cg-rise_180ms_ease-out_both]",
           data.entry
             ? "border-critical-border"

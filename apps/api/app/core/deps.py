@@ -72,6 +72,18 @@ class TenantContext:
                 f"This action requires one of: {', '.join(sorted(r.value for r in roles))}"
             )
 
+    @property
+    def may_administer(self) -> bool:
+        """Whether this caller may perform owner/admin actions.
+
+        The same question ``require_role(OWNER, ADMIN)`` asks, answered rather
+        than enforced. Used where the answer shapes a response instead of
+        rejecting a request -- deciding whether to hand back a credential the
+        holder could act with, which is a decision that must not be left to the
+        frontend hiding a button.
+        """
+        return not self.is_demo and self.role in (Role.OWNER, Role.ADMIN)
+
     def require_write(self) -> None:
         """Anyone except VIEWER may change security workflow state -- never in the demo."""
         self._refuse_demo()

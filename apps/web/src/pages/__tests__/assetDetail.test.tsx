@@ -360,7 +360,7 @@ describe("the access tab", () => {
     });
 
     expect(await screen.findByText("Could not be read")).toBeInTheDocument();
-    expect(screen.getByText("CloudGuard could not read what this role allows")).toBeInTheDocument();
+    expect(screen.getByText("Cleave could not read what this role allows")).toBeInTheDocument();
     expect(screen.queryByText("Can take what it holds")).toBeNull();
   });
 
@@ -395,7 +395,7 @@ describe("the access tab", () => {
     expect(screen.getByText("Controls 30 assets")).toBeInTheDocument();
     expect(screen.getByText("and 29 more")).toBeInTheDocument();
     expect(
-      screen.getByText("Limited by a condition CloudGuard cannot evaluate"),
+      screen.getByText("Limited by a condition Cleave cannot evaluate"),
     ).toBeInTheDocument();
     expect(screen.getByText("runs code as it, changes configuration, reads configuration")).toBeInTheDocument();
     // Nobody is assigned a role on an identity; an empty holders card says nothing.
@@ -408,7 +408,7 @@ describe("when the graph cannot be read", () => {
     vi.restoreAllMocks();
   });
 
-  it("says CloudGuard failed rather than that the asset is not in the graph", async () => {
+  it("says Cleave failed rather than that the asset is not in the graph", async () => {
     // Only a 404 means "not a vertex". A 500 said that way would present an
     // outage as a fact about the estate.
     vi.spyOn(api, "get").mockImplementation((url: string) =>
