@@ -7805,6 +7805,66 @@ app registration with its service principal -- a customer told to find
 migration, not a copy change. This is §78's line between identifiers and
 sentences, applied to the product's own name.
 
+## 148. React Router 7, for two advisories with no fix on 6
+
+`npm audit` reported two moderate advisories against `react-router` 6.0.0
+through 7.17.0: an open redirect through a backslash in `<Link>` and
+`useNavigate` (GHSA-wrjc-x8rr-h8h6), and constructor injection through
+`deserializeErrors()` in SSR hydration (GHSA-337j-9hxr-rhxg). The 6.x line
+ends at 6.30.6 with neither fixed, so `react-router-dom` moves to `^7.18.4`.
+
+- **The package name stays.** In 7, `react-router-dom` re-exports
+  `react-router`; switching ninety imports to the new name buys nothing today
+  and can be done on its own.
+- **Declarative mode only, so the breaking changes miss us.** The app mounts
+  `<BrowserRouter>` with `<Routes>` and has no loaders, actions, fetchers or
+  data router, so the v7 changes to those do not apply. The one splat route
+  (`path="*"`) navigates to the absolute `/`, so the change to relative
+  resolution inside splats does not move it. Navigations are now wrapped in
+  `startTransition`; the 585 tests pass unchanged.
+- **The SSR advisory never applied** -- the app has no server rendering -- but
+  it rides the same fix, and an audit that stays at zero is worth more than
+  an audit read with exceptions in mind.
+
+## 149. The ring is SVG, the motion engine and the palette load late
+
+The build warned that the entry chunk was over 500 kB, and the question was
+whether the redesign had done it. It had not: before it the entry was 609.6 kB
+and the Recharts chunk 299.2 kB; after it, 612.7 kB and 309.9 kB. What the
+redesign did change is who needed Recharts. It took `ScoreTrend`,
+`StackedBar` and `ActivityBars` off the overview (§145), which left `Donut`
+the only chart in the product -- so Overview and Compliance fetched 94 kB
+gzipped of Recharts, Redux and d3 to draw two 64px rings.
+
+- **`Donut` is hand-drawn SVG**, one stroked arc per slice, like `ScoreRing`
+  (§38). What Recharts gave it is kept: the 1.5° gap between segments, the 4°
+  floor that keeps one failure in four hundred visible, the sweep on mount and
+  none under reduced motion, and the share on pointing -- now a `<title>` on
+  each arc, the browser's own tooltip, rather than a themed card. That is the
+  one thing given up, and the figures beside each ring already say what the
+  card said. The geometry is `charts/ring.ts`, tested as arithmetic. It is
+  imported directly now; there is nothing left to wait for.
+- **Recharts stays the kit for charts with axes or series.** It has no
+  consumer at the moment and ships nothing, and the next chart with an axis
+  should use it inside `ChartContainer` rather than start a second way.
+- **The motion engine loads after the first paint.** Every animated element
+  is `m.*` under `<LazyMotion features={…} strict>` in `main.tsx`, and
+  `domAnimation` arrives as `lib/motionFeatures.ts`. Nothing animates layout or
+  drags, so the smaller feature set is enough; `strict` throws on a `motion.*`
+  element, which would pull the whole engine back into the entry.
+- **The command palette loads on first use.** `CommandPalette` keeps the
+  header control and the ⌘K chord; the dialog, its queries and cmdk with the
+  dialog runtime it brings are `CommandPaletteDialog`, fetched when it is first
+  opened and ahead of that when the pointer or focus reaches the control.
+
+The entry is 470.8 kB (152.4 kB gzipped) from 612.7 kB (197.0 kB), and Overview
+no longer fetches the 309.9 kB (94.1 kB) Recharts chunk. What moved out arrives
+later instead: the motion engine at 37.8 kB (14.2 kB) after the first paint, the
+palette at 58.2 kB (19.9 kB) when somebody opens it. The entry is now mostly
+`@base-ui/react`, which every page renders with. Measured with Vite's own
+report; React Router 7 (§148) sits in the separate `react` chunk and does not
+touch these figures.
+
 ## Open items carried forward
 
 **Data residency is not built (§113).** An organization setting for allowed

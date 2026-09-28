@@ -11,10 +11,10 @@ export type Slice = {
 /**
  * A ring's key, as words.
  *
- * Its own module, away from the ring itself, for a reason that is about weight
- * rather than tidiness: the ring pulls in the charting runtime, and a panel
- * that imported the legend from beside it would drag 200kB of Recharts into
- * the page's own chunk and undo the lazy loading entirely.
+ * Its own module, away from the ring, because the ring once pulled in the
+ * charting runtime and a legend imported from beside it dragged 200kB of
+ * Recharts into the page's chunk (§38). The ring is plain SVG now (§149); the
+ * split stays because a legend can stand without a ring.
  *
  * Always rendered beside a ring rather than optionally: it is what keeps the
  * chart readable to somebody who cannot separate the hues, and it is where the

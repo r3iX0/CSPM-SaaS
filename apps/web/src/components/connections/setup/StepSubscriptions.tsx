@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { motion } from "motion/react";
+import { m } from "motion/react";
 import { CheckIcon, PlayIcon } from "lucide-react";
 
 import type { CloudConnection } from "@/lib/types";
@@ -54,14 +54,14 @@ export function StepSubscriptions({
           <div className="flex items-center gap-3.5">
             {/* The one flourish in the flow, and it is earned: this is the
                 moment both grants have landed and something can be read. */}
-            <motion.span
+            <m.span
               initial={{ scale: 0.6, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ type: "spring", stiffness: 420, damping: 22 }}
               className="flex size-9 shrink-0 items-center justify-center rounded-full bg-ok text-background"
             >
               <CheckIcon className="size-4" strokeWidth={3} aria-hidden />
-            </motion.span>
+            </m.span>
             <div className="min-w-0">
               <h2 className="text-[15px] font-semibold tracking-[-0.015em] text-foreground">
                 {t.setup.doneHeadline.replace("{name}", connection.name)}

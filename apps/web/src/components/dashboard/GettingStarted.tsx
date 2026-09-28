@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { motion } from "motion/react";
+import { m } from "motion/react";
 import { CheckIcon, XIcon } from "lucide-react";
 
 import { api, auth } from "@/lib/api";
@@ -215,7 +215,7 @@ export function GettingStarted({
                 .replace("{total}", String(steps.length))}
             </p>
             <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted" aria-hidden>
-              <motion.div
+              <m.div
                 className="h-full rounded-full bg-ok"
                 initial={false}
                 animate={{ width: `${(doneCount / steps.length) * 100}%` }}

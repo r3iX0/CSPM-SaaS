@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, m } from "motion/react";
 
 import { api } from "@/lib/api";
 import type { CloudConnection, Provider } from "@/lib/types";
@@ -199,7 +199,7 @@ export function ConnectionSetupPage() {
           )}
 
           <AnimatePresence mode="wait" initial={false}>
-            <motion.div
+            <m.div
               // One key for the three states of the last step, so ticking a
               // subscription out of scope does not replay the arrival.
               key={
@@ -280,7 +280,7 @@ export function ConnectionSetupPage() {
                   )}
                 </div>
               )}
-            </motion.div>
+            </m.div>
           </AnimatePresence>
         </div>
       </div>

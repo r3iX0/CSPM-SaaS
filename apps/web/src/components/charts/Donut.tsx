@@ -1,12 +1,7 @@
-import { Cell, Pie, PieChart } from "recharts";
+import { useEffect, useState } from "react";
 
 import type { Slice } from "@/components/charts/DonutLegend";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/components/ui/chart";
+import { CIRCUMFERENCE, RADIUS, THICKNESS, ringArcs } from "@/components/charts/ring";
 import { DURATION, usePrefersReducedMotion } from "@/lib/motion";
 import { cn } from "@/lib/format";
 
@@ -22,6 +17,12 @@ import { cn } from "@/lib/format";
  * At most four slices, each carrying a written label beside the ring rather
  * than only a colour: these are status colours, and a status must never be
  * communicated by hue alone.
+ *
+ * Hand-drawn SVG rather than Recharts (DECISIONS.md §149). Once the redesign
+ * took the axis charts off the overview this was the only chart left, and it
+ * cost every page that drew one ninety-odd kilobytes of charting runtime for
+ * a circle. Each segment is one stroked arc, and says what it is in a
+ * `<title>`, so pointing at it still reads the share.
  */
 export function Donut({
   slices,
@@ -40,68 +41,60 @@ export function Donut({
   valueClassName?: string;
 }) {
   const reduced = usePrefersReducedMotion();
-  const total = slices.reduce((sum, slice) => sum + slice.value, 0);
+  // Drawn from nothing once, on mount, and never again: a ring that re-swept
+  // on every poll would be movement that means nothing.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+  const drawn = reduced || mounted;
 
-  // Built from the slices rather than declared, because a donut's categories
-  // are data here -- which severities are present, which verdicts were
-  // reached -- and the tooltip has to name whatever arrived.
-  const config: ChartConfig = Object.fromEntries(
-    slices.map((slice) => [slice.key, { label: slice.label, color: slice.tone }]),
-  );
+  const total = slices.reduce((sum, slice) => sum + slice.value, 0);
+  const arcs = ringArcs(slices);
 
   return (
     <div className={cn("relative", className)} role="img" aria-label={ariaLabel}>
-      <ChartContainer config={config} className="aspect-auto size-full">
-        <PieChart>
-          <Pie
-            data={slices}
-            dataKey="value"
-            nameKey="label"
-            innerRadius="72%"
-            outerRadius="100%"
-            startAngle={90}
-            endAngle={-270}
-            // A 2px gap of the surface between segments, so two adjacent
-            // colours never read as one wedge.
-            paddingAngle={slices.length > 1 ? 1.5 : 0}
-            // A slice worth one finding out of four hundred still has to be
-            // visible: a ring that silently drops the small share is the same
-            // omission as a table that truncates without saying so.
-            minAngle={slices.length > 1 ? 4 : 0}
-            stroke="var(--card)"
-            strokeWidth={2}
-            isAnimationActive={!reduced}
-            animationDuration={DURATION.chart}
-          >
-            {slices.map((slice) => (
-              <Cell key={slice.key} fill={slice.tone} />
-            ))}
-          </Pie>
-          <ChartTooltip
-            cursor={false}
-            content={
-              <ChartTooltipContent
-                nameKey="label"
-                hideLabel
-                // The share, not only the count: a ring's whole claim is "this
-                // much of that", and a tooltip reading "12" alone answers a
-                // question the chart was not asked.
-                formatter={(value, name) => (
-                  <>
-                    <span className="text-muted-foreground">{name}</span>
-                    <span className="ml-auto font-mono font-medium tabular-nums">
-                      {Number(value)}
-                      {total
-                        ? ` · ${Math.round((Number(value) / total) * 100)}%`
-                        : ""}
-                    </span>
-                  </>
-                )}
-              />
+      <svg viewBox="0 0 100 100" className="size-full -rotate-90" aria-hidden>
+        {/* The track, so an empty whole still reads as a ring of nothing
+            rather than as a missing chart. */}
+        <circle
+          cx={50}
+          cy={50}
+          r={RADIUS}
+          fill="none"
+          stroke="var(--muted)"
+          strokeWidth={THICKNESS}
+        />
+        {arcs.map((arc) => (
+          <circle
+            key={arc.slice.key}
+            data-slice={arc.slice.key}
+            cx={50}
+            cy={50}
+            r={RADIUS}
+            fill="none"
+            stroke={arc.slice.tone}
+            strokeWidth={THICKNESS}
+            strokeDasharray={`${drawn ? arc.length : 0} ${CIRCUMFERENCE}`}
+            strokeDashoffset={-arc.offset}
+            style={
+              reduced
+                ? undefined
+                : { transition: `stroke-dasharray ${DURATION.chart}ms ease-out` }
             }
-          />
-        </PieChart>
-      </ChartContainer>
+          >
+            {/* The share, not only the count: a ring's whole claim is "this
+                much of that", and "12" alone answers a question the chart was
+                not asked. */}
+            <title>
+              {`${arc.slice.label} · ${arc.slice.value}${
+                total ? ` · ${Math.round((arc.slice.value / total) * 100)}%` : ""
+              }`}
+            </title>
+          </circle>
+        ))}
+      </svg>
 
       {/* The headline sits in the hole, in text ink rather than a series
           colour: the ring carries identity, the number carries the value. */}

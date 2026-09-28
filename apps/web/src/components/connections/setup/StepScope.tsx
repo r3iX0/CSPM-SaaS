@@ -1,6 +1,6 @@
 import { useId, useState, type ReactNode } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, m } from "motion/react";
 import { ArrowRightIcon } from "lucide-react";
 
 import { api, ApiError } from "@/lib/api";
@@ -311,7 +311,7 @@ export function StepScope({
               note above the list. Replaced rather than appended, so there is
               one requirement on screen and it is always the right one. */}
           <AnimatePresence mode="wait" initial={false}>
-            <motion.div
+            <m.div
               key={selectedScope.value}
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
@@ -324,7 +324,7 @@ export function StepScope({
                 <span className="font-medium text-foreground">{copy.permissionNeeded}: </span>
                 {selectedScope.requires}
               </p>
-            </motion.div>
+            </m.div>
           </AnimatePresence>
 
           {scopeIdRequired && (

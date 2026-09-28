@@ -1,4 +1,3 @@
-import { lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { ArrowRightIcon, ClipboardCheckIcon } from "lucide-react";
@@ -13,8 +12,8 @@ import { useT } from "@/i18n";
 import { cn, formatPercent } from "@/lib/format";
 import { EvidenceNotice } from "@/components/compliance";
 import { Bars } from "@/components/charts/Bars";
+import { Donut } from "@/components/charts/Donut";
 import type { Slice } from "@/components/charts/DonutLegend";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   CardsSkeleton,
   EmptyState,
@@ -28,11 +27,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-
-/** Recharts is lazy everywhere in this app; a ring is not worth blocking on. */
-const Donut = lazy(() =>
-  import("@/components/charts/Donut").then((m) => ({ default: m.Donut })),
-);
 
 /**
  * Framework overview.
@@ -126,16 +120,14 @@ function FrameworkCard({ framework }: { framework: ComplianceFramework }) {
                 is coverage -- the share that reached a conclusion -- so the
                 one number on the card is never read as a grade. */}
             <div className="flex shrink-0 flex-col items-center gap-1">
-              <Suspense fallback={<Skeleton className="size-16 rounded-full" />}>
-                <Donut
-                  slices={slices}
-                  centerValue={formatPercent(framework.coverage_ratio)}
-                  centerLabel=""
-                  ariaLabel={`${formatPercent(framework.coverage_ratio)} of ${framework.control_count} controls reached a conclusion`}
-                  className="size-16"
-                  valueClassName="text-[14.5px]"
-                />
-              </Suspense>
+              <Donut
+                slices={slices}
+                centerValue={formatPercent(framework.coverage_ratio)}
+                centerLabel=""
+                ariaLabel={`${formatPercent(framework.coverage_ratio)} of ${framework.control_count} controls reached a conclusion`}
+                className="size-16"
+                valueClassName="text-[14.5px]"
+              />
               <span className="text-[11px] text-muted-foreground">assessable</span>
             </div>
             <div className="min-w-0">

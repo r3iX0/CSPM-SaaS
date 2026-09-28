@@ -12,6 +12,8 @@ import { describe, expect, it } from "vitest";
 import { Sparkline } from "@/components/charts/Sparkline";
 import { SeverityStrip } from "@/components/dashboard/SeverityStrip";
 import { Bars } from "@/components/charts/Bars";
+import { Donut } from "@/components/charts/Donut";
+import { CIRCUMFERENCE, ringArcs } from "@/components/charts/ring";
 
 describe("Sparkline", () => {
   it("draws nothing from a single reading", () => {
@@ -87,5 +89,43 @@ describe("SeverityStrip", () => {
     );
 
     expect(screen.getByText("No verdict").className).toContain("border-dashed");
+  });
+});
+
+describe("Donut", () => {
+  const slices = [
+    { key: "pass", label: "Passed", value: 396, tone: "var(--sev-ok)" },
+    { key: "fail", label: "Failed", value: 1, tone: "var(--sev-critical)" },
+    { key: "none", label: "Not assessed", value: 0, tone: "var(--sev-unknown)" },
+  ];
+
+  it("keeps a tiny share visible and leaves out a share of nothing", () => {
+    // One failure in four hundred is still a failure; drawn to scale it would
+    // be a sliver nobody sees. A zero is not part of the whole, so no arc.
+    const arcs = ringArcs(slices);
+
+    expect(arcs.map((arc) => arc.slice.key)).toEqual(["pass", "fail"]);
+    expect(arcs[1].length).toBeCloseTo((4 / 360) * CIRCUMFERENCE);
+  });
+
+  it("closes at the full circle, gaps included", () => {
+    const arcs = ringArcs(slices);
+    const last = arcs[arcs.length - 1];
+    const gap = (1.5 / 360) * CIRCUMFERENCE;
+
+    expect(last.offset + last.length + gap).toBeCloseTo(CIRCUMFERENCE);
+  });
+
+  it("names every segment's share, and draws no Recharts", () => {
+    const { container } = render(
+      <Donut slices={slices} centerValue="99%" centerLabel="" ariaLabel="396 of 397 passed" />,
+    );
+
+    expect(screen.getByRole("img", { name: "396 of 397 passed" })).toBeInTheDocument();
+    const titles = [...container.querySelectorAll("circle[data-slice] title")].map(
+      (title) => title.textContent,
+    );
+    expect(titles).toEqual(["Passed · 396 · 100%", "Failed · 1 · 0%"]);
+    expect(container.querySelector(".recharts-wrapper")).not.toBeInTheDocument();
   });
 });

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { motion } from "motion/react";
+import { m } from "motion/react";
 
 import { ApiError, api, auth } from "@/lib/api";
 import { supabaseSignOut } from "@/lib/supabase";
@@ -151,31 +151,31 @@ export function DashboardPage() {
     // three hundredths of a second between panels -- because it is there to
     // give the eye a path down the argument, not to make the page a
     // performance. Everything after the eighth panel shares the last delay.
-    <motion.div
+    <m.div
       className="flex flex-col gap-4"
       variants={listContainer}
       initial="initial"
       animate="animate"
     >
-      <motion.div variants={listItem}>
+      <m.div variants={listItem}>
         <PostureHeader
           scannedAt={data.last_scan.completed_at}
           staleHours={data.evidence_freshness?.stale_hours ?? null}
           scanning={scanning}
         />
-      </motion.div>
+      </m.div>
 
       {/* 0 — what is left to set up, until it is done or put away */}
-      <motion.div variants={listItem}>
+      <m.div variants={listItem}>
         <GettingStarted
           dashboard={data}
           accounts={Array.isArray(accounts.data) ? accounts.data : []}
           variant="compact"
         />
-      </motion.div>
+      </m.div>
 
       {/* 1 — where we stand, and what that means today */}
-      <motion.div variants={listItem}>
+      <m.div variants={listItem}>
         <ScorePanel
           score={data.security_score}
           delta={data.score_delta}
@@ -187,15 +187,15 @@ export function DashboardPage() {
             />
           }
         />
-      </motion.div>
+      </m.div>
 
       {/* 2 — what that number is made of */}
-      <motion.div variants={listItem}>
+      <m.div variants={listItem}>
         <SeverityStrip counts={data.findings_by_severity} unknown={data.coverage.unknown} />
-      </motion.div>
+      </m.div>
 
       {/* 3 — what to deal with, and the one change that closes the most */}
-      <motion.div
+      <m.div
         variants={listItem}
         className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]"
       >
@@ -205,10 +205,10 @@ export function DashboardPage() {
           loading={chokes.isLoading}
           failed={chokes.isError}
         />
-      </motion.div>
+      </m.div>
 
       {/* 4 — how much of the estate the opinion was formed from */}
-      <motion.div variants={listItem}>
+      <m.div variants={listItem}>
         <CoveragePanel
           ratio={data.coverage.ratio}
           unknown={data.coverage.unknown}
@@ -218,18 +218,18 @@ export function DashboardPage() {
           gaps={gaps}
           freshness={data.evidence_freshness ?? null}
         />
-      </motion.div>
+      </m.div>
 
       {/* 4b — where it runs, and where what is wrong with it runs. Absent
           until something is tied to a region. */}
       {data.regions?.some((region) => region.region !== null) && (
-        <motion.div variants={listItem}>
+        <m.div variants={listItem}>
           <RegionPanel regions={data.regions} />
-        </motion.div>
+        </m.div>
       )}
 
       {/* 5 — whether any of it is being fixed, and what moved meanwhile */}
-      <motion.div
+      <m.div
         variants={listItem}
         className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
       >
@@ -244,18 +244,18 @@ export function DashboardPage() {
           )}
         />
         <RecentChanges events={changes.data} loading={changes.isLoading} />
-      </motion.div>
+      </m.div>
 
       {/* 6 — what the evidence adds up to for somebody who reports on it */}
-      <motion.div variants={listItem}>
+      <m.div variants={listItem}>
         <ComplianceSummary
           frameworks={
             Array.isArray(compliance.data) ? compliance.data : undefined
           }
           loading={compliance.isLoading}
         />
-      </motion.div>
-    </motion.div>
+      </m.div>
+    </m.div>
   );
 }
 

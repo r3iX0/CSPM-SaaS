@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, m } from "motion/react";
 import { CheckIcon, CloudIcon, PlayIcon } from "lucide-react";
 
 import { api, ApiError } from "@/lib/api";
@@ -113,7 +113,7 @@ export function ScanWizard({
 
         <div className="flex-1 overflow-y-auto px-4">
           <AnimatePresence mode="wait" initial={false}>
-            <motion.div
+            <m.div
               key={current}
               initial={{ opacity: 0, x: 12 }}
               animate={{
@@ -152,7 +152,7 @@ export function ScanWizard({
                   onMinimize={() => onOpenChange(false)}
                 />
               )}
-            </motion.div>
+            </m.div>
           </AnimatePresence>
         </div>
 
@@ -205,7 +205,7 @@ function Stepper({ current }: { current: Step }) {
             </span>
             {i < STEPS.length - 1 && (
               <span className="relative h-px flex-1 overflow-hidden bg-border" aria-hidden>
-                <motion.span
+                <m.span
                   className="absolute inset-0 origin-left bg-primary"
                   initial={false}
                   animate={{ scaleX: done ? 1 : 0 }}

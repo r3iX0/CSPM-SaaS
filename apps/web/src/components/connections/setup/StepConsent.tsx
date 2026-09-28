@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, m } from "motion/react";
 
 import type { CloudConnection } from "@/lib/types";
 import { useT } from "@/i18n";
@@ -110,7 +110,7 @@ export function StepConsent({
 
       <AnimatePresence initial={false}>
         {handoff && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: DURATION.quick / 1000, ease: EASE_OUT }}
@@ -145,7 +145,7 @@ export function StepConsent({
                 variant="ghost"
               />
             </div>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
 

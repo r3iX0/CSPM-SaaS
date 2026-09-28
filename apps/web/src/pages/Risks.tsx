@@ -1,6 +1,6 @@
 import { createElement, useEffect, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { motion } from "motion/react";
+import { m } from "motion/react";
 import { Link } from "react-router-dom";
 import { ChevronRightIcon, RadarIcon, SearchIcon } from "lucide-react";
 
@@ -314,7 +314,7 @@ export function RisksPage() {
               poll that returns the same ranking does not replay it -- only
               cards that are actually new animate, which keeps the movement a
               statement that something arrived. */}
-          <motion.div
+          <m.div
             className="flex flex-col gap-2.5"
             variants={listContainer}
             initial="initial"
@@ -326,7 +326,7 @@ export function RisksPage() {
                 nobody compares. The kind filter can separate them; the default
                 does not. */}
             {risks.map((risk, index) => (
-              <motion.div
+              <m.div
                 key={risk.id}
                 variants={listItem}
                 data-row-index={index}
@@ -360,9 +360,9 @@ export function RisksPage() {
                     }
                   />
                 )}
-              </motion.div>
+              </m.div>
             ))}
-          </motion.div>
+          </m.div>
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground">

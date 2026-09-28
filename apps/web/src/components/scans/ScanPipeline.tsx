@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { motion } from "motion/react";
+import { m } from "motion/react";
 import { CheckIcon, MinusIcon, XIcon } from "lucide-react";
 
 import { api } from "@/lib/api";
@@ -194,7 +194,7 @@ function AnalyzeDetail({ step, scan }: { step: ScanStage | undefined; scan: Scan
   const reached = ANALYZE_PHASES.findIndex((phase) => phase.id === step.phase);
 
   return (
-    <motion.div
+    <m.div
       initial={fadeUp.initial}
       animate={fadeUp.animate}
       className="flex flex-col gap-2.5 rounded-lg border px-3 py-2.5"
@@ -233,7 +233,7 @@ function AnalyzeDetail({ step, scan }: { step: ScanStage | undefined; scan: Scan
           {scan.rule_count > 0 && <LiveCount label="Rules run" value={scan.rule_count} />}
         </div>
       )}
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -291,7 +291,7 @@ function PhaseTrack({ stages, status }: { stages: ScanStage[]; status: string })
               <PhaseNode state={state} />
               {i < PHASES.length - 1 && (
                 <span className="relative mx-2 h-0.5 flex-1 overflow-hidden rounded-full bg-border" aria-hidden>
-                  <motion.span
+                  <m.span
                     className="absolute inset-0 origin-left bg-primary"
                     initial={false}
                     animate={{ scaleX: finished ? 1 : 0 }}
@@ -316,14 +316,14 @@ function PhaseNode({ state }: { state: PhaseState }) {
   return (
     <span className="relative flex size-8 shrink-0 items-center justify-center">
       {state === "active" && (
-        <motion.span
+        <m.span
           className="absolute inset-0 rounded-full bg-primary/20"
           animate={{ scale: [1, 1.35, 1], opacity: [0.6, 0, 0.6] }}
           transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
           aria-hidden
         />
       )}
-      <motion.span
+      <m.span
         layout
         className={cn(
           "relative flex size-8 items-center justify-center rounded-full border transition-colors",
@@ -340,7 +340,7 @@ function PhaseNode({ state }: { state: PhaseState }) {
         {state === "failed" && <XIcon className="size-4" aria-hidden />}
         {state === "skipped" && <MinusIcon className="size-4" aria-hidden />}
         {state === "pending" && <span className="size-1.5 rounded-full bg-muted-foreground/50" />}
-      </motion.span>
+      </m.span>
     </span>
   );
 }
@@ -370,7 +370,7 @@ function CollectLanes({ stages }: { stages: ScanStage[] }) {
         </p>
         <div className="flex h-1.5 gap-0.5" aria-hidden>
           {stages.map((stage, i) => (
-            <motion.span
+            <m.span
               key={`${stage.scope ?? "scope"}-${i}`}
               className={cn(
                 "flex-1 rounded-full transition-colors",
@@ -397,7 +397,7 @@ function CollectLanes({ stages }: { stages: ScanStage[] }) {
           // lane's secondary text takes the foreground.
           const quiet = stage.status === "FAILED" ? "text-foreground" : "text-muted-foreground";
           return (
-            <motion.li
+            <m.li
               key={stage.scope ?? `scope-${i}`}
               layout
               initial={{ opacity: 0, y: 6 }}
@@ -424,7 +424,7 @@ function CollectLanes({ stages }: { stages: ScanStage[] }) {
               {stage.status === "FAILED" && stage.error && (
                 <p className="pl-6 text-xs leading-relaxed text-critical">{stage.error}</p>
               )}
-            </motion.li>
+            </m.li>
           );
         })}
       </ul>
@@ -491,7 +491,7 @@ function ScanResult({
   const delta = previous ? scan.finding_count - previous.finding_count : null;
 
   return (
-    <motion.div initial={fadeUp.initial} animate={fadeUp.animate}>
+    <m.div initial={fadeUp.initial} animate={fadeUp.animate}>
       <Card className={cn("border", outcome.tone)}>
         <CardHeader>
           <CardTitle>{outcome.title}</CardTitle>
@@ -561,7 +561,7 @@ function ScanResult({
           </Button>
         </CardFooter>
       </Card>
-    </motion.div>
+    </m.div>
   );
 }
 

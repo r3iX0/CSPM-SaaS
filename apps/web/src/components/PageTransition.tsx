@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, m } from "motion/react";
 
 import { pageTransition } from "@/lib/motion";
 import { arrivedByMorph } from "@/lib/viewTransition";
@@ -42,14 +42,14 @@ export function PageTransition({ children }: { children: ReactNode }) {
 
   return (
     <AnimatePresence mode="wait" initial={false}>
-      <motion.div
+      <m.div
         key={shown.key}
         initial={pageTransition.initial}
         animate={pageTransition.animate}
         exit={pageTransition.exit}
       >
         {children}
-      </motion.div>
+      </m.div>
     </AnimatePresence>
   );
 }

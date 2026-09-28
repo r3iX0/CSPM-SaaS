@@ -1,20 +1,15 @@
-import { lazy, Suspense, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ClockIcon } from "lucide-react";
 
 import type { Dashboard } from "@/lib/types";
 import { groupCauses } from "@/lib/collectionErrors";
+import { Donut } from "@/components/charts/Donut";
 import type { Slice } from "@/components/charts/DonutLegend";
-import { Skeleton } from "@/components/ui/skeleton";
 import { buttonVariants } from "@/components/ui/button";
 import { cn, label } from "@/lib/format";
 
 type Category = NonNullable<Dashboard["coverage"]["categories"]>[number];
-
-/** Recharts is lazy everywhere in this app; a ring is not worth blocking on. */
-const Donut = lazy(() =>
-  import("@/components/charts/Donut").then((m) => ({ default: m.Donut })),
-);
 
 /**
  * How much of the environment the numbers above were actually formed from.
@@ -104,16 +99,14 @@ export function CoveragePanel({
               in the middle is the same number the sentence uses. */}
           {pct !== null && (
             <div className="flex items-center gap-3">
-              <Suspense fallback={<Skeleton className="size-16 rounded-full" />}>
-                <Donut
-                  slices={verdictSlices(conclusive, unknown)}
-                  centerValue={`${pct}%`}
-                  centerLabel=""
-                  ariaLabel={`${conclusive} checks reached a verdict, ${unknown} did not`}
-                  className="size-16 shrink-0"
-                  valueClassName="text-[14.5px]"
-                />
-              </Suspense>
+              <Donut
+                slices={verdictSlices(conclusive, unknown)}
+                centerValue={`${pct}%`}
+                centerLabel=""
+                ariaLabel={`${conclusive} checks reached a verdict, ${unknown} did not`}
+                className="size-16 shrink-0"
+                valueClassName="text-[14.5px]"
+              />
               <span className="text-xs text-muted-foreground">
                 of <span className="tabular-nums">{conclusive + unknown}</span> checks verdicted
               </span>

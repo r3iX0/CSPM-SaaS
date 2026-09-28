@@ -70,8 +70,10 @@ function renderPalette() {
   );
 }
 
-function open() {
+/** Opens it, and waits for the dialog, which is fetched on first use. */
+async function open() {
   fireEvent.click(screen.getByRole("button", { name: "Search Cleave" }));
+  await screen.findByPlaceholderText(/Search assets/);
 }
 
 async function type(value: string) {
@@ -107,11 +109,11 @@ describe("the command palette", () => {
     vi.unstubAllGlobals();
   });
 
-  it("opens on the keyboard shortcut, on either platform's modifier", () => {
+  it("opens on the keyboard shortcut, on either platform's modifier", async () => {
     renderPalette();
 
     fireEvent.keyDown(document, { key: "k", metaKey: true });
-    expect(screen.getByPlaceholderText(/Search assets/)).toBeInTheDocument();
+    expect(await screen.findByPlaceholderText(/Search assets/)).toBeInTheDocument();
 
     fireEvent.keyDown(document, { key: "k", metaKey: true });
     expect(screen.queryByPlaceholderText(/Search assets/)).not.toBeInTheDocument();
@@ -128,9 +130,9 @@ describe("the command palette", () => {
     expect(screen.queryByPlaceholderText(/Search assets/)).not.toBeInTheDocument();
   });
 
-  it("offers every navigable page, so it cannot drift from the sidebar", () => {
+  it("offers every navigable page, so it cannot drift from the sidebar", async () => {
     renderPalette();
-    open();
+    await open();
 
     for (const group of NAV_GROUPS) {
       for (const item of group.items) {
@@ -141,7 +143,7 @@ describe("the command palette", () => {
 
   it("jumps to an asset by name", async () => {
     renderPalette();
-    open();
+    await open();
     await type("payroll");
 
     fireEvent.click(await screen.findByText("payroll"));
@@ -155,7 +157,7 @@ describe("the command palette", () => {
 
   it("opens a rule's findings rather than the rule catalogue", async () => {
     renderPalette();
-    open();
+    await open();
     await type("public blob");
 
     fireEvent.click(await screen.findByText(RULES[0].name));
@@ -171,7 +173,7 @@ describe("the command palette", () => {
 
   it("does not ask the API about a one-letter search", async () => {
     renderPalette();
-    open();
+    await open();
     await type("p");
 
     const calls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.map(String);
@@ -180,7 +182,7 @@ describe("the command palette", () => {
 
   it("says what it searched when nothing matches", async () => {
     renderPalette();
-    open();
+    await open();
     await type("zzzzz nothing");
 
     // A bare "no results" would read as a claim about the whole product, and

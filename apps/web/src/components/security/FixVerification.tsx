@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { motion } from "motion/react";
+import { m } from "motion/react";
 import { CheckIcon, RotateCcwIcon, XIcon } from "lucide-react";
 
 import { api } from "@/lib/api";
@@ -111,7 +111,7 @@ export function FixVerification({
         : "border-border bg-card";
 
   return (
-    <motion.section
+    <m.section
       aria-live="polite"
       aria-label="Fix verification"
       initial={{ opacity: 0, y: -6 }}
@@ -175,7 +175,7 @@ export function FixVerification({
           return (
             <li key={label} className="flex flex-col gap-1.5">
               <span className="h-1 overflow-hidden rounded-full bg-foreground/10">
-                <motion.span
+                <m.span
                   className={cn(
                     "block h-full rounded-full",
                     verified ? "bg-ok" : stillFailing ? "bg-high" : failedScan ? "bg-critical" : "bg-primary",
@@ -213,6 +213,6 @@ export function FixVerification({
           </Button>
         </div>
       )}
-    </motion.section>
+    </m.section>
   );
 }
