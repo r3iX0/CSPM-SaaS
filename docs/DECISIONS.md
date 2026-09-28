@@ -7879,7 +7879,8 @@ engine's answers where the two overlap.
 Prowler cannot be imported into the API or its worker. It pins botocore 1.40 and
 pydantic 2.12; the API's aiobotocore needs botocore 1.43. So it lives in
 `apps/scanner`, its own package and image (`infrastructure/docker/scanner.Dockerfile`,
-`infrastructure/railway/scanner.json`), sharing only the database and the broker.
+`infrastructure/railway/scanner.json`, set on the service rather than read from
+it -- §152), sharing only the database and the broker.
 A seam test fails the build if anything under `apps/api/app` imports `prowler`.
 
 It is driven through `prowler.lib.scan.scan.Scan`, the interface Prowler's own
@@ -8193,7 +8194,35 @@ here rather than implied away. The larger exposure is not the database at all:
 the scanner holds Cleave's multi-tenant Entra secret and its AWS identity, which
 reach every customer who has granted access. See the open items.
 
+## 152. No Railway config at the repo root
+
+The first scanner deploy started the API. Railway reads `railway.json` at the
+repo root for every service built from the repo that names no config file of its
+own, and the new scanner service named none -- so it built `api.Dockerfile`,
+ran `alembic upgrade head && uvicorn`, and crashed on the API's missing
+environment. Pointing the scanner at `infrastructure/railway/scanner.json` was
+refused: Railway has deprecated Config as Code, and a service that has never
+used it may no longer opt in.
+
+So the API's file moved to `infrastructure/railway/api.json` beside the
+worker's, and the API service names it explicitly. With nothing at the root,
+a service without a file of its own gets exactly what is set on it. The
+scanner's Dockerfile path and start command are set on the service through the
+Railway API (`docs/DEPLOYMENT.md` §2); `scanner.json` stays as the record of
+them, and `test_scan_lease.py` still holds its queue list to the step kinds.
+
+Config as Code stops working on 2026-12-01. Before then all three services move
+to Railway's infrastructure-as-code file (`.railway/railway.ts`); see the open
+items. `railway config migrate` cannot do it unassisted: it maps the one root
+file onto the wrong service.
+
 ## Open items carried forward
+
+**Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read
+`infrastructure/railway/api.json` and `worker.json`; the scanner's settings live
+on the service. All three have to move to `.railway/railway.ts` (`railway config
+pull`, then edit, `railway config plan`, `railway config apply`) before that
+date, or the API and worker lose their start commands.
 
 **The scanner holds long-lived credentials for every customer (§151).** It
 runs Prowler and several hundred dependencies with Cleave's multi-tenant Entra

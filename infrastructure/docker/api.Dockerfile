@@ -59,7 +59,7 @@ USER cloudguard
 WORKDIR /srv/apps/api
 EXPOSE 8000
 
-# Railway's start command (railway.json) overrides this to run the migration
+# Railway's start command (infrastructure/railway/api.json) overrides this to run the migration
 # first. This default stands in for any host that runs the image as-is, so it
 # honors $PORT rather than assuming 8000.
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

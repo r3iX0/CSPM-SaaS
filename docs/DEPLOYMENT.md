@@ -148,9 +148,17 @@ Node installed on your machine.
    to `apps/api` makes `COPY apps/api/...` fail, because relative to that
    context there is no `apps/api` folder.
 
-   Nothing else needs configuring. `railway.json` at the repo root is read
-   automatically and declares the Dockerfile path, the start command (including
-   the migration) and the health check. Then **Networking** → generate a public
+   Then set its **Config-as-code** field to `infrastructure/railway/api.json`,
+   which declares the Dockerfile path, the start command (including the
+   migration) and the health check. It used to sit at the repo root, where
+   Railway read it for every service built from this repo that named no file of
+   its own -- including the scanner, which then started the API (DECISIONS.md
+   §152). With the CLI:
+
+   ```
+   railway api 'mutation($s:String!,$e:String!){serviceInstanceUpdate(serviceId:$s,environmentId:$e,input:{railwayConfigFile:"/infrastructure/railway/api.json"})}' \
+     --raw-var s=<api service id> --raw-var e=<environment id>
+   ``` Then **Networking** → generate a public
    domain; that's your `API_URL`.
 
    <details><summary>Setting it by hand instead</summary>
@@ -167,7 +175,7 @@ Node installed on your machine.
    time, Root Directory again empty.
 
    The worker runs Celery rather than the web server, so it needs a different
-   start command than the root `railway.json` provides.
+   start command than `infrastructure/railway/api.json` provides.
 
    **Preferred:** set its **Config-as-code** field to
    `infrastructure/railway/worker.json`. That file already carries the right
@@ -316,10 +324,23 @@ Node installed on your machine.
    runs Prowler for the ASSESS scan step (DECISIONS.md §150). Scans work
    without it; they run Cleave's own rules alone.
 
-   - **+ New** → **GitHub Repo** → same repo, Root Directory empty, and set
-     **Config-as-code** to `infrastructure/railway/scanner.json`. It builds
+   - **+ New** → **GitHub Repo** → same repo, Root Directory empty. It builds
      `infrastructure/docker/scanner.Dockerfile`, a separate image: Prowler's
      dependency pins cannot share the API's.
+   - Railway no longer lets a new service opt into Config-as-code, so the
+     scanner's settings are set on the service itself, mirroring
+     `infrastructure/railway/scanner.json` (the file a test holds the queue
+     names to). With the CLI, from the linked repo:
+
+     ```
+     railway service list --json        # the scanner's service id
+     railway api 'mutation($s:String!,$e:String!,$start:String!){serviceInstanceUpdate(serviceId:$s,environmentId:$e,input:{dockerfilePath:"infrastructure/docker/scanner.Dockerfile",startCommand:$start,restartPolicyType:ON_FAILURE,restartPolicyMaxRetries:3})}' \
+       --raw-var s=<scanner service id> --raw-var e=<environment id> \
+       --raw-var start="celery -A cloudguard_scanner.celery_app.celery_app worker --queues=assess --loglevel=INFO --concurrency=2 --max-tasks-per-child=1"
+     ```
+
+     No health check: it is a Celery worker with no HTTP port. A deploy log
+     that shows uvicorn means the service is reading the API's config.
    - Give `cloudguard_scanner` a password (the last block of
      `infrastructure/supabase/roles.sql`, pasted into the SQL Editor with the
      placeholder replaced there, never in the file). Migration 0042 created the
@@ -419,7 +440,7 @@ The build succeeded and the container started, but nothing answered on
   Look for an Alembic traceback — usually a database URL that is wrong or
   unreachable. A configuration problem shows up the same way; see below.
 * **It was still starting.** A first deploy creates every table, RLS policy,
-  function and grant before serving anything. `railway.json` allows 300s for
+  function and grant before serving anything. `api.json` allows 300s for
   this; if you overrode the healthcheck timeout in the dashboard to something
   short, raise it.
 
@@ -459,11 +480,11 @@ of likelihood:
    immediately.
 2. **Railway fell back to Nixpacks.** If it cannot find a Dockerfile it tries
    to auto-detect the project, and the repo root has no `package.json` or
-   `requirements.txt` for it to recognise, so it gives up fast. The root
-   `railway.json` prevents this — confirm the build logs say it is using the
+   `requirements.txt` for it to recognise, so it gives up fast. The
+   service's config file (`infrastructure/railway/api.json`) prevents this — confirm the build logs say it is using the
    Dockerfile builder.
 3. **A stale service config** from an earlier attempt overriding the file. A
-   value typed into the dashboard wins over `railway.json`; clear the Dockerfile
+   value typed into the dashboard wins over `api.json`; clear the Dockerfile
    Path and Build Command fields so the file applies.
 
 The **Build Logs** tab shows which of these it was — the Details tab only says
