@@ -28,7 +28,7 @@ from urllib.parse import urlsplit
 from uuid import UUID, uuid4
 
 from sqlalchemy import String, any_, cast, func, literal, select
-from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.dialects.postgresql import Insert, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import outbound
@@ -54,8 +54,8 @@ RETRY_DELAYS = (
 MAX_ATTEMPTS = len(RETRY_DELAYS) + 1
 
 # How long a claimed delivery is held by the sweep that claimed it. Longer than
-# a batch can take (fifty sends, five at a time, five seconds each), so two
-# sweeps overlapping never send the same one.
+# a batch can take (fifty sends, five at a time, each cut off at
+# ``outbound.DEADLINE``), so two sweeps overlapping never send the same one.
 CLAIM_LEASE = timedelta(minutes=5)
 BATCH = 50
 CONCURRENCY = 5
@@ -394,6 +394,12 @@ async def enqueue(session: AsyncSession, organization_id: UUID, now: datetime) -
     One statement, idempotent by the unique pair, so the sweep can run as often
     as it likes and overlap itself without owing anything twice.
     """
+    result = await session.execute(owed(organization_id, now))
+    return int(getattr(result, "rowcount", 0) or 0)
+
+
+def owed(organization_id: UUID, now: datetime) -> Insert:
+    """The INSERT..SELECT that ``enqueue`` runs, built apart so it can be read."""
     chosen = (
         select(
             literal(organization_id).label("organization_id"),
@@ -409,12 +415,21 @@ async def enqueue(session: AsyncSession, organization_id: UUID, now: datetime) -
             Notification.created_at > now - RECENT,
         )
     )
-    result = await session.execute(
+    return (
         insert(WebhookDelivery)
-        .from_select(["organization_id", "endpoint_id", "notification_id"], chosen)
+        # ``include_defaults=False`` is load-bearing. With it on, SQLAlchemy
+        # adds the model's Python-side ``id`` default to the SELECT as one bound
+        # value -- computed once per statement, not per row -- so the second
+        # row owed collided with the first on the primary key and the whole
+        # sweep rolled back. The table's own defaults give each row its id,
+        # status and attempt count (DECISIONS.md section 164).
+        .from_select(
+            ["organization_id", "endpoint_id", "notification_id"],
+            chosen,
+            include_defaults=False,
+        )
         .on_conflict_do_nothing(index_elements=["endpoint_id", "notification_id"])
     )
-    return int(getattr(result, "rowcount", 0) or 0)
 
 
 def next_attempt(attempts: int, now: datetime) -> datetime | None:
@@ -447,6 +462,11 @@ async def deliver_due(session: AsyncSession, organization_id: UUID) -> dict[str,
 
     Claimed and committed first, so no transaction is open while a receiver
     takes its time answering, and a second sweep skips what this one holds.
+
+    An attempt is counted when it is claimed, not when it returns. A sweep that
+    dies mid-send -- a killed worker, a time limit -- leaves the lease to run
+    out, and the next claim then sees the attempt it made; counted afterwards,
+    a delivery that always kills its sweep would be retried for ever.
     """
     now = datetime.now(UTC)
     claimed = list(
@@ -466,18 +486,29 @@ async def deliver_due(session: AsyncSession, organization_id: UUID) -> dict[str,
         .scalars()
         .all()
     )
+    counts = {"sent": 0, "failed": 0, "retrying": 0}
+    sending: list[WebhookDelivery] = []
     for delivery in claimed:
+        if delivery.attempts >= MAX_ATTEMPTS:
+            # Every attempt was claimed and none came back: given up on, the
+            # same as one that failed its last try.
+            delivery.status = DeliveryStatus.FAILED
+            delivery.last_error = delivery.last_error or "No answer after repeated attempts"
+            counts["failed"] += 1
+            continue
+        delivery.attempts += 1
         delivery.next_attempt_at = now + CLAIM_LEASE
+        sending.append(delivery)
     await session.commit()
-    if not claimed:
-        return {"sent": 0, "failed": 0, "retrying": 0}
+    if not sending:
+        return counts
 
     rows = (
         await session.execute(
             select(WebhookDelivery, WebhookEndpoint, Notification)
             .join(WebhookEndpoint, WebhookEndpoint.id == WebhookDelivery.endpoint_id)
             .join(Notification, Notification.id == WebhookDelivery.notification_id)
-            .where(WebhookDelivery.id.in_([d.id for d in claimed]))
+            .where(WebhookDelivery.id.in_([d.id for d in sending]))
         )
     ).all()
     # Read, then out of the transaction before anything is sent.
@@ -504,10 +535,8 @@ async def deliver_due(session: AsyncSession, organization_id: UUID) -> dict[str,
 
     outcomes = await asyncio.gather(*(attempt(d, e, n) for d, e, n in rows))
 
-    counts = {"sent": 0, "failed": 0, "retrying": 0}
     done = datetime.now(UTC)
     for (delivery, endpoint, _), outcome in zip(rows, outcomes, strict=True):
-        delivery.attempts += 1
         delivery.last_status = outcome.status
         delivery.last_error = outcome.error
         _note(endpoint, outcome, done)

@@ -187,3 +187,34 @@ async def test_only_owners_and_admins_manage_webhooks(client, org) -> None:
     await client.post("/api/v1/invitations/accept", json={"token": token}, headers=headers)
     response = await client.get("/api/v1/webhooks", headers={**headers, "X-Organization-Id": org})
     assert response.status_code == 403
+
+
+async def test_many_deliveries_are_owed_in_one_sweep(client, org) -> None:
+    """Two endpoints and two notifications owe four deliveries, each with its own id.
+
+    Every earlier test owed exactly one, which is why a statement that gave every
+    row the same id -- and rolled the whole sweep back on the second -- passed.
+    """
+    await create(client, org)
+    await create(client, org, "https://receiver.example.com/hook", "GENERIC")
+    for _ in range(2):
+        await add_notification(org, datetime.now(UTC) + timedelta(seconds=1))
+
+    async with scan_session(uuid.UUID(org)) as session:
+        owed = await webhooks.enqueue(session, uuid.UUID(org), datetime.now(UTC))
+        await session.commit()
+    assert owed == 4
+
+    async with service_session() as session:
+        ids = (
+            (
+                await session.execute(
+                    select(WebhookDelivery.id).where(
+                        WebhookDelivery.organization_id == uuid.UUID(org)
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+    assert len(set(ids)) == 4

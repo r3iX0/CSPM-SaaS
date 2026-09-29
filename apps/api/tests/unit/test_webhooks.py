@@ -214,3 +214,68 @@ def test_retries_widen_then_stop() -> None:
     assert delays[0] == NOW + timedelta(minutes=1)
     assert delays[-2] == NOW + timedelta(hours=6)
     assert delays[-1] is None
+
+
+# ------------------------------------------------ a receiver that stalls
+
+
+class _Drip(httpx.AsyncByteStream):
+    """An answer that never ends: a byte, then a wait, for ever."""
+
+    def __init__(self, pause: float) -> None:
+        self.pause = pause
+        self.sent = 0
+
+    async def __aiter__(self):  # type: ignore[no-untyped-def]
+        import asyncio
+
+        while True:
+            self.sent += 1
+            yield b"x" * 1024
+            await asyncio.sleep(self.pause)
+
+
+async def test_a_receiver_that_drips_is_cut_off_at_the_deadline(
+    resolving: Callable[..., None], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """httpx's read timeout restarts with every chunk; the deadline does not."""
+    resolving("93.184.216.34")
+    monkeypatch.setattr(outbound, "DEADLINE", 0.3)
+    monkeypatch.setattr(outbound, "READ_LIMIT", 10**9)
+    drip = _Drip(pause=0.05)
+    transport = httpx.MockTransport(lambda request: httpx.Response(500, stream=drip))
+
+    outcome = await outbound.post_json("https://r.example.com/h", b"{}", {}, transport=transport)
+    assert not outcome.ok
+    assert outcome.error == "No answer within 0.3 seconds"
+
+
+async def test_an_endless_refusal_is_read_only_as_far_as_the_limit(
+    resolving: Callable[..., None],
+) -> None:
+    resolving("93.184.216.34")
+    drip = _Drip(pause=0)
+    transport = httpx.MockTransport(lambda request: httpx.Response(500, stream=drip))
+
+    outcome = await outbound.post_json("https://r.example.com/h", b"{}", {}, transport=transport)
+    assert outcome.status == 500
+    assert drip.sent <= outbound.READ_LIMIT // 1024 + 1
+    assert outcome.error is not None and len(outcome.error) <= outbound.ERROR_EXCERPT + 20
+
+
+def test_every_row_owed_gets_its_own_id_from_the_database() -> None:
+    """One bound ``id`` for the whole INSERT..SELECT made the second row collide.
+
+    Two or more deliveries owed in one sweep then failed the primary key, and
+    the sweep's transaction -- the bell's notifications with it -- rolled back.
+    """
+    from sqlalchemy.dialects import postgresql
+
+    compiled = str(
+        webhooks.owed(uuid.uuid4(), NOW).compile(dialect=postgresql.dialect())
+    )
+    assert "%(id)s" not in compiled
+    assert (
+        "INSERT INTO webhook_deliveries (organization_id, endpoint_id, notification_id)"
+        in compiled
+    )

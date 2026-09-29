@@ -12,6 +12,7 @@ frame.
 """
 
 import asyncio
+import time
 from datetime import UTC, datetime
 from functools import lru_cache
 from uuid import UUID
@@ -664,8 +665,14 @@ async def _derive_all_notifications() -> int:
                 async with scan_session(org_id) as session:
                     total += await notifications_service.derive(session, org_id)
                     # Owed in the same transaction as the notifications, so a
-                    # notification is never written without its deliveries.
-                    await webhooks_service.enqueue(session, org_id, datetime.now(UTC))
+                    # notification is never written without its deliveries --
+                    # but in a savepoint, so a fault in the webhooks can never
+                    # take the bell's notifications down with it.
+                    try:
+                        async with session.begin_nested():
+                            await webhooks_service.enqueue(session, org_id, datetime.now(UTC))
+                    except Exception:
+                        log.exception("webhooks.enqueue_failed", organization_id=str(org_id))
                     await session.commit()
             except Exception:  # pragma: no cover - one tenant must not stop the rest
                 log.exception(
@@ -676,14 +683,25 @@ async def _derive_all_notifications() -> int:
         await dispose_engines()
 
 
+# Seconds one delivery sweep may keep starting organizations. Each organization
+# is at most ``BATCH / CONCURRENCY`` rounds of ``outbound.DEADLINE``, so one
+# begun just under the budget still ends far inside the soft time limit.
+WEBHOOK_SWEEP_BUDGET = 600
+
+
 async def _deliver_all_webhooks() -> dict[str, int]:
     """Every organization owing a delivery now, each under its own scoped session."""
     totals = {"sent": 0, "failed": 0, "retrying": 0}
+    started = time.monotonic()
     try:
         async with service_session() as session:
             org_ids = await webhooks_service.organizations_due(session, datetime.now(UTC))
 
         for org_id in org_ids:
+            # A budget per sweep, well inside the task's time limit: what is
+            # left stays due, and the next sweep a minute later starts on it.
+            if time.monotonic() - started > WEBHOOK_SWEEP_BUDGET:
+                break
             try:
                 async with scan_session(org_id) as session:
                     counts = await webhooks_service.deliver_due(session, org_id)

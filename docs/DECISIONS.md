@@ -9142,6 +9142,34 @@ declared. `deliver_due` is the one service function allowed to commit
 directly, because it runs only under `scan_session` and has to commit between
 claiming and sending (`tests/unit/test_request_transaction.py`).
 
+**Corrected after review, the same day it shipped.** A FastAPI review of the
+backend found two faults in this section's code, and both are fixed:
+
+- **Every delivery owed in one sweep shared one id.** `insert().from_select()`
+  keeps the model's defaults by default, and SQLAlchemy computes a Python-side
+  default (`uuid.uuid4`) once per statement, not once per row. The second row
+  owed in a sweep collided with the first on the primary key, and because
+  enqueueing shares the notification sweep's transaction, the organization's
+  bell notifications rolled back with it, every five minutes, logged as a
+  derivation failure. Only an organization with a webhook and two or more
+  deliveries owed at once was affected, and none was yet. `enqueue` now passes
+  `include_defaults=False`, so the table's own defaults give each row its id,
+  and it runs in a savepoint, so a fault in the webhooks can never again take
+  the bell down with it. Every earlier test owed exactly one delivery, which is
+  why none caught it; a test now owes four.
+- **A receiver could stall the sweep.** httpx's timeouts are per phase and its
+  read timeout restarts with every chunk, so a receiver answering one byte
+  every few seconds was never cut off. It held the sweep until Celery's limit,
+  and when the five-minute claim lease ran out the next sweep sent the same
+  deliveries again. `post_json` now runs the whole call, from lookup to answer,
+  under a ten-second deadline (`outbound.DEADLINE`). It reads a refusal's body
+  as a raw stream only as far as 4 KiB, so an endless or compressed body costs
+  a few kilobytes. An attempt is now counted when it is claimed rather than
+  when it returns, so a delivery that keeps killing its sweep is given up on
+  after its last attempt instead of retried for ever. A sweep also stops
+  starting new organizations after ten minutes and leaves the rest for the
+  next one.
+
 **Not verified live.** The Slack body is the documented incoming-webhook shape.
 The Teams body is the documented workflow-webhook shape, but it has not been
 tried against a live Teams workflow, and **Send test** is how a customer finds

@@ -36,8 +36,16 @@ import httpx
 # not hold a worker for long; a delivery that times out is retried later.
 TIMEOUT = httpx.Timeout(5.0, connect=3.0)
 
-# What a receiver's answer is kept to, in a delivery's error. Enough to say
-# what went wrong, not enough to store somebody's HTML page.
+# The whole call -- lookup, connect, send, answer -- whatever each phase does.
+# ``TIMEOUT`` alone is per phase, and httpx's read timeout restarts with every
+# chunk: a receiver answering one byte every four seconds was never cut off,
+# and held the delivery sweep until Celery's own limit (DECISIONS.md 164).
+DEADLINE = 10.0
+
+# How much of a refusal's body is read, and how much of it is kept in the
+# delivery's error. Read as a stream and dropped past the first, so an endless
+# answer costs a few kilobytes rather than the worker's memory.
+READ_LIMIT = 4096
 ERROR_EXCERPT = 300
 
 
@@ -136,18 +144,33 @@ async def post_json(
     all an ``Outcome`` the caller records. ``transport`` is for tests.
     """
     try:
+        async with asyncio.timeout(DEADLINE):
+            return await _post(url, body, headers, transport)
+    except TimeoutError:
+        return Outcome(ok=False, status=None, error=f"No answer within {DEADLINE:g} seconds")
+
+
+async def _post(
+    url: str,
+    body: bytes,
+    headers: dict[str, str],
+    transport: httpx.AsyncBaseTransport | None,
+) -> Outcome:
+    try:
         target = await resolve(url)
     except OutboundRefused as exc:
         return Outcome(ok=False, status=None, error=str(exc))
 
     try:
-        async with httpx.AsyncClient(
-            timeout=TIMEOUT,
-            follow_redirects=False,
-            trust_env=False,
-            transport=transport,
-        ) as client:
-            response = await client.post(
+        async with (
+            httpx.AsyncClient(
+                timeout=TIMEOUT,
+                follow_redirects=False,
+                trust_env=False,
+                transport=transport,
+            ) as client,
+            client.stream(
+                "POST",
                 pinned_url(target),
                 content=body,
                 headers={
@@ -157,15 +180,33 @@ async def post_json(
                     "User-Agent": "Cleave-Webhooks/1",
                 },
                 extensions={"sni_hostname": target.host},
-            )
+            ) as response,
+        ):
+            if 200 <= response.status_code < 300:
+                # The status is the answer; the body is never read.
+                return Outcome(ok=True, status=response.status_code, error=None)
+            excerpt = await _excerpt(response)
     except httpx.HTTPError as exc:
         return Outcome(ok=False, status=None, error=type(exc).__name__)
 
-    if 200 <= response.status_code < 300:
-        return Outcome(ok=True, status=response.status_code, error=None)
-    excerpt = response.text[:ERROR_EXCERPT].strip()
     return Outcome(
         ok=False,
         status=response.status_code,
         error=f"HTTP {response.status_code}" + (f": {excerpt}" if excerpt else ""),
     )
+
+
+async def _excerpt(response: httpx.Response) -> str:
+    """The start of a refusal's body, read no further than ``READ_LIMIT``."""
+    read = bytearray()
+    if response.is_stream_consumed:
+        # Already in memory (a response built rather than received).
+        read.extend(response.content[:READ_LIMIT])
+    else:
+        # Raw rather than decoded: a compressed body is never inflated, so a
+        # small answer cannot unpack into a large one here.
+        async for chunk in response.aiter_raw():
+            read.extend(chunk)
+            if len(read) >= READ_LIMIT:
+                break
+    return bytes(read[:READ_LIMIT]).decode("utf-8", "replace")[:ERROR_EXCERPT].strip()
