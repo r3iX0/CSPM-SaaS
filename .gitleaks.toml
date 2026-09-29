@@ -1,0 +1,16 @@
+# gitleaks configuration: the default rules, plus the few findings that are known
+# not to be credentials. Keep each allowlist entry narrow and say why it is safe.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Generated Prowler catalogue: remediation prose and IaC examples, no credentials"
+paths = ['''^apps/api/app/prowler/data/catalog\.json$''']
+
+[[allowlists]]
+description = "Fake Entra client secrets used as unit-test fixtures"
+paths = ['''^apps/api/tests/unit/''']
+regexes = [
+  '''1b2c3d4e-5f60-7182-93a4-b5c6d7e8f901''',
+  '''8f39c34c-e523-4914-89ca-d6de1a8691ab''',
+]

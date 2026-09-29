@@ -1,0 +1,59 @@
+# Local gates for human commits -- the same checks CI runs, only faster and on
+# staged files. Install once:  pip install pre-commit && pre-commit install
+# Run on everything:           pre-commit run --all-files
+#
+# No whitespace or end-of-file fixers on purpose: raw provider captures under
+# tests/fixtures are stored verbatim (DECISIONS.md: REST over SDKs), and a fixer
+# would rewrite them.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+        exclude: ^apps/api/app/prowler/data/catalog\.json$
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+        exclude: ^apps/web/tsconfig.*\.json$  # tsconfig allows comments
+      - id: detect-private-key
+      - id: no-commit-to-branch
+        args: [--branch, main]
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  # Run from inside each app, as CI does, so first-party imports sort the same.
+  # ruff is pinned to the version in apps/api and apps/scanner pyproject.toml.
+  - repo: local
+    hooks:
+      - id: ruff-api
+        name: ruff (api)
+        language: python
+        additional_dependencies: [ruff==0.8.4]
+        files: ^apps/api/.*\.py$
+        entry: bash -c 'cd apps/api && ruff check --force-exclude "${@/#apps\/api\//}"' --
+      - id: ruff-scanner
+        name: ruff (scanner)
+        language: python
+        additional_dependencies: [ruff==0.8.4]
+        files: ^apps/scanner/.*\.py$
+        entry: bash -c 'cd apps/scanner && ruff check --force-exclude "${@/#apps\/scanner\//}"' --
+
+  - repo: local
+    hooks:
+      - id: eslint-web
+        name: eslint (web)
+        language: system
+        files: ^apps/web/.*\.(ts|tsx|js|jsx|mjs)$
+        # Runs from apps/web so its flat config and node_modules resolve.
+        entry: bash -c 'cd apps/web && npx --no-install eslint --max-warnings=0 "${@/#apps\/web\//}"' --
+      - id: roles-sql-placeholder
+        name: roles.sql keeps its placeholder password
+        language: system
+        files: ^infrastructure/supabase/roles\.sql$
+        entry: bash -c 'grep -q "CHANGE-ME-BEFORE-RUNNING" infrastructure/supabase/roles.sql || { echo "roles.sql lost its placeholder password"; exit 1; }'
+        pass_filenames: false
