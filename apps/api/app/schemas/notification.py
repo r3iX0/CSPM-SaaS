@@ -24,3 +24,24 @@ class NotificationOut(BaseModel):
     link: str | None = None
     #: When it happened, which is not when the row was written.
     event_at: datetime
+
+
+class NotificationsMeta(BaseModel):
+    #: Everything unread, which the list may be cut short of.
+    unread: int
+    #: How many the list holds.
+    total: int
+
+
+class ReadThroughOut(BaseModel):
+    """The reader's watermark, moved to now."""
+
+    read_through: datetime
+
+
+class DismissedOut(BaseModel):
+    dismissed: UUID
+
+
+class DismissedCountOut(BaseModel):
+    dismissed: int

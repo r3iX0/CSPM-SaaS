@@ -1,9 +1,19 @@
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.core.enums import ScanStatus, ScanTrigger
+from app.core.enums import (
+    ConnectionScope,
+    Provider,
+    ScanStatus,
+    ScanStepKind,
+    ScanStepStatus,
+    ScanTrigger,
+    TaskOutcome,
+)
+from app.schemas.common import ClosedModel
 
 
 class ScanCreate(BaseModel):
@@ -25,7 +35,8 @@ class ScanOut(BaseModel):
     rule_count: int
     finding_count: int
     error_message: str | None = None
-    collection_errors: dict = Field(default_factory=dict)
+    #: As stored on the scan, by category.
+    collection_errors: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
     # True when nothing has collected this scan for long enough that a worker
     # is probably not running at all.
@@ -48,23 +59,120 @@ class ScanOut(BaseModel):
     duration_seconds: int | None = None
 
 
+class ScopeSubscriptionOut(ClosedModel):
+    subscription_id: str | None
+    subscription_name: str | None
+    in_scope: bool
+
+
+class ScanScopeOut(ClosedModel):
+    """What a scan pointed at, and which identity read it
+    (``services.scans.scan_context``)."""
+
+    #: Every subscription the scan covered; a list of one for a single one.
+    subscriptions: list[ScopeSubscriptionOut]
+    subscription_count: int
+    provider: Provider | None
+    #: The first subscription, for a panel that names one.
+    subscription_id: str | None
+    subscription_name: str | None
+    tenant_id: str | None
+    connection_name: str | None
+    scope_type: ConnectionScope | None
+    scope_path: str | None
+    #: CloudGuard's service principal in the customer's own tenant: the object
+    #: id they can look up in their directory and revoke.
+    service_principal_object_id: str | None
+    role_version: str | None
+
+
+class ScanStageOut(ClosedModel):
+    """One stage, what it did and how long it took (``services.scans.scan_stages``)."""
+
+    stage: ScanStepKind
+    #: The subscription it ran for, or the directory; ``None`` for a stage
+    #: over the whole scan.
+    scope: str | None
+    status: ScanStepStatus
+    attempt: int
+    #: Live while it runs.
+    duration_seconds: float | None
+    error: str | None
+    #: The sub-phase ANALYZE is in, written fenced on the attempt.
+    phase: str | None
+
+
 class ScanDetailOut(ScanOut):
     """A single scan with everything the detail panel shows.
 
     Separate from ``ScanOut`` because the list renders dozens of these and none
     of it is cheap: the scope panel reads two more tables and the breakdown
-    aggregates findings.
+    aggregates findings. The event stream pushes this same document.
     """
 
-    scope: dict = Field(default_factory=dict)
-    findings_by_severity: dict = Field(default_factory=dict)
+    scope: ScanScopeOut | None = None
+    #: Open findings this scan most recently detected, by severity.
+    findings_by_severity: dict[str, int] = Field(default_factory=dict)
     # What each stage did and how long it took. Answers "why was this scan
     # slow", which had no answer while a scan was one task with one start and
     # one end time.
-    stages: list[dict] = Field(default_factory=list)
+    stages: list[ScanStageOut] = Field(default_factory=list)
     # How many unresolved findings a purge would take with it, so the
     # confirmation can state a number rather than a category.
     purgeable_finding_count: int = 0
+
+
+class WorkerStatusOut(BaseModel):
+    """Whether any worker is listening, asked of the broker rather than guessed."""
+
+    workers: int
+    #: Whether the broker itself answered.
+    reachable: bool
+    detail: str
+
+
+class ScanDeletedOut(ClosedModel):
+    deleted: UUID
+    #: Unresolved findings deleted with it; resolved ones never are.
+    findings_purged: int
+
+
+class CollectionTaskOut(ClosedModel):
+    """One reading the scan took, and what came of it."""
+
+    #: The subscription's name, or the directory.
+    subscription: str
+    cloud_account_id: UUID | None
+    task: str
+    category: str
+    outcome: TaskOutcome
+    detail: str | None
+    item_count: int
+    evidence_id: UUID
+    #: Findings that rest on this reading.
+    finding_count: int
+    collected_at: datetime
+    #: ``[{"path", "api_version"}]``, as stored.
+    endpoints: list[dict[str, str]]
+
+
+class CollectionStatusOut(ClosedModel):
+    """What a scan could and could not read (``services.scans.collection_status``)."""
+
+    tasks: list[CollectionTaskOut]
+    total: int
+    complete: int
+    partial: int
+    failed: int
+    skipped: int
+    degraded_categories: list[str]
+
+
+class CoverageGapOut(BaseModel):
+    rule_id: str
+    #: ``None`` for a check about the tenant rather than one resource.
+    resource_id: UUID | None
+    reason: str
 
 
 class CoverageOut(BaseModel):
@@ -78,4 +186,6 @@ class CoverageOut(BaseModel):
     evaluated: int
     conclusive: int
     unknown: int
-    gaps: list[dict] = Field(default_factory=list)
+    #: Up to two hundred of the checks that could not tell, and why.
+    gaps: list[CoverageGapOut] = Field(default_factory=list)
+

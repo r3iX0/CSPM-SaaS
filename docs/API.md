@@ -253,6 +253,13 @@ rejected with 422 rather than quietly falling back to a different order than the
 one asked for. `search` matches a finding's title, its rule id, or the name of
 the resource it was found on; for a risk, its title or description.
 
+Every list that pages takes `limit` between 1 and its ceiling and `offset` from
+0; anything outside is a 422, never clamped. Every order a page is cut from ends
+on the row's id -- findings, risks and changes as well as assets -- because a
+scan stamps its whole batch with one time and many rows share a score, and
+PostgreSQL returns ties in whatever order the plan does. `/scans` caps `limit`
+at 100 and refuses more rather than quietly returning 100.
+
 `/changes` answers "what moved while I was away": asset appearances,
 disappearances, and changes to the three attributes the risk engine multiplies a
 finding by. A feed of transitions rather than a diff of two scans, so a week in
@@ -591,6 +598,14 @@ Errors:
   "meta": {}
 }
 ```
+
+In the published schema a success is `Envelope[Data, Meta]`, named for what
+`data` and `meta` hold (`meta` is `{total, limit, offset}` on a paged list, `{}`
+where there is nothing beside the data), and every error is `ErrorEnvelope` --
+including 422, whose `meta.errors` lists the fields that failed. Every route
+is typed (DECISIONS.md §157). A few routes answer with something other than an envelope
+and are declared as such: `/reports/{kind}` and the compliance export return a
+document, `/scans/{id}/events` a server-sent event stream.
 
 ---
 

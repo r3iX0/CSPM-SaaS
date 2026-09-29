@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -11,11 +12,14 @@ from app.core.enums import (
     RemediationStatus,
     RiskKind,
     RiskStatus,
+    RuleEngineKind,
     RuleState,
     Severity,
     TaskOutcome,
     VerificationStatus,
 )
+from app.schemas.attack_path import AttackPathOut
+from app.schemas.rule import ProwlerDetailOut, RemediationSpecOut
 
 
 class ResourceSummary(BaseModel):
@@ -51,6 +55,24 @@ class FindingOut(BaseModel):
     resource: ResourceSummary | None = None
 
 
+class RiskPathStepOut(BaseModel):
+    """One hop of a route as a risk stores it.
+
+    Written at scan time (``services/scan/correlation.py``) and read back from
+    JSONB, so every field is a plain string: a value renamed in an enum since
+    would otherwise turn a stored route into a 500. Narrower than the hop the
+    attack-path routes compute live -- no ``facts`` or ``detail``, which were
+    never stored.
+    """
+
+    source: str
+    source_id: str
+    relationship: str
+    target: str
+    target_id: str
+    description: str
+
+
 class RiskOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -61,18 +83,20 @@ class RiskOut(BaseModel):
     kind: RiskKind = RiskKind.FINDING
     # The route, hop by hop. Empty for a finding risk, which is about one asset
     # and has no route to describe.
-    path: list = Field(default_factory=list)
+    path: list[RiskPathStepOut] = Field(default_factory=list)
     title: str
     description: str
     risk_score: float
     risk_level: Level
-    status: str
+    status: RiskStatus
     asset_criticality: Level
     data_sensitivity: Level
     internet_exposure: Level
     exploitability: float
     business_impact: float
-    score_breakdown: dict = Field(default_factory=dict)
+    # Six weighted components on a finding risk; the worst member, amplifier
+    # and hops on a route. Stored as scored, so left open.
+    score_breakdown: dict[str, Any] = Field(default_factory=dict)
     #: The reading a route was last seen in. ``None`` on a finding risk, which
     #: is about one asset and takes its reading from the finding, and on a route
     #: recorded before this was tracked.
@@ -84,17 +108,44 @@ class RiskOut(BaseModel):
     due_date: date | None = None
 
 
-class FindingDetail(FindingOut):
-    """Everything the finding detail page needs to answer WHAT / WHY / HOW BAD /
-    HOW DO I FIX IT / DID THE FIX WORK (UI.md section 3)."""
+class RiskListItemOut(RiskOut):
+    """A queue row, which has to say what deciding about it would decide."""
 
-    rule_name: str | None = None
-    rationale: str | None = None
-    category: str | None = None
-    compliance_mappings: dict = Field(default_factory=dict)
-    estimated_effort_minutes: int = 30
-    risk: RiskOut | None = None
-    priority: Priority | None = None
+    # Open findings this risk covers -- forty on a grouped risk -- and, on a
+    # finding risk, open routes it is on (DECISIONS.md section 103).
+    finding_count: int
+    route_count: int
+
+
+class RiskMemberOut(BaseModel):
+    """A finding a risk was built from, named enough to be recognised."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    rule_id: str
+    title: str
+    severity: Severity
+    status: FindingStatus
+
+
+class RiskDetailOut(RiskOut):
+    """One risk, with the findings it was built from."""
+
+    # When the route was last seen. ``None`` where a route predates this being
+    # tracked, or where the scan that saw it has been pruned. Both mean "we
+    # cannot say when", which the page must not render as "just now".
+    observed_at: datetime | None
+    findings: list[RiskMemberOut]
+
+
+class RiskStatusOut(BaseModel):
+    """What a bulk decision left each risk at."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    status: RiskStatus
 
 
 class AcceptRiskRequest(BaseModel):
@@ -152,6 +203,15 @@ class RemediationOut(BaseModel):
     # closes is the choke points' question, and only a link can answer it
     # (DECISIONS.md section 127). Filled by the queue listing; zero elsewhere.
     on_routes: int = 0
+
+
+class RemediationUpdatedOut(RemediationOut):
+    """A task after a change, with what happens next where that is not obvious."""
+
+    #: Set when the task is marked done: that does not resolve the finding --
+    #: only an observation does -- and the customer is told CloudGuard will
+    #: look again. ``None`` otherwise.
+    note: str | None = None
 
 
 class VerificationOut(BaseModel):
@@ -229,3 +289,67 @@ class EvidenceCitationOut(BaseModel):
     # is still a true statement about what was read, and saying so beats a link
     # that 404s when somebody follows it.
     payload_available: bool
+
+
+class FindingDetail(FindingOut):
+    """Everything the finding detail page needs to answer WHAT / WHY / HOW BAD /
+    HOW DO I FIX IT / DID THE FIX WORK (UI.md section 3)."""
+
+    risk: RiskOut | None = None
+    priority: Priority
+    estimated_effort_minutes: int
+    timeline: list[FindingEventOut]
+    # Null until somebody claims a fix. Present afterwards whether or not
+    # CloudGuard has settled it -- "checking, and it has not appeared yet" is
+    # the answer a customer who has just done the work is waiting for.
+    verification: VerificationOut | None = None
+    # When an accepted finding comes back to the queue. ``None`` when it is not
+    # accepted, or accepted with no end date (DECISIONS.md section 104).
+    accepted_until: datetime | None = None
+    # From the rule registry, as it is today. ``None`` for a finding whose rule
+    # has since left the registry, which is a fact about CloudGuard rather than
+    # about the finding.
+    rule_name: str | None = None
+    rationale: str | None = None
+    category: str | None = None
+    #: What must become true, and the CLI, Terraform and policy generated from
+    #: it -- the object the rules routes publish.
+    remediation_spec: RemediationSpecOut | None = None
+    engine: RuleEngineKind | None = None
+    #: Prowler's side of the rule.
+    prowler: ProwlerDetailOut | None = None
+    compliance_mappings: dict[str, list[str]] = Field(default_factory=dict)
+
+
+class FindingAttackPathOut(AttackPathOut):
+    """A route through a finding's asset, and where on it the asset sits: an
+    entry is how somebody gets in, a target is what they are coming for, and a
+    step between is the link most likely worth cutting."""
+
+    asset_role: Literal["ENTRY", "STEP", "TARGET"]
+
+
+class FindingAttackPathsMeta(BaseModel):
+    total: int
+    #: The asset's provider id; ``None`` for a finding tied to no asset.
+    asset: str | None
+
+
+class FindingProvenanceOut(BaseModel):
+    rule_id: str
+    # The rule as it was when this finding was raised, not as it is now.
+    rule_version: str
+    #: ``None`` when no citation was recorded; an empty list would say the rule
+    #: reads nothing, and the two must not be answered the same way.
+    evidence: list[EvidenceCitationOut] | None
+
+
+class FindingProvenanceMeta(BaseModel):
+    total: int
+    recorded: bool
+
+
+class RescanQueuedOut(BaseModel):
+    scan_id: UUID
+    finding_id: UUID
+    message: str

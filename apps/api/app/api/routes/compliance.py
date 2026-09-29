@@ -14,22 +14,39 @@ from fastapi.responses import Response
 
 from app.compliance.export import export_filename, to_csv
 from app.core.deps import DbSession, Tenant
-from app.core.errors import NotFound, envelope
+from app.core.errors import NotFound
 from app.models.organization import Organization
+from app.schemas.common import ERROR_RESPONSES, Envelope, NoMeta
+from app.schemas.compliance import FrameworkDetailOut, FrameworkSummaryOut
 from app.services import compliance as service
 
-router = APIRouter(prefix="/compliance", tags=["compliance"])
+router = APIRouter(prefix="/compliance", tags=["compliance"], responses=ERROR_RESPONSES)
 
 
 @router.get("")
-async def list_frameworks(session: DbSession, tenant: Tenant) -> dict:
-    return envelope(await service.list_frameworks(session, tenant.organization_id))
+async def list_frameworks(
+    session: DbSession, tenant: Tenant
+) -> Envelope[list[FrameworkSummaryOut], NoMeta]:
+    summaries = await service.list_frameworks(session, tenant.organization_id)
+    return Envelope(
+        data=[FrameworkSummaryOut.model_validate(summary) for summary in summaries],
+        meta=NoMeta(),
+    )
 
 
 # Declared before ``/{framework_id}``: FastAPI matches in order, and the
 # parameterised route would otherwise swallow this and answer with a framework
 # named "export".
-@router.get("/{framework_id}/export")
+@router.get(
+    "/{framework_id}/export",
+    response_class=Response,
+    responses={
+        200: {
+            "description": "The assessment as a file, CSV or JSON by ``format``.",
+            "content": {"text/csv": {}, "application/json": {}},
+        }
+    },
+)
 async def export_framework(
     framework_id: str,
     session: DbSession,
@@ -78,8 +95,10 @@ def _attachment(organization: str, framework_id: str, extension: str) -> dict[st
 
 
 @router.get("/{framework_id}")
-async def get_framework(framework_id: str, session: DbSession, tenant: Tenant) -> dict:
+async def get_framework(
+    framework_id: str, session: DbSession, tenant: Tenant
+) -> Envelope[FrameworkDetailOut, NoMeta]:
     detail = await service.get_framework_detail(session, tenant.organization_id, framework_id)
     if detail is None:
         raise NotFound("Framework not found")
-    return envelope(detail)
+    return Envelope(data=FrameworkDetailOut.model_validate(detail), meta=NoMeta())

@@ -53,8 +53,15 @@ class OrganizationOut(BaseModel):
     is_demo: bool = False
 
 
-class MembershipOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class OrganizationMembershipOut(OrganizationOut):
+    """An organization, and the caller's role in it."""
 
-    organization: OrganizationOut
     role: Role
+
+
+class LeftDemoOut(BaseModel):
+    left: bool
+
+
+class OrganizationDeletedOut(BaseModel):
+    deleted: UUID

@@ -15,11 +15,12 @@ from sqlalchemy import select
 
 from app.core.deps import DbSession, Tenant
 from app.core.enums import AssetChange
-from app.core.errors import envelope
 from app.models.history import AssetChangeEvent
 from app.models.resource import ResourceRecord
+from app.schemas.change import ChangedAssetOut, ChangeOut, ChangesMeta
+from app.schemas.common import ERROR_RESPONSES, Envelope
 
-router = APIRouter(prefix="/changes", tags=["changes"])
+router = APIRouter(prefix="/changes", tags=["changes"], responses=ERROR_RESPONSES)
 
 # How far back the feed looks when nobody says. A week, because that is the
 # span the question is usually asked over -- "what changed while I was away".
@@ -32,9 +33,9 @@ async def list_changes(
     tenant: Tenant,
     days: int = Query(default=DEFAULT_WINDOW_DAYS, ge=1, le=90),
     change: AssetChange | None = None,
-    limit: int = Query(default=100, le=500),
-    offset: int = 0,
-) -> dict:
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+) -> Envelope[list[ChangeOut], ChangesMeta]:
     """Asset changes, newest first.
 
     Joined to the asset so a row is readable on its own. A feed of resource ids
@@ -56,36 +57,32 @@ async def list_changes(
 
     rows = (
         await session.execute(
-            stmt.order_by(AssetChangeEvent.observed_at.desc())
+            stmt.order_by(AssetChangeEvent.observed_at.desc(), AssetChangeEvent.id)
             .limit(limit)
             .offset(offset)
         )
     ).all()
 
-    return envelope(
-        [
-            {
-                "id": str(event.id),
-                "change": event.change,
-                "previous_value": event.previous_value,
-                "current_value": event.current_value,
-                "observed_at": event.observed_at.isoformat(),
-                "scan_id": str(event.scan_id) if event.scan_id else None,
-                "asset": {
-                    "id": str(resource.id),
-                    "name": resource.name,
-                    "resource_type": resource.resource_type,
-                    "environment": resource.environment,
+    return Envelope(
+        data=[
+            ChangeOut(
+                id=event.id,
+                change=event.change,
+                previous_value=event.previous_value,
+                current_value=event.current_value,
+                observed_at=event.observed_at,
+                scan_id=event.scan_id,
+                asset=ChangedAssetOut(
+                    id=resource.id,
+                    name=resource.name,
+                    resource_type=resource.resource_type,
+                    environment=resource.environment,
                     # Whether it is currently missing, which is what turns a
                     # DISAPPEARED row from history into something to act on.
-                    "absent_since": (
-                        resource.absent_since.isoformat()
-                        if resource.absent_since
-                        else None
-                    ),
-                },
-            }
+                    absent_since=resource.absent_since,
+                ),
+            )
             for event, resource in rows
         ],
-        {"days": days, "limit": limit, "offset": offset},
+        meta=ChangesMeta(days=days, limit=limit, offset=offset),
     )

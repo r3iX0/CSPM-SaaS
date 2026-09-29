@@ -27,6 +27,12 @@ from app.core.enums import RuleEngineKind, RuleScope
 from app.domain.resource import CloudResource
 from app.prowler.catalog import PostureCheck, enabled_checks, load
 from app.rules.base import RuleContext, RuleResult, SecurityRule
+from app.schemas.rule import (
+    ProwlerCheckOut,
+    ProwlerCrossCheckOut,
+    ProwlerDetailOut,
+    ProwlerRemediationOut,
+)
 
 # Minutes of work a customer should budget per fix. Prowler does not estimate
 # effort; this is the same default a native rule gets when its author did not.
@@ -196,7 +202,7 @@ def get_prowler_rule(rule_id: str) -> ProwlerCheckRule | None:
     return _by_rule_id().get(rule_id)
 
 
-def prowler_detail(rule_id: str) -> dict | None:
+def prowler_detail(rule_id: str) -> ProwlerDetailOut | None:
     """What the rules page says about the second engine for one rule.
 
     For a Prowler rule: which check, which release, and Prowler's own
@@ -208,27 +214,27 @@ def prowler_detail(rule_id: str) -> dict | None:
     rule = get_prowler_rule(rule_id)
     if rule is not None:
         check = rule.check
-        return {
-            "check_id": check.check_id,
-            "service": check.service,
-            "prowler_version": load().prowler_version,
-            "resource_type": check.resource_type,
-            "categories": list(check.categories),
-            "remediation": {
-                "cli": check.remediation.cli,
-                "terraform": check.remediation.terraform,
-                "native_iac": check.remediation.native_iac,
-                "other": check.remediation.other,
-                "url": check.remediation.url,
-            },
-            "additional_urls": list(check.additional_urls),
-        }
+        return ProwlerCheckOut(
+            check_id=check.check_id,
+            service=check.service,
+            prowler_version=load().prowler_version,
+            resource_type=check.resource_type,
+            categories=list(check.categories),
+            remediation=ProwlerRemediationOut(
+                cli=check.remediation.cli,
+                terraform=check.remediation.terraform,
+                native_iac=check.remediation.native_iac,
+                other=check.remediation.other,
+                url=check.remediation.url,
+            ),
+            additional_urls=list(check.additional_urls),
+        )
     counterparts = sorted(
         check.check_id for check in enabled_checks() if rule_id in check.covered_by
     )
     if not counterparts:
         return None
-    return {
-        "cross_checked_by": counterparts,
-        "divergence_note": load().divergence_notes.get(rule_id),
-    }
+    return ProwlerCrossCheckOut(
+        cross_checked_by=counterparts,
+        divergence_note=load().divergence_notes.get(rule_id),
+    )

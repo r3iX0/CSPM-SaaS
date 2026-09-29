@@ -99,7 +99,7 @@ npm test                         # vitest run
 - REST over Azure SDKs: raw JSON stored for re-evaluation
 - Relationship edges indexed both ways at RuleContext construction
 - No mock connector in production code; fixture-based unit tests instead
-- API response envelope: `{ "data": ..., "error": null, "meta": {} }`
+- API response envelope: `{ "data": ..., "error": null, "meta": {} }`; a route returns `Envelope[Data, Meta]` built from models -- or, where a service's dict has other readers, validated from it against `ClosedModel`s, which refuse undeclared keys -- and documents `ErrorEnvelope` through `responses=`; every router is converted, and `tests/unit/test_typed_responses.py` walks every route, naming the few that answer with a file, a stream or a provider's protocol (§157)
 - A step is fenced to the worker that claimed it; one advisory lock per scan target (§65)
 - The frontend catches its own failures: error boundaries, request timeouts, 401 signs out (§66)
 - A reading is scoped by region; a verdict is not (§69)

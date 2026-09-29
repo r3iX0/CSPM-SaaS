@@ -4,14 +4,16 @@ from fastapi import APIRouter
 from sqlalchemy import select
 
 from app.core.deps import DbSession, Tenant
-from app.core.errors import envelope
 from app.models.cloud_account import CloudAccount
-from app.schemas.cloud_account import CloudAccountOut
+from app.schemas.cloud_account import AzurePermissionsOut, CloudAccountOut
+from app.schemas.common import ERROR_RESPONSES, Envelope, NoMeta, error_responses
 from app.schemas.context import ContextDeclarationIn, ContextDeclarationOut
 from app.services import cloud_accounts as service
 from app.services import context as context_service
 
+# Per route rather than on the router: the permissions list is public.
 router = APIRouter(prefix="/cloud-accounts", tags=["cloud-accounts"])
+WRITE = {**ERROR_RESPONSES, **error_responses(403)}
 
 # Read-only on purpose. A cloud account is no longer something a customer
 # registers -- it is a subscription *discovered* beneath a cloud connection
@@ -28,20 +30,23 @@ router = APIRouter(prefix="/cloud-accounts", tags=["cloud-accounts"])
 # next discovery run.
 
 
-def _serialize(account: CloudAccount) -> dict:
-    data = CloudAccountOut.model_validate(account).model_dump(mode="json")
-    data["is_scannable"] = account.is_scannable
+def _serialize(account: CloudAccount) -> CloudAccountOut:
+    data = CloudAccountOut.model_validate(account)
+    data.is_scannable = account.is_scannable
     return data
 
 
 @router.get("/azure/permissions")
-async def azure_permissions() -> dict:
+async def azure_permissions() -> Envelope[AzurePermissionsOut, NoMeta]:
     """What CloudGuard will be able to see, shown before anyone consents."""
-    return envelope(service.required_permissions())
+    permissions = service.required_permissions()
+    return Envelope(data=AzurePermissionsOut.model_validate(permissions), meta=NoMeta())
 
 
-@router.get("")
-async def list_cloud_accounts(session: DbSession, tenant: Tenant) -> dict:
+@router.get("", responses=ERROR_RESPONSES)
+async def list_cloud_accounts(
+    session: DbSession, tenant: Tenant
+) -> Envelope[list[CloudAccountOut], NoMeta]:
     rows = (
         (
             await session.execute(
@@ -53,13 +58,15 @@ async def list_cloud_accounts(session: DbSession, tenant: Tenant) -> dict:
         .scalars()
         .all()
     )
-    return envelope([_serialize(a) for a in rows])
+    return Envelope(data=[_serialize(a) for a in rows], meta=NoMeta())
 
 
-@router.get("/{account_id}")
-async def get_cloud_account(account_id: UUID, session: DbSession, tenant: Tenant) -> dict:
+@router.get("/{account_id}", responses=ERROR_RESPONSES)
+async def get_cloud_account(
+    account_id: UUID, session: DbSession, tenant: Tenant
+) -> Envelope[CloudAccountOut, NoMeta]:
     account = await service.get_cloud_account(session, tenant, account_id)
-    return envelope(_serialize(account))
+    return Envelope(data=_serialize(account), meta=NoMeta())
 
 
 # --- what the customer says about a subscription ---------------------------
@@ -70,25 +77,25 @@ async def get_cloud_account(account_id: UUID, session: DbSession, tenant: Tenant
 # there was previously nowhere to put the answer.
 
 
-def _declaration(record: object | None) -> dict | None:
+def _declaration(record: object | None) -> ContextDeclarationOut | None:
     if record is None:
         return None
-    return ContextDeclarationOut.model_validate(record).model_dump(mode="json")
+    return ContextDeclarationOut.model_validate(record)
 
 
-@router.get("/{account_id}/context")
+@router.get("/{account_id}/context", responses=ERROR_RESPONSES)
 async def get_account_context(
     account_id: UUID, session: DbSession, tenant: Tenant
-) -> dict:
+) -> Envelope[ContextDeclarationOut | None, NoMeta]:
     """What has been declared about this subscription, or null if nothing has."""
     record = await context_service.get_declaration(session, tenant, account_id)
-    return envelope(_declaration(record))
+    return Envelope(data=_declaration(record), meta=NoMeta())
 
 
-@router.put("/{account_id}/context")
+@router.put("/{account_id}/context", responses=WRITE)
 async def declare_account_context(
     account_id: UUID, payload: ContextDeclarationIn, session: DbSession, tenant: Tenant
-) -> dict:
+) -> Envelope[ContextDeclarationOut | None, NoMeta]:
     """Declare the environment, criticality or data sensitivity of a subscription.
 
     A full replacement rather than a patch: a field left out is one the customer
@@ -111,13 +118,13 @@ async def declare_account_context(
         note=payload.note,
     )
     await session.commit()
-    return envelope(_declaration(record))
+    return Envelope(data=_declaration(record), meta=NoMeta())
 
 
-@router.delete("/{account_id}/context")
+@router.delete("/{account_id}/context", responses=WRITE)
 async def clear_account_context(
     account_id: UUID, session: DbSession, tenant: Tenant
-) -> dict:
+) -> Envelope[None, NoMeta]:
     """Withdraw the declaration, leaving CloudGuard to infer as it did before."""
     tenant.require_write()
     await context_service.declare(
@@ -130,4 +137,4 @@ async def clear_account_context(
         note=None,
     )
     await session.commit()
-    return envelope(None)
+    return Envelope(data=None, meta=NoMeta())

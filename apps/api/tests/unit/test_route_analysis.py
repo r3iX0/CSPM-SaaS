@@ -351,7 +351,9 @@ def test_the_drawn_map_counts_a_cut_against_every_route_not_the_drawn_ones() -> 
     every = graph.attack_paths()
     drawn = every[:1]
 
-    payload = serialize_route_map(graph, drawn, {}, {}, total_routes=len(every))
+    payload = serialize_route_map(
+        graph, drawn, {}, {}, total_routes=len(every)
+    ).model_dump(mode="json")
 
     assert len(payload["routes"]) == 1
     assert all(
@@ -376,7 +378,7 @@ def test_each_drawn_node_says_where_it_sits() -> None:
 
     payload = serialize_route_map(
         graph, every, {}, {}, total_routes=len(every), placements=placements
-    )
+    ).model_dump(mode="json")
     by_id = {node["id"]: node for node in payload["nodes"]}
 
     assert (by_id[RECORDS]["scope_id"], by_id[RECORDS]["scope_name"]) == ("sub-1", "Production")
@@ -532,7 +534,7 @@ def test_the_page_is_told_which_routes_close_only_together() -> None:
                 (WEB, RelationshipType.NETWORK_ACCESS, HOP_B),
             ]
         )
-    )
+    ).model_dump(mode="json")
 
     assert body["before"] == 1
     assert body["after"] == 0

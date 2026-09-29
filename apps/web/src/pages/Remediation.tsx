@@ -71,7 +71,7 @@ export function RemediationPage() {
 
   const update = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
-      api.patch<RemediationTask & { note?: string }>(
+      api.patch<RemediationTask & { note?: string | null }>(
         `/api/v1/remediation/${id}`,
         { status },
       ),

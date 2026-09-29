@@ -28,6 +28,13 @@ from app.remediation import Comparison, ExpectedState, azure_policy, terraform_h
 from app.risk.scorer import default_scorer
 from app.risk.triage import acceptance_expiry, finding_risk_status
 from app.rules.registry import get_rule
+from app.schemas.rule import (
+    CollectionStateOut,
+    EqualsStateOut,
+    ExpectedStateOut,
+    RemediationSpecOut,
+    TerraformHintOut,
+)
 from app.services import verification as verification_service
 
 
@@ -390,7 +397,7 @@ def rule_metadata(rule_id: str) -> dict:
     }
 
 
-def _state_json(state: ExpectedState) -> dict:
+def _state_json(state: ExpectedState) -> ExpectedStateOut:
     """One expected state, in a shape that cannot be misread.
 
     ``comparison`` travels with the value because without it a collection
@@ -399,20 +406,24 @@ def _state_json(state: ExpectedState) -> dict:
     network rule it is the clearest statement of what is being looked for, and
     a customer can compare it against what they have.
     """
-    payload: dict = {
-        "field": state.field,
-        "comparison": state.comparison.value,
-        "describes": state.describes,
-    }
     if state.comparison is Comparison.EQUALS:
-        payload["equals"] = state.equals
-        payload["also_accepts"] = list(state.also_accepts)
-    if state.example is not None:
-        payload["example"] = state.example
-    return payload
+        return EqualsStateOut(
+            field=state.field,
+            comparison=state.comparison,
+            describes=state.describes,
+            equals=state.equals,
+            also_accepts=list(state.also_accepts),
+            example=state.example,
+        )
+    return CollectionStateOut(
+        field=state.field,
+        comparison=state.comparison,
+        describes=state.describes,
+        example=state.example,
+    )
 
 
-def remediation_detail(rule_id: str) -> dict | None:
+def remediation_detail(rule_id: str) -> RemediationSpecOut | None:
     """What must become true, plus the artifacts generated from that.
 
     ``None`` where a rule has no declaration yet, which is a different answer
@@ -427,20 +438,20 @@ def remediation_detail(rule_id: str) -> dict | None:
 
     spec = rule.remediation_spec
     policy = azure_policy(rule.rule_id, rule.name, spec)
-    return {
-        "expected_state": [_state_json(state) for state in spec.expected],
+    return RemediationSpecOut(
+        expected_state=[_state_json(state) for state in spec.expected],
         # Who the expectation is about, where it is not everyone. A rule that
         # returns NOT_APPLICABLE for every ordinary account is not passing them.
-        "applies_when": spec.applies_when,
-        "cli": list(spec.cli),
-        "terraform": terraform_hints(spec),
+        applies_when=spec.applies_when,
+        cli=list(spec.cli),
+        terraform=[TerraformHintOut(**hint) for hint in terraform_hints(spec)],
         # Present where a policy can genuinely refuse this misconfiguration,
         # null where none can. A definition invented for the second case would
         # deploy and check nothing.
-        "azure_policy": policy,
-        "enforceable": spec.enforceable,
-        "notes": spec.notes,
-    }
+        azure_policy=policy,
+        enforceable=spec.enforceable,
+        notes=spec.notes,
+    )
 
 
 async def load_provenance(

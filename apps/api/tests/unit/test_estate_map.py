@@ -284,7 +284,7 @@ def test_serialized_boxes_carry_the_same_counts_whatever_they_hold() -> None:
         rows[VM]: {"open": 2, "worst": Severity.MEDIUM.value},
         rows[WEB_RG]: {"open": 1, "worst": Severity.CRITICAL.value},
     }
-    body = serialize_estate(mapped, placements, findings)
+    body = serialize_estate(mapped, placements, findings).model_dump(mode="json")
     boxes = {box["id"]: box for box in body["boxes"]}
 
     web = boxes[scope_box("sub-a")]
@@ -312,7 +312,7 @@ def test_serialized_asset_boxes_link_to_their_page() -> None:
         scope_names={"sub-b": "Data"},
         scope_providers={"sub-b": "AZURE"},
     )
-    body = serialize_estate(mapped, placements, {})
+    body = serialize_estate(mapped, placements, {}).model_dump(mode="json")
     storage = next(box for box in body["boxes"] if box["id"] == asset_box(STORAGE))
 
     assert storage["asset_id"] == str(row)
@@ -333,7 +333,7 @@ def test_the_map_sends_no_routes_to_walk() -> None:
         scope_names={"sub-a": "Web", "sub-b": "Data"},
         scope_providers={},
     )
-    body = serialize_estate(mapped, placements, {})
+    body = serialize_estate(mapped, placements, {}).model_dump(mode="json")
 
     assert set(body) == {"lens", "boxes", "edges"}
     assert {box["id"]: box["routes"] for box in body["boxes"]}[scope_box("sub-b")] == 1

@@ -410,7 +410,7 @@ class TestTheConnectionPayloadExplainsTheGap:
         connection.tenant_id = "8e482025-7ac9-4323-81e5-bc9fa528afd7"
         connection.rbac_verified_at = datetime.now(UTC)
         connection.created_at = datetime.now(UTC)
-        return routes._serialize(connection)
+        return routes._serialize(connection).model_dump(mode="json")
 
     def test_a_current_role_reports_no_gap(self) -> None:
         payload = self._payload(rbac.ROLE_VERSION)
@@ -827,7 +827,7 @@ class TestTheExtendedChecksReader:
         self._assign(self.CUSTOM)
         await service.refresh_grant_version(FakeSession(), connection)
 
-        payload = routes._serialize(connection)
+        payload = routes._serialize(connection).model_dump(mode="json")
         assert payload["role_upgrade_available"] is True
         assert payload["extended_checks_blocked"] is True
         assert payload["role_version"] == payload["role_required_version"]

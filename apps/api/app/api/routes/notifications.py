@@ -3,19 +3,26 @@ from uuid import UUID
 from fastapi import APIRouter, Query
 
 from app.core.deps import DbSession, Tenant
-from app.core.errors import NotFound, envelope
-from app.schemas.notification import NotificationOut
+from app.core.errors import NotFound
+from app.schemas.common import ERROR_RESPONSES, Envelope, NoMeta
+from app.schemas.notification import (
+    DismissedCountOut,
+    DismissedOut,
+    NotificationOut,
+    NotificationsMeta,
+    ReadThroughOut,
+)
 from app.services import notifications as service
 
-router = APIRouter(prefix="/notifications", tags=["notifications"])
+router = APIRouter(prefix="/notifications", tags=["notifications"], responses=ERROR_RESPONSES)
 
 
 @router.get("")
 async def list_notifications(
     session: DbSession,
     tenant: Tenant,
-    limit: int = Query(default=20, le=50),
-) -> dict:
+    limit: int = Query(default=20, ge=1, le=50),
+) -> Envelope[list[NotificationOut], NotificationsMeta]:
     """What happened that this person has not seen.
 
     Deliberately not ``/changes``. That answers "what moved in the environment"
@@ -30,14 +37,14 @@ async def list_notifications(
     rows, unread = await service.unread_for(
         session, tenant.organization_id, tenant.user.id, limit=limit
     )
-    return envelope(
-        [NotificationOut.model_validate(row).model_dump(mode="json") for row in rows],
-        {"unread": unread, "total": len(rows)},
+    return Envelope(
+        data=[NotificationOut.model_validate(row) for row in rows],
+        meta=NotificationsMeta(unread=unread, total=len(rows)),
     )
 
 
 @router.post("/read")
-async def mark_read(session: DbSession, tenant: Tenant) -> dict:
+async def mark_read(session: DbSession, tenant: Tenant) -> Envelope[ReadThroughOut, NoMeta]:
     """Move this person's watermark to now.
 
     A watermark rather than a flag per row, because the question has one answer
@@ -51,13 +58,13 @@ async def mark_read(session: DbSession, tenant: Tenant) -> dict:
         session, tenant.organization_id, tenant.user.id
     )
     await session.commit()
-    return envelope({"read_through": read_through.isoformat()})
+    return Envelope(data=ReadThroughOut(read_through=read_through), meta=NoMeta())
 
 
 @router.delete("/{notification_id}")
 async def dismiss_notification(
     notification_id: UUID, session: DbSession, tenant: Tenant
-) -> dict:
+) -> Envelope[DismissedOut, NoMeta]:
     """Stop showing one notification to the person asking.
 
     A dismissal rather than a delete. What happened belongs to the organization
@@ -74,11 +81,13 @@ async def dismiss_notification(
     if not dismissed:
         raise NotFound()
     await session.commit()
-    return envelope({"dismissed": str(notification_id)})
+    return Envelope(data=DismissedOut(dismissed=notification_id), meta=NoMeta())
 
 
 @router.delete("")
-async def dismiss_all_notifications(session: DbSession, tenant: Tenant) -> dict:
+async def dismiss_all_notifications(
+    session: DbSession, tenant: Tenant
+) -> Envelope[DismissedCountOut, NoMeta]:
     """Clear the panel for the person asking.
 
     Distinct from ``/read``, which moves a watermark and leaves everything in
@@ -87,4 +96,4 @@ async def dismiss_all_notifications(session: DbSession, tenant: Tenant) -> dict:
     """
     count = await service.dismiss_all(session, tenant.organization_id, tenant.user.id)
     await session.commit()
-    return envelope({"dismissed": count})
+    return Envelope(data=DismissedCountOut(dismissed=count), meta=NoMeta())

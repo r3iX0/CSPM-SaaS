@@ -38,6 +38,47 @@ from app.graph.model import ENTRY_EXPOSURE, RELATIONSHIP_VERBS, SENSITIVE_DATA
 from app.graph.patterns import PatternKind, route_patterns
 from app.models.finding import Finding
 from app.models.resource import ResourceRecord, ResourceRelationship
+from app.schemas.attack_path import (
+    AccessByTypeOut,
+    AccessGrantOut,
+    AccessHolderOut,
+    AccessOut,
+    AssetBoxOut,
+    AssetRefOut,
+    AttackPathOut,
+    ChokePointOut,
+    ClosedRouteOut,
+    DeadEndOut,
+    EstateBoxOut,
+    EstateEdgeOut,
+    EstateLensOut,
+    EstateLinkOut,
+    EstateOut,
+    FindingTallyOut,
+    FoldBoxOut,
+    FoldedGroupOut,
+    GraphEdgeOut,
+    GroupBoxOut,
+    LinkEndOut,
+    LinkOut,
+    MappedRouteOut,
+    NeighborhoodOut,
+    NeighborNodeOut,
+    PathBreakOut,
+    PathEntryOut,
+    PathStepOut,
+    PathTargetOut,
+    PatternEndOut,
+    RemainingRouteOut,
+    RouteMapEdgeOut,
+    RouteMapNodeOut,
+    RouteMapOut,
+    RoutePatternOut,
+    ScopeBoxOut,
+    SimulatedCutOut,
+    SimulatedRouteOut,
+    SimulationOut,
+)
 from app.services.placement import Placements
 
 # Graphs held in memory, keyed by tenant, each remembered with the version of
@@ -199,7 +240,7 @@ async def _build_graph(session: AsyncSession, organization_id: UUID) -> AssetGra
     return AssetGraph.build(resources, relationships)
 
 
-def serialize_choke_point(choke: ChokePoint, total_routes: int) -> dict:
+def serialize_choke_point(choke: ChokePoint, total_routes: int) -> ChokePointOut:
     """One link, what closes with it, and the honest denominator.
 
     ``on_routes`` is carried beside ``severs`` rather than dropped, because the
@@ -207,42 +248,42 @@ def serialize_choke_point(choke: ChokePoint, total_routes: int) -> dict:
     closes three is a link with a way round, and a customer who cut it expecting
     twenty would rightly stop trusting the number.
     """
-    return {
-        "description": choke.describe(),
+    return ChokePointOut(
+        description=choke.describe(),
         # The same link with its evidence in it. Carried beside the plain
         # sentence rather than replacing it, because the plain one is what the
         # rest of the product calls this link.
-        "detail": choke.step.detail(),
-        "facts": list(choke.step.facts),
-        "relationship": choke.step.relationship.value,
-        "source": {
-            "id": choke.step.source.provider_resource_id,
-            "name": choke.step.source.name,
-            "resource_type": choke.step.source.resource_type.value,
-        },
-        "target": {
-            "id": choke.step.target.provider_resource_id,
-            "name": choke.step.target.name,
-            "resource_type": choke.step.target.resource_type.value,
-        },
-        "severs": choke.severs,
-        "on_routes": choke.on_routes,
-        "total_routes": total_routes,
+        detail=choke.step.detail(),
+        facts=list(choke.step.facts),
+        relationship=choke.step.relationship,
+        source=_link_end(choke.step.source),
+        target=_link_end(choke.step.target),
+        severs=choke.severs,
+        on_routes=choke.on_routes,
+        total_routes=total_routes,
         # What actually closes, named. A count is a claim; these are the claim's
         # working, and they are what a customer checks it against.
-        "closes": [
-            {
-                "entry": path.entry.name,
-                "target": path.target.name,
-                "hops": path.hops,
-                "data_sensitivity": path.target.data_sensitivity.value,
-            }
+        closes=[
+            ClosedRouteOut(
+                entry=path.entry.name,
+                target=path.target.name,
+                hops=path.hops,
+                data_sensitivity=path.target.data_sensitivity,
+            )
             for path in choke.severed
         ],
-    }
+    )
 
 
-def serialize_simulation(simulation: Simulation) -> dict:
+def _link_end(resource: CloudResource) -> LinkEndOut:
+    return LinkEndOut(
+        id=resource.provider_resource_id,
+        name=resource.name,
+        resource_type=resource.resource_type,
+    )
+
+
+def serialize_simulation(simulation: Simulation) -> SimulationOut:
     """A plan of cuts, what it closes together, and what is left.
 
     Routes are named by key, the same key the route map carries, so the page
@@ -254,110 +295,110 @@ def serialize_simulation(simulation: Simulation) -> dict:
         alone.update(route_key(path) for path in cut.alone)
     closed = [route_key(path) for path in simulation.closed]
     after = len(simulation.remaining)
-    return {
-        "before": simulation.before,
-        "after": after,
-        "closed": [
-            {
-                "key": route_key(path),
-                "entry": path.entry.name,
-                "target": path.target.name,
-                "hops": path.hops,
-                "data_sensitivity": path.target.data_sensitivity.value,
-            }
+    return SimulationOut(
+        before=simulation.before,
+        after=after,
+        closed=[
+            SimulatedRouteOut(
+                key=route_key(path),
+                entry=path.entry.name,
+                target=path.target.name,
+                hops=path.hops,
+                data_sensitivity=path.target.data_sensitivity,
+            )
             for path in simulation.closed
         ],
         # Closed only because the cuts were made together: no one of them
         # closes these alone. The reason a plan is simulated whole.
-        "together": [key for key in closed if key not in alone],
+        together=[key for key in closed if key not in alone],
         # Still open, and how long each now runs -- round a cut link where the
         # drawn route used to cross one.
-        "remaining": [
-            {"key": route_key(path), "hops": path.hops} for path in simulation.remaining
+        remaining=[
+            RemainingRouteOut(key=route_key(path), hops=path.hops)
+            for path in simulation.remaining
         ],
-        "cuts": [
-            {
-                "source": cut.step.source.provider_resource_id,
-                "relationship": cut.step.relationship.value,
-                "target": cut.step.target.provider_resource_id,
-                "description": cut.step.describe(),
-                "detail": cut.step.detail(),
-                "alone": len(cut.alone),
-                "needed_for": len(cut.needed_for),
-            }
+        cuts=[
+            SimulatedCutOut(
+                source=cut.step.source.provider_resource_id,
+                relationship=cut.step.relationship,
+                target=cut.step.target.provider_resource_id,
+                description=cut.step.describe(),
+                detail=cut.step.detail(),
+                alone=len(cut.alone),
+                needed_for=len(cut.needed_for),
+            )
             for cut in simulation.cuts
         ],
-        "missing": [
-            {"source": source, "relationship": relationship, "target": target}
+        missing=[
+            LinkOut(source=source, relationship=RelationshipType(relationship), target=target)
             for source, relationship, target in simulation.missing
         ],
         # Ranked over the estate with the plan made, against what is left.
-        "next": [serialize_choke_point(choke, after) for choke in simulation.next],
-    }
+        next=[serialize_choke_point(choke, after) for choke in simulation.next],
+    )
 
 
-def serialize_path(path: Path) -> dict:
+def serialize_path(path: Path) -> AttackPathOut:
     step = path.cheapest_break()
-    return {
-        "entry": {
-            "id": path.entry.provider_resource_id,
-            "name": path.entry.name,
-            "resource_type": path.entry.resource_type.value,
-            "public_exposure": path.entry.public_exposure.value,
-        },
-        "target": {
-            "id": path.target.provider_resource_id,
-            "name": path.target.name,
-            "resource_type": path.target.resource_type.value,
-            "data_sensitivity": path.target.data_sensitivity.value,
-        },
-        "hops": path.hops,
+    return AttackPathOut(
+        entry=PathEntryOut(
+            id=path.entry.provider_resource_id,
+            name=path.entry.name,
+            resource_type=path.entry.resource_type,
+            public_exposure=path.entry.public_exposure,
+        ),
+        target=PathTargetOut(
+            id=path.target.provider_resource_id,
+            name=path.target.name,
+            resource_type=path.target.resource_type,
+            data_sensitivity=path.target.data_sensitivity,
+        ),
+        hops=path.hops,
         # The route in plain language, hop by hop. A path that only named its
         # endpoints would be an alarm; naming the route is what makes it a
         # thing somebody can go and cut.
-        "steps": [
-            {
-                "source": s.source.name,
-                "source_id": s.source.provider_resource_id,
-                "relationship": s.relationship.value,
-                "target": s.target.name,
-                "target_id": s.target.provider_resource_id,
-                "description": s.describe(),
+        steps=[
+            PathStepOut(
+                source=s.source.name,
+                source_id=s.source.provider_resource_id,
+                relationship=s.relationship,
+                target=s.target.name,
+                target_id=s.target.provider_resource_id,
+                description=s.describe(),
                 # What the hop is, beyond its kind: the role held over the
                 # scope, the network two machines share. "can act over" names
                 # nothing anybody can go and change; "Contributor" does.
-                "facts": list(s.facts),
-                "detail": s.detail(),
-            }
+                facts=list(s.facts),
+                detail=s.detail(),
+            )
             for s in path.steps
         ],
         # Where to cut it. Containment cannot be removed -- a storage account
         # has to live somewhere -- so this is always a capability hop, and the
         # earliest one closes the way in rather than containing what somebody
         # reaches once inside.
-        "cheapest_break": (
-            {
-                "description": step.describe(),
-                "detail": step.detail(),
-                "relationship": step.relationship.value,
-                "source_id": step.source.provider_resource_id,
-                "target_id": step.target.provider_resource_id,
-            }
+        cheapest_break=(
+            PathBreakOut(
+                description=step.describe(),
+                detail=step.detail(),
+                relationship=step.relationship,
+                source_id=step.source.provider_resource_id,
+                target_id=step.target.provider_resource_id,
+            )
             if step
             else None
         ),
-    }
+    )
 
 
-def _asset_ref(resource: CloudResource, ids: dict[str, UUID]) -> dict:
+def _asset_ref(resource: CloudResource, ids: dict[str, UUID]) -> AssetRefOut:
     """An asset named the way every list on the access view names one."""
-    asset_id = ids.get(resource.provider_resource_id)
-    return {
-        "id": resource.provider_resource_id,
-        "asset_id": str(asset_id) if asset_id else None,
-        "name": resource.name,
-        "resource_type": resource.resource_type.value,
-    }
+    return AssetRefOut(
+        id=resource.provider_resource_id,
+        asset_id=ids.get(resource.provider_resource_id),
+        name=resource.name,
+        resource_type=resource.resource_type,
+    )
 
 
 def access_asset_ids(holders: list[AccessHolder], grants: list[AccessGrant]) -> list[str]:
@@ -384,7 +425,7 @@ def serialize_access(
     *,
     controlled_limit: int,
     members_limit: int,
-) -> dict:
+) -> AccessOut:
     """Who holds access to an asset, and what an identity holds.
 
     Both halves every time, either possibly empty: an asset is held by
@@ -392,63 +433,60 @@ def serialize_access(
     both. The controlled assets under a grant are capped for the payload and
     counted in full, so "controls 412" is never drawn as the twelve listed.
     """
-    return {
-        "holders": [
-            {
-                "principal": _asset_ref(holder.principal, ids),
-                "role": holder.role,
-                "at": _asset_ref(holder.at, ids),
-                "inherited_from": holder.inherited_from,
-                "kinds": [kind.value for kind in holder.kinds],
-                "controls": holder.controls,
-                "conditional": holder.conditional,
-                "resolved": holder.resolved,
-                "runs_on": [_asset_ref(workload, ids) for workload in holder.runs_on],
+    return AccessOut(
+        holders=[
+            AccessHolderOut(
+                principal=_asset_ref(holder.principal, ids),
+                role=holder.role,
+                at=_asset_ref(holder.at, ids),
+                inherited_from=holder.inherited_from,
+                kinds=list(holder.kinds),
+                controls=holder.controls,
+                conditional=holder.conditional,
+                resolved=holder.resolved,
+                runs_on=[_asset_ref(workload, ids) for workload in holder.runs_on],
                 # A group's members: null when the holder is not a group or its
                 # membership was not read, which is not the same as nobody.
-                "members": (
+                members=(
                     None
                     if holder.members is None
                     else [_asset_ref(member, ids) for member in holder.members[:members_limit]]
                 ),
-                "unlisted_members": list(holder.unlisted_members[:members_limit]),
-                "members_total": (
+                unlisted_members=list(holder.unlisted_members[:members_limit]),
+                members_total=(
                     None
                     if holder.members is None
                     else len(holder.members) + len(holder.unlisted_members)
                 ),
-                "through_directory": holder.through_directory,
-                "eligible": holder.eligible,
-            }
+                through_directory=holder.through_directory,
+                eligible=holder.eligible,
+            )
             for holder in holders
         ],
-        "grants": [
-            {
-                "role": grant.role,
-                "at": _asset_ref(grant.at, ids) if grant.at is not None else None,
-                "scope": grant.scope,
-                "inherited_from": grant.inherited_from,
-                "conditional": grant.conditional,
-                "resolved": grant.resolved,
-                "grants_access": grant.grants_access,
-                "access": [
-                    {
-                        "resource_type": resource_type.value,
-                        "kinds": [kind.value for kind in kinds],
-                    }
+        grants=[
+            AccessGrantOut(
+                role=grant.role,
+                at=_asset_ref(grant.at, ids) if grant.at is not None else None,
+                scope=grant.scope,
+                inherited_from=grant.inherited_from,
+                conditional=grant.conditional,
+                resolved=grant.resolved,
+                grants_access=grant.grants_access,
+                access=[
+                    AccessByTypeOut(resource_type=resource_type, kinds=list(kinds))
                     for resource_type, kinds in grant.access
                 ],
-                "controlled": [
+                controlled=[
                     _asset_ref(asset, ids) for asset in grant.controlled[:controlled_limit]
                 ],
-                "controlled_total": len(grant.controlled),
-                "via": _asset_ref(grant.via, ids) if grant.via is not None else None,
-                "through_directory": grant.through_directory,
-                "eligible": grant.eligible,
-            }
+                controlled_total=len(grant.controlled),
+                via=_asset_ref(grant.via, ids) if grant.via is not None else None,
+                through_directory=grant.through_directory,
+                eligible=grant.eligible,
+            )
             for grant in grants
         ],
-    }
+    )
 
 
 def routes_through(graph: AssetGraph) -> dict[str, int]:
@@ -465,22 +503,18 @@ def routes_through(graph: AssetGraph) -> dict[str, int]:
     return through
 
 
-def serialize_dead_end(end: DeadEnd, ids: dict[str, UUID]) -> dict:
+def serialize_dead_end(end: DeadEnd, ids: dict[str, UUID]) -> DeadEndOut:
     """One way in with no route out, and where it stops."""
     entry = end.entry
-    return {
-        "id": entry.provider_resource_id,
-        "asset_id": (
-            str(ids[entry.provider_resource_id])
-            if entry.provider_resource_id in ids
-            else None
-        ),
-        "name": entry.name,
-        "resource_type": entry.resource_type.value,
-        "public_exposure": entry.public_exposure.value,
-        "reason": end.reason.value,
-        "reached": end.reached,
-    }
+    return DeadEndOut(
+        id=entry.provider_resource_id,
+        asset_id=ids.get(entry.provider_resource_id),
+        name=entry.name,
+        resource_type=entry.resource_type,
+        public_exposure=entry.public_exposure,
+        reason=end.reason,
+        reached=end.reached,
+    )
 
 
 async def asset_ids(
@@ -574,13 +608,19 @@ def parse_fold_id(value: str) -> tuple[str, RelationshipType, int] | None:
         return None
 
 
+def _tally(findings: dict[UUID, dict], asset_id: UUID | None) -> FindingTallyOut:
+    """An asset's open findings; none for an asset CloudGuard holds no row for."""
+    found = findings.get(asset_id) if asset_id else None
+    return FindingTallyOut.model_validate(found or {"open": 0, "worst": None})
+
+
 def serialize_neighborhood(
     graph: AssetGraph,
     around: Neighborhood,
     ids: dict[str, UUID],
     findings: dict[UUID, dict] | None = None,
     routes: list[Path] | None = None,
-) -> dict:
+) -> NeighborhoodOut:
     """Vertices, folded groups, the edges between them, and the routes through
     the focus, ready to draw.
 
@@ -599,30 +639,23 @@ def serialize_neighborhood(
         resource = graph.nodes[node_id]
         asset_id = ids.get(node_id)
         nodes.append(
-            {
-                "id": node_id,
-                "asset_id": str(asset_id) if asset_id else None,
-                "name": resource.name,
-                "resource_type": resource.resource_type.value,
-                "provider": resource.provider.value,
-                "layer": layer,
-                "public_exposure": resource.public_exposure.value,
-                "data_sensitivity": resource.data_sensitivity.value,
-                "entry": resource.public_exposure in ENTRY_EXPOSURE,
-                "sensitive": resource.data_sensitivity in SENSITIVE_DATA,
-                "findings": (findings.get(asset_id) if asset_id else None)
-                or {"open": 0, "worst": None},
-            }
+            NeighborNodeOut(
+                id=node_id,
+                asset_id=asset_id,
+                name=resource.name,
+                resource_type=resource.resource_type,
+                provider=resource.provider,
+                layer=layer,
+                public_exposure=resource.public_exposure,
+                data_sensitivity=resource.data_sensitivity,
+                entry=resource.public_exposure in ENTRY_EXPOSURE,
+                sensitive=resource.data_sensitivity in SENSITIVE_DATA,
+                findings=_tally(findings, asset_id),
+            )
         )
 
     edges = [
-        {
-            "source": source,
-            "target": target,
-            "relationship": relationship.value,
-            "label": RELATIONSHIP_VERBS.get(relationship, relationship.value),
-        }
-        for source, relationship, target in around.edges
+        _edge(source, relationship, target) for source, relationship, target in around.edges
     ]
 
     groups = []
@@ -632,39 +665,47 @@ def serialize_neighborhood(
         for member in group.members:
             by_type[member.resource_type.value] = by_type.get(member.resource_type.value, 0) + 1
         groups.append(
-            {
-                "id": group_id,
-                "parent": group.parent,
-                "relationship": group.relationship.value,
-                "layer": group.layer,
-                "count": len(group.members),
-                "by_type": dict(sorted(by_type.items(), key=lambda item: (-item[1], item[0]))),
-            }
+            FoldedGroupOut(
+                id=group_id,
+                parent=group.parent,
+                relationship=group.relationship,
+                layer=group.layer,
+                count=len(group.members),
+                by_type=dict(sorted(by_type.items(), key=lambda item: (-item[1], item[0]))),
+            )
         )
         downstream = group.layer > 0
         edges.append(
-            {
-                "source": group.parent if downstream else group_id,
-                "target": group_id if downstream else group.parent,
-                "relationship": group.relationship.value,
-                "label": RELATIONSHIP_VERBS.get(group.relationship, group.relationship.value),
-            }
+            _edge(
+                group.parent if downstream else group_id,
+                group.relationship,
+                group_id if downstream else group.parent,
+            )
         )
 
-    return {
-        "focus": around.focus,
-        "nodes": nodes,
-        "groups": groups,
-        "edges": edges,
-        "routes": [serialize_path(path) for path in routes or []],
-    }
+    return NeighborhoodOut(
+        focus=around.focus,
+        nodes=nodes,
+        groups=groups,
+        edges=edges,
+        routes=[serialize_path(path) for path in routes or []],
+    )
+
+
+def _edge(source: str, relationship: RelationshipType, target: str) -> GraphEdgeOut:
+    return GraphEdgeOut(
+        source=source,
+        target=target,
+        relationship=relationship,
+        label=RELATIONSHIP_VERBS.get(relationship, relationship.value),
+    )
 
 
 def serialize_estate(
     estate: EstateMap,
     placements: Placements,
     findings: dict[UUID, dict],
-) -> dict:
+) -> EstateOut:
     """Boxes and the counted links between them, ready to draw.
 
     Every box carries the same counts whatever it holds -- assets, ways in,
@@ -674,7 +715,7 @@ def serialize_estate(
     predicates, as the neighbourhood's markers are, so "3 ways in" on a box is
     exactly three assets a route may start from.
     """
-    boxes = []
+    boxes: list[EstateBoxOut] = []
     for box in estate.boxes:
         open_count = 0
         worst: Severity | None = None
@@ -690,68 +731,74 @@ def serialize_estate(
             if severity and (worst is None or _SEVERITY_RANK[severity] < _SEVERITY_RANK[worst]):
                 worst = severity
 
-        entry: dict = {
+        scope_name = placements.scope_names.get(box.scope, box.scope)
+        common = {
             "id": box.id,
-            "kind": box.kind,
             "inside": box.inside,
             "scope_id": box.scope,
-            "scope_name": placements.scope_names.get(box.scope, box.scope),
+            "scope_name": scope_name,
             "provider": placements.scope_providers.get(box.scope),
             "group": box.group,
             "assets": len(box.members),
             "entry": sum(1 for m in box.members if m.public_exposure in ENTRY_EXPOSURE),
             "sensitive": sum(1 for m in box.members if m.data_sensitivity in SENSITIVE_DATA),
-            "findings": {"open": open_count, "worst": worst.value if worst else None},
+            "findings": FindingTallyOut(open=open_count, worst=worst),
             "routes": estate.routes.get(box.id, 0),
         }
         if box.kind == "asset":
             resource = box.members[0]
-            row = placements.row_ids.get(resource.provider_resource_id)
-            entry.update(
-                {
-                    "name": resource.name,
-                    "provider_resource_id": resource.provider_resource_id,
-                    "asset_id": str(row) if row else None,
-                    "resource_type": resource.resource_type.value,
-                    "public_exposure": resource.public_exposure.value,
-                    "data_sensitivity": resource.data_sensitivity.value,
-                }
+            boxes.append(
+                AssetBoxOut(
+                    **common,
+                    kind="asset",
+                    name=resource.name,
+                    provider_resource_id=resource.provider_resource_id,
+                    asset_id=placements.row_ids.get(resource.provider_resource_id),
+                    resource_type=resource.resource_type,
+                    public_exposure=resource.public_exposure,
+                    data_sensitivity=resource.data_sensitivity,
+                )
             )
         elif box.kind == "scope":
-            entry["name"] = entry["scope_name"]
+            boxes.append(ScopeBoxOut(**common, kind="scope", name=scope_name))
         elif box.kind == "group":
             # Null for what sits directly in the scope; the page names that
             # rather than inventing a group called "Ungrouped".
-            entry["name"] = box.group
+            boxes.append(GroupBoxOut(**common, kind="group", name=box.group))
         else:
-            entry["name"] = None
-            entry["by_type"] = dict(sorted(by_type.items(), key=lambda item: (-item[1], item[0])))
-            entry["with_reach"] = estate.folded_with_reach
-        boxes.append(entry)
+            boxes.append(
+                FoldBoxOut(
+                    **common,
+                    kind="fold",
+                    name=None,
+                    by_type=dict(sorted(by_type.items(), key=lambda item: (-item[1], item[0]))),
+                    with_reach=estate.folded_with_reach,
+                )
+            )
 
     edges = [
-        {
-            "source": edge.source,
-            "target": edge.target,
-            "links": [
-                {
-                    "relationship": relationship.value,
-                    "count": count,
-                    "label": RELATIONSHIP_VERBS.get(relationship, relationship.value),
-                }
+        EstateEdgeOut(
+            source=edge.source,
+            target=edge.target,
+            links=[
+                EstateLinkOut(
+                    relationship=relationship,
+                    count=count,
+                    label=RELATIONSHIP_VERBS.get(relationship, relationship.value),
+                )
                 for relationship, count in edge.links
             ],
-        }
+        )
         for edge in estate.edges
     ]
 
     # No routes: walking them is the attack-path page's (section 138). A box's
     # ``routes`` is the count its link to that page carries.
-    return {
-        "lens": {"scope_id": estate.lens.scope, "group": estate.lens.group},
-        "boxes": boxes,
-        "edges": edges,
-    }
+    return EstateOut(
+        lens=EstateLensOut(scope_id=estate.lens.scope, group=estate.lens.group),
+        boxes=boxes,
+        edges=edges,
+    )
 
 
 def route_key(path: Path) -> str:
@@ -767,7 +814,7 @@ def route_key(path: Path) -> str:
 
 def serialize_patterns(
     paths: Sequence[Path],
-) -> tuple[list[dict], dict[str, str], list[str]]:
+) -> tuple[list[RoutePatternOut], dict[str, str], list[str]]:
     """The routes that repeat, grouped (section 123): the groups, each route's
     group by key, and the keys of the routes in none.
 
@@ -782,33 +829,33 @@ def serialize_patterns(
         for member in pattern.members:
             of_pattern[route_key(member)] = pattern_id
         shapes.append(
-            {
-                "id": pattern_id,
-                "kind": pattern.kind.value,
-                "description": pattern.describe(),
-                "size": pattern.size,
-                "hops": pattern.exemplar.hops,
-                "exemplar": route_key(pattern.exemplar),
-                "routes": [route_key(member) for member in pattern.members],
+            RoutePatternOut(
+                id=pattern_id,
+                kind=pattern.kind,
+                description=pattern.describe(),
+                size=pattern.size,
+                hops=pattern.exemplar.hops,
+                exemplar=route_key(pattern.exemplar),
+                routes=[route_key(member) for member in pattern.members],
                 # The end that varies, named, so the group can list what it
                 # collapsed without the reader opening every member.
-                "varies": [
-                    {
-                        "id": (
+                varies=[
+                    PatternEndOut(
+                        id=(
                             member.entry.provider_resource_id
                             if pattern.kind is PatternKind.MANY_ENTRIES
                             else member.target.provider_resource_id
                         ),
-                        "name": (
+                        name=(
                             member.entry.name
                             if pattern.kind is PatternKind.MANY_ENTRIES
                             else member.target.name
                         ),
-                        "route": route_key(member),
-                    }
+                        route=route_key(member),
+                    )
                     for member in pattern.members
                 ],
-            }
+            )
         )
 
     return shapes, of_pattern, [route_key(path) for path in loose]
@@ -823,7 +870,7 @@ def serialize_route_map(
     total_routes: int,
     placements: Placements | None = None,
     choke_limit: int = 5,
-) -> dict:
+) -> RouteMapOut:
     """Every route in the estate as one drawable graph, with what each link holds up.
 
     The list of routes and this are the same facts read two ways, and both are
@@ -866,28 +913,27 @@ def serialize_route_map(
         placed = placements.of.get(node_id) if placements else None
         scope = placed.scope if placed else DIRECTORY_SCOPE
         nodes.append(
-            {
-                "id": node_id,
-                "asset_id": str(asset_id) if asset_id else None,
-                "name": resource.name,
-                "resource_type": resource.resource_type.value,
-                "provider": resource.provider.value,
-                "scope_id": scope,
-                "scope_name": (placements.scope_names.get(scope) if placements else None)
+            RouteMapNodeOut(
+                id=node_id,
+                asset_id=asset_id,
+                name=resource.name,
+                resource_type=resource.resource_type,
+                provider=resource.provider,
+                scope_id=scope,
+                scope_name=(placements.scope_names.get(scope) if placements else None)
                 or ("Directory" if scope == DIRECTORY_SCOPE else scope),
-                "group": placed.group if placed else None,
-                "column": column,
-                "public_exposure": resource.public_exposure.value,
-                "data_sensitivity": resource.data_sensitivity.value,
+                group=placed.group if placed else None,
+                column=column,
+                public_exposure=resource.public_exposure,
+                data_sensitivity=resource.data_sensitivity,
                 # The graph's own predicates rather than a re-reading of the
                 # levels in the browser, so a box drawn as a way in is exactly
                 # an asset a route may start from.
-                "entry": resource.public_exposure in ENTRY_EXPOSURE,
-                "sensitive": resource.data_sensitivity in SENSITIVE_DATA,
-                "routes": through.get(node_id, 0),
-                "findings": (findings.get(asset_id) if asset_id else None)
-                or {"open": 0, "worst": None},
-            }
+                entry=resource.public_exposure in ENTRY_EXPOSURE,
+                sensitive=resource.data_sensitivity in SENSITIVE_DATA,
+                routes=through.get(node_id, 0),
+                findings=_tally(findings, asset_id),
+            )
         )
 
     severance = graph.link_severance()
@@ -901,46 +947,46 @@ def serialize_route_map(
         severed = severance.get(removal, ())
         on = on_routes.get(removal, 0)
         edges.append(
-            {
-                "source": link[0],
-                "relationship": link[1],
-                "target": link[2],
-                "label": RELATIONSHIP_VERBS.get(step.relationship, step.relationship.value),
-                "facts": list(step.facts),
-                "detail": step.detail(),
+            RouteMapEdgeOut(
+                source=link[0],
+                relationship=step.relationship,
+                target=link[2],
+                label=RELATIONSHIP_VERBS.get(step.relationship, step.relationship.value),
+                facts=list(step.facts),
+                detail=step.detail(),
                 # What cutting this one link would do, for every link rather
                 # than for a shortlist. Zero is a real answer and is drawn as
                 # one: it means every route through here has another way round.
-                "severs": len(severed),
+                severs=len(severed),
                 # Named, not just counted. A count is a claim, and these are
                 # its working -- they are what lets the drawing grey out
                 # exactly what would go, without asking the server a second
                 # question whose answer might not match the first.
-                "closes": [route_key(path) for path in severed],
-                "on_routes": on,
+                closes=[route_key(path) for path in severed],
+                on_routes=on,
                 # And whether that is the case, said plainly. The gap between
                 # the two numbers is the part a customer needs before they
                 # spend an afternoon removing a role assignment.
-                "alternate": on > len(severed),
-            }
+                alternate=on > len(severed),
+            )
         )
 
     shapes, of_pattern, loose = serialize_patterns(paths)
 
-    return {
-        "nodes": nodes,
-        "edges": edges,
-        "routes": [
-            {
-                **serialize_path(path),
-                "key": route_key(path),
-                "pattern": of_pattern.get(route_key(path)),
-            }
+    return RouteMapOut(
+        nodes=nodes,
+        edges=edges,
+        routes=[
+            MappedRouteOut(
+                **serialize_path(path).model_dump(),
+                key=route_key(path),
+                pattern=of_pattern.get(route_key(path)),
+            )
             for path in paths
         ],
-        "patterns": shapes,
-        "loose": loose,
-        "choke_points": [
+        patterns=shapes,
+        loose=loose,
+        choke_points=[
             # Against every route the estate has, never against the subset
             # drawn. A link's severance is computed over all of them, and the
             # dedicated endpoint says "4 of 240"; a map capped at 200 saying
@@ -949,4 +995,4 @@ def serialize_route_map(
             serialize_choke_point(choke, total_routes)
             for choke in graph.choke_points(limit=choke_limit)
         ],
-    }
+    )

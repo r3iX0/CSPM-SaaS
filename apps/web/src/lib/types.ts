@@ -99,7 +99,7 @@ export interface Risk {
    */
   kind: "FINDING" | "ATTACK_PATH" | "ESCALATION";
   /** The route, hop by hop. Empty for a finding risk, which has none. */
-  path: AttackPathStep[];
+  path: RouteStep[];
   title: string;
   description: string;
   risk_score: number;
@@ -159,8 +159,8 @@ export interface RiskDetail extends Risk {
     id: string;
     rule_id: string;
     title: string;
-    severity: Level;
-    status: string;
+    severity: Severity;
+    status: FindingStatus;
   }[];
 }
 
@@ -249,9 +249,10 @@ export interface FindingDetail extends Finding {
    * accepted, or accepted with no end date (DECISIONS.md §104).
    */
   accepted_until?: string | null;
-  rule_name?: string;
-  rationale?: string;
-  category?: string;
+  /** From the rule registry; `null` once the finding's rule has left it. */
+  rule_name?: string | null;
+  rationale?: string | null;
+  category?: string | null;
   compliance_mappings?: Record<string, string[]>;
   estimated_effort_minutes?: number;
   risk?: Risk | null;
@@ -260,7 +261,7 @@ export interface FindingDetail extends Finding {
   verification?: Verification | null;
   timeline?: FindingEvent[];
   /** Which engine raised it, and Prowler's side of the rule (DECISIONS.md §150). */
-  engine?: RuleEngine;
+  engine?: RuleEngine | null;
   prowler?: ProwlerDetail | null;
 }
 
@@ -916,13 +917,20 @@ export interface FindingAttackPath extends AttackPath {
   asset_role: "ENTRY" | "STEP" | "TARGET";
 }
 
-export interface AttackPathStep {
+/**
+ * One hop as a risk stores it: written at scan time and read back as it was,
+ * so it carries none of what the attack-path routes work out live.
+ */
+export interface RouteStep {
   source: string;
   source_id: string;
   relationship: string;
   target: string;
   target_id: string;
   description: string;
+}
+
+export interface AttackPathStep extends RouteStep {
   /**
    * What the hop is beyond its kind — the roles held over the scope, the
    * network two machines share, the kind of identity. Empty when the scan
@@ -948,10 +956,10 @@ export interface AttackPathMeta {
    * all people and no machines. */
   entry_point_types?: Record<string, number>;
   sensitive_target_types?: Record<string, number>;
-  /** Where each way in stops. Present only when there are ways in, sensitive
-   * assets, and no route between them; capped, `dead_ends_total` is the count. */
-  dead_ends?: DeadEnd[];
-  dead_ends_total?: number;
+  /** Where each way in stops. Null unless there are ways in, sensitive assets,
+   * and no route between them; capped, `dead_ends_total` is the count. */
+  dead_ends?: DeadEnd[] | null;
+  dead_ends_total?: number | null;
 }
 
 /**

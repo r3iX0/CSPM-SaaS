@@ -1,6 +1,6 @@
 import { ScissorsIcon } from "lucide-react";
 
-import type { AttackPathStep } from "@/lib/types";
+import type { RouteStep } from "@/lib/types";
 import { cn } from "@/lib/format";
 
 /**
@@ -20,7 +20,7 @@ export function AttackPathRoute({
   cutIndex,
   className,
 }: {
-  steps: AttackPathStep[];
+  steps: RouteStep[];
   cutIndex?: number;
   className?: string;
 }) {

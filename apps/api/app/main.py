@@ -17,12 +17,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.core.config import settings
-from app.core.db import ping
+from app.core.db import dispose_engines, ping
 from app.core.errors import (
     AppError,
     UnhandledErrorMiddleware,
     app_error_handler,
-    envelope,
     http_error_handler,
     validation_error_handler,
 )
@@ -32,6 +31,8 @@ from app.core.middleware import (
     RequestSizeLimitMiddleware,
     SecurityHeadersMiddleware,
 )
+from app.schemas.common import Envelope, NoMeta
+from app.schemas.health import HealthOut, ReadyOut
 
 log = get_logger(__name__)
 
@@ -67,6 +68,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         log.warning("rules.sync_failed", error=str(exc))
 
     yield
+
+    # Close the pools while the loop is still alive, so a redeploy hands its
+    # connections back rather than leaving each one held open in the Session
+    # pooler until it notices the process has gone -- the pooler's slots are
+    # shared with the worker and the scanner.
+    await dispose_engines()
 
 
 app = FastAPI(
@@ -125,7 +132,7 @@ app.include_router(api_router)
 
 
 @app.get("/health", tags=["meta"])
-async def health() -> dict:
+async def health() -> Envelope[HealthOut, NoMeta]:
     """The platform's liveness probe, and nothing else.
 
     Answers whether this process is up, and says nothing about what it is: the
@@ -133,10 +140,10 @@ async def health() -> dict:
     a field anybody can read. Which environment a deployment is tells a
     stranger nothing they need and one thing they might use.
     """
-    return envelope({"status": "ok"})
+    return Envelope(data=HealthOut(status="ok"), meta=NoMeta())
 
 
 @app.get("/health/ready", tags=["meta"])
-async def ready() -> dict:
+async def ready() -> Envelope[ReadyOut, NoMeta]:
     await ping()
-    return envelope({"status": "ready", "database": "ok"})
+    return Envelope(data=ReadyOut(status="ready", database="ok"), meta=NoMeta())

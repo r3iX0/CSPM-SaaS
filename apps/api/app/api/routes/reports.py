@@ -28,6 +28,7 @@ from fastapi.responses import HTMLResponse, Response
 from app.core.deps import DbSession, Tenant
 from app.core.errors import NotFound, ValidationFailed
 from app.reports.render import render_html, render_pdf
+from app.schemas.common import ERROR_RESPONSES
 from app.services.reports import (
     DEFAULT_WINDOW_DAYS,
     MAX_WINDOW_DAYS,
@@ -35,7 +36,7 @@ from app.services.reports import (
     build_report,
 )
 
-router = APIRouter(prefix="/reports", tags=["reports"])
+router = APIRouter(prefix="/reports", tags=["reports"], responses=ERROR_RESPONSES)
 
 KINDS = {"executive", "technical"}
 
@@ -54,7 +55,16 @@ def _filename(kind: str, organization: str, extension: str) -> str:
     return f"cloudguard-{slug}-{kind}.{extension}"
 
 
-@router.get("/{kind}")
+@router.get(
+    "/{kind}",
+    response_class=Response,
+    responses={
+        200: {
+            "description": "The report as a PDF to keep, or as HTML to read, by ``format``.",
+            "content": {"application/pdf": {}, "text/html": {}},
+        }
+    },
+)
 async def get_report(
     kind: str,
     session: DbSession,

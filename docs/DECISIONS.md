@@ -8452,6 +8452,242 @@ button asking. It found one that was not on purpose: the first connection step
 focused its name field, skipping the cloud choice drawn above it, and no longer
 does.
 
+## 156. A page size is validated where it is declared, and every page order ends on the id
+
+A pass over the API against FastAPI's own practices. Most of it already held:
+one lifespan, typed settings validated at import, dependencies that derive the
+tenant rather than accept it, one error envelope, middleware ordered so every
+error still carries CORS. Three things did not.
+
+**`limit` and `offset` had no floor.** Every list declared a ceiling and no
+floor, `/scans` declared neither and clamped in the handler, and `offset` was a
+bare `int`. PostgreSQL refuses a negative `LIMIT` or `OFFSET`, so `?limit=-1`
+reached the database and came back a 500; where the page is sliced in Python,
+the attack-path list and map, `paths[:-1]` quietly dropped the last route.
+Every `limit` is now `ge=1` with its ceiling, every `offset` `ge=0`, and
+`/scans` answers 422 above 100 instead of clamping, like every other list.
+`tests/unit/test_pagination_bounds.py` reads the bounds off the published
+schema, so a list added without them fails the build.
+
+**Paged orderings could tie.** `/findings` ordered by score and detection time,
+`/risks` by score, `/changes` by time -- and one scan writes every finding it
+raises with the same `now`, every change event with the scan's observed time,
+and many rows share a score. PostgreSQL orders ties however the plan falls, so
+the same offset could return a different row on the next request and a page
+could repeat one finding and skip another. Each now ends on the id, as `/assets`
+already did.
+
+**The pools outlived the process.** The lifespan opened the engines and never
+closed them, so a redeploy left its connections for the Session pooler to
+notice were gone. It now awaits `dispose_engines()` after `yield`.
+
+**Not done, and why.** FastAPI's usual advice is a `response_model` on every
+route. Here the handlers return the `{data, error, meta}` envelope as a `dict`
+built from `*Out` schemas, so the published schema says nothing about what a
+response holds. Typing all of them is a change to eighty-odd routes and the
+generated `openapi.json`, and is worth doing as its own piece -- a generic
+`Envelope[T]` model, one router at a time -- rather than folded into this (§157).
+
+## 157. Responses are typed envelopes, one router at a time, starting with findings
+
+§156 left this undone: every route returned the `{data, error, meta}` envelope
+as a `dict`, so the published schema said "an object" for every success and
+FastAPI's own `HTTPValidationError` for every 422 -- a shape the API never
+sends, since the validation handler answers with the envelope.
+
+**`Envelope[DataT, MetaT]`** (`app/schemas/common.py`) is the success shape,
+with `error` fixed to null. A route declares it as its return type and FastAPI
+takes that as the response model, so the body is validated on the way out and
+the schema names what `data` and `meta` hold. `meta` is a parameter of its own
+rather than an open dict because it is where a list says how big the set is --
+`PageMeta` is `total`, `limit`, `offset` -- and a client should not have to
+guess that. A response with nothing beside its data says `NoMeta`, which is
+`{}`. Two parameters rather than a default for the second: pydantic 2.10
+refuses a `TypeVar` default when parametrizing, so `Envelope[X]` alone cannot
+mean `Envelope[X, NoMeta]`.
+
+**Handlers build the models, not dicts.** A response model given a dict drops
+every key it does not declare, so a field added to a payload and forgotten in
+the schema would vanish from the API without an error. Built as models,
+pydantic refuses the missing field at construction instead. The `envelope()`
+helper stays for the routers not yet moved.
+
+**Errors are documented, not modelled per route.** They are written by the
+exception handlers outside the route, so `ErrorEnvelope` is published through
+`responses=`: every route behind the tenant can answer 401, 404 and 422
+(`ERROR_RESPONSES`, on the router), a write adds 403, and the rescan adds 409.
+
+**Findings first**, all seven routes. What they send is unchanged, checked by
+calling every route with the old handlers and the new against the same faked
+session and diffing the bodies, with two exceptions. `accepted_until` is
+written `Z` like every other time on the finding, rather than `+00:00` -- the
+same instant, which it was the only field to spell differently. And a finding
+whose rule has left the registry sends the registry's fields as `null` (and
+`compliance_mappings` as `{}`) rather than leaving them out; the web types say
+so. `remediation_spec` and `prowler` are typed with the rules routes, which
+publish the same objects. An attack path is
+typed as `AttackPathOut` (`app/schemas/attack_path.py`), which the attack-path
+routes reuse.
+
+**Risks second**, all four routes, unchanged but for `observed_at`, which is
+written `Z` for the same reason as `accepted_until`. A risk's `path` is not
+`AttackPathOut`: it is the list of hops the correlation stage stored at scan
+time (`services/scan/correlation.py`), six keys since the column was first
+written and never the `facts` and `detail` a live route computes -- which the
+web types claimed it had, and nothing read. It is `RiskPathStepOut`, every
+field a plain string rather than an enum, because it is read back from JSONB
+and a value renamed since would otherwise turn a stored route into a 500. The
+web types split the same way: `RouteStep` is the stored hop, and
+`AttackPathStep` extends it. `score_breakdown` stays open for the same reason
+-- it is stored as scored, in two shapes. A queue row is `RiskListItemOut`, the
+risk with its `finding_count` and `route_count`; the detail is `RiskDetailOut`,
+with `observed_at` and the member findings.
+
+**Attack paths third**, all nine routes, and here the serializers change rather
+than the routes: every `serialize_*` in `services/graph.py` returns its model --
+`AttackPathOut`, `RouteMapOut`, `NeighborhoodOut`, `EstateOut`, `AccessOut`,
+`SimulationOut`, `ChokePointOut`, `DeadEndOut` -- so a drawing is typed where it
+is built, and the finding page's routes and the route map's are the same
+`serialize_path` model rather than a dict each spread and extended. Unlike a
+risk's stored route, all of this is computed from the graph on the request, so
+relationships, resource types, levels and kinds are the enums themselves. An
+estate box carries different fields by what it holds, and is a union
+discriminated on `kind` -- `ScopeBoxOut`, `GroupBoxOut`, `AssetBoxOut`,
+`FoldBoxOut` -- rather than one model of optional fields, which would have sent
+an asset's fields as `null` on every scope. Diffed over the demo estate (thirty
+responses, including an opened fold, a route pattern, a plan that closes only
+together, and the three 404s), one thing changed: the list's `meta` carries
+`dead_ends` and `dead_ends_total` as `null` when there are routes, rather than
+leaving them out. They are worked out only when there is none, and a schema
+that has the key sometimes is harder to read than one whose value says "not
+asked"; the page reads both with `??`.
+
+**Rules fourth**, both routes, and with them the two objects a finding's detail
+had left open. `remediation_detail` returns `RemediationSpecOut` and
+`prowler_detail` returns `ProwlerCheckOut` or `ProwlerCrossCheckOut`
+(`app/schemas/rule.py`), so the rules page and the finding page publish one
+type each. An expected state is a union discriminated on `comparison`:
+`equals` and `also_accepts` exist only on an equality, because a collection
+expectation with `equals: null` reads as "this must be null". The Prowler
+detail is a union with no discriminator -- its two shapes share no key and each
+has keys the other lacks -- and changing the payload to add one was not worth
+it. `azure_policy` stays `dict[str, Any]`: it is Azure's policy document, and
+restating Azure's schema here would be a second copy to keep true. The mirror's
+own columns are plain strings, severity aside, because a rule removed from the
+registry stays in the table disabled and a renamed value would otherwise fail
+the whole list. Over all 804 rules, one thing changed: an expected state with no
+example sends `example: null` rather than leaving the key out, which nothing
+reads. Validating on the way out has a price here that the smaller routes do
+not show: the full list costs about 106 ms rather than 85 through the test
+client. That was taken as the cost of a list that cannot drift from its schema;
+if it ever matters, the list is the route to cache, not to untype.
+
+**Remediation fifth**, all three routes. The queue is `RemediationOut` with
+`on_routes` set on the model rather than spread into a copy of it, and an
+update answers `RemediationUpdatedOut`, whose `note` -- what happens after a
+task is marked done -- is `null` on any other change rather than missing. The
+page reads it with `??`, as it did the missing key. Nothing else in the three
+responses changed.
+
+**Changes, notifications, compliance and the dashboard sixth**, together, and
+here the rule above -- build models, not dicts -- has an exception it needed a
+tool for. The dashboard and the compliance frameworks are built as dicts by
+their services because other readers take the same dicts: the PDF report, the
+compliance export (which pops keys from the detail to reshape it), and a dozen
+pipeline tests. Rewriting the services to build models would move every one of
+those readers onto attributes for no gain to them. So the route validates the
+finished dict instead, against models that are `ClosedModel`s
+(`app/schemas/common.py`): `extra="forbid"`, so a key the service adds and the
+schema does not declare fails the request rather than being dropped from it --
+the silent loss that made "models, not dicts" the rule. A unit test holds that
+refusal in place. Changes and notifications build their models directly, as
+before. The compliance export stays a file, not an envelope, declared with its
+two media types; the guard test lists it in `FILES` rather than exempting file
+routes by shape, so a new one is a decision somebody writes down. The dashboard
+was compared by answering its eighteen queries in order, for an estate with a
+scan and one without; compliance through its real resolution over the whole
+registry, every framework. The only change across them is time: every
+timestamp these four wrote with `isoformat()` is now written `Z`, as the rest
+of the API already did.
+
+**Scans seventh**, all eleven routes. The detail and the event stream were one
+builder so that a pushed state and a polled one are the same document (§88);
+they still are, and now the builder returns `ScanDetailOut`, which the stream
+dumps to JSON for each tick and the detail route returns as its envelope's
+data. The scope, the stages and the collection status stay dicts in
+`services/scans.py`, which the pipeline tests read, and are validated at the
+route as `ClosedModel`s. The stream is not an envelope: it is declared as
+`text/event-stream`, with its four events described, and joins the export in
+the guard test's list of routes that answer with something else, now named
+`NOT_ENVELOPED`. Compared across twenty cases -- every refusal, a broker that
+would not take the message, each of the worker probe's three answers, and the
+stream read to its end -- the stream's text is unchanged, and the only change
+elsewhere is a collection task's `collected_at` written `Z`.
+
+**Cloud connections eighth**, sixteen of eighteen routes. `CloudConnectionOut`
+now declares the four fields `_serialize` had been adding beside it
+(`role_required_version`, `degraded_categories`, `change_events_enabled`,
+`last_change_event_at`), and `_serialize` sets them on the model. The unit tests
+caught one thing the comparison did not: a connection built in memory has not
+had its column defaults applied, so `change_events_enabled` is `None`, which the
+old code coerced after dumping and the model now refuses on the way in -- it is
+coerced by a validator on the model, as `provider_ref` already was. The
+provider onboardings' dicts -- the app registration, the revocation steps, the
+revocation check -- and the change-event setup stay dicts and are validated at
+the route as `ClosedModel`s. The revocation is one model for both clouds: AWS
+adds `external_id_note`, `account_id` and `managed_policies`, which Azure now
+sends as `null` rather than omitting, and nothing on the page reads them. The
+ARM template and the consent callback are not envelopes -- the portal fetches
+one from any origin and Entra redirects to the other -- and are hidden from the
+schema as before; the guard lists them and skips hidden routes when checking
+documented errors. Compared over twenty-four cases, both clouds, with an
+administrator's and a viewer's view of the consent link: the times are written
+`Z`, and Azure's revocation carries the three `null`s.
+
+**Cloud accounts, organizations and the engine audit ninth; reports and the
+event webhook declared rather than typed; `/health` typed.** Cloud accounts
+documents its errors per route rather than on the router, because the Azure
+permissions list is public and would otherwise claim a 401 it never sends; a
+declaration that has been cleared is `data: null`, typed as such.
+Organizations documents 401 and 422 for all, and 404 only where a route looks a
+membership up -- most of them act on the caller, not inside an organization. The
+engine audit is built as a dict and validated as `ClosedModel`s, with the
+scanner's kinds, outcomes and states left as strings: a separate service on its
+own release writes them, and a value it adds should reach the page rather than
+fail the audit. A report is a PDF or an HTML page, declared with both media
+types; the change-event webhook answers the provider in the provider's terms
+and stays out of the schema. Compared over eighteen cases, the one change is
+the audit's scan time written `Z`.
+
+The guard test stopped naming the converted routers and now walks every route
+in the app, with two lists beside it: `NOT_ENVELOPED`, six routes answered with
+something else, each checked to still exist so a stale entry cannot exempt
+whatever lands at that path next; and, for one commit, `UNCONVERTED`, which
+held `/api/v1/assets`. That router had been left off every list of what
+remained, and the first run over the whole app is what found it. The error
+check now asks the stronger question -- every documented 4xx or 5xx is
+`ErrorEnvelope`, and `HTTPValidationError` is nowhere in the schema -- rather
+than looking for three codes, because not every route can answer 401 or 404.
+
+**Assets last**, all four routes, and with them `UNCONVERTED` is gone: the
+guard walks every route in the app with no exemption but the six that answer
+with something else. The list is `AssetRowOut` under `AssetsMeta` (the page
+plus `unchecked` and the facets); the hierarchy, accumulated as dicts by scope,
+is validated as `ClosedModel`s; the detail is `AssetDetailOut`, with each
+context value's provenance as `ContextFactOut`. `resource_type` is the enum,
+because the column already is one -- a value it did not know would fail on load
+before it reached a response. Compared over nine cases -- the list filtered and
+empty, the hierarchy with a directory bucket, a subscription asset and a
+directory one, and the 404s -- the only change is the asset times written `Z`.
+The published schema now has a typed success for every JSON route; the three
+without one are the compliance export, the reports and the scan's event
+stream, each declared with its own media type.
+
+`tests/unit/test_typed_responses.py` walks every route under the converted
+prefixes and fails on one that returns anything but an `Envelope`, or that
+publishes FastAPI's 422 instead of `ErrorEnvelope`. Its `TYPED` list grows a
+router at a time until it covers `/api/v1`, and then goes.
+
 ## Open items carried forward
 
 **Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read

@@ -9,21 +9,32 @@ from app.core.config import settings
 from app.core.db import service_session
 from app.core.deps import DbSession, Tenant
 from app.core.enums import ConsentStatus, Provider, Role
-from app.core.errors import CloudAccountNotFound, ValidationFailed, envelope
+from app.core.errors import CloudAccountNotFound, ValidationFailed
 from app.core.signing import Purpose, SignedStateError, verify_state
 from app.models.cloud_account import CloudAccount
 from app.models.cloud_connection import CloudConnection
 from app.schemas.cloud_connection import (
+    AppRegistrationOut,
+    ChangeEventSetupOut,
     ChangeEventsUpdate,
     CloudConnectionCreate,
     CloudConnectionOut,
+    ConnectionDeletedOut,
     DiscoveredSubscription,
+    ProviderOptionOut,
+    RevocationCheckOut,
+    RevocationOut,
     ScheduleUpdate,
     ScopeSelection,
 )
+from app.schemas.common import ERROR_RESPONSES, Envelope, NoMeta, error_responses
 from app.services import cloud_connections as service
 
-router = APIRouter(prefix="/cloud-connections", tags=["cloud-connections"])
+router = APIRouter(
+    prefix="/cloud-connections", tags=["cloud-connections"], responses=ERROR_RESPONSES
+)
+# Refused to a read-only role, and to anybody in the demo.
+WRITE = error_responses(403)
 
 # Applied to the ARM template endpoint only, not to the API at large. The
 # global CORS policy names this product's own frontend; Azure Portal is a
@@ -49,25 +60,25 @@ def _serialize(
     subscription_count: int = 0,
     subscriptions: list[CloudAccount] | None = None,
     consent_url: str | None = None,
-) -> dict:
-    data = CloudConnectionOut.model_validate(connection).model_dump(mode="json")
-    data["is_verified"] = connection.is_verified
-    data["scope_path"] = service.scope_path(connection)
+) -> CloudConnectionOut:
+    data = CloudConnectionOut.model_validate(connection)
+    data.is_verified = connection.is_verified
+    data.scope_path = service.scope_path(connection)
     # Filtered rather than passed through. ``provider_ref`` is where a future
     # field could land that a viewer should not see, and a serializer that
     # forwarded the whole blob would carry it to the browser without anybody
     # deciding to.
-    data["provider_ref"] = {
+    data.provider_ref = {
         key: value
         for key, value in (connection.provider_ref or {}).items()
         if key in VISIBLE_PROVIDER_REF
     }
-    data["subscription_count"] = subscription_count
-    data["template_url"] = service.deployment_url(connection)
+    data.subscription_count = subscription_count
+    data.template_url = service.deployment_url(connection)
     # Lets the card stop showing a spinner once waiting has stopped being a
     # plausible explanation for the silence.
-    data["deploy_stalled"] = service.deploy_stalled(connection)
-    data["role_upgrade_available"] = service.grant_upgrade_available(connection)
+    data.deploy_stalled = service.deploy_stalled(connection)
+    data.role_upgrade_available = service.grant_upgrade_available(connection)
     # What to redeploy to, and what is lost until they do. The boolean above
     # says a newer role exists; on its own it can only produce "something is
     # out of date", which is a notification rather than a decision. These two
@@ -75,11 +86,11 @@ def _serialize(
     # checks report UNKNOWN until you redeploy" -- and the categories come from
     # the same function the scanner uses to explain the gaps, so the screen and
     # the scan cannot disagree about which checks are affected.
-    data["role_required_version"] = service.required_grant_version(connection)
+    data.role_required_version = service.required_grant_version(connection)
     # A redeploy prompt on a current role, for the Reader the extended checks
     # read through. Its own field, so the panel does not print "v8, behind (v8)".
-    data["extended_checks_blocked"] = service.extended_checks_blocked(connection)
-    data["degraded_categories"] = sorted(
+    data.extended_checks_blocked = service.extended_checks_blocked(connection)
+    data.degraded_categories = sorted(
         category.value for category in service.degraded_categories(connection)
     )
     # Both grants proven is not the same as having something to scan, and the
@@ -87,21 +98,16 @@ def _serialize(
     # ``is_verified``. Readiness needs a subscription CloudGuard can actually
     # look at. Only meaningful when the caller passed the subscriptions in;
     # endpoints that do not are reporting on a connection mid-setup.
-    data["is_ready_to_scan"] = connection.is_verified and any(
+    data.is_ready_to_scan = connection.is_verified and any(
         a.is_scannable for a in (subscriptions or [])
     )
-    # Whether this environment reports its own changes, and when it last did.
-    # Sent with the connection rather than left to the change-events endpoint:
-    # the list states how often each environment is read, and a clock is only
-    # half of that answer -- fetching the other half would be one request per
-    # row to render one line. Coerced, because a connection built in memory has
-    # not had the column default applied.
-    data["change_events_enabled"] = bool(connection.change_events_enabled)
-    data["last_change_event_at"] = (
-        connection.last_change_event_at.isoformat()
-        if connection.last_change_event_at
-        else None
-    )
+    # Whether this environment reports its own changes, and when it last did,
+    # read off the row by the model (``change_events_enabled`` coerced there,
+    # because a connection built in memory has not had the column default
+    # applied). Sent with the connection rather than left to the change-events
+    # endpoint: the list states how often each environment is read, and a clock
+    # is only half of that answer -- fetching the other half would be one
+    # request per row to render one line.
 
     # Passed in rather than minted here, and only by a handler that has
     # established the caller may complete onboarding. A consent link is a
@@ -109,15 +115,15 @@ def _serialize(
     # directory: minting one for every reader handed the action to roles the
     # API otherwise refuses it to, read-only members included.
     if consent_url:
-        data["consent_url"] = consent_url
+        data.consent_url = consent_url
     if subscriptions is not None:
-        data["subscriptions"] = [_serialize_subscription(a) for a in subscriptions]
+        data.subscriptions = [_serialize_subscription(a) for a in subscriptions]
     return data
 
 
-def _serialize_subscription(account: CloudAccount) -> dict:
-    data = DiscoveredSubscription.model_validate(account).model_dump(mode="json")
-    data["is_scannable"] = account.is_scannable
+def _serialize_subscription(account: CloudAccount) -> DiscoveredSubscription:
+    data = DiscoveredSubscription.model_validate(account)
+    data.is_scannable = account.is_scannable
     return data
 
 
@@ -185,7 +191,7 @@ async def arm_template(
 
 
 @router.get("/providers")
-async def list_providers(tenant: Tenant) -> dict:
+async def list_providers(tenant: Tenant) -> Envelope[list[ProviderOptionOut], NoMeta]:
     """Which clouds this deployment can connect, and why not.
 
     Behind authentication because it describes the deployment's configuration,
@@ -194,11 +200,14 @@ async def list_providers(tenant: Tenant) -> dict:
     would answer "does this support AWS?" with nothing.
     """
     assert tenant  # authenticated; the answer is the same for every tenant
-    return envelope(service.available_providers())
+    return Envelope(
+        data=[ProviderOptionOut.model_validate(p) for p in service.available_providers()],
+        meta=NoMeta(),
+    )
 
 
-@router.get("/azure/app-registration")
-async def app_registration(tenant: Tenant) -> dict:
+@router.get("/azure/app-registration", responses=WRITE)
+async def app_registration(tenant: Tenant) -> Envelope[AppRegistrationOut | None, NoMeta]:
     """What CloudGuard's own Entra app registration must declare.
 
     The other half of the deployment. The ARM template grants subscription
@@ -213,7 +222,11 @@ async def app_registration(tenant: Tenant) -> dict:
     eye in a portal.
     """
     tenant.require_role(Role.OWNER, Role.ADMIN)
-    return envelope(service.self_registration(Provider.AZURE) or {})
+    registration = service.self_registration(Provider.AZURE)
+    return Envelope(
+        data=AppRegistrationOut.model_validate(registration) if registration else None,
+        meta=NoMeta(),
+    )
 
 
 @router.get("/azure/consent/callback", include_in_schema=False)
@@ -287,27 +300,29 @@ def _consent_link_problem(exc: Exception) -> str:
     return "This consent link is not valid. Open the connection and send a fresh one."
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED, responses=WRITE)
 async def create_connection(
     payload: CloudConnectionCreate, session: DbSession, tenant: Tenant
-) -> dict:
+) -> Envelope[CloudConnectionOut, NoMeta]:
     """Create a connection and return it with the consent redirect URL."""
     tenant.require_role(Role.OWNER, Role.ADMIN)
     connection, consent_url = await service.create_connection(session, tenant, payload)
     await session.commit()
-    return envelope(_serialize(connection, consent_url=consent_url))
+    return Envelope(data=_serialize(connection, consent_url=consent_url), meta=NoMeta())
 
 
 @router.get("")
-async def list_connections(session: DbSession, tenant: Tenant) -> dict:
+async def list_connections(
+    session: DbSession, tenant: Tenant
+) -> Envelope[list[CloudConnectionOut], NoMeta]:
     rows = await service.list_connections(session, tenant)
-    return envelope(
-        [_serialize(c, len(subs), subs) for c, subs in rows]
-    )
+    return Envelope(data=[_serialize(c, len(subs), subs) for c, subs in rows], meta=NoMeta())
 
 
 @router.get("/{connection_id}")
-async def get_connection(connection_id: UUID, session: DbSession, tenant: Tenant) -> dict:
+async def get_connection(
+    connection_id: UUID, session: DbSession, tenant: Tenant
+) -> Envelope[CloudConnectionOut, NoMeta]:
     """Get a connection with subscriptions. Triggers auto-validation if needed.
 
     The consent link comes back only for a caller who may actually complete the
@@ -337,13 +352,16 @@ async def get_connection(connection_id: UUID, session: DbSession, tenant: Tenant
         if problem:
             connection.status_detail = problem
 
-    return envelope(
-        _serialize(connection, len(subscriptions), subscriptions, consent_url=consent_url)
+    return Envelope(
+        data=_serialize(connection, len(subscriptions), subscriptions, consent_url=consent_url),
+        meta=NoMeta(),
     )
 
 
-@router.post("/{connection_id}/discover")
-async def rediscover(connection_id: UUID, session: DbSession, tenant: Tenant) -> dict:
+@router.post("/{connection_id}/discover", responses=WRITE)
+async def rediscover(
+    connection_id: UUID, session: DbSession, tenant: Tenant
+) -> Envelope[CloudConnectionOut, NoMeta]:
     """Look for subscriptions again.
 
     Discovery normally runs by itself, once, while the connections page polls.
@@ -355,11 +373,13 @@ async def rediscover(connection_id: UUID, session: DbSession, tenant: Tenant) ->
     connection, subscriptions = await service.rediscover_subscriptions(
         session, tenant, connection_id
     )
-    return envelope(_serialize(connection, len(subscriptions), subscriptions))
+    return Envelope(data=_serialize(connection, len(subscriptions), subscriptions), meta=NoMeta())
 
 
-@router.post("/{connection_id}/recheck")
-async def recheck_access(connection_id: UUID, session: DbSession, tenant: Tenant) -> dict:
+@router.post("/{connection_id}/recheck", responses=WRITE)
+async def recheck_access(
+    connection_id: UUID, session: DbSession, tenant: Tenant
+) -> Envelope[CloudConnectionOut, NoMeta]:
     """Ask Azure again what this connection is allowed to do.
 
     A real probe, which is what the access panel's button has always said it
@@ -371,25 +391,25 @@ async def recheck_access(connection_id: UUID, session: DbSession, tenant: Tenant
     connection, subscriptions = await service.recheck_access(
         session, tenant, connection_id
     )
-    return envelope(_serialize(connection, len(subscriptions), subscriptions))
+    return Envelope(data=_serialize(connection, len(subscriptions), subscriptions), meta=NoMeta())
 
 
-@router.patch("/{connection_id}/subscriptions")
+@router.patch("/{connection_id}/subscriptions", responses=WRITE)
 async def set_scope(
     connection_id: UUID, payload: ScopeSelection, session: DbSession, tenant: Tenant
-) -> dict:
+) -> Envelope[list[DiscoveredSubscription], NoMeta]:
     """Include or exclude discovered subscriptions from scanning."""
     tenant.require_write()
     accounts = await service.set_subscription_scope(
         session, tenant, connection_id, payload.in_scope
     )
-    return envelope([_serialize_subscription(a) for a in accounts])
+    return Envelope(data=[_serialize_subscription(a) for a in accounts], meta=NoMeta())
 
 
-@router.patch("/{connection_id}/schedule")
+@router.patch("/{connection_id}/schedule", responses=WRITE)
 async def set_schedule(
     connection_id: UUID, payload: ScheduleUpdate, session: DbSession, tenant: Tenant
-) -> dict:
+) -> Envelope[CloudConnectionOut, NoMeta]:
     """Read this environment on a schedule, or stop.
 
     Every connection starts unscheduled. Turning a customer's cloud into a
@@ -401,13 +421,13 @@ async def set_schedule(
     connection = await service.set_scan_schedule(
         session, tenant, connection_id, payload.scan_interval_hours
     )
-    return envelope(_serialize(connection))
+    return Envelope(data=_serialize(connection), meta=NoMeta())
 
 
 @router.get("/{connection_id}/change-events")
 async def get_change_events(
     connection_id: UUID, session: DbSession, tenant: Tenant
-) -> dict:
+) -> Envelope[ChangeEventSetupOut, NoMeta]:
     """Whether this connection reacts to change, and how to wire it up.
 
     The commands are the deliverable. CloudGuard cannot create the Event Grid
@@ -417,13 +437,14 @@ async def get_change_events(
     because that is how Event Grid is scoped.
     """
     connection = await service.get_connection(session, tenant, connection_id)
-    return envelope(await service.change_event_setup(session, connection))
+    setup = await service.change_event_setup(session, connection)
+    return Envelope(data=ChangeEventSetupOut.model_validate(setup), meta=NoMeta())
 
 
-@router.patch("/{connection_id}/change-events")
+@router.patch("/{connection_id}/change-events", responses=WRITE)
 async def set_change_events(
     connection_id: UUID, payload: ChangeEventsUpdate, session: DbSession, tenant: Tenant
-) -> dict:
+) -> Envelope[ChangeEventSetupOut, NoMeta]:
     """Open or close the webhook for this connection.
 
     Opening it wires nothing up on its own; closing it takes effect at once,
@@ -435,31 +456,38 @@ async def set_change_events(
     connection = await service.set_change_events(
         session, tenant, connection_id, payload.enabled
     )
-    return envelope(await service.change_event_setup(session, connection))
+    setup = await service.change_event_setup(session, connection)
+    return Envelope(data=ChangeEventSetupOut.model_validate(setup), meta=NoMeta())
 
 
-@router.post("/{connection_id}/cancel")
-async def cancel_setup(connection_id: UUID, session: DbSession, tenant: Tenant) -> dict:
+@router.post("/{connection_id}/cancel", responses=WRITE)
+async def cancel_setup(
+    connection_id: UUID, session: DbSession, tenant: Tenant
+) -> Envelope[CloudConnectionOut, NoMeta]:
     """Stop the setup process without discarding the connection."""
     tenant.require_write()
     connection = await service.set_setup_cancelled(
         session, tenant, connection_id, cancelled=True
     )
-    return envelope(_serialize(connection))
+    return Envelope(data=_serialize(connection), meta=NoMeta())
 
 
-@router.post("/{connection_id}/resume")
-async def resume_setup(connection_id: UUID, session: DbSession, tenant: Tenant) -> dict:
+@router.post("/{connection_id}/resume", responses=WRITE)
+async def resume_setup(
+    connection_id: UUID, session: DbSession, tenant: Tenant
+) -> Envelope[CloudConnectionOut, NoMeta]:
     """Pick setup back up where it was left."""
     tenant.require_write()
     connection = await service.set_setup_cancelled(
         session, tenant, connection_id, cancelled=False
     )
-    return envelope(_serialize(connection))
+    return Envelope(data=_serialize(connection), meta=NoMeta())
 
 
 @router.get("/{connection_id}/revocation")
-async def revocation(connection_id: UUID, session: DbSession, tenant: Tenant) -> dict:
+async def revocation(
+    connection_id: UUID, session: DbSession, tenant: Tenant
+) -> Envelope[RevocationOut, NoMeta]:
     """What to run in Azure to take CloudGuard's access away.
 
     Generated rather than performed: CloudGuard has no write permission in a
@@ -467,19 +495,25 @@ async def revocation(connection_id: UUID, session: DbSession, tenant: Tenant) ->
     customer's action. See ``service.revocation_steps``.
     """
     connection = await service.get_connection(session, tenant, connection_id)
-    return envelope(service.revocation_steps(connection))
+    steps = service.revocation_steps(connection)
+    return Envelope(data=RevocationOut.model_validate(steps), meta=NoMeta())
 
 
-@router.post("/{connection_id}/check-revoked")
-async def check_revoked(connection_id: UUID, session: DbSession, tenant: Tenant) -> dict:
+@router.post("/{connection_id}/check-revoked", responses=WRITE)
+async def check_revoked(
+    connection_id: UUID, session: DbSession, tenant: Tenant
+) -> Envelope[RevocationCheckOut, NoMeta]:
     """Confirm by trying: revocation is verified by the access failing."""
     tenant.require_write()
     connection = await service.get_connection(session, tenant, connection_id)
-    return envelope(await service.check_access_revoked(connection))
+    result = await service.check_access_revoked(connection)
+    return Envelope(data=RevocationCheckOut.model_validate(result), meta=NoMeta())
 
 
-@router.delete("/{connection_id}", status_code=status.HTTP_200_OK)
-async def delete_connection(connection_id: UUID, session: DbSession, tenant: Tenant) -> dict:
+@router.delete("/{connection_id}", status_code=status.HTTP_200_OK, responses=WRITE)
+async def delete_connection(
+    connection_id: UUID, session: DbSession, tenant: Tenant
+) -> Envelope[ConnectionDeletedOut, NoMeta]:
     tenant.require_role(Role.OWNER, Role.ADMIN)
     await service.delete_connection(session, tenant, connection_id)
-    return envelope({"deleted": str(connection_id)})
+    return Envelope(data=ConnectionDeletedOut(deleted=connection_id), meta=NoMeta())

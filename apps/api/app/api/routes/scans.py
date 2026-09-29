@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, Query, Request, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,10 +9,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.db import rls_session
 from app.core.deps import DbSession, Tenant
 from app.core.enums import ScanStatus
-from app.core.errors import ConflictError, ScanNotFound, ValidationFailed, envelope
+from app.core.errors import ConflictError, ScanNotFound, ValidationFailed
 from app.core.logging import get_logger
 from app.models.scan import Scan, ScanEvaluationGap, ScanRuleResult
-from app.schemas.scan import CoverageOut, ScanCreate, ScanDetailOut, ScanOut
+from app.schemas.common import ERROR_RESPONSES, Envelope, NoMeta, error_responses
+from app.schemas.scan import (
+    CollectionStatusOut,
+    CoverageGapOut,
+    CoverageOut,
+    ScanCreate,
+    ScanDeletedOut,
+    ScanDetailOut,
+    ScanOut,
+    ScanScopeOut,
+    ScanStageOut,
+    WorkerStatusOut,
+)
 from app.services import cloud_accounts as accounts_service
 from app.services import scans as scans_service
 from app.services.scan_events import stream_scan
@@ -21,10 +33,12 @@ from app.workers.scan_tasks import replay_scan, run_scan
 
 log = get_logger(__name__)
 
-router = APIRouter(prefix="/scans", tags=["scans"])
+router = APIRouter(prefix="/scans", tags=["scans"], responses=ERROR_RESPONSES)
 
-@router.post("", status_code=status.HTTP_202_ACCEPTED)
-async def create_scan(payload: ScanCreate, session: DbSession, tenant: Tenant) -> dict:
+@router.post("", status_code=status.HTTP_202_ACCEPTED, responses=error_responses(403, 409))
+async def create_scan(
+    payload: ScanCreate, session: DbSession, tenant: Tenant
+) -> Envelope[ScanOut, NoMeta]:
     tenant.require_write()
     account = await accounts_service.get_cloud_account(
         session, tenant, payload.cloud_account_id
@@ -78,11 +92,17 @@ async def create_scan(payload: ScanCreate, session: DbSession, tenant: Tenant) -
         )
         await session.commit()
 
-    return envelope(ScanOut.model_validate(scan).model_dump(mode="json"))
+    return Envelope(data=ScanOut.model_validate(scan), meta=NoMeta())
 
 
-@router.post("/{scan_id}/replay", status_code=status.HTTP_202_ACCEPTED)
-async def replay_scan_endpoint(scan_id: UUID, session: DbSession, tenant: Tenant) -> dict:
+@router.post(
+    "/{scan_id}/replay",
+    status_code=status.HTTP_202_ACCEPTED,
+    responses=error_responses(403, 409),
+)
+async def replay_scan_endpoint(
+    scan_id: UUID, session: DbSession, tenant: Tenant
+) -> Envelope[ScanOut, NoMeta]:
     """Re-evaluate a finished scan's stored snapshot against today's rules.
 
     Costs nothing in the customer's cloud: no Azure call, no consent, no
@@ -149,11 +169,13 @@ async def replay_scan_endpoint(scan_id: UUID, session: DbSession, tenant: Tenant
         )
         await session.commit()
 
-    return envelope(ScanOut.model_validate(scan).model_dump(mode="json"))
+    return Envelope(data=ScanOut.model_validate(scan), meta=NoMeta())
 
 
-@router.post("/{scan_id}/cancel")
-async def cancel_scan(scan_id: UUID, session: DbSession, tenant: Tenant) -> dict:
+@router.post("/{scan_id}/cancel", responses=error_responses(403, 409))
+async def cancel_scan(
+    scan_id: UUID, session: DbSession, tenant: Tenant
+) -> Envelope[ScanOut, NoMeta]:
     """Stop a scan that has not finished.
 
     Cancelling a queued scan is the common case and the reason this exists: a
@@ -181,24 +203,26 @@ async def cancel_scan(scan_id: UUID, session: DbSession, tenant: Tenant) -> dict
     scan.completed_at = datetime.now(UTC)
     scan.error_message = "Cancelled."
     await session.commit()
-    return envelope(ScanOut.model_validate(scan).model_dump(mode="json"))
+    return Envelope(data=ScanOut.model_validate(scan), meta=NoMeta())
 
 
 @router.get("")
-async def list_scans(session: DbSession, tenant: Tenant, limit: int = 25) -> dict:
+async def list_scans(
+    session: DbSession, tenant: Tenant, limit: int = Query(default=25, ge=1, le=100)
+) -> Envelope[list[ScanOut], NoMeta]:
     rows = (
         (
             await session.execute(
                 select(Scan)
                 .where(Scan.organization_id == tenant.organization_id)
                 .order_by(Scan.created_at.desc())
-                .limit(min(limit, 100))
+                .limit(limit)
             )
         )
         .scalars()
         .all()
     )
-    return envelope([ScanOut.model_validate(s).model_dump(mode="json") for s in rows])
+    return Envelope(data=[ScanOut.model_validate(s) for s in rows], meta=NoMeta())
 
 
 # Declared before the parameterised routes below: FastAPI matches in order,
@@ -206,7 +230,7 @@ async def list_scans(session: DbSession, tenant: Tenant, limit: int = 25) -> dic
 # an id that is not a UUID.
 
 @router.get("/worker-status")
-async def worker_status(tenant: Tenant) -> dict:
+async def worker_status(tenant: Tenant) -> Envelope[WorkerStatusOut, NoMeta]:
     """Whether any Celery worker is actually listening.
 
     The scans page infers trouble from elapsed time, which is a guess: a scan
@@ -223,61 +247,82 @@ async def worker_status(tenant: Tenant) -> dict:
         replies = celery_app.control.ping(timeout=1.0) or []
     except Exception as exc:
         log.warning("scan.worker_ping_failed", error=str(exc))
-        return envelope(
-            {
-                "workers": 0,
-                "reachable": False,
-                "detail": f"Could not reach the task broker: {exc}",
-            }
+        return Envelope(
+            data=WorkerStatusOut(
+                workers=0,
+                reachable=False,
+                detail=f"Could not reach the task broker: {exc}",
+            ),
+            meta=NoMeta(),
         )
 
     if not replies:
-        return envelope(
-            {
-                "workers": 0,
-                "reachable": True,
-                "detail": (
+        return Envelope(
+            data=WorkerStatusOut(
+                workers=0,
+                reachable=True,
+                detail=(
                     "The task broker is reachable but no worker answered. The "
                     "Celery worker service is not running -- check that its "
                     "start command runs celery rather than the API."
                 ),
-            }
+            ),
+            meta=NoMeta(),
         )
 
-    return envelope(
-        {
-            "workers": len(replies),
-            "reachable": True,
-            "detail": f"{len(replies)} worker(s) responding.",
-        }
+    return Envelope(
+        data=WorkerStatusOut(
+            workers=len(replies),
+            reachable=True,
+            detail=f"{len(replies)} worker(s) responding.",
+        ),
+        meta=NoMeta(),
     )
 
 
-async def _detail_payload(session: AsyncSession, scan: Scan) -> dict:
+async def _detail_payload(session: AsyncSession, scan: Scan) -> ScanDetailOut:
     """What the detail endpoint returns, and what the event stream pushes.
 
     One builder for both, so a state delivered over the stream and one fetched
     by a poll are the same document -- the browser writes either into the same
     query and cannot tell them apart.
     """
-    data = ScanDetailOut.model_validate(scan).model_dump(mode="json")
-    data["scope"] = await scans_service.scan_context(session, scan)
-    data["stages"] = await scans_service.scan_stages(session, scan)
-    data["findings_by_severity"] = await scans_service.severity_breakdown(session, scan)
-    data["purgeable_finding_count"] = await scans_service.findings_attributable_to(
+    data = ScanDetailOut.model_validate(scan)
+    data.scope = ScanScopeOut.model_validate(await scans_service.scan_context(session, scan))
+    data.stages = [
+        ScanStageOut.model_validate(stage)
+        for stage in await scans_service.scan_stages(session, scan)
+    ]
+    data.findings_by_severity = await scans_service.severity_breakdown(session, scan)
+    data.purgeable_finding_count = await scans_service.findings_attributable_to(
         session, scan
     )
     return data
 
 
 @router.get("/{scan_id}/detail")
-async def get_scan_detail(scan_id: UUID, session: DbSession, tenant: Tenant) -> dict:
+async def get_scan_detail(
+    scan_id: UUID, session: DbSession, tenant: Tenant
+) -> Envelope[ScanDetailOut, NoMeta]:
     """One scan, with its scope, identity, stages and severity breakdown."""
     scan = await scans_service.get_scan(session, tenant, scan_id)
-    return envelope(await _detail_payload(session, scan))
+    return Envelope(data=await _detail_payload(session, scan), meta=NoMeta())
 
 
-@router.get("/{scan_id}/events")
+@router.get(
+    "/{scan_id}/events",
+    response_class=StreamingResponse,
+    responses={
+        200: {
+            "description": (
+                "Server-sent events: ``scan`` carries the same document as "
+                "``/detail`` whenever it changes; ``end``, ``gone`` and "
+                "``timeout`` close the stream."
+            ),
+            "content": {"text/event-stream": {}},
+        }
+    },
+)
 async def scan_events(
     scan_id: UUID, request: Request, session: DbSession, tenant: Tenant
 ) -> StreamingResponse:
@@ -298,7 +343,7 @@ async def scan_events(
                 scan = await scans_service.get_scan(tick, tenant, scan_id)
             except ScanNotFound:
                 return None
-            return await _detail_payload(tick, scan)
+            return (await _detail_payload(tick, scan)).model_dump(mode="json")
 
     return StreamingResponse(
         stream_scan(load, is_disconnected=request.is_disconnected),
@@ -313,7 +358,7 @@ async def scan_events(
 
 
 @router.get("/{scan_id}")
-async def get_scan(scan_id: UUID, session: DbSession, tenant: Tenant) -> dict:
+async def get_scan(scan_id: UUID, session: DbSession, tenant: Tenant) -> Envelope[ScanOut, NoMeta]:
     scan = (
         await session.execute(
             select(Scan).where(
@@ -323,16 +368,16 @@ async def get_scan(scan_id: UUID, session: DbSession, tenant: Tenant) -> dict:
     ).scalar_one_or_none()
     if scan is None:
         raise ScanNotFound()
-    return envelope(ScanOut.model_validate(scan).model_dump(mode="json"))
+    return Envelope(data=ScanOut.model_validate(scan), meta=NoMeta())
 
 
-@router.delete("/{scan_id}", status_code=status.HTTP_200_OK)
+@router.delete("/{scan_id}", status_code=status.HTTP_200_OK, responses=error_responses(403))
 async def delete_scan(
     scan_id: UUID,
     session: DbSession,
     tenant: Tenant,
     purge_findings: bool = False,
-) -> dict:
+) -> Envelope[ScanDeletedOut, NoMeta]:
     """Delete a scan record, and optionally the findings it last detected.
 
     ``purge_findings`` defaults to false because the two are different acts:
@@ -344,11 +389,13 @@ async def delete_scan(
     result = await scans_service.delete_scan(
         session, tenant, scan_id, purge_findings=purge_findings
     )
-    return envelope(result)
+    return Envelope(data=ScanDeletedOut.model_validate(result), meta=NoMeta())
 
 
 @router.get("/{scan_id}/collection")
-async def scan_collection(scan_id: UUID, session: DbSession, tenant: Tenant) -> dict:
+async def scan_collection(
+    scan_id: UUID, session: DbSession, tenant: Tenant
+) -> Envelope[CollectionStatusOut, NoMeta]:
     """What this scan could and could not read, per subscription and per task.
 
     Separate from ``/coverage``, which reports what the rules concluded. The
@@ -357,11 +404,14 @@ async def scan_collection(scan_id: UUID, session: DbSession, tenant: Tenant) -> 
     truncated -- an outage and a very large tenant, reported identically.
     """
     scan = await scans_service.get_scan(session, tenant, scan_id)
-    return envelope(await scans_service.collection_status(session, scan))
+    status = await scans_service.collection_status(session, scan)
+    return Envelope(data=CollectionStatusOut.model_validate(status), meta=NoMeta())
 
 
 @router.get("/{scan_id}/coverage")
-async def scan_coverage(scan_id: UUID, session: DbSession, tenant: Tenant) -> dict:
+async def scan_coverage(
+    scan_id: UUID, session: DbSession, tenant: Tenant
+) -> Envelope[CoverageOut, NoMeta]:
     """What this scan could and could not determine.
 
     Reported apart from the security score: a user asking "why is my score 84?"
@@ -400,19 +450,16 @@ async def scan_coverage(scan_id: UUID, session: DbSession, tenant: Tenant) -> di
 
     conclusive = passed + failed
     denominator = conclusive + unknown
-    return envelope(
-        CoverageOut(
+    return Envelope(
+        data=CoverageOut(
             coverage_ratio=round(conclusive / denominator, 4) if denominator else 1.0,
             evaluated=evaluated,
             conclusive=conclusive,
             unknown=unknown,
             gaps=[
-                {
-                    "rule_id": g.rule_id,
-                    "resource_id": str(g.resource_id) if g.resource_id else None,
-                    "reason": g.reason,
-                }
+                CoverageGapOut(rule_id=g.rule_id, resource_id=g.resource_id, reason=g.reason)
                 for g in gaps
             ],
-        ).model_dump()
+        ),
+        meta=NoMeta(),
     )

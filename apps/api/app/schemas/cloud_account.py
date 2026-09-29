@@ -4,6 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.enums import CloudAccountStatus, ConsentStatus, Provider
+from app.schemas.common import ClosedModel
 
 
 class CloudAccountCreate(BaseModel):
@@ -34,6 +35,15 @@ class CloudAccountOut(BaseModel):
     last_scan_at: datetime | None = None
     created_at: datetime
     is_scannable: bool = False
+
+
+class AzurePermissionsOut(ClosedModel):
+    """What CloudGuard asks for in Azure, shown before anyone consents."""
+
+    graph_application_permissions: list[str]
+    azure_rbac_role: str
+    access_type: str
+    writes_performed: str
 
 
 class ConsentLink(BaseModel):

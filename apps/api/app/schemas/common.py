@@ -1,18 +1,90 @@
+"""The response envelope as types (API.md section 2, DECISIONS.md section 157).
+
+A route declares ``-> Envelope[ItsData, ItsMeta]`` and FastAPI takes that as
+the response model: the body is validated on the way out, and the published
+schema says what ``data`` and ``meta`` hold rather than "an object". ``meta``
+is a type parameter of its own because it is where a list says how big the
+whole set is, which a client pages by and must not have to guess the name of.
+
+Errors never pass through these. They are written by the exception handlers in
+``app/core/errors.py``, outside the route, which is why ``ERROR_RESPONSES``
+documents them separately.
+"""
+
 from typing import Any, Generic, TypeVar
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict
 
-T = TypeVar("T")
-
-
-class Envelope(BaseModel, Generic[T]):
-    """The uniform response shape (API.md section 2)."""
-
-    data: T | None = None
-    error: dict[str, Any] | None = None
-    meta: dict[str, Any] = Field(default_factory=dict)
+DataT = TypeVar("DataT")
+MetaT = TypeVar("MetaT")
 
 
-class Page(BaseModel):
-    limit: int = Field(default=50, ge=1, le=200)
-    offset: int = Field(default=0, ge=0)
+class ClosedModel(BaseModel):
+    """An output model validated from a dict a service built.
+
+    Where a service accumulates its answer as a dict -- because a report or a
+    test reads the same dict -- the route validates the finished dict against a
+    model. A model that ignored unknown keys would drop a field the service
+    added and nobody declared; this one refuses it, so the omission fails where
+    a missing required field would.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class NoMeta(BaseModel):
+    """``meta`` on a response with nothing to say beside its data: always ``{}``."""
+
+
+class PageMeta(BaseModel):
+    """What a paged list says about the whole set it was cut from."""
+
+    total: int
+    limit: int
+    offset: int
+
+
+class TotalMeta(BaseModel):
+    """How many there are in all, where the list may be cut short."""
+
+    total: int
+
+
+class Envelope(BaseModel, Generic[DataT, MetaT]):
+    """A success: ``{"data": ..., "error": null, "meta": {...}}``."""
+
+    data: DataT
+    error: None = None
+    meta: MetaT
+
+
+class ErrorOut(BaseModel):
+    code: str
+    message: str
+
+
+class ErrorEnvelope(BaseModel):
+    """A refusal: ``{"data": null, "error": {"code", "message"}, "meta": {...}}``.
+
+    ``meta`` is open because one error carries something in it -- a 422 lists
+    the fields that failed under ``errors``.
+    """
+
+    data: None = None
+    error: ErrorOut
+    meta: dict[str, Any]
+
+
+def error_responses(*codes: int) -> dict[int | str, dict[str, Any]]:
+    """The error envelope, documented for the status codes a route can answer.
+
+    Given for 422 as well, because FastAPI otherwise publishes its own
+    ``HTTPValidationError`` there -- a shape this API never sends.
+    """
+    return {code: {"model": ErrorEnvelope} for code in codes}
+
+
+#: What any route behind the tenant dependency can answer besides its own
+#: success: no or a bad token, no membership, and a parameter that failed
+#: validation. A write adds 403 -- a read-only role, or the demo.
+ERROR_RESPONSES = error_responses(401, 404, 422)

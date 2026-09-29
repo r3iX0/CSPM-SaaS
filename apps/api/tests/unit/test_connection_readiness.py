@@ -74,26 +74,30 @@ def subscription(*, scannable: bool) -> CloudAccount:
 def test_a_verified_connection_with_nothing_beneath_it_is_not_ready() -> None:
     """The reported bug, stated as an assertion."""
     connection = verified_connection()
-    data = routes._serialize(connection, 0, [])
+    data = routes._serialize(connection, 0, []).model_dump(mode="json")
 
     assert data["is_verified"] is True, "both grants really do work"
     assert data["is_ready_to_scan"] is False, "but there is nothing to scan"
 
 
 def test_a_connection_with_a_scannable_subscription_is_ready() -> None:
-    data = routes._serialize(verified_connection(), 1, [subscription(scannable=True)])
+    data = routes._serialize(
+        verified_connection(), 1, [subscription(scannable=True)]
+    ).model_dump(mode="json")
     assert data["is_ready_to_scan"] is True
 
 
 def test_subscriptions_the_customer_excluded_do_not_make_it_ready() -> None:
     """Discovering a subscription and then excluding it from scanning leaves
     the connection exactly as unable to scan as before."""
-    data = routes._serialize(verified_connection(), 1, [subscription(scannable=False)])
+    data = routes._serialize(
+        verified_connection(), 1, [subscription(scannable=False)]
+    ).model_dump(mode="json")
     assert data["is_ready_to_scan"] is False
 
 
 def test_an_unverified_connection_is_never_ready() -> None:
     connection = verified_connection()
     connection.rbac_verified_at = None
-    data = routes._serialize(connection, 1, [subscription(scannable=True)])
+    data = routes._serialize(connection, 1, [subscription(scannable=True)]).model_dump(mode="json")
     assert data["is_ready_to_scan"] is False

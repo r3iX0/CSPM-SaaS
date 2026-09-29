@@ -6,24 +6,30 @@ from sqlalchemy import select
 
 from app.core.deps import DbSession, Tenant
 from app.core.enums import FindingStatus, Priority, RemediationStatus
-from app.core.errors import NotFound, ValidationFailed, envelope
+from app.core.errors import NotFound, ValidationFailed
 from app.models.finding import Finding
 from app.models.remediation import RemediationTask
 from app.models.resource import ResourceRecord
 from app.models.rule import Rule
 from app.risk.scorer import default_scorer
-from app.schemas.finding import RemediationCreate, RemediationOut, RemediationUpdate
+from app.schemas.common import ERROR_RESPONSES, Envelope, NoMeta, error_responses
+from app.schemas.finding import (
+    RemediationCreate,
+    RemediationOut,
+    RemediationUpdate,
+    RemediationUpdatedOut,
+)
 from app.services import findings as findings_service
 from app.services import graph as graph_service
 from app.services import verification as verification_service
 
-router = APIRouter(prefix="/remediation", tags=["remediation"])
+router = APIRouter(prefix="/remediation", tags=["remediation"], responses=ERROR_RESPONSES)
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED, responses=error_responses(403))
 async def create_task(
     payload: RemediationCreate, session: DbSession, tenant: Tenant
-) -> dict:
+) -> Envelope[RemediationOut, NoMeta]:
     tenant.require_write()
     finding = await findings_service.get_finding(session, tenant, payload.finding_id)
 
@@ -78,7 +84,7 @@ async def create_task(
         metadata={"assigned_to": str(payload.assigned_to) if payload.assigned_to else None},
     )
     await session.commit()
-    return envelope(RemediationOut.model_validate(task).model_dump(mode="json"))
+    return Envelope(data=RemediationOut.model_validate(task), meta=NoMeta())
 
 
 # Work still to do first, and within it the order the page promises: impact
@@ -98,7 +104,7 @@ _PRIORITY_ORDER = {
 
 
 @router.get("")
-async def list_tasks(session: DbSession, tenant: Tenant) -> dict:
+async def list_tasks(session: DbSession, tenant: Tenant) -> Envelope[list[RemediationOut], NoMeta]:
     """The queue, in the order the page says it is in.
 
     It said "ordered by impact against effort" and was ordered by when each
@@ -136,21 +142,18 @@ async def list_tasks(session: DbSession, tenant: Tenant) -> dict:
             -item[0].created_at.timestamp(),
         )
     )
-    return envelope(
-        [
-            {
-                **RemediationOut.model_validate(task).model_dump(mode="json"),
-                "on_routes": on_routes,
-            }
-            for task, _, on_routes in queue
-        ]
-    )
+    out = []
+    for task, _, on_routes in queue:
+        item = RemediationOut.model_validate(task)
+        item.on_routes = on_routes
+        out.append(item)
+    return Envelope(data=out, meta=NoMeta())
 
 
-@router.patch("/{task_id}")
+@router.patch("/{task_id}", responses=error_responses(403))
 async def update_task(
     task_id: UUID, payload: RemediationUpdate, session: DbSession, tenant: Tenant
-) -> dict:
+) -> Envelope[RemediationUpdatedOut, NoMeta]:
     tenant.require_write()
     task = (
         await session.execute(
@@ -208,13 +211,13 @@ async def update_task(
     )
     await session.commit()
 
-    payload_out = RemediationOut.model_validate(task).model_dump(mode="json")
+    payload_out = RemediationUpdatedOut.model_validate(task)
     if task.status == RemediationStatus.DONE:
         # Marking work done does not resolve the finding. Only an observation
         # does -- but the customer no longer has to remember to ask for one.
-        payload_out["note"] = (
+        payload_out.note = (
             "Marked done. Cleave will check the environment shortly and "
             "again after that if the change has not appeared yet, then close "
             "the finding once the check passes."
         )
-    return envelope(payload_out)
+    return Envelope(data=payload_out, meta=NoMeta())

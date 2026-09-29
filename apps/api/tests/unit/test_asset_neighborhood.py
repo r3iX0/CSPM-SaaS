@@ -219,7 +219,7 @@ def test_group_edges_point_the_way_reach_runs() -> None:
     assert upstream is not None
     assert upstream.groups
 
-    payload = serialize_neighborhood(graph, upstream, {})
+    payload = serialize_neighborhood(graph, upstream, {}).model_dump(mode="json")
     by_id = {g["id"]: g for g in payload["groups"]}
     group_edges = [e for e in payload["edges"] if e["source"] in by_id]
     assert len(group_edges) == len(by_id)
@@ -234,7 +234,7 @@ def test_the_payload_words_a_hop_the_way_a_route_does() -> None:
     around = graph.neighborhood(VM, depth=1)
     assert around is not None
 
-    payload = serialize_neighborhood(graph, around, {})
+    payload = serialize_neighborhood(graph, around, {}).model_dump(mode="json")
     labels = {(e["source"], e["target"]): e["label"] for e in payload["edges"]}
     assert labels[(VM, IDENTITY)] == "runs as"
     assert payload["focus"] == VM
@@ -257,7 +257,8 @@ def test_a_box_is_marked_as_a_way_in_only_on_the_graphs_own_terms() -> None:
     around = graph.neighborhood(IDENTITY, depth=1)
     assert around is not None
 
-    by_id = {n["id"]: n for n in serialize_neighborhood(graph, around, {})["nodes"]}
+    payload = serialize_neighborhood(graph, around, {}).model_dump(mode="json")
+    by_id = {n["id"]: n for n in payload["nodes"]}
     assert by_id[VM]["entry"] is True
     assert by_id[IDENTITY]["entry"] is False
     assert by_id[STORAGE]["sensitive"] is True
@@ -275,7 +276,7 @@ def test_open_findings_ride_on_the_box_they_belong_to() -> None:
         around,
         {VM: vm_row, IDENTITY: identity_row},
         {vm_row: {"open": 3, "worst": "HIGH"}},
-    )
+    ).model_dump(mode="json")
     by_id = {n["id"]: n for n in payload["nodes"]}
     assert by_id[VM]["findings"] == {"open": 3, "worst": "HIGH"}
     # No findings is zero, not absent: the box says "nothing open" rather
@@ -289,7 +290,9 @@ def test_the_routes_through_the_focus_travel_with_it() -> None:
     around = graph.neighborhood(VM, depth=2)
     assert around is not None
 
-    payload = serialize_neighborhood(graph, around, {}, routes=graph.paths_through(VM))
+    payload = serialize_neighborhood(
+        graph, around, {}, routes=graph.paths_through(VM)
+    ).model_dump(mode="json")
     assert payload["routes"], "the jump box is on the route to the customer data"
     route = payload["routes"][0]
     assert route["entry"]["id"] == VM
@@ -356,5 +359,5 @@ def test_the_payload_uses_the_fold_id_a_page_can_send_back() -> None:
     around = graph.neighborhood(ADMIN, depth=2)
     assert around is not None
 
-    group = serialize_neighborhood(graph, around, {})["groups"][0]
+    group = serialize_neighborhood(graph, around, {}).model_dump(mode="json")["groups"][0]
     assert parse_fold_id(group["id"]) == (SUB, RelationshipType.CONTAINS, 2)

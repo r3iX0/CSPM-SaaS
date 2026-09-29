@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Query, status
@@ -7,17 +7,30 @@ from sqlalchemy.sql.elements import UnaryExpression
 
 from app.core.deps import DbSession, Tenant
 from app.core.enums import FindingStatus, ScanStatus, Severity
-from app.core.errors import ConflictError, ValidationFailed, envelope
+from app.core.errors import ConflictError, ValidationFailed
 from app.core.vocabulary import words
 from app.graph import Path
 from app.models.finding import Finding, FindingEvidence
 from app.models.resource import ResourceRecord
 from app.models.scan import Scan
+from app.schemas.common import (
+    ERROR_RESPONSES,
+    Envelope,
+    NoMeta,
+    PageMeta,
+    error_responses,
+)
 from app.schemas.finding import (
     AcceptRiskRequest,
     EvidenceCitationOut,
+    FindingAttackPathOut,
+    FindingAttackPathsMeta,
+    FindingDetail,
     FindingEventOut,
     FindingOut,
+    FindingProvenanceMeta,
+    FindingProvenanceOut,
+    RescanQueuedOut,
     ResourceSummary,
     RiskOut,
     VerificationOut,
@@ -29,7 +42,7 @@ from app.services import scans as scans_service
 from app.services.graph import serialize_path
 from app.workers.scan_tasks import run_scan
 
-router = APIRouter(prefix="/findings", tags=["findings"])
+router = APIRouter(prefix="/findings", tags=["findings"], responses=ERROR_RESPONSES)
 
 SEVERITY_ORDER = {
     Severity.CRITICAL: 0,
@@ -43,12 +56,20 @@ SEVERITY_ORDER = {
 # handed, which puts the CRITICAL on page four below the LOW on page one.
 SEVERITY_SORT = case(SEVERITY_ORDER, value=Finding.severity, else_=9)
 
+# Every ordering ends on the id. Scores and detection times tie constantly --
+# one scan stamps every finding it raises -- and PostgreSQL orders ties however
+# the plan happens to, so without it the same offset can return a different
+# row on the next request and a page can repeat or skip a finding.
 SORTS: dict[str, tuple[UnaryExpression[Any], ...]] = {
     # Risk first by default: the product's claim is that it tells you what
     # matters here, not what the rulebook says in the abstract.
-    "risk": (Finding.risk_score.desc().nullslast(), Finding.last_detected_at.desc()),
-    "severity": (SEVERITY_SORT.asc(), Finding.risk_score.desc().nullslast()),
-    "recent": (Finding.last_detected_at.desc(),),
+    "risk": (
+        Finding.risk_score.desc().nullslast(),
+        Finding.last_detected_at.desc(),
+        Finding.id.asc(),
+    ),
+    "severity": (SEVERITY_SORT.asc(), Finding.risk_score.desc().nullslast(), Finding.id.asc()),
+    "recent": (Finding.last_detected_at.desc(), Finding.id.asc()),
 }
 
 
@@ -64,9 +85,9 @@ async def list_findings(
     environment: str | None = None,
     search: str | None = None,
     sort: str = Query(default="risk", pattern="^(risk|severity|recent)$"),
-    limit: int = Query(default=100, le=500),
-    offset: int = 0,
-) -> dict:
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+) -> Envelope[list[FindingOut], PageMeta]:
     """Findings, filtered and ordered by the database rather than by the client.
 
     ``search`` and ``sort`` are here because the alternative is worse than a
@@ -132,21 +153,17 @@ async def list_findings(
 
     payload = []
     for finding, resource in rows:
-        item = FindingOut.model_validate(finding).model_dump(mode="json")
-        item["resource"] = (
-            ResourceSummary.model_validate(resource).model_dump(mode="json")
-            if resource
-            else None
-        )
+        item = FindingOut.model_validate(finding)
+        item.resource = ResourceSummary.model_validate(resource) if resource else None
         payload.append(item)
 
-    return envelope(payload, {"total": total, "limit": limit, "offset": offset})
+    return Envelope(data=payload, meta=PageMeta(total=total, limit=limit, offset=offset))
 
 
 @router.get("/{finding_id}/attack-paths")
 async def finding_attack_paths(
     finding_id: UUID, session: DbSession, tenant: Tenant
-) -> dict:
+) -> Envelope[list[FindingAttackPathOut], FindingAttackPathsMeta]:
     """The routes this finding's asset sits on, if any.
 
     Its own endpoint rather than a field on the finding, because it costs a
@@ -165,36 +182,37 @@ async def finding_attack_paths(
     # A tenant-wide finding has no asset, so it cannot be on a route. Answered
     # as an empty list rather than a 404: "this finding is on no path" is a
     # true and useful answer, and the page renders it as one.
-    if finding.resource_id is None:
-        return envelope([], {"total": 0, "asset": None})
-
-    resource = await session.get(ResourceRecord, finding.resource_id)
+    resource = (
+        await session.get(ResourceRecord, finding.resource_id)
+        if finding.resource_id is not None
+        else None
+    )
     if resource is None:
-        return envelope([], {"total": 0, "asset": None})
+        return Envelope(data=[], meta=FindingAttackPathsMeta(total=0, asset=None))
 
     graph = await graph_service.load_graph(session, tenant.organization_id)
     paths = graph.paths_through(resource.provider_resource_id)
 
-    return envelope(
-        [
+    return Envelope(
+        data=[
             # Where on the route this asset sits, which changes what the reader
             # should do about it: an entry point is how somebody gets in, a
             # target is what they are coming for, and a hop in between is the
             # link most likely worth cutting.
-            {
-                **serialize_path(path),
-                "asset_role": _role_on_path(path, resource.provider_resource_id),
-            }
+            FindingAttackPathOut(
+                **serialize_path(path).model_dump(),
+                asset_role=_role_on_path(path, resource.provider_resource_id),
+            )
             for path in paths
         ],
-        {"total": len(paths), "asset": resource.provider_resource_id},
+        meta=FindingAttackPathsMeta(total=len(paths), asset=resource.provider_resource_id),
     )
 
 
 @router.get("/{finding_id}/provenance")
 async def finding_provenance(
     finding_id: UUID, session: DbSession, tenant: Tenant
-) -> dict:
+) -> Envelope[FindingProvenanceOut, FindingProvenanceMeta]:
     """How CloudGuard knows: the readings this finding rests on.
 
     The finding already carries an *excerpt* of its evidence. This is the
@@ -215,27 +233,27 @@ async def finding_provenance(
     finding = await service.get_finding(session, tenant, finding_id)
     citations = await service.load_provenance(session, tenant, finding)
 
-    return envelope(
-        {
-            "rule_id": finding.rule_id,
+    return Envelope(
+        data=FindingProvenanceOut(
+            rule_id=finding.rule_id,
             # The rule as it was when this finding was raised, not as it is now.
             # A citation to evidence read by a rule that has since changed its
             # mind is a different claim, and the version is what says so.
-            "rule_version": finding.rule_version,
-            "evidence": (
-                [EvidenceCitationOut(**row).model_dump() for row in citations]
+            rule_version=finding.rule_version,
+            evidence=(
+                [EvidenceCitationOut(**row) for row in citations]
                 if citations is not None
                 else None
             ),
-        },
-        {
-            "total": len(citations) if citations is not None else 0,
-            "recorded": citations is not None,
-        },
+        ),
+        meta=FindingProvenanceMeta(
+            total=len(citations) if citations is not None else 0,
+            recorded=citations is not None,
+        ),
     )
 
 
-def _role_on_path(path: Path, resource_id: str) -> str:
+def _role_on_path(path: Path, resource_id: str) -> Literal["ENTRY", "STEP", "TARGET"]:
     if path.entry.provider_resource_id == resource_id:
         return "ENTRY"
     if path.target.provider_resource_id == resource_id:
@@ -244,70 +262,67 @@ def _role_on_path(path: Path, resource_id: str) -> str:
 
 
 @router.get("/{finding_id}")
-async def get_finding(finding_id: UUID, session: DbSession, tenant: Tenant) -> dict:
+async def get_finding(
+    finding_id: UUID, session: DbSession, tenant: Tenant
+) -> Envelope[FindingDetail, NoMeta]:
     finding = await service.get_finding(session, tenant, finding_id)
     detail = await service.load_detail(session, tenant, finding)
 
-    payload = FindingOut.model_validate(finding).model_dump(mode="json")
-    payload["resource"] = (
-        ResourceSummary.model_validate(detail["resource"]).model_dump(mode="json")
-        if detail["resource"]
-        else None
-    )
-    payload["risk"] = (
-        RiskOut.model_validate(detail["risk"]).model_dump(mode="json")
-        if detail["risk"]
-        else None
-    )
-    payload["priority"] = detail["priority"].value
-    payload["estimated_effort_minutes"] = detail["estimated_effort_minutes"]
-    # Null until somebody claims a fix. Present afterwards whether or not
-    # CloudGuard has settled it -- "checking, and it has not appeared yet" is
-    # the answer a customer who has just done the work is waiting for.
-    payload["timeline"] = [
-        FindingEventOut.model_validate(event).model_dump(mode="json")
-        for event in detail["timeline"]
-    ]
-    payload["verification"] = (
-        VerificationOut.model_validate(detail["verification"]).model_dump(mode="json")
-        if detail["verification"]
-        else None
-    )
-    # When an accepted finding comes back to the queue. ``None`` when it is not
-    # accepted, or accepted with no end date (DECISIONS.md §104).
-    until = await service.accepted_until(session, finding)
-    payload["accepted_until"] = until.isoformat() if until else None
+    payload: dict[str, Any] = {
+        **FindingOut.model_validate(finding).model_dump(),
+        "resource": (
+            ResourceSummary.model_validate(detail["resource"]) if detail["resource"] else None
+        ),
+        "risk": RiskOut.model_validate(detail["risk"]) if detail["risk"] else None,
+        "priority": detail["priority"],
+        "estimated_effort_minutes": detail["estimated_effort_minutes"],
+        "timeline": [FindingEventOut.model_validate(event) for event in detail["timeline"]],
+        "verification": (
+            VerificationOut.model_validate(detail["verification"])
+            if detail["verification"]
+            else None
+        ),
+        "accepted_until": await service.accepted_until(session, finding),
+    }
+    # The registry's say, which replaces the effort estimate with the rule's
+    # own where the rule is still registered.
     payload.update(service.rule_metadata(finding.rule_id))
-    return envelope(payload)
+    return Envelope(data=FindingDetail.model_validate(payload), meta=NoMeta())
 
 
-@router.post("/{finding_id}/accept-risk")
+@router.post("/{finding_id}/accept-risk", responses=error_responses(403))
 async def accept_risk(
     finding_id: UUID, payload: AcceptRiskRequest, session: DbSession, tenant: Tenant
-) -> dict:
+) -> Envelope[FindingOut, NoMeta]:
     tenant.require_write()
     finding = await service.get_finding(session, tenant, finding_id)
     finding = await service.accept_risk(
         session, tenant, finding, payload.reason, payload.expires_at
     )
-    return envelope(FindingOut.model_validate(finding).model_dump(mode="json"))
+    return Envelope(data=FindingOut.model_validate(finding), meta=NoMeta())
 
 
-@router.post("/{finding_id}/status")
+@router.post("/{finding_id}/status", responses=error_responses(403))
 async def set_finding_status(
     finding_id: UUID,
     new_status: FindingStatus,
     session: DbSession,
     tenant: Tenant,
-) -> dict:
+) -> Envelope[FindingOut, NoMeta]:
     tenant.require_write()
     finding = await service.get_finding(session, tenant, finding_id)
     finding = await service.set_status(session, tenant, finding, new_status)
-    return envelope(FindingOut.model_validate(finding).model_dump(mode="json"))
+    return Envelope(data=FindingOut.model_validate(finding), meta=NoMeta())
 
 
-@router.post("/{finding_id}/rescan", status_code=status.HTTP_202_ACCEPTED)
-async def rescan_finding(finding_id: UUID, session: DbSession, tenant: Tenant) -> dict:
+@router.post(
+    "/{finding_id}/rescan",
+    status_code=status.HTTP_202_ACCEPTED,
+    responses=error_responses(403, 409),
+)
+async def rescan_finding(
+    finding_id: UUID, session: DbSession, tenant: Tenant
+) -> Envelope[RescanQueuedOut, NoMeta]:
     """Re-check the environment after a fix.
 
     This is the verification step, and it is a full scan rather than a
@@ -380,13 +395,14 @@ async def rescan_finding(finding_id: UUID, session: DbSession, tenant: Tenant) -
     await session.commit()
 
     run_scan.delay(str(scan.id))
-    return envelope(
-        {
-            "scan_id": str(scan.id),
-            "finding_id": str(finding.id),
-            "message": (
+    return Envelope(
+        data=RescanQueuedOut(
+            scan_id=scan.id,
+            finding_id=finding.id,
+            message=(
                 "Rescan queued. If the issue is fixed, Cleave will resolve this "
                 "finding automatically when the scan completes."
             ),
-        }
+        ),
+        meta=NoMeta(),
     )
