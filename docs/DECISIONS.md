@@ -8332,6 +8332,126 @@ takes it to 423 kB.
 statuses -- the header indicator and the dashboard each had a copy -- and the
 card's own duration formatter gave way to `formatSeconds`.
 
+## 155. An accessibility pass over the whole app: landmarks, titles, focus, and shortcuts that can be turned off
+
+An audit against WCAG 2.2 AA across the web app. Most of what it looks for was
+already right: every page has one `h1`, filters and fields are labelled, icon
+buttons are named, charts and marks carry their reading in text (§149), the
+severity pairs clear 4.5:1 on their tints (§144), and reduced motion is
+answered once. What it found, and what changed:
+
+**One `main`.** shadcn's `SidebarInset` renders a `<main>`, and the shell put
+its own `<main>` inside it, so every page sat in two nested main landmarks and
+"skip to main" landed on the header. The vendored inset is a `div` now; the
+shell's `<main id="main-content">` wraps the page alone.
+
+**A skip link.** The first Tab on every page was the whole navigation. "Skip to
+content" is the first element in the shell, hidden until focused, and moves
+focus to `<main>` by hand rather than by following `#main-content`, which
+would write a fragment into a URL the router owns (2.4.1).
+
+**Every page has a title (2.4.2).** All of them were "Cleave". `lib/pageTitle.ts`
+names each route after its sidebar label, names the routes the sidebar does
+not list, and a detail page puts what it shows first once it has loaded
+(`usePageTitle`): "Storage open to the internet · Finding · Cleave". The name
+goes through `DocumentTitle`, around every route, rather than being written by
+the page, because a child's effect runs before its parent's and the route's
+title would overwrite it on the render it arrived in.
+
+**Focus goes to the new page (2.4.3).** A route swap left focus on the link
+that was pressed, which usually unmounts with its page, so focus fell to
+`<body>` and the next Tab restarted at the navigation. `PageTransition` now
+focuses the arriving page's `h1` (made focusable by script, never a tab stop),
+or `<main>` while the page has not drawn one. Not on the first page, which the
+browser already started at the top, and not on a morph into the graph, which
+keeps its key and whose panel places focus itself (§140).
+
+**Focus indicators with a solid line (1.4.11).** Controls drawn outside the
+primitives -- dashboard rows, graph list rows, the segmented filter, the sign-in
+buttons, twenty-two places -- showed only the 3px halo at half strength, 1.9:1
+against the page, and a box-shadow is removed outright in forced-colours mode,
+so there they had no indicator at all. They take `focus-ring` (or
+`focus-ring-inset`), a `@utility` in `index.css` that draws a 1px `--ring`
+outline under the halo, as `border-ring` does in the primitives. A
+`focus-visible:outline-1` beside `outline-none` does not do this in Tailwind 4:
+`outline-none` sets the style to none through a variable the width utility
+reads back, which is why the scroll area's own outline never showed. The light
+theme's `--sidebar-ring` moves from 0.708 (2.48:1 on the rail) to `--ring`'s
+0.58.
+
+**Single-key shortcuts can be turned off (2.1.4).** `g` then a letter, `/`,
+`?`, `j`/`k`/`o`, and `x` on Risks fire on one unmodified key. Speech input
+types a spoken word as its letters, so "go" opened the overview. A switch in
+the shortcuts sheet turns them all off, stored per browser
+(`cloudguard.shortcuts.single-key`); ⌘K is unaffected and opens the sheet
+from the palette. Every one-key handler asks `singleKeyShortcut`.
+
+**Enter belongs to the control that has focus.** After `j` marked a row, Enter
+anywhere on the page opened that row -- on a button, a link, a tab -- and
+`preventDefault` swallowed the control's own action. `Enter` and `o` open the
+marked row only when focus is on nothing that answers keys itself
+(`isControlTarget`).
+
+**The account menu is a disclosure.** It carried `role="menu"` and
+`menuitem`s with none of the menu's keyboard model, and held an address and a
+destructive confirmation that no menu may contain -- a screen reader switched
+into menu mode and then could not reach half of it. It is buttons in the tab
+order after an `aria-expanded` trigger now: Escape closes it and returns to
+the trigger, tabbing out closes it, the current organization is
+`aria-current`, and asking to remove one starts the keyboard on **Keep**.
+
+Smaller: the collapsed rail's wordmark link kept its name (`sr-only` rather than
+`hidden`), the sign-up password's length hint is its field's description, and
+the score ring's arc is hidden beside the number it repeats.
+
+**Not changed.** The `j`/`k` mark is visual only: a screen reader already moves
+through a table by row, and moving real focus with the mark would open each
+row's hover preview in turn. The graph canvases were not re-audited; their
+keyboard model is §101 and §134.
+
+### The checks that hold it
+
+**Every rendered test state passes axe.** `src/test/setup.ts` runs `axe-core`
+after every test, over whatever the test left on the page -- a dialog open, a
+filter applied, an error shown -- and a violation fails that test with the
+element named. After every test rather than in chosen ones, because a check
+that has to be remembered is missing from exactly the test that mattered. Two
+rules are off (`src/test/axe.ts`): `color-contrast`, which jsdom cannot compute
+(no layout, no custom properties), and `region`, because a test mounts a page
+without the shell; the shell's own test holds the one `main` down. It costs the
+suite about four seconds.
+
+Its first run found what the manual pass had not:
+
+* `ScoreTile` and the provenance confidence bar put `aria-label` on a bare
+  `span`, which assistive technology ignores; both are `role="img"` now, and
+  the bar says "Confidence: 3 of 4" rather than a raw 0.75.
+* Three popovers -- the notification bell's and the two help popovers on the
+  graph pages -- were unnamed dialogs; each is named after what opened it.
+* The first connection step and the access tab jumped from the page's `h1`
+  to `h3`s; their section headings are `h2`s.
+* Two `dl`s were invalid: the risk breakdown held its capped note as a `p`
+  inside the list (it sits after it now), and the permissions summary wrapped
+  its pairs in `span`s (they are the `div`s a `dl` allows).
+* The command palette's "nothing matches" sat inside the listbox, which may
+  hold only options. It is above it now, in an always-mounted `role="status"`,
+  so a search that stops matching is said aloud as well as drawn.
+
+**`eslint-plugin-jsx-a11y`, strict.** It declares ESLint up to 9 and this
+project runs 10, so `package.json` overrides its peer to the installed ESLint.
+The plugin reads JSX, not ESLint's removed context API, and runs clean; the
+alternative was `eslint-plugin-jsx-a11y-x`, a single-maintainer fork with a
+five-hundredth of the upstream's users. Turned down, each with its reason in
+`eslint.config.js`: the two interaction rules watch pointer handlers only,
+because a key handler on a container is where the graph canvases hear arrow
+keys bubbling from the focused box inside; and in the vendored `ui/**` the
+rules that cannot see spread props. `no-autofocus` stays on, with an inline
+exception where focus is placed on purpose -- the first field of a page that is
+one form outside the shell, a dialog's one field, the answer that replaced the
+button asking. It found one that was not on purpose: the first connection step
+focused its name field, skipping the cloud choice drawn above it, and no longer
+does.
+
 ## Open items carried forward
 
 **Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read

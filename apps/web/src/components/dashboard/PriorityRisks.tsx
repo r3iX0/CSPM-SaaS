@@ -83,7 +83,7 @@ export function PriorityRisks({ risks }: { risks: Risk[] }) {
             >
               <Link
                 to={`/risks/${risk.id}`}
-                className="flex min-w-0 flex-1 items-center gap-3 py-3 pr-3 pl-5 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset"
+                className="flex min-w-0 flex-1 items-center gap-3 py-3 pr-3 pl-5 transition-colors hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring-inset focus-visible:ring-inset"
               >
                 <ScoreTile score={Number(risk.risk_score)} level={risk.risk_level} />
 

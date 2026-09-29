@@ -78,7 +78,7 @@ export function Bars({
             {bar.to ? (
               <Link
                 to={bar.to}
-                className="flex items-center gap-3 rounded-md py-0.5 transition-colors hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                className="flex items-center gap-3 rounded-md py-0.5 transition-colors hover:bg-accent/50 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-ring"
               >
                 {row}
               </Link>

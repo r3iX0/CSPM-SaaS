@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { AnimatePresence, m } from "motion/react";
 
@@ -49,7 +49,45 @@ export function PageTransition({ children }: { children: ReactNode }) {
         exit={pageTransition.exit}
       >
         {children}
+        <FocusOnArrival />
       </m.div>
     </AnimatePresence>
   );
+}
+
+/** Whether the app has shown a page yet: the first one is arrived at by loading. */
+let arrivedOnce = false;
+
+/**
+ * Where the keyboard is when a new page arrives.
+ *
+ * A browser that loads a page starts the reader at its top; a router that
+ * swaps one does nothing, and the link that was pressed is usually unmounted
+ * with the page it sat on, so focus fell to `<body>` -- the next Tab restarted
+ * at the navigation, and a screen reader said nothing about where it was. Focus
+ * goes to the page's heading, which a screen reader reads out, or to `<main>`
+ * while the page is still loading and has none (WCAG 2.4.3).
+ *
+ * Mounted inside the keyed element, so it runs when the new page is in the
+ * document and not before -- the outgoing page leaves first (`mode="wait"`).
+ * Not on the first page, which the browser already started at the top, and
+ * not on a morph into the graph, which keeps the key and whose panel places
+ * focus itself.
+ */
+function FocusOnArrival() {
+  useEffect(() => {
+    if (!arrivedOnce) {
+      arrivedOnce = true;
+      return;
+    }
+    const main = document.getElementById("main-content");
+    if (!main) return;
+    const heading = main.querySelector<HTMLElement>("h1");
+    if (heading) {
+      heading.tabIndex = -1;
+      heading.style.outline = "none";
+    }
+    (heading ?? main).focus({ preventScroll: true });
+  }, []);
+  return null;
 }

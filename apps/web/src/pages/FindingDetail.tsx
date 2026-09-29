@@ -52,6 +52,7 @@ import {
 } from "@/lib/format";
 import { FACT_ICONS, FACTOR_ICONS, resourceTypeIcon } from "@/lib/icons";
 import { IconLabel } from "@/components/security/IconLabel";
+import { usePageTitle } from "@/lib/pageTitle";
 
 /**
  * The page the whole product is really about. It must answer, in order:
@@ -149,6 +150,8 @@ export function FindingDetailPage() {
           err instanceof ApiError ? err.message : "The API rejected the request.",
       }),
   });
+
+  usePageTitle(data?.title);
 
   if (isLoading) return <DetailSkeleton />;
   if (error)

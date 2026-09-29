@@ -184,6 +184,8 @@ export function RiskDecisions({
               <Textarea
                 id="risk-accept-reason"
                 required
+                // The dialog's one field, and what it opened to ask for.
+                // eslint-disable-next-line jsx-a11y/no-autofocus
                 autoFocus
                 minLength={MIN_REASON}
                 value={reason}

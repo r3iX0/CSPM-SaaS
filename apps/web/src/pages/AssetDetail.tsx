@@ -25,6 +25,7 @@ import { AssetNeighborhood } from "@/components/graph/AssetNeighborhood";
 import { assetQuery } from "@/components/graph/graphQueries";
 import { BlastRadius } from "@/components/graph/BlastRadius";
 import { AssetAccessPanel } from "@/components/graph/AssetAccess";
+import { usePageTitle } from "@/lib/pageTitle";
 
 interface AssetFinding {
   id: string;
@@ -124,6 +125,8 @@ export function AssetDetailPage() {
       { replace: true },
     );
   }
+
+  usePageTitle(data?.name);
 
   if (isLoading) return <DetailSkeleton />;
   if (error)
@@ -478,7 +481,7 @@ function FindingsPanel({ asset }: { asset: AssetDetail }) {
                   to={`/findings/${finding.id}`}
                   className={cn(
                     "group flex items-center gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-muted/50",
-                    "focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+                    "focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring",
                   )}
                 >
                   {finding.risk_score === null ? (

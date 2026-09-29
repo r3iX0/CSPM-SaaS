@@ -117,6 +117,9 @@ export function OnboardingPage() {
                 <Input
                   id="org-name"
                   required
+                  // The page is this form, outside the shell with nothing before
+                  // it to read, and the field is its first.
+                  // eslint-disable-next-line jsx-a11y/no-autofocus
                   autoFocus
                   minLength={2}
                   value={name}
@@ -193,7 +196,7 @@ export function OnboardingPage() {
             type="button"
             onClick={() => joinDemo.mutate()}
             disabled={joinDemo.isPending}
-            className="group mt-4 flex w-full items-center gap-3 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60"
+            className="group mt-4 flex w-full items-center gap-3 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring disabled:opacity-60"
           >
             <span className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-primary-soft text-primary">
               <DEMO_ICON className="size-4" aria-hidden />

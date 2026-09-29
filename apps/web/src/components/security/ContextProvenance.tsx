@@ -91,7 +91,11 @@ function ConfidenceBar({
   // continuous bar would imply a precision the scale does not have.
   const filled = Math.max(1, Math.round(confidence * 4));
   return (
-    <span className="flex items-center gap-0.5" aria-label={`Confidence ${confidence}`}>
+    <span
+      className="flex items-center gap-0.5"
+      role="img"
+      aria-label={`Confidence: ${filled} of 4`}
+    >
       {[0, 1, 2, 3].map((step) => (
         <span
           key={step}

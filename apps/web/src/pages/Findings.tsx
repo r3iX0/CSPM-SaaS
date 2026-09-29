@@ -535,7 +535,7 @@ function SortableHead({
         aria-label={`Sort by ${label.toLowerCase()}`}
         className={cn(
           "inline-flex items-center gap-1 rounded-sm transition-colors hover:text-foreground",
-          "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+          "focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-ring",
           align === "right" && "flex-row-reverse",
           isActive && "text-foreground",
         )}

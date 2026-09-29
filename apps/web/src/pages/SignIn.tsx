@@ -168,6 +168,9 @@ export function SignInPage() {
                   id="email"
                   type="email"
                   required
+                  // The page is this form, outside the shell with nothing before
+                  // it to read, and the field is its first.
+                  // eslint-disable-next-line jsx-a11y/no-autofocus
                   autoFocus
                   autoComplete="email"
                   value={email}
@@ -213,7 +216,7 @@ export function SignInPage() {
                 <button
                   type="submit"
                   disabled={busy}
-                  className="mt-[22px] flex h-[42px] w-full items-center justify-center gap-2 rounded-[9px] bg-primary px-4 text-[13.5px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
+                  className="mt-[22px] flex h-[42px] w-full items-center justify-center gap-2 rounded-[9px] bg-primary px-4 text-[13.5px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
                 >
                   {busy && (
                     <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current/30 border-t-current" />
@@ -311,7 +314,7 @@ function MicrosoftButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="mt-7 flex h-[42px] w-full items-center justify-center gap-2.5 rounded-[9px] border border-border bg-card px-4 text-[13.5px] font-medium text-foreground transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:text-muted-foreground"
+      className="mt-7 flex h-[42px] w-full items-center justify-center gap-2.5 rounded-[9px] border border-border bg-card px-4 text-[13.5px] font-medium text-foreground transition-colors hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring disabled:cursor-not-allowed disabled:text-muted-foreground"
     >
       <MicrosoftMark />
       {label}
@@ -368,6 +371,7 @@ function PasswordField({
           minLength={MIN_PASSWORD_LENGTH}
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          aria-describedby={hint ? `${id}-hint` : undefined}
           className={`${FIELD_CLASS} pr-11`}
         />
         <button
@@ -379,7 +383,11 @@ function PasswordField({
           <EyeIcon crossed={visible} />
         </button>
       </div>
-      {hint && <p className="mt-1.5 text-xs text-muted-foreground">{hint}</p>}
+      {hint && (
+        <p id={`${id}-hint`} className="mt-1.5 text-xs text-muted-foreground">
+          {hint}
+        </p>
+      )}
     </div>
   );
 }

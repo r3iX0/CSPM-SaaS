@@ -1,5 +1,8 @@
 import "@testing-library/jest-dom/vitest";
-import { configure } from "@testing-library/react";
+import { cleanup, configure } from "@testing-library/react";
+import { afterEach } from "vitest";
+
+import { axeViolations } from "./axe";
 
 /**
  * How long a `findBy*` waits before calling text missing.
@@ -104,3 +107,26 @@ console.error = (...args: unknown[]) => {
   reactError(...args);
 };
 
+
+/**
+ * Every rendered state passes axe (DECISIONS.md §155).
+ *
+ * After every test rather than in chosen ones, because the states worth
+ * checking are the ones the tests already reach -- a dialog open, a filter
+ * applied, an error shown -- and a check that had to be remembered would be
+ * missing from exactly the test that mattered. A violation fails the test
+ * whose last state produced it, with the element named.
+ */
+afterEach(async () => {
+  if (document.body.childElementCount === 0) return;
+  const violations = await axeViolations();
+  if (violations.length > 0) {
+    // Unmounted here as well: a hook that throws stops the ones after it,
+    // Testing Library's own cleanup among them, and the page left behind
+    // would fail every test that runs after this one.
+    cleanup();
+    throw new Error(
+      `axe found ${violations.length} accessibility violation(s):\n${violations.join("\n")}`,
+    );
+  }
+});

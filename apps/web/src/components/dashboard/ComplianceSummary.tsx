@@ -77,7 +77,7 @@ export function ComplianceSummary({
               <li key={framework.id} className="border-r border-b bg-card">
                 <Link
                   to={`/compliance/${framework.id}`}
-                  className="flex h-full flex-col gap-1 px-5 py-4 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset"
+                  className="flex h-full flex-col gap-1 px-5 py-4 transition-colors hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring-inset focus-visible:ring-inset"
                 >
                   <span className="truncate text-[12.5px] font-medium">
                     {framework.short_name}

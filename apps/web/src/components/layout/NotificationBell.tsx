@@ -134,7 +134,11 @@ export function NotificationBell() {
         )}
       </PopoverTrigger>
 
-      <PopoverContent align="end" className="w-[min(24rem,calc(100vw-2rem))] p-0">
+      <PopoverContent
+        align="end"
+        className="w-[min(24rem,calc(100vw-2rem))] p-0"
+        aria-label={t.notifications.title}
+      >
         <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
           <p className="text-sm font-medium">{t.notifications.title}</p>
           {rows.length > 0 && (

@@ -35,6 +35,7 @@ import {
   CardContent,
   CardFooter,
 } from "@/components/ui/card";
+import { usePageTitle } from "@/lib/pageTitle";
 
 /**
  * One framework, control by control.
@@ -62,6 +63,8 @@ export function ComplianceFrameworkPage() {
         .then((r) => r.data),
     enabled: Boolean(frameworkId),
   });
+
+  usePageTitle(data?.name);
 
   if (isLoading) return <DetailSkeleton />;
   if (error || !data) {

@@ -452,7 +452,7 @@ function HopLink({
           aria-current={reading ? "step" : undefined}
           aria-label={t.attackPaths.hopOf(index + 1, count, step.detail || step.description)}
           className={cn(
-            "-mx-1.5 w-[calc(100%+0.75rem)] rounded-md px-1.5 py-1 text-left text-xs transition-colors hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+            "-mx-1.5 w-[calc(100%+0.75rem)] rounded-md px-1.5 py-1 text-left text-xs transition-colors hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring",
             reading ? "bg-muted text-sm font-medium text-foreground" : "text-muted-foreground",
           )}
         >

@@ -4,10 +4,10 @@
  */
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { KeyboardShortcuts } from "@/components/layout/KeyboardShortcuts";
-import { useRowNavigation } from "@/lib/keyboard";
+import { setSingleKeyShortcuts, useRowNavigation } from "@/lib/keyboard";
 
 function Where() {
   return <p data-testid="where">{useLocation().pathname}</p>;
@@ -19,6 +19,7 @@ function List() {
   return (
     <>
       <input aria-label="Search findings" data-page-search />
+      <button type="button">Export</button>
       <ul>
         {hrefs.map((href, index) => (
           <li key={href} data-row-index={index} data-active={active === index}>
@@ -47,6 +48,8 @@ const key = (k: string, target: Element | Document = document) =>
   fireEvent.keyDown(target, { key: k });
 
 describe("the keyboard", () => {
+  afterEach(() => setSingleKeyShortcuts(true));
+
   it("moves through a list with j and k and opens the row with Enter", () => {
     mount();
     key("j");
@@ -92,5 +95,32 @@ describe("the keyboard", () => {
     key("?");
     expect(await screen.findByText("Keyboard shortcuts")).toBeInTheDocument();
     expect(screen.getByText("Next row")).toBeInTheDocument();
+  });
+
+  it("leaves Enter to the control that has focus", () => {
+    mount();
+    key("j");
+    key("Enter", screen.getByRole("button", { name: "Export" }));
+    expect(screen.getByTestId("where")).toHaveTextContent("/findings");
+  });
+
+  it("can be turned off, for speech input (WCAG 2.1.4)", () => {
+    mount();
+    setSingleKeyShortcuts(false);
+    key("j");
+    key("g");
+    key("r");
+    expect(document.querySelector('[data-active="true"]')).toBeNull();
+    expect(screen.getByTestId("where")).toHaveTextContent("/findings");
+  });
+
+  it("is turned off and on from the sheet", async () => {
+    mount();
+    key("?");
+    const toggle = await screen.findByRole("switch", { name: "Single-key shortcuts" });
+    expect(toggle).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-checked", "false");
+    expect(localStorage.getItem("cloudguard.shortcuts.single-key")).toBe("off");
   });
 });

@@ -919,7 +919,11 @@ function RouteList({
                     </Button>
                   }
                 />
-                <PopoverContent align="end" className="w-72 text-xs leading-relaxed">
+                <PopoverContent
+                  align="end"
+                  className="w-72 text-xs leading-relaxed"
+                  aria-label={t.attackPaths.patternsHelpLabel}
+                >
                   {t.attackPaths.patternsHelp}
                 </PopoverContent>
               </Popover>

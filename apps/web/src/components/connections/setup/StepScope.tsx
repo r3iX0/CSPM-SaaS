@@ -255,7 +255,6 @@ export function StepScope({
           <Input
             id={nameId}
             required
-            autoFocus
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Acme production"
@@ -393,7 +392,7 @@ export function StepScope({
 function Section({ label, children }: { label: string; children: ReactNode }) {
   return (
     <section>
-      <h3 className="mb-2.5 text-xs font-medium text-foreground">{label}</h3>
+      <h2 className="mb-2.5 text-xs font-medium text-foreground">{label}</h2>
       {children}
     </section>
   );

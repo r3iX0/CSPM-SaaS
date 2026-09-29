@@ -197,12 +197,14 @@ export function CommandPaletteDialog({
           onValueChange={setQuery}
           placeholder="Search assets, rules and pages…"
         />
-        <CommandList>
-          {/* Not cmdk's `CommandEmpty`, which renders off its own filtered
+        {/* Not cmdk's `CommandEmpty`, which renders off its own filtered
             count -- and `shouldFilter={false}` has taken that count out of
             the loop. Deciding emptiness here keeps one authority over what
-            matched. */}
-        {nothing && (
+            matched. Outside the list, which is a listbox and may hold only
+            options, and a live region that is always mounted, so a search
+            that stops matching is said aloud rather than only drawn. */}
+        <div role="status" aria-live="polite">
+          {nothing && (
             <div className="py-6 text-center text-sm">
               <span className="text-muted-foreground">
                 Nothing matches “{trimmed}”.
@@ -215,6 +217,8 @@ export function CommandPaletteDialog({
               </span>
             </div>
           )}
+        </div>
+        <CommandList>
 
           {actionHits.length > 0 && (
             <CommandGroup heading="Actions">

@@ -31,6 +31,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { usePageTitle } from "@/lib/pageTitle";
 
 /**
  * One risk, and the findings it was built from.
@@ -56,6 +57,8 @@ export function RiskDetailPage() {
     queryFn: () =>
       api.get<RiskDetail>(`/api/v1/risks/${riskId}`).then((r) => r.data),
   });
+
+  usePageTitle(data?.title);
 
   if (isLoading) return <DetailSkeleton />;
 
@@ -276,25 +279,29 @@ export function RiskDetailPage() {
                 /* Floored at the worst member and amplified for being short.
                    The six weighted components do not apply, and showing them
                    would be working that was never done. */
-                <dl className="flex flex-col gap-2 text-xs">
-                  <Row
-                    label={t.risks.worstMember}
-                    value={breakdown.worst_member ?? "—"}
-                  />
-                  <Row
-                    label={t.risks.amplifier}
-                    value={`+${breakdown.amplifier ?? 0}`}
-                  />
-                  <Row
-                    label="Hops"
-                    value={breakdown.hops ?? data.path.length}
-                  />
+                <div>
+                  <dl className="flex flex-col gap-2 text-xs">
+                    <Row
+                      label={t.risks.worstMember}
+                      value={breakdown.worst_member ?? "—"}
+                    />
+                    <Row
+                      label={t.risks.amplifier}
+                      value={`+${breakdown.amplifier ?? 0}`}
+                    />
+                    <Row
+                      label="Hops"
+                      value={breakdown.hops ?? data.path.length}
+                    />
+                  </dl>
+                  {/* Beside the list, not in it: a `dl` holds terms and their
+                      values, and a note is neither. */}
                   {capped && (
-                    <p className="mt-1 text-xs text-muted-foreground">
+                    <p className="mt-3 text-xs text-muted-foreground">
                       {breakdown.uncapped} before the ceiling. {t.risks.cappedNote}
                     </p>
                   )}
-                </dl>
+                </div>
               ) : (
                 <ul className="flex flex-col gap-1.5">
                   {Object.entries(components).map(([name, component]) => (

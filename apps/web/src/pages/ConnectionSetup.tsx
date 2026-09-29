@@ -19,6 +19,7 @@ import { CardsSkeleton } from "@/components/common/states";
 import { ProviderMark } from "@/components/security/ProviderMark";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { usePageTitle } from "@/lib/pageTitle";
 
 /**
  * The connection wizard.
@@ -68,6 +69,7 @@ export function ConnectionSetupPage() {
   });
 
   const connection = detail.data ?? null;
+  usePageTitle(connection?.name);
   const stage = connectionStage(connection);
   // Which cloud the wizard is describing. Before a connection exists, the
   // picker in the first step decides; after it does, the connection itself is

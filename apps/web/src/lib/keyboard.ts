@@ -29,6 +29,71 @@ export function plainKey(event: KeyboardEvent): boolean {
 }
 
 /**
+ * Whether the key landed on something that answers keys itself -- a link, a
+ * button, a tab, a canvas. `Enter` there is that control's, not the list's: a
+ * reader who marked a row with `j` and then tabbed to a button pressed the
+ * button, and used to be sent to the marked row instead.
+ */
+export function isControlTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement && target !== document.body && target.tabIndex >= 0
+  );
+}
+
+/** Where the single-key preference lives. Per browser, like the theme. */
+const SINGLE_KEY_STORAGE = "cloudguard.shortcuts.single-key";
+const SINGLE_KEY_EVENT = "cloudguard:single-key-shortcuts";
+
+/** The choice made in this page's life, for a browser whose storage refused it. */
+let singleKeyOverride: boolean | null = null;
+
+/**
+ * Whether the one-letter shortcuts are on -- `g` then a letter, `/`, `?`,
+ * `j`/`k`/`x`/`o` and `Enter` on a marked row.
+ *
+ * On unless turned off. They stand down in fields, but a reader driving the
+ * page by speech says words, and a word spoken outside a field arrives as its
+ * letters: "go" is `g` then `o`, which opened the overview. WCAG 2.1.4 asks that
+ * shortcuts made of one character can be turned off, and the switch is in the
+ * shortcuts sheet, which the palette opens with a modifier.
+ */
+export function singleKeyShortcutsOn(): boolean {
+  try {
+    return localStorage.getItem(SINGLE_KEY_STORAGE) !== "off";
+  } catch {
+    return true;
+  }
+}
+
+export function setSingleKeyShortcuts(on: boolean): void {
+  try {
+    if (on) localStorage.removeItem(SINGLE_KEY_STORAGE);
+    else localStorage.setItem(SINGLE_KEY_STORAGE, "off");
+  } catch {
+    // Storage refused: the choice lasts until the page is reloaded.
+  }
+  singleKeyOverride = on;
+  window.dispatchEvent(new Event(SINGLE_KEY_EVENT));
+}
+
+/** Whether a plain key press should be read as a shortcut at all. */
+export function singleKeyShortcut(event: KeyboardEvent): boolean {
+  if (!plainKey(event) || isTypingTarget(event.target) || dialogOpen()) return false;
+  return singleKeyOverride ?? singleKeyShortcutsOn();
+}
+
+/** The preference, kept current for the switch that shows it. */
+export function useSingleKeyShortcuts(): boolean {
+  const [on, setOn] = useState(() => singleKeyOverride ?? singleKeyShortcutsOn());
+  useEffect(() => {
+    const read = () => setOn(singleKeyOverride ?? singleKeyShortcutsOn());
+    window.addEventListener(SINGLE_KEY_EVENT, read);
+    return () => window.removeEventListener(SINGLE_KEY_EVENT, read);
+  }, []);
+  return on;
+}
+
+/**
  * `j` and `k` through a list, `Enter` to open the row that is marked.
  *
  * The convention of every keyboard-first tool a security engineer already uses
@@ -51,7 +116,7 @@ export function useRowNavigation(hrefs: string[]): number {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (!plainKey(event) || isTypingTarget(event.target) || dialogOpen()) return;
+      if (!singleKeyShortcut(event)) return;
       if (hrefs.length === 0) return;
       if (event.key === "j") {
         event.preventDefault();
@@ -59,7 +124,11 @@ export function useRowNavigation(hrefs: string[]): number {
       } else if (event.key === "k") {
         event.preventDefault();
         setActive((index) => Math.max(index - 1, 0));
-      } else if ((event.key === "Enter" || event.key === "o") && active >= 0) {
+      } else if (
+        (event.key === "Enter" || event.key === "o") &&
+        active >= 0 &&
+        !isControlTarget(event.target)
+      ) {
         event.preventDefault();
         navigate(hrefs[active]);
       }

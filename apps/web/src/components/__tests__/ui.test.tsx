@@ -63,6 +63,10 @@ describe("SeverityBadge", () => {
 });
 
 describe("ContextRow", () => {
+  // A row is a term and its value, so it is drawn inside the `dl` it always
+  // sits in on a page; alone, it is markup no reader could be given.
+  const inList = () => ({ container: document.body.appendChild(document.createElement("dl")) });
+
   it("distinguishes a value somebody chose from one Cleave guessed", () => {
     // The three context values multiply a finding into a risk. "CRITICAL"
     // invites the question "says who", and until the backend recorded
@@ -72,18 +76,20 @@ describe("ContextRow", () => {
         label="Criticality"
         fact={{ value: "CRITICAL", source: "customer", confidence: 1 }}
       />,
+      inList(),
     );
     const { container: guessed } = render(
       <ContextRow
         label="Criticality"
         fact={{ value: "CRITICAL", source: "inferred", confidence: 0.4 }}
       />,
+      inList(),
     );
     expect(declared.innerHTML).not.toBe(guessed.innerHTML);
   });
 
   it("falls back without provenance rather than claiming a source", () => {
-    render(<ContextRow label="Criticality" fallback={<Badge level="HIGH" />} />);
+    render(<ContextRow label="Criticality" fallback={<Badge level="HIGH" />} />, inList());
     expect(screen.getByText("High")).toBeInTheDocument();
   });
 });

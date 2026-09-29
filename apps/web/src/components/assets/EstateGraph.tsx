@@ -309,7 +309,7 @@ export function EstateGraph({ scopeId, group }: { scopeId: string; group: string
                             onClick={() => pick({ kind: "edge", id })}
                             className={cn(
                               "flex w-full flex-wrap gap-x-1.5 rounded-md px-2 py-1 text-left text-sm transition-colors hover:bg-muted/60",
-                              "focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+                              "focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring",
                             )}
                           >
                             <span className="font-medium">
@@ -524,7 +524,7 @@ function ReachList({
                 }
                 className={cn(
                   "flex w-full flex-wrap gap-x-1.5 rounded-md px-2 py-1 text-left text-sm transition-colors hover:bg-muted/60",
-                  "focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+                  "focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring",
                 )}
               >
                 <span className="font-medium">{name(edge)}</span>
@@ -588,7 +588,7 @@ function Contents({
               <button
                 type="button"
                 onClick={() => onPick(box)}
-                className="flex w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                className="flex w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring"
               >
                 {box.kind !== "fold" ? (
                   createElement(boxIcon(box), {

@@ -474,7 +474,7 @@ function BoxButton({
       }}
       className={cn(
         "nopan cursor-pointer rounded-lg border px-2 py-1.5 text-left transition-[opacity,box-shadow] hover:bg-muted/60",
-        "focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+        "focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring",
         className,
         (dimmed || (actions.lit && !actions.lit.has(id))) && "opacity-30",
         selected && "ring-2 ring-foreground/70 ring-offset-2 ring-offset-card",

@@ -1,5 +1,6 @@
 import js from "@eslint/js";
 import globals from "globals";
+import jsxA11y from "eslint-plugin-jsx-a11y";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
@@ -28,11 +29,28 @@ export default tseslint.config(
       globals: globals.browser,
     },
     plugins: {
+      "jsx-a11y": jsxA11y,
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh,
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      // The strict set: a rule that fires on a false positive is turned down
+      // below with its reason, never the set (DECISIONS.md §155).
+      ...jsxA11y.flatConfigs.strict.rules,
+      // A key handler on a container is where the graph canvases and the
+      // route navigator hear the arrow keys bubbling up from the focused box
+      // inside -- the element answering them is already a tab stop. A click
+      // on a bare `div` is the hazard these rules exist for, so they still
+      // watch the pointer.
+      "jsx-a11y/no-static-element-interactions": [
+        "error",
+        { handlers: ["onClick", "onMouseDown", "onMouseUp"] },
+      ],
+      "jsx-a11y/no-noninteractive-element-interactions": [
+        "error",
+        { handlers: ["onClick", "onMouseDown", "onMouseUp"] },
+      ],
 
       // Vite's fast refresh only works when a module exports components and
       // nothing else. A warning rather than an error: several pages
@@ -58,6 +76,14 @@ export default tseslint.config(
     rules: {
       "react-refresh/only-export-components": "off",
       "@typescript-eslint/no-empty-object-type": "off",
+      // Props arrive spread, so the rule cannot see the `htmlFor` a `Label`
+      // is given or the text a `PaginationLink` wraps.
+      "jsx-a11y/label-has-associated-control": "off",
+      "jsx-a11y/anchor-has-content": "off",
+      // The input group's addon focuses its input on a click: a pointer
+      // convenience, when the input is itself the tab stop.
+      "jsx-a11y/click-events-have-key-events": "off",
+      "jsx-a11y/no-noninteractive-element-interactions": "off",
     },
   },
   {

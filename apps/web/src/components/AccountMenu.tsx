@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, auth } from "@/lib/api";
@@ -18,6 +18,13 @@ import { cn, label } from "@/lib/format";
  * organizations was permanently stuck in whichever one came back first. That
  * is a real capability, not a cosmetic one, which is why it gets a section of
  * its own rather than a line in a list.
+ *
+ * A disclosure, not an ARIA menu: it holds an address, a confirmation with
+ * its own buttons and a list of organizations, and `role="menu"` promises arrow
+ * keys and nothing but menu items -- a promise this never kept, so a screen
+ * reader switched into menu mode and then could not reach half of it. As a
+ * disclosure it is ordinary buttons in the tab order after the trigger;
+ * Escape closes it and returns to the trigger, and tabbing out of it closes it.
  *
  * Switching clears the query cache. Cache keys do not include the organization
  * (the server derives the tenant, the client never names it in a URL), so
@@ -41,6 +48,8 @@ export function AccountMenu({
   // Acme sh.p.k." is a different question from "remove organization".
   const [confirming, setConfirming] = useState<Organization | null>(null);
   const container = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const panelId = useId();
 
   const removeOrg = useMutation({
     mutationFn: (organization: Organization) =>
@@ -78,14 +87,24 @@ export function AccountMenu({
       if (!container.current?.contains(event.target as Node)) close();
     }
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") close();
+      if (event.key !== "Escape") return;
+      // Back to the trigger only when the keyboard was inside: focus that is
+      // somewhere else on the page stays where the reader put it.
+      const inside = container.current?.contains(document.activeElement) ?? false;
+      close();
+      if (inside) trigger.current?.focus();
+    }
+    function onFocusIn(event: FocusEvent) {
+      if (!container.current?.contains(event.target as Node)) close();
     }
 
     document.addEventListener("mousedown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("focusin", onFocusIn);
     return () => {
       document.removeEventListener("mousedown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("focusin", onFocusIn);
     };
   }, [open, close]);
 
@@ -117,9 +136,10 @@ export function AccountMenu({
   return (
     <div className="relative" ref={container}>
       <button
+        ref={trigger}
         onClick={() => setOpen((v) => !v)}
-        aria-haspopup="menu"
         aria-expanded={open}
+        aria-controls={open ? panelId : undefined}
         aria-label={t.account.menu}
         className={cn(
           "flex items-center gap-2 rounded-lg border px-1 py-0.5 text-sm transition sm:pr-2",
@@ -137,7 +157,7 @@ export function AccountMenu({
 
       {open && (
         <div
-          role="menu"
+          id={panelId}
           className="absolute right-0 z-20 mt-2 w-72 overflow-hidden rounded-xl border border-border bg-background shadow-lg"
         >
           <Section label={t.account.signedInAs}>
@@ -163,7 +183,14 @@ export function AccountMenu({
                   >
                     {removeOrg.isPending ? t.account.removingOrg : t.account.removeOrg}
                   </Button>
-                  <Button variant="secondary" onClick={() => setConfirming(null)}>
+                  {/* The button that asked is gone once this shows, so the
+                      keyboard starts on the answer that changes nothing. */}
+                  <Button
+                    variant="secondary"
+                    // eslint-disable-next-line jsx-a11y/no-autofocus
+                    autoFocus
+                    onClick={() => setConfirming(null)}
+                  >
                     {t.account.keep}
                   </Button>
                 </div>
@@ -178,8 +205,8 @@ export function AccountMenu({
               {organizations.map((organization) => (
                 <li key={organization.id}>
                   <button
-                    role="menuitem"
                     onClick={() => switchTo(organization)}
+                    aria-current={organization.id === current?.id ? "true" : undefined}
                     className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition hover:bg-muted/40"
                   >
                     <Avatar name={organization.name} />
@@ -210,7 +237,6 @@ export function AccountMenu({
                 one you are not looking at is a mistake waiting to happen. */}
             {current?.role === "OWNER" && (
               <button
-                role="menuitem"
                 onClick={() => setConfirming(current)}
                 className="group mt-1 w-full px-3 py-2 text-left text-sm text-critical transition hover:bg-critical-bg"
               >
@@ -225,7 +251,6 @@ export function AccountMenu({
 
           <div className="border-t border-border p-1">
             <button
-              role="menuitem"
               onClick={signOut}
               className="w-full rounded-lg px-3 py-2 text-left text-sm text-foreground transition hover:bg-muted/40 hover:text-foreground"
             >

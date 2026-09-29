@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { Shell } from "@/components/Shell";
+import { DocumentTitle } from "@/components/layout/DocumentTitle";
 import { useAuthToken } from "@/lib/useAuth";
 import { authReady } from "@/lib/supabase";
 import { Spinner } from "@/components/ui/spinner";
@@ -131,6 +132,7 @@ export function App() {
     // page choose its own placeholder, which sounds better and is worse: the
     // Shell stays mounted across a navigation, so what a reader actually sees
     // is the chrome they already had plus a spinner where the page will be.
+    <DocumentTitle>
     <Suspense fallback={<PageLoading />}>
       <Routes>
         <Route path="/sign-in" element={<SignInPage />} />
@@ -186,6 +188,7 @@ export function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>
+    </DocumentTitle>
   );
 }
 

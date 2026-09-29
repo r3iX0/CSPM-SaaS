@@ -107,4 +107,30 @@ describe("the application shell", () => {
     expect(await screen.findByRole("link", { name: "Findings" })).toBeInTheDocument();
     expect(screen.queryByText(/Last read/)).not.toBeInTheDocument();
   });
+
+  it("has one main landmark, reached by a skip link before the navigation", async () => {
+    renderShell();
+    await screen.findByRole("link", { name: "Findings" });
+
+    expect(screen.getAllByRole("main")).toHaveLength(1);
+    const skip = screen.getByRole("link", { name: "Skip to content" });
+    // First in the document, so it is the first Tab.
+    expect(document.querySelector("a[href]")).toBe(skip);
+    fireEvent.click(skip);
+    expect(screen.getByRole("main")).toHaveFocus();
+  });
+
+  it("opens the account panel as a disclosure and returns to it on Escape", async () => {
+    renderShell();
+    const trigger = await screen.findByRole("button", { name: "Account menu" });
+    fireEvent.click(trigger);
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+
+    const signOut = screen.getByRole("button", { name: "Sign out" });
+    signOut.focus();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(trigger).toHaveFocus();
+  });
 });

@@ -152,9 +152,9 @@ function Holders({
           .map((group) => (
             <section key={group.title || "all"} className="flex flex-col gap-2">
               {group.title && (
-                <h3 className="text-xs font-medium text-muted-foreground">
+                <h2 className="text-xs font-medium text-muted-foreground">
                   {group.title} <span className="tabular-nums">({group.members.length})</span>
-                </h3>
+                </h2>
               )}
               <ul className="flex flex-col divide-y">
                 {group.members.map((holder, index) => (

@@ -51,7 +51,7 @@ export function SegmentedFilter({
             // divided by a hairline.
             className={cn(
               "shrink-0 border-l border-border px-3 py-1.5 text-[12.5px] whitespace-nowrap transition-colors outline-none first:border-l-0",
-              "focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset",
+              "focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring-inset focus-visible:ring-inset",
               active
                 ? "bg-primary-soft font-medium text-foreground shadow-[inset_0_-2px_0_var(--primary)]"
                 : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",

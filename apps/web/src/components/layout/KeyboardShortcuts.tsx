@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { SHORTCUTS_EVENT, isTypingTarget, plainKey } from "@/lib/keyboard";
+import {
+  SHORTCUTS_EVENT,
+  setSingleKeyShortcuts,
+  singleKeyShortcut,
+  useSingleKeyShortcuts,
+} from "@/lib/keyboard";
 import {
   Dialog,
   DialogContent,
@@ -10,6 +15,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 /** `g` then a letter: the pages a reader moves between most. */
 const GO: Record<string, { to: string; label: string }> = {
@@ -43,11 +50,11 @@ export function KeyboardShortcuts() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const pendingG = useRef<number | null>(null);
+  const singleKey = useSingleKeyShortcuts();
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (!plainKey(event) || isTypingTarget(event.target)) return;
-      if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
+      if (!singleKeyShortcut(event)) return;
 
       if (pendingG.current !== null) {
         const target = GO[event.key];
@@ -96,6 +103,26 @@ export function KeyboardShortcuts() {
             None of these fire while you are typing in a field.
           </DialogDescription>
         </DialogHeader>
+
+        {/* Speech input types a spoken word as its letters, so one-letter
+            shortcuts can be turned off (WCAG 2.1.4); ⌘K is unaffected, and is
+            the way back here with them off. */}
+        <div className="flex items-start justify-between gap-4 rounded-lg border border-border p-3">
+          <div className="min-w-0">
+            <Label id="single-key-shortcuts-label" htmlFor="single-key-shortcuts">Single-key shortcuts</Label>
+            <p id="single-key-shortcuts-hint" className="mt-1 text-xs text-muted-foreground">
+              Everything below except ⌘K. Turn them off if you use speech input
+              or they fire by accident.
+            </p>
+          </div>
+          <Switch
+            id="single-key-shortcuts"
+            aria-labelledby="single-key-shortcuts-label"
+            aria-describedby="single-key-shortcuts-hint"
+            checked={singleKey}
+            onCheckedChange={(on) => setSingleKeyShortcuts(on)}
+          />
+        </div>
 
         <div className="grid gap-6 sm:grid-cols-2">
           <ShortcutGroup title="Anywhere">

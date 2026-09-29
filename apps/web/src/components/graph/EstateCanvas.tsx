@@ -420,7 +420,7 @@ function BoxNode({ id, data }: NodeProps<BoxFlowNode>) {
   const fold = data.kind === "fold";
   const frame = cn(
     "flex w-[240px] items-center gap-2 rounded-lg border px-2 py-1.5 text-left",
-    "nopan focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+    "nopan focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring",
     // Dashed, the way every gap in what CloudGuard draws is: counted, not drawn.
     fold && "border-dashed border-border bg-background",
     !fold &&

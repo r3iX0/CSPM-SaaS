@@ -117,8 +117,10 @@ export function ConnectEmpty({ provider = "azure" }: { provider?: Provider }) {
               )}
 
               {permissions.data && (
-                <dl className="mt-3 space-y-3 text-xs">
-                  <div>
+                // Each pair its own `div`, the one wrapper a `dl` allows; the
+                // first takes the row and the other two share the next.
+                <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-3 text-xs">
+                  <div className="basis-full">
                     <dt className="font-medium text-foreground">
                       {t.connection.graphPermissions}
                     </dt>
@@ -133,23 +135,21 @@ export function ConnectEmpty({ provider = "azure" }: { provider?: Provider }) {
                       ))}
                     </dd>
                   </div>
-                  <div className="flex flex-wrap gap-x-8 gap-y-1">
-                    <span>
-                      <dt className="inline font-medium text-foreground">
-                        {t.connection.rbacRole}:
-                      </dt>{" "}
-                      <dd className="inline text-muted-foreground">
-                        {permissions.data.azure_rbac_role} ({permissions.data.access_type})
-                      </dd>
-                    </span>
-                    <span>
-                      <dt className="inline font-medium text-foreground">
-                        {t.connection.writesPerformed}:
-                      </dt>{" "}
-                      <dd className="inline text-muted-foreground">
-                        {permissions.data.writes_performed}
-                      </dd>
-                    </span>
+                  <div>
+                    <dt className="inline font-medium text-foreground">
+                      {t.connection.rbacRole}:
+                    </dt>{" "}
+                    <dd className="inline text-muted-foreground">
+                      {permissions.data.azure_rbac_role} ({permissions.data.access_type})
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="inline font-medium text-foreground">
+                      {t.connection.writesPerformed}:
+                    </dt>{" "}
+                    <dd className="inline text-muted-foreground">
+                      {permissions.data.writes_performed}
+                    </dd>
                   </div>
                 </dl>
               )}

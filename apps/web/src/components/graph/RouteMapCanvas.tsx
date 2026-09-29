@@ -605,7 +605,7 @@ function AssetNode({ id, data }: NodeProps<AssetFlowNode>) {
         }}
         className={cn(
           "nopan flex w-[220px] cursor-pointer items-center gap-2 rounded-lg border bg-card px-2 py-1.5 text-left",
-          "transition-[opacity,filter] duration-500 hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+          "transition-[opacity,filter] duration-500 hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring",
           data.arrival > 0 && "animate-[cg-rise_180ms_ease-out_both]",
           data.entry
             ? "border-critical-border"

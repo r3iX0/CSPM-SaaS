@@ -29,7 +29,7 @@ import { IconLabel } from "@/components/security/IconLabel";
 import type { LucideIcon } from "lucide-react";
 import { Pager } from "@/components/common/Pager";
 import { useUrlFilters } from "@/lib/useUrlFilters";
-import { dialogOpen, isTypingTarget, plainKey, useRowNavigation } from "@/lib/keyboard";
+import { singleKeyShortcut, useRowNavigation } from "@/lib/keyboard";
 import { useIsDemo } from "@/lib/useDemo";
 import { cn, formatDate } from "@/lib/format";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -127,7 +127,7 @@ export function RisksPage() {
   useEffect(() => {
     if (isDemo) return;
     function onKeyDown(event: KeyboardEvent) {
-      if (!plainKey(event) || isTypingTarget(event.target) || dialogOpen()) return;
+      if (!singleKeyShortcut(event)) return;
       const row = data?.risks[activeRow];
       if (event.key !== "x" || !row) return;
       event.preventDefault();

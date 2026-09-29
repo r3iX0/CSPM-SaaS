@@ -30,6 +30,8 @@ export function ScoreTile({
         levelStyle(level),
         className,
       )}
+      // `img`, so the label is read: a name on a role-less span is ignored.
+      role="img"
       aria-label={
         unknown ? "Risk score: no verdict" : `Risk score ${Math.round(score)}, ${level.toLowerCase()}`
       }

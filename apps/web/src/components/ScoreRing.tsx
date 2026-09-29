@@ -17,7 +17,12 @@ export function ScoreRing({ score }: { score: number }) {
 
   return (
     <div className="relative h-[150px] w-[150px]">
-      <svg viewBox="0 0 140 140" className="h-full w-full -rotate-[135deg]">
+      {/* The number beside it is the reading; the arc repeats it for the eye. */}
+      <svg
+        viewBox="0 0 140 140"
+        className="h-full w-full -rotate-[135deg]"
+        aria-hidden="true"
+      >
         <circle
           cx="70"
           cy="70"

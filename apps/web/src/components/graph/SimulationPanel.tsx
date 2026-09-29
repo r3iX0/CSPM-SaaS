@@ -477,7 +477,7 @@ function OpenRoute({
       <button
         type="button"
         onClick={onTrace}
-        className="flex w-full items-center gap-1.5 rounded-md px-1 py-0.5 text-left text-xs hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+        className="flex w-full items-center gap-1.5 rounded-md px-1 py-0.5 text-left text-xs hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring"
       >
         <SeverityBadge level={route.target.data_sensitivity} size="sm" />
         <span className="min-w-0 flex-1 truncate">

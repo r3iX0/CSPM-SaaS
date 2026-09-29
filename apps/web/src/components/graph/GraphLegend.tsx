@@ -47,7 +47,7 @@ export function GraphLegend({
             </Button>
           }
         />
-        <PopoverContent align="end" className="w-80 text-xs leading-relaxed">
+        <PopoverContent align="end" className="w-80 text-xs leading-relaxed" aria-label={label}>
           {children}
         </PopoverContent>
       </Popover>

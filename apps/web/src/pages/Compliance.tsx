@@ -111,7 +111,7 @@ function FrameworkCard({ framework }: { framework: ComplianceFramework }) {
     // The whole card is the way in (§31: a Link, never a Button around one).
     <Link
       to={`/compliance/${encodeURIComponent(framework.id)}`}
-      className="group block rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+      className="group block rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring"
     >
       <Card className="flex h-full flex-col gap-0 py-0 transition-shadow group-hover:ring-foreground/25">
         <CardHeader className="py-4">

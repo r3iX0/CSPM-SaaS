@@ -111,6 +111,21 @@ export function Shell() {
     <TooltipProvider delay={200}>
       <ScanWizardProvider>
       <SidebarProvider open={open} onOpenChange={setOpen}>
+        {/* The first stop on the keyboard, and invisible until it is reached:
+            without it every page begins with the whole navigation, a dozen
+            links, before its own content (WCAG 2.4.1). */}
+        <a
+          href="#main-content"
+          // Focus moved by hand rather than by the fragment: following it
+          // would write `#main-content` into a URL the router owns.
+          onClick={(event) => {
+            event.preventDefault();
+            document.getElementById("main-content")?.focus();
+          }}
+          className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:top-3 focus-visible:left-3 focus-visible:z-50 focus-visible:rounded-md focus-visible:bg-background focus-visible:px-3 focus-visible:py-2 focus-visible:text-sm focus-visible:font-medium focus-visible:shadow-md focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring"
+        >
+          Skip to content
+        </a>
         {/* `collapsible="icon"` is the rail this shell always had: navigation
             that scrolls away makes a long findings table a one-way trip, so it
             narrows to icons rather than leaving. On mobile the same component
@@ -120,11 +135,11 @@ export function Shell() {
           <SidebarHeader className="h-14 shrink-0 justify-center border-b px-3 group-data-[collapsible=icon]:items-center">
             <Link
               to="/"
-              className="flex items-center gap-2.5 rounded-md px-2 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 group-data-[collapsible=icon]:px-0"
+              className="flex items-center gap-2.5 rounded-md px-2 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-ring group-data-[collapsible=icon]:px-0"
             >
               <Wordmark
                 markClassName="size-5"
-                labelClassName="group-data-[collapsible=icon]:hidden"
+                labelClassName="group-data-[collapsible=icon]:sr-only"
               />
             </Link>
           </SidebarHeader>
@@ -163,7 +178,13 @@ export function Shell() {
 
           <DemoBanner />
 
-          <main className="mx-auto w-full max-w-[1240px] px-4 pt-6 pb-16 sm:px-6">
+          <main
+            id="main-content"
+            // Focusable from script only, for the skip link and for a new page
+            // with no heading yet (`PageTransition`); never a tab stop.
+            tabIndex={-1}
+            className="mx-auto w-full max-w-[1240px] px-4 pt-6 pb-16 outline-none sm:px-6"
+          >
             {/* Per-page, inside the chrome. A page that throws is one broken
                 screen the reader can navigate away from, rather than a product
                 that vanished -- and the root boundary is still behind this for

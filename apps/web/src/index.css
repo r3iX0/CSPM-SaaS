@@ -168,6 +168,33 @@
   }
 }
 
+/*
+  The solid line of a focus indicator, for the controls drawn outside the
+  primitives. The primitives pair a 3px halo at half strength with a 1px
+  `border-ring`; controls with no border of their own carried the halo alone,
+  and at half strength it is 1.9:1 against the page -- under the 3:1 WCAG
+  1.4.11 asks of a focus indicator. A box-shadow is also removed outright in
+  forced-colours mode, which left those controls with no indicator at all. An
+  outline survives both. `-inset` for the rows that draw their halo inside.
+
+  A plain `focus-visible:outline-1` beside `outline-none` does not do this:
+  Tailwind 4's `outline-none` sets the outline style to none through a
+  variable that the width utility then reads back.
+*/
+@utility focus-ring {
+  &:focus-visible {
+    outline: 1px solid var(--ring);
+    outline-offset: 0;
+  }
+}
+
+@utility focus-ring-inset {
+  &:focus-visible {
+    outline: 1px solid var(--ring);
+    outline-offset: -1px;
+  }
+}
+
 /* Reduced motion means arriving, not crawling: the end state, immediately. */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -242,7 +269,9 @@
     --sidebar-accent: color-mix(in oklab, oklch(0.45 0.072 196) 10%, oklch(1 0 0));
     --sidebar-accent-foreground: oklch(0.145 0 0);
     --sidebar-border: oklch(0.89 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    /* The rail's focus ring, at `--ring`'s value: shadcn's 0.708 was 2.48:1 on
+       the rail, under the 3:1 a focus indicator needs (WCAG 1.4.11). */
+    --sidebar-ring: oklch(0.58 0 0);
 
     /* CloudGuard severity scale.
        Its own layer, deliberately: the neutral tokens above are the product's
