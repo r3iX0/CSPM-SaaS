@@ -383,3 +383,8 @@ class IacDiffOut(BaseModel):
     #: the customer runs.
     provider_version: str | None
     checked_against: list[str]
+    #: How the block was found: ``name`` (its literal name is the asset's) or
+    #: ``sole_block`` (the only block of the type in the uploaded file, its
+    #: name an expression -- the reviewer should check it is the right one).
+    #: ``None`` on a decline.
+    matched_by: Literal["name", "sole_block"] | None = None

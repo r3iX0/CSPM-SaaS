@@ -257,6 +257,11 @@ export interface IacDiff {
   /** From the lock file, where one was sent; `null` is "not known". */
   provider_version: string | null;
   checked_against: string[];
+  /**
+   * `sole_block`: the only block of the type in the file, its name an
+   * expression -- the reviewer checks it is the right one. `null` on a decline.
+   */
+  matched_by?: "name" | "sole_block" | null;
 }
 
 export interface FindingDetail extends Finding {

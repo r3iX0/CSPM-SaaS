@@ -98,6 +98,13 @@ export function IacDiffCheck({
 
       {result?.outcome === "patched" && result.diff && (
         <div className="flex flex-col gap-2">
+          {result.matched_by === "sole_block" && (
+            // Matched without its name: the reviewer is the check (DECISIONS.md §166).
+            <p className="rounded-lg border border-dashed p-3 text-xs leading-relaxed">
+              Its name is an expression, so Cleave took the only block of its kind in{" "}
+              {result.filename} — check it is {resourceName} before you apply.
+            </p>
+          )}
           <CodeBlock code={result.diff} label="Copy the diff" />
           <p className="text-xs text-muted-foreground">
             {result.provider_version

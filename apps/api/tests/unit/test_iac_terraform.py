@@ -164,6 +164,54 @@ def test_an_interpolated_neighbour_makes_a_literal_match_ambiguous() -> None:
     assert declined(edit(ACCOUNT + other)) is Decline.INTERPOLATED_NAME
 
 
+# ------------------------------------------ the only block, in a file chosen for it
+# An upload is a person saying "this file defines the asset". Where the name is
+# built from an expression but the file holds one block of the type, that block
+# is the one they meant -- and the answer says it was matched that way, so the
+# reviewer checks it. Opt-in: a file CloudGuard chose itself says nothing of the kind.
+INTERPOLATED = ACCOUNT.replace('"prodlogs"', '"${var.env}logs"')
+
+
+def test_the_only_block_in_an_uploaded_file_is_matched_and_says_so() -> None:
+    result = edit(INTERPOLATED, sole_block=True)
+    assert isinstance(result, Patched)
+    assert result.matched_by == "sole_block"
+    assert '"TLS1_2"' in result.source
+
+
+def test_a_literal_name_is_matched_by_name() -> None:
+    result = edit(ACCOUNT, sole_block=True)
+    assert isinstance(result, Patched)
+    assert result.matched_by == "name"
+
+
+def test_without_the_upload_the_only_block_is_still_a_guess() -> None:
+    assert declined(edit(INTERPOLATED)) is Decline.INTERPOLATED_NAME
+
+
+def test_two_interpolated_blocks_are_not_a_sole_block() -> None:
+    other = INTERPOLATED.replace('"logs"', '"other"')
+    assert declined(edit(INTERPOLATED + other, sole_block=True)) is Decline.INTERPOLATED_NAME
+
+
+def test_the_only_block_named_something_else_is_another_resource() -> None:
+    assert declined(edit(ACCOUNT, name="elsewhere", sole_block=True)) is Decline.NO_MATCH
+
+
+def test_the_only_block_is_matched_across_the_rules_types() -> None:
+    # A web app is Linux or Windows; one of either is still the only one.
+    source = (
+        'resource "azurerm_windows_web_app" "w" {\n  name = var.name\n  https_only = false\n}\n'
+    )
+    result = edit(source, Change("https_only", "true"), name="orders", types=WEB, sole_block=True)
+    assert isinstance(result, Patched)
+
+
+def test_the_only_block_under_count_still_declines() -> None:
+    source = INTERPOLATED.replace("  account_tier", "  count = 2\n  account_tier")
+    assert declined(edit(source, sole_block=True)) is Decline.COUNT_OR_FOR_EACH
+
+
 @pytest.mark.parametrize("meta", ["count = 2", 'for_each = toset(["a"])'])
 def test_a_repeated_resource_declines(meta: str) -> None:
     source = ACCOUNT.replace("  account_tier", f"  {meta}\n  account_tier")

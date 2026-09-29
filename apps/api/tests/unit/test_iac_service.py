@@ -99,6 +99,22 @@ def test_a_rule_the_registry_no_longer_has_is_not_editable() -> None:
     assert out.decline_reason == "not_editable"
 
 
+def test_an_uploaded_file_matches_its_only_block_and_says_how() -> None:
+    interpolated = ACCOUNT.replace('"prodlogs"', "var.account_name")
+    out = propose("AZ-STO-003", source=interpolated, sole_block=True)
+    assert (out.outcome, out.matched_by) == ("patched", "sole_block")
+
+
+def test_matching_the_only_block_is_opt_in() -> None:
+    interpolated = ACCOUNT.replace('"prodlogs"', "var.account_name")
+    assert propose("AZ-STO-003", source=interpolated).decline_reason == "interpolated_name"
+
+
+def test_a_name_match_says_so() -> None:
+    assert propose("AZ-STO-003").matched_by == "name"
+    assert propose("AZ-STO-003", name="elsewhere").matched_by is None
+
+
 def test_the_answer_says_what_it_was_checked_against() -> None:
     out = propose("AZ-STO-003")
     assert out.provider_version is None

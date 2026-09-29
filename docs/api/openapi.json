@@ -16772,6 +16772,21 @@
             },
             "type": "array",
             "title": "Checked Against"
+          },
+          "matched_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "name",
+                  "sole_block"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matched By"
           }
         },
         "type": "object",

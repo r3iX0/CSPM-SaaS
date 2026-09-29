@@ -102,13 +102,28 @@ async def test_a_decline_is_an_answer(client, cleanup_orgs) -> None:
     cleanup_orgs.append(org_id)
     finding_id = await _finding_on_payroll(org_id)
 
+    # Two blocks named by expressions: which one is payroll is a guess.
     interpolated = PAYROLL.replace(b'"payroll"\n', b"var.name\n")
-    response = await _diff(client, user, finding_id, interpolated)
+    twice = interpolated + interpolated.replace(b'"payroll" {', b'"other" {')
+    response = await _diff(client, user, finding_id, twice)
 
     assert response.status_code == 200, response.text
     data = response.json()["data"]
     assert (data["outcome"], data["decline_reason"]) == ("declined", "interpolated_name")
     assert data["diff"] is None
+
+
+async def test_the_only_block_in_the_upload_is_matched_and_says_so(client, cleanup_orgs) -> None:
+    user = uuid.uuid4()
+    org_id = uuid.UUID(await make_org(client, user, "IaC Sole Ltd"))
+    cleanup_orgs.append(org_id)
+    finding_id = await _finding_on_payroll(org_id)
+
+    response = await _diff(client, user, finding_id, PAYROLL.replace(b'"payroll"\n', b"var.name\n"))
+
+    assert response.status_code == 200, response.text
+    data = response.json()["data"]
+    assert (data["outcome"], data["matched_by"]) == ("patched", "sole_block")
 
 
 async def test_another_organizations_finding_is_not_found(client, cleanup_orgs) -> None:

@@ -1,6 +1,6 @@
 """How often the Terraform edit engine can write a fix into real HCL.
 
-    APP_ENV=test apps/api/.venv/bin/python tools/iac/hit_rate.py <dir> [<dir> ...]
+    APP_ENV=test apps/api/.venv/bin/python tools/iac/hit_rate.py [--sole-block] <dir> [<dir> ...]
 
 Walks every ``*.tf`` under the directories, and for every resource block of a
 type an Azure rule edits, asks the engine to apply that rule's fix to it --
@@ -12,6 +12,11 @@ most real files decline, a PR integration mostly opens nothing. A decline is
 counted by reason, because each reason is a different piece of work --
 ``interpolated_name`` wants a Terraform state address, ``variable_value``
 wants the edit made where the variable is set.
+
+``--sole-block`` measures the upload flow, where a file chosen for the asset
+may be matched by holding the only block of the type (DECISIONS.md §166). An
+interpolated block is then tried under a name no literal carries, which is what
+a finding about it would look like to the engine.
 """
 
 from __future__ import annotations
@@ -64,7 +69,11 @@ def _names(source: bytes, resource_type: str) -> list[str | None]:
     return names
 
 
-def main(roots: list[str]) -> None:
+# A name no literal block carries: what an interpolated block's asset looks like.
+_UNSEEN = "asset-named-by-an-expression"
+
+
+def main(roots: list[str], sole_block: bool) -> None:
     per_rule: dict[str, Counter[str]] = {rule.rule_id: Counter() for rule in RULES}
     files = [path for root in roots for path in Path(root).rglob("*.tf")]
     for path in files:
@@ -79,14 +88,15 @@ def main(roots: list[str]) -> None:
             changes = [Change(h["attribute"], h["value"]) for h in terraform_hints(spec)]
             for resource_type in spec.terraform_resource_types:
                 for name in _names(data, resource_type):
-                    if name is None:
+                    if name is None and not sole_block:
                         per_rule[rule.rule_id]["interpolated_name"] += 1
                         continue
                     result = edit_terraform(
                         text,
                         resource_types=spec.terraform_resource_types,
-                        name=name,
+                        name=_UNSEEN if name is None else name,
                         changes=changes,
+                        sole_block=sole_block,
                     )
                     outcome = result.reason.value if isinstance(result, Declined) else "patched"
                     per_rule[rule.rule_id][outcome] += 1
@@ -106,6 +116,9 @@ def main(roots: list[str]) -> None:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
+    arguments = sys.argv[1:]
+    sole = "--sole-block" in arguments
+    roots = [a for a in arguments if a != "--sole-block"]
+    if not roots:
         raise SystemExit(__doc__)
-    main(sys.argv[1:])
+    main(roots, sole)

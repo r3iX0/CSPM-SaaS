@@ -9277,6 +9277,21 @@ when the provider version is outside the releases the attribute was checked
 against. A decline is an answer, not an error. Collection states
 (`NONE_MATCHING`, `NOT_EMPTY`) are structural edits and are not attempted.
 
+**In an upload, the only block of its kind is the asset's.** Matching on a
+literal `name` alone edited 3 of 468 resource blocks in HashiCorp's azurerm
+examples and Azure's quickstarts: public HCL builds names from variables and
+`random_string`. But a file that holds a type holds one block of it 94% of the
+time, and an upload is a person saying which file defines this asset. So where
+no block carries the asset's name, exactly one block of the rule's types exists,
+and its name is an expression, the upload flow takes it -- with `matched_by:
+"sole_block"` in the answer and a line in the UI asking the reviewer to check
+it is the asset. A sole block with a different *literal* name is another
+resource and is not taken. Measured again, 55% and 69% of the same blocks get a
+diff; most of the rest are nested blocks the file does not have. It is opt-in
+(`sole_block=True`) and only the upload route opts in: in a repository
+CloudGuard searched, nobody chose the file, and "the only one here" means
+nothing.
+
 **Every attribute is held to the provider's own schema.** The azurerm schemas
 of 3.117.1 and 4.81.0, dumped by `terraform providers schema -json` and trimmed
 by `tools/iac/trim_azurerm_schema.py`, are test fixtures; each

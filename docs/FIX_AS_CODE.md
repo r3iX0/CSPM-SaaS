@@ -39,11 +39,24 @@ Public samples are parameterised on purpose (`"${var.prefix}-sa"`,
 `random_string`), so this likely understates customer repositories, but it
 confirms the top risk: matching on a literal `name` alone almost never fires.
 Where a file holds a type at all, it holds **one** block of that type 94% of the
-time (118 of 125 files). That is the lever for the upload flow: the customer
-chose the file for this finding. It is not a lever for Phase 2, where CloudGuard
-chooses the file. **Do not start Phase 2** until the matching question is
-settled: sole block in an uploaded file, a Terraform state address, or
-evaluating simple interpolations against variable defaults and `.tfvars`.
+time (118 of 125 files).
+
+**Sole-block matching, uploads only (§166).** Where no block carries the name
+and the upload holds exactly one interpolated block of the rule's types, it is
+taken, and the answer says `matched_by: "sole_block"` so the reviewer checks it.
+Measured with `hit_rate.py --sole-block`:
+
+| Corpus | Patched | Already set | Nested block missing | Interpolated (several blocks) | Empty block |
+|---|---|---|---|---|---|
+| azurerm `examples/` (299) | 165 (55%) | 10 (3%) | 45 (15%) | 70 (23%) | 9 (3%) |
+| Azure quickstarts (169) | 116 (69%) | 15 (9%) | 38 (22%) | 0 | 0 |
+
+It does not carry over to Phase 2, where CloudGuard chooses the file and "the
+only one here" means nothing. **Before Phase 2**, settle how a searched
+repository is matched: a Terraform state address, or evaluating simple
+interpolations against variable defaults and `.tfvars`. The next lever for
+uploads is `nested_block_missing` -- mostly `network_rules` / `network_acls` /
+`site_config` absent -- which stays a decline by design for `default_action`.
 
 ## What it is
 

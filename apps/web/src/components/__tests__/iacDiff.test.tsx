@@ -88,6 +88,23 @@ describe("writing the fix into a Terraform file", () => {
     expect(screen.getByText(/checked against azurerm 3\.117\.1 and 4\.81\.0/)).toBeInTheDocument();
   });
 
+  it("asks the reviewer to check a block matched as the only one", async () => {
+    mount({ ...PATCHED, matched_by: "sole_block" });
+    await upload();
+
+    expect(
+      await screen.findByText(/only block of its kind in storage\.tf.*check it is payroll/i),
+    ).toBeInTheDocument();
+  });
+
+  it("says nothing extra for a block matched by name", async () => {
+    mount({ ...PATCHED, matched_by: "name" });
+    await upload();
+
+    await screen.findByText(/min_tls_version = "TLS1_2"/);
+    expect(screen.queryByText(/block of its kind/)).toBeNull();
+  });
+
   it("says why a fix was not written, and speaks it", async () => {
     mount(DECLINED);
     await upload();

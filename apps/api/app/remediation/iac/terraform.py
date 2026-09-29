@@ -25,6 +25,7 @@ import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import Literal
 
 import tree_sitter_hcl
 from tree_sitter import Language, Node, Parser
@@ -103,6 +104,10 @@ class Patched:
     # From ``.terraform.lock.hcl`` where one was given. ``None`` is "not known",
     # which the caller says out loud rather than treating as checked.
     provider_version: str | None
+    # How the block was found: by its literal ``name``, or as the only block of
+    # the rule's types in a file a person chose for this asset. The second is
+    # said out loud, so the reviewer checks the block is the one they meant.
+    matched_by: Literal["name", "sole_block"] = "name"
 
     def diff(self, filename: str) -> str:
         return "".join(
@@ -135,15 +140,20 @@ def edit_terraform(
     name: str,
     changes: Sequence[Change],
     lockfile: str | None = None,
+    sole_block: bool = False,
 ) -> Patched | Declined:
     """Apply ``changes`` to the block of one of ``resource_types`` named ``name``.
 
     All or nothing: one change that cannot be made safely declines the lot,
     because half a fix leaves the finding open with the customer believing it
     closed.
+
+    ``sole_block`` is for a file a person chose for this asset: there, the only
+    block of these types is the one they meant even where its name is an
+    expression. Never for a file CloudGuard found on its own (§166).
     """
     try:
-        return _edit(source, resource_types, name, changes, lockfile)
+        return _edit(source, resource_types, name, changes, lockfile, sole_block)
     except _Refused as refused:
         return Declined(refused.reason, refused.detail)
 
@@ -154,26 +164,28 @@ def _edit(
     name: str,
     changes: Sequence[Change],
     lockfile: str | None,
+    sole_block: bool,
 ) -> Patched:
     data = source.encode()
     if len(data) > MAX_BYTES:
         raise _Refused(Decline.TOO_LARGE, f"The file is over {MAX_BYTES // 1024} KiB.")
     root = _parse(data)
     version = _provider_version(root, data, lockfile)
-    block = _locate(root, data, resource_types, name)
+    block, matched_by = _locate(root, data, resource_types, name, sole_block)
 
     splices = [splice for change in changes if (splice := _plan(block, data, change))]
     if not splices:
         raise _Refused(Decline.ALREADY_SET, "The file already sets every value this fix asks for.")
 
     edited, edits = _apply(data, splices)
-    _verify(edited, resource_types, name, changes)
+    _verify(edited, resource_types, name, changes, sole_block)
     order = {change.attribute: index for index, change in enumerate(changes)}
     return Patched(
         original=source,
         source=edited.decode(),
         edits=tuple(sorted(edits, key=lambda edit: order[edit.attribute])),
         provider_version=version,
+        matched_by=matched_by,
     )
 
 
@@ -273,10 +285,12 @@ def _literal_string(node: Node, data: bytes) -> str | None:
 
 
 # ---------------------------------------------------------------- the block
-def _locate(root: Node, data: bytes, resource_types: Sequence[str], name: str) -> Node:
+def _locate(
+    root: Node, data: bytes, resource_types: Sequence[str], name: str, sole_block: bool
+) -> tuple[Node, Literal["name", "sole_block"]]:
     wanted = name.casefold()
     matches: list[Node] = []
-    interpolated = 0
+    interpolated: list[Node] = []
     for block in _blocks(_child(root, "body")):
         labels = _labels(block, data)
         if _keyword(block, data) != "resource" or not labels or labels[0] not in resource_types:
@@ -286,7 +300,7 @@ def _locate(root: Node, data: bytes, resource_types: Sequence[str], name: str) -
             continue
         literal = _literal_string(_value(named), data)
         if literal is None:
-            interpolated += 1
+            interpolated.append(block)
         elif literal.casefold() == wanted:
             matches.append(block)
 
@@ -294,6 +308,12 @@ def _locate(root: Node, data: bytes, resource_types: Sequence[str], name: str) -
         raise _Refused(
             Decline.MULTIPLE_MATCHES, f"{len(matches)} resources in this file are named {name!r}."
         )
+    matched_by: Literal["name", "sole_block"] = "name"
+    if sole_block and not matches and len(interpolated) == 1:
+        # The only block of these types in a file chosen for this asset. A sole
+        # block with a *different* literal name is another resource, and is not
+        # taken: it never reaches here, as it is not interpolated.
+        matches, interpolated, matched_by = interpolated, [], "sole_block"
     if interpolated:
         raise _Refused(
             Decline.INTERPOLATED_NAME,
@@ -310,7 +330,7 @@ def _locate(root: Node, data: bytes, resource_types: Sequence[str], name: str) -
             Decline.COUNT_OR_FOR_EACH,
             f"The resource uses {sorted(meta)[0]}, so one block defines several.",
         )
-    return block
+    return block, matched_by
 
 
 def _nested_body(block: Node, data: bytes, path: Sequence[str]) -> Node:
@@ -374,11 +394,15 @@ def _plan(block: Node, data: bytes, change: Change) -> _Splice | None:
 
 
 def _verify(
-    edited: bytes, resource_types: Sequence[str], name: str, changes: Sequence[Change]
+    edited: bytes,
+    resource_types: Sequence[str],
+    name: str,
+    changes: Sequence[Change],
+    sole_block: bool,
 ) -> None:
     """Read the edited file back and refuse unless it says what was meant."""
     try:
-        block = _locate(_parse(edited), edited, resource_types, name)
+        block, _ = _locate(_parse(edited), edited, resource_types, name, sole_block)
         for change in changes:
             *path, leaf = change.attribute.split(".")
             attribute = _attributes(_nested_body(block, edited, path), edited).get(leaf)

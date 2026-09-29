@@ -35,12 +35,16 @@ def propose_terraform_fix(
     filename: str,
     source: str | bytes,
     lockfile: str | bytes | None = None,
+    sole_block: bool = False,
 ) -> IacDiffOut:
     """Edit ``source`` so the asset named ``resource_name`` meets ``rule``.
 
     Bytes are an upload and must be UTF-8, which is what Terraform reads. A
     file in another encoding is declined rather than decoded with replacements:
     the diff would carry the replacements back into the customer's file.
+
+    ``sole_block`` only where a person chose the file for this finding: an
+    upload, never a repository CloudGuard searched (DECISIONS.md §166).
     """
     if any(isinstance(part, bytes) and len(part) > MAX_BYTES for part in (source, lockfile)):
         return _declined(filename, Decline.TOO_LARGE, f"The file is over {MAX_BYTES // 1024} KiB.")
@@ -74,6 +78,7 @@ def propose_terraform_fix(
         name=resource_name,
         changes=[Change(hint["attribute"], hint["value"]) for hint in hints],
         lockfile=lock,
+        sole_block=sole_block,
     )
     if isinstance(result, Declined):
         return _declined(filename, result.reason, result.detail)
@@ -89,6 +94,7 @@ def propose_terraform_fix(
         detail=None,
         provider_version=result.provider_version,
         checked_against=list(CHECKED_RELEASES),
+        matched_by=result.matched_by,
     )
 
 

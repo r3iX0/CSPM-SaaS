@@ -457,6 +457,8 @@ async def finding_iac_diff(
             filename=iac_service.upload_filename(file.filename),
             source=source,
             lockfile=lock,
+            # The customer chose this file for this finding (§166).
+            sole_block=True,
         )
     )
     return Envelope(data=result, meta=NoMeta())
