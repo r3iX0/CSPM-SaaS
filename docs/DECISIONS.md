@@ -9250,6 +9250,59 @@ page change in the pager leaves focus on the pager rather than moving it to the
 table; the count line is spoken instead, which says what moved without taking
 the reader away from the control they are paging with.
 
+## 166. A fix is written into the customer's own Terraform only by changing one value that is already there
+
+Fix-as-Code (`docs/FIX_AS_CODE.md`) turns a failing finding into an edit of the
+customer's HCL: first as a diff of a file they upload, later as a pull request.
+`terraform_hints` already refused to generate a resource block, because a block
+is either missing the arguments Terraform requires and will not apply, or fills
+them in and applies something nobody asked for. Writing into a real file raises
+the cost of being wrong -- the customer runs `plan` on what CloudGuard wrote --
+so the same refusal becomes the rule for the edit engine.
+
+**One attribute, in a block that exists, whose value is a literal.** The engine
+replaces the byte range of one value and nothing else, so formatting and
+comments survive; it re-parses afterwards and refuses if anything but that
+value changed. It never creates a resource, a nested block or an argument that
+is not there -- a missing `network_rules` block is a decline, because
+`default_action = "Deny"` with no IP rules would cut off every client. It
+declines, with a reason a machine can read, when the resource's `name` is
+interpolated, when the value comes from a variable or a module input, when the
+resource is under `count` or `for_each`, when more than one block matches, or
+when the provider version is outside the releases the attribute was checked
+against. A decline is an answer, not an error. Collection states
+(`NONE_MATCHING`, `NOT_EMPTY`) are structural edits and are not attempted.
+
+**Every attribute is held to the provider's own schema.** The azurerm schemas
+of 3.117.1 and 4.81.0, dumped by `terraform providers schema -json` and trimmed
+by `tools/iac/trim_azurerm_schema.py`, are test fixtures; each
+`terraform_attribute` must be a settable argument of each declared
+`terraform_resource_types` entry in both, of the type the hint writes. The
+first run found three hints that would have failed a customer's `plan`:
+AZ-STO-002 named `https_traffic_only`, which azurerm never had; AZ-DB-002 wrote
+`"Disabled"` into a boolean; AZ-KV-001 wrote `true` into
+`soft_delete_retention_days`, a number of days. All seventeen Azure attributes
+now carry the same name in both releases, so no attribute needs a per-version
+spelling yet, and one whose name differs between majors needs the file's
+provider version before it is written. `azurerm_app_service`, which spells the
+web TLS floor `min_tls_version`, is left out of the web rules' types rather than
+given a second spelling.
+
+**Parsing is tree-sitter.** The HCL and Bicep grammars ship as binary wheels
+for macOS and manylinux on 3.12 (`tree-sitter`, `tree-sitter-hcl`,
+`tree-sitter-bicep`) and give exact byte ranges; a literal name parses as
+`literal_value` and an interpolated one as `template_expr`, which is the decline
+test. python-hcl2 was ruled out because it cannot write a file back unchanged.
+Repository and upload contents are untrusted input: parsed, never evaluated,
+under size and depth caps.
+
+**For pull requests, later: a GitHub App, no auto-merge.** Installation tokens
+are scoped to the repositories the customer picks and expire in an hour; a
+personal access token is neither. The App's key is an environment variable and
+tokens are never stored. CloudGuard opens a PR on its own branch and never
+pushes to a default branch or merges. A merged PR records a claimed fix; only
+the next scan's PASS resolves the finding.
+
 ## Open items carried forward
 
 **Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read

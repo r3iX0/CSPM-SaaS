@@ -84,6 +84,7 @@ class AzureAppServiceHttpsRule(SecurityRule):
         # step would be refused at its first, and the built-in Microsoft ships
         # for this defaults to Audit for the same reason.
         policy_effect="Audit",
+        terraform_resource_types=("azurerm_linux_web_app", "azurerm_windows_web_app"),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["9.2"],
@@ -163,6 +164,7 @@ class AzureAppServiceTlsRule(SecurityRule):
             "child resource rather than on the site, and that alias has not been "
             "verified against a real deployment from here."
         ),
+        terraform_resource_types=("azurerm_linux_web_app", "azurerm_windows_web_app"),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["9.3"],
@@ -251,6 +253,7 @@ class AzureAppServiceFtpRule(SecurityRule):
             "No policy is generated, for the reason recorded on AZ-WEB-002: the "
             "setting is on the configuration child resource."
         ),
+        terraform_resource_types=("azurerm_linux_web_app", "azurerm_windows_web_app"),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["9.10"],
@@ -341,6 +344,7 @@ class AzureAppServiceRemoteDebuggingRule(SecurityRule):
             "No policy is generated, for the reason recorded on AZ-WEB-002: the "
             "setting is on the configuration child resource."
         ),
+        terraform_resource_types=("azurerm_linux_web_app", "azurerm_windows_web_app"),
     )
     # No CIS mapping. CIS Azure 2.0 has no control for remote debugging, and
     # attributing this to a neighbouring one would put evidence under a
