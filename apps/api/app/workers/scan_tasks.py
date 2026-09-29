@@ -34,6 +34,7 @@ from app.services import orchestrator
 from app.services import retention as retention_service
 from app.services import scans as scans_service
 from app.services import verification as verification_service
+from app.services import webhooks as webhooks_service
 from app.services.scan import ScanPipeline
 from app.workers.celery_app import (
     ANALYZE_QUEUE,
@@ -305,6 +306,22 @@ def derive_notifications(self: object) -> dict:
     if written:
         log.info("notifications.derived", count=written)
     return {"written": written}
+
+
+@celery_app.task(name="cloudguard.deliver_webhooks", bind=True, max_retries=0)
+def deliver_webhooks(self: object) -> dict:
+    """Send the notifications owed to webhooks, and retry the ones that failed.
+
+    Its own sweep rather than part of the notification one, which runs every
+    five minutes: a retry is owed a minute after a failure, and waiting for the
+    next derivation would stretch every schedule in ``webhooks.RETRY_DELAYS``.
+    Per organization, each under its own scoped session, like every sweep.
+    """
+    configure_logging()
+    counts = asyncio.run(_deliver_all_webhooks())
+    if any(counts.values()):
+        log.info("webhooks.delivered", **counts)
+    return counts
 
 
 @celery_app.task(name="cloudguard.start_due_scans", bind=True, max_retries=0)
@@ -646,12 +663,35 @@ async def _derive_all_notifications() -> int:
             try:
                 async with scan_session(org_id) as session:
                     total += await notifications_service.derive(session, org_id)
+                    # Owed in the same transaction as the notifications, so a
+                    # notification is never written without its deliveries.
+                    await webhooks_service.enqueue(session, org_id, datetime.now(UTC))
                     await session.commit()
             except Exception:  # pragma: no cover - one tenant must not stop the rest
                 log.exception(
                     "notifications.derive_failed", organization_id=str(org_id)
                 )
         return total
+    finally:
+        await dispose_engines()
+
+
+async def _deliver_all_webhooks() -> dict[str, int]:
+    """Every organization owing a delivery now, each under its own scoped session."""
+    totals = {"sent": 0, "failed": 0, "retrying": 0}
+    try:
+        async with service_session() as session:
+            org_ids = await webhooks_service.organizations_due(session, datetime.now(UTC))
+
+        for org_id in org_ids:
+            try:
+                async with scan_session(org_id) as session:
+                    counts = await webhooks_service.deliver_due(session, org_id)
+                for key, value in counts.items():
+                    totals[key] += value
+            except Exception:  # pragma: no cover - one tenant must not stop the rest
+                log.exception("webhooks.deliver_failed", organization_id=str(org_id))
+        return totals
     finally:
         await dispose_engines()
 

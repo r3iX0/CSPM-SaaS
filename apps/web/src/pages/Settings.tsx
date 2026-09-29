@@ -8,6 +8,9 @@ import type { CloudAccount, Organization } from "@/lib/types";
 import { useT } from "@/i18n";
 import { OrganizationForm } from "@/components/settings/OrganizationForm";
 import { ContextDeclarationForm } from "@/components/settings/ContextDeclaration";
+import { MembersSection } from "@/components/settings/Members";
+import { ActivitySection } from "@/components/settings/Activity";
+import { WebhooksSection } from "@/components/settings/Webhooks";
 import { SettingsSection } from "@/components/settings/SettingsSection";
 import {
   CardsSkeleton,
@@ -77,6 +80,14 @@ export function SettingsPage() {
         <OrganizationForm key={current.id} organization={current} />
       </SettingsSection>
 
+      {/* Not in the demo: its members are strangers to one another, and each
+          visitor would see a list of one. */}
+      {!current.is_demo && (
+        <SettingsSection title={t.team.title} description={t.team.help}>
+          <MembersSection key={current.id} organization={current} />
+        </SettingsSection>
+      )}
+
       <SettingsSection title={t.settings.contextTitle} description={t.settings.contextHelp}>
         {accounts.isLoading && <CardsSkeleton count={1} />}
 
@@ -101,6 +112,18 @@ export function SettingsPage() {
           </div>
         )}
       </SettingsSection>
+
+      {/* Owners and admins only, as the API allows; the demo has no owners. */}
+      {(current.role === "OWNER" || current.role === "ADMIN") && !current.is_demo && (
+        <>
+          <SettingsSection title={t.webhooks.title} description={t.webhooks.help}>
+            <WebhooksSection key={current.id} organizationId={current.id} />
+          </SettingsSection>
+          <SettingsSection title={t.audit.title} description={t.audit.help}>
+            <ActivitySection key={current.id} organizationId={current.id} />
+          </SettingsSection>
+        </>
+      )}
 
       <DangerZone organization={current} />
     </div>

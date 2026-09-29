@@ -16,6 +16,16 @@ POST   /organizations                      GET    /organizations
 GET    /organizations/{id}                 PATCH  /organizations
 DELETE /organizations/{id}
 
+GET    /members                            PATCH  /members/{id}
+DELETE /members/{id}
+GET    /invitations                        POST   /invitations
+DELETE /invitations/{id}
+POST   /invitations/preview                POST   /invitations/accept   (no tenant: not a member yet)
+GET    /audit-log                          (owners and admins; ?action=member. for a family)
+GET    /webhooks                           POST   /webhooks
+PATCH  /webhooks/{id}                      DELETE /webhooks/{id}
+POST   /webhooks/{id}/test                 GET    /webhooks/{id}/deliveries
+
 POST   /cloud-connections                  GET    /cloud-connections
 GET    /cloud-connections/{id}             DELETE /cloud-connections/{id}
 POST   /cloud-connections/{id}/discover
@@ -618,6 +628,17 @@ including 422, whose `meta.errors` lists the fields that failed. Every route
 is typed (DECISIONS.md §157). A few routes answer with something other than an envelope
 and are declared as such: `/reports/{kind}` and the compliance export return a
 document, `/scans/{id}/events` a server-sent event stream.
+
+Every response carries `X-Request-ID`, minted by the server for that request
+and bound into every log line it produced; an unhandled 500 repeats it in
+`meta.request_id`. The id is never taken from the caller (DECISIONS.md §161).
+
+**Rate limits.** Three counters, each per minute. By address, before any token
+is verified: 60 for the routes that answer without one, 1,200 for everything
+else, which is a flood guard rather than an allowance. By verified user: 300
+requests, and 20 of the costly ones -- starting or replaying a scan, a report,
+what-if and simulate, and the connection checks that call the provider. A
+refusal is 429 `RATE_LIMITED` with `Retry-After` (DECISIONS.md §161).
 
 ---
 

@@ -1521,3 +1521,89 @@ export interface EngineAudit {
     provider_resource_id: string | null;
   }[];
 }
+
+/** A role in an organization (DECISIONS.md §162). */
+export type MemberRole =
+  | "OWNER"
+  | "ADMIN"
+  | "SECURITY_ANALYST"
+  | "IT_ADMIN"
+  | "VIEWER"
+  | "ADVISOR";
+
+export interface Member {
+  id: string;
+  user_id: string;
+  /** Null until the member next signs in: copied from their verified token. */
+  email: string | null;
+  role: MemberRole;
+  joined_at: string;
+  is_you: boolean;
+}
+
+export type InvitationStatus = "OPEN" | "EXPIRED" | "ACCEPTED" | "REVOKED";
+
+export interface Invitation {
+  id: string;
+  email: string;
+  role: MemberRole;
+  status: InvitationStatus;
+  invited_by: string;
+  created_at: string;
+  expires_at: string;
+}
+
+/** An invitation as it is created: the one time its link is shown. */
+export interface InvitationCreated extends Invitation {
+  link: string;
+}
+
+export interface InvitationPreview {
+  organization_name: string;
+  role: MemberRole;
+  email: string;
+  status: InvitationStatus;
+  email_matches: boolean;
+}
+
+/** One entry in the audit trail (DECISIONS.md §163). */
+export interface AuditEntry {
+  id: string;
+  action: string;
+  resource_type: string;
+  resource_id: string | null;
+  actor_id: string | null;
+  actor_email: string | null;
+  ip_address: string | null;
+  request_id: string | null;
+  details: Record<string, unknown>;
+  created_at: string;
+}
+
+/** Where notifications are sent beyond the bell (DECISIONS.md §164). */
+export type WebhookFormat = "GENERIC" | "SLACK" | "TEAMS";
+
+export interface Webhook {
+  id: string;
+  name: string;
+  /** Host and the last few characters: a Slack or Teams URL is its own credential. */
+  url_preview: string;
+  format: WebhookFormat;
+  kinds: NotificationKind[];
+  enabled: boolean;
+  created_at: string;
+  last_success_at: string | null;
+  last_failure_at: string | null;
+  last_error: string | null;
+}
+
+/** A webhook as it is created: a generic one's signing secret, shown this once. */
+export interface WebhookCreated extends Webhook {
+  secret: string | null;
+}
+
+export interface WebhookTest {
+  ok: boolean;
+  status: number | null;
+  error: string | null;
+}

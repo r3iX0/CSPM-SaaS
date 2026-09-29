@@ -188,3 +188,41 @@ async def test_the_least_recently_used_tenant_is_the_one_dropped() -> None:
     await service.load_graph(session, uuid.uuid4())  # type: ignore[arg-type]
 
     assert ORG_A in service._cache
+
+
+async def test_a_build_runs_off_the_event_loop(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A cold graph is built in a thread, so the loop keeps serving meanwhile.
+
+    The API is one process, and a build on the loop held every other tenant's
+    request -- and the health probe -- for as long as it took (section 161).
+    """
+    import asyncio
+    import threading
+    import time
+
+    built_on: list[int] = []
+    real = service._assemble
+
+    def slow_assemble(resources, relationships):  # type: ignore[no-untyped-def]
+        built_on.append(threading.get_ident())
+        time.sleep(0.2)
+        return real(resources, relationships)
+
+    monkeypatch.setattr(service, "_assemble", slow_assemble)
+
+    ticks = 0
+
+    async def heartbeat() -> None:
+        nonlocal ticks
+        while True:
+            ticks += 1
+            await asyncio.sleep(0.01)
+
+    beating = asyncio.create_task(heartbeat())
+    await service.load_graph(FakeSession(updated_at=NOW, count=3), ORG_A)  # type: ignore[arg-type]
+    beating.cancel()
+
+    assert built_on and built_on[0] != threading.get_ident()
+    # Ten-millisecond beats through a two-hundred-millisecond build: a loop
+    # held by the build would have managed one.
+    assert ticks >= 5

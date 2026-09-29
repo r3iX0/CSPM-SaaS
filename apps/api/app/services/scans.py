@@ -23,7 +23,7 @@ from app.models.cloud_account import CloudAccount
 from app.models.cloud_connection import CloudConnection
 from app.models.finding import Finding, FindingEvidence
 from app.models.scan import Evidence, Scan, ScanStep
-from app.services import cloud_connections
+from app.services import audit, cloud_connections
 from app.services import risks as risks_service
 
 log = get_logger(__name__)
@@ -538,6 +538,14 @@ async def delete_scan(
         await session.flush()
         await risks_service.delete_emptied(session, scan.organization_id, stranded)
 
+    await audit.record(
+        session,
+        tenant,
+        "scan.deleted",
+        "scan",
+        scan.id,
+        {"findings_purged": purged},
+    )
     await session.delete(scan)
     await commit_unless_externally_managed(session)
     return {"deleted": str(scan_id), "findings_purged": purged}

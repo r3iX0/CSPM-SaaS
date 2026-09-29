@@ -3,6 +3,7 @@ import { Link, Outlet, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
 import { api, auth } from "@/lib/api";
+import { heldInvite } from "@/lib/pendingInvite";
 import type { CloudAccount, Dashboard, Organization } from "@/lib/types";
 import { Wordmark } from "@/components/Brand";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -89,6 +90,13 @@ export function Shell() {
   // Both of these used to run during render, which meant navigating and writing
   // to a store that notifies subscribers while React was still rendering.
   useEffect(() => {
+    // An invitation opened before signing in comes first: an invitee has no
+    // organization yet, and would otherwise be walked into creating one.
+    if (heldInvite()) {
+      navigate("/invite", { replace: true });
+      return;
+    }
+
     if (isLoading || !orgs) return;
 
     // A signed-in user with no organization has not finished signing up.

@@ -1,6 +1,8 @@
 """What every request passes through before a route sees it.
 
-Three concerns, deliberately separate and deliberately written as raw ASGI
+Four concerns. The newest, ``RequestContextMiddleware``, only names the request
+-- an id and the caller's address, for the logs and the audit trail -- and
+refuses nothing. The other three, deliberately separate and deliberately written as raw ASGI
 rather than as ``BaseHTTPMiddleware`` subclasses. Two of them have to act on a
 request *before* its body has been read -- one refuses oversized bodies by
 watching them arrive, the other refuses the request outright -- and
@@ -13,9 +15,12 @@ rejection, and the one that stamps headers sits outside everything so it stamps
 every response, including CORS preflights and errors raised further in.
 """
 
+import ipaddress
 import json
 import time
+import uuid
 
+import structlog
 from redis.asyncio import Redis
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -23,6 +28,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from app.core.config import settings
 from app.core.errors import PayloadTooLarge, error_envelope
 from app.core.logging import get_logger
+from app.core.request_context import REQUEST_ID_HEADER, bound
 
 log = get_logger(__name__)
 
@@ -83,6 +89,57 @@ class SecurityHeadersMiddleware:
             await send(message)
 
         await self.app(scope, receive, stamped)
+
+
+class RequestContextMiddleware:
+    """Give every request an id, and remember who sent it, for as long as it runs.
+
+    The id is bound into every log line the request produces and returned in
+    ``X-Request-ID``, so an error somebody reports can be found in the logs by
+    the one string they can see. The scan pipeline has carried ids like this
+    since ``log_context``; the request path had none, and its lines from
+    concurrent requests could only be told apart by timestamp.
+
+    **Always minted here, never taken from the caller.** The id is written into
+    the audit trail, and an id a client could choose is one it could make
+    collide with somebody else's entries.
+
+    The address is the same one the rate limit counts (``client_address``), so
+    the audit trail and the limiter agree about who a caller is.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        request_id = uuid.uuid4().hex
+
+        async def stamped(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                MutableHeaders(scope=message)[REQUEST_ID_HEADER] = request_id
+            await send(message)
+
+        with (
+            bound(request_id, _valid_address(client_address(scope))),
+            structlog.contextvars.bound_contextvars(request_id=request_id),
+        ):
+            await self.app(scope, receive, stamped)
+
+
+def _valid_address(candidate: str) -> str | None:
+    """The address if it is one, since the audit column is ``inet``.
+
+    ``client_address`` answers ``"unknown"`` when there is no socket (a test
+    transport), and an entry in ``X-Forwarded-For`` is text somebody wrote.
+    """
+    try:
+        return str(ipaddress.ip_address(candidate))
+    except ValueError:
+        return None
 
 
 def arrived_over_https(scope: Scope) -> bool:
@@ -300,20 +357,31 @@ class RateLimitMiddleware:
         await self.app(scope, receive, send)
 
     async def _exceeded(self, key: str, limit: int) -> bool:
-        try:
-            client = _redis()
-            pipeline = client.pipeline()
-            pipeline.incr(key)
-            # Set every time rather than only on creation. One round trip
-            # instead of two, and the window is fixed-width from its first
-            # request either way -- a key that already carries a TTL simply has
-            # the same one reapplied.
-            pipeline.expire(key, self.window_seconds)
-            count, _ = await pipeline.execute()
-        except Exception as exc:
-            log.warning("ratelimit.unavailable", error=str(exc))
-            return False
-        return int(count) > limit
+        return await over_limit(key, limit, self.window_seconds)
+
+
+async def over_limit(key: str, limit: int, window_seconds: int) -> bool:
+    """Count one hit against ``key`` and say whether it has passed ``limit``.
+
+    Shared by the middleware, which counts by address before anything is
+    verified, and by the dependencies in ``core/deps.py``, which count by user
+    once a token has been. Fails open for the reason the middleware does: a
+    Redis outage must not become an API outage.
+    """
+    try:
+        client = _redis()
+        pipeline = client.pipeline()
+        pipeline.incr(key)
+        # Set every time rather than only on creation. One round trip
+        # instead of two, and the window is fixed-width from its first
+        # request either way -- a key that already carries a TTL simply has
+        # the same one reapplied.
+        pipeline.expire(key, window_seconds)
+        count, _ = await pipeline.execute()
+    except Exception as exc:
+        log.warning("ratelimit.unavailable", error=str(exc))
+        return False
+    return int(count) > limit
 
 
 def client_address(scope: Scope) -> str:
@@ -387,9 +455,11 @@ __all__ = [
     "OPEN_PREFIXES",
     "OPEN_SUFFIXES",
     "RateLimitMiddleware",
+    "RequestContextMiddleware",
     "RequestSizeLimitMiddleware",
     "SecurityHeadersMiddleware",
     "arrived_over_https",
     "client_address",
     "is_open_route",
+    "over_limit",
 ]

@@ -108,6 +108,12 @@ Node installed on your machine.
    password, and sign-up shows a "check your email" screen when confirmation
    is on (`apps/web/src/lib/supabase.ts`).
 
+   **Confirm email is also a security setting now.** An invitation joins only
+   the address on the caller's token (`DECISIONS.md` §162), which proves the
+   caller owns that address only if Supabase refuses a session to an
+   unconfirmed one. With confirmation off, anybody could sign up as an invited
+   address and accept its link.
+
    Authentication → URL Configuration → set **Site URL** to your eventual
    Vercel URL (you can update this after step 3 once you know it). Under
    **Redirect URLs** add both that URL and `<your-vercel-url>/reset-password` —

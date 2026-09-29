@@ -29,7 +29,7 @@ import anyio
 from fastapi import APIRouter, Query
 from fastapi.responses import HTMLResponse, Response
 
-from app.core.deps import DbSession, Tenant
+from app.core.deps import Costly, DbSession, Tenant
 from app.core.errors import NotFound, ValidationFailed
 from app.reports.render import render_html, render_pdf
 from app.schemas.common import ERROR_RESPONSES
@@ -83,6 +83,7 @@ def _content_disposition(filename: str) -> str:
 @router.get(
     "/{kind}",
     response_class=Response,
+    dependencies=[Costly],
     responses={
         200: {
             "description": "The report as a PDF to keep, or as HTML to read, by ``format``.",

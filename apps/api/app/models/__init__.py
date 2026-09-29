@@ -7,7 +7,7 @@ from app.models.cloud_connection import CloudConnection
 from app.models.context import ContextDeclarationRecord
 from app.models.finding import Finding
 from app.models.history import AssetChangeEvent, FindingEventRecord
-from app.models.organization import Organization, OrganizationMember
+from app.models.organization import Organization, OrganizationInvitation, OrganizationMember
 from app.models.remediation import AuditLog, RemediationTask, RiskException
 from app.models.resource import ResourceRecord, ResourceRelationship
 from app.models.risk import Risk, RiskFinding
@@ -22,6 +22,7 @@ from app.models.scan import (
     ScanStep,
 )
 from app.models.verification import RemediationVerification
+from app.models.webhook import WebhookDelivery, WebhookEndpoint
 
 __all__ = [
     "AssessmentCapture",
@@ -38,6 +39,7 @@ __all__ = [
     "Finding",
     "FindingEventRecord",
     "Organization",
+    "OrganizationInvitation",
     "OrganizationMember",
     "RemediationTask",
     "RemediationVerification",
@@ -52,4 +54,6 @@ __all__ = [
     "ScanEvaluationGap",
     "ScanRuleResult",
     "ScanStep",
+    "WebhookDelivery",
+    "WebhookEndpoint",
 ]

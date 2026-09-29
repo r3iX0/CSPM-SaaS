@@ -15,6 +15,7 @@ from app.core.errors import OrganizationNotFound, PermissionDenied
 from app.core.security import AuthenticatedUser
 from app.models.organization import Organization, OrganizationMember
 from app.schemas.organization import OrganizationCreate, OrganizationUpdate
+from app.services import audit
 
 _SLUG_STRIP = re.compile(r"[^a-z0-9]+")
 
@@ -109,8 +110,12 @@ async def update_organization(
     if org is None:  # pragma: no cover -- the tenant context resolved it
         raise OrganizationNotFound()
 
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    changes = payload.model_dump(exclude_unset=True)
+    for field, value in changes.items():
         setattr(org, field, value)
+    await audit.record(
+        session, tenant, "organization.updated", "organization", org.id, {"changed": changes}
+    )
 
     # Not ``session.commit()``. On the API path this session is inside
     # ``rls_session``'s ``session.begin()``, and committing there tears down the

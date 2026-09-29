@@ -126,6 +126,14 @@ async def create_connection(
 
     session.add(connection)
     await session.flush()
+    await findings_service.record_audit(
+        session,
+        tenant,
+        action="connection.created",
+        resource_type="cloud_connection",
+        resource_id=connection.id,
+        metadata={"provider": connection.provider.value, "name": connection.name},
+    )
 
     start_url, problem = issue_consent_url(connection)
     if problem:
@@ -229,6 +237,16 @@ async def delete_connection(
         select(Finding.id).where(
             Finding.organization_id == org_id, Finding.resource_id.in_(assets)
         ),
+    )
+    # Recorded before the row goes: the entry names what was deleted, and
+    # after the cascade there is nothing left to read it from.
+    await findings_service.record_audit(
+        session,
+        tenant,
+        action="connection.deleted",
+        resource_type="cloud_connection",
+        resource_id=connection.id,
+        metadata={"provider": connection.provider.value, "name": connection.name},
     )
     await session.delete(connection)
     await session.flush()
@@ -1048,9 +1066,12 @@ async def set_subscription_scope(
         .all()
     )
 
+    changed: dict[str, bool] = {}
     for account in accounts:
         if account.subscription_id in in_scope:
             chosen = in_scope[account.subscription_id]
+            if chosen != account.in_scope:
+                changed[account.subscription_id] = chosen
             # Stamped only when the answer actually changes. A screen that
             # re-sends every row it displayed would otherwise move the date on
             # subscriptions nobody touched, and the date is there precisely to
@@ -1064,6 +1085,15 @@ async def set_subscription_scope(
                 else CloudAccountStatus.DISABLED
             )
 
+    if changed:
+        await findings_service.record_audit(
+            session,
+            tenant,
+            action="connection.scope_changed",
+            resource_type="cloud_connection",
+            resource_id=connection.id,
+            metadata={"in_scope": changed},
+        )
     await commit_unless_externally_managed(session)
     return accounts
 
@@ -1116,6 +1146,13 @@ async def set_setup_cancelled(
             else onboarding.initial_status_detail
         )
 
+    await findings_service.record_audit(
+        session,
+        tenant,
+        action="connection.setup_cancelled" if cancelled else "connection.setup_resumed",
+        resource_type="cloud_connection",
+        resource_id=connection.id,
+    )
     await commit_unless_externally_managed(session)
     return connection
 

@@ -5,6 +5,7 @@ from fastapi import APIRouter
 from app.api.routes import (
     assets,
     attack_paths,
+    audit_log,
     changes,
     cloud_accounts,
     cloud_connections,
@@ -20,11 +21,16 @@ from app.api.routes import (
     risks,
     rules,
     scans,
+    team,
+    webhooks,
 )
 
 api_router = APIRouter(prefix="/api/v1")
 
 api_router.include_router(organizations.router)
+api_router.include_router(team.router)
+api_router.include_router(audit_log.router)
+api_router.include_router(webhooks.router)
 api_router.include_router(cloud_accounts.router)
 api_router.include_router(cloud_connections.router)
 api_router.include_router(scans.router)

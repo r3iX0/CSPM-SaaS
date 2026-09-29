@@ -40,7 +40,11 @@ celery_app.conf.update(
     accept_content=["json"],
     timezone="UTC",
     enable_utc=True,
-    task_track_started=True,
+    # Nothing reads a task's return value: a scan's state is its rows, written
+    # fenced on the attempt, never a result in Redis. Storing one per task --
+    # four sweeps a minute plus every step -- only spent broker memory for a
+    # day each (DECISIONS.md section 161).
+    task_ignore_result=True,
     # One message at a time: a run is long, and a reserved message is one no
     # other scanner can start.
     worker_prefetch_multiplier=1,

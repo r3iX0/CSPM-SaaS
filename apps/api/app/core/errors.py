@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.logging import get_logger
+from app.core.request_context import current_request_id
 
 log = get_logger(__name__)
 
@@ -28,10 +29,16 @@ class AppError(HTTPException):
     code = "INTERNAL_ERROR"
     status_code_default = status.HTTP_500_INTERNAL_SERVER_ERROR
 
-    def __init__(self, message: str | None = None, status_code: int | None = None) -> None:
+    def __init__(
+        self,
+        message: str | None = None,
+        status_code: int | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> None:
         super().__init__(
             status_code=status_code or self.status_code_default,
             detail=message or self.__class__.__doc__ or self.code,
+            headers=headers,
         )
 
     def __str__(self) -> str:
@@ -140,6 +147,13 @@ class QueueUnavailable(AppError):
     status_code_default = status.HTTP_503_SERVICE_UNAVAILABLE
 
 
+class RateLimited(AppError):
+    """Too many requests. Wait a moment and try again."""
+
+    code = "RATE_LIMITED"
+    status_code_default = status.HTTP_429_TOO_MANY_REQUESTS
+
+
 class NotConfigured(AppError):
     """Server is not configured for this operation"""
 
@@ -189,13 +203,18 @@ class UnhandledErrorMiddleware(BaseHTTPMiddleware):
                     "INTERNAL_ERROR",
                     "Something went wrong handling this request. It has been "
                     "logged; nothing was changed.",
+                    # The one string that finds this failure in the logs.
+                    meta={"request_id": current_request_id()},
                 ),
             )
 
 
 async def app_error_handler(_: Request, exc: AppError) -> JSONResponse:
     return JSONResponse(
-        status_code=exc.status_code, content=error_envelope(exc.code, str(exc.detail))
+        status_code=exc.status_code,
+        content=error_envelope(exc.code, str(exc.detail)),
+        # Carried through, so a 429 says when to come back.
+        headers=exc.headers,
     )
 
 

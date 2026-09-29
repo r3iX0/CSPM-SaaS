@@ -11,8 +11,15 @@ organizations
   id, name, slug, industry, country, created_at, updated_at
 
 organization_members
-  id, organization_id, user_id, role, created_at, updated_at
+  id, organization_id, user_id, role, email, created_at, updated_at
   UNIQUE(organization_id, user_id)
+  -- email: copied from the member's verified token (DECISIONS.md §162)
+
+organization_invitations
+  id, organization_id, email (lower-case), role (never OWNER),
+  token_hash (SHA-256, unique), invited_by, created_at, expires_at,
+  accepted_at, accepted_by, revoked_at
+  UNIQUE(organization_id, email) WHERE accepted_at IS NULL AND revoked_at IS NULL
 ```
 
 ---
@@ -343,5 +350,11 @@ authenticated user → organization_members → organization_id → requested ro
 Never a bare `WHERE organization_id = request.organization_id` trusted from the client — RLS is a database-level boundary independent of application logic. Automated RLS tests confirm Organization A can never read Organization B's rows (see `TESTING.md`).
 
 **The demo organization is the one exception to "members see members".** `organizations.is_demo` marks the single shared demo estate (migration `0036`). Anybody may join it, as `VIEWER` only, through `app.join_demo_organization()`, and leave through `app.leave_demo_organization()`. Because its members are strangers to one another, `member_select` shows a demo member only their own `organization_members` row; in every other organization members still see each other. The API refuses every write in the demo regardless of role (`DECISIONS.md` §99).
+
+**The audit trail is append-only** (migration `0045`). No application role may UPDATE or DELETE `audit_logs`, whatever its role in the organization; rows go only with their organization, by cascade. Owners and admins read the whole trail and every member reads their own entries (`DECISIONS.md` §163).
+
+**Webhooks** (migration `0046`). `webhook_endpoints` (url, format, kinds, the generic format's signing secret, last success and failure) are read and written by owners and admins; `webhook_deliveries` (one per endpoint and notification, unique on the pair, with status, attempts and the next attempt) are read by owners and admins and written only by `cloudguard_worker`, held to the organization it declared (`DECISIONS.md` §164).
+
+**Invitations are the other door into an organization** (migration `0044`). `organization_invitations` is readable and writable by the organization's owners and admins only and has no DELETE policy. The invitee is not a member, so acceptance runs through `app.accept_invitation(token_hash)`, which checks that the invitation is open and unexpired and that it names the address in the caller's own `request.jwt.claims` (`app.user_email()`), then inserts the membership. `app.peek_invitation` shows the offer to a holder of the token, and `app.record_member_email()` keeps a member's stored address in step with their token, touching only their own rows (`DECISIONS.md` §162).
 
 Supabase's own guidance is explicit that RLS should be treated as a real security boundary (with grants + policies), and that service-role/secret keys bypass RLS and must remain server-side — that principle governs credential handling throughout, not just this table set.

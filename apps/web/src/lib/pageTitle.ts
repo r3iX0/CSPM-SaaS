@@ -21,6 +21,7 @@ const ROUTES: [pattern: string, title: string][] = [
   ["/sign-in", "Sign in"],
   ["/reset-password", "Set a new password"],
   ["/onboarding", "Get started"],
+  ["/invite", "Join an organization"],
   ["/assets/:assetId", "Asset"],
   ["/findings/:findingId", "Finding"],
   ["/risks/:riskId", "Risk"],

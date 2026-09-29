@@ -406,3 +406,35 @@ def test_no_proxy_configured_means_the_header_is_ignored(
     monkeypatch.setattr(mw.settings, "trusted_proxy_hops", 0)
 
     assert client_address(scope_with("1.2.3.4")) == "10.0.0.1"
+
+
+async def test_every_response_names_its_request() -> None:
+    """An id minted per request, returned in a header, readable inside it."""
+    from app.core.request_context import current_request_id
+
+    app = FastAPI()
+    seen: list[str | None] = []
+
+    @app.get("/thing")
+    async def thing() -> dict:
+        seen.append(current_request_id())
+        return {"ok": True}
+
+    app.add_middleware(mw.RequestContextMiddleware)
+    async with client_for(app) as client:
+        first = await client.get("/thing", headers={"X-Request-ID": "chosen-by-caller"})
+        second = await client.get("/thing")
+
+    ids = [first.headers["x-request-id"], second.headers["x-request-id"]]
+    assert all(re.fullmatch(r"[0-9a-f]{32}", value) for value in ids)
+    assert ids[0] != ids[1]
+    # What the handler saw is what the caller was told, and a caller's own
+    # choice of id is never adopted: it is written into the audit trail.
+    assert seen == ids
+    assert current_request_id() is None
+
+
+async def test_the_audit_address_is_an_address_or_nothing() -> None:
+    assert mw._valid_address("203.0.113.9") == "203.0.113.9"
+    assert mw._valid_address("unknown") is None
+    assert mw._valid_address("<script>") is None

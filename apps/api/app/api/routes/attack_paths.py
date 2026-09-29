@@ -12,7 +12,7 @@ from collections import Counter
 
 from fastapi import APIRouter, Query
 
-from app.core.deps import DbSession, Tenant
+from app.core.deps import Costly, DbSession, Tenant
 from app.core.enums import RelationshipType
 from app.core.errors import NotFound
 from app.domain.resource import CloudResource
@@ -116,7 +116,7 @@ async def list_attack_paths(
     if not paths and meta.entry_points and meta.sensitive_targets:
         # Where each way in stops. Only when there is no route, which is the
         # one time the page has nothing else to say.
-        ends = graph.dead_ends()
+        ends = await graph_service.off_loop(graph.dead_ends)
         ids = await graph_service.asset_ids(
             session,
             tenant.organization_id,
@@ -162,10 +162,15 @@ async def route_graph(
     # page can narrow to one (section 138).
     placements = await load_placements(session, tenant.organization_id)
 
-    return Envelope(
-        data=graph_service.serialize_route_map(
+    # Off the loop: drawing the map reads what every link holds up, which is
+    # the one analysis on this page that is not memoized until it is first asked.
+    route_map = await graph_service.off_loop(
+        lambda: graph_service.serialize_route_map(
             graph, drawn, ids, findings, total_routes=len(paths), placements=placements
-        ),
+        )
+    )
+    return Envelope(
+        data=route_map,
         meta=RouteMapMeta(
             **_reach_counts(graph).model_dump(),
             total=len(paths),
@@ -191,7 +196,7 @@ async def list_choke_points(
     """
     graph = await graph_service.load_graph(session, tenant.organization_id)
     total = len(graph.attack_paths())
-    chokes = graph.choke_points(limit=limit)
+    chokes = await graph_service.off_loop(lambda: graph.choke_points(limit=limit))
 
     return Envelope(
         data=[graph_service.serialize_choke_point(choke, total) for choke in chokes],
@@ -212,7 +217,7 @@ async def blast_radius(
     if graph.resolve(resource_id) not in graph.nodes:
         raise NotFound("No such asset in this organization")
 
-    reached = graph.blast_radius(resource_id)
+    reached = await graph_service.off_loop(lambda: graph.blast_radius(resource_id))
     # The row id behind each, so the list can open what it names.
     ids = await graph_service.asset_ids(
         session,
@@ -250,8 +255,9 @@ async def access(
     if graph.resolve(resource_id) not in graph.nodes:
         raise NotFound("No such asset in this organization")
 
-    holders = graph.access_to(resource_id)
-    grants = graph.access_of(resource_id)
+    holders, grants = await graph_service.off_loop(
+        lambda: (graph.access_to(resource_id), graph.access_of(resource_id))
+    )
     ids = await graph_service.asset_ids(
         session,
         tenant.organization_id,
@@ -294,7 +300,9 @@ async def neighborhood(
     opened = frozenset(
         fold for fold in map(graph_service.parse_fold_id, expand) if fold is not None
     )
-    around = graph.neighborhood(resource_id, depth, expand=opened)
+    around = await graph_service.off_loop(
+        lambda: graph.neighborhood(resource_id, depth, expand=opened)
+    )
     if around is None:
         raise NotFound("No such asset in this organization")
 
@@ -340,7 +348,9 @@ async def estate(
     graph = await graph_service.load_graph(session, tenant.organization_id)
     placements = await load_placements(session, tenant.organization_id)
     routes = graph.attack_paths()
-    mapped = estate_map(graph, placements.of, Lens(subscription_id, resource_group), routes)
+    mapped = await graph_service.off_loop(
+        lambda: estate_map(graph, placements.of, Lens(subscription_id, resource_group), routes)
+    )
     if mapped is None:
         raise NotFound("Nothing Cleave holds sits there")
 
@@ -355,7 +365,7 @@ async def estate(
     )
 
 
-@router.get("/what-if")
+@router.get("/what-if", dependencies=[Costly])
 async def what_if(
     session: DbSession,
     tenant: Tenant,
@@ -371,7 +381,7 @@ async def what_if(
     every link on every route.
     """
     graph = await graph_service.load_graph(session, tenant.organization_id)
-    outcome = graph.cut(source, relationship, target)
+    outcome = await graph_service.off_loop(lambda: graph.cut(source, relationship, target))
     if outcome is None:
         raise NotFound("No link here that can be removed")
 
@@ -401,7 +411,7 @@ async def what_if(
     )
 
 
-@router.post("/simulate")
+@router.post("/simulate", dependencies=[Costly])
 async def simulate(
     payload: SimulationRequest, session: DbSession, tenant: Tenant
 ) -> Envelope[SimulationOut, SimulationMeta]:
@@ -414,9 +424,8 @@ async def simulate(
     plan of several changes cannot be read off (``AssetGraph.simulate``).
     """
     graph = await graph_service.load_graph(session, tenant.organization_id)
-    outcome = graph.simulate(
-        (link.source, link.relationship, link.target) for link in payload.cuts
-    )
+    cuts = [(link.source, link.relationship, link.target) for link in payload.cuts]
+    outcome = await graph_service.off_loop(lambda: graph.simulate(cuts))
     return Envelope(
         data=graph_service.serialize_simulation(outcome),
         meta=SimulationMeta(max_cuts=MAX_SIMULATED_CUTS),

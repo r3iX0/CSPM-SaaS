@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 
 from app.core.config import settings
 from app.core.db import service_session
-from app.core.deps import DbSession, Tenant
+from app.core.deps import Costly, DbSession, Tenant
 from app.core.enums import ConsentStatus, Provider, Role
 from app.core.errors import CloudAccountNotFound, ValidationFailed
 from app.core.signing import Purpose, SignedStateError, verify_state
@@ -363,7 +363,7 @@ async def get_connection(
     )
 
 
-@router.post("/{connection_id}/discover", responses=WRITE)
+@router.post("/{connection_id}/discover", responses=WRITE, dependencies=[Costly])
 async def rediscover(
     connection_id: UUID, session: DbSession, tenant: Tenant
 ) -> Envelope[CloudConnectionOut, NoMeta]:
@@ -381,7 +381,7 @@ async def rediscover(
     return Envelope(data=_serialize(connection, len(subscriptions), subscriptions), meta=NoMeta())
 
 
-@router.post("/{connection_id}/recheck", responses=WRITE)
+@router.post("/{connection_id}/recheck", responses=WRITE, dependencies=[Costly])
 async def recheck_access(
     connection_id: UUID, session: DbSession, tenant: Tenant
 ) -> Envelope[CloudConnectionOut, NoMeta]:
@@ -504,7 +504,9 @@ async def revocation(
     return Envelope(data=RevocationOut.model_validate(steps), meta=NoMeta())
 
 
-@router.post("/{connection_id}/check-revoked", responses=WRITE)
+@router.post(
+    "/{connection_id}/check-revoked", responses=WRITE, dependencies=[Costly]
+)
 async def check_revoked(
     connection_id: UUID, session: DbSession, tenant: Tenant
 ) -> Envelope[RevocationCheckOut, NoMeta]:

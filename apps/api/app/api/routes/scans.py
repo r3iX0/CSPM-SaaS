@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import rls_session
-from app.core.deps import DbSession, Tenant
+from app.core.deps import Costly, DbSession, Tenant
 from app.core.enums import ScanStatus
 from app.core.errors import ConflictError, ScanNotFound, ValidationFailed
 from app.core.logging import get_logger
@@ -25,6 +25,7 @@ from app.schemas.scan import (
     ScanStageOut,
     WorkerStatusOut,
 )
+from app.services import audit
 from app.services import cloud_accounts as accounts_service
 from app.services import scans as scans_service
 from app.services.scan_events import stream_scan
@@ -41,7 +42,12 @@ WORKER_PING_FAILED = (
 )
 
 
-@router.post("", status_code=status.HTTP_202_ACCEPTED, responses=error_responses(403, 409))
+@router.post(
+    "",
+    status_code=status.HTTP_202_ACCEPTED,
+    responses=error_responses(403, 409),
+    dependencies=[Costly],
+)
 async def create_scan(
     payload: ScanCreate, session: DbSession, tenant: Tenant
 ) -> Envelope[ScanOut, NoMeta]:
@@ -80,6 +86,15 @@ async def create_scan(
         triggered_by_user_id=tenant.user.id,
     )
     session.add(scan)
+    await session.flush()
+    await audit.record(
+        session,
+        tenant,
+        "scan.started",
+        "scan",
+        scan.id,
+        {"cloud_account_id": str(account.id)},
+    )
     await session.commit()
 
     # Only the id crosses the queue. The worker re-reads the tenant boundary
@@ -93,6 +108,7 @@ async def create_scan(
     "/{scan_id}/replay",
     status_code=status.HTTP_202_ACCEPTED,
     responses=error_responses(403, 409),
+    dependencies=[Costly],
 )
 async def replay_scan_endpoint(
     scan_id: UUID, session: DbSession, tenant: Tenant
@@ -150,6 +166,10 @@ async def replay_scan_endpoint(
         replay_of_scan_id=source.id,
     )
     session.add(scan)
+    await session.flush()
+    await audit.record(
+        session, tenant, "scan.replayed", "scan", scan.id, {"replay_of": str(source.id)}
+    )
     await session.commit()
 
     await scans_service.enqueue_or_fail(
@@ -189,6 +209,7 @@ async def cancel_scan(
     scan.status = ScanStatus.CANCELLED
     scan.completed_at = datetime.now(UTC)
     scan.error_message = "Cancelled."
+    await audit.record(session, tenant, "scan.cancelled", "scan", scan.id)
     await session.commit()
     return Envelope(data=ScanOut.model_validate(scan), meta=NoMeta())
 

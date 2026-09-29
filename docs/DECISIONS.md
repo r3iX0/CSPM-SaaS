@@ -8757,7 +8757,8 @@ finding's page shows a scan record where the failure could be read.
 **Found and deliberately not fixed here.** Graph construction and `simulate`
 still run on the loop. The graph is cached per data version, so the cost is the
 first request after each scan and each simulated plan, and it stays until an
-estate is large enough to measure. `anyio` is not pinned directly; the
+estate is large enough to measure. (Section 161 moves both off the loop and
+pins `anyio`.) `anyio` is not pinned directly; the
 import-time `CapacityLimiter` needs a 4.x release that allows one outside a
 running loop. FastAPI 0.118 moves the teardown of a `yield` dependency to after
 the response is sent, which would keep `/scans/{id}/events`' request session
@@ -8807,6 +8808,346 @@ this API signed within the last half hour. The state names one connection, and
 its setup page opens only for a member of that connection's organization, so a
 stranger's link leads nowhere they could use. A denial whose link has also expired loses Entra's reason,
 and the customer is asked for a fresh link. They would be asked for one anyway.
+
+## 161. Graph work runs off the loop, limits count people, and every request has an id
+
+A second pass over the backend against FastAPI's practices, checked against
+the three reviews of 2026-09-20. Five changes, all small, each closing a
+failure that one request or one deploy could cause. Three candidates were
+examined and deliberately not built; they are listed at the end with why.
+
+**Graph work runs in a thread.** Section 158 left graph construction and
+`simulate` on the loop until an estate was large enough to measure. The case
+for waiting was weaker than it looked: the API runs as one uvicorn process with
+no `--workers`, so while one tenant's cold graph was being built, or a plan
+simulated, every other tenant's request waited, `/health` included, and
+Railway restarts a service whose health probe stops answering. The fix costs
+one thread hop per call.
+
+- `services/graph.off_loop` runs a callable in a worker thread through a
+  `CapacityLimiter(2)`. Two rather than one, so a short what-if on a warm graph
+  does not queue behind somebody else's cold build. The limit keeps a burst of
+  cold graphs from taking every thread in the pool that the rest of the API
+  shares.
+- `load_graph` reads the rows on the loop and hands them to `_assemble`, which
+  builds the graph and walks its routes in the thread. The routes are memoized
+  on the graph and almost every reader asks for them first, so the first reader
+  finds them done.
+- The attack-path routes run their own analysis through `off_loop`: the route
+  map (which reads link severance), choke points, blast radius, access, the
+  neighbourhood, the estate map, what-if, simulate and dead ends.
+
+Nothing holding a database session crosses into the thread; the session
+belongs to the loop. The graph's memo fields are filled by
+check-compute-assign on plain dicts. Two threads computing the same entry at
+once both produce the same deterministic value, and the dict assignment is
+atomic, so a race costs duplicated work rather than a wrong answer. A lock was
+not added for that reason. `anyio` is now pinned in `pyproject.toml`, because
+two limiters are created at import time.
+
+**The fair-use rate limit counts people, not addresses.** API_REVIEW Finding 9.
+`RateLimitMiddleware` runs before any token is verified, so it can only count by
+address, and a customer's office is one address: fifty people behind it shared
+300 requests a minute, six each. The middleware's ceiling for credentialed
+requests becomes a flood guard (1,200 per address per minute). The fair-use
+limit moves to `get_current_user`, which counts 300 per verified user per
+minute after `decode_token` succeeds. A token that fails to verify is never
+counted, so nobody can spend a colleague's allowance by naming them in a forged
+token.
+
+A second, smaller allowance (`limit_costly`, 20 per user per minute) guards the
+requests that cost far more than a read: starting or replaying a scan, a report
+render, what-if and simulate, and the connection checks that call the provider
+(discover, recheck, check-revoked). A route opts in with
+`dependencies=[Costly]`. Both answer 429 `RATE_LIMITED` with `Retry-After`, and
+both fail open when Redis is unreachable, as the middleware does.
+`AppError` now carries headers through to the response for this. The counter
+itself (`middleware.over_limit`) is shared, so there is one implementation of
+fixed-window counting.
+
+**Every request has an id.** The scan pipeline has bound its ids into log lines
+since `log_context`. The request path had nothing, so lines from concurrent
+requests could only be matched by timestamp. `RequestContextMiddleware` is now
+the outermost layer:
+
+- It mints a UUID per request and binds it into structlog's context, so every
+  line the request logs carries it.
+- It returns the id in `X-Request-ID`, exposed through CORS so the frontend can
+  read it.
+- The envelope of an unhandled 500 carries it in `meta.request_id`, so the one
+  string a customer can quote finds the failure in the logs.
+
+The id is always minted by the server and never taken from the caller's own
+`X-Request-ID`, because it is written into the audit trail, and an id a client
+could choose is one it could make collide with somebody else's entries. The
+middleware also records the caller's address as the rate limit sees it
+(`client_address`, validated as an IP). Both values live in context variables
+(`core/request_context.py`), so service code reads them without being handed
+the request, and reads `None` in the worker, where there is no request.
+
+**Two migrations cannot run at once.** Every API instance runs
+`alembic upgrade head` as it boots. Two instances booting together, from a
+scaled service or a restart that overlaps a deploy, would both read the same
+version and both apply the next migration. The second fails on a table that now
+exists, and its instance crash-loops. `database/migrations/env.py` now takes
+`pg_advisory_xact_lock` inside the migration transaction before Alembic reads
+the version. The second runner waits, then finds nothing left to do. The lock
+is transaction-scoped rather than session-scoped, so it holds through
+Supabase's transaction pooler and is released by the commit however the run
+ends.
+
+**Celery no longer stores results nobody reads.** Nothing in the API or the
+scanner reads a task's return value. A scan's state is its rows, written
+fenced on the attempt. Every task still wrote a result to Redis, kept for a day:
+four sweeps a minute plus every step. Both apps now set `task_ignore_result`,
+which also retires `task_track_started`.
+
+**Examined and not built.**
+
+- *A graph version counter in place of the aggregate check.* `graph_version`
+  takes `max()` and `count()` over the tenant's assets and edges on every read.
+  A counter bumped by ANALYZE would be one indexed lookup. But it is correct
+  only if every write path bumps it, and a path that missed would serve routes
+  through an estate that has moved, which is the one failure the cache was
+  designed never to have. The aggregate catches every writer by construction.
+- *A separate beat service.* Running the scheduler inside the worker would
+  double every sweep if the worker were ever scaled past one replica. Every
+  sweep is already idempotent, though: notifications have a unique index,
+  scan starts take the per-target advisory lock (section 65), and reaping and
+  expiry are conditional updates. Doubling costs queries, not correctness, and
+  a new Railway service is an operational change without a failure behind it.
+- *Trigram indexes and cursor paging for findings.* The search is an `OR` across
+  a finding and its joined resource, which a trigram index on each table cannot
+  serve as one scan. Nothing measured says the current plan is slow. This waits
+  for an `EXPLAIN` on a production-sized estate.
+
+## 162. Colleagues join by invitation, and members are managed in Settings
+
+An organization had exactly one way to gain a member: be created by them. The
+membership policies were right to refuse everything else. Only an OWNER or
+ADMIN may insert an `organization_members` row, which is what stops anybody
+writing themselves into another tenant. But nothing had been built on top of
+those policies, so the person who connected the cloud was the only person who
+could ever see it. The 2026-09-20 product review ranked this first: the buyer
+of a CSPM is rarely the person who fixes what it finds.
+
+**An invitation is a link, and it works only for the invited address.**
+`POST /invitations` (owners and admins) stores an address, a role and the
+SHA-256 of a 32-byte random token, and returns the link once. Cleave sends no
+email, because it has no mail provider and adding one is its own decision; the
+inviter passes the link on however their team talks. Acceptance runs through
+`app.accept_invitation(token_hash)`, a SECURITY DEFINER function, because the
+invitee is not a member yet and no membership policy may let them insert
+themselves. Inside it, three checks: the invitation is neither used nor
+withdrawn, it has not expired (seven days), and it names the address on the
+caller's own verified token. That address is read from the request's claims
+(`app.user_email()`), not passed as an argument. `rls_session` now carries the
+token's `email` claim, as Supabase's own PostgREST does, so the function reads
+what Supabase signed. A forwarded link joins nobody. `app.peek_invitation`
+lets the acceptance page say which organization and role the link offers, and
+whether the signed-in account is the invited one, before the click.
+
+The binding is only as strong as the token's `email` claim. That claim proves
+ownership of the address only because Supabase gives no session to an
+unconfirmed address, so the project's **Confirm email** setting is now a
+security control, and `docs/DEPLOYMENT.md` says so. With confirmation off,
+anybody could sign up as an invited address and accept its link.
+
+Several smaller choices follow from treating the token as a credential:
+
+- **Only the hash is stored**, so a read of the invitations table joins nobody
+  to anything.
+- **The token travels in the URL fragment** (`/invite#<token>`), never in a path
+  or query, so it is not sent to any server, kept in an access log or leaked in
+  a Referer. The page removes it from the address bar once read, and sends it
+  to the API in a POST body.
+- **Inviting an address again replaces its open invitation.** The old link stops
+  working. A partial unique index allows one open invitation per address.
+- **An accepted or withdrawn invitation is kept as history.** Nothing deletes
+  one through the API, and the table has no DELETE policy.
+- **Nobody is invited straight into ownership.** The schema refuses `OWNER` and
+  the table has a CHECK against it. Ownership is granted by an owner to
+  somebody already inside.
+- **Accepting never changes an existing member's role.** An address that is
+  already a member is refused at invite time rather than offered a role it
+  would not get.
+
+A link opened while signed out is held in `localStorage` for a day
+(`lib/pendingInvite.ts`). Every way of signing in lands back on the site's
+root, and the shell sends a signed-in reader holding one to `/invite` before
+anything else. Without that, an invitee with no organization would be walked
+into creating one.
+
+**Members are listed to everyone and managed by owners and admins.**
+`GET /members`, `PATCH /members/{id}` and `DELETE /members/{id}`. The
+membership policies already allow owners and admins to update and delete.
+Two rules they cannot express are enforced in `services/team.py`, in a pure
+function tested as a matrix:
+
+- **Only an owner makes, changes or removes an owner.**
+- **The last owner stays.** Owners are counted with their rows locked
+  (`FOR UPDATE`), so two owners demoting each other at once cannot both see the
+  other still standing.
+
+A member's address is now on their membership (`organization_members.email`),
+because the address itself lives in Supabase's `auth` schema, which the
+application role cannot read. It is copied from the verified token: at
+acceptance from the invitation, and by `app.record_member_email()`, which
+`get_tenant` calls only when the token's address differs from what is stored.
+The function touches the caller's own rows and nothing else. Rows that existed
+before this change show "address shown after their next sign-in" until then.
+
+Every change is audited through the one writer (`services/audit.py`, section
+163): `invitation.created`, `invitation.revoked`, `invitation.accepted`,
+`member.role_changed` and `member.removed`.
+
+**Not built here.** A member other than an owner or admin cannot leave an
+organization on their own, because `member_delete` needs OWNER or ADMIN; that
+wants its own SECURITY DEFINER door, as leaving the demo has. Scoping a member
+to some subscriptions only, which the product review also asked for, is a
+change to every tenant policy and is not attempted. Remediation tasks assigned
+to a removed member stay assigned (section 159 checks membership at assignment
+time only).
+
+## 163. The audit trail is append-only, complete, and readable
+
+`audit_logs` has existed since the first migration, and `docs/SECURITY.md` has
+promised since then that accepted risks "remain auditable via `audit_logs`".
+Four things made that promise weaker than it read.
+
+**Any member could rewrite it.** The table was created as one more tenant table
+and inherited the uniform policy set, so any member could UPDATE and DELETE any
+row of their organization: a VIEWER as readily as an OWNER. The API never
+offered an edit, but the database would have accepted one, and an audit trail
+that its subjects can rewrite is not evidence of anything. Migration 0045
+revokes UPDATE and DELETE from `authenticated` and from `cloudguard_worker` and
+drops their policies. Rows still go when their organization is deleted,
+because a foreign-key cascade runs as the table's owner. SELECT narrows to
+owners and admins, plus a member's own entries. The second arm matters as well
+as being fair: an INSERT that returns its row must pass the SELECT policy, and
+a member writing their own entry must be able to.
+
+**Several changes were never recorded.** Findings, risks, remediation, context
+declarations, schedules, change detection and acceptances wrote entries. These
+did not, and now do:
+
+- connection created, deleted, scope changed, setup cancelled or resumed
+- scan started, replayed, cancelled or deleted
+- organization edited
+- everything in section 162: invitations and members
+
+A deleted connection's entry is written before the cascade, while there is
+still a name to record. The provider checks (discover, recheck, check-revoked)
+are not recorded, because they change what CloudGuard knows rather than
+anything a person decided.
+
+**Entries said what but not whence.** `ip_address` was never filled. There is
+now one writer, `services/audit.record` (`findings.record_audit` is an alias for
+its existing callers). It stamps the caller's address and the request's id
+(section 161) on every entry, from context variables, so no call site has to
+remember to. The id finds the request's log lines. In the worker both are
+`None`, which is the true answer there.
+
+**Nobody could read it.** `GET /audit-log` (owners and admins) returns the
+trail newest first, paged, with the actor's current address joined from their
+membership. The query filters by one action (`member.removed`), by an action
+family (`member.`, the trailing dot is the signal), by actor, or by resource
+type. Settings shows it as **Activity** to owners and admins. An entry by
+somebody since removed shows "a former member", because their id stays on the
+entry while their address no longer has a membership to be read from.
+
+## 164. Notifications reach Slack, Teams and signed webhooks, and a customer's URL cannot reach inside
+
+The bell was the only place a notification arrived. The notification sweep
+already decides carefully what is worth interrupting somebody for: three kinds,
+a reachable finding, a verified fix and a reading that stopped arriving
+(`NotificationKind`). But nobody sits watching a CSPM tab, so that
+judgement reached no one. The 2026-09-20 product review ranked outbound alerts
+second, after invitations.
+
+**An endpoint is a URL, a format and the kinds it wants.** Owners and admins
+manage them in Settings under **Integrations** (`/webhooks`), at most twenty per
+organization. There are three formats:
+
+- **Slack**: an incoming webhook, sent `{"text": ...}` with mrkdwn's three
+  control characters escaped and a link back into Cleave.
+- **Teams**: a workflow webhook, sent a message carrying an Adaptive Card 1.4
+  with an "Open in Cleave" action.
+- **Generic**: signed JSON for anything the customer runs. Each request carries
+  `X-Cleave-Event`, `X-Cleave-Delivery`, `X-Cleave-Timestamp` and
+  `X-Cleave-Signature`, which is `sha256=` followed by the HMAC of
+  `<timestamp>.<body>` under the endpoint's 32-byte secret. The timestamp is
+  inside what is signed, so a captured delivery cannot be replayed with a fresh
+  one.
+
+Two values in this feature are credentials, so each is handled as one:
+
+- **The generic endpoint's secret** is returned once, on the answer that
+  created it.
+- **A Slack or Teams URL is itself the credential.** The API never hands a
+  stored URL back whole, only its host and last four characters.
+
+**A delivery is owed once and retried until it lands or is given up on.**
+`webhook_deliveries` holds one row per endpoint and notification, unique on the
+pair. The notification sweep enqueues in the same transaction that writes the
+notifications, with one `INSERT ... SELECT ... ON CONFLICT DO NOTHING`, so a
+notification never exists without its deliveries and a sweep that runs twice
+owes nothing twice. An endpoint is owed only notifications written after it was
+created, and none older than a day, so a new channel is not flooded with last
+week.
+
+A separate beat task (`deliver-webhooks`, every minute) sends what is due. It
+claims up to fifty deliveries with `FOR UPDATE SKIP LOCKED`, pushes their next
+attempt five minutes out as a lease, and commits before sending anything, so
+no transaction is open while somebody else's server takes its time, and an
+overlapping sweep skips what this one holds. Sends run five at a time with a
+five-second timeout. A failure is retried after 1 minute, 5 minutes,
+30 minutes, 2 hours and 6 hours, and after the sixth attempt it is marked
+`FAILED` and kept, so an admin can see what was lost. Each endpoint records its
+last success and last failure with the receiver's answer (the first 300
+characters), and Settings shows both. **Send test** posts a message that says
+it is a test and reports what came back. It releases the request's database
+connection before sending and records the result in a fresh session, following
+section 158.
+
+**A customer's URL cannot reach anything inside.** This is the first place a
+customer chooses where this service sends a request, and the worker sits in
+Railway's private network beside Redis, the database pooler and the cloud
+metadata address. `core/outbound.py` is the only way these requests are made,
+and it enforces four rules:
+
+1. **HTTPS on port 443 only.** No userinfo, and no `localhost`, `.local` or
+   `.internal` names.
+2. **Every address the name resolves to must be public.** Private, loopback,
+   link-local (the metadata address), shared (100.64/10), reserved and
+   multicast ranges are refused for IPv4 and IPv6, and an IPv4-mapped IPv6
+   address is judged as the IPv4 it carries. One bad answer refuses the URL,
+   because the connection could land on any of them.
+3. **The connection is pinned to the address that was checked.** The request
+   goes to the IP, with the real name in `Host` and in TLS's server name
+   (httpx's `sni_hostname` extension). A name that resolves somewhere public
+   when checked and somewhere private a moment later (DNS rebinding) therefore
+   cannot move the connection, and the certificate is still verified against
+   the name the customer gave.
+4. **No redirects are followed, and no proxy from the environment is used.** A
+   3xx is recorded as a failure like any other answer.
+
+A URL is checked when it is typed, and a refusal is a 422 to the person typing
+it, then checked again at every send.
+
+**The tables** (migration 0046): owners and admins read and write endpoints and
+read deliveries. `cloudguard_worker` reads endpoints and records outcomes on
+them, and inserts and advances deliveries, each held to the organization it
+declared. `deliver_due` is the one service function allowed to commit
+directly, because it runs only under `scan_session` and has to commit between
+claiming and sending (`tests/unit/test_request_transaction.py`).
+
+**Not verified live.** The Slack body is the documented incoming-webhook shape.
+The Teams body is the documented workflow-webhook shape, but it has not been
+tried against a live Teams workflow, and **Send test** is how a customer finds
+out. PagerDuty, per-severity routing and an automatic pause after repeated
+failures were left out: each is a decision about paging people, and should wait
+until somebody is using the three formats above.
 
 ## Open items carried forward
 

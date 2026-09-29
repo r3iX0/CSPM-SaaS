@@ -29,6 +29,9 @@ const ResetPasswordPage = lazy(() =>
     default: m.ResetPasswordPage,
   })),
 );
+const InvitePage = lazy(() =>
+  import("@/pages/Invite").then((m) => ({ default: m.InvitePage })),
+);
 const OnboardingPage = lazy(() =>
   import("@/pages/Onboarding").then((m) => ({ default: m.OnboardingPage })),
 );
@@ -139,6 +142,9 @@ export function App() {
         {/* Not behind RequireAuth: a recovery link carries its own session, and
           an expired one needs to say so rather than bounce to sign-in. */}
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        {/* Not behind RequireAuth either: whoever opens an invitation may not
+            have an account yet, and the page holds the link while they make one. */}
+        <Route path="/invite" element={<InvitePage />} />
         <Route
           path="/onboarding"
           element={

@@ -52,6 +52,10 @@ WORKER_OWNED = {
     # ``service_session``. It looks across every organization, which is exactly
     # what a per-user session cannot do.
     "scans.py": {"reap_abandoned_scans"},
+    # The webhook sweep, called by its Celery beat task under ``scan_session``.
+    # It commits the claim before sending and the outcome after, so no
+    # transaction is open while a receiver takes its time (DECISIONS.md 164).
+    "webhooks.py": {"deliver_due"},
 }
 
 

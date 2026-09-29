@@ -16,7 +16,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SettingsPage } from "../Settings";
 import { api } from "@/lib/api";
-import type { CloudAccount, ContextDeclaration, Organization } from "@/lib/types";
+import type {
+  AuditEntry,
+  CloudAccount,
+  ContextDeclaration,
+  Invitation,
+  Member,
+  Organization,
+  Webhook,
+} from "@/lib/types";
 
 function organization(overrides: Partial<Organization> = {}): Organization {
   return {
@@ -27,6 +35,18 @@ function organization(overrides: Partial<Organization> = {}): Organization {
     country: "AL",
     created_at: "2026-01-01T00:00:00Z",
     role: "OWNER",
+    ...overrides,
+  };
+}
+
+function member(overrides: Partial<Member> = {}): Member {
+  return {
+    id: "m-1",
+    user_id: "u-1",
+    email: "owner@contoso.example",
+    role: "OWNER",
+    joined_at: "2026-01-01T00:00:00Z",
+    is_you: true,
     ...overrides,
   };
 }
@@ -52,10 +72,18 @@ function mount({
   orgs = [organization()],
   accounts = [account()],
   declaration = null as ContextDeclaration | null,
+  members = [member()],
+  invitations = [] as Invitation[],
+  activity = [] as AuditEntry[],
+  webhooks = [] as Webhook[],
 }: {
   orgs?: Organization[];
   accounts?: CloudAccount[];
   declaration?: ContextDeclaration | null;
+  members?: Member[];
+  invitations?: Invitation[];
+  activity?: AuditEntry[];
+  webhooks?: Webhook[];
 } = {}) {
   vi.spyOn(api, "get").mockImplementation((path: string) => {
     if (path.includes("/context")) {
@@ -63,6 +91,18 @@ function mount({
     }
     if (path.includes("cloud-accounts")) {
       return Promise.resolve({ data: accounts, meta: {} }) as never;
+    }
+    if (path.endsWith("/members")) {
+      return Promise.resolve({ data: members, meta: {} }) as never;
+    }
+    if (path.endsWith("/invitations")) {
+      return Promise.resolve({ data: invitations, meta: {} }) as never;
+    }
+    if (path.endsWith("/webhooks")) {
+      return Promise.resolve({ data: webhooks, meta: {} }) as never;
+    }
+    if (path.includes("/audit-log")) {
+      return Promise.resolve({ data: activity, meta: { total: activity.length } }) as never;
     }
     return Promise.resolve({ data: orgs, meta: {} }) as never;
   });
@@ -251,3 +291,173 @@ describe("SettingsPage", () => {
     ).not.toBeInTheDocument();
   });
 });
+
+describe("Members", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("lists who is in the organization, and marks the reader", async () => {
+    mount({
+      members: [
+        member(),
+        member({ id: "m-2", user_id: "u-2", email: "ana@contoso.example", role: "VIEWER", is_you: false }),
+      ],
+    });
+    await waitFor(() => expect(screen.getByText("ana@contoso.example")).toBeInTheDocument());
+    expect(screen.getByText("(you)")).toBeInTheDocument();
+  });
+
+  it("hands the inviter the link, since Cleave sends no email", async () => {
+    const post = vi.spyOn(api, "post").mockResolvedValue({
+      data: {
+        id: "i-1",
+        email: "new@contoso.example",
+        role: "SECURITY_ANALYST",
+        status: "OPEN",
+        invited_by: "u-1",
+        created_at: "2026-09-29T00:00:00Z",
+        expires_at: "2026-10-06T00:00:00Z",
+        link: "https://app.example/invite#a-token-that-is-long-enough",
+      },
+      meta: {},
+    } as never);
+    mount();
+
+    await userEvent.type(await screen.findByLabelText("Email address"), "new@contoso.example");
+    await userEvent.click(screen.getByRole("button", { name: "Create invitation link" }));
+
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith("/api/v1/invitations", {
+        email: "new@contoso.example",
+        role: "VIEWER",
+      }),
+    );
+    expect(
+      await screen.findByText("https://app.example/invite#a-token-that-is-long-enough"),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/will not be shown again/)).toBeInTheDocument();
+  });
+
+  it("does not let an admin change an owner", async () => {
+    mount({
+      orgs: [organization({ role: "ADMIN" })],
+      members: [
+        member({ is_you: false }),
+        member({ id: "m-2", user_id: "u-2", email: "me@contoso.example", role: "ADMIN", is_you: true }),
+      ],
+    });
+    await waitFor(() => expect(screen.getByText("owner@contoso.example")).toBeInTheDocument());
+    expect(
+      screen.queryByRole("button", { name: "Remove owner@contoso.example" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Remove me@contoso.example" }),
+    ).toBeInTheDocument();
+  });
+
+  it("tells a reader who cannot manage members why", async () => {
+    mount({ orgs: [organization({ role: "VIEWER" })] });
+    await waitFor(() =>
+      expect(screen.getByText(/An owner or an admin manages members/)).toBeInTheDocument(),
+    );
+    expect(screen.queryByLabelText("Email address")).not.toBeInTheDocument();
+  });
+});
+
+describe("Activity", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("says who changed what, and from where", async () => {
+    mount({
+      activity: [
+        {
+          id: "e-1",
+          action: "member.removed",
+          resource_type: "member",
+          resource_id: "m-2",
+          actor_id: "u-1",
+          actor_email: "owner@contoso.example",
+          ip_address: "203.0.113.9",
+          request_id: "abc",
+          details: { email: "ana@contoso.example", role: "VIEWER" },
+          created_at: "2026-09-29T10:00:00Z",
+        },
+      ],
+    });
+    await waitFor(() => expect(screen.getByText("removed a member")).toBeInTheDocument());
+    expect(screen.getByText("ana@contoso.example")).toBeInTheDocument();
+    expect(screen.getByText("from 203.0.113.9")).toBeInTheDocument();
+  });
+
+  it("is not shown to a role that cannot read it", async () => {
+    mount({ orgs: [organization({ role: "VIEWER" })] });
+    await waitFor(() => expect(screen.getByLabelText("Name")).toBeInTheDocument());
+    expect(screen.queryByText("Activity")).not.toBeInTheDocument();
+  });
+});
+
+describe("Integrations", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("shows a stored webhook only in part, and when it last delivered", async () => {
+    mount({
+      webhooks: [
+        {
+          id: "w-1",
+          name: "Security channel",
+          url_preview: "hooks.slack.com/…1234",
+          format: "SLACK",
+          kinds: ["REACHABLE_FINDING"],
+          enabled: true,
+          created_at: "2026-09-01T00:00:00Z",
+          last_success_at: null,
+          last_failure_at: "2026-09-29T10:00:00Z",
+          last_error: "HTTP 404: no_service",
+        },
+      ],
+    });
+    await waitFor(() => expect(screen.getByText("Security channel")).toBeInTheDocument());
+    expect(screen.getByText("Slack · hooks.slack.com/…1234")).toBeInTheDocument();
+    expect(screen.getByText(/HTTP 404: no_service/)).toBeInTheDocument();
+  });
+
+  it("shows a generic webhook's secret once, on the answer that created it", async () => {
+    const post = vi.spyOn(api, "post").mockResolvedValue({
+      data: {
+        id: "w-2",
+        name: "SIEM",
+        url_preview: "siem.example.com/…hook",
+        format: "GENERIC",
+        kinds: ["REACHABLE_FINDING", "VERIFIED_FIX", "COVERAGE_DROP"],
+        enabled: true,
+        created_at: "2026-09-29T00:00:00Z",
+        last_success_at: null,
+        last_failure_at: null,
+        last_error: null,
+        secret: "a".repeat(64),
+      },
+      meta: {},
+    } as never);
+    mount();
+
+    await userEvent.type(await screen.findByLabelText("Integration name"), "SIEM");
+    await userEvent.type(screen.getByLabelText("Webhook URL"), "https://siem.example.com/hook");
+    await userEvent.click(screen.getByRole("button", { name: "Add integration" }));
+
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith("/api/v1/webhooks", {
+        name: "SIEM",
+        url: "https://siem.example.com/hook",
+        format: "SLACK",
+        kinds: ["REACHABLE_FINDING", "VERIFIED_FIX", "COVERAGE_DROP"],
+      }),
+    );
+    expect(await screen.findByText("a".repeat(64))).toBeInTheDocument();
+  });
+});
+

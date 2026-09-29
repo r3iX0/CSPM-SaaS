@@ -120,9 +120,18 @@ class Settings(BaseSettings):
     # is reached in bursts by anything legitimate. Those paths are counted
     # anonymously whatever header they carry (``core/middleware.py``), because
     # the limit runs before anything verifies one.
-    rate_limit_authenticated: int = 300
+    #
+    # The per-address ceiling for credentialed requests is a flood guard, not
+    # the fair-use limit: a customer's office egresses through one address, and
+    # fifty people sharing 300 a minute was six each. The fair-use limit is
+    # ``rate_limit_per_user``, counted once the token has been verified, and
+    # ``rate_limit_costly_per_user`` is the smaller one for the requests that
+    # cost a render, a scan or a graph re-traversal (DECISIONS.md section 161).
+    rate_limit_authenticated: int = 1200
     rate_limit_anonymous: int = 60
     rate_limit_window_seconds: int = 60
+    rate_limit_per_user: int = 300
+    rate_limit_costly_per_user: int = 20
     # A change-event delivery is a few kilobytes and a batch of them tens. One
     # mebibyte is generous for every body this API accepts, and every other
     # endpoint takes a small JSON document.

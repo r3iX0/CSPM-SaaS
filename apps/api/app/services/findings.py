@@ -17,7 +17,7 @@ from app.core.enums import (
 from app.core.errors import FindingNotFound, ValidationFailed
 from app.models.finding import Finding, FindingEvidence
 from app.models.history import FindingEventRecord
-from app.models.remediation import AuditLog, RiskException
+from app.models.remediation import RiskException
 from app.models.resource import ResourceRecord
 from app.models.risk import Risk, RiskFinding
 from app.models.rule import Rule
@@ -35,6 +35,7 @@ from app.schemas.rule import (
     RemediationSpecOut,
     TerraformHintOut,
 )
+from app.services import audit as audit_service
 from app.services import verification as verification_service
 
 
@@ -347,25 +348,8 @@ async def resync_own_risk(session: AsyncSession, finding: Finding) -> None:
     risk.status = finding_risk_status(members, risk.status)
 
 
-async def record_audit(
-    session: AsyncSession,
-    tenant: TenantContext,
-    action: str,
-    resource_type: str,
-    resource_id: UUID | None,
-    metadata: dict | None = None,
-) -> None:
-    session.add(
-        AuditLog(
-            organization_id=tenant.organization_id,
-            user_id=tenant.user.id,
-            action=action,
-            resource_type=resource_type,
-            resource_id=resource_id,
-            audit_metadata=metadata or {},
-            created_at=datetime.now(UTC),
-        )
-    )
+# The one audit writer, under the name its callers already use.
+record_audit = audit_service.record
 
 
 def rule_metadata(rule_id: str) -> dict:

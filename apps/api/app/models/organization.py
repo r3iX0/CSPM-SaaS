@@ -1,6 +1,7 @@
 import uuid
+from datetime import datetime
 
-from sqlalchemy import Boolean, ForeignKey, String, UniqueConstraint, false
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, UniqueConstraint, false, func
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -38,5 +39,35 @@ class OrganizationMember(UUIDPrimaryKey, Timestamps, Base):
     # is owned by Supabase and may live outside our migration's reach.
     user_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False, index=True)
     role: Mapped[Role] = mapped_column(StrEnumType(Role, 32), nullable=False, default=Role.OWNER)
+    # Copied from the member's verified token, because the address itself lives
+    # in Supabase's ``auth`` schema, which this role cannot read. None until
+    # the person next signs in (DECISIONS.md section 162).
+    email: Mapped[str | None] = mapped_column(String(320))
 
     organization: Mapped[Organization] = relationship(back_populates="members")
+
+
+class OrganizationInvitation(UUIDPrimaryKey, Base):
+    """An address invited into an organization, with a role, until used.
+
+    Holds the SHA-256 of the token and never the token: the link is shown once,
+    to the admin who made it, and a read of this table joins nobody to
+    anything. Accepted and revoked invitations are kept as history.
+    """
+
+    __tablename__ = "organization_invitations"
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    email: Mapped[str] = mapped_column(String(320), nullable=False)
+    role: Mapped[Role] = mapped_column(StrEnumType(Role, 32), nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    invited_by: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    accepted_by: Mapped[uuid.UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -146,14 +146,24 @@ async def commit_unless_externally_managed(session: AsyncSession) -> None:
 
 
 @asynccontextmanager
-async def rls_session(user_id: UUID | str) -> AsyncIterator[AsyncSession]:
+async def rls_session(
+    user_id: UUID | str, email: str | None = None
+) -> AsyncIterator[AsyncSession]:
     """A session that PostgreSQL itself will constrain to ``user_id``'s tenants.
 
     ``SET LOCAL`` is transaction-scoped, so the role and claims are torn down on
     commit or rollback and cannot leak to the next checkout of a pooled
     connection.
+
+    ``email`` is the address on the verified token, carried into the claims as
+    Supabase's own PostgREST carries it. ``app.user_email()`` reads it there, so
+    accepting an invitation is checked against the token rather than against
+    anything a caller passed as an argument (DECISIONS.md section 162).
     """
-    claims = json.dumps({"sub": str(user_id), "role": "authenticated"})
+    payload: dict[str, str] = {"sub": str(user_id), "role": "authenticated"}
+    if email:
+        payload["email"] = email
+    claims = json.dumps(payload)
     session = _app_session_factory()()
     # Marks the transaction as this context manager's to finish. Service code
     # is called from here *and* from `service_session`, and cannot otherwise

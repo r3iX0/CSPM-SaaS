@@ -22,10 +22,11 @@ facing the customer.
 """
 
 from collections import OrderedDict
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import datetime
 from uuid import UUID
 
+import anyio
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -96,6 +97,32 @@ from app.services.placement import Placements
 _MAX_CACHED = 8
 _GraphVersion = tuple[datetime | None, datetime | None, int, int]
 _cache: "OrderedDict[UUID, tuple[_GraphVersion, AssetGraph]]" = OrderedDict()
+
+# Graph work runs in a thread, at most two at a time (DECISIONS.md section 161).
+#
+# Building a tenant's graph, walking its routes and working out what each link
+# holds up are pure Python and can take seconds for a large estate. Run inside
+# an ``async def`` they held the event loop for all of it, and the API is one
+# process: every other tenant's request waited, ``/health`` included, while one
+# person opened the attack-path page. In a thread the loop keeps serving,
+# because the interpreter hands the lock back every few milliseconds.
+#
+# Bounded, because the thread pool is shared with everything else that runs
+# off the loop, and a burst of cold graphs should queue here rather than take
+# every thread. Two, not one: a warm graph's what-if is short, and it should
+# not wait behind somebody else's cold build.
+_GRAPH_WORK = anyio.CapacityLimiter(2)
+
+
+async def off_loop[T](work: Callable[[], T]) -> T:
+    """Run graph work in a thread, so the event loop keeps serving meanwhile.
+
+    For anything that walks the graph: a build, the routes, severance, a cut, a
+    simulated plan, a neighbourhood. Never for anything holding a database
+    session -- the session belongs to the loop, and only pure computation over
+    a built graph may cross.
+    """
+    return await anyio.to_thread.run_sync(work, limiter=_GRAPH_WORK)
 
 
 async def graph_version(
@@ -237,7 +264,22 @@ async def _build_graph(session: AsyncSession, organization_id: UUID) -> AssetGra
         if edge.source_resource_id in by_id and edge.target_resource_id in by_id
     ]
 
-    return AssetGraph.build(resources, relationships)
+    return await off_loop(lambda: _assemble(resources, relationships))
+
+
+def _assemble(
+    resources: list[CloudResource], relationships: list[tuple[str, RelationshipType, str]]
+) -> AssetGraph:
+    """Build the graph and walk its routes once, while still off the loop.
+
+    The routes are memoized on the graph and nearly every reader asks for them
+    first -- the list, the asset filter, a finding's routes, the notification
+    sweep -- so working them out here means the first of those readers finds
+    them done instead of walking a cold graph on the loop.
+    """
+    graph = AssetGraph.build(resources, relationships)
+    graph.attack_paths()
+    return graph
 
 
 def serialize_choke_point(choke: ChokePoint, total_routes: int) -> ChokePointOut:

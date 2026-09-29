@@ -100,6 +100,14 @@ celery_app.conf.beat_schedule = {
         "task": "cloudguard.derive_notifications",
         "schedule": 300.0,
     },
+    # A minute. A delivery that failed is owed its retry a minute later, and a
+    # new one should not wait on a coarse tick after the five-minute sweep
+    # that owed it. Asks one indexed question across tenants and usually
+    # finds nobody (DECISIONS.md section 164).
+    "deliver-webhooks": {
+        "task": "cloudguard.deliver_webhooks",
+        "schedule": 60.0,
+    },
     # Five minutes. An acceptance ends on a date somebody chose, and the risk
     # coming back to the queue within minutes of it is what makes the date
     # mean something. The sweep asks one indexed question across tenants and
@@ -125,7 +133,11 @@ celery_app.conf.update(
     accept_content=["json"],
     timezone="UTC",
     enable_utc=True,
-    task_track_started=True,
+    # Nothing reads a task's return value: a scan's state is its rows, written
+    # fenced on the attempt, never a result in Redis. Storing one per task --
+    # four sweeps a minute plus every step -- only spent broker memory for a
+    # day each (DECISIONS.md section 161).
+    task_ignore_result=True,
     # A scan is bounded work; a stuck Azure call should surface as a failed scan
     # rather than a worker that never comes back. This is the ceiling for the
     # short tasks -- starting, advancing, reaping, the sweeps. A step carries

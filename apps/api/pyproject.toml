@@ -16,6 +16,10 @@ dependencies = [
   "celery[redis]==5.4.0",
   "redis==5.2.1",
   "httpx==0.28.1",
+  # Pinned directly rather than left to Starlette's ">=3.4,<5": two limiters
+  # (reports, graph work) are created at import, outside any running loop,
+  # which only a 4.x release allows (DECISIONS.md sections 158, 161).
+  "anyio==4.15.1",
   "pyjwt==2.13.0",
   "msal==1.31.1",
   # AWS. The connector stores the provider's own response verbatim, exactly as

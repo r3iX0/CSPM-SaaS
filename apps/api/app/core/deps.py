@@ -10,18 +10,26 @@ it if the membership lookup confirms it -- and PostgreSQL re-checks the same
 thing through RLS regardless.
 """
 
+import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import Depends, Header, Request
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.db import rls_session
 from app.core.enums import Role
-from app.core.errors import NotAuthenticated, OrganizationNotFound, PermissionDenied
+from app.core.errors import (
+    NotAuthenticated,
+    OrganizationNotFound,
+    PermissionDenied,
+    RateLimited,
+)
+from app.core.middleware import over_limit
 from app.core.security import AuthenticatedUser, decode_token
 from app.models.organization import Organization, OrganizationMember
 
@@ -31,15 +39,41 @@ async def get_current_user(
 ) -> AuthenticatedUser:
     if not authorization or not authorization.lower().startswith("bearer "):
         raise NotAuthenticated("Missing bearer token")
-    return await decode_token(authorization.split(" ", 1)[1].strip())
+    user = await decode_token(authorization.split(" ", 1)[1].strip())
+    # Counted per person, now that the token says who that is. The middleware
+    # can only count per address, and one office is one address.
+    await _within_limit("user", user.id, settings.rate_limit_per_user)
+    return user
 
 
 CurrentUser = Annotated[AuthenticatedUser, Depends(get_current_user)]
 
 
+async def _within_limit(bucket: str, user_id: UUID, limit: int) -> None:
+    window_seconds = settings.rate_limit_window_seconds
+    window = int(time.time()) // window_seconds
+    if await over_limit(f"ratelimit:{bucket}:{user_id}:{window}", limit, window_seconds):
+        raise RateLimited(headers={"Retry-After": str(window_seconds)})
+
+
+async def limit_costly(user: CurrentUser) -> None:
+    """The smaller allowance, for requests that cost far more than a read.
+
+    A scan queued against a customer's cloud, a PDF render (one at a time for
+    the whole process), a plan simulated across the whole estate, a check that
+    calls the provider. Each is a legitimate click, and none is something a
+    person does twenty times a minute (DECISIONS.md section 161).
+    """
+    await _within_limit("costly", user.id, settings.rate_limit_costly_per_user)
+
+
+# For a route's ``dependencies=[...]``: it returns nothing the handler reads.
+Costly = Depends(limit_costly)
+
+
 async def get_session(user: CurrentUser) -> AsyncIterator[AsyncSession]:
     """A database session PostgreSQL will constrain to this user's tenants."""
-    async with rls_session(user.id) as session:
+    async with rls_session(user.id, user.email) as session:
         yield session
 
 
@@ -115,6 +149,13 @@ async def get_tenant(
     memberships = list((await session.execute(stmt)).all())
     if not memberships:
         raise OrganizationNotFound("You do not belong to any organization yet")
+
+    # Keep the address colleagues see beside this membership in step with the
+    # verified token. Written only when it differs, which is once per person
+    # per change of address; ``app.record_member_email`` touches the caller's
+    # own rows and nothing else (DECISIONS.md section 162).
+    if user.email and any(m.email != user.email.lower() for m, _ in memberships):
+        await session.execute(text("SELECT app.record_member_email()"))
 
     requested = x_organization_id or request.query_params.get("organization_id")
     if requested:

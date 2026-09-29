@@ -28,6 +28,7 @@ from app.core.errors import (
 from app.core.logging import configure_logging, get_logger
 from app.core.middleware import (
     RateLimitMiddleware,
+    RequestContextMiddleware,
     RequestSizeLimitMiddleware,
     SecurityHeadersMiddleware,
 )
@@ -101,8 +102,11 @@ app = FastAPI(
 # 3. ``RateLimitMiddleware`` -- also inside CORS, for the same reason: a 429 a
 #    browser cannot read is indistinguishable from the API being down.
 # 4. ``CORSMiddleware``.
-# 5. ``SecurityHeadersMiddleware`` -- outermost, so every response carries the
-#    headers, including CORS preflights and anything raised further in.
+# 5. ``SecurityHeadersMiddleware`` -- so every response carries the headers,
+#    including CORS preflights and anything raised further in.
+# 6. ``RequestContextMiddleware`` -- outermost, so the id it mints is bound
+#    before anything else logs, and every response carries it back, refusals
+#    included.
 app.add_middleware(RequestSizeLimitMiddleware, max_bytes=settings.max_request_bytes)
 
 app.add_middleware(UnhandledErrorMiddleware)
@@ -120,9 +124,13 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # Readable by the frontend, so an error it shows can name the request.
+    expose_headers=["X-Request-ID"],
 )
 
 app.add_middleware(SecurityHeadersMiddleware)
+
+app.add_middleware(RequestContextMiddleware)
 
 app.add_exception_handler(AppError, app_error_handler)  # type: ignore[arg-type]
 app.add_exception_handler(HTTPException, http_error_handler)  # type: ignore[arg-type]

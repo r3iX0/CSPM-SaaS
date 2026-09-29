@@ -7,7 +7,7 @@ application role -- creating policies requires ownership.
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import engine_from_config
+from sqlalchemy import engine_from_config, text
 from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
@@ -22,6 +22,19 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
+
+# One migration run at a time, whoever starts it (DECISIONS.md section 161).
+#
+# Every API instance runs ``alembic upgrade head`` as it boots, so two booting
+# together -- a scaled service, or a restart overlapping a deploy -- would both
+# read the same version and both apply the next migration: the second fails on
+# a table that now exists, and its instance crash-loops. A transaction-scoped
+# advisory lock taken before the version is read makes the second wait for the
+# first to commit, then find nothing left to do. Transaction-scoped rather than
+# session-scoped so it holds through Supabase's transaction pooler too, and is
+# released by the commit however the run ends. The number is arbitrary and only
+# has to be the same in every process.
+MIGRATION_LOCK = 7_261_553_010
 
 # Synchronous driver on purpose -- see app.core.urls.
 OWNER_DSN = to_sync_dsn(settings.database_owner_url)
@@ -46,6 +59,7 @@ def run_migrations_online() -> None:
     with connectable.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():
+            connection.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": MIGRATION_LOCK})
             context.run_migrations()
     connectable.dispose()
 

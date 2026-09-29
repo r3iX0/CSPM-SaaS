@@ -57,6 +57,10 @@ two is in force, and the worker logs it on its first task.
 carries its placeholder password** — a real credential must never be committed
 there.
 
+**Joining an organization.** There are three doors, all SECURITY DEFINER functions, because a person who is not yet a member cannot satisfy any membership policy: creating an organization (as its OWNER), joining the demo (as VIEWER), and accepting an invitation. An invitation is a single-use token stored only as its SHA-256, carried in the link's URL fragment so no server logs it, valid for seven days, and accepted only by the address it names -- checked inside the function against the email on the caller's verified token, never against an argument. Nobody is invited as OWNER (`DECISIONS.md` §162).
+
+**Requests to a URL a customer typed** go only through `app/core/outbound.py`: HTTPS on port 443, every resolved address public (no private, loopback, link-local, shared, reserved or multicast range, IPv4-mapped IPv6 judged as IPv4), the connection pinned to the checked address with the name kept for TLS verification, no redirects and no environment proxies. This is what stops a webhook URL from reaching Redis, the database pooler or the metadata address from inside Railway's network. Stored webhook URLs and signing secrets are credentials: the API shows a URL only in part and a secret once (`DECISIONS.md` §164).
+
 Automated RLS tests must confirm Organization A can never read Organization B's rows — this is a required test category, not optional coverage (`tests/integration/test_rls.py`, `TESTING.md` §3).
 
 ---
@@ -119,7 +123,7 @@ mid-consent with no way back.
 
 ## 4. Accepted Risk / Exceptions
 
-Users can mark a finding as an intentionally accepted risk rather than remediate it. Store `reason`, `approved_by`, `expires_at`, `status` (see `exceptions` table, `DATABASE.md`). **Accepted risks are never permanently hidden** — they remain auditable via `audit_logs`.
+Users can mark a finding as an intentionally accepted risk rather than remediate it. Store `reason`, `approved_by`, `expires_at`, `status` (see `exceptions` table, `DATABASE.md`). **Accepted risks are never permanently hidden** — they remain auditable via `audit_logs`, which no application role can edit or delete (`DECISIONS.md` §163). Every entry carries the actor, the caller's address and the request id.
 
 ---
 

@@ -381,6 +381,24 @@ class NotificationKind(StrEnum):
     COVERAGE_DROP = "COVERAGE_DROP"
 
 
+class WebhookFormat(StrEnum):
+    """What shape a delivery takes, decided by what receives it (DECISIONS.md 164)."""
+
+    # JSON, signed with the endpoint's own secret, for anything a customer runs.
+    GENERIC = "GENERIC"
+    # A Slack incoming webhook: ``{"text": ...}``.
+    SLACK = "SLACK"
+    # A Microsoft Teams workflow webhook: an Adaptive Card in a message.
+    TEAMS = "TEAMS"
+
+
+class DeliveryStatus(StrEnum):
+    PENDING = "PENDING"
+    SENT = "SENT"
+    # Given up on after the last retry. Kept, so an admin can see what was lost.
+    FAILED = "FAILED"
+
+
 class AssetChange(StrEnum):
     """What happened to an asset between two readings of the same environment.
 
