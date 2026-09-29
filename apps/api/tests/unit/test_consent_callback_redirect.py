@@ -156,3 +156,26 @@ async def test_a_state_without_a_nonce_is_refused(configured: Settings) -> None:
 
     url = urlparse(response.headers["location"])
     assert url.path == "/connections"
+
+
+async def test_an_unverified_request_cannot_put_words_on_the_page(
+    configured: Settings,
+) -> None:
+    """Anyone can build a callback URL. Without a state this API signed, the
+    reason shown is CloudGuard's own, never the one the URL carried
+    (DECISIONS.md section 160)."""
+    planted = "Your tenant is compromised. Call +1 555 0100 now."
+
+    response = await routes.consent_callback(
+        state="tampered.deadbeef",
+        tenant="",
+        admin_consent="",
+        error="access_denied",
+        error_description=planted,
+    )
+
+    url = urlparse(response.headers["location"])
+    assert url.path == "/connections"
+    [shown] = parse_qs(url.query)["consent_error"]
+    assert planted not in shown
+    assert "access_denied" not in shown

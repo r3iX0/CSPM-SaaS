@@ -13,6 +13,7 @@ document says.
 """
 
 from datetime import UTC, datetime
+from typing import Any
 
 import pytest
 
@@ -575,3 +576,110 @@ def test_the_contents_name_only_the_sections_the_document_contains():
     # Every entry points at a heading that exists.
     for anchor in ("posture", "top-risks", "about"):
         assert f'id="{anchor}"' in html
+
+
+# --- The route: rendering never runs on the event loop, nor holds a connection
+# (DECISIONS.md section 158)
+
+
+class _Session:
+    """The request's session, reduced to whether it has been handed back."""
+
+    def __init__(self) -> None:
+        self.closed = False
+
+    async def close(self) -> None:
+        self.closed = True
+
+
+async def _render_through_route(
+    monkeypatch: pytest.MonkeyPatch, fmt: str, organization: str = "Acme"
+) -> tuple[Any, list[tuple[int, bool]]]:
+    """Serve a report; return the response, and per render its thread and
+    whether the session had been closed by then."""
+    import threading
+    from types import SimpleNamespace
+    from uuid import uuid4
+
+    from app.api.routes import reports as route
+
+    session = _Session()
+    renders: list[tuple[int, bool]] = []
+
+    async def build_report(*args: object, **kwargs: object) -> dict:
+        assert not session.closed
+        return {"organization": {"name": organization}}
+
+    def render_html(report: dict) -> str:
+        renders.append((threading.get_ident(), session.closed))
+        return "<html></html>"
+
+    def render_pdf(report: dict) -> bytes:
+        renders.append((threading.get_ident(), session.closed))
+        return b"%PDF"
+
+    monkeypatch.setattr(route, "build_report", build_report)
+    monkeypatch.setattr(route, "render_html", render_html)
+    monkeypatch.setattr(route, "render_pdf", render_pdf)
+
+    response = await route.get_report(
+        kind="technical",
+        session=session,  # type: ignore[arg-type]
+        tenant=SimpleNamespace(organization_id=uuid4()),  # type: ignore[arg-type]
+        format=fmt,
+        days=30,
+        sections=None,
+    )
+    assert response.status_code == 200
+    return response, renders
+
+
+@pytest.mark.parametrize("fmt", ["pdf", "html"])
+async def test_a_report_renders_off_the_event_loop(
+    monkeypatch: pytest.MonkeyPatch, fmt: str
+) -> None:
+    """A synchronous WeasyPrint render on the loop stalled every other request
+    on the process, health checks and scan streams included, for as long as it
+    took."""
+    import threading
+
+    _, renders = await _render_through_route(monkeypatch, fmt)
+    assert renders
+    assert all(thread != threading.get_ident() for thread, _ in renders)
+
+
+@pytest.mark.parametrize("fmt", ["pdf", "html"])
+async def test_the_connection_is_returned_before_the_render(
+    monkeypatch: pytest.MonkeyPatch, fmt: str
+) -> None:
+    """Held through the render and the wait for the one PDF slot, a burst of
+    downloads would hold the whole pool while every other request waited."""
+    _, renders = await _render_through_route(monkeypatch, fmt)
+    assert renders
+    assert all(closed for _, closed in renders)
+
+
+@pytest.mark.parametrize(
+    ("organization", "fallback", "encoded"),
+    [
+        ("Acme", "cloudguard-acme-technical.pdf", "cloudguard-acme-technical.pdf"),
+        (
+            "Łódź Sp",
+            "cloudguard-d-sp-technical.pdf",
+            "cloudguard-%C5%82%C3%B3d%C5%BA-sp-technical.pdf",
+        ),
+        (
+            "東京株式会社",
+            "cloudguard-technical.pdf",
+            "cloudguard-%E6%9D%B1%E4%BA%AC%E6%A0%AA%E5%BC%8F%E4%BC%9A%E7%A4%BE-technical.pdf",
+        ),
+    ],
+)
+async def test_any_organization_name_downloads(
+    monkeypatch: pytest.MonkeyPatch, organization: str, fallback: str, encoded: str
+) -> None:
+    """A header is Latin-1 on the wire; a name outside it was a 500, not a PDF."""
+    response, _ = await _render_through_route(monkeypatch, "pdf", organization)
+    disposition = response.headers["content-disposition"]
+    assert f'filename="{fallback}"' in disposition
+    assert f"filename*=UTF-8''{encoded}" in disposition

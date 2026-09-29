@@ -31,7 +31,7 @@ async def get_current_user(
 ) -> AuthenticatedUser:
     if not authorization or not authorization.lower().startswith("bearer "):
         raise NotAuthenticated("Missing bearer token")
-    return decode_token(authorization.split(" ", 1)[1].strip())
+    return await decode_token(authorization.split(" ", 1)[1].strip())
 
 
 CurrentUser = Annotated[AuthenticatedUser, Depends(get_current_user)]

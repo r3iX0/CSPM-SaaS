@@ -35,6 +35,12 @@ log = get_logger(__name__)
 
 router = APIRouter(prefix="/scans", tags=["scans"], responses=ERROR_RESPONSES)
 
+WORKER_PING_FAILED = (
+    "Could not reach the task broker, so no scan can be queued or collected. "
+    "Check that the Redis service is running and that REDIS_URL points at it."
+)
+
+
 @router.post("", status_code=status.HTTP_202_ACCEPTED, responses=error_responses(403, 409))
 async def create_scan(
     payload: ScanCreate, session: DbSession, tenant: Tenant
@@ -78,19 +84,7 @@ async def create_scan(
 
     # Only the id crosses the queue. The worker re-reads the tenant boundary
     # from the scan row rather than trusting the message.
-    try:
-        run_scan.delay(str(scan.id))
-    except Exception as exc:
-        # The row is already committed, so a broker that refused the message
-        # would otherwise leave a scan queued that nothing will ever collect --
-        # indistinguishable, on screen, from one about to start.
-        log.warning("scan.enqueue_failed", scan_id=str(scan.id), error=str(exc))
-        scan.status = ScanStatus.FAILED
-        scan.error_message = (
-            "Cleave could not put this scan on the queue. The task broker "
-            f"is unreachable: {exc}"
-        )
-        await session.commit()
+    await scans_service.enqueue_or_fail(run_scan.delay, scan, tenant.user.id)
 
     return Envelope(data=ScanOut.model_validate(scan), meta=NoMeta())
 
@@ -158,16 +152,9 @@ async def replay_scan_endpoint(
     session.add(scan)
     await session.commit()
 
-    try:
-        replay_scan.delay(str(scan.id))
-    except Exception as exc:
-        log.warning("scan.replay_enqueue_failed", scan_id=str(scan.id), error=str(exc))
-        scan.status = ScanStatus.FAILED
-        scan.error_message = (
-            "Cleave could not put this replay on the queue. The task broker "
-            f"is unreachable: {exc}"
-        )
-        await session.commit()
+    await scans_service.enqueue_or_fail(
+        replay_scan.delay, scan, tenant.user.id, noun="replay"
+    )
 
     return Envelope(data=ScanOut.model_validate(scan), meta=NoMeta())
 
@@ -246,12 +233,15 @@ async def worker_status(tenant: Tenant) -> Envelope[WorkerStatusOut, NoMeta]:
     try:
         replies = celery_app.control.ping(timeout=1.0) or []
     except Exception as exc:
+        # The exception goes to the log, not the response: it is written for
+        # an operator and can carry the broker's address or credentials, and
+        # any member may ask this (DECISIONS.md section 158).
         log.warning("scan.worker_ping_failed", error=str(exc))
         return Envelope(
             data=WorkerStatusOut(
                 workers=0,
                 reachable=False,
-                detail=f"Could not reach the task broker: {exc}",
+                detail=WORKER_PING_FAILED,
             ),
             meta=NoMeta(),
         )

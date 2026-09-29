@@ -3314,3 +3314,79 @@ class TestDeletingWhatARiskRestsOn:
 
         assert response.status_code == 200, response.text
         assert await self._risk_ids(org_id) == {estate["only_here"], estate["crossing"]}
+
+
+class TestRemediationAssignee:
+    """Work is handed only to members of the organization (DECISIONS.md §159).
+
+    Against the real policies, because the check reads membership under the
+    caller's row-level security: a colleague must be visible to it, and a user
+    of another tenant must not be mistaken for one.
+    """
+
+    async def _finding(self, org_id: uuid.UUID) -> uuid.UUID:
+        from app.core.db import service_session
+        from app.core.enums import FindingStatus, Severity
+        from app.models.finding import Finding
+
+        now = datetime.now(UTC)
+        async with service_session() as session:
+            finding = Finding(
+                organization_id=org_id,
+                resource_id=None,
+                rule_id="AZ-IAM-002",
+                severity=Severity.HIGH,
+                status=FindingStatus.OPEN,
+                title="Work to hand out",
+                description="",
+                risk_score=50,
+                first_detected_at=now,
+                last_detected_at=now,
+            )
+            session.add(finding)
+            await session.flush()
+            finding_id = finding.id
+            await session.commit()
+        return finding_id
+
+    async def _add_member(self, org_id: uuid.UUID, user_id: uuid.UUID) -> None:
+        from app.core.db import service_session
+        from app.core.enums import Role
+        from app.models.organization import OrganizationMember
+
+        async with service_session() as session:
+            session.add(
+                OrganizationMember(organization_id=org_id, user_id=user_id, role=Role.VIEWER)
+            )
+            await session.commit()
+
+    async def test_only_a_member_can_be_given_the_work(self, client, cleanup_orgs) -> None:
+        owner, colleague, stranger = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, owner, "Assign Ltd"))
+        cleanup_orgs.append(org_id)
+        cleanup_orgs.append(uuid.UUID(await make_org(client, stranger, "Elsewhere Ltd")))
+        await self._add_member(org_id, colleague)
+        finding_id = str(await self._finding(org_id))
+
+        refused = await client.post(
+            "/api/v1/remediation",
+            json={"finding_id": finding_id, "assigned_to": str(stranger)},
+            headers=auth_header(owner),
+        )
+        assert refused.status_code == 422, refused.text
+        assert refused.json()["error"]["code"] == "VALIDATION_FAILED"
+
+        created = await client.post(
+            "/api/v1/remediation",
+            json={"finding_id": finding_id, "assigned_to": str(colleague)},
+            headers=auth_header(owner),
+        )
+        assert created.status_code == 201, created.text
+        task_id = created.json()["data"]["id"]
+
+        reassigned = await client.patch(
+            f"/api/v1/remediation/{task_id}",
+            json={"assigned_to": str(stranger)},
+            headers=auth_header(owner),
+        )
+        assert reassigned.status_code == 422, reassigned.text

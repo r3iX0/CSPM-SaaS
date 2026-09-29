@@ -6,22 +6,27 @@ and how to get rid of it afterwards.
 """
 
 from collections import Counter
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import and_, func, or_, select, text
+from sqlalchemy import and_, func, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import set_committed_value
 
-from app.core.db import commit_unless_externally_managed
+from app.core.db import commit_unless_externally_managed, rls_session
 from app.core.deps import TenantContext
 from app.core.enums import FindingStatus, ScanStatus, ScanStepStatus, ScanTrigger, TaskOutcome
 from app.core.errors import ScanNotFound
+from app.core.logging import get_logger
 from app.models.cloud_account import CloudAccount
 from app.models.cloud_connection import CloudConnection
 from app.models.finding import Finding, FindingEvidence
 from app.models.scan import Evidence, Scan, ScanStep
 from app.services import cloud_connections
 from app.services import risks as risks_service
+
+log = get_logger(__name__)
 
 OPEN_STATUSES = [FindingStatus.OPEN, FindingStatus.IN_PROGRESS]
 
@@ -123,6 +128,56 @@ async def scan_in_flight(
         )
     ).scalar_one_or_none()
     return running is not None
+
+
+# What a scan the broker refused says on screen. The broker's own exception is
+# logged rather than shown: it is written for an operator, and a reader of the
+# scans page has nothing to do with a connection string or an errno.
+ENQUEUE_FAILED_MESSAGE = (
+    "Cleave could not put this {noun} on the queue. The task broker is unreachable."
+)
+
+
+async def enqueue_or_fail(
+    send: Callable[[str], object],
+    scan: Scan,
+    user_id: UUID,
+    *,
+    noun: str = "scan",
+) -> None:
+    """Queue a scan that is already committed, or record that it could not be.
+
+    The row is committed before the message is sent, so a worker never picks up
+    an id it cannot read yet -- and so a refusal from the broker would leave a
+    scan queued that nothing will ever collect, indistinguishable on screen
+    from one about to start. It is marked FAILED instead.
+
+    **In a transaction of its own.** The caller's session is ``rls_session``,
+    whose transaction ended at that first commit and cannot begin another: a
+    second ``commit()`` there raises "Can't operate on closed transaction inside
+    context manager", so this path used to answer 500 and leave the scan
+    exactly as queued as it set out to prevent (DECISIONS.md section 158). The
+    fresh session is row-level secured for the same user, so the write is held
+    to the same tenant the insert was.
+    """
+    try:
+        send(str(scan.id))
+        return
+    except Exception as exc:
+        log.warning("scan.enqueue_failed", scan_id=str(scan.id), kind=noun, error=str(exc))
+
+    message = ENQUEUE_FAILED_MESSAGE.format(noun=noun)
+    async with rls_session(user_id) as session:
+        await session.execute(
+            update(Scan)
+            .where(Scan.id == scan.id, Scan.organization_id == scan.organization_id)
+            .values(status=ScanStatus.FAILED, error_message=message)
+        )
+    # The caller answers from this object. Set as committed values, because
+    # that is what they now are, and because a change marked dirty on the
+    # caller's session is one it would have no transaction to flush.
+    set_committed_value(scan, "status", ScanStatus.FAILED)
+    set_committed_value(scan, "error_message", message)
 
 
 async def scanned_since(

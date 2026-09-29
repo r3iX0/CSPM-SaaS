@@ -22,6 +22,10 @@ and a deployment whose native PDF libraries are missing still produces
 something useful while that is fixed.
 """
 
+import re
+from urllib.parse import quote
+
+import anyio
 from fastapi import APIRouter, Query
 from fastapi.responses import HTMLResponse, Response
 
@@ -40,6 +44,14 @@ router = APIRouter(prefix="/reports", tags=["reports"], responses=ERROR_RESPONSE
 
 KINDS = {"executive", "technical"}
 
+# Rendering is synchronous and CPU-bound, so it runs in a worker thread rather
+# than on the event loop, where one technical report would stall every other
+# request on the process for as long as WeasyPrint takes. PDFs render one at a
+# time: that bounds the CPU a burst of downloads can take, and WeasyPrint's
+# native libraries are then never entered from two threads at once
+# (DECISIONS.md section 158).
+_PDF_RENDERS = anyio.CapacityLimiter(1)
+
 
 def _filename(kind: str, organization: str, extension: str) -> str:
     """A filename somebody can find again in a downloads folder.
@@ -53,6 +65,19 @@ def _filename(kind: str, organization: str, extension: str) -> str:
     ).strip("-")
     slug = "-".join(part for part in slug.split("-") if part) or "organization"
     return f"cloudguard-{slug}-{kind}.{extension}"
+
+
+def _content_disposition(filename: str) -> str:
+    """An ``attachment`` header that carries any organization's name.
+
+    A header value is Latin-1 on the wire, and the slug keeps whatever letters
+    the name has -- so a customer called "Łódź" or "東京" got a 500 in place of
+    their report. The name travels in ``filename*`` (RFC 6266), percent-encoded
+    UTF-8, which every current browser prefers; ``filename`` beside it is the
+    ASCII remainder, for a client that reads nothing else.
+    """
+    fallback = re.sub(r"-{2,}", "-", "".join(c if c.isascii() else "-" for c in filename))
+    return f"attachment; filename=\"{fallback}\"; filename*=UTF-8''{quote(filename)}"
 
 
 @router.get(
@@ -119,16 +144,26 @@ async def get_report(
     )
     name = report["organization"]["name"]
 
-    if format == "html":
-        return HTMLResponse(render_html(report))
+    # Everything the render needs is in ``report`` now, so the connection goes
+    # back to the pool before the render rather than after it. Held, it would
+    # sit idle through the render and through the wait for ``_PDF_RENDERS``,
+    # and a burst of downloads queued there would hold the whole pool while
+    # every other request waited for a connection (DECISIONS.md section 158).
+    # The transaction only read, so closing it -- a rollback -- loses nothing,
+    # and ``rls_session`` finds it already closed when the request ends.
+    await session.close()
 
+    if format == "html":
+        return HTMLResponse(await anyio.to_thread.run_sync(render_html, report))
+
+    content = await anyio.to_thread.run_sync(render_pdf, report, limiter=_PDF_RENDERS)
     return Response(
-        content=render_pdf(report),
+        content=content,
         media_type="application/pdf",
         headers={
             # `attachment` rather than `inline`: this is a document somebody
             # asked to keep, and a PDF that opens in a tab and has to be saved
             # from there is one more step in the way of that.
-            "Content-Disposition": f'attachment; filename="{_filename(kind, name, "pdf")}"',
+            "Content-Disposition": _content_disposition(_filename(kind, name, "pdf")),
         },
     )

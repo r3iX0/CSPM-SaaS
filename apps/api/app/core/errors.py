@@ -133,6 +133,13 @@ class CloudConnectionError(AppError):
     status_code_default = status.HTTP_502_BAD_GATEWAY
 
 
+class QueueUnavailable(AppError):
+    """The task broker refused the work"""
+
+    code = "QUEUE_UNAVAILABLE"
+    status_code_default = status.HTTP_503_SERVICE_UNAVAILABLE
+
+
 class NotConfigured(AppError):
     """Server is not configured for this operation"""
 

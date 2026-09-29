@@ -69,6 +69,24 @@ async def list_memberships(
     return [(org, Role(role)) for org, role in rows]
 
 
+async def is_member(session: AsyncSession, organization_id: UUID, user_id: UUID) -> bool:
+    """Whether ``user_id`` belongs to this organization.
+
+    Read under the caller's row-level security, which shows a member everyone
+    else in their own organizations -- except the demo, where a visitor sees only
+    themselves, and nothing is written there anyway.
+    """
+    found = (
+        await session.execute(
+            select(OrganizationMember.id).where(
+                OrganizationMember.organization_id == organization_id,
+                OrganizationMember.user_id == user_id,
+            )
+        )
+    ).scalar_one_or_none()
+    return found is not None
+
+
 async def update_organization(
     session: AsyncSession,
     tenant: TenantContext,

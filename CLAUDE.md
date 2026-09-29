@@ -101,6 +101,7 @@ npm test                         # vitest run
 - No mock connector in production code; fixture-based unit tests instead
 - API response envelope: `{ "data": ..., "error": null, "meta": {} }`; a route returns `Envelope[Data, Meta]` built from models -- or, where a service's dict has other readers, validated from it against `ClosedModel`s, which refuse undeclared keys -- and documents `ErrorEnvelope` through `responses=`; every router is converted, and `tests/unit/test_typed_responses.py` walks every route, naming the few that answer with a file, a stream or a provider's protocol (§157)
 - A step is fenced to the worker that claimed it; one advisory lock per scan target (§65)
+- Nothing a request triggers blocks the loop or idles on a pooled connection: signing keys are fetched async at most once per 30s, reports render in a thread after the session is closed, and a refused enqueue is recorded in a fresh `rls_session` -- never a second commit on the request's (§158)
 - The frontend catches its own failures: error boundaries, request timeouts, 401 signs out (§66)
 - A reading is scoped by region; a verdict is not (§69)
 - Two neutral scope columns plus `provider_ref`; the rename to `provider_directory_id` is deferred because `RawSnapshot` writes the old names into stored captures (§70)

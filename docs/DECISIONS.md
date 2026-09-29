@@ -8688,6 +8688,126 @@ prefixes and fails on one that returns anything but an `Envelope`, or that
 publishes FastAPI's 422 instead of `ErrorEnvelope`. Its `TYPED` list grows a
 router at a time until it covers `/api/v1`, and then goes.
 
+## 158. Nothing a stranger or a download can trigger holds the event loop or the pool
+
+A review of the whole API against FastAPI's practices found five problems
+that a single request could cause. Three of them stall the process, one
+answers 500 where it should answer something else, and one leaves a scan
+queued that nothing will ever run.
+
+**The JWKS fetch ran on the loop, once for every unknown key id.**
+`PyJWKClient` fetches synchronously, with a 30-second default timeout, from
+inside an async dependency. It also fetches again for every `kid` it does not
+recognise, and the `kid` comes from the token's unverified header. A stranger
+sending tokens with random key ids could make every request on the process wait
+for a round trip to Supabase, health checks included. `SigningKeys`
+(`core/security.py`) replaces it:
+
+- The fetch is awaited through httpx, bounded at 5 seconds.
+- It happens at most once per 30 seconds however many unknown ids arrive.
+- A fetched set is trusted for five minutes, so a key Supabase revokes stops
+  verifying within that time.
+- Concurrent first requests share one fetch.
+- A failed fetch keeps the last set, so an unreachable Supabase does not sign
+  out everybody whose token it has already vouched for.
+
+`decode_token` is now async, and so is `get_current_user`.
+
+**Reports rendered on the loop.** WeasyPrint is synchronous and CPU-bound, so
+one technical PDF blocked every other request, scan streams included, for as
+long as the render took. HTML and PDF now render in a worker thread. PDFs pass
+through a `CapacityLimiter(1)`, which bounds the CPU a burst of downloads can
+take and means WeasyPrint's native libraries are never entered from two threads
+at once.
+
+The limiter created a second problem, and it is fixed in the same change. The
+request's `rls_session` holds a pooled connection until the handler returns, so
+every download waiting for the render slot held one. The app pool is ten plus
+five, so fifteen queued downloads would exhaust it and every other request would
+wait out the pool timeout. The route now closes the session once `build_report`
+has read everything. The transaction only read, so the rollback that close
+performs loses nothing.
+
+**A report for "Łódź" or "東京" was a 500.** The filename slug keeps any letter
+`isalnum` accepts, and a header value is Latin-1 on the wire. The name now
+travels in `filename*` as percent-encoded UTF-8 (RFC 6266). `filename` beside it
+keeps the ASCII remainder for clients that read nothing else.
+
+**A scan the broker refused was left queued, and the request answered 500.**
+`POST /scans` and `/replay` commit the scan before sending its message, so a
+worker never picks up an id it cannot read yet. On a send failure they set the
+scan `FAILED` and committed again. That second commit ran on `rls_session`,
+whose transaction had already ended and cannot begin again inside
+`session.begin()`, so it raised "Can't operate on closed transaction inside
+context manager". The customer got a 500 and the scan sat queued: the one
+outcome the branch existed to prevent. No test covered the branch.
+
+`scans.enqueue_or_fail` now records the failure in a fresh `rls_session` for the
+same user, so the write is held to the same tenant as the insert. It writes the
+in-memory row as committed values so the caller's session has nothing to flush.
+The message no longer carries the broker's exception, which is written for an
+operator and can include a connection string; the exception is logged instead.
+`GET /scans/worker-status` quoted the same exception to any member when the
+broker could not be pinged. It now returns a fixed sentence naming what to check
+(the Redis service and `REDIS_URL`), and the exception goes to the log.
+`POST /findings/{id}/rescan` never guarded its send at all. It now goes through
+the same helper and answers 503 `QUEUE_UNAVAILABLE`, because nothing on the
+finding's page shows a scan record where the failure could be read.
+
+**Found and deliberately not fixed here.** Graph construction and `simulate`
+still run on the loop. The graph is cached per data version, so the cost is the
+first request after each scan and each simulated plan, and it stays until an
+estate is large enough to measure. `anyio` is not pinned directly; the
+import-time `CapacityLimiter` needs a 4.x release that allows one outside a
+running loop. FastAPI 0.118 moves the teardown of a `yield` dependency to after
+the response is sent, which would keep `/scans/{id}/events`' request session
+open for the whole stream. That route must stop depending on `DbSession` before
+FastAPI is upgraded past 0.117.
+
+## 159. Remediation work is assigned only to members of the organization
+
+`assigned_to` on a remediation task was any UUID. Nothing checked it against
+the organization, so a mistyped id, a colleague who had left, or a user of
+another tenant was stored as the owner of work they could never see. That leaks
+nothing, because the other tenant's user cannot read the row. But the task is
+owned by nobody who can act on it, and the audit row records an assignment that
+never happened.
+
+`POST /remediation` and `PATCH /remediation/{id}` now refuse an assignee who is
+not a member, with 422 `VALIDATION_FAILED`, before reading the finding or the
+task. The check (`organizations.is_member`) runs under the caller's row-level
+security, which already shows a member everyone else in their own
+organizations. A user of another tenant therefore reads as absent, which is the
+right answer for them. The demo shows a visitor only themselves, but nothing is
+written there, so the check is never reached in it.
+
+Any member may be assigned, a VIEWER included. The field records who is
+expected to do the work, not whether they may change the task in CloudGuard,
+and the fix itself usually happens in the customer's cloud. Clearing an
+assignee is still not possible, because `null` in the PATCH means "unchanged";
+that is a separate change to the update contract.
+
+## 160. The consent callback shows Entra's words only under a state it signed
+
+`/cloud-connections/azure/consent/callback` is unauthenticated by necessity:
+Entra sends the browser there. When the `state` failed to verify, the callback
+still redirected to `/connections?consent_error=` carrying the request's
+`error_description`, or failing that its `error`, and the Connect page printed
+it. Nothing in such a request shows that Entra sent it, since anyone can build
+the URL. So a link on CloudGuard's own domain could put any sentence on
+CloudGuard's own page, for example "Your tenant is compromised, call this
+number". React escapes it, so this is text rather than script, but the text
+reads as the product's, and phishing needs nothing more.
+
+An unverified request now shows only CloudGuard's own reason
+(`_consent_link_problem`): that the link expired or was issued for something
+else, or that it is not valid. Entra's `error_description` is still passed
+through where it matters, on the setup step. That branch runs only for a state
+this API signed within the last half hour. The state names one connection, and
+its setup page opens only for a member of that connection's organization, so a
+stranger's link leads nowhere they could use. A denial whose link has also expired loses Entra's reason,
+and the customer is asked for a fresh link. They would be asked for one anyway.
+
 ## Open items carried forward
 
 **Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read

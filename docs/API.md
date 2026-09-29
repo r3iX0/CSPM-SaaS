@@ -88,6 +88,12 @@ merely reported. `/replay` re-runs today's rules against a capture already
 stored — no Azure call — and `/worker-status` pings the broker, because "scans
 stay queued" is otherwise indistinguishable from "the product is broken".
 
+A scan is committed before it is queued. If the broker then refuses it,
+`POST /scans` and `/replay` still answer 202, with the scan already `FAILED` and
+its `error_message` saying the queue was unreachable. `POST /findings/{id}/rescan`
+has no scan record on screen to show that, so it answers 503 `QUEUE_UNAVAILABLE`
+instead (DECISIONS.md §158).
+
 `POST /findings/{id}/status` is the general transition; `accept-risk` is its own
 endpoint rather than a status value because it takes a reason and an approver.
 
@@ -346,6 +352,10 @@ a role assignment is one link to severance: an escalation line drawn beside a
 role line is keyed as the role line, on the choke points, the what-if and the
 route map.
 
+`assigned_to` on `POST /remediation` and `PATCH /remediation/{id}` must name a
+member of the organization. Anyone else gets 422 `VALIDATION_FAILED`
+(DECISIONS.md §159).
+
 `/attack-paths/access/{id}` answers who holds access to an asset and what an
 identity holds (DECISIONS.md §125). `data.holders` lists every role assigned on
 the asset or on a container above it, each as `{principal, role, at,
@@ -485,7 +495,9 @@ consumer unwrap and re-encode it. Errors on this path still use the envelope.
 `format=html` returns the same document the PDF is printed from, so a report can
 be read without downloading one — and a deployment whose native PDF libraries
 are missing still produces something useful while that is fixed. A server that
-cannot render PDFs answers 503 `NOT_CONFIGURED` rather than 500.
+cannot render PDFs answers 503 `NOT_CONFIGURED` rather than 500. The PDF is sent
+as an attachment. Its `filename*` carries the organization's name as UTF-8, and
+`filename` holds the ASCII remainder for clients that read only that field.
 
 `days` (1–365, default 30) is the **activity window**: how far back verified
 fixes, completed remediation work and the trend line reach. It does not filter

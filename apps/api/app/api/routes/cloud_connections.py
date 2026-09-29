@@ -261,9 +261,14 @@ async def consent_callback(
         connection_id = UUID(str(payload["cloud_connection_id"]))
         nonce = str(payload["nonce"])
     except (SignedStateError, KeyError, ValueError) as exc:
-        reason = error_description or error or _consent_link_problem(exc)
+        # Never ``error_description`` here. Without a verified state nothing
+        # says Entra sent this request -- anyone can build the URL -- and the
+        # text lands on CloudGuard's own page, where a sentence of the
+        # stranger's choosing ("your tenant is compromised, call ...") reads as
+        # CloudGuard's (DECISIONS.md section 160). Entra's own reason is shown
+        # below, where a state this API signed vouches for the round trip.
         return RedirectResponse(
-            f"{frontend}/connections?consent_error={quote(reason)}"
+            f"{frontend}/connections?consent_error={quote(_consent_link_problem(exc))}"
         )
 
     setup = f"{frontend}/connections/{connection_id}/setup"

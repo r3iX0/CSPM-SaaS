@@ -3,8 +3,9 @@ from uuid import UUID
 
 from fastapi import APIRouter, status
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import DbSession, Tenant
+from app.core.deps import DbSession, Tenant, TenantContext
 from app.core.enums import FindingStatus, Priority, RemediationStatus
 from app.core.errors import NotFound, ValidationFailed
 from app.models.finding import Finding
@@ -21,9 +22,25 @@ from app.schemas.finding import (
 )
 from app.services import findings as findings_service
 from app.services import graph as graph_service
+from app.services import organizations as organizations_service
 from app.services import verification as verification_service
 
 router = APIRouter(prefix="/remediation", tags=["remediation"], responses=ERROR_RESPONSES)
+
+
+async def _require_assignee(
+    session: AsyncSession, tenant: TenantContext, assignee: UUID | None
+) -> None:
+    """Refuse work handed to somebody outside the organization.
+
+    Any UUID used to be stored. A task can only be picked up by a member, so one
+    assigned to anybody else -- a mistyped id, a colleague who has left, a user
+    of another tenant -- would sit owned by somebody who can never see it.
+    """
+    if assignee is not None and not await organizations_service.is_member(
+        session, tenant.organization_id, assignee
+    ):
+        raise ValidationFailed("The assignee is not a member of this organization")
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, responses=error_responses(403))
@@ -31,6 +48,7 @@ async def create_task(
     payload: RemediationCreate, session: DbSession, tenant: Tenant
 ) -> Envelope[RemediationOut, NoMeta]:
     tenant.require_write()
+    await _require_assignee(session, tenant, payload.assigned_to)
     finding = await findings_service.get_finding(session, tenant, payload.finding_id)
 
     existing = (
@@ -155,6 +173,7 @@ async def update_task(
     task_id: UUID, payload: RemediationUpdate, session: DbSession, tenant: Tenant
 ) -> Envelope[RemediationUpdatedOut, NoMeta]:
     tenant.require_write()
+    await _require_assignee(session, tenant, payload.assigned_to)
     task = (
         await session.execute(
             select(RemediationTask).where(

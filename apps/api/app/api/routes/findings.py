@@ -7,7 +7,7 @@ from sqlalchemy.sql.elements import UnaryExpression
 
 from app.core.deps import DbSession, Tenant
 from app.core.enums import FindingStatus, ScanStatus, Severity
-from app.core.errors import ConflictError, ValidationFailed
+from app.core.errors import ConflictError, QueueUnavailable, ValidationFailed
 from app.core.vocabulary import words
 from app.graph import Path
 from app.models.finding import Finding, FindingEvidence
@@ -318,7 +318,7 @@ async def set_finding_status(
 @router.post(
     "/{finding_id}/rescan",
     status_code=status.HTTP_202_ACCEPTED,
-    responses=error_responses(403, 409),
+    responses=error_responses(403, 409, 503),
 )
 async def rescan_finding(
     finding_id: UUID, session: DbSession, tenant: Tenant
@@ -394,7 +394,11 @@ async def rescan_finding(
     )
     await session.commit()
 
-    run_scan.delay(str(scan.id))
+    await scans_service.enqueue_or_fail(run_scan.delay, scan, tenant.user.id)
+    if scan.status == ScanStatus.FAILED:
+        # Unlike a scan started from the scans page, nothing here shows the
+        # scan record, so the refusal is the answer rather than a row to find.
+        raise QueueUnavailable(scan.error_message)
     return Envelope(
         data=RescanQueuedOut(
             scan_id=scan.id,
