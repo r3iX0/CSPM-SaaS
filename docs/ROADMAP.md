@@ -40,6 +40,8 @@ Azure → AI → security decision                         (never)
 
 AI is not required for the product to function. No hallucinated findings, ever — Copilot only narrates what the deterministic engine already produced.
 
+The boundary is DECISIONS.md §166; the candidate agentic workflows, ranked, are in `AGENTIC_WORKFLOWS.md`.
+
 Interface shape for later:
 
 ```python

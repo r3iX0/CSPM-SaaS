@@ -9250,6 +9250,85 @@ page change in the pager leaves focus on the pager rather than moving it to the
 table; the count line is spoken instead, which says what moved without taking
 the reader away from the control they are paging with.
 
+## 166. A model narrates what the engine decided; it never decides
+
+**Spec:** `ROADMAP.md` (AI — CloudGuard Copilot); `AGENTIC_WORKFLOWS.md`.
+
+No AI is built yet. This records the boundary any of it must keep, so the first
+feature that uses a model does not have to argue it again.
+
+**No verdict, severity, score, route or count comes from a model.** Rules stay
+deterministic (`rules/base.py`), an error stays UNKNOWN (§6), and risk, graph
+and verification stay computed. A model reads what they produced and explains,
+drafts or triages around it. An answer that states a number states one a tool
+returned.
+
+**Grounding is checked, not asked for.** Every tool result carries ids, and an
+answer citing an id that no tool returned in that turn is dropped before it is
+sent.
+
+**Tools read, through the service layer, under the caller's `rls_session`.** No
+free SQL, no tool that writes, none that fetches a URL. Resource names and tags
+are customer-controlled text, so tool output is treated as untrusted input.
+
+**A model is sent normalized, redacted fields, never a raw capture.** ARM JSON
+holds app settings, connection strings and SAS URLs.
+
+**AI is optional and opted into.** `AI_ENABLED` and a per-organization opt-in;
+the product works with both off. Customer configuration leaving for a model
+provider needs a DPA and a subprocessor entry before it ships.
+
+**Not decided.** Which candidate is built first and its tool contract.
+`AGENTIC_WORKFLOWS.md` ranks them — divergence triage and rule authoring in the
+development loop, then a read-only copilot, then remediation pull requests
+verified by §18 — and each gets its own entry when it is built.
+
+## 167. A divergence is triaged from a case file an engine builds and a model reads
+
+**Spec:** `AGENTIC_WORKFLOWS.md` §3.1, under the boundary §166 set.
+
+`engine_divergences` (§150) says that the two engines disagreed; nothing said
+which one was wrong, and every row was read by hand against the capture, the
+rule's source and Prowler's check text. That reading is open-ended, it is
+checked for free -- the test suite and a replay over the same captures -- and
+it never reaches a customer, so it is the first place a model is let in.
+
+**The split is the one §166 draws.** `app/prowler/triage.py` is deterministic
+and judges nothing: `replay` re-runs the native engine and interprets the
+Prowler runs over one stored capture exactly as ANALYZE does, and `build_cases`
+puts beside each divergence the asset's normalized metadata, the rule's own
+verdict and evidence, Prowler's results with its check's description, what
+`curation.json` already says about the pair, the rule's source location, and
+the hypotheses to rule out first by kind. The `triage-divergences` skill
+(`.claude/skills/`) drives a model through reading a case, choosing one of
+eight verdicts with cited evidence, making the smallest fix, and replaying to
+prove it. `apps/api/scripts/triage_divergences.py` is the command between them;
+its exit status is 1 while an unexpected divergence remains, so a fix is
+verified against the one case it was meant to settle.
+
+**A PASS keeps its evidence.** The report holds only ids for a PASS, which is
+exactly the side a NATIVE_MISSED case needs to weigh. The case re-derives it by
+evaluating the rule again over the same context -- a rule is deterministic over
+its context, so this is the verdict ANALYZE reached, not a new one.
+
+**Nothing leaves unredacted.** A case carries normalized metadata, never a raw
+capture, and `redact` replaces credential-shaped strings -- by key name, and by
+value wherever they hide (a connection string in a tag). A boolean under a
+secret-sounding key is a setting and is kept: `allow_shared_key_access` is what
+the triage is about.
+
+**Guardrails live in the skill and are not negotiable there:** Prowler is a
+second opinion, never ground truth; an expected-divergence note is a real
+difference between two questions, never a way to silence one; `catalog.json` is
+never edited; removing a `covered_by` pairing stops for a person, because the
+check starts raising findings; nothing is committed.
+
+**Not done.** Divergences from a real scan have to be exported as the two files
+the replay reads -- there is no read-only export from the database yet, and the
+skill says so rather than querying one. The replay covers one capture at a time,
+not ANALYZE's merge of several subscriptions. The fixture is synthetic: no
+Prowler run has been made against a real tenant (§150).
+
 ## Open items carried forward
 
 **Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read

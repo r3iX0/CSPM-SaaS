@@ -1,0 +1,67 @@
+{
+  "$comment": "A synthetic Prowler run over tests/fixtures/azure_raw/snapshot_mixed.json, written by hand for the divergence-triage prototype (DECISIONS.md section 167). Each result is chosen to produce one kind of divergence; see the comments in tests/unit/test_divergence_triage.py.",
+  "runs": [
+    {
+      "scope": "account",
+      "scope_label": "subscription Production",
+      "content": {
+        "requested": [
+          "network_rdp_internet_access_restricted",
+          "sqlserver_azuread_administrator_enabled",
+          "storage_account_key_access_disabled",
+          "storage_blob_public_access_level_is_disabled",
+          "storage_ensure_minimum_tls_version_12"
+        ],
+        "completed": [
+          "network_rdp_internet_access_restricted",
+          "sqlserver_azuread_administrator_enabled",
+          "storage_account_key_access_disabled",
+          "storage_blob_public_access_level_is_disabled",
+          "storage_ensure_minimum_tls_version_12"
+        ],
+        "results": [
+          {
+            "check_id": "network_rdp_internet_access_restricted",
+            "status": "FAIL",
+            "status_extended": "Security Group nsg-jumpbox has RDP internet access.",
+            "resource_uid": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-prod/providers/Microsoft.Network/networkSecurityGroups/nsg-jumpbox",
+            "resource_name": "nsg-jumpbox",
+            "region": "westeurope"
+          },
+          {
+            "check_id": "storage_blob_public_access_level_is_disabled",
+            "status": "PASS",
+            "status_extended": "Storage account stgpublic has allow blob public access disabled.",
+            "resource_uid": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-prod/providers/Microsoft.Storage/storageAccounts/stgpublic",
+            "resource_name": "stgpublic",
+            "region": "westeurope"
+          },
+          {
+            "check_id": "storage_ensure_minimum_tls_version_12",
+            "status": "FAIL",
+            "status_extended": "Storage account stgpublic does not have TLS version set to 1.2.",
+            "resource_uid": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-prod/providers/Microsoft.Storage/storageAccounts/stgpublic",
+            "resource_name": "stgpublic",
+            "region": "westeurope"
+          },
+          {
+            "check_id": "sqlserver_azuread_administrator_enabled",
+            "status": "MANUAL",
+            "status_extended": "Manual check: verify an Entra ID administrator is configured for sql-prod-01.",
+            "resource_uid": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-prod/providers/Microsoft.Sql/servers/sql-prod-01",
+            "resource_name": "sql-prod-01",
+            "region": "westeurope"
+          },
+          {
+            "check_id": "storage_account_key_access_disabled",
+            "status": "FAIL",
+            "status_extended": "Storage account stgpublic has shared key access enabled.",
+            "resource_uid": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-prod/providers/Microsoft.Storage/storageAccounts/stgpublic",
+            "resource_name": "stgpublic",
+            "region": "westeurope"
+          }
+        ]
+      }
+    }
+  ]
+}
