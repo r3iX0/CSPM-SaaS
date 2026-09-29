@@ -39,6 +39,14 @@ def test_a_fix_the_file_can_take_is_a_diff() -> None:
     ]
 
 
+def test_a_setting_better_than_asked_is_left_alone() -> None:
+    # AZ-STO-002 asks for TLS 1.2 and also accepts 1.3.
+    source = ACCOUNT.replace('"TLS1_0"', '"TLS1_3"')
+    out = propose("AZ-STO-002", source=source)
+    assert out.outcome == "patched"
+    assert [e.attribute for e in out.edits] == ["https_traffic_only_enabled"]
+
+
 def test_a_decline_is_data_with_its_reason() -> None:
     out = propose("AZ-STO-003", name="elsewhere")
     assert out.outcome == "declined"

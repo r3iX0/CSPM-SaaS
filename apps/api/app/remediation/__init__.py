@@ -12,6 +12,7 @@ from app.remediation.spec import (
     ExpectedState,
     RemediationSpec,
     azure_policy,
+    terraform_accepts,
     terraform_hints,
 )
 
@@ -20,5 +21,6 @@ __all__ = [
     "ExpectedState",
     "RemediationSpec",
     "azure_policy",
+    "terraform_accepts",
     "terraform_hints",
 ]

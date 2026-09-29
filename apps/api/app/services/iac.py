@@ -10,7 +10,7 @@ loop (§158).
 """
 
 from app.core.enums import Provider
-from app.remediation import terraform_hints
+from app.remediation import terraform_accepts, terraform_hints
 from app.remediation.iac import Change, Decline, Declined, edit_terraform
 from app.remediation.iac.terraform import CHECKED_RELEASES, MAX_BYTES
 from app.rules.base import SecurityRule
@@ -76,7 +76,13 @@ def propose_terraform_fix(
         text,
         resource_types=spec.terraform_resource_types,
         name=resource_name,
-        changes=[Change(hint["attribute"], hint["value"]) for hint in hints],
+        changes=[
+            # ``terraform_hints`` keeps the states that carry an attribute, in order.
+            Change(hint["attribute"], hint["value"], terraform_accepts(state))
+            for hint, state in zip(
+                hints, [s for s in spec.expected if s.terraform_attribute], strict=True
+            )
+        ],
         lockfile=lock,
         sole_block=sole_block,
     )

@@ -68,6 +68,9 @@ class Decline(StrEnum):
     NESTED_BLOCK_MISSING = "nested_block_missing"
     EMPTY_BLOCK = "empty_block"
     DYNAMIC_BLOCK = "dynamic_block"
+    # Adding an argument to ``x { a = 1 }`` means splitting the line, which is
+    # reformatting the customer's code rather than editing one value.
+    SINGLE_LINE_BLOCK = "single_line_block"
     PROVIDER_VERSION_OUT_OF_RANGE = "provider_version_out_of_range"
     ALREADY_SET = "already_set"
     # The engine's own safety net: the edited file did not read back as exactly
@@ -83,6 +86,13 @@ class Change:
 
     attribute: str
     value: str
+    # Other values that already meet the rule, as HCL. A file holding one of
+    # them is left alone: TLS 1.3 rewritten to the 1.2 a rule asks for is a
+    # regression dressed as a fix.
+    accepts: tuple[str, ...] = ()
+
+    def met_by(self, written: str) -> bool:
+        return written.strip() in (self.value, *self.accepts)
 
 
 @dataclass(frozen=True)
@@ -291,6 +301,7 @@ def _locate(
     wanted = name.casefold()
     matches: list[Node] = []
     interpolated: list[Node] = []
+    others = 0
     for block in _blocks(_child(root, "body")):
         labels = _labels(block, data)
         if _keyword(block, data) != "resource" or not labels or labels[0] not in resource_types:
@@ -303,16 +314,18 @@ def _locate(
             interpolated.append(block)
         elif literal.casefold() == wanted:
             matches.append(block)
+        else:
+            others += 1
 
     if len(matches) > 1:
         raise _Refused(
             Decline.MULTIPLE_MATCHES, f"{len(matches)} resources in this file are named {name!r}."
         )
     matched_by: Literal["name", "sole_block"] = "name"
-    if sole_block and not matches and len(interpolated) == 1:
-        # The only block of these types in a file chosen for this asset. A sole
-        # block with a *different* literal name is another resource, and is not
-        # taken: it never reaches here, as it is not interpolated.
+    if sole_block and not matches and not others and len(interpolated) == 1:
+        # The only block of these types in a file chosen for this asset -- the
+        # only one at all, as the reviewer is told. A sole block with a
+        # *different* literal name is another resource and is never taken.
         matches, interpolated, matched_by = interpolated, [], "sole_block"
     if interpolated:
         raise _Refused(
@@ -376,21 +389,28 @@ def _plan(block: Node, data: bytes, change: Change) -> _Splice | None:
                 "comes from.",
             )
         before = _text(expression, data)
-        if before.strip() == change.value:
+        if change.met_by(before):
             return None
         return (expression.start_byte, expression.end_byte, change.value, change.attribute, before)
 
     line = f"{leaf} = {change.value}"
+    # The file's own line ending, so a CRLF file does not come back mixed.
+    eol = "\r\n" if b"\r\n" in data else "\n"
     siblings = [c for c in body.children if c.type == "attribute"]
+    anchor = siblings[-1] if siblings else body.children[0]
+    closing = _child(body.parent, "block_end") if body.parent is not None else None
+    if closing is None or anchor.end_point.row >= closing.start_point.row:
+        raise _Refused(
+            Decline.SINGLE_LINE_BLOCK,
+            f"The block that would hold {change.attribute} is written on one line.",
+        )
+    indent = data[anchor.start_byte - anchor.start_point.column : anchor.start_byte].decode()
     if siblings:
-        anchor = siblings[-1]
-        indent = data[anchor.start_byte - anchor.start_point.column : anchor.start_byte].decode()
         # After the whole line, so a trailing comment stays with its argument.
+        # The block closes on a later line, so that line has an end.
         newline = data.index(b"\n", anchor.end_byte) + 1
-        return (newline, newline, f"{indent}{line}\n", change.attribute, None)
-    first = body.children[0]
-    indent = data[first.start_byte - first.start_point.column : first.start_byte].decode()
-    return (first.start_byte, first.start_byte, f"{line}\n{indent}", change.attribute, None)
+        return (newline, newline, f"{indent}{line}{eol}", change.attribute, None)
+    return (anchor.start_byte, anchor.start_byte, f"{line}{eol}{indent}", change.attribute, None)
 
 
 def _verify(
@@ -406,7 +426,7 @@ def _verify(
         for change in changes:
             *path, leaf = change.attribute.split(".")
             attribute = _attributes(_nested_body(block, edited, path), edited).get(leaf)
-            if attribute is None or _text(_value(attribute), edited).strip() != change.value:
+            if attribute is None or not change.met_by(_text(_value(attribute), edited)):
                 raise _Refused(Decline.UNVERIFIED, change.attribute)
     except _Refused as refused:
         raise _Refused(
@@ -467,6 +487,14 @@ def _constraint_in_range(constraint: str) -> bool:
         release = (int(major), int(minor or 0), int(patch or 0))
         if operator in (None, "="):
             if not VERIFIED_FROM <= release < VERIFIED_BELOW:
+                return False
+        elif operator in (">=", ">"):
+            # Everything allowed is at or above this; from 5 on, none was checked.
+            if release >= VERIFIED_BELOW:
+                return False
+        elif operator in ("<", "<="):
+            below = release < VERIFIED_FROM if operator == "<=" else release <= VERIFIED_FROM
+            if below:
                 return False
         elif operator == "~>":
             # ~> 3.0 allows any 3.x; ~> 3.100.0 allows 3.100.x only.

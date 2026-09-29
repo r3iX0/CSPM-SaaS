@@ -83,7 +83,10 @@ export function IacDiffCheck({
           id={`iac-lock-${findingId}`}
           type="file"
           accept=".hcl"
-          onChange={(event) => setLockfile(event.currentTarget.files?.[0] ?? null)}
+          onChange={(event) => {
+            setLockfile(event.currentTarget.files?.[0] ?? null);
+            check.reset();
+          }}
         />
         <FieldDescription>
           Your .terraform.lock.hcl, so the answer can say which azurerm release you run.

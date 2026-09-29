@@ -106,6 +106,55 @@ resource "azurerm_linux_web_app" "api" {
     )
 
 
+def test_a_value_the_rule_also_accepts_is_not_downgraded() -> None:
+    # TLS 1.3 satisfies a rule asking for 1.2; rewriting it to 1.2 is a regression.
+    source = ACCOUNT.replace('"TLS1_0"', '"TLS1_3"')
+    change = Change("min_tls_version", '"TLS1_2"', accepts=('"TLS1_3"',))
+    assert declined(edit(source, change)) is Decline.ALREADY_SET
+
+
+def test_an_accepted_value_does_not_stop_a_failing_one_being_fixed() -> None:
+    change = Change("min_tls_version", '"TLS1_2"', accepts=('"TLS1_3"',))
+    result = edit(ACCOUNT, change)
+    assert isinstance(result, Patched)
+    assert result.edits[0].after == '"TLS1_2"'
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        'resource "azurerm_storage_account" "x" { name = "prodlogs" }',
+        'resource "azurerm_storage_account" "x" { name = "prodlogs" }\n',
+    ],
+    ids=["no-final-newline", "final-newline"],
+)
+def test_a_one_line_block_declines_rather_than_breaking(source: str) -> None:
+    # Adding an argument means splitting the line; that is reformatting, not an edit.
+    assert declined(edit(source)) is Decline.SINGLE_LINE_BLOCK
+
+
+def test_a_one_line_nested_block_declines() -> None:
+    source = ACCOUNT.replace(
+        'network_rules {\n    default_action = "Allow"\n  }', "network_rules { bypass = [] }"
+    )
+    change = Change("network_rules.default_action", '"Deny"')
+    assert declined(edit(source, change)) is Decline.SINGLE_LINE_BLOCK
+
+
+def test_two_arguments_on_one_line_decline_cleanly() -> None:
+    # Not valid HCL -- one argument per line -- so it must decline, not crash.
+    source = 'resource "azurerm_storage_account" "x" { name = "prodlogs", min_tls_version = "a" }'
+    assert declined(edit(source)) is Decline.PARSE_ERROR
+
+
+def test_an_added_line_keeps_the_files_line_endings() -> None:
+    source = ACCOUNT.replace("\n", "\r\n")
+    result = edit(source, Change("cross_tenant_replication_enabled", "false"))
+    assert isinstance(result, Patched)
+    assert "cross_tenant_replication_enabled = false\r\n" in result.source
+    assert "\n" not in result.source.replace("\r\n", "")
+
+
 def test_several_changes_land_in_one_block() -> None:
     result = edit(ACCOUNT, TLS, Change("https_traffic_only_enabled", "true"))
     assert isinstance(result, Patched)
@@ -192,6 +241,14 @@ def test_without_the_upload_the_only_block_is_still_a_guess() -> None:
 def test_two_interpolated_blocks_are_not_a_sole_block() -> None:
     other = INTERPOLATED.replace('"logs"', '"other"')
     assert declined(edit(INTERPOLATED + other, sole_block=True)) is Decline.INTERPOLATED_NAME
+
+
+def test_an_interpolated_block_beside_another_of_its_kind_is_not_the_only_one() -> None:
+    # "The only block of its kind" is what the reviewer is told; a second block
+    # of the type, whatever its name, makes that untrue.
+    other = ACCOUNT.replace('"logs"', '"other"').replace('"prodlogs"', '"zzz"')
+    result = edit(INTERPOLATED + other, sole_block=True)
+    assert declined(result) is Decline.INTERPOLATED_NAME
 
 
 def test_the_only_block_named_something_else_is_another_resource() -> None:
@@ -287,7 +344,9 @@ def test_a_release_the_attributes_were_checked_for_is_accepted(constraint: str) 
     assert isinstance(result, Patched)
 
 
-@pytest.mark.parametrize("constraint", ["~> 2.0", "= 2.99.0", "~> 5.0"])
+@pytest.mark.parametrize(
+    "constraint", ["~> 2.0", "= 2.99.0", "~> 5.0", ">= 5.0", "< 3.100", "<= 3.116.9"]
+)
 def test_a_pinned_release_outside_the_range_declines(constraint: str) -> None:
     result = edit(providers(constraint) + ACCOUNT)
     assert declined(result) is Decline.PROVIDER_VERSION_OUT_OF_RANGE

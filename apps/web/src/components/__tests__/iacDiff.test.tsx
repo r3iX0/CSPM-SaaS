@@ -105,6 +105,18 @@ describe("writing the fix into a Terraform file", () => {
     expect(screen.queryByText(/block of its kind/)).toBeNull();
   });
 
+  it("drops an answer once a different lock file is chosen", async () => {
+    mount(PATCHED);
+    const user = await upload();
+    await screen.findByText(/min_tls_version = "TLS1_2"/);
+
+    const lock = new File(['provider "registry.terraform.io/hashicorp/azurerm" {}'], ".terraform.lock.hcl");
+    await user.upload(screen.getByLabelText(/Lock file/), lock);
+
+    // The diff was checked against another lock file; showing it would misstate the release.
+    expect(screen.queryByText(/min_tls_version = "TLS1_2"/)).toBeNull();
+  });
+
   it("says why a fix was not written, and speaks it", async () => {
     mount(DECLINED);
     await upload();

@@ -266,6 +266,18 @@ def terraform_hints(spec: RemediationSpec) -> list[dict[str, str]]:
     ]
 
 
+def terraform_accepts(state: ExpectedState) -> tuple[str, ...]:
+    """The other values that meet ``state``, written as HCL.
+
+    Only where Terraform spells the value as ARM does: ``also_accepts`` is in
+    ARM's vocabulary, and where ``terraform_value`` translates the one value
+    there is no declared translation for the others -- so none is guessed.
+    """
+    if state.terraform_value is not UNSET:
+        return ()
+    return tuple(_hcl_value(value) for value in state.also_accepts)
+
+
 def _policy_value(value: Any) -> Any:
     """Policy conditions compare against strings, including for booleans."""
     if isinstance(value, bool):
