@@ -284,6 +284,7 @@ export function FindingDetailPage() {
             remediation={data.remediation}
             spec={data.remediation_spec}
             effortMinutes={data.estimated_effort_minutes}
+            findingId={data.id}
             fill={
               data.resource
                 ? {

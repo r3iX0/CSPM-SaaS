@@ -35,6 +35,11 @@ dependencies = [
   # can still render, and test, the HTML the PDF is printed from.
   "weasyprint==63.1",
   "python-multipart==0.0.31",
+  # Fix-as-Code parses a customer's Terraform for exact byte ranges, so an edit
+  # replaces one value and leaves formatting and comments alone. Binary wheels
+  # for macOS and manylinux; nothing to compile in the image (DECISIONS.md §166).
+  "tree-sitter==0.26.0",
+  "tree-sitter-hcl==1.2.0",
 ]
 
 [project.optional-dependencies]

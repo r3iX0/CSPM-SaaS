@@ -9260,11 +9260,15 @@ them in and applies something nobody asked for. Writing into a real file raises
 the cost of being wrong -- the customer runs `plan` on what CloudGuard wrote --
 so the same refusal becomes the rule for the edit engine.
 
-**One attribute, in a block that exists, whose value is a literal.** The engine
+**One argument, in a block that exists, whose value is a literal.** The engine
 replaces the byte range of one value and nothing else, so formatting and
-comments survive; it re-parses afterwards and refuses if anything but that
-value changed. It never creates a resource, a nested block or an argument that
-is not there -- a missing `network_rules` block is a decline, because
+comments survive; it re-parses afterwards and refuses unless the block reads
+back with exactly the values asked for. Where the argument is absent -- the
+usual shape of an insecure default, `https_only` left out and so `false` -- it
+adds the one line to the block, after its last argument and at its indent, and
+the diff shows it as added. That is an optional argument set, not a required
+one filled in; the rule is about structure. It never creates a resource or a
+nested block -- a missing `network_rules` block is a decline, because
 `default_action = "Deny"` with no IP rules would cut off every client. It
 declines, with a reason a machine can read, when the resource's `name` is
 interpolated, when the value comes from a variable or a module input, when the

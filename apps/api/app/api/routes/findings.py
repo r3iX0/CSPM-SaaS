@@ -1,11 +1,13 @@
+from functools import partial
 from typing import Any, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Query, status
+import anyio
+from fastapi import APIRouter, Query, UploadFile, status
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.sql.elements import UnaryExpression
 
-from app.core.deps import DbSession, Tenant
+from app.core.deps import Costly, DbSession, Tenant
 from app.core.enums import FindingStatus, ScanStatus, Severity
 from app.core.errors import ConflictError, QueueUnavailable, ValidationFailed
 from app.core.vocabulary import words
@@ -13,6 +15,8 @@ from app.graph import Path
 from app.models.finding import Finding, FindingEvidence
 from app.models.resource import ResourceRecord
 from app.models.scan import Scan
+from app.remediation.iac.terraform import MAX_BYTES as IAC_MAX_BYTES
+from app.rules.registry import get_rule
 from app.schemas.common import (
     ERROR_RESPONSES,
     Envelope,
@@ -30,6 +34,7 @@ from app.schemas.finding import (
     FindingOut,
     FindingProvenanceMeta,
     FindingProvenanceOut,
+    IacDiffOut,
     RescanQueuedOut,
     ResourceSummary,
     RiskOut,
@@ -38,6 +43,7 @@ from app.schemas.finding import (
 from app.services import cloud_accounts as accounts_service
 from app.services import findings as service
 from app.services import graph as graph_service
+from app.services import iac as iac_service
 from app.services import scans as scans_service
 from app.services.graph import serialize_path
 from app.workers.scan_tasks import run_scan
@@ -410,3 +416,47 @@ async def rescan_finding(
         ),
         meta=NoMeta(),
     )
+
+
+@router.post("/{finding_id}/iac-diff", responses=error_responses(404), dependencies=[Costly])
+async def finding_iac_diff(
+    finding_id: UUID,
+    session: DbSession,
+    tenant: Tenant,
+    file: UploadFile,
+    lockfile: UploadFile | None = None,
+) -> Envelope[IacDiffOut, NoMeta]:
+    """This finding's fix, written into a Terraform file the customer uploads.
+
+    Returns a unified diff that changes one argument in the block defining the
+    asset, or a decline with its reason -- an answer, not an error, when the
+    edit would need a guess (DECISIONS.md §166). ``lockfile`` is the optional
+    ``.terraform.lock.hcl``, which lets the answer say which azurerm release it
+    holds. Nothing uploaded is stored, and the finding is not changed, so a
+    viewer and the demo organization may ask.
+    """
+    # One byte past the cap, so an oversized file is declined on its size.
+    source = await file.read(IAC_MAX_BYTES + 1)
+    lock = await lockfile.read(IAC_MAX_BYTES + 1) if lockfile is not None else None
+
+    finding = await service.get_finding(session, tenant, finding_id)
+    resource = (
+        await session.get(ResourceRecord, finding.resource_id) if finding.resource_id else None
+    )
+    rule = get_rule(finding.rule_id)
+    resource_name = resource.name if resource is not None else None
+    # Everything the edit needs is in hand, so the connection goes back to the
+    # pool before the parse rather than idling through it (§158).
+    await session.close()
+
+    result = await anyio.to_thread.run_sync(
+        partial(
+            iac_service.propose_terraform_fix,
+            rule,
+            resource_name,
+            filename=iac_service.upload_filename(file.filename),
+            source=source,
+            lockfile=lock,
+        )
+    )
+    return Envelope(data=result, meta=NoMeta())

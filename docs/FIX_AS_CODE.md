@@ -20,6 +20,31 @@ Status: **Phase 0 done (2026-09-29), Phase 1 next.** The decision is DECISIONS
   relevant for Phase 3 only.
 - `python-multipart` is already a dependency, so the Phase 1 upload is multipart.
 
+**Phase 1 built (2026-09-29), Terraform only:** `app/remediation/iac/terraform.py`
+(`edit_terraform`), `app/services/iac.py`, `POST /findings/{id}/iac-diff`
+(multipart `file` + optional `lockfile`), and `IacDiffCheck` in the finding's
+Terraform tab. §166 was amended: an optional argument missing from an existing
+block is added, since an omitted argument is the usual shape of an insecure
+default.
+
+**Hit rate, measured with `tools/iac/hit_rate.py`:**
+
+| Corpus | Blocks tried | Patched | Declined `interpolated_name` |
+|---|---|---|---|
+| hashicorp/terraform-provider-azurerm `examples/` | 299 | 3 (1%) | 295 (99%) |
+| Azure/terraform quickstarts | 169 | 0 | 169 (100%) |
+| Azure Verified Module, storage account | 0 | -- | -- (no plain azurerm resources) |
+
+Public samples are parameterised on purpose (`"${var.prefix}-sa"`,
+`random_string`), so this likely understates customer repositories, but it
+confirms the top risk: matching on a literal `name` alone almost never fires.
+Where a file holds a type at all, it holds **one** block of that type 94% of the
+time (118 of 125 files). That is the lever for the upload flow: the customer
+chose the file for this finding. It is not a lever for Phase 2, where CloudGuard
+chooses the file. **Do not start Phase 2** until the matching question is
+settled: sole block in an uploaded file, a Terraform state address, or
+evaluating simple interpolations against variable defaults and `.tfvars`.
+
 ## What it is
 
 For a failing finding, CloudGuard produces a real edit to the customer's own
