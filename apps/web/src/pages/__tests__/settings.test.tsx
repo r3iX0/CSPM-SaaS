@@ -272,12 +272,13 @@ describe("SettingsPage", () => {
     mount();
 
     const button = await screen.findByRole("button", { name: "Delete organization" });
-    expect(button).toBeDisabled();
+    // Unavailable but focusable, so it is marked rather than disabled (§165).
+    expect(button).toHaveAttribute("aria-disabled", "true");
 
     fireEvent.change(screen.getByLabelText("Type the organization name to confirm"), {
       target: { value: "Contoso" },
     });
-    expect(button).toBeEnabled();
+    expect(button).not.toHaveAttribute("aria-disabled", "true");
   });
 
   it("does not offer deletion to anyone but an owner", async () => {

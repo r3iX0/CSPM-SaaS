@@ -194,9 +194,13 @@ export function OnboardingPage() {
           </div>
           <button
             type="button"
-            onClick={() => joinDemo.mutate()}
-            disabled={joinDemo.isPending}
-            className="group mt-4 flex w-full items-center gap-3 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring disabled:opacity-60"
+            // Unavailable rather than disabled while it opens, so the button
+            // keeps focus (DECISIONS.md section 165).
+            onClick={() => {
+              if (!joinDemo.isPending) joinDemo.mutate();
+            }}
+            aria-disabled={joinDemo.isPending || undefined}
+            className="group mt-4 flex w-full items-center gap-3 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring aria-disabled:opacity-60"
           >
             <span className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-primary-soft text-primary">
               <DEMO_ICON className="size-4" aria-hidden />

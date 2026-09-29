@@ -64,6 +64,9 @@ export function SignInPage() {
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    // The button says it is unavailable rather than being disabled, so it
+    // keeps focus while the request runs; this is what refuses the press.
+    if (busy) return;
 
     if (needsPassword && password.length < MIN_PASSWORD_LENGTH) {
       setError(t.auth.passwordTooShort);
@@ -195,7 +198,7 @@ export function SignInPage() {
                         <button
                           type="button"
                           onClick={() => switchTo("reset")}
-                          className="text-[11.5px] text-muted-foreground underline underline-offset-[3px] transition hover:text-foreground"
+                          className="rounded-sm text-[11.5px] text-muted-foreground underline underline-offset-[3px] transition hover:text-foreground focus-ring"
                         >
                           {t.auth.forgotPassword}
                         </button>
@@ -215,11 +218,14 @@ export function SignInPage() {
 
                 <button
                   type="submit"
-                  disabled={busy}
-                  className="mt-[22px] flex h-[42px] w-full items-center justify-center gap-2 rounded-[9px] bg-primary px-4 text-[13.5px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
+                  aria-disabled={busy || undefined}
+                  className="mt-[22px] flex h-[42px] w-full items-center justify-center gap-2 rounded-[9px] bg-primary px-4 text-[13.5px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring aria-disabled:cursor-not-allowed aria-disabled:bg-muted aria-disabled:text-muted-foreground"
                 >
                   {busy && (
-                    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current/30 border-t-current" />
+                    <span
+                      aria-hidden
+                      className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current/30 border-t-current"
+                    />
                   )}
                   {submitLabel(mode, busy, t)}
                 </button>
@@ -378,7 +384,7 @@ function PasswordField({
           type="button"
           onClick={() => setVisible((v) => !v)}
           aria-label={visible ? t.auth.hidePassword : t.auth.showPassword}
-          className="absolute inset-y-0 right-0 mt-2 flex items-center px-3 text-muted-foreground transition hover:text-foreground"
+          className="absolute inset-y-0 right-0 mt-2 flex items-center rounded-r-[9px] px-3 text-muted-foreground transition hover:text-foreground focus-ring-inset"
         >
           <EyeIcon crossed={visible} />
         </button>
@@ -438,7 +444,7 @@ function TextLink({ onClick, children }: { onClick: () => void; children: React.
     <button
       type="button"
       onClick={onClick}
-      className="text-muted-foreground underline underline-offset-[3px] transition-colors hover:text-foreground"
+      className="rounded-sm text-muted-foreground underline underline-offset-[3px] transition-colors hover:text-foreground focus-ring"
     >
       {children}
     </button>
@@ -587,7 +593,7 @@ function SentNotice({ sent, onUseAnother }: { sent: Sent; onUseAnother: () => vo
 
       <button
         onClick={onUseAnother}
-        className="mt-6 text-[13px] text-muted-foreground underline underline-offset-[3px] transition-colors hover:text-foreground"
+        className="mt-6 rounded-sm text-[13px] text-muted-foreground underline underline-offset-[3px] transition-colors hover:text-foreground focus-ring"
       >
         {t.auth.useAnotherAddress}
       </button>

@@ -142,7 +142,7 @@ export function AccountMenu({
         aria-controls={open ? panelId : undefined}
         aria-label={t.account.menu}
         className={cn(
-          "flex items-center gap-2 rounded-lg border px-1 py-0.5 text-sm transition sm:pr-2",
+          "flex items-center gap-2 rounded-lg border px-1 py-0.5 text-sm transition sm:pr-2 focus-ring",
           open
             ? "border-input bg-muted/40"
             : "border-transparent hover:border-border hover:bg-muted/40",
@@ -207,7 +207,7 @@ export function AccountMenu({
                   <button
                     onClick={() => switchTo(organization)}
                     aria-current={organization.id === current?.id ? "true" : undefined}
-                    className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition hover:bg-muted/40"
+                    className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition hover:bg-muted/40 focus-ring-inset"
                   >
                     <Avatar name={organization.name} />
                     <span className="min-w-0 flex-1">
@@ -238,7 +238,7 @@ export function AccountMenu({
             {current?.role === "OWNER" && (
               <button
                 onClick={() => setConfirming(current)}
-                className="group mt-1 w-full px-3 py-2 text-left text-sm text-critical transition hover:bg-critical-bg"
+                className="group mt-1 w-full px-3 py-2 text-left text-sm text-critical transition hover:bg-critical-bg focus-ring-inset"
               >
                 {t.account.removeOrg}
                 {/* Muted text on the critical tint is 4.36:1, under AA; on
@@ -252,7 +252,7 @@ export function AccountMenu({
           <div className="border-t border-border p-1">
             <button
               onClick={signOut}
-              className="w-full rounded-lg px-3 py-2 text-left text-sm text-foreground transition hover:bg-muted/40 hover:text-foreground"
+              className="w-full rounded-lg px-3 py-2 text-left text-sm text-foreground transition hover:bg-muted/40 hover:text-foreground focus-ring-inset"
             >
               {t.nav.signOut}
             </button>

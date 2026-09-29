@@ -33,6 +33,7 @@ import type {
 } from "@/lib/types";
 import { useT } from "@/i18n";
 import { StatStrip } from "@/components/common/StatStrip";
+import { LiveStatus } from "@/components/common/LiveStatus";
 import { SelectField } from "@/components/common/SelectField";
 import { ResourceTypeLabel } from "@/components/security/IconLabel";
 import { GraphLegend, MARKS } from "@/components/graph/GraphLegend";
@@ -833,6 +834,10 @@ function RouteList({
       })
     : null;
 
+  const emptyLine = query.trim()
+    ? t.attackPaths.noneNamed(query.trim())
+    : `No route drawn here runs through ${placeLabel ?? "it"}.`;
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {place && (
@@ -889,14 +894,16 @@ function RouteList({
           className="w-36"
         />
       </div>
+      <LiveStatus
+        quietFirst
+        message={
+          listing.count > 0
+            ? `${listing.count} ${listing.count === 1 ? "route" : "routes"} listed`
+            : emptyLine
+        }
+      />
       <div className="flex flex-col gap-4 overflow-y-auto p-3">
-        {listing.count === 0 && (
-          <p className="text-xs text-muted-foreground">
-            {query.trim()
-              ? t.attackPaths.noneNamed(query.trim())
-              : `No route drawn here runs through ${placeLabel ?? "it"}.`}
-          </p>
-        )}
+        {listing.count === 0 && <p className="text-xs text-muted-foreground">{emptyLine}</p>}
         {listing.patterns.length > 0 && (
           <div className="flex flex-col gap-2">
             {/* The help is a question mark away: it was three lines above

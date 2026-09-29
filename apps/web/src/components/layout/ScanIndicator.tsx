@@ -51,7 +51,7 @@ export function ScanIndicator() {
           <button
             type="button"
             onClick={() => wizard.watch(active.id)}
-            className="flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            className="flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground focus-ring"
           />
         }
       >

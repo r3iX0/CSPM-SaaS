@@ -36,7 +36,7 @@ type Step = {
 
 /** The quiet form of a later step's action: reachable, not competing. */
 const QUIET_ACTION =
-  "inline-flex items-center gap-1 text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline";
+  "inline-flex items-center gap-1 rounded-sm text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-ring";
 
 function actionClass(primary: boolean): string {
   return primary ? buttonVariants({ size: "sm" }) : QUIET_ACTION;

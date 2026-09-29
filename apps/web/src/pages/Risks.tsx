@@ -27,6 +27,7 @@ import { listContainer, listItem } from "@/lib/motion";
 import { FACTOR_ICONS, RISK_KIND_ICONS } from "@/lib/icons";
 import { IconLabel } from "@/components/security/IconLabel";
 import type { LucideIcon } from "lucide-react";
+import { LiveStatus } from "@/components/common/LiveStatus";
 import { Pager } from "@/components/common/Pager";
 import { useUrlFilters } from "@/lib/useUrlFilters";
 import { singleKeyShortcut, useRowNavigation } from "@/lib/keyboard";
@@ -148,6 +149,10 @@ export function RisksPage() {
     level !== "all" ||
     status !== "all" ||
     kind !== "all";
+  const emptyTitle = filtering ? "No risks match these filters" : t.risks.empty;
+  const countLine =
+    `${page * PAGE_SIZE + 1}–${page * PAGE_SIZE + risks.length} of ${total} ` +
+    `risk${total === 1 ? "" : "s"}${filtering ? " matching these filters" : ""}`;
 
   /** A filter change re-slices the set, so the page resets with it. */
   function refilter(patch: Partial<Record<keyof typeof filters, string | null>>) {
@@ -275,6 +280,11 @@ export function RisksPage() {
         </div>
       </div>
 
+      <LiveStatus
+        quietFirst
+        message={!data ? null : risks.length > 0 ? countLine : emptyTitle}
+      />
+
       {isLoading && <CardsSkeleton />}
 
       {error && (
@@ -289,7 +299,7 @@ export function RisksPage() {
       {data && risks.length === 0 && (
         <EmptyState
           icon={RadarIcon}
-          title={filtering ? "No risks match these filters" : t.risks.empty}
+          title={emptyTitle}
           detail={
             filtering
               ? "Widen the filters, or clear the search, to see the rest of the ranking."
@@ -366,10 +376,7 @@ export function RisksPage() {
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground">
-              {page * PAGE_SIZE + 1}–{page * PAGE_SIZE + risks.length} of{" "}
-              {total} risk
-              {total === 1 ? "" : "s"}
-              {filtering ? " matching these filters" : ""}
+              {countLine}
             </p>
             <Pager
               page={page}

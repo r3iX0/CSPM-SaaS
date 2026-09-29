@@ -198,7 +198,7 @@ describe("RisksPage", () => {
       await screen.findByText(/40 open findings, each recorded as an accepted risk/),
     ).toBeInTheDocument();
     const confirm = screen.getByRole("button", { name: "Accept" });
-    expect(confirm).toBeDisabled();
+    expect(confirm).toHaveAttribute("aria-disabled", "true");
 
     await userEvent.type(
       screen.getByLabelText("Why is this acceptable?"),

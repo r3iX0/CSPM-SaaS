@@ -9177,6 +9177,79 @@ out. PagerDuty, per-severity routing and an automatic pause after repeated
 failures were left out: each is a decision about paging people, and should wait
 until somebody is using the three formats above.
 
+## 165. A pressed button keeps focus, a filtered list says its count, and every raw control draws a solid focus line
+
+A second accessibility pass, against the checklist §155 did not walk: what a
+screen reader hears after something changes, and where focus is left when a
+control changes under it. Three gaps, each across the app rather than in one
+place.
+
+**A button that disables itself kept focus nowhere (2.4.3, 2.1.1).** Forty-one
+buttons disable themselves while their mutation runs -- invite, revoke, save,
+accept, rescan, send test -- and more disable themselves as a result of what
+they did: a form whose success clears its fields leaves its submit button with
+nothing to send, and a pager's Next is disabled on the last page it just
+reached. A natively `disabled` button that holds focus loses it to `<body>`, so
+the next Tab started again at the skip link and the navigation, and a screen
+reader said nothing at all about the press. The vendored `Button` now passes
+Base UI's `focusableWhenDisabled` by default: an unavailable button is marked
+`aria-disabled` rather than `disabled`, stays in the tab order, and Base UI
+refuses the press itself -- the click, Enter and Space, and a form's implicit
+submission, whose synthetic click it cancels. The styles follow it with
+`aria-disabled:` beside `disabled:`. A caller that wants the native behaviour
+passes `focusableWhenDisabled={false}`; none does. The cost is that a button
+unavailable because a precondition is unmet (a delete waiting for the
+organization's name) is now a tab stop that says "dimmed" -- which is also how
+a reader finds out the control exists and why it will not act. The three raw
+`<button>`s outside the primitive that disabled themselves -- the sign-in and
+set-password submits and the onboarding demo card -- carry `aria-disabled` and
+refuse the press in their own handlers. Tests assert `aria-disabled`, not
+`toBeDisabled()`, which reads only the native attribute.
+
+**Filtering a list said nothing (4.1.3).** On Findings, Risks, Assets, Rules and
+the attack-path route list, a filter or a search redraws the table and the
+count beneath it while focus stays in the search box or on the segmented
+filter. A sighted reader sees "1–4 of 4 findings matching these filters" or an
+empty state; a screen reader heard neither, so could not tell that the filter
+applied or that it left nothing. `LiveStatus` (`components/common`) is a polite
+`role="status"` region mounted with the page -- a region that arrives already
+holding its text is not reliably read -- which takes the same count line the
+page draws, or the empty state's title, once it has held for 400 ms. The delay
+is so that a search filtering on every key says the count the reader stopped
+on, not one per letter. With `quietFirst`, the first count is the starting point
+rather than news: on arrival the page's heading has focus and is being read,
+and the count would talk over it. While the list is loading or failed the
+message is `null`, and the region keeps what it last said. Each page builds its
+count line once and draws the same string it speaks, so the two cannot drift.
+The invitation form and the webhook form use the same region, without
+`quietFirst`, for the panel their success draws below them -- "the link is
+ready", "the secret is ready" -- which focus, still on the submit button, would
+otherwise never reach.
+
+**Nineteen raw controls had only the browser's ring at half strength (2.4.7,
+1.4.11).** §155 gave `focus-ring` to controls that drew a halo with
+`outline-none`. Controls that drew no focus style at all were left with the
+user agent's outline, and the base layer's `outline-ring/50` recolours that to
+the same half-strength ring §155 measured at 1.9:1. They are the account menu's
+trigger and rows, the error boundary's reload, the scan indicator, the route
+list's rows and group members, the filter chips' clear buttons on Findings and
+Assets, the coverage panel's expander, the dashboard's quiet actions, the
+set-password submit, and the sign-in page's text links and show-password
+toggle. Each takes `focus-ring`, or `focus-ring-inset` where the row fills a
+container that would clip an outline drawn outside it.
+
+**Smaller.** The set-password form's "passwords don't match" is about the
+confirmation field, so that field is `aria-invalid` and described by the
+message while it shows. The sign-in button's spinner is `aria-hidden`; the
+label beside it already says "Signing in…".
+
+**Not changed.** Field-level `aria-invalid` elsewhere: the other forms'
+errors come back from the API about the request as a whole, and a field
+marked invalid by a guess is worse than a form-level alert that is right. A
+page change in the pager leaves focus on the pager rather than moving it to the
+table; the count line is spoken instead, which says what moved without taking
+the reader away from the control they are paging with.
+
 ## Open items carried forward
 
 **Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read

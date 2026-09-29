@@ -40,6 +40,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { LiveStatus } from "@/components/common/LiveStatus";
 import { Pager } from "@/components/common/Pager";
 import { StatStrip } from "@/components/common/StatStrip";
 import { cn, formatDate, formatRelative, resourceTypeLabel } from "@/lib/format";
@@ -188,6 +189,11 @@ export function FindingsPage() {
     !!ruleId ||
     !!evidenceId;
 
+  const emptyTitle = filtered ? "No findings match these filters" : t.findings.empty;
+  const countLine =
+    `${page * PAGE_SIZE + 1}–${page * PAGE_SIZE + rows.length} of ${total} ` +
+    `finding${total === 1 ? "" : "s"}${filtered ? " matching these filters" : ""}`;
+
 
 
   return (
@@ -272,7 +278,7 @@ export function FindingsPage() {
               <button
                 onClick={() => clearParamFilters("rule_id")}
                 aria-label="Clear rule filter"
-                className="rounded-full text-muted-foreground transition-colors hover:text-foreground"
+                className="rounded-full text-muted-foreground transition-colors hover:text-foreground focus-ring"
               >
                 <XIcon className="size-3" />
               </button>
@@ -287,7 +293,7 @@ export function FindingsPage() {
               <button
                 onClick={() => clearParamFilters("evidence_id")}
                 aria-label="Clear evidence filter"
-                className="rounded-full text-muted-foreground transition-colors hover:text-foreground"
+                className="rounded-full text-muted-foreground transition-colors hover:text-foreground focus-ring"
               >
                 <XIcon className="size-3" />
               </button>
@@ -295,6 +301,11 @@ export function FindingsPage() {
           )}
         </div>
       )}
+
+      <LiveStatus
+        quietFirst
+        message={!data ? null : rows.length > 0 ? countLine : emptyTitle}
+      />
 
       {isLoading && <TableSkeleton columns={6} />}
 
@@ -310,9 +321,7 @@ export function FindingsPage() {
       {data && rows.length === 0 && (
         <EmptyState
           icon={ShieldCheckIcon}
-          title={
-            filtered ? "No findings match these filters" : t.findings.empty
-          }
+          title={emptyTitle}
           detail={
             filtered
               ? "Widen the filters, or clear the search, to see the rest of this environment."
@@ -478,12 +487,7 @@ export function FindingsPage() {
               </Table>
             </CardContent>
             <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-2.5">
-              <p className="text-xs text-muted-foreground tabular-nums">
-                {page * PAGE_SIZE + 1}–{page * PAGE_SIZE + rows.length} of {total}{" "}
-                finding
-                {total === 1 ? "" : "s"}
-                {filtered ? " matching these filters" : ""}
-              </p>
+              <p className="text-xs text-muted-foreground tabular-nums">{countLine}</p>
               <Pager
                 page={page}
                 pages={pages}

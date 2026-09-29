@@ -15,6 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { LiveStatus } from "@/components/common/LiveStatus";
 import { SelectField } from "@/components/common/SelectField";
 import { RemediationPanel } from "@/components/security/RemediationPanel";
 import { EngineBadge, ProwlerPanel } from "@/components/security/EnginePanel";
@@ -97,6 +98,8 @@ export function RulesPage() {
 
   const live = (data ?? []).length - withdrawnCount - dormantCount;
   const filtering = search.trim().length > 0 || severity !== "all" || engine !== "all";
+  const emptyTitle = filtering ? "No rules match" : t.rules.empty;
+  const countLine = `${rules.length} of ${live} rule${live === 1 ? "" : "s"} Cleave runs`;
 
   return (
     <div className="flex flex-col gap-4">
@@ -177,10 +180,12 @@ export function RulesPage() {
         />
       )}
 
+      <LiveStatus quietFirst message={!data ? null : rules.length > 0 ? countLine : emptyTitle} />
+
       {data && rules.length === 0 && (
         <EmptyState
           icon={ListChecksIcon}
-          title={filtering ? "No rules match" : t.rules.empty}
+          title={emptyTitle}
           detail={
             filtering
               ? "Widen the filters to see the rest of the catalogue."
@@ -211,7 +216,7 @@ export function RulesPage() {
             ))}
           </div>
           <p className="text-xs text-muted-foreground">
-            {rules.length} of {live} rule{live === 1 ? "" : "s"} Cleave runs
+            {countLine}
             {withdrawnCount > 0 && `, and ${withdrawnCount} ${t.rules.withdrawnCount}`}
           </p>
           {dormantCount > 0 && (

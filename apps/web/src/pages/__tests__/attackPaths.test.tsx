@@ -692,7 +692,10 @@ describe("AttackPathsPage", () => {
 
     const panel = await screen.findByRole("complementary", { name: "The routes" });
     expect(await within(panel).findByText("Route 1 of 2")).toBeInTheDocument();
-    expect(within(panel).getByRole("button", { name: "Previous route" })).toBeDisabled();
+    expect(within(panel).getByRole("button", { name: "Previous route" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
 
     await userEvent.click(within(panel).getByRole("button", { name: "Next route" }));
     expect(screen.getByTestId("where")).toHaveTextContent("trace=web%7Cstorage");

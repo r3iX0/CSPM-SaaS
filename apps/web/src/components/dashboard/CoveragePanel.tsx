@@ -234,7 +234,7 @@ function GapCause({ keys, message }: { keys: string[]; message: string }) {
         <button
           type="button"
           onClick={() => setExpanded((value) => !value)}
-          className="ml-1.5 whitespace-nowrap underline underline-offset-2 transition-colors hover:text-foreground"
+          className="ml-1.5 rounded-sm whitespace-nowrap underline underline-offset-2 transition-colors hover:text-foreground focus-ring"
         >
           {expanded ? "Show less" : "Show the whole message"}
         </button>

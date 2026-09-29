@@ -72,7 +72,7 @@ export function PatternRow({
         onFocus={() => onPreview(pattern.exemplar)}
         onBlur={() => onPreview(null)}
         aria-expanded={open}
-        className="flex w-full items-start gap-2 px-2.5 py-2 text-left hover:bg-muted/60"
+        className="flex w-full items-start gap-2 px-2.5 py-2 text-left hover:bg-muted/60 focus-ring-inset"
       >
         <ChevronRightIcon
           className={cn(
@@ -119,7 +119,7 @@ export function PatternRow({
                   onMouseLeave={() => onPreview(null)}
                   onFocus={() => onPreview(member.route)}
                   onBlur={() => onPreview(null)}
-                  className="flex w-full items-center gap-2 py-1.5 pr-2.5 pl-8 text-left text-xs hover:bg-muted/60"
+                  className="flex w-full items-center gap-2 py-1.5 pr-2.5 pl-8 text-left text-xs hover:bg-muted/60 focus-ring-inset"
                 >
                   <span
                     style={closeTiming(marks, member.route)}
@@ -165,7 +165,7 @@ export function RouteRow({
       onMouseLeave={() => onPreview(null)}
       onFocus={() => onPreview(route.key)}
       onBlur={() => onPreview(null)}
-      className="rounded-lg border border-border px-3 py-2 text-left transition-colors hover:bg-muted/60"
+      className="rounded-lg border border-border px-3 py-2 text-left transition-colors hover:bg-muted/60 focus-ring"
     >
       <span className="flex items-baseline justify-between gap-3">
         {/* Always struck, in a transparent line, so closing is the line

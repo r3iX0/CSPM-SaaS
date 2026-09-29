@@ -29,6 +29,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { LiveStatus } from "@/components/common/LiveStatus";
 import { Pager } from "@/components/common/Pager";
 import { cn, formatDate, formatRelative, resourceTypeLabel } from "@/lib/format";
 import { scopeLabel } from "@/lib/scope";
@@ -237,6 +238,10 @@ export function AssetsPage() {
     subscriptionId !== "" ||
     resourceGroup !== "";
   const pages = Math.ceil(total / PAGE_SIZE);
+  const emptyTitle = filtering ? "No assets match these filters" : t.assets.empty;
+  const countLine = `${page * PAGE_SIZE + 1}–${page * PAGE_SIZE + assets.length} of ${total} asset${
+    total === 1 ? "" : "s"
+  }`;
 
   /** A filter change re-slices the whole set, so the page resets with it. */
   // The estate's own counts, whatever the list is narrowed to: each is one
@@ -457,6 +462,13 @@ export function AssetsPage() {
         </div>
       )}
 
+      <LiveStatus
+        quietFirst
+        message={
+          view !== "list" || !data ? null : assets.length > 0 ? countLine : emptyTitle
+        }
+      />
+
       {view === "list" && isLoading && <TableSkeleton columns={7} />}
 
       {view === "list" && error && (
@@ -471,7 +483,7 @@ export function AssetsPage() {
       {view === "list" && data && assets.length === 0 && (
         <EmptyState
           icon={BoxesIcon}
-          title={filtering ? "No assets match these filters" : t.assets.empty}
+          title={emptyTitle}
           detail={
             filtering
               ? "Widen the filters, or clear the search, to see the rest of the inventory."
@@ -626,8 +638,7 @@ export function AssetsPage() {
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground">
-              {page * PAGE_SIZE + 1}–{page * PAGE_SIZE + assets.length} of {total} asset
-              {total === 1 ? "" : "s"}
+              {countLine}
               {/* Said here rather than left to be inferred from the table. This
                   list used to show only the types the connector models and
                   silently omit the rest, so a subscription full of App Services
@@ -687,7 +698,7 @@ function FilterChip({
       <button
         onClick={onClear}
         aria-label={clearLabel}
-        className="rounded-full text-muted-foreground transition-colors hover:text-foreground"
+        className="rounded-full text-muted-foreground transition-colors hover:text-foreground focus-ring"
       >
         <XIcon className="size-3" />
       </button>

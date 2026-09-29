@@ -6,7 +6,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonStyles = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
@@ -57,14 +57,24 @@ function buttonVariants(props?: Parameters<typeof buttonStyles>[0]): string {
 // trigger rendering a Button (`render={<Button />}`) was handing a ref to a
 // plain function component -- React warned, and the trigger element the popup
 // anchors to was never captured.
+//
+// Focusable when disabled, which the registry leaves off. Nearly every
+// disabled button in this app is one that disabled itself when pressed -- a
+// mutation pending, a form cleared by its own success, a pager at its last
+// page -- and a natively disabled button drops the focus it holds to `<body>`,
+// so the next Tab started again at the navigation. Base UI marks it
+// `aria-disabled` instead and refuses the press itself, including a form's
+// implicit submission (DECISIONS.md section 165). A caller can still pass
+// `focusableWhenDisabled={false}`.
 const Button = React.forwardRef<
   HTMLButtonElement,
   ButtonPrimitive.Props & VariantProps<typeof buttonStyles>
->(({ className, variant = "default", size = "default", ...props }, ref) => {
+>(({ className, variant = "default", size = "default", focusableWhenDisabled = true, ...props }, ref) => {
   return (
     <ButtonPrimitive
       ref={ref}
       data-slot="button"
+      focusableWhenDisabled={focusableWhenDisabled}
       className={buttonVariants({ variant, size, className })}
       {...props}
     />

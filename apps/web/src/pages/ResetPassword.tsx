@@ -27,13 +27,16 @@ export function ResetPasswordPage() {
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    // Unavailable rather than disabled while busy, so the button keeps focus;
+    // this is what refuses the press.
+    if (busy) return;
 
     if (password.length < MIN_PASSWORD_LENGTH) {
       setError(t.auth.passwordTooShort);
       return;
     }
     if (password !== confirm) {
-      setError("The two passwords don't match.");
+      setError(MISMATCH);
       return;
     }
 
@@ -99,6 +102,10 @@ export function ResetPasswordPage() {
                   required
                   autoComplete="new-password"
                   minLength={MIN_PASSWORD_LENGTH}
+                  // The one error that is about a field rather than the
+                  // request: said on the field, and read with it.
+                  aria-invalid={error === MISMATCH || undefined}
+                  aria-describedby={error === MISMATCH ? "reset-error" : undefined}
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
                   className={FIELD_CLASS}
@@ -106,15 +113,15 @@ export function ResetPasswordPage() {
               </label>
 
               {error && (
-                <p role="alert" className="text-sm text-critical">
+                <p id="reset-error" role="alert" className="text-sm text-critical">
                   {error}
                 </p>
               )}
 
               <button
                 type="submit"
-                disabled={busy}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
+                aria-disabled={busy || undefined}
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring aria-disabled:cursor-not-allowed aria-disabled:bg-muted aria-disabled:text-muted-foreground"
               >
                 {busy ? t.common.loading : t.auth.setPassword}
               </button>
@@ -142,5 +149,7 @@ export function ResetPasswordPage() {
   );
 }
 
+const MISMATCH = "The two passwords don't match.";
+
 const FIELD_CLASS =
-  "w-full rounded-lg border border-input bg-background px-3.5 py-2.5 text-sm text-foreground shadow-sm transition placeholder:text-muted-foreground hover:border-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/20";
+  "w-full rounded-lg border border-input bg-background px-3.5 py-2.5 text-sm text-foreground shadow-sm transition placeholder:text-muted-foreground hover:border-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/20 aria-invalid:border-critical-border";

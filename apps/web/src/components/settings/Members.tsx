@@ -12,6 +12,7 @@ import type {
 import { useT } from "@/i18n";
 import { formatDate } from "@/lib/format";
 import { CopyButton } from "@/components/common/CopyButton";
+import { LiveStatus } from "@/components/common/LiveStatus";
 import { SelectField } from "@/components/common/SelectField";
 import { CardsSkeleton } from "@/components/common/states";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -279,6 +280,7 @@ function InviteForm() {
         </Button>
       </form>
 
+      <LiveStatus message={created ? t.team.linkReady(created.email) : null} />
       {created && (
         <div className="mt-4 flex flex-col gap-2.5 rounded-lg bg-muted/50 p-4">
           <p className="text-sm text-foreground">{t.team.linkReady(created.email)}</p>
