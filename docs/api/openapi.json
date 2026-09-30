@@ -17883,6 +17883,10 @@
           "mysql_server",
           "analytics_workspace",
           "search_service",
+          "disk",
+          "backup_vault",
+          "scale_set",
+          "user_pool",
           "unknown"
         ],
         "title": "ResourceType",
