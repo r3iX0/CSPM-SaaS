@@ -20,7 +20,7 @@ dependencies = [
   # (reports, graph work) are created at import, outside any running loop,
   # which only a 4.x release allows (DECISIONS.md sections 158, 161).
   "anyio==4.15.1",
-  "pyjwt==2.14.0",
+  "pyjwt==2.15.1",
   "msal==1.31.1",
   # AWS. The connector stores the provider's own response verbatim, exactly as
   # the Azure one does -- what this handles is the layer beneath that, which
@@ -37,7 +37,7 @@ dependencies = [
   "python-multipart==0.0.31",
   # Fix-as-Code parses a customer's Terraform for exact byte ranges, so an edit
   # replaces one value and leaves formatting and comments alone. Binary wheels
-  # for macOS and manylinux; nothing to compile in the image (DECISIONS.md §166).
+  # for macOS and manylinux; nothing to compile in the image (DECISIONS.md §184).
   "tree-sitter==0.26.0",
   "tree-sitter-hcl==1.2.0",
 ]

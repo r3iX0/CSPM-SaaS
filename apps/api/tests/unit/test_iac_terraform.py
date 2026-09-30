@@ -1,5 +1,5 @@
 """The Terraform edit engine: one value changed in the customer's own HCL, or a
-reason why not (DECISIONS.md §166).
+reason why not (DECISIONS.md §184).
 
 Every case here is one a real repository has. The engine's job is less to make
 the edit than to know when it must not: a guess written into somebody's

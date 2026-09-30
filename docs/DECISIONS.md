@@ -9250,7 +9250,1045 @@ page change in the pager leaves focus on the pager rather than moving it to the
 table; the count line is spoken instead, which says what moved without taking
 the reader away from the control they are paging with.
 
-## 166. A fix is written into the customer's own Terraform only by changing one value that is already there
+## 166. One line of copy, one type scale, and the rest a question mark away
+
+The interface had become a document. The English catalogue (`i18n/en.ts`) held
+about 5,970 words across 886 strings; 134 of them ran past 80 characters and
+51 past 150, and several components carried more prose inline. Most of it was
+true and some of it was important -- what Cleave can and cannot do in a
+customer's tenant, why UNKNOWN is not a pass -- but it was printed on every
+visit to a screen whose reader had already read it, and it pushed the numbers
+and actions below the fold. Beside it the type had drifted: eighteen
+hand-typed pixel sizes (`text-[11.5px]`, `text-[13.5px]`, `text-[12.5px]`...)
+used 240 times, and page titles drawn nine different ways. This is the first
+of a series of passes toward a quieter interface; this one lays the rules the
+later ones are held to, and changes little a reader will notice.
+
+**A type scale of nine steps.** `index.css` declares `--text-micro` (10px),
+`caption` (11), `meta` (12), `body` (13), `title` (15), `heading` (18), `page`
+(22), `stat` (28) and `display` (32), in rem so a reader's browser font size
+still scales the page. Every pixel size was mapped onto the nearest step --
+half pixels down, 14 and 14.5 up to `title`, 17 and 19 to `heading`, 26 to
+`stat`, 36 to `display` -- so a few figures moved by a pixel or two, and the
+two 36px scores on the finding and risk pages are now 32. No step carries a
+line height: Tailwind emits `font-size` alone, the element inherits its
+leading exactly as it did under `text-[13px]`, and a caller that wants its own
+says `leading-*`. `tailwind-merge` knew none of the names and reads an unknown
+`text-*` as a colour, so `cn("text-body", "text-muted-foreground")` would have
+dropped the size; `lib/utils.ts` extends it with the scale (`TYPE_SCALE`), and
+`lib/format.ts`, which had its own `cn`, re-exports that one. A test
+(`lib/__tests__/designBudget.test.ts`) fails on any `text-[Npx]` outside the
+vendored primitives and the tests. It is a test rather than an ESLint rule
+because the development environment's configuration guard refuses edits to
+`eslint.config.js`; the check is the same and runs in CI with the rest.
+
+**One page title.** `PAGE_TITLE_CLASS` (`components/common/states.tsx`) is the
+h1 of every page that draws its own header block -- a detail page's name among
+its badges, the sign-in card -- and `PageHeader` uses it too. The dashboard's
+empty state uses `PageHeader` instead of its own copy of it. The error fallbacks
+(`ConfigError`, `ErrorBoundary`) keep their smaller heading: they render when
+the app has failed, inside a card, and are not pages.
+
+**The copy budget.** A string in `en.ts` is at most 90 characters -- about one
+line of a panel at the reading size -- unless its key ends `Explain`. An
+`Explain` string is rendered only through `InfoTip` (`components/common`), a
+question-mark button that opens a popover: reached by Tab and by touch as well
+as by pointer, named for what it explains, and scaling out of the button that
+opened it. `PageHeader` takes `explain` and `explainLabel` and puts the
+question mark beside the title, so a page says what it is in one line and how
+it is measured on request. The graph legend's "how to read" (§136) and the
+attack-path page's note on groups (§143) were the two places this was already
+done by hand; both now use `InfoTip`, and the question mark is `EXPLAIN_ICON`
+in `lib/icons.ts`. The 123 strings over the budget when it was set are listed in
+`i18n/overBudget.ts`. That list is a ratchet: the test fails on a new string
+over the budget, and also on a listed string that is no longer over it, so a
+shortened string leaves the list in the same change and the list only
+shrinks. Shortening one means cutting it to a line and moving what was cut to
+an `Explain` sibling -- not deleting it. The claims that keep the product honest
+(UNKNOWN is never a pass, a gap in coverage is said, nothing is claimed that
+was not read) stay on the page; what moves behind the question mark is how and
+why.
+
+## 167. Motion follows a changed value
+
+The app already moves: panels arrive in reading order, numbers count up, the
+route map closes routes in hop order, and a link into the graph grows into
+the next page (§140, §149). What it lacked was movement for the changes that
+matter most -- a finding proved fixed, a filter that reorders a list, a tab
+changing -- and the passes after §166 add it. The rules they are held to are
+written here once, with the pieces they share in `lib/motion.ts`.
+
+Something moves because a value it shows changed: never because a component
+mounted again, and never because the dashboard's twenty-second poll came back
+with the same numbers. That is the rule `useCountUp` already kept, and
+`useValueChange` makes it available to anything else: it returns how many
+times a value has changed since mount (zero on mount and on every render with
+the same value) and what the value was before, computed in the render that
+carries the change rather than one frame later. It compares with `Object.is`,
+so a caller passes the number or string shown rather than the object it came
+from. A live scan moves only as the API reports (§87). Only `transform` and
+`opacity` animate, with timings from `DURATION`. A row or an indicator that
+moves to a new place (`layout`, a shared `layoutId`) uses `layoutSpring`, a
+spring with no bounce timed like a page, because a row that overshoots its
+place reads as uncertainty; past `LAYOUT_ROW_LIMIT` (100) rows a list does not
+animate its layout at all, since measuring every row costs more than the
+movement says. A stroke that draws itself -- a proved fix's check, a sparkline
+arriving -- uses `drawPath`. Reduced motion is still answered once, by
+`MotionConfig` and the one media query, and still means the final state
+immediately. There are no ambient loops, no decorative motion and no
+progress without data behind it: in a security product, movement that means
+nothing teaches the reader to ignore movement.
+
+## 168. One engine: Prowler is removed, and what it brought is kept as data and a backlog
+
+§150 ran Prowler as a second engine beside the native rules: over eight hundred
+checks for breadth, six frameworks, and an audit of the native rules wherever
+the two answered the same question. Weighed after running it, it cost more
+than the breadth was worth, and it could never do the part of the product that
+is the product.
+
+**What it cost.** A second service with its own image, queue and pinned
+dependency tree, because Prowler's pins cannot share a process with the API's;
+one step per process, because Prowler keeps its clients in module globals; a
+fourth step kind with its own lease rules (§151); a database role with column
+grants; a log-scraping layer, because Prowler reports a refused listing as
+silence and silence is never a pass; the built-in Reader assigned in every
+customer's subscription, and a redeploy prompt for connections without it
+(§153); and third-party code holding every customer's credentials in memory,
+the open item §151 carried forward. Its captures could only be re-interpreted,
+never re-evaluated, because its checks ran against the cloud rather than
+against anything Cleave stored. And none of its verdicts reached the graph: a
+public AKS API it found was a finding, never an entry point on a route.
+
+**What is kept.** The six frameworks it brought -- CIS Azure 6.0, CIS AWS 7.0,
+AWS FSBP, NIS2, HIPAA and ATT&CK -- are frozen from the last generated
+catalogue into `app/compliance/data/frameworks.json` and loaded by
+`app/compliance/catalog.py` like the frameworks written there by hand. They are
+now offered whether or not anything runs Prowler, because they no longer depend
+on it: coverage comes from the native rules mapped to them, and a requirement no
+rule reaches reads not covered, as everywhere else.
+
+The controls native rules had inherited from the checks they covered are kept
+too, in `app/compliance/data/crosswalk.json`: seventy-one rules, 749 control
+links, exactly the output `inherited_mappings()` produced -- including its two
+limits, that a framework a rule maps itself keeps its hand-written mapping and a
+pair recorded as disagreeing by design passed nothing on.
+`app/compliance/crosswalk.py` merges it under the rule's own mappings for the
+rules mirror and a finding's detail. Both files are hand-edited from now on;
+nothing regenerates them. The CIS licensing question §150 raised about control
+titles is unchanged by this and still open.
+
+What Prowler checked that no native rule answers is
+`docs/NATIVE_COVERAGE_BACKLOG.md`: 130 Azure checks in three tiers and 575 AWS
+checks, with the CIS control each maps to. Tier 1 is new exposure and identity
+surface -- AKS, Cosmos DB, Container Registry, Databricks, AI Search, MySQL,
+Function apps, Entra's authorization policy -- the part that feeds the graph.
+Tier 2 is configuration hygiene on resources Cleave already reads. Tier 3 is
+deferred with a reason: a latest-runtime-version check needs a table that
+changes without a release, which breaks the rule contract's determinism, and
+availability settings are not posture. AWS is not ported for breadth while it
+has never run against a live account. An entry leaves the file when a native
+rule answers it.
+
+**What is removed.** `apps/scanner`, `tools/prowler`, `app/prowler`, the
+scanner Dockerfile and Railway file, the CI job; `ScanStepKind.ASSESS`, the
+`assess` queue and `ASSESS_ENABLED`; the engine audit route, service and page;
+the `engine` and `prowler` fields on rules and findings; retention's pruning of
+Prowler captures; and the every-read machinery of §153 with the Reader
+assignment in the ARM template. The custom role is unchanged, so no role
+version moves. Connections deployed while the template assigned Reader keep the
+assignment until the customer removes it; nothing reads through it. The
+`$filter=atScope()` on the assignment listing stays: it was a correctness fix
+for the grant-version probe in its own right.
+
+Migration 0047 deletes what the engine wrote -- findings under `PRW-` rule ids
+and the risks they leave with no member (deleted, not resolved, as §124 says),
+their rule results, gaps and verifications, and the mirrored rule rows -- and
+drops ASSESS steps, both tables, the `rules.engine` columns and
+`app.scan_owner`. It revokes every grant and policy `cloudguard_scanner` held
+and drops the role where it may; where an operator's grant it cannot revoke
+keeps it alive, it is left NOLOGIN with a notice in the deploy log rather than
+failing the API's start command. Rule id columns stay 128 wide.
+
+**What is given up.** The breadth, until the backlog is worked down; the audit
+of native rules against a second opinion; and following new benchmark releases
+by bumping a pin. The audit was the most useful of the three, and the cheap
+way to keep it is offline: run Prowler by hand against a sandbox tenant and
+compare, never as a production dependency. Anything that reintroduces a second
+engine needs a new entry here first.
+
+## 169. Six more types are read and modelled, each through its own listing under role v9
+
+§168 left a backlog whose first tier is exposure and identity surface the native
+engine could not see: AKS, Container Registry, Cosmos DB, MySQL, Databricks and
+AI Search appeared in the inventory only as unchecked rows of type UNKNOWN, with
+no configuration, no exposure and no place in the graph. This is the collection
+half of closing it. No rule judges them yet; that is the next step.
+
+**Per-type ARM listings, not Resource Graph properties.** The plan in §168 was
+to add `properties` to the inventory query, on the hope that the trimmed role
+would get configuration back without new reads. Whether Resource Graph returns
+a resource's properties to a caller holding only
+`Microsoft.Resources/subscriptions/resources/read` could not be settled without
+a live tenant, and the design should not rest on it either way: `rbac.py`
+requires every action to be exercised by a real call, and a per-type read that
+only a Resource Graph query "used" would be an action nothing proves. So each
+type is read the way every other is -- its subscription-wide ARM listing, one
+evidence key each, so a refused listing costs only its own type's verdicts.
+
+**Role v9: six reads, each verified.** `Microsoft.ContainerService/managedClusters/read`,
+`Microsoft.ContainerRegistry/registries/read`, `Microsoft.DocumentDB/databaseAccounts/read`,
+`Microsoft.DBforMySQL/flexibleServers/read`, `Microsoft.Databricks/workspaces/read`
+and `Microsoft.Search/searchServices/read` were checked on 2026-09-29 against the
+published operations reference (the provider pages of Azure permissions, and the
+Search provider's own operations listing, since Microsoft.Search is not on a
+provider page), and the api-versions -- 2024-02-01, 2023-07-01, 2024-11-15,
+2023-12-30, 2024-05-01 and 2023-11-01 -- and the field names read against each
+provider's REST or template reference. Every one is the resource's own `/read`:
+a cluster's kubeconfig, a registry's login, a Cosmos DB account's keys and a
+search service's admin keys are `/action` reads and are not requested. The
+role's ceiling test went from thirty actions to thirty-five. A v8 connection
+keeps every verdict and route it had and is prompted to redeploy, with Compute
+and Databases named as affected -- category granularity, which is broader than
+the six types, as it has been for every version.
+
+**Six neutral types.** `KUBERNETES_CLUSTER`, `CONTAINER_REGISTRY`,
+`DOCUMENT_DATABASE`, `MYSQL_SERVER`, `ANALYTICS_WORKSPACE` and `SEARCH_SERVICE`,
+named so EKS, ECR and their kind fit them later (§74). Cosmos DB, MySQL and AI
+Search join the data-holding floor; a registry does not, because it holds code
+rather than customer data.
+
+**Exposure is established the way it already was.** Public access disabled is
+LOW, access narrowed to named networks MEDIUM, open to every network HIGH. A
+cluster whose ARM record leaves out `apiServerAccessProfile` was created with
+the defaults, which is a public API server, so absence reads as reachable -- the
+precedent App Service set. A MySQL server with public access on is UNKNOWN,
+because what decides it is its firewall rules, which are not read, and a public
+server with none admits nobody; the PostgreSQL servers are held to the same
+rule when their rules cannot be read. Private endpoint counts are None where
+the listing did not carry the field, so a rule can tell "not stated" from none.
+
+**A cluster runs as two identities.** Clusters join the graph's workloads beside
+virtual machines and web apps, running as the control plane's identity and as
+the kubelet identity under `identityProfile`, which is what a pod reaching its
+node acts as. A public cluster whose kubelet identity holds Contributor is now a
+route; before, the cluster was an unchecked row.
+
+**What a role over each amounts to** (`connectors/azure/access.py`, strings
+verified with the others): Contributor and Owner take EXECUTE on a cluster
+(the admin kubeconfig, run command, or the write that re-enables local
+accounts) and on a Databricks workspace (Databricks makes them its admins),
+and READ_DATA on a registry (its admin login), a Cosmos DB account (its keys),
+a MySQL server (as PostgreSQL) and a search service (its admin and query keys).
+Reader reaches nothing in any of them. A registry pull reads images too, and is
+not claimed: `pull/read` sits inside `*/read`, so claiming it would make every
+Reader assignment reach and undo what §125 established.
+
+**Nothing here has been read from a live tenant.** The tests are fixtures shaped
+after the published reference. The first redeployed v9 connection is the check:
+six listings in its snapshot, the six types as modelled assets rather than
+UNKNOWN rows, and no new gap. Until a rule declares them the six keys are
+baseline evidence, collected for the graph, and move out of the baseline one by
+one as rules claim them.
+
+## 170. Fourteen rules over the types role v9 reads
+
+§169 made AKS, Container Registry, Cosmos DB, MySQL, Databricks and AI Search
+assets and graph nodes; this judges them. Fourteen native rules close fifteen of
+the backlog's Tier 1 checks (§168), each written in the house style -- its own
+words, a remediation declared as data, UNKNOWN whenever its listing failed:
+
+- **AKS** -- AZ-AKS-001 API server open to every address (no private cluster,
+  public access on, no authorized ranges); AZ-AKS-002 local admin accounts kept;
+  AZ-AKS-003 Kubernetes RBAC off; AZ-AKS-004 a node pool hands its nodes public
+  IPs; AZ-AKS-005 no network policy engine.
+- **Container Registry** -- AZ-ACR-001 the shared admin login is on; AZ-ACR-002
+  the registry answers every network.
+- **Cosmos DB** -- AZ-COS-001 open to every network (public access on, no IP rule,
+  no virtual network filter); AZ-COS-002 account keys accepted; AZ-COS-003
+  minimum TLS below 1.2.
+- **Databricks** -- AZ-DBW-001 the workspace answers every network; AZ-DBW-002
+  cluster nodes get public IPs; AZ-DBW-003 no VNet injection.
+- **AI Search** -- AZ-SRCH-001 open to every network, stepping exploitability down
+  where the service accepts only Entra tokens.
+
+**What an absent setting means is decided per setting, and said.** Where the
+service documents a default and the default is the unsafe one -- AKS local
+accounts, Cosmos DB key access, Databricks and AI Search public access -- absence
+reads as that default and fails, as a cluster with no `apiServerAccessProfile`
+already reads as public (§169). Where absence could mean either -- Kubernetes
+RBAC, a registry's admin user, Cosmos DB's minimum TLS -- the rule is UNKNOWN.
+A Databricks workspace's custom parameters can be absent altogether (the
+published sample lists `"parameters": null`), so the two rules reading them are
+UNKNOWN then rather than assuming the service default; the normalizer now keeps
+`custom_virtual_network` None in that case instead of False.
+
+**No policy is generated.** Every setting has an Azure Policy alias somewhere,
+and none has been verified from here; `remediation/spec.py` declines rather than
+guesses, and each rule's notes say so. The CLI lines use `az resource update
+--ids <resource-id> --set properties.<field>=<value>` wherever a service-specific
+flag could not be confirmed, which is valid for any resource. Terraform hints
+name the azurerm argument, inverted where it is (`public_network_access_enabled
+= false` for a Disabled setting), and are left out where the argument takes a
+value the expected state does not carry.
+
+**Mappings.** Each rule maps its own ISO 27001, NIST CSF, GDPR, NIST 800-53,
+SOC 2 and PCI DSS controls, as every rule must. The crosswalk gains entries for
+the new rules from the compliance mappings of the Prowler checks each one
+answers -- the same derivation §168 froze -- for NIS2, HIPAA, ATT&CK and the CIS
+benchmarks, never overriding a framework the rule maps itself.
+
+**Evidence.** The five keys these rules declare leave the baseline; the MySQL
+listing stays in it, because no MySQL rule could be written from the listing
+alone: its TLS questions are server parameters, which need
+`Microsoft.DBforMySQL/flexibleServers/configurations/read` and a role version.
+The backlog now holds twenty-two Tier 1 checks, and states why each group is
+left.
+
+## 171. The rest of Tier 1 that needs no new read: five rules, two already answered, one declined
+
+§170 closed fifteen Tier 1 checks. Of the twenty-two left, eight needed nothing
+the scanner does not already read. Each was weighed against what the native
+engine already says before anything was written, and three turned out not to be
+new questions.
+
+**Five rules.**
+
+- AZ-ACR-003 and AZ-COS-004: a registry or Cosmos DB account with no approved
+  private endpoint. LOW with exploitability 1 -- whether the thing is reachable is
+  the public-network rules' question (AZ-ACR-002, AZ-COS-001); this asks whether
+  the private path exists that lets public access be switched off. UNKNOWN when
+  the listing did not carry the connections, since the normalizer keeps None
+  apart from zero (section 169). No expected state is declared: what is expected
+  is a count, and the endpoint is a resource of its own.
+- AZ-DBW-004: Databricks managed services encrypted with Microsoft's keys. LOW.
+  Absent is the documented default, Microsoft-managed, so it fails.
+- AZ-WEB-006: a function app that answers every network. Function apps only --
+  a web app is usually meant to be public, and flagging every one would be the
+  noise AZ-NET-003 was written to avoid. It needed one new reading of what was
+  already collected: a site's access restrictions, from the configuration read
+  since role v7 (`ipSecurityRestrictions`, and `ipSecurityRestrictionsDefaultAction`
+  where the configuration has it, both confirmed in the 2022-09-01 reference).
+  Unmatched traffic is denied when the default action is Deny, or -- without
+  that field -- as soon as any restriction exists; a rule allowing `Any` undoes
+  either. The normalizer now records `access_restricted` and, for any site,
+  steps exposure from HIGH to MEDIUM when it is restricted: a web app admitting
+  three office ranges is no longer an entry point, and nothing else about
+  exposure changed.
+- AZ-CMP-004: a Linux machine whose ARM record allows SSH password sign-in
+  (`osProfile.linuxConfiguration.disablePasswordAuthentication`). UNKNOWN where
+  the record has no `osProfile`, which a machine built from an attached disk does
+  not. The setting is fixed at creation, so the remediation is honest that the
+  interim fix -- `PasswordAuthentication no` in sshd -- closes the door without
+  closing the finding; only a rebuild does. The demo's Linux build agent now
+  carries an `osProfile` with keys only, added in `build_snapshot_demo.py`
+  (section 102), so the demo gains no UNKNOWN.
+
+**Two already answered.** `iam_role_user_access_admin_restricted` is AZ-IAM-003,
+which flags any role that can write role assignments -- User Access Administrator,
+Owner and custom roles alike -- by its actions rather than its name.
+`app_function_identity_without_admin_privileges` is AZ-IAM-002 and AZ-IAM-003
+together: full control of the subscription, or the power to grant any role, for
+any workload identity rather than for function apps alone. Contributor over one
+resource group is deliberately not flagged; narrowing to that is AZ-IAM-002's
+own remediation. Both checks' mappings joined those rules' crosswalk entries.
+
+**One declined.** `network_http_internet_access_restricted` would fail every web
+server that serves the web. AZ-NET-003 already excludes ports 80 and 443 for that
+reason, and the check moves to Tier 3 with it.
+
+What is left in Tier 1 all needs a read that is not collected: MySQL's TLS server
+parameters (a role version) and the Entra checks (Graph's authorization policy,
+authentication-methods policy and a per-user join of MFA to VM access).
+
+## 172. The reads the rest of Tier 1 needed: MySQL's TLS parameters and the tenant's authorization policy
+
+After section 171, fourteen Tier 1 checks remained and every one needed a reading
+not collected. This adds the two that could be verified from here, and the
+eleven checks they close with nine rules.
+
+**MySQL, under role v10.** `Microsoft.DBforMySQL/flexibleServers/configurations/read`
+(checked on 2026-09-29 against the operations reference) reads two parameters by
+name beneath each server -- `require_secure_transport` and `tls_version`, under
+the 2023-12-30 configurations contract, value at `properties.value` -- in one
+evidence key, `mysql_configurations`, as PostgreSQL's one parameter is read.
+`_per_resource_task` gained `also` so one task can declare both endpoints. A v9
+role keeps every verdict and is prompted to redeploy with Databases named.
+AZ-MYS-001 fails a server that accepts connections without TLS; AZ-MYS-002 one
+whose `tls_version` lists anything below TLS 1.2. Each is UNKNOWN where the
+parameter was not read. The MySQL listing leaves the baseline: these rules
+declare it.
+
+**The authorization policy, under consent already given.** Graph's
+`/policies/authorizationPolicy` is readable under `Policy.Read.All`, which every
+connected tenant consented for Conditional Access -- so no customer is sent back
+to a Global Administrator. Its shape and the three guest role ids were read from
+the v1.0 reference. The normalizer keeps six settings in `controls`, each None
+where Graph did not state it, and five AGGREGATE rules judge them:
+
+- AZ-ID-015 users can consent to any application -- the legacy default consent
+  policy is assigned. Consent limited to verified publishers asking for
+  low-impact permissions (`microsoft-user-default-low`), Microsoft's own
+  recommendation, passes; Prowler's stricter reading, that no user consent at all
+  is allowed, is not adopted.
+- AZ-ID-016 any user can register applications.
+- AZ-ID-017 guest invitations open to every member, or to everyone.
+- AZ-ID-018 guests not held to the Restricted Guest User role, stepping
+  exploitability down for the Guest User default and keeping it for guests
+  holding member access.
+- AZ-ID-019 any user can create tenants or security groups, UNKNOWN only when
+  neither was stated.
+
+**Two Conditional Access checks from what is already read.** The normalizer
+records, beside `mfa_policies`, `mfa_protected_apps`: every application an
+enabled policy requires multi-factor for, of all users, skipping a policy whose
+excluded groups were not read -- the same caution `mfa_policies` takes. AZ-ID-013
+fails when neither security defaults nor such a policy covers Azure management
+(the Windows Azure Service Management API, `797f4846-ba00-4fd7-ba43-dac1f8f63013`,
+or `All`); AZ-ID-014 the same for `MicrosoftAdminPortals`. Security defaults pass
+both: they challenge every administrator at every sign-in and every user reaching
+Azure management.
+
+All nine are tenant settings, so none has an expected state on an asset and none
+generates a policy; each gives an `az rest` PATCH of the authorization policy or
+the Conditional Access listing to start from.
+
+**What is left in Tier 1:** the authentication methods policy and MFA
+registration campaign, a join of per-user MFA registration to the Azure roles
+that reach virtual machines, and the Group.Unified directory setting. Each is a
+Graph read that has not been verified here yet.
+
+## 173. Tier 1 closed: the authentication methods policy and the directory's group settings
+
+The last three Tier 1 checks. Two needed Graph reads, both under consent every
+tenant already gave, and one was already answered.
+
+**Two reads, verified against the v1.0 reference.** `/policies/authenticationMethodsPolicy`
+is readable under `Policy.Read.All` (a higher-privileged permission for it than
+the least, and the one already held). `/groupSettings` is readable under
+`Directory.Read.All` and `Group.Read.All`, both held. Each is its own evidence
+key in the directory plan.
+
+- AZ-ID-020 fails when none of Microsoft Authenticator, FIDO2 or X.509 certificate
+  sign-in is enabled, or when the registration campaign is switched off. A
+  campaign in state `default` -- Microsoft-managed, and on for users still
+  relying on SMS and voice -- passes; only an explicit `disabled` fails.
+- AZ-ID-021 fails when any user can create Microsoft 365 groups. `Group.Unified`
+  exists only once somebody changed it from the defaults, and the default lets
+  every user create groups, so a tenant without the setting fails rather than
+  reads unknown -- the one place in these rules where an absent object is a
+  finding, and it is because Microsoft documents what its absence means.
+
+**One already answered.** `entra_user_with_vm_access_has_mfa` asks whether users
+holding roles that reach virtual machines have MFA. AZ-ID-004 asks it of every
+user, so it answers this and more; its crosswalk entry gains the check's
+mappings. A narrower rule would repeat findings AZ-ID-004 already raises.
+
+Tier 1 of the backlog is now empty. Tier 2 -- configuration hygiene on resources
+already read -- is next.
+
+## 174. Tier 2 is declared as property specs, starting with storage
+
+Tier 2 of the backlog is about seventy checks, and nearly all are one setting
+compared with the value that is safe. As hand-written classes each would repeat
+the same forty lines -- evidence guard, absent case, evidence dict, remediation
+declaration -- around one comparison, and that repetition is where a check's
+guard and its declaration drift apart.
+
+**`app/rules/property.py`.** A `PropertySpec` declares the check: the field the
+normalizer produced, the safe value (or, where safety is not one value, a
+`passes` test with a stated reason no expected state can express it), what an
+absent field means, the remediation prose and CLI, the Terraform argument, and
+the mappings. `property_rule` builds a `SecurityRule` subclass from it, so the
+result is registered, mirrored, verified and mapped like every other rule.
+
+Nothing the hand-written rules promise is given up:
+
+- UNKNOWN whenever the rule's evidence failed.
+- `absent` is stated per spec: `unknown`, or `fail` only where the service
+  documents that its default is the unsafe value. A spec that states neither a
+  safe value nor a test, or a test without a reason, fails at import.
+- Where the safe value is one value it becomes an expected state, and
+  `test_remediation_spec.py` holds the rule to it in both directions.
+- No policy is generated until the aliases are verified (section 170).
+
+**First batch: storage, needing no new read.** Four fields join the storage
+normalizer from the listing already collected -- the key source, the portal's
+default authorization, the network bypass and the private endpoint count -- and
+six specs judge them, with the infrastructure-encryption and blob-versioning
+fields that were already there:
+
+- AZ-STO-006 blob versioning off (UNKNOWN when the blob service was not read).
+- AZ-STO-007 infrastructure encryption off (absent fails: ARM leaves it out unless
+  requested at creation).
+- AZ-STO-008 encrypted with Microsoft's keys.
+- AZ-STO-009 the portal defaults to the access keys (absent fails: the documented
+  default is false).
+- AZ-STO-010 trusted Azure services cannot bypass the network rules.
+- AZ-STO-011 no approved private endpoint.
+
+The crosswalk carries each counterpart's mappings. The storage checks that need
+the file service (file-share soft delete, SMB) or a key-rotation reading are
+left for a batch that adds those reads.
+
+## 175. The rest of Tier 2 that needs no new permission
+
+Fourteen more property specs (section 174), each reading a field the scanner
+already collects or a server parameter under a configuration read the role
+already holds. `PropertySpec` gained `applies_when`, a metadata condition matched
+as a case-blind substring, so a check can apply to function apps alone; it feeds
+the remediation declaration too, so the remediation tests build an asset the
+check applies to.
+
+**Server parameters by name.** Five PostgreSQL parameters -- `log_checkpoints`,
+`log_connections`, `log_disconnections`, `connection_throttle.enable` and
+`logfiles.retention_days` -- are read by name per server into a new evidence key,
+`postgresql_logging`, under `Microsoft.DBforPostgreSQL/flexibleServers/configurations/read`,
+held since v7. The names are Flexible Server's own, confirmed on Microsoft Learn;
+the catalogue's `connection_throttling` and `log_retention_days` are the retired
+Single Server's. A name a server does not have fails that server's read, which
+is UNKNOWN. MySQL's read gains `audit_log_enabled` and `audit_log_events` under
+the v10 action. `get_postgresql_parameter` and `get_mysql_parameter` take the
+name, and each declares one endpoint ending in `/configurations/{name}`. No role
+version changes.
+
+**The rules:**
+
+- AKS: AZ-AKS-006 no automatic upgrade channel (absent fails -- the default is
+  none); AZ-AKS-007 neither Container insights nor managed Prometheus.
+- Function apps: AZ-WEB-007 no virtual network integration.
+- PostgreSQL: AZ-DB-010 to AZ-DB-013 the four logging and throttling parameters;
+  AZ-DB-014 logs kept three days or less; AZ-DB-015 no Entra authentication
+  (`authConfig.activeDirectoryAuth`).
+- MySQL: AZ-MYS-003 no audit log; AZ-MYS-004 the audit log leaves out CONNECTION.
+- SQL: AZ-DB-016 audit records kept under 90 days (zero, kept indefinitely,
+  passes).
+- Virtual machines: AZ-CMP-005 not Trusted Launch with secure boot and vTPM;
+  AZ-CMP-006 an attached managed disk without a disk encryption set (UNKNOWN for
+  a machine with no managed disk).
+
+Hardening checks map PCI 6.3.3, not 2.2.1: one setting is not a configuration
+standard, and the PCI test that keeps 2.2.1 uncovered said so.
+
+**Two moved to Tier 3.** Client certificates (mutual TLS) are how an application
+authenticates its callers, a design choice rather than hygiene every app should
+have; and a custom role for administering resource locks is an organizational
+arrangement whose absence says nothing about how locks are managed.
+
+Everything left in Tier 2 needs a read that is not collected: Key Vault keys and
+secrets, SQL encryption protectors and vulnerability assessment, Defender
+settings and contacts, activity-log alerts, network watchers and flow logs, VM
+backup and just-in-time access, file services, and diagnostic settings on web
+apps.
+
+## 176. Tier 2 closed: twenty-one reads under role v11, forty-eight rules
+
+Section 175 left fifty-two Tier 2 checks, every one needing a reading the scanner
+did not take. This adds the reads, answers fifty checks with forty-eight native
+rules, and moves two to Tier 3. The backlog's Azure section is now Tier 3 alone.
+
+**Role v11: twenty-one reads, each verified.** Every action string was checked on
+2026-09-30 against the published operations reference -- the Azure permissions
+pages for Security, Databases, Storage, Compute, Monitor, Networking, and
+Management and governance -- and every response shape and api-version against
+the provider's own REST specification (`Azure/azure-rest-api-specs`), because
+`rbac.py`'s rule stands: one string that is not a real operation fails the whole
+role deployment. The reads are Defender for SQL's server setting, the TDE
+protector and both forms of vulnerability assessment beneath each SQL server;
+the file service beneath each storage account; the keys and secrets in each
+vault; Defender for Cloud's security contacts, settings, IoT solutions and
+just-in-time policies; Recovery Services vaults and their protected items;
+managed disks; activity-log alerts; policy assignments; and virtual networks,
+Network Watchers, flow logs and Bastion hosts. Both just-in-time reads are
+requested: the subscription-wide listing returns policies that live under a
+location, and the reference does not say which of the two ARM checks for it --
+the trade section 14 made for Resource Graph, made the same way. The reference
+prints the activity-log alert action as `ActivityLogAlerts/Read`; the role
+spells it `activityLogAlerts/read`, because ARM compares actions case-blind and
+the test holding every action to `/read` should not need an exception. The
+ceiling test goes from thirty-five actions to fifty-five; the role holds
+fifty-four. A v10 connection keeps every verdict and route it had and is
+prompted to redeploy, with seven categories named -- everything but resources,
+authorization and identity -- and the checks on the new reads report UNKNOWN
+until then. Two more readings need no new permission: web apps join the
+diagnostic settings task (the read held since v1), and Entra's named locations
+are read from Graph under `Policy.Read.All`, already consented.
+
+**Vault contents, through the management plane only.** "The role asks for no
+data-plane permission" was tested as "no `/secrets/read` in the role", which
+was a proxy for the claim rather than the claim. `Microsoft.KeyVault/vaults/secrets/read`
+is described by the reference as "View the properties of a secret, but not its
+value", and ARM's contract for a secret says its value "will never be returned";
+reading a value is `secrets/getSecret/action`, a data action. So the test now
+asserts the claim itself -- no `getSecret`, no `readMetadata` data action, no
+data action at all, and the only Key Vault actions are the vault read and the
+two management-plane listings -- and CloudGuard can say which secrets never
+expire without being able to read one. The same goes for disks: they are
+described, and `beginGetAccess/action`, the export, is asserted absent.
+
+**Two new asset types in use.** Managed disks become `ResourceType.DISK`, with
+LOW exposure because no network endpoint answers for a disk; virtual networks,
+a type declared long ago and never produced, become assets with their watcher
+and the flow logs that cover them. Both were unchecked inventory rows before.
+Disks are not added to the data-holding floor: that would change the score of
+every estate for a rule that judges only unattached ones, and deserves its own
+decision. The web app shows a disk with its own icon and fills `<disk>` in a
+remediation command.
+
+**What each reading means when it says nothing** is decided per field, as in
+section 174, and where the service documents the unset value the normalizer
+writes it in rather than leaving each rule to remember it: SMB versions and
+channel ciphers nobody chose allow all of them; a disk with no encryption type
+uses the platform key; an assignment with no enforcement mode enforces; a
+classic vulnerability assessment with no `emailSubscriptionAdmins` notifies
+administrators. The new readings live in `connectors/azure/settings.py`, small
+pure reductions the normalizer calls where each asset is built.
+
+**The rules, and where they part from the catalogue:**
+
+- Defender for Cloud (subscription): AZ-DEF-002 no contact email, AZ-DEF-003 no
+  alert email at High or lower, AZ-DEF-004 Owners not emailed, AZ-DEF-005 attack
+  path email off or Critical only, AZ-DEF-006 Defender for Endpoint integration
+  off, AZ-DEF-007 Defender for Cloud Apps integration off, AZ-DEF-008 container
+  images not scanned (the Containers plan and its
+  `ContainerRegistriesVulnerabilityAssessments` extension), AZ-DEF-010 the
+  Microsoft cloud security benchmark unassigned or not enforced. A disabled
+  security contact is read as no contact.
+- AZ-DEF-009 IoT hubs no Defender for IoT solution watches. Not applicable to a
+  subscription with no hub, where the catalogue failed every subscription. IoT
+  hubs are not modelled, so it is the first rule to declare the inventory as
+  evidence; `test_evidence_keys.py` now names it as the one exception.
+- AZ-VULN-002 a machine Defender says has no vulnerability assessment solution,
+  matched on the assessment's stable name (`ffff0522-...`, the one the built-in
+  policy reads) rather than its wording. AZ-VULN-001 matched that assessment on
+  the word "vulnerab" and would have called an unscanned internet-facing
+  machine one with unpatched vulnerabilities; it now skips it.
+- Activity-log alerts: AZ-LOG-005 to AZ-LOG-014, one per operation CIS names
+  (policy assignment, network security group, security solution, SQL firewall
+  rule and public IP, each written and deleted), and AZ-LOG-015 Service Health.
+  An alert counts only when enabled and scoped to the subscription: one scoped
+  to a resource group watches nothing created beside it.
+- AZ-LOG-016 the activity log export leaves out Administrative, Security, Alert
+  or Policy; AZ-LOG-017 and AZ-LOG-018 the storage account the activity log is
+  exported to uses Microsoft's keys, or allows public blob access. Those two
+  apply to that account alone: the normalizer marks it `holds_activity_log`.
+- Networks: AZ-NET-010 no enabled flow log sends the network's traffic to a
+  workspace (a flow log covers a network through the network, one of its
+  subnets, or a network security group on one of its subnets -- the retiring
+  NSG flow logs record the same traffic); AZ-NET-011 a covering flow log keeps
+  under 90 days (zero keeps for ever); AZ-NET-012 no Network Watcher in the
+  network's region; AZ-NET-013 no DDoS Network Protection, LOW because it is
+  priced per plan and is availability rather than exposure; AZ-NET-014 no
+  Bastion host, not applicable where there is no virtual machine.
+- Vaults: AZ-KV-004 enabled keys with no expiry, AZ-KV-005 enabled secrets with
+  no expiry, AZ-KV-006 enabled keys that never rotate. One rule each, not one per
+  access model as the catalogue had: an expiry date means the same thing under
+  RBAC and access policies. The finding names the keys and secrets. A key whose
+  record states no rotation policy is not judged either way; whether ARM's
+  listing carries `rotationPolicy` is the first thing a live v11 read will show,
+  and until it does the rule may be UNKNOWN rather than guess.
+- SQL: AZ-DB-017 a service-managed TDE protector; AZ-DB-018 no Defender for SQL,
+  passing on either the server's own setting or the subscription's
+  `SqlServers` plan -- the catalogue read only the first and failed every server
+  a subscription plan protects; AZ-DB-019 no vulnerability assessment, in which
+  the express configuration (the default since 2022, weekly scans, no storage
+  account) passes as the classic one does; AZ-DB-020 to AZ-DB-022 classic scans
+  not recurring, sent to nobody, or not sent to administrators, not applicable
+  to an express server, which the catalogue failed on all three.
+- Storage: AZ-STO-012 file share soft delete off, AZ-STO-013 SMB versions below
+  3.1.1, AZ-STO-014 SMB channel ciphers below AES-256-GCM, each not applicable
+  to a blob-only account (and the collector does not ask one for a file service);
+  AZ-STO-015 no access key expiry of 90 days or less, read from `keyPolicy` on
+  the listing already collected.
+- Machines and disks: AZ-CMP-008 no just-in-time access, AZ-CMP-009 not backed up
+  -- UNKNOWN, not failed, while any vault's protected items could not be read --
+  and AZ-CMP-010 an unattached disk on a platform key.
+- Web apps: AZ-WEB-008 App Service Authentication off, LOW, since an app that
+  authenticates in its own code is not wrong and may dismiss it; AZ-WEB-009 HTTP
+  logs sent nowhere, for web apps only.
+- AZ-ID-022 no trusted named location with IP ranges.
+
+Most are property specs. `PropertySpec.applies_when` now reads a stated `False`
+as "false" rather than as blank, which is what lets a check apply to web apps
+(`is_function_app` false) and not to a site whose kind was never stated. A
+per-resource read that is a listing -- a vault's keys, a watcher's flow logs --
+now reports itself partial when the listing ran past what one scan reads,
+rather than passing on a short list.
+
+Mappings follow the house rule: each rule maps its own ISO 27001, NIST CSF,
+GDPR, NIST 800-53, SOC 2 and PCI DSS controls, and the crosswalk gains an entry
+per rule from the compliance mappings of the checks it answers, never
+overriding a framework the rule maps itself (section 168). No policy is
+generated for any of them until the aliases are verified (section 170).
+
+**Two moved to Tier 3.** Whether a function app sends to Application Insights is
+written only in its application settings, behind `config/list`, the action that
+also returns connection strings and keys and that the role never requests.
+Auto-provisioning of the Log Analytics agent asks about an agent Microsoft
+retired in August 2024, through a read (`autoProvisioningSettings`) that is not
+in the published operations reference -- the string that once failed a role
+deployment outright.
+
+**The demo** gains the payments vault's contents, attributes only: a signing key
+that expires and rotates, a connection string that expires, and a payment
+provider's API key that never does -- AZ-KV-005's finding. It gains no check
+that cannot reach a verdict.
+
+**Nothing here has been read from a live tenant.** The fixtures are shaped after
+the REST specifications' own examples. The first redeployed v11 connection is
+the check: twenty-one new readings in its snapshot, disks and virtual networks
+as assets, and no new gap.
+
+## 177. Six misfiled checks, and Tier 3 ported but for seven
+
+Two follow-ups to section 176, asked for together.
+
+**Six checks were misfiled as never to be ported.** The list section 168 kept of
+checks the second engine excluded carried Prowler's own reasons, and one reason,
+"reads activity records rather than configuration", covered six checks that
+read configuration: the AKS Defender security profile, the Defender CSPM plan,
+and four Cognito user pool settings. None was ever run here -- the second engine
+had all thirty-seven switched off -- so porting them is new coverage, not a
+replacement.
+
+- AZ-AKS-008 no Defender security profile on a cluster, from the cluster listing
+  (absent fails: no profile is no sensor). AZ-DEF-011 Defender CSPM off, from the
+  plan listing.
+- AWS policy v5 reads Cognito user pools: `cognito-idp:ListUserPools`,
+  `DescribeUserPool` and `DescribeRiskConfiguration`, and
+  `wafv2:GetWebACLForResource`, in three regional keys so a refused risk or WAF
+  read costs only its rules. Pools become `ResourceType.USER_POOL`, HIGH exposure
+  because their sign-in faces the internet by design. AWS-COG-001 threat
+  protection not enforced; AWS-COG-002 compromised credentials not blocked;
+  AWS-COG-003 a risk level lets a sign-in through without BLOCK or MFA_REQUIRED
+  (the catalogue asked for BLOCK at every level; requiring MFA stops the
+  attacker and not the user, so it passes); AWS-COG-004 no web ACL. The two risk
+  rules are not applicable unless protection is enforced, which AWS-COG-001
+  reports -- three findings for one fix otherwise. The dependent regional
+  tasks read their region's pools out of the collected payload, which is the
+  first regional task in the connector to depend on another. Nothing here has
+  been run against AWS; the inline policy's ceiling test goes from thirty to
+  thirty-five.
+
+**Tier 3: seventeen ported, seven not.** The four checks earlier sections
+declined on purpose stay declined (HTTP 80, client certificates, the lock-admin
+role, container image vulnerabilities as a finding), and three cannot be asked: a function app's host runtime version and its Application
+Insights connection live only in application settings behind `config/list`,
+and the Log Analytics agent is retired.
+
+- Role v12 adds `Microsoft.RecoveryServices/Vaults/backupPolicies/read` and
+  `Microsoft.Compute/virtualMachineScaleSets/read`, both checked against the
+  published operations reference and their contracts against the REST
+  specification. Recovery Services vaults become `BACKUP_VAULT` assets and scale
+  sets `SCALE_SET` assets. The protected-items read drops its machine-only
+  filter, so a vault protecting file shares is not reported empty; the backup
+  task keeps each vault's record rather than its id. The role's ceiling test
+  goes to sixty; it holds fifty-six.
+- **Runtime versions, without breaking determinism.** Tier 3 deferred these
+  because a table of current versions changes without a release. The table is
+  of *end-of-support dates* instead (`connectors/azure/settings.py`,
+  `END_OF_SUPPORT`, from the language communities' published timelines, which
+  App Service follows), and the normalizer judges a site against it as of the
+  snapshot's own collection time. A version passing its date needs no release,
+  and a replayed capture answers as of when it was taken. A version newer than
+  every entry is supported, one older than every entry is not, and one between
+  two entries is UNKNOWN rather than guessed. AZ-WEB-011 Python, AZ-WEB-012 PHP,
+  AZ-WEB-013 Java including Tomcat 8.5 and 10.0, which App Service still offers
+  unpatched; MEDIUM, since an unpatched runtime keeps every vulnerability found
+  in it. The table needs a new row only when a language ships a new version.
+- LOW, exploitability 0, because each is resilience rather than a door:
+  AZ-WEB-010 no HTTP/2; AZ-LOG-019 apps and no Application Insights resource
+  (from the inventory, not applicable without apps -- the second rule to declare
+  the inventory, and `test_evidence_keys.py` names it); AZ-COS-005 no automatic
+  failover, AZ-COS-006 no continuous backup; AZ-MYS-005 and AZ-DB-023 backups not
+  geo-redundant, AZ-MYS-006 and AZ-DB-024 no high availability; AZ-STO-016 not
+  geo-redundant; AZ-BKP-001 a vault protecting nothing, AZ-BKP-002 a policy
+  keeping daily points under 30 days; AZ-CMP-011 a machine's backups kept under 7
+  days (not applicable when it has no backup, AZ-CMP-009's finding); AZ-CMP-012 a
+  scale set behind no load balancer or application gateway, AZ-CMP-013 an empty
+  one.
+
+**`PropertySpec` changes.** A spec now names its provider, so the AWS rules are
+specs too, with a remediation note that speaks of AWS rather than Azure Policy.
+And a check whose `applies_when` field was never stated -- which languages a
+site runs, when its configuration was not read -- is UNKNOWN rather than not
+applicable, since whether it applies is itself unknown; evidence failures are
+checked before `applies_when` for the same reason.
+
+The web app draws the three new types with their own icons. The crosswalk gains
+entries for the fifteen of the twenty-three new rules whose catalogue checks
+carried mappings. The backlog's Azure section is seven checks, all deliberate;
+the never-to-port list is thirty-one.
+
+## 178. The overview in three zones, with its figures leading and its explanations a question mark away
+
+The overview stacked nine panels in one column, each opening with a sentence
+or two about itself, and the headline -- "7 risks. 3 routes run from something
+exposed to something sensitive. One link closes 2 of 3." -- was a sentence too.
+A reader who came for the numbers scrolled past prose they had read on every
+visit before reaching the ranked risks. This pass applies §166 and §167 to the
+one page everybody opens first.
+
+**Three zones.** Where the posture stands: the score ring with its band and
+delta, beside three figures (`TodayStats`) -- open risks, attack routes, and the
+share of checks that reached a verdict -- then the severity strip. What to do
+next: the ranked risks and the link to cut, side by side as before. The detail
+behind both: coverage, fixes proved, what moved this week and compliance as a
+two-by-two grid, with the region map keeping a full row because it needs the
+width. The gap between zones is larger than the gap inside one, so the grouping
+is read from the spacing rather than from headings that would add words.
+
+**Coverage is stated twice, on purpose.** As a figure beside the score, which
+it qualifies -- a score formed over half the checks is half a reading -- and in
+full in the coverage panel, which still lists incomplete categories, the
+unclassified-risk note with its link to Settings, and every collection gap with
+the provider's own words. Nothing about what could not be read moved behind a
+question mark: the gaps, UNKNOWN never being a pass, and "not a security score"
+are still printed. What moved behind the question marks (`InfoTip`, with the
+text under `dashboard.*Explain` in `en.ts`) is how each thing is measured: the
+score's deduction by risk band, how risks are ranked, why a cut is simulated
+whole, what coverage and compliance coverage count. The figures show a
+dash for a figure the page does not have yet, never a zero. The compliance
+panel lists five frameworks as rows with a bar each, the count of concluded
+controls kept for a screen reader and on hover; the page is one click away.
+
+**The checklist is one line once there is a scan.** Before the first scan it is
+still the whole page, all five steps. After it, it is the progress bar, the one
+step that is next and its action, and the button that puts it away -- the steps
+already done and the ones waiting on it were a card of five that said little a
+second time.
+
+**Motion, under §167's rule.** The figures count up when they change. The
+score ring's sweep and band colour are registered custom properties
+(`@property --score-angle`, `--score-color` in `index.css`), so a new score
+turns the ring and crossfades its colour instead of swapping in one frame; a
+transition, not a keyframe, so nothing moves on mount. The delta's arrow
+nudges once in its direction when a new delta arrives -- keyed on
+`useValueChange`, so a refetch or a remount does not replay it. The trend
+redraws when a new reading joins it: the sparkline draws itself when its
+`<svg>` is inserted (by uncovering, because `pathLength` does not survive a
+non-scaling stroke), so a new key is a new drawing. Compliance bars and the
+checklist's progress grow by `scaleX` from the left, only when their value
+changes. All of it is answered by the one reduced-motion media query and
+`MotionConfig`, as before.
+
+## 179. Lists move their rows, indicators slide, and a list page says what it is in a line
+
+The second pass of §166 and §167, over the list pages -- Findings, Risks,
+Assets, Rules -- and the navigation around them.
+
+**Rows slide when the list changes, and only then.** A filter, a sort or a
+search used to redraw a table in one frame: the rows that stayed jumped to new
+places and the eye lost them. Each row is now a motion element carrying
+`listLayout(ids)` (`lib/motion.ts`): `layout="position"`, the `layoutSpring`,
+and a `layoutDependency` that is the list's order joined into a string. So a
+row measures itself and moves only when the rows themselves changed -- never
+because a banner above pushed the table down, a hover re-rendered it, or the
+keyboard's current row moved. A row new to the list rises as it did (the CSS
+`cg-rise`, capped stagger); one that left is gone; the ones that stayed slide.
+Past `LAYOUT_ROW_LIMIT` (100) rows the helper returns nothing and the list does
+not animate its layout at all, which is why the rule catalogue only moves once
+a search has narrowed it. Table rows use `MotionTableRow`, an `m.tr` added
+beside the vendored `TableRow` with the same classes, because a `tr` cannot be
+wrapped. The rise on Findings and Assets rows changed its fill from `both` to
+`backwards`: a fill that outlived the animation pinned the row's `transform`
+to `none` and would have overridden the slide. Asset group headings are rows
+too and are part of the order, so they move with the rows under them.
+
+**Indicators slide.** The selected option of a `SegmentedFilter` and the
+current row of the navigation are each one element with a shared `layoutId`
+that moves from the option or row left to the one arrived at, instead of one
+fill disappearing and another appearing. A filter's `layoutId` comes from
+`useId`, so two filters on a page never trade theirs; the navigation's is one
+name, because there is one current page. Both keep their look -- the soft fill,
+the rule along a segment's foot, the ring around a nav row -- as the moving
+element under the label.
+
+**The engine is `domMax`.** Layout animation is not in `domAnimation`, which
+§149 chose because nothing animated layout. `lib/motionFeatures.ts` now loads
+`domMax`. It is still a separate chunk loaded after the first paint, so no page
+waits on it; the cost is a larger chunk (28 kB gzipped) arriving a moment later.
+
+**The bell rings when news arrives.** When the unread count rises while
+somebody is on the page, the bell icon swings once (`cg-ring`). It compares
+against the first count that loaded, never against nothing, so a page opened
+with three unread does not ring. It uses `useValueChange` like everything else
+under §167.
+
+**A list page says what it is in one line.** Findings, Assets and Rules each
+had a description of a sentence and a half; each is now a line ("Misconfigurations
+Cleave observed, worst first."), with how the list is ranked or how rules work
+behind the question mark beside the title (`pageExplain` in `en.ts`). The empty
+states lost the sentence under "No findings match" that said to widen the
+filters, because the "Clear filters" button under it says the same. The
+unfiltered empty states keep one line.
+
+**Two things from the plan were not done.** The count line under each list does
+not tick: §165 has each page draw the exact string it speaks through
+`LiveStatus`, and a number counting up inside it would be a second, moving
+version of that string. Navigable rows did not get a chevron on hover. Every
+row already opens its subject from anywhere on it and fills on hover, and a
+chevron would have needed a column in each table to sit in.
+
+## 180. Detail pages: facts in one rail, the rest in tabs, every tab strip slides, and a proved fix draws its check
+
+The third pass of §166 and §167, over the finding, risk and asset pages, and
+the one moment the product exists for.
+
+**A finding's evidence, provenance and routes are tabs.** The finding page
+stacked seven cards in its main column. What was seen (the evidence), where it
+came from (the provenance, "How we know") and what it is part of (the attack
+paths) are now one card of tabs under the fix, rather than three cards to
+scroll past. The page opens on Attack paths when the asset is on a route --
+that is what changes how urgent a finding is, and a medium misconfiguration on
+a jump box between the internet and customer data is not a medium problem --
+and on Evidence otherwise; the reader's choice replaces the page's once they
+make one. The route count is on the tab. Every panel stays mounted
+(`keepMounted`), so the browser's find still reaches text in a tab not shown. A
+tab whose request failed is not offered, as the provenance panel already
+rendered nothing then: an empty tab would say "no citation" out of a network
+error. The explanation of why, the fix, the verification and the compensating
+controls stay above as they were.
+
+**The facts are one card.** On the finding page the score and its working,
+the asset and its factors, the dates it was seen, and the controls it is
+evidence toward were four cards; on the risk page the arithmetic, the factors
+weighed and the note that a decision closes nothing were three. Each is now one
+card of sections divided by a hairline, each section named by a small muted
+`RailHeading` (`components/common/states.tsx`) so the figures lead. "Evidence
+toward these controls -- not a compliance claim" moved behind a question mark;
+"Nothing resolves without proof" stays printed, shortened to two sentences,
+because it is said where the decision is made.
+
+**Every tab strip slides.** The vendored `TabsList` now renders Base UI's
+`Tabs.Indicator` before its tabs: the default variant's raised fill and the
+line variant's underline are one element that moves to the tab chosen,
+positioned from the `--active-tab-*` variables Base UI writes, with the
+per-tab fill and `::after` underline kept only for a vertical strip, which
+CloudGuard has none of. Base UI keeps the indicator `hidden` until the layout
+has settled, so it appears in place and moves only on a change. It is a CSS
+`translate` and `width` transition on one small absolute element rather than a
+`layoutId`: the primitive already knows where the tab is, and every tab strip
+in the app -- the asset page, the attack-path panel, the scan wizard, the
+remediation panel -- gets it without a change at the call site.
+
+**A proved fix draws its check.** When a verification comes back fixed, the
+check in `FixVerification` is Lucide's check path stroked on with `drawPath`
+over the chart duration, and its circle crossfades to the pass colour. It is
+drawn because it arrived: the panel exists only after somebody asked for the
+check. A finding that was already fixed when the page opened gets the "Verified
+fixed" alert, which does not move. The plan's second half -- the resolved row
+collapsing out of the open list -- was not done as an exit animation: a table
+row cannot collapse its height cleanly, and the list refetch already removes
+it, with the rows that stay sliding up under §179.
+
+## 181. Connecting a cloud: one line a step, the copy nobody reads deleted, and a step that finishes draws its check
+
+The fourth pass of §166 and §167, over connecting a cloud and managing the
+connection -- the flows that held the most words (`connection` and `setup`
+were about 2,370 of the catalogue's 5,970) and 58 of the strings over the copy
+budget.
+
+**What was read on every visit is one line.** The setup intro, each rail step's
+line, the consent, deploy, review and hand-off bodies, the two "who you need"
+notes, the paused and nothing-in-scope notes, the connections page's intro and
+empty state, the read-only promise, the schedule notes, the scope footnote and
+the discard and remove confirmations were each cut to one line of at most 90
+characters. Where the cut part carried something a reader may want -- why admin
+consent scans nothing, what unticking a subscription does to findings already
+held, what change detection reacts to and how a burst of changes becomes one
+scan -- it is an `Explain` string behind a question mark: `StepHeader` takes
+`explain` beside its title, and the change-detection panel's title carries the
+reaction and the timing. The read-only promise stays printed at the foot of
+the connect screen with its icon, as one line: it is the claim somebody deciding
+whether to grant anything reads.
+
+**Copy nobody could read is deleted.** The whole `connect` namespace -- an
+earlier connect page's twelve strings -- had no reader left in the code, and
+six more over-budget strings under `connection` and `setup` (`noGuidsNeeded`,
+`noWriteActions`, `scheduleHelp`, `scheduleNotReady`, `whoYouNeedDetail`,
+`doneBody`) were read by no component. They are removed rather than shortened.
+
+**What is left over the budget is left on purpose.** The strings still in
+`overBudget.ts` under `connection` and `setup` are the ones shown when something
+has gone wrong or is about to be destroyed: why a deployment stalled (Contributor
+instead of Owner, the wrong scope, propagation), consent that did not grant a
+permission, a role upgrade, the change-detection wiring Cleave cannot do for
+the customer, and how to revoke in Azure what removing a connection here does
+not. Each appears only in that situation, and there its detail is the help;
+hiding it behind a question mark would make a stuck person hunt for the fix.
+The AWS strings are untouched: AWS is gated out of the UI and every string about
+it is unverified (CLAUDE.md). The baseline went from 123 to 90.
+
+**A step that finishes draws its check.** Each row of the setup rail is its
+own component (`RailStep`) so it can hold `useValueChange` on whether it is
+done: a step that finishes while the reader watches -- consent landing, the
+role verified -- turns its number into a check that draws itself, and the line
+down to the next step fills from the top (`scaleY`). A step already done when
+the page opened is drawn done and still. The check is `DrawnCheck`
+(`components/common`), now shared with the proved fix of §180, which draws
+only when told the check is news.
+
+## 182. Attack paths and scans: empty states in a line, how-to-read behind the question marks, and finishing said by the mark that replaces the spinner
+
+The fifth pass of §166 and §167, over the attack-path page, the simulation
+panel, and the scan cards and pipeline.
+
+**Copy.** The attack-path empty states (no scan, no entry point, nothing
+sensitive, no route) each had a paragraph under their title; each is now one
+line. The map's how-to-read and the note on route groups were already behind
+question marks and are now `mapHelpExplain` and `patternsHelpExplain`, which
+the copy budget lets run long. The simulation panel's intro is a line ("Press a
+line on the drawing, or start from a change below"), with why a plan is checked
+as a whole behind a question mark beside its title. On the scans side the delete
+dialog, the nothing-found notes, the replay results and the two collection
+hints are one line each. `cutHereDetail` had no reader and is deleted. The
+phrases that carry the product's rule stay word for word: a reading that
+produced nothing leaves its checks "unknown, never passed", and an advisory
+replay says "No finding was created, resolved or reopened". The stuck-worker
+diagnostic keeps its detail, as §181's troubleshooting copy does. The baseline
+went from 90 to 71.
+
+**Motion.** The simulation's "N of M routes close" counts to its new answer when
+the plan changes, and the bar under it grows by `scaleX` instead of animating
+its width. The route map already closes routes in hop order (`closeDelay` in `RouteMapCanvas`), so that part
+of the plan needed nothing. In the scan pipeline, a phase that finishes while the
+reader watches, or a subscription's collection that does, replaces its spinner
+with a `DrawnCheck` that draws itself -- keyed on `useValueChange` seeing the
+previous state as running -- and a phase or lane that was already done when the
+scan was opened shows its check still. The pipeline's counters already counted
+up (§87), so nothing else changed there. The phase marks carried a `layout`
+prop that did nothing under `domAnimation`; since §179 loads `domMax`, it now
+animates a mark's move when the phase row reflows, which it was written for.
+
+## 183. One radius scale and one spacing grid, held by the design budget test; what the polish pass did not do
+
+The last pass of the series §166 began. `--radius` (0.5rem) gives four corners
+-- 4, 6, 8 and 12px as `rounded-sm`, `-md`, `-lg` and `-xl` -- and Tailwind's
+spacing runs in 4px steps. Beside them, 19 corners had been typed as 9 or 10px
+(inputs on sign-in and onboarding, the setup step boxes, the code block, the
+segmented filter, the cut panel's callout) and 3 as 2px for legend swatches, and 13
+margins and paddings as 7, 13, 18, 22 or 26px. The 9 and 10px corners are
+`rounded-lg`, the 2px swatches `rounded-xs`; 22 and 26px are `mt-6`, 18 is
+`mt-4` or `px-5` (so the severity strip and stat strips line up with every
+other card's `px-5`), 13 is `px-3`, 7 is `py-2`, and the sign-in button's 42px
+height is `h-10`, the height of the inputs above it. A navigation row is 2px
+taller for it. `designBudget.test.ts` now also fails on a radius, margin,
+padding or gap written in pixels outside the vendored primitives, as it does on
+a pixel font size.
+
+Three items of the plan were not done, on purpose. Replacing bordered cards
+with section headers across the app, and restricting muted text to metadata,
+are judgements a screen has to be looked at to make; the passes above already
+removed the cards they could see a reason to (the dashboard's, and the detail
+pages' rails and tabs), and a codemod would have made the rest blind. The
+empty-state icon drawing its outline once is not done because it would be motion
+on arrival rather than on a change, which §167 rules out -- an empty list is the
+state of things, not news. The before-and-after screenshots the plan asked for
+were not taken: the development machine has no environment for the frontend
+and no API to point it at, so they are for the deployed app.
+
+## 184. A fix is written into the customer's own Terraform only by changing one value that is already there
 
 Fix-as-Code (`docs/FIX_AS_CODE.md`) turns a failing finding into an edit of the
 customer's HCL: first as a diff of a file they upload, later as a pull request.

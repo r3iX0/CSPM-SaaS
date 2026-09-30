@@ -1,4 +1,4 @@
-"""A finding's fix as a diff of the customer's own Terraform (DECISIONS.md §166).
+"""A finding's fix as a diff of the customer's own Terraform (DECISIONS.md §184).
 
 The seam between the rules and the edit engine: which arguments a rule asks
 for, on which resource types, and the answer the API gives. Nothing here is
@@ -10,7 +10,7 @@ loop (§158).
 """
 
 from app.core.enums import Provider
-from app.remediation import terraform_accepts, terraform_hints
+from app.remediation import Comparison, terraform_accepts, terraform_hints
 from app.remediation.iac import Change, Decline, Declined, edit_terraform
 from app.remediation.iac.terraform import CHECKED_RELEASES, MAX_BYTES
 from app.rules.base import SecurityRule
@@ -44,7 +44,7 @@ def propose_terraform_fix(
     the diff would carry the replacements back into the customer's file.
 
     ``sole_block`` only where a person chose the file for this finding: an
-    upload, never a repository CloudGuard searched (DECISIONS.md §166).
+    upload, never a repository CloudGuard searched (DECISIONS.md §184).
     """
     if any(isinstance(part, bytes) and len(part) > MAX_BYTES for part in (source, lockfile)):
         return _declined(filename, Decline.TOO_LARGE, f"The file is over {MAX_BYTES // 1024} KiB.")
@@ -63,6 +63,13 @@ def propose_terraform_fix(
         or spec is None
         or not spec.terraform_resource_types
         or not hints
+        # A collection state has no one value to write -- its hint renders as
+        # ``null`` -- so it is a structural edit, never attempted (§184).
+        or any(
+            state.comparison is not Comparison.EQUALS
+            for state in spec.expected
+            if state.terraform_attribute
+        )
     ):
         return _declined(
             filename, Decline.NOT_EDITABLE, "This rule has no Terraform argument to set."

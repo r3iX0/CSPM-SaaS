@@ -1,5 +1,5 @@
 /**
- * Writing a finding's fix into the customer's own Terraform (DECISIONS.md §166).
+ * Writing a finding's fix into the customer's own Terraform (DECISIONS.md §184).
  *
  * The file goes up as a multipart upload and a diff comes back -- or a reason
  * the edit was not made, which is an answer to show, not an error to raise.

@@ -3,7 +3,7 @@
 ``terraform_hints`` names the argument to change. This finds the resource block
 in a real file and changes it there, as a byte-range splice over a tree-sitter
 parse, so the formatting, the alignment and the comments of everything else in
-the file are exactly what the customer wrote (DECISIONS.md §166).
+the file are exactly what the customer wrote (DECISIONS.md §184).
 
 What it will do is narrow on purpose: change the literal value of an argument
 in the one block that defines the asset, or add an optional argument that is
@@ -160,7 +160,7 @@ def edit_terraform(
 
     ``sole_block`` is for a file a person chose for this asset: there, the only
     block of these types is the one they meant even where its name is an
-    expression. Never for a file CloudGuard found on its own (§166).
+    expression. Never for a file CloudGuard found on its own (§184).
     """
     try:
         return _edit(source, resource_types, name, changes, lockfile, sole_block)

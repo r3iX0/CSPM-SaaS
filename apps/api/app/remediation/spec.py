@@ -155,7 +155,7 @@ class RemediationSpec:
     # the edit engine looks for in a customer's HCL. More than one where the
     # provider split one Azure type in two -- a web app is Linux or Windows --
     # and only types whose every hinted argument is held to the provider schema
-    # of each release the engine claims (DECISIONS.md §166). A legacy type that
+    # of each release the engine claims (DECISIONS.md §184). A legacy type that
     # spells an argument differently (``azurerm_app_service`` calls it
     # ``min_tls_version``) is left out rather than given a second spelling.
     terraform_resource_types: tuple[str, ...] = ()

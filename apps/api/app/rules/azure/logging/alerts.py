@@ -329,6 +329,7 @@ SPECS = (
         field="allow_blob_public_access",
         safe=False,
         terraform_attribute="allow_nested_items_to_be_public",
+        terraform_resource_types=("azurerm_storage_account",),
         describes="Public blob access is disallowed on the account",
         failure="keeps the activity log in an account that allows public blob access",
         mappings=_LOG_PROTECTION,

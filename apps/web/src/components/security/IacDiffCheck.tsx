@@ -19,7 +19,7 @@ import { Spinner } from "@/components/ui/spinner";
  * and hands back a diff, or says why it would not -- an interpolated name, a
  * value from a variable, a block that is not there. A refusal is shown as the
  * answer it is, not as an error: the file was read and the edit needed a guess
- * (DECISIONS.md §166). Nothing uploaded is kept.
+ * (DECISIONS.md §184). Nothing uploaded is kept.
  */
 export function IacDiffCheck({
   findingId,
@@ -102,7 +102,7 @@ export function IacDiffCheck({
       {result?.outcome === "patched" && result.diff && (
         <div className="flex flex-col gap-2">
           {result.matched_by === "sole_block" && (
-            // Matched without its name: the reviewer is the check (DECISIONS.md §166).
+            // Matched without its name: the reviewer is the check (DECISIONS.md §184).
             <p className="rounded-lg border border-dashed p-3 text-xs leading-relaxed">
               Its name is an expression, so Cleave took the only block of its kind in{" "}
               {result.filename} — check it is {resourceName} before you apply.

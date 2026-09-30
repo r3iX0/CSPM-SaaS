@@ -430,7 +430,7 @@ async def finding_iac_diff(
 
     Returns a unified diff that changes one argument in the block defining the
     asset, or a decline with its reason -- an answer, not an error, when the
-    edit would need a guess (DECISIONS.md §166). ``lockfile`` is the optional
+    edit would need a guess (DECISIONS.md §184). ``lockfile`` is the optional
     ``.terraform.lock.hcl``, which lets the answer say which azurerm release it
     holds. Nothing uploaded is stored, and the finding is not changed, so a
     viewer and the demo organization may ask.
@@ -457,7 +457,7 @@ async def finding_iac_diff(
             filename=iac_service.upload_filename(file.filename),
             source=source,
             lockfile=lock,
-            # The customer chose this file for this finding (§166).
+            # The customer chose this file for this finding (§184).
             sole_block=True,
         )
     )

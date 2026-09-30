@@ -8330,7 +8330,7 @@
           "findings"
         ],
         "summary": "Finding Iac Diff",
-        "description": "This finding's fix, written into a Terraform file the customer uploads.\n\nReturns a unified diff that changes one argument in the block defining the\nasset, or a decline with its reason -- an answer, not an error, when the\nedit would need a guess (DECISIONS.md \u00a7166). ``lockfile`` is the optional\n``.terraform.lock.hcl``, which lets the answer say which azurerm release it\nholds. Nothing uploaded is stored, and the finding is not changed, so a\nviewer and the demo organization may ask.",
+        "description": "This finding's fix, written into a Terraform file the customer uploads.\n\nReturns a unified diff that changes one argument in the block defining the\nasset, or a decline with its reason -- an answer, not an error, when the\nedit would need a guess (DECISIONS.md \u00a7184). ``lockfile`` is the optional\n``.terraform.lock.hcl``, which lets the answer say which azurerm release it\nholds. Nothing uploaded is stored, and the finding is not changed, so a\nviewer and the demo organization may ask.",
         "operationId": "finding_iac_diff_api_v1_findings__finding_id__iac_diff_post",
         "parameters": [
           {
@@ -16244,7 +16244,7 @@
           "checked_against"
         ],
         "title": "IacDiffOut",
-        "description": "A finding's fix written into the customer's Terraform, or why it was not.\n\nA decline is an answer, not an error (DECISIONS.md \u00a7166): the file was read\nand the edit would have needed a guess. ``decline_reason`` is for a program\nto branch on; ``detail`` is the sentence a person reads."
+        "description": "A finding's fix written into the customer's Terraform, or why it was not.\n\nA decline is an answer, not an error (DECISIONS.md \u00a7184): the file was read\nand the edit would have needed a guess. ``decline_reason`` is for a program\nto branch on; ``detail`` is the sentence a person reads."
       },
       "IacEditOut": {
         "properties": {

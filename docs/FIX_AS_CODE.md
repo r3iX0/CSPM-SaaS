@@ -1,7 +1,7 @@
 # Fix-as-Code: IaC diffs and pull requests
 
 Status: **Phase 0 done (2026-09-29), Phase 1 next.** The decision is DECISIONS
-§166. Phase 0 settled:
+§184. Phase 0 settled:
 
 - `RemediationSpec.terraform_resource_types` is declared on the 13 Azure rules
   with a Terraform attribute; `tests/unit/test_terraform_hints_schema.py` holds
@@ -23,7 +23,7 @@ Status: **Phase 0 done (2026-09-29), Phase 1 next.** The decision is DECISIONS
 **Phase 1 built (2026-09-29), Terraform only:** `app/remediation/iac/terraform.py`
 (`edit_terraform`), `app/services/iac.py`, `POST /findings/{id}/iac-diff`
 (multipart `file` + optional `lockfile`), and `IacDiffCheck` in the finding's
-Terraform tab. §166 was amended: an optional argument missing from an existing
+Terraform tab. §184 was amended: an optional argument missing from an existing
 block is added, since an omitted argument is the usual shape of an insecure
 default.
 
@@ -41,7 +41,7 @@ confirms the top risk: matching on a literal `name` alone almost never fires.
 Where a file holds a type at all, it holds **one** block of that type 94% of the
 time (118 of 125 files).
 
-**Sole-block matching, uploads only (§166).** Where no block carries the name
+**Sole-block matching, uploads only (§184).** Where no block carries the name
 and the upload holds exactly one interpolated block of the rule's types, it is
 taken, and the answer says `matched_by: "sole_block"` so the reviewer checks it.
 Measured with `hit_rate.py --sole-block`:
@@ -96,7 +96,7 @@ them in and applies something nobody asked for. Fix-as-Code keeps that rule:
 
 ### Phase 0 -- Decision record and spec extension (small)
 
-- Write DECISIONS §166: edit in place only, the decline rules, a GitHub App
+- Write DECISIONS §184: edit in place only, the decline rules, a GitHub App
   rather than personal access tokens, no auto-merge.
 - Add `bicep_property: str | None` to `ExpectedState` (e.g.
   `properties.minimumTlsVersion`). Same "verified before written down" rule as

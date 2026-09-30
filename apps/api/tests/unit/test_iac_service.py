@@ -1,15 +1,18 @@
-"""From a finding's rule to a diff of the customer's file (DECISIONS.md §166).
+"""From a finding's rule to a diff of the customer's file (DECISIONS.md §184).
 
 The engine is tested on its own in ``test_iac_terraform``; this is the seam
 between it and the rules -- which arguments a rule asks for, on which resource
 types -- and the answer the API gives, including the ones that are not a diff.
 """
 
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
+from app.remediation import Comparison
 from app.remediation.iac.terraform import CHECKED_RELEASES
+from app.remediation.spec import ExpectedState
 from app.rules.registry import get_rule
 from app.services.iac import propose_terraform_fix, upload_filename
 
@@ -134,3 +137,60 @@ def test_the_checked_releases_are_the_schema_fixtures() -> None:
     assert sorted(p.stem.removeprefix("azurerm-") for p in fixtures.glob("*.json")) == sorted(
         CHECKED_RELEASES
     )
+
+
+def test_a_collection_state_is_never_written_even_when_declared() -> None:
+    # NOT_EMPTY has no one value to write: ``terraform_hints`` renders it as
+    # ``null``, which lifts the very restriction the rule asks for. The service
+    # refuses it itself rather than trusting every spec to leave it out (§184).
+    base = get_rule("AZ-STO-003")
+    assert base is not None
+    spec = replace(
+        base.remediation_spec,
+        expected=(
+            ExpectedState(
+                field="ip_rules",
+                equals=None,
+                comparison=Comparison.NOT_EMPTY,
+                describes="Only named addresses reach the account",
+                terraform_attribute="network_rules.ip_rules",
+            ),
+        ),
+    )
+    rule = type("CollectionRule", (type(base),), {"remediation_spec": spec})()
+    out = propose_terraform_fix(rule, "prodlogs", filename="main.tf", source=ACCOUNT)
+    assert (out.outcome, out.decline_reason) == ("declined", "not_editable")
+
+
+def test_a_registry_argument_written_as_a_block_is_edited() -> None:
+    # azurerm declares ``network_rule_set`` as an attribute that files write in
+    # block form; the engine edits the value inside it.
+    source = """\
+resource "azurerm_container_registry" "images" {
+  name = "prodimages"
+  network_rule_set {
+    default_action = "Allow"
+  }
+}
+"""
+    out = propose("AZ-ACR-002", source=source, name="prodimages")
+    assert out.outcome == "patched"
+    assert [(e.attribute, e.before, e.after) for e in out.edits] == [
+        ("network_rule_set.default_action", '"Allow"', '"Deny"')
+    ]
+
+
+def test_http2_is_set_in_the_web_apps_site_config() -> None:
+    source = """\
+resource "azurerm_linux_web_app" "site" {
+  name = "prodsite"
+  site_config {
+    always_on = true
+  }
+}
+"""
+    out = propose("AZ-WEB-010", source=source, name="prodsite")
+    assert out.outcome == "patched"
+    assert [(e.attribute, e.before, e.after) for e in out.edits] == [
+        ("site_config.http2_enabled", None, "true")
+    ]

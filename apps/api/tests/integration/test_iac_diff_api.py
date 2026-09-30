@@ -1,4 +1,4 @@
-"""The finding's IaC diff against the real database (DECISIONS.md §166).
+"""The finding's IaC diff against the real database (DECISIONS.md §184).
 
 * An uploaded file comes back as a diff of the block defining the asset.
 * A decline is a 200 with its reason, not an error.

@@ -245,7 +245,7 @@ export interface RemediationSpec {
 
 /**
  * A finding's fix written into an uploaded Terraform file, or why it was not
- * (DECISIONS.md §166). A decline is an answer, not an error.
+ * (DECISIONS.md §184). A decline is an answer, not an error.
  */
 export interface IacDiff {
   filename: string;

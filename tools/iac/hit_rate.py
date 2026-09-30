@@ -14,7 +14,7 @@ counted by reason, because each reason is a different piece of work --
 wants the edit made where the variable is set.
 
 ``--sole-block`` measures the upload flow, where a file chosen for the asset
-may be matched by holding the only block of the type (DECISIONS.md §166). An
+may be matched by holding the only block of the type (DECISIONS.md §184). An
 interpolated block is then tried under a name no literal carries, which is what
 a finding about it would look like to the engine.
 """

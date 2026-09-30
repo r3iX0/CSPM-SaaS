@@ -363,7 +363,7 @@ class IacEditOut(BaseModel):
 class IacDiffOut(BaseModel):
     """A finding's fix written into the customer's Terraform, or why it was not.
 
-    A decline is an answer, not an error (DECISIONS.md §166): the file was read
+    A decline is an answer, not an error (DECISIONS.md §184): the file was read
     and the edit would have needed a guess. ``decline_reason`` is for a program
     to branch on; ``detail`` is the sentence a person reads.
     """

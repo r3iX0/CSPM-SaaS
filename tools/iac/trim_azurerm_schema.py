@@ -7,7 +7,7 @@ rules edit, for the test that holds every ``terraform_attribute`` to the provide
     cd az4 && terraform init && terraform providers schema -json > schema.json && cd ..
     python tools/iac/trim_azurerm_schema.py az4/schema.json az4/.terraform.lock.hcl
 
-Run it once per major version the edit engine claims (DECISIONS.md §166). The
+Run it once per major version the edit engine claims (DECISIONS.md §184). The
 output lands in ``apps/api/tests/fixtures/terraform/azurerm-<version>.json``,
 named for the exact provider release the lock file resolved, because an
 attribute is verified against a release rather than against a range someone
@@ -31,10 +31,16 @@ PROVIDER = "registry.terraform.io/hashicorp/azurerm"
 OUT = Path(__file__).resolve().parents[2] / "apps/api/tests/fixtures/terraform"
 
 RESOURCE_TYPES = (
+    "azurerm_container_registry",
+    "azurerm_cosmosdb_account",
+    "azurerm_databricks_workspace",
     "azurerm_key_vault",
+    "azurerm_kubernetes_cluster",
+    "azurerm_linux_virtual_machine",
     "azurerm_linux_web_app",
     "azurerm_mssql_server",
     "azurerm_postgresql_flexible_server",
+    "azurerm_search_service",
     "azurerm_storage_account",
     "azurerm_windows_web_app",
 )

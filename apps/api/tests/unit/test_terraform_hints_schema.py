@@ -1,7 +1,7 @@
 """Every Terraform attribute a rule names, checked against the provider itself.
 
 ``terraform_hints`` hands a customer the line to change, and Fix-as-Code writes
-that line into their own HCL (DECISIONS.md §166). An argument the provider does
+that line into their own HCL (DECISIONS.md §184). An argument the provider does
 not have -- or has under another name in this major version, or will not accept
 a value of this type for -- fails their ``terraform plan``, which is worse than
 no hint: they trusted it enough to try. So each name is held to the schema of
@@ -47,13 +47,30 @@ def _written(state: ExpectedState) -> Any:
 def _attribute(schema: dict[str, Any], resource_type: str, path: str) -> dict[str, Any] | None:
     block = schema[resource_type]
     *nested, leaf = path.split(".")
-    for name in nested:
+    for index, name in enumerate(nested):
         nested_block = block["block_types"].get(name)
+        if nested_block is None:
+            # azurerm declares some blocks as attributes that files write in
+            # block form (``network_rule_set``): a list of one object type.
+            return _object_attribute(block["attributes"].get(name), nested[index + 1 :], leaf)
         # One block at most, or "the" block the edit changes is a guess.
-        if nested_block is None or nested_block.get("max_items") != 1:
+        if nested_block.get("max_items") != 1:
             return None
         block = nested_block["block"]
     return block["attributes"].get(leaf)
+
+
+def _object_attribute(
+    attribute: dict[str, Any] | None, nested: list[str], leaf: str
+) -> dict[str, Any] | None:
+    # Only the plain shape: a list of objects, the field one level down. The
+    # engine declines a second block of the name, so a list of one is not assumed.
+    if attribute is None or nested or not attribute.get("optional"):
+        return None
+    collection, element = attribute["type"]
+    if collection != "list" or element[0] != "object" or leaf not in element[1]:
+        return None
+    return {"type": element[1][leaf], "optional": True}
 
 
 def test_both_major_versions_are_fixtures() -> None:
@@ -106,5 +123,5 @@ def test_every_hinted_value_has_the_argument_type(rule) -> None:
 
 @pytest.mark.parametrize("rule", AZURE_HINTED, ids=lambda r: r.rule_id)
 def test_only_a_scalar_state_is_hinted(rule) -> None:
-    # A collection state is a structural edit, not a line to change (§166).
+    # A collection state is a structural edit, not a line to change (§184).
     assert all(state.comparison is Comparison.EQUALS for state in _hinted(rule))
