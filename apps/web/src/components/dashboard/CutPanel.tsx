@@ -6,6 +6,8 @@ import { GraphLink } from "@/components/graph/GraphLink";
 import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/format";
+import { useT } from "@/i18n";
+import { InfoTip } from "@/components/common/InfoTip";
 
 /**
  * The one change that closes the most routes.
@@ -31,6 +33,7 @@ export function CutPanel({
   loading: boolean;
   failed: boolean;
 }) {
+  const t = useT();
   const choke = Array.isArray(chokes) ? chokes[0] : undefined;
 
   return (
@@ -40,13 +43,12 @@ export function CutPanel({
       className="flex flex-col overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10"
     >
       <header className="px-5 py-4">
-        <h2 id="link-to-cut" className="text-body font-semibold">
-          The link to cut
-        </h2>
-        <p className="mt-1 text-xs text-muted-foreground">
-          The single change that closes the most routes from something exposed
-          to something sensitive.
-        </p>
+        <div className="flex items-center gap-1">
+          <h2 id="link-to-cut" className="text-body font-semibold">
+            The link to cut
+          </h2>
+          <InfoTip label={t.dashboard.cutExplainLabel}>{t.dashboard.cutExplain}</InfoTip>
+        </div>
       </header>
 
       <div className="flex flex-1 flex-col gap-4 border-t px-5 py-4">
@@ -54,8 +56,7 @@ export function CutPanel({
 
         {!loading && failed && (
           <p className="text-body leading-relaxed text-muted-foreground">
-            The routes could not be read just now. Nothing about your
-            environment has changed — this is a problem displaying it.
+            Routes could not be read just now. Nothing about your environment has changed.
           </p>
         )}
 
@@ -65,13 +66,12 @@ export function CutPanel({
           // no routes at all -- a gap in what Cleave was told, not a clean
           // environment.
           <p className="text-body leading-relaxed text-muted-foreground">
-            No route traced from an internet-facing asset to a sensitive one.
-            What counts as sensitive is something you declare, so an estate with
-            nothing classified shows none either —{" "}
+            No route from an internet-facing asset to a sensitive one. What counts as
+            sensitive is something you declare —{" "}
             <Link to="/settings" className="underline underline-offset-2">
               declare what a subscription is worth
-            </Link>{" "}
-            to make this reading mean something.
+            </Link>
+            .
           </p>
         )}
 

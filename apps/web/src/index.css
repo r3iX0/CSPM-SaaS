@@ -103,8 +103,8 @@
      half a pixel and meant nothing by it. In rem, so a reader's browser font
      size still scales the page. No line-height is paired with a step: the
      element inherits its leading as it did under `text-[13px]`, and says
-     `leading-*` where it wants its own. ESLint refuses `text-[Npx]` outside
-     the vendored primitives. `lib/utils.ts` lists the names for tailwind-merge. */
+     `leading-*` where it wants its own. `designBudget.test.ts` refuses
+     `text-[Npx]` outside the vendored primitives. `lib/utils.ts` lists the names for tailwind-merge. */
   --text-micro: 0.625rem; /* 10px  counters inside a dot, dense chips */
   --text-caption: 0.6875rem; /* 11px  badges, column heads, legends */
   --text-meta: 0.75rem; /* 12px  timestamps, secondary lines */
@@ -125,6 +125,45 @@
 @keyframes cg-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+/*
+  The score ring's sweep and colour (DECISIONS.md §178). Registered so the
+  browser can interpolate them: an unregistered custom property inside a
+  `conic-gradient` swaps in one frame. A transition, not a keyframe, so the ring
+  moves when the score changes and never on mount -- the digits count up then.
+*/
+@property --score-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@property --score-color {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: transparent;
+}
+
+/* A score delta arriving: the arrow's direction, said once by moving. */
+@keyframes cg-nudge-up {
+  0%,
+  100% {
+    transform: none;
+  }
+  40% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes cg-nudge-down {
+  0%,
+  100% {
+    transform: none;
+  }
+  40% {
+    transform: translateY(3px);
   }
 }
 

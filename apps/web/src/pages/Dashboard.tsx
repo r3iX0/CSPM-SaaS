@@ -23,6 +23,7 @@ import { PriorityRisks } from "@/components/dashboard/PriorityRisks";
 import { CutPanel } from "@/components/dashboard/CutPanel";
 import { FixesProved } from "@/components/dashboard/FixesProved";
 import { RecentChanges } from "@/components/dashboard/RecentChanges";
+import { TodayStats } from "@/components/dashboard/TodayStats";
 import { DashboardSkeleton, ErrorState, PageHeader } from "@/components/common/states";
 import { Button } from "@/components/ui/button";
 import { listContainer, listItem } from "@/lib/motion";
@@ -33,20 +34,17 @@ import { IN_FLIGHT } from "@/components/scans/status";
  * The page that answers "how secure am I right now", read top to bottom as one
  * argument rather than as a wall of cards.
  *
- * The order is the argument, and each step is the precondition for the next:
+ * The order is the argument, in three zones (DECISIONS.md §178):
  *
- *   where the posture stands, and what that means today       (score, trend)
- *   what that number is made of                               (severity)
- *   what to deal with, and the one link that cuts the most    (risks, cut)
- *   how much of the estate the opinion was formed from        (coverage)
- *   and where in the world that estate, and its faults, run   (regions)
- *   whether any of it is actually getting fixed               (fixes proved)
- *   what moved while you were away                            (changes)
- *   what the evidence adds up to for somebody who reports     (compliance)
+ *   where the posture stands        score and trend, the figures that qualify
+ *                                   it (risks, routes, coverage), severity
+ *   what to do next                 the ranked risks, the one link to cut
+ *   the detail behind both          coverage, fixes proved, what moved,
+ *                                   compliance, and where it all runs
  *
- * The order is the Cleave redesign's. Coverage follows the risks rather than
- * preceding them, and says in its own words that a verdict nobody could reach
- * is never a pass.
+ * Each panel says what it is in a line; how it is measured is a question mark
+ * beside its title (§166). Coverage is stated twice on purpose: as a figure
+ * beside the score, which it qualifies, and in full below.
  *
  * Inventory counts — assets, subscriptions, resources — are deliberately not on
  * this page as headline figures. They are true and they answer a different
@@ -105,6 +103,11 @@ export function DashboardPage() {
     retry: false,
   });
 
+  // The risks list's own count: the dashboard's bands hold finding risks
+  // only, and the figure beside the score speaks for attack paths and
+  // escalations too.
+  const riskCount = useRiskCount();
+
   if (isLoading) return <DashboardSkeleton />;
   if (error) return <DashboardError error={error} onRetry={() => refetch()} />;
   if (!data) return null;
@@ -134,13 +137,15 @@ export function DashboardPage() {
     : false;
   const gaps = Object.entries(data.last_scan.collection_errors ?? {});
 
+  const lastReading = data.history?.[data.history.length - 1];
+
   return (
-    // The panels arrive in the order they are read in. The stagger is small --
-    // three hundredths of a second between panels -- because it is there to
-    // give the eye a path down the argument, not to make the page a
-    // performance. Everything after the eighth panel shares the last delay.
+    // Three zones, read top to bottom (DECISIONS.md §178): where the posture
+    // stands, what to do next, and the detail behind both. The panels arrive
+    // in that order with a small stagger -- three hundredths of a second
+    // between them, to give the eye a path down the page, not a performance.
     <m.div
-      className="flex flex-col gap-4"
+      className="flex flex-col gap-6"
       variants={listContainer}
       initial="initial"
       animate="animate"
@@ -153,7 +158,7 @@ export function DashboardPage() {
         />
       </m.div>
 
-      {/* 0 — what is left to set up, until it is done or put away */}
+      {/* What is left to set up, until it is done or put away. */}
       <m.div variants={listItem}>
         <GettingStarted
           dashboard={data}
@@ -162,27 +167,24 @@ export function DashboardPage() {
         />
       </m.div>
 
-      {/* 1 — where we stand, and what that means today */}
-      <m.div variants={listItem}>
+      {/* 1 -- where the posture stands, and what it is made of */}
+      <m.div variants={listItem} className="flex flex-col gap-4">
         <ScorePanel
           score={data.security_score}
           delta={data.score_delta}
           history={data.history ?? []}
-          summary={
-            <TodaySummary
-              dashboard={data}
-              choke={Array.isArray(chokes.data) ? chokes.data[0] : undefined}
+          today={
+            <TodayStats
+              risks={riskCount}
+              routes={lastReading?.attack_path_count ?? null}
+              coverage={data.coverage.ratio}
             />
           }
         />
-      </m.div>
-
-      {/* 2 — what that number is made of */}
-      <m.div variants={listItem}>
         <SeverityStrip counts={data.findings_by_severity} unknown={data.coverage.unknown} />
       </m.div>
 
-      {/* 3 — what to deal with, and the one change that closes the most */}
+      {/* 2 -- what to do next: the risks, and the one change that closes most */}
       <m.div
         variants={listItem}
         className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]"
@@ -195,8 +197,10 @@ export function DashboardPage() {
         />
       </m.div>
 
-      {/* 4 — how much of the estate the opinion was formed from */}
-      <m.div variants={listItem}>
+      {/* 3 -- the detail: what the reading covers, what is being fixed, what
+          moved, what it adds up to for somebody who reports on it, and where
+          it all runs. The map keeps a full row; it needs the width. */}
+      <m.div variants={listItem} className="grid gap-4 lg:grid-cols-2">
         <CoveragePanel
           ratio={data.coverage.ratio}
           unknown={data.coverage.unknown}
@@ -206,21 +210,6 @@ export function DashboardPage() {
           gaps={gaps}
           freshness={data.evidence_freshness ?? null}
         />
-      </m.div>
-
-      {/* 4b — where it runs, and where what is wrong with it runs. Absent
-          until something is tied to a region. */}
-      {data.regions?.some((region) => region.region !== null) && (
-        <m.div variants={listItem}>
-          <RegionPanel regions={data.regions} />
-        </m.div>
-      )}
-
-      {/* 5 — whether any of it is being fixed, and what moved meanwhile */}
-      <m.div
-        variants={listItem}
-        className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
-      >
         <FixesProved
           verified={data.verified_resolved_last_30_days}
           inProgress={data.findings_by_status?.IN_PROGRESS ?? 0}
@@ -232,63 +221,20 @@ export function DashboardPage() {
           )}
         />
         <RecentChanges events={changes.data} loading={changes.isLoading} />
-      </m.div>
-
-      {/* 6 — what the evidence adds up to for somebody who reports on it */}
-      <m.div variants={listItem}>
         <ComplianceSummary
           frameworks={
             Array.isArray(compliance.data) ? compliance.data : undefined
           }
           loading={compliance.isLoading}
         />
+        {/* Absent until something is tied to a region. */}
+        {data.regions?.some((region) => region.region !== null) && (
+          <div className="lg:col-span-2">
+            <RegionPanel regions={data.regions} />
+          </div>
+        )}
       </m.div>
     </m.div>
-  );
-}
-
-/**
- * "What that means today", in one sentence of figures the page already has:
- * how many risks, how many routes run from something exposed to something
- * sensitive, and what the one best cut would close. Each clause is said only
- * when its number is known.
- */
-function TodaySummary({
-  dashboard,
-  choke,
-}: {
-  dashboard: Dashboard;
-  choke: ChokePoint | undefined;
-}) {
-  // The risks list's own count: the dashboard's bands hold finding risks
-  // only, and this sentence speaks for attack paths and escalations too.
-  const risks = useRiskCount();
-  const routes = dashboard.history?.[dashboard.history.length - 1]?.attack_path_count;
-  return (
-    <>
-      {risks !== null && (
-        <span className="font-medium tabular-nums">
-          {risks} {risks === 1 ? "risk" : "risks"}.
-        </span>
-      )}
-      {routes !== undefined && routes > 0 && (
-        <>
-          {" "}
-          <span className="tabular-nums">
-            {routes} {routes === 1 ? "route runs" : "routes run"} from something
-            exposed to something sensitive.
-          </span>
-        </>
-      )}
-      {choke && choke.severs > 0 && (
-        <>
-          {" "}
-          <span className="tabular-nums">
-            One link closes {choke.severs} of {choke.total_routes}.
-          </span>
-        </>
-      )}
-    </>
   );
 }
 

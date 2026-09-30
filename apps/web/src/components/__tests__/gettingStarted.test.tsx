@@ -113,6 +113,18 @@ describe("the getting-started checklist", () => {
     expect(await screen.findByText("2 of 5 done")).toBeInTheDocument();
   });
 
+  it("is one line after the first scan: the step that is next, and nothing else", async () => {
+    mount(dashboard());
+
+    expect(await screen.findByText("Fix your top risk and verify it")).toBeInTheDocument();
+    expect(screen.getByText("Next:", { exact: false })).toBeInTheDocument();
+    // The steps before it are done and the ones after it wait; the full list
+    // is the page before the first scan, not a card on the page after it.
+    expect(screen.queryByText("Run your first scan")).not.toBeInTheDocument();
+    expect(screen.queryByText("Turn on automatic scanning")).not.toBeInTheDocument();
+    expect(screen.queryByRole("list")).not.toBeInTheDocument();
+  });
+
   it("ticks a step from the server's state, not from a click", async () => {
     mount(dashboard({ findings_by_status: { RESOLVED: 1 } }), {
       connections: [connection({ scan_interval_hours: 24 })],

@@ -123,6 +123,7 @@ export const en = {
     contextDetail: "Criticality and data sensitivity sharpen every risk score.",
     contextAction: "Declare in Settings",
     waitingOnPrevious: "After the step before",
+    next: "Next",
   },
   onboarding: {
     createOrg: "Create your organization",
@@ -602,6 +603,28 @@ export const en = {
     signInAgain: "Sign in again",
     openFindings: "Open findings",
     lastScan: "Last scan",
+
+    // The overview's question marks (DECISIONS.md §166, §178): the page says
+    // what each panel is in a line, and how it is measured here.
+    today: "Today",
+    openRisks: "Open risks",
+    attackRoutes: "Attack routes",
+    checksVerdicted: "Checks with a verdict",
+    scoreExplainLabel: "How the score is worked out",
+    scoreExplain:
+      "Deducted against each finding's risk band \u2014 what it means on the asset it was found on \u2014 not the number of alerts raised. Checks with no verdict take nothing off and add nothing: they are counted under coverage instead.",
+    priorityExplainLabel: "How risks are ranked",
+    priorityExplain:
+      "Ranked by what each would cost this business, not by how many alerts fired. Each row names the terms that raise its score: internet exposure, data sensitivity and asset criticality.",
+    cutExplainLabel: "What the link to cut is",
+    cutExplain:
+      "The single change that closes the most routes from something exposed to something sensitive. The count is what cutting it alone closes; two cuts can close together what neither closes alone, so a plan is simulated whole.",
+    coverageExplainLabel: "What coverage measures",
+    coverageExplain:
+      "The share of applicable checks that reached any verdict, pass or fail. It is not a security score. A check whose evidence could not be read reports no verdict, never a pass. Risks on assets Cleave could not classify are ranked as though they matter, but the score is charged only for what was established.",
+    complianceExplainLabel: "What compliance coverage means",
+    complianceExplain:
+      "The share of each framework's controls that reached a conclusion at the last scan. It says what Cleave can speak to, never whether you comply.",
   },
   findings: {
     title: "Findings",

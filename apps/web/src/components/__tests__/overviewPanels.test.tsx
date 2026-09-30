@@ -11,7 +11,9 @@ import { describe, expect, it } from "vitest";
 import { CutPanel } from "@/components/dashboard/CutPanel";
 import { FixesProved } from "@/components/dashboard/FixesProved";
 import { RecentChanges } from "@/components/dashboard/RecentChanges";
-import type { ChangeEvent, ChokePoint } from "@/lib/types";
+import { TodayStats } from "@/components/dashboard/TodayStats";
+import { ComplianceSummary } from "@/components/dashboard/ComplianceSummary";
+import type { ChangeEvent, ChokePoint, ComplianceFramework } from "@/lib/types";
 
 function wrap(node: ReactNode) {
   return render(
@@ -96,5 +98,62 @@ describe("RecentChanges", () => {
 
     expect(screen.getByText("Worse").className).toContain("text-critical");
     expect(screen.getByText("New")).toBeInTheDocument();
+  });
+});
+
+describe("TodayStats", () => {
+  it("leads with the three figures, each a way through to its page", () => {
+    wrap(<TodayStats risks={7} routes={3} coverage={0.94} />);
+
+    // The count-up starts from the value on mount, so the figure is final at once.
+    expect(screen.getByRole("link", { name: /7\s*Open risks/ })).toHaveAttribute("href", "/risks");
+    expect(screen.getByRole("link", { name: /3\s*Attack routes/ })).toHaveAttribute(
+      "href",
+      "/attack-paths",
+    );
+    expect(screen.getByRole("link", { name: /94%\s*Checks with a verdict/ })).toBeInTheDocument();
+  });
+
+  it("draws a figure it does not have yet as a dash, never a zero", () => {
+    wrap(<TodayStats risks={null} routes={null} coverage={null} />);
+
+    expect(screen.getAllByText("—")).toHaveLength(3);
+    expect(screen.queryByText("0")).not.toBeInTheDocument();
+  });
+});
+
+describe("ComplianceSummary", () => {
+  const framework = (id: string, ratio: number | null): ComplianceFramework =>
+    ({
+      id,
+      name: id,
+      short_name: id.toUpperCase(),
+      control_count: 20,
+      coverage_ratio: ratio,
+    }) as ComplianceFramework;
+
+  it("keeps the count behind each percentage for a screen reader", () => {
+    wrap(<ComplianceSummary loading={false} frameworks={[framework("cis", 0.5)]} />);
+
+    expect(screen.getByText("50%")).toBeInTheDocument();
+    expect(screen.getByText("10 of 20 controls reached a conclusion")).toHaveClass("sr-only");
+  });
+
+  it("says an unassessed framework is unassessed, not failed", () => {
+    wrap(<ComplianceSummary loading={false} frameworks={[framework("nis2", null)]} />);
+
+    expect(screen.getByText("—")).toBeInTheDocument();
+    expect(screen.getByText("Not assessed yet")).toBeInTheDocument();
+  });
+
+  it("lists five and leaves the rest to the compliance page", () => {
+    const many = ["a", "b", "c", "d", "e", "f", "g"].map((id) => framework(id, 0.1));
+    wrap(<ComplianceSummary loading={false} frameworks={many} />);
+
+    expect(screen.getAllByRole("listitem")).toHaveLength(5);
+    expect(screen.getByRole("link", { name: "All frameworks" })).toHaveAttribute(
+      "href",
+      "/compliance",
+    );
   });
 });

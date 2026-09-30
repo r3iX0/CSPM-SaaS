@@ -195,6 +195,63 @@ export function GettingStarted({
   if (next === -1) return null;
   if (variant === "compact" && dismissed) return null;
 
+  const progress = (
+    <div className="w-36">
+      <p className="text-right text-xs tabular-nums text-muted-foreground">
+        {copy.progress
+          .replace("{done}", String(doneCount))
+          .replace("{total}", String(steps.length))}
+      </p>
+      <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted" aria-hidden>
+        {/* Grows by scaleX from the left, and only when a step is ticked:
+            `initial={false}` starts it where it stands (§167). */}
+        <m.div
+          className="h-full origin-left rounded-full bg-ok"
+          initial={false}
+          animate={{ scaleX: doneCount / steps.length }}
+          transition={{ duration: DURATION.page / 1000, ease: EASE_OUT }}
+        />
+      </div>
+    </div>
+  );
+
+  // After the first scan the checklist is one line -- how far along, and the
+  // one step that is next with its action -- rather than a card of five
+  // (DECISIONS.md §178). The whole list is still what the page is before it.
+  if (variant === "compact") {
+    const step = steps[next];
+    return (
+      <section
+        aria-labelledby="getting-started"
+        className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-border bg-card px-5 py-3"
+      >
+        <h2 id="getting-started" className="text-body font-semibold">
+          {copy.title}
+        </h2>
+        {progress}
+        <p className="min-w-0 flex-1 text-body">
+          <span className="text-muted-foreground">{copy.next}: </span>
+          <span className="font-medium">{step.title}</span>
+        </p>
+        <div className="flex items-center gap-2">
+          {step.action(true)}
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={copy.dismiss}
+            title={copy.dismiss}
+            onClick={() => {
+              setDismissed(true);
+              writeFlag(dismissKey);
+            }}
+          >
+            <XIcon aria-hidden />
+          </Button>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section
       aria-labelledby="getting-started"
@@ -207,45 +264,12 @@ export function GettingStarted({
           </h2>
           <p className="mt-0.5 text-sm text-muted-foreground">{copy.intro}</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="w-36">
-            <p className="text-right text-xs tabular-nums text-muted-foreground">
-              {copy.progress
-                .replace("{done}", String(doneCount))
-                .replace("{total}", String(steps.length))}
-            </p>
-            <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted" aria-hidden>
-              <m.div
-                className="h-full rounded-full bg-ok"
-                initial={false}
-                animate={{ width: `${(doneCount / steps.length) * 100}%` }}
-                transition={{ duration: DURATION.page / 1000, ease: EASE_OUT }}
-              />
-            </div>
-          </div>
-          {variant === "compact" && (
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={copy.dismiss}
-              title={copy.dismiss}
-              onClick={() => {
-                setDismissed(true);
-                writeFlag(dismissKey);
-              }}
-            >
-              <XIcon aria-hidden />
-            </Button>
-          )}
-        </div>
+        {progress}
       </header>
 
       <ol
         className={cn(
-          "mt-4 grid border-t border-border",
-          variant === "compact"
-            ? "divide-y divide-border lg:grid-cols-5 lg:divide-x lg:divide-y-0"
-            : "divide-y divide-border",
+          "mt-4 grid divide-y divide-border border-t border-border",
         )}
       >
         {steps.map((step, index) => {
@@ -260,7 +284,6 @@ export function GettingStarted({
               aria-current={current ? "step" : undefined}
               className={cn(
                 "relative flex gap-3 px-5 py-4",
-                variant === "compact" && "lg:flex-col lg:gap-2.5",
                 current && "bg-muted/30",
               )}
             >
@@ -268,9 +291,7 @@ export function GettingStarted({
                 <span
                   className={cn(
                     "absolute bg-foreground",
-                    variant === "compact"
-                      ? "inset-y-0 left-0 w-0.5 lg:inset-x-0 lg:top-0 lg:bottom-auto lg:h-0.5 lg:w-auto"
-                      : "inset-y-0 left-0 w-0.5",
+                    "inset-y-0 left-0 w-0.5",
                   )}
                   aria-hidden
                 />
@@ -285,7 +306,7 @@ export function GettingStarted({
               >
                 {step.done ? <CheckIcon className="size-3.5" strokeWidth={3} aria-hidden /> : index + 1}
               </span>
-              <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between lg:flex-col lg:items-start">
+              <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <p
                     className={cn(

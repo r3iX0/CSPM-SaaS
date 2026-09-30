@@ -11,11 +11,12 @@ import {
   Card,
   CardAction,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { stagger } from "@/lib/motion";
+import { useT } from "@/i18n";
+import { InfoTip } from "@/components/common/InfoTip";
 import { cn } from "@/lib/format";
 
 type Risk = Dashboard["top_risks"][number];
@@ -40,6 +41,7 @@ const GraphIcon = GRAPH_ICON;
  * that will go looking for a misconfiguration that exists on no single asset.
  */
 export function PriorityRisks({ risks }: { risks: Risk[] }) {
+  const t = useT();
   return (
     <Card
       role="region"
@@ -47,13 +49,14 @@ export function PriorityRisks({ risks }: { risks: Risk[] }) {
       className="gap-0 py-0 [--card-spacing:--spacing(5)]"
     >
       <CardHeader className="py-4">
-        <CardTitle id="priority-risks" className="text-body font-semibold">
-          Priority risks
-        </CardTitle>
-        <CardDescription className="mt-1 text-xs">
-          Ranked by what each would cost this business, not by how many alerts
-          fired.
-        </CardDescription>
+        <div className="flex items-center gap-1">
+          <CardTitle id="priority-risks" className="text-body font-semibold">
+            Priority risks
+          </CardTitle>
+          <InfoTip label={t.dashboard.priorityExplainLabel}>
+            {t.dashboard.priorityExplain}
+          </InfoTip>
+        </div>
         <CardAction>
           <Link
             to="/risks"
@@ -66,10 +69,9 @@ export function PriorityRisks({ risks }: { risks: Risk[] }) {
 
       {risks.length === 0 ? (
         <CardContent className="border-t py-8">
-          <p className="text-center text-sm text-muted-foreground">
-            Nothing is currently ranked as a risk. Every check that reached a
-            verdict passed — the coverage note above says how much of the estate
-            that covers.
+          <p className="text-center text-body text-muted-foreground">
+            Nothing ranked as a risk. Every check with a verdict passed — coverage
+            says how much that is.
           </p>
         </CardContent>
       ) : (

@@ -48,4 +48,20 @@ describe("ScoreDelta", () => {
     render(<ScoreDelta delta={0} />);
     expect(screen.getByText("No change since last scan")).toBeInTheDocument();
   });
+
+  it("nudges its arrow for a new reading, never on arrival", () => {
+    // Motion follows a changed value (DECISIONS.md §167): the page mounting
+    // with a delta is not news, a new delta is.
+    const { rerender } = render(<ScoreDelta delta={4} />);
+    expect(screen.getByText("↑").className).not.toContain("cg-nudge");
+
+    rerender(<ScoreDelta delta={4} />);
+    expect(screen.getByText("↑").className).not.toContain("cg-nudge");
+
+    rerender(<ScoreDelta delta={6} />);
+    expect(screen.getByText("↑").className).toContain("cg-nudge-up");
+
+    rerender(<ScoreDelta delta={-2} />);
+    expect(screen.getByText("↓").className).toContain("cg-nudge-down");
+  });
 });

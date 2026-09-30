@@ -10020,6 +10020,58 @@ entries for the fifteen of the twenty-three new rules whose catalogue checks
 carried mappings. The backlog's Azure section is seven checks, all deliberate;
 the never-to-port list is thirty-one.
 
+## 178. The overview in three zones, with its figures leading and its explanations a question mark away
+
+The overview stacked nine panels in one column, each opening with a sentence
+or two about itself, and the headline -- "7 risks. 3 routes run from something
+exposed to something sensitive. One link closes 2 of 3." -- was a sentence too.
+A reader who came for the numbers scrolled past prose they had read on every
+visit before reaching the ranked risks. This pass applies §166 and §167 to the
+one page everybody opens first.
+
+**Three zones.** Where the posture stands: the score ring with its band and
+delta, beside three figures (`TodayStats`) -- open risks, attack routes, and the
+share of checks that reached a verdict -- then the severity strip. What to do
+next: the ranked risks and the link to cut, side by side as before. The detail
+behind both: coverage, fixes proved, what moved this week and compliance as a
+two-by-two grid, with the region map keeping a full row because it needs the
+width. The gap between zones is larger than the gap inside one, so the grouping
+is read from the spacing rather than from headings that would add words.
+
+**Coverage is stated twice, on purpose.** As a figure beside the score, which
+it qualifies -- a score formed over half the checks is half a reading -- and in
+full in the coverage panel, which still lists incomplete categories, the
+unclassified-risk note with its link to Settings, and every collection gap with
+the provider's own words. Nothing about what could not be read moved behind a
+question mark: the gaps, UNKNOWN never being a pass, and "not a security score"
+are still printed. What moved behind the question marks (`InfoTip`, with the
+text under `dashboard.*Explain` in `en.ts`) is how each thing is measured: the
+score's deduction by risk band, how risks are ranked, why a cut is simulated
+whole, what coverage and compliance coverage count. The figures show a
+dash for a figure the page does not have yet, never a zero. The compliance
+panel lists five frameworks as rows with a bar each, the count of concluded
+controls kept for a screen reader and on hover; the page is one click away.
+
+**The checklist is one line once there is a scan.** Before the first scan it is
+still the whole page, all five steps. After it, it is the progress bar, the one
+step that is next and its action, and the button that puts it away -- the steps
+already done and the ones waiting on it were a card of five that said little a
+second time.
+
+**Motion, under §167's rule.** The figures count up when they change. The
+score ring's sweep and band colour are registered custom properties
+(`@property --score-angle`, `--score-color` in `index.css`), so a new score
+turns the ring and crossfades its colour instead of swapping in one frame; a
+transition, not a keyframe, so nothing moves on mount. The delta's arrow
+nudges once in its direction when a new delta arrives -- keyed on
+`useValueChange`, so a refetch or a remount does not replay it. The trend
+redraws when a new reading joins it: the sparkline draws itself when its
+`<svg>` is inserted (by uncovering, because `pathLength` does not survive a
+non-scaling stroke), so a new key is a new drawing. Compliance bars and the
+checklist's progress grow by `scaleX` from the left, only when their value
+changes. All of it is answered by the one reduced-motion media query and
+`MotionConfig`, as before.
+
 ## Open items carried forward
 
 **Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read

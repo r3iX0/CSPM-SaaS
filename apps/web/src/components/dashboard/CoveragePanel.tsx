@@ -8,6 +8,8 @@ import { Donut } from "@/components/charts/Donut";
 import type { Slice } from "@/components/charts/DonutLegend";
 import { buttonVariants } from "@/components/ui/button";
 import { cn, label } from "@/lib/format";
+import { useT } from "@/i18n";
+import { InfoTip } from "@/components/common/InfoTip";
 
 type Category = NonNullable<Dashboard["coverage"]["categories"]>[number];
 
@@ -53,6 +55,7 @@ export function CoveragePanel({
   gaps?: [string, string][];
   freshness?: { readings: number; stale_hours: number | null; unusable: number } | null;
 }) {
+  const t = useT();
   const pct = ratio === null ? null : Math.round(ratio * 100);
   const complete = unknown === 0 && gaps.length === 0;
 
@@ -63,13 +66,18 @@ export function CoveragePanel({
     >
       <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-4 px-5 py-4">
         <div className="min-w-0">
-          <h2 id="assessment-coverage" className="text-body font-semibold">
-            Assessment coverage
-          </h2>
-          <p className="mt-1 max-w-xl text-xs leading-relaxed text-muted-foreground">
+          <div className="flex items-center gap-1">
+            <h2 id="assessment-coverage" className="text-body font-semibold">
+              Assessment coverage
+            </h2>
+            <InfoTip label={t.dashboard.coverageExplainLabel}>
+              {t.dashboard.coverageExplain}
+            </InfoTip>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
             {complete
-              ? "Every applicable check reached a verdict from evidence Cleave could read."
-              : "Share of checks that reached a verdict — not a security score. What can't be read reports no verdict, never a pass."}
+              ? "Every applicable check reached a verdict."
+              : "Share of checks with a verdict — not a security score."}
           </p>
         </div>
 
@@ -130,16 +138,13 @@ export function CoveragePanel({
               {context.unclassified} of{" "}
               {context.unclassified + context.classified} open risks
             </span>{" "}
-            sit on assets Cleave could not classify. They are ranked as
-            though they matter, so nothing important hides behind a missing
-            label — but the score is only charged for what was established.{" "}
+            sit on assets Cleave could not classify.{" "}
             <Link
               to="/settings"
               className="font-medium text-foreground underline underline-offset-2"
             >
               Tell Cleave what these subscriptions hold
-            </Link>{" "}
-            and the number will move to match.
+            </Link>
           </p>
         </div>
       )}

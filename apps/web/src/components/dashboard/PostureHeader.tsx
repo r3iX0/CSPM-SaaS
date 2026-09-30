@@ -35,12 +35,9 @@ export function PostureHeader({
   return (
     <header className="flex flex-wrap items-start justify-between gap-4">
       <div className="min-w-0">
+        {/* The title alone: the freshness beside it says what the page is a
+            reading of, and the panels say the rest (DECISIONS.md §178). */}
         <h1 className={PAGE_TITLE_CLASS}>Overview</h1>
-        {/* "Cloud", not a provider: a sentence stays neutral even where an
-            identifier keeps Azure's name (DECISIONS.md §78). */}
-        <p className="mt-1.5 max-w-[70ch] text-body text-muted-foreground">
-          Your cloud posture, and what Cleave could see while forming it.
-        </p>
       </div>
 
       <div className="flex flex-wrap items-center gap-2.5">

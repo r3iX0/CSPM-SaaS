@@ -60,9 +60,7 @@ export function RecentChanges({
 
         {!loading && rows.length === 0 && (
           <p className="px-5 py-5 text-body leading-relaxed text-muted-foreground">
-            {t.changes.empty}. A scan that finds nothing different writes
-            nothing here, so this is a quiet week rather than a gap in the
-            record.
+            {t.changes.empty}. A quiet week, not a gap in the record.
           </p>
         )}
 
