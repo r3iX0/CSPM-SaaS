@@ -60,9 +60,7 @@ class AzureKeyVaultDeletionRule(SecurityRule):
                 equals=True,
                 describes="Deleted vaults and secrets are recoverable",
                 arm_alias="Microsoft.KeyVault/vaults/enableSoftDelete",
-                # No Terraform argument: azurerm cannot turn soft delete off, so
-                # there is none to turn it on. ``soft_delete_retention_days``
-                # is a number of days, not this switch.
+                terraform_attribute="soft_delete_retention_days",
             ),
             ExpectedState(
                 field="purge_protection",
@@ -82,7 +80,6 @@ class AzureKeyVaultDeletionRule(SecurityRule):
         # everything it holds is destroyable, and no deployment needs that
         # window.
         policy_effect="Deny",
-        terraform_resource_types=("azurerm_key_vault",),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["8.5"],
@@ -204,7 +201,6 @@ class AzureKeyVaultNetworkRule(SecurityRule):
         # there, the unsafe setting is anonymous read, and here it is the
         # absence of a network boundary that may genuinely arrive a step later.
         policy_effect="Audit",
-        terraform_resource_types=("azurerm_key_vault",),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.20", "A.8.24"],

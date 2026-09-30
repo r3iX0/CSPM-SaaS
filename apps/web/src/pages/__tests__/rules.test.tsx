@@ -27,8 +27,13 @@ function rule(overrides: Partial<Rule> = {}): Rule {
   } as Rule;
 }
 
-function mount(rules: Rule[]) {
-  vi.spyOn(api, "get").mockResolvedValue({ data: rules, meta: {} });
+function mount(rules: Rule[], connectedClouds: string[] = []) {
+  vi.spyOn(api, "get").mockImplementation(async (url: string) => ({
+    data: url.includes("cloud-connections")
+      ? connectedClouds.map((provider) => ({ provider }))
+      : rules,
+    meta: {},
+  }) as never);
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
@@ -142,5 +147,30 @@ describe("the rule catalogue", () => {
       screen.getByText("Anonymous blob access is the most common cause of cloud data loss."),
     ).toBeInTheDocument();
     expect(screen.getByText("Set allowBlobPublicAccess to false.")).toBeInTheDocument();
+  });
+  it("opens on the clouds the organization uses, and offers the rest", async () => {
+    // An Azure-only organization's catalogue opened on AWS checks a scan
+    // would never run for it (DECISIONS.md §186).
+    mount(
+      [
+        rule({ provider: "azure" } as Partial<Rule>),
+        rule({ rule_id: "AWS-IAM-004", name: "Account password policy is weak", provider: "aws" } as Partial<Rule>),
+      ],
+      ["azure"],
+    );
+
+    expect(await screen.findByText("Storage account allows public blob access")).toBeInTheDocument();
+    expect(screen.queryByText("Account password policy is weak")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Filter by cloud")).toHaveTextContent("Your clouds");
+  });
+
+  it("lists every cloud's rules before anything is connected", async () => {
+    mount([
+      rule({ provider: "azure" } as Partial<Rule>),
+      rule({ rule_id: "AWS-IAM-004", name: "Account password policy is weak", provider: "aws" } as Partial<Rule>),
+    ]);
+
+    expect(await screen.findByText("Account password policy is weak")).toBeInTheDocument();
+    expect(screen.getByText("Storage account allows public blob access")).toBeInTheDocument();
   });
 });

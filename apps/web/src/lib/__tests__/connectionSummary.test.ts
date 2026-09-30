@@ -192,4 +192,17 @@ describe("what the status column says", () => {
       ),
     ).toMatchObject({ label: "Live", detail: "Listening for changes" });
   });
+
+  it("does not claim a schedule the connection does not have", () => {
+    // Beside a last-read line saying "only when asked" (DECISIONS.md §185).
+    const live = (hours: number | null) =>
+      statusSummary(
+        connection({
+          change_events_enabled: false,
+          scan_interval_hours: hours,
+        } as Partial<CloudConnection>),
+      ).detail;
+    expect(live(null)).toBe("Read when a scan is run");
+    expect(live(24)).toBe("Read on a schedule");
+  });
 });

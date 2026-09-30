@@ -381,6 +381,7 @@ export const en = {
     providerDetailAzure: "Entra ID consent and a read-only Azure role",
     providerDetailAws: "A read-only IAM role, deployed with CloudFormation",
     providerUnavailable: "Unavailable",
+    operatorNotes: "Notes for whoever runs this deployment",
     nameHelp: "Shown on every finding, report and scan from this environment.",
     scopeTagWidest: "Full coverage",
     scopeTagNarrowest: "Quickest",
@@ -579,7 +580,7 @@ export const en = {
       "The share of applicable checks that reached any verdict, pass or fail. It is not a security score. A check whose evidence could not be read reports no verdict, never a pass. Risks on assets Cleave could not classify are ranked as though they matter, but the score is charged only for what was established.",
     complianceExplainLabel: "What compliance coverage means",
     complianceExplain:
-      "The share of each framework's controls that reached a conclusion at the last scan. It says what Cleave can speak to, never whether you comply.",
+      "How many of each framework's controls reached a conclusion at the last scan, out of all of them. It says what Cleave can speak to, never whether you comply.",
   },
   findings: {
     pageExplainLabel: "How findings are ranked",
@@ -952,6 +953,9 @@ export const en = {
       "Share of the catalogued controls Cleave reached a conclusion on \u2014 pass or fail. Controls nothing checks, and controls it could not read, are excluded rather than counted as met.",
     controls: "controls",
     openFindings: "open findings",
+    // Under a framework card's ring: its figure is controls with a verdict,
+    // pass or fail, out of all of them (DECISIONS.md §185).
+    withVerdict: "with a verdict",
     viewFramework: "View controls",
     scopeNote: "What this covers",
     ownWording:
@@ -1012,6 +1016,11 @@ export const en = {
       CRITICALITY_CHANGED: "Criticality changed",
     },
     appeared: "First seen in this environment",
+    // One row for a scan's arrivals when there are many (DECISIONS.md §188).
+    appearedBatch: (n: number) => `${n} assets first seen`,
+    appearedBatchDetail: "Everything one scan found for the first time, folded into one row.",
+    showAssets: "Show them",
+    hideAssets: "Hide them",
     disappeared: "A scan that covered its scope did not see it",
     // The distinction that decides whether a DISAPPEARED row is history or a
     // job. The asset row is never deleted, so both readings are possible.
@@ -1120,6 +1129,7 @@ export const en = {
     joined: "Joined",
     role: "Role",
     remove: "Remove",
+    lastOwner: "The last owner stays",
     removing: "Removing\u2026",
     removeConfirm: (who: string) => `Remove ${who} from this organization?`,
     removeDetail:

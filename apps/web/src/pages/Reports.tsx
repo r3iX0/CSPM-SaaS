@@ -107,6 +107,20 @@ export function ReportsPage() {
     return params.toString();
   }
 
+  /**
+   * What a document will hold, said beside the button that makes it. The
+   * options sit below the documents on purpose -- they refine one rather than
+   * gate it -- so the settings in effect have to be readable where the
+   * download is, or a box unticked earlier ships unnoticed (DECISIONS.md §188).
+   */
+  function settingsLine(kind: Kind): string {
+    const offered = SECTIONS.filter((section) => kind === "technical" || !section.technicalOnly);
+    const included = offered.filter((section) => chosen.includes(section.id)).length;
+    const sections =
+      included === offered.length ? "every section" : `${included} of ${offered.length} sections`;
+    return `Last ${days} days · ${sections}`;
+  }
+
   function toggle(id: string, on: boolean) {
     setChosen((current) =>
       on ? [...new Set([...current, id])] : current.filter((item) => item !== id),
@@ -172,6 +186,7 @@ export function ReportsPage() {
         <ReportCard
           title={t.reports.executive}
           detail={t.reports.executiveDetail}
+          settings={settingsLine("executive")}
           busy={busyKind === "executive"}
           disabled={download.isPending || preview.isPending}
           onDownload={() => download.mutate("executive")}
@@ -180,6 +195,7 @@ export function ReportsPage() {
         <ReportCard
           title={t.reports.technical}
           detail={t.reports.technicalDetail}
+          settings={settingsLine("technical")}
           busy={busyKind === "technical"}
           disabled={download.isPending || preview.isPending}
           onDownload={() => download.mutate("technical")}
@@ -255,6 +271,7 @@ export function ReportsPage() {
 function ReportCard({
   title,
   detail,
+  settings,
   busy,
   disabled,
   onDownload,
@@ -262,6 +279,7 @@ function ReportCard({
 }: {
   title: string;
   detail: string;
+  settings: string;
   busy: boolean;
   disabled: boolean;
   onDownload: () => void;
@@ -292,6 +310,7 @@ function ReportCard({
           <ExternalLinkIcon data-icon="inline-start" />
           {t.reports.preview}
         </Button>
+        <p className="basis-full text-xs text-muted-foreground">{settings}</p>
       </CardContent>
     </Card>
   );

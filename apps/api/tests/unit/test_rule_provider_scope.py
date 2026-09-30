@@ -132,3 +132,55 @@ def test_narrowing_keeps_the_collection_gaps() -> None:
     assert context.for_provider(Provider.AZURE).collection_errors == {
         "storage": "timeout"
     }
+
+
+# ------------------------------------------------------ clouds never scanned
+class AwsAccountRule(SecurityRule):
+    """Shaped like AWS-IAM-004: an account setting read from ``controls``,
+    whose absence it reads as "not set"."""
+
+    rule_id = "AWS-TEST-001"
+    name = "AWS account policy is set"
+    description = "test"
+    category = "identity"
+    severity = "MEDIUM"  # type: ignore[assignment]
+    provider = Provider.AWS
+    scope = RuleScope.AGGREGATE
+
+    def evaluate(self, resource, context):  # type: ignore[no-untyped-def]
+        if context.controls.get("password_policy") is None:
+            return RuleResult.failed(evidence={"policy": None})
+        return RuleResult.passed()
+
+
+def test_a_rule_about_a_cloud_the_scan_did_not_read_is_not_run() -> None:
+    """The defect: an Azure-only scan raised AWS-IAM-004, because an AWS
+    account check found no AWS password policy in an Azure tenant's state."""
+    context = RuleContext(
+        resources=[resource(Provider.AZURE, "sa")],
+        providers=frozenset({Provider.AZURE}),
+    )
+    report = RuleEngine([AwsAccountRule(), AzureStorageRule()]).evaluate(context)
+
+    assert [f.rule.rule_id for f in report.failures] == ["AZ-TEST-001"]
+    assert "AWS-TEST-001" not in report.coverage, "it would count against coverage"
+    assert report.rules_run == 1
+
+
+def test_a_scanned_cloud_with_nothing_listed_still_runs_its_rules() -> None:
+    """Scoped by what the scan read, not by what came back: an account whose
+    every listing failed owes its rules a verdict, even an UNKNOWN one."""
+    context = RuleContext(providers=frozenset({Provider.AWS}))
+    report = RuleEngine([AwsAccountRule()]).evaluate(context)
+
+    assert "AWS-TEST-001" in report.coverage
+
+
+def test_narrowing_keeps_the_scanned_clouds() -> None:
+    context = RuleContext(
+        resources=[resource(Provider.AZURE, "sa"), resource(Provider.AWS, "bucket")],
+        providers=frozenset({Provider.AZURE, Provider.AWS}),
+    )
+    assert context.for_provider(Provider.AZURE).providers == frozenset(
+        {Provider.AZURE, Provider.AWS}
+    )

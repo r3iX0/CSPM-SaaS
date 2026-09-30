@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { m } from "motion/react";
 import { ArchiveIcon, ChevronDownIcon, ListChecksIcon, SearchIcon } from "lucide-react";
 import { api } from "@/lib/api";
-import type { Rule } from "@/lib/types";
+import type { CloudConnection, Rule } from "@/lib/types";
 import { useT } from "@/i18n";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
 import {
@@ -23,6 +23,7 @@ import { cn, formatEffort, resourceTypeLabel } from "@/lib/format";
 import { listLayout } from "@/lib/motion";
 
 const SEVERITIES = ["CRITICAL", "HIGH", "MEDIUM", "LOW"] as const;
+const CLOUD_LABEL: Record<string, string> = { azure: "Azure", aws: "AWS" };
 
 /**
  * Every check CloudGuard runs.
@@ -41,6 +42,10 @@ export function RulesPage() {
     q: "",
     severity: "all",
     withdrawn: "",
+    // "mine" is the clouds this organization connects: a scan runs no other
+    // cloud's rules (DECISIONS.md §184), so an Azure-only catalogue opening on
+    // fifty AWS checks listed what Cleave would never run for it (§186).
+    cloud: "mine",
   });
   const search = filters.q;
   const severity = filters.severity;
@@ -54,18 +59,43 @@ export function RulesPage() {
     queryKey: ["rules"],
     queryFn: () => api.get<Rule[]>("/api/v1/rules").then((r) => r.data),
   });
+  const connections = useQuery({
+    queryKey: ["cloud-connections"],
+    queryFn: () =>
+      api.get<CloudConnection[]>("/api/v1/cloud-connections").then((r) => r.data),
+  });
+  const connected = useMemo(
+    () => new Set<string>((connections.data ?? []).map((connection) => connection.provider)),
+    [connections.data],
+  );
+  // Nothing connected yet: every cloud, as compliance does, so "what does
+  // this product check?" is not answered with an empty list.
+  const cloud = filters.cloud;
+  const inCloud = useMemo(
+    () => (rule: Rule) => {
+      if (cloud === "all") return true;
+      if (cloud === "mine") return connected.size === 0 || connected.has(rule.provider);
+      return rule.provider === cloud;
+    },
+    [cloud, connected],
+  );
+  const catalogue = useMemo(() => (data ?? []).filter(inCloud), [data, inCloud]);
+  const cloudsInCatalogue = useMemo(
+    () => [...new Set((data ?? []).map((rule) => rule.provider))].sort(),
+    [data],
+  );
 
   // Counted over everything the API returned, not over the filtered list: the
   // toggle has to say how many rules it would reveal, which is a fact about
   // the catalogue rather than about the current search.
   const withdrawnCount = useMemo(
-    () => (data ?? []).filter((rule) => !rule.enabled).length,
-    [data],
+    () => catalogue.filter((rule) => !rule.enabled).length,
+    [catalogue],
   );
 
   const rules = useMemo(() => {
     const needle = search.trim().toLowerCase();
-    return (data ?? []).filter((rule) => {
+    return catalogue.filter((rule) => {
       // A withdrawn rule no longer runs. Listing it beside the live ones under
       // a heading that says "every check CloudGuard runs" overstated what is
       // being checked, so it is out unless asked for.
@@ -76,12 +106,12 @@ export function RulesPage() {
         .toLowerCase()
         .includes(needle);
     });
-  }, [data, search, severity, showWithdrawn]);
+  }, [catalogue, search, severity, showWithdrawn]);
 
   // A rule that stays in the list slides to its place as a search narrows it;
   // the whole catalogue is past the row limit, so it only moves once narrowed.
   const rowsLayout = listLayout(rules.map((rule) => rule.rule_id));
-  const live = (data ?? []).length - withdrawnCount;
+  const live = catalogue.length - withdrawnCount;
   const filtering = search.trim().length > 0 || severity !== "all";
   const emptyTitle = filtering ? "No rules match" : t.rules.empty;
   const countLine = `${rules.length} of ${live} rule${live === 1 ? "" : "s"} Cleave runs`;
@@ -124,6 +154,23 @@ export function RulesPage() {
             })),
           ]}
         />
+        {cloudsInCatalogue.length > 1 && (
+          <SelectField
+            value={cloud}
+            onValueChange={(value) => update({ cloud: value === "mine" ? null : value })}
+            ariaLabel="Filter by cloud"
+            className="w-[160px]"
+            idleValue="mine"
+            options={[
+              { value: "mine", label: connected.size > 0 ? "Your clouds" : "All clouds" },
+              ...(connected.size > 0 ? [{ value: "all", label: "All clouds" }] : []),
+              ...cloudsInCatalogue.map((value) => ({
+                value,
+                label: CLOUD_LABEL[value] ?? value,
+              })),
+            ]}
+          />
+        )}
         {/* Offered only when there is something to reveal. A permanent toggle
             on a catalogue with nothing withdrawn implies rules are missing. */}
         {withdrawnCount > 0 && (

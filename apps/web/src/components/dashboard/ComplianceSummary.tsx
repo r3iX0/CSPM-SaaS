@@ -13,9 +13,9 @@ import { InfoTip } from "@/components/common/InfoTip";
  * The figure is `coverage_ratio`: the share of a framework's catalogued
  * controls that reached a conclusion (passing or failing) at the last scan.
  * It is deliberately not "share passing", which would be a compliance score,
- * and this product does not issue those. Each row carries the count in
- * controls for assistive technology and on hover, and the panel's question mark
- * says the percentage is never a grade.
+ * and this product does not issue those. Each row prints it as a count out of
+ * the framework's controls rather than a percentage, which read as a grade
+ * (DECISIONS.md §185); the bar draws the same share.
  */
 export function ComplianceSummary({
   frameworks,
@@ -83,12 +83,8 @@ export function ComplianceSummary({
 const LISTED = 5;
 
 /**
- * One framework: its name, the share of its controls that reached a
- * conclusion, and that share drawn as a bar.
- *
- * The count behind the percentage is read to assistive technology and shown
- * on hover rather than printed, so the row stays one line; the percentage is
- * never a grade, which the panel's question mark says. The bar grows by
+ * One framework: its name, how many of its controls reached a conclusion out
+ * of how many there are, and that share drawn as a bar. The bar grows by
  * `scaleX`, so a new reading moves it and a mount does not (§167, §178).
  */
 function FrameworkRow({ framework }: { framework: ComplianceFramework }) {
@@ -109,7 +105,7 @@ function FrameworkRow({ framework }: { framework: ComplianceFramework }) {
       >
         <span className="truncate text-body font-medium">{framework.short_name}</span>
         <span className="text-body font-semibold tabular-nums">
-          {ratio === null ? "—" : `${Math.round(ratio * 100)}%`}
+          {concluded === null ? "—" : `${concluded}/${framework.control_count}`}
         </span>
         <span className="sr-only">{detail}</span>
         <span className="col-span-2 h-1 overflow-hidden rounded-full bg-muted" aria-hidden>

@@ -55,7 +55,6 @@ class AzureSearchPublicNetworkRule(SecurityRule):
             "--public-network-access disabled",
         ),
         notes=_NO_POLICY,
-        terraform_resource_types=("azurerm_search_service",),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.20", "A.8.22"],

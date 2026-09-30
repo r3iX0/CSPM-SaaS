@@ -82,6 +82,15 @@ describe("the compliance overview", () => {
     expect(screen.getByText("1 not covered")).toBeInTheDocument();
   });
 
+  it("heads each card with a count of verdicts, never a percentage", async () => {
+    mount();
+    // One pass and one fail reached a verdict, of four controls. A "50%" here
+    // read as a grade (DECISIONS.md §185).
+    expect(await screen.findByText("2/4")).toBeInTheDocument();
+    expect(screen.getByLabelText("2 of 4 controls with a verdict")).toBeInTheDocument();
+    expect(screen.queryByText("50%")).not.toBeInTheDocument();
+  });
+
   it("measures each domain by what reached a conclusion, not by what passed", async () => {
     mount();
     const domains = await screen.findByRole("list", { name: /CIS Azure 2\.0: share of controls/ });

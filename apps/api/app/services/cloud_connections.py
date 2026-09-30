@@ -1365,10 +1365,26 @@ def available_providers() -> list[dict]:
             "id": provider.value,
             "name": name,
             "available": problem is None,
-            "unavailable_reason": problem,
+            "unavailable_reason": _customer_reason(provider, name) if problem else None,
+            "operator_detail": problem,
         }
         for provider, name, problem in offered
     ]
+
+
+def _customer_reason(provider: Provider, name: str) -> str:
+    """Why a cloud cannot be chosen, in words for the customer choosing it.
+
+    The problem itself names environment variables and a checklist in this
+    repository -- what whoever runs the deployment needs, and noise to anyone
+    else, who read "Set AWS_ACCESS_KEY_ID" as an instruction to them. It stays
+    in ``operator_detail``, and the page keeps it out of the way (§186). AWS
+    not yet verified is "coming", as the environments page already says it;
+    anything else is this deployment not being set up for that cloud.
+    """
+    if provider == Provider.AWS and not settings.aws_offered:
+        return "Coming soon. Cleave does not connect AWS accounts yet."
+    return f"Not set up on this deployment yet, so {name} cannot be connected here."
 
 
 def _aws_problem() -> str | None:

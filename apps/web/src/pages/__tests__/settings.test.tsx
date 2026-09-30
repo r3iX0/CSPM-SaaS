@@ -9,7 +9,7 @@
  * it, so the option would always fail.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -338,6 +338,47 @@ describe("Members", () => {
       await screen.findByText("https://app.example/invite#a-token-that-is-long-enough"),
     ).toBeInTheDocument();
     expect(screen.getByText(/will not be shown again/)).toBeInTheDocument();
+  });
+
+  it("links to each of its sections from the top, and only to those shown", async () => {
+    mount();
+    const nav = await screen.findByRole("navigation", { name: "Settings sections" });
+    const links = within(nav).getAllByRole("link");
+    for (const link of links) {
+      const target = document.getElementById(link.getAttribute("href")!.slice(1));
+      expect(target, link.textContent ?? "").not.toBeNull();
+    }
+    expect(links.map((link) => link.textContent)).toContain("Members");
+  });
+
+  it("offers the only owner no removal and no demotion, and says why", async () => {
+    // The API refuses both (§162); the button beside the one person who cannot
+    // be removed led straight to that refusal (DECISIONS.md §188).
+    mount({
+      members: [
+        member(),
+        member({ id: "m-2", user_id: "u-2", email: "ana@contoso.example", role: "VIEWER", is_you: false }),
+      ],
+    });
+    await waitFor(() => expect(screen.getByText("The last owner stays")).toBeInTheDocument());
+    expect(
+      screen.queryByRole("button", { name: "Remove owner@contoso.example" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Role: owner@contoso.example")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove ana@contoso.example" })).toBeInTheDocument();
+  });
+
+  it("lets one of two owners go", async () => {
+    mount({
+      members: [
+        member(),
+        member({ id: "m-2", user_id: "u-2", email: "ana@contoso.example", role: "OWNER", is_you: false }),
+      ],
+    });
+    expect(
+      await screen.findByRole("button", { name: "Remove ana@contoso.example" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("The last owner stays")).not.toBeInTheDocument();
   });
 
   it("does not let an admin change an owner", async () => {

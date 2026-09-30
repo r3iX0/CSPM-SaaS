@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/lib/api";
 import type {
+  ComplianceFramework,
   EvidenceCitation,
   FindingAttackPath,
   FindingDetail,
@@ -84,6 +85,18 @@ export function FindingDetailPage() {
    * is asked for only once there is an answer to attach it to, and a finding
    * with no asset never asks at all.
    */
+  // The frameworks this organization is measured against, under the key the
+  // compliance page uses. Names a mapping by its catalogue name ("ATT&CK",
+  // not "MITRE ATTACK") and leaves out frameworks about a cloud the
+  // organization does not use, which the compliance page never shows (§189).
+  const frameworks = useQuery({
+    queryKey: ["compliance"],
+    queryFn: () =>
+      api.get<ComplianceFramework[]>("/api/v1/compliance").then((r) => r.data),
+    staleTime: 60_000,
+    retry: false,
+  });
+
   const paths = useQuery({
     queryKey: ["finding-attack-paths", findingId],
     queryFn: () =>
@@ -168,6 +181,8 @@ export function FindingDetailPage() {
     );
   if (!data) return null;
 
+  // Where proving the fix is offered: at the end of the fix, on an asset.
+  const verifyInFix = data.status !== "RESOLVED" && Boolean(data.resource) && !isDemo;
   const components = data.risk?.score_breakdown?.components ?? {};
   const routeCount = paths.data?.length ?? 0;
   const detailTab = tab ?? (data.resource && routeCount > 0 ? "paths" : "evidence");
@@ -223,14 +238,20 @@ export function FindingDetailPage() {
                 <ArrowRightIcon data-icon="inline-end" aria-hidden />
               </Link>
             )}
-            <Button onClick={() => rescan.mutate()} disabled={rescan.isPending}>
-              {rescan.isPending ? (
-                <Spinner data-icon="inline-start" />
-              ) : (
-                <RotateCcwIcon data-icon="inline-start" aria-hidden />
-              )}
-              {rescan.isPending ? t.common.loading : t.findings.rescan}
-            </Button>
+            {/* Only where the fix below has no "Verify it now" of its own --
+                a finding on no asset, or one already resolved. The same
+                action twice, both filled, left a reader choosing between two
+                primary buttons that did one thing (DECISIONS.md §187). */}
+            {!verifyInFix && (
+              <Button onClick={() => rescan.mutate()} disabled={rescan.isPending}>
+                {rescan.isPending ? (
+                  <Spinner data-icon="inline-start" />
+                ) : (
+                  <RotateCcwIcon data-icon="inline-start" aria-hidden />
+                )}
+                {rescan.isPending ? t.common.loading : t.findings.rescan}
+              </Button>
+            )}
           </div>
           <p className="max-w-xs text-xs text-muted-foreground sm:text-right">
             {t.findings.cannotResolveManually}
@@ -288,7 +309,6 @@ export function FindingDetailPage() {
             remediation={data.remediation}
             spec={data.remediation_spec}
             effortMinutes={data.estimated_effort_minutes}
-            findingId={data.id}
             fill={
               data.resource
                 ? {
@@ -306,7 +326,7 @@ export function FindingDetailPage() {
                 />
                 {/* The end of the fix, where the fix is: applying it and
                     proving it are one motion, not two places on the page. */}
-                {data.status !== "RESOLVED" && data.resource && !isDemo && (
+                {verifyInFix && (
                   <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
                     <p className="text-sm text-foreground">Applied the fix?</p>
                     <Button
@@ -433,16 +453,23 @@ export function FindingDetailPage() {
                       label="Type"
                       value={resourceTypeLabel(data.resource.resource_type)}
                     />
-                    <Row
-                      icon={FACT_ICONS.environment}
-                      label="Environment"
-                      value={data.resource.environment ?? "—"}
-                    />
-                    <Row
-                      icon={FACT_ICONS.region}
-                      label="Region"
-                      value={data.resource.region ?? "—"}
-                    />
+                    {/* Only where there is one. A user or a service principal
+                        has no region and no environment, and two rows of "—"
+                        under a person's name said nothing (DECISIONS.md §189). */}
+                    {data.resource.environment && (
+                      <Row
+                        icon={FACT_ICONS.environment}
+                        label="Environment"
+                        value={data.resource.environment}
+                      />
+                    )}
+                    {data.resource.region && (
+                      <Row
+                        icon={FACT_ICONS.region}
+                        label="Region"
+                        value={data.resource.region}
+                      />
+                    )}
                     <Row
                       icon={FACTOR_ICONS.criticality}
                       label="Criticality"
@@ -497,13 +524,13 @@ export function FindingDetailPage() {
                       </InfoTip>
                     </div>
                     <ul className="mt-2 flex flex-col gap-2">
-                      {Object.entries(data.compliance_mappings).map(([framework, controls]) => (
-                        <li key={framework} className="text-xs">
+                      {mappedFrameworks(data.compliance_mappings, frameworks.data).map(({ id, name, controls }) => (
+                        <li key={id} className="text-xs">
                           <Link
-                            to={`/compliance/${encodeURIComponent(framework)}`}
+                            to={`/compliance/${encodeURIComponent(id)}`}
                             className="font-medium text-foreground underline underline-offset-2 hover:text-foreground"
                           >
-                            {framework.replace(/_/g, " ")}
+                            {name}
                           </Link>
                           <span className="ml-2 text-muted-foreground">{controls.join(", ")}</span>
                         </li>
@@ -906,3 +933,30 @@ const ROLE_LABEL: Record<FindingAttackPath["asset_role"], string> = {
   STEP: "This asset is a link in the route",
   TARGET: "This asset is the target",
 };
+
+/**
+ * A finding's framework mappings, named and ordered as the compliance page
+ * names and orders them, and only those it offers this organization.
+ *
+ * Until the list arrives -- or if it cannot -- every mapping is shown under
+ * its id with the underscores spaced, which is what this rail always did.
+ */
+function mappedFrameworks(
+  mappings: Record<string, string[]>,
+  offered: ComplianceFramework[] | undefined,
+): { id: string; name: string; controls: string[] }[] {
+  if (!Array.isArray(offered)) {
+    return Object.entries(mappings).map(([id, controls]) => ({
+      id,
+      name: id.replace(/_/g, " "),
+      controls,
+    }));
+  }
+  return offered
+    .filter((framework) => mappings[framework.id]?.length)
+    .map((framework) => ({
+      id: framework.id,
+      name: framework.short_name,
+      controls: mappings[framework.id],
+    }));
+}

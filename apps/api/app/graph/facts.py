@@ -22,6 +22,8 @@ reaches metadata, and an edge whose evidence was never collected says nothing
 rather than something plausible.
 """
 
+import re
+
 from app.core.enums import RelationshipType
 from app.domain.resource import CloudResource
 from app.graph.access import control_pairs, role_entries
@@ -130,7 +132,10 @@ def _identity_kind(identity: CloudResource) -> tuple[str, ...]:
         return ()
     if kind.lower() == "managedidentity":
         return ("managed identity",)
-    return (kind.lower(),)
+    # Azure's own spelling is one CamelCase word -- "ServicePrincipal",
+    # "ForeignGroup" -- and lowercased whole it reached the Risks page as
+    # "(serviceprincipal)". Words, as every other fact is (DECISIONS.md §185).
+    return (re.sub(r"(?<=[a-z])(?=[A-Z])", " ", kind).lower(),)
 
 
 def _shared_network(source: CloudResource, target: CloudResource) -> tuple[str, ...]:

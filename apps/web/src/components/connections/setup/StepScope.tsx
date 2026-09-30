@@ -1,7 +1,7 @@
 import { useId, useState, type ReactNode } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { AnimatePresence, m } from "motion/react";
-import { ArrowRightIcon } from "lucide-react";
+import { ArrowRightIcon, ChevronRightIcon } from "lucide-react";
 
 import { api, ApiError } from "@/lib/api";
 import type {
@@ -23,6 +23,11 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { ProviderMark } from "@/components/security/ProviderMark";
 import { cn } from "@/lib/format";
 
@@ -78,6 +83,9 @@ export function StepScope({
   });
 
   const options = providers.data ?? [];
+  // What an unavailable cloud needs from the deployment, which is not the
+  // customer's to act on: closed below the picker rather than on the card.
+  const operatorNotes = options.filter((option) => !option.available && option.operator_detail);
   const chosen = options.find((option) => option.id === provider);
 
   /**
@@ -247,6 +255,27 @@ export function StepScope({
                 </ChoiceCard>
               ))}
             </RadioGroup>
+          )}
+          {operatorNotes.length > 0 && (
+            <Collapsible className="mt-3">
+              <CollapsibleTrigger className="group flex items-center gap-1 rounded-sm text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring">
+                <ChevronRightIcon
+                  className="size-3.5 transition-transform group-data-[panel-open]:rotate-90"
+                  aria-hidden
+                />
+                {copy.operatorNotes}
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <ul className="mt-2 flex flex-col gap-1.5 text-xs leading-relaxed text-muted-foreground">
+                  {operatorNotes.map((option) => (
+                    <li key={option.id}>
+                      <span className="font-medium text-foreground">{option.name}:</span>{" "}
+                      {option.operator_detail}
+                    </li>
+                  ))}
+                </ul>
+              </CollapsibleContent>
+            </Collapsible>
           )}
         </Section>
 

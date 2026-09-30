@@ -25,6 +25,24 @@ const RULES = [
   },
 ];
 
+const POSTGRES_RULE = {
+  ...RULES[0],
+  rule_id: "AZ-DB-020",
+  name: "PostgreSQL server does not log checkpoints",
+  category: "database",
+  severity: "LOW",
+};
+
+const FINDINGS = [
+  {
+    id: "f-1",
+    rule_id: "AZ-STO-001",
+    severity: "HIGH",
+    status: "OPEN",
+    title: "Storage account allows public access — stgpublic",
+  },
+];
+
 const ASSETS = [
   {
     id: "11111111-1111-1111-1111-111111111111",
@@ -90,7 +108,13 @@ describe("the command palette", () => {
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
         const url = String(input);
-        if (url.includes("/rules")) return envelope(RULES);
+        if (url.includes("/rules")) return envelope([...RULES, POSTGRES_RULE]);
+        if (url.includes("/findings?")) {
+          const search = new URL(url, "https://example.test").searchParams.get("search") ?? "";
+          return envelope(
+            FINDINGS.filter((f) => f.title.toLowerCase().includes(search.toLowerCase())),
+          );
+        }
         if (url.includes("/assets")) {
           // Filters the way the endpoint does (`name ILIKE %search%`), so a
           // search for something absent comes back empty here too.
@@ -185,8 +209,31 @@ describe("the command palette", () => {
     await open();
     await type("zzzzz nothing");
 
-    // A bare "no results" would read as a claim about the whole product, and
-    // findings are not searched here at all.
-    expect(await screen.findByText(/Findings are reached/)).toBeInTheDocument();
+    // A bare "no results" would read as a claim about the whole product.
+    expect(
+      await screen.findByText("Pages, assets, open findings and rules are searched."),
+    ).toBeInTheDocument();
+  });
+
+  it("finds an open finding by what its title says", async () => {
+    renderPalette();
+    await open();
+    await type("stgpublic");
+
+    fireEvent.click(await screen.findByText(FINDINGS[0].title));
+    await waitFor(() =>
+      expect(screen.getByTestId("location")).toHaveTextContent("/findings/f-1"),
+    );
+  });
+
+  it("matches a rule where one of its words starts, not inside a word", async () => {
+    // "stg" matched six PostgreSQL rules ("po-stg-reSQL") (DECISIONS.md §188).
+    renderPalette();
+    await open();
+    await type("stg");
+    expect(screen.queryByText(POSTGRES_RULE.name)).not.toBeInTheDocument();
+
+    await type("postgre");
+    expect(await screen.findByText(POSTGRES_RULE.name)).toBeInTheDocument();
   });
 });

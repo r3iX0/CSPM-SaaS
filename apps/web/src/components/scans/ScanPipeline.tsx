@@ -448,7 +448,7 @@ export function ScanResult({
                   <span className={cn("font-medium", delta > 0 ? "text-critical" : "text-ok")}>
                     {delta > 0 ? `+${delta}` : delta}
                   </span>{" "}
-                  findings since the last scan.
+                  {Math.abs(delta) === 1 ? "finding" : "findings"} since the last scan.
                 </>
               )}
             </p>

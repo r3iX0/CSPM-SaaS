@@ -223,6 +223,19 @@ def test_a_network_hop_names_the_network_and_an_identity_hop_its_kind() -> None:
     assert walked["has_identity"].facts == ("managed identity",)
 
 
+def test_an_identity_kind_is_written_in_words() -> None:
+    """Azure spells it "ServicePrincipal"; the Risks page printed that
+    lowercased whole, as "(serviceprincipal)"."""
+    from dataclasses import replace
+
+    step = hops(roled())["has_identity"]
+    identity = replace(
+        step.target, metadata={**step.target.metadata, "principal_type": "ServicePrincipal"}
+    )
+
+    assert edge_facts(step.source, step.relationship, identity) == ("service principal",)
+
+
 def test_a_hop_with_nothing_collected_says_only_its_kind() -> None:
     step = hops(diamond())["grants_role"]
 

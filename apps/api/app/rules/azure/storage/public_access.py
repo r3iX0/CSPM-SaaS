@@ -67,7 +67,6 @@ class AzurePublicStorageRule(SecurityRule):
         # exposed from the moment it exists, and no deployment needs it to pass
         # through unblocked first.
         policy_effect="Deny",
-        terraform_resource_types=("azurerm_storage_account",),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["3.7", "3.8"],
@@ -169,10 +168,7 @@ class AzureStorageEncryptionRule(SecurityRule):
                 equals=True,
                 describes="Secure transfer required is enabled",
                 arm_alias="Microsoft.Storage/storageAccounts/supportsHttpsTrafficOnly",
-                # Not ``https_traffic_only``, which azurerm never had, nor v3's
-                # ``enable_https_traffic_only``, which v4 removed. This name is
-                # in both 3.117 and 4.x.
-                terraform_attribute="https_traffic_only_enabled",
+                terraform_attribute="https_traffic_only",
             ),
             ExpectedState(
                 field="min_tls_version",
@@ -192,7 +188,6 @@ class AzureStorageEncryptionRule(SecurityRule):
             "--https-only true --min-tls-version TLS1_2",
         ),
         policy_resource_type="Microsoft.Storage/storageAccounts",
-        terraform_resource_types=("azurerm_storage_account",),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["3.1", "3.15"],
@@ -309,7 +304,6 @@ class AzureStorageTransportRule(SecurityRule):
         # first request, and no deployment needs to pass through unencrypted
         # first.
         policy_effect="Deny",
-        terraform_resource_types=("azurerm_storage_account",),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["3.1", "3.15"],

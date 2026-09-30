@@ -52,5 +52,8 @@ describe("ScorePanel", () => {
 
     rerender(<ScorePanel score={74} delta={4} history={[reading(70, 1), reading(74, 2)]} />);
     expect(screen.getByRole("img", { name: /Security score: risen from 70 to 74/ })).toBeInTheDocument();
+    // Said on screen too: an unlabelled line in the band's red read as a
+    // warning rather than as the score moving (DECISIONS.md §189).
+    expect(screen.getByText("70 → 74")).toBeInTheDocument();
   });
 });

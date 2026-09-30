@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
@@ -161,9 +162,13 @@ export function ChangesPage() {
               <Card className="py-0">
                 <CardContent className="p-0">
                   <ul>
-                    {rows.map((event) => (
-                      <ChangeRow key={event.id} event={event} />
-                    ))}
+                    {withBatches(rows).map((item) =>
+                      "batch" in item ? (
+                        <AppearedBatch key={`batch-${item.batch[0].id}`} events={item.batch} />
+                      ) : (
+                        <ChangeRow key={item.id} event={item} />
+                      ),
+                    )}
                   </ul>
                 </CardContent>
               </Card>
@@ -204,6 +209,65 @@ function groupByDay(events: ChangeEvent[]): [string, ChangeEvent[]][] {
     else days.set(day, [event]);
   }
   return [...days.entries()];
+}
+
+/** How many assets one scan may introduce before they are listed as one row. */
+const BATCH_AT = 6;
+
+/**
+ * A day's rows, with each scan's arrivals folded into one row when there are
+ * many of them.
+ *
+ * A first scan introduces every asset at once, and forty "first seen" rows
+ * buried the two changes that day that meant something. Folded where the first
+ * of them stood, so the API's order is otherwise kept (DECISIONS.md §188).
+ */
+function withBatches(rows: ChangeEvent[]): (ChangeEvent | { batch: ChangeEvent[] })[] {
+  const arrivals = new Map<string, ChangeEvent[]>();
+  for (const event of rows) {
+    if (event.change !== "APPEARED" || !event.scan_id) continue;
+    arrivals.set(event.scan_id, [...(arrivals.get(event.scan_id) ?? []), event]);
+  }
+  const out: (ChangeEvent | { batch: ChangeEvent[] })[] = [];
+  const placed = new Set<string>();
+  for (const event of rows) {
+    const batch = event.change === "APPEARED" && event.scan_id ? arrivals.get(event.scan_id) : undefined;
+    if (!batch || batch.length < BATCH_AT) {
+      out.push(event);
+    } else if (!placed.has(event.scan_id!)) {
+      placed.add(event.scan_id!);
+      out.push({ batch });
+    }
+  }
+  return out;
+}
+
+function AppearedBatch({ events }: { events: ChangeEvent[] }) {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  return (
+    <li className="border-b last:border-0">
+      <div className="flex items-start gap-3 px-5 py-3">
+        <ChangeMark change="APPEARED" moved="neutral" />
+        <div className="min-w-0 flex-1">
+          <p className="text-body font-medium text-foreground">
+            {t.changes.appearedBatch(events.length)}
+          </p>
+          <p className="mt-0.5 text-meta text-muted-foreground">{t.changes.appearedBatchDetail}</p>
+        </div>
+        <Button variant="outline" size="sm" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+          {open ? t.changes.hideAssets : t.changes.showAssets}
+        </Button>
+      </div>
+      {open && (
+        <ul className="border-t bg-muted/20">
+          {events.map((event) => (
+            <ChangeRow key={event.id} event={event} />
+          ))}
+        </ul>
+      )}
+    </li>
+  );
 }
 
 function ChangeRow({ event }: { event: ChangeEvent }) {

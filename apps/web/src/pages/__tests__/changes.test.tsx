@@ -6,7 +6,7 @@
  * missing now — the row is history either way, and only one of them is a job.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -48,6 +48,37 @@ function mount(events: ChangeEvent[]) {
 describe("ChangesPage", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it("folds a scan's many arrivals into one row, and keeps the rest beside it", async () => {
+    // A first scan's forty "first seen" rows buried the two changes that
+    // meant something (DECISIONS.md §188).
+    const arrivals = Array.from({ length: 8 }, (_, n) =>
+      event({
+        id: `new-${n}`,
+        change: "APPEARED",
+        previous_value: null,
+        current_value: null,
+        asset: { id: `n-${n}`, name: `archive${n}`, resource_type: "storage_account", environment: null, absent_since: null },
+      }),
+    );
+    mount([event(), ...arrivals]);
+
+    expect(await screen.findByText("8 assets first seen")).toBeInTheDocument();
+    expect(screen.getByText("customerdata")).toBeInTheDocument();
+    expect(screen.queryByText("archive0")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show them" }));
+    expect(screen.getByText("archive0")).toBeInTheDocument();
+  });
+
+  it("lists a scan's few arrivals one by one", async () => {
+    mount([
+      event({ change: "APPEARED", previous_value: null, current_value: null }),
+    ]);
+
+    expect(await screen.findByText("customerdata")).toBeInTheDocument();
+    expect(screen.queryByText(/assets first seen/)).not.toBeInTheDocument();
   });
 
   it("shows an attribute change as the move it was, not just its new value", async () => {

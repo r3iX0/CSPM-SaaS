@@ -18,6 +18,16 @@ export type Stat = {
   /** A 12px glyph before the label, from `lib/icons.ts`. */
   icon?: LucideIcon;
   hint?: ReactNode;
+  /**
+   * Makes the cell a toggle for the list below it -- a severity count that
+   * narrows the findings to that severity. Pressed while ``selected``. The
+   * cell stays a ``dt``/``dd`` pair; the button is stretched over it, so the
+   * whole cell is the target without breaking the list's semantics (§186).
+   */
+  onSelect?: () => void;
+  selected?: boolean;
+  /** What pressing it does, for a screen reader: "Show only critical findings". */
+  selectLabel?: string;
 };
 
 const TONE: Record<Level, string> = {
@@ -59,7 +69,14 @@ export function StatStrip({ stats, className }: { stats: Stat[]; className?: str
       )}
     >
       {stats.map((stat) => (
-        <div key={stat.label} className="bg-card px-5 py-3.5">
+        <div
+          key={stat.label}
+          className={cn(
+            "relative bg-card px-5 py-3.5",
+            stat.onSelect && "transition-colors hover:bg-muted/60",
+            stat.selected && "bg-muted",
+          )}
+        >
           <dt className="flex items-center gap-1.5 text-caption text-muted-foreground">
             {stat.icon && <stat.icon className="size-3 shrink-0" strokeWidth={1.5} aria-hidden />}
             {stat.label}
@@ -71,8 +88,23 @@ export function StatStrip({ stats, className }: { stats: Stat[]; className?: str
             )}
           >
             {stat.value}
+            {stat.onSelect && (
+              <button
+                type="button"
+                aria-pressed={stat.selected ?? false}
+                aria-label={stat.selectLabel ?? stat.label}
+                onClick={stat.onSelect}
+                className="absolute inset-0 cursor-pointer outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset focus-ring-inset"
+              />
+            )}
+            {/* Inside the ``dd``: a group in a ``dl`` holds only ``dt`` and
+                ``dd``, and a paragraph beside them was invalid list markup. */}
+            {stat.hint && (
+              <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                {stat.hint}
+              </span>
+            )}
           </dd>
-          {stat.hint && <p className="mt-0.5 text-xs text-muted-foreground">{stat.hint}</p>}
         </div>
       ))}
     </dl>

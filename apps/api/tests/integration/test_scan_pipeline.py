@@ -57,6 +57,9 @@ from app.services.scan import collection as collection_module
 from app.services.scans import DIRECTORY_LABEL
 from tests.integration.conftest import create_org_as
 
+# An Azure scan runs Azure's rules and no others (DECISIONS.md section 184).
+AZURE_RULES = [rule for rule in RULE_REGISTRY if rule.provider == Provider.AZURE]
+
 pytestmark = pytest.mark.integration
 
 RAW = Path(__file__).parent.parent / "fixtures" / "azure_raw"
@@ -396,7 +399,7 @@ class TestFirstScan:
 
         assert scan.status == ScanStatus.COMPLETED
         assert scan.resource_count > 0
-        assert scan.rule_count == len(RULE_REGISTRY)
+        assert scan.rule_count == len(AZURE_RULES)
 
         # A capture per scope, not one per scan. This scan read one
         # subscription and the tenant directory above it, and both are stored
@@ -518,9 +521,10 @@ class TestFirstScan:
             "not_applicable_count FROM scan_rule_results WHERE scan_id = :s",
             {"s": scan_id},
         )
-        assert len(rows) == len(RULE_REGISTRY), (
-            "one aggregate row per rule in the registry"
+        assert len(rows) == len(AZURE_RULES), (
+            "one aggregate row per rule of the cloud the scan read"
         )
+        assert not any(row.rule_id.startswith("AWS-") for row in rows)
 
 
 class TestUnknownHandling:
@@ -4966,6 +4970,24 @@ class TestComplianceProvenance:
                 # Either it was read, or it is reported as not read. A silent
                 # third state is how a control ends up green on nothing.
                 assert reading["outcome"] in {"COMPLETE", "PARTIAL", "FAILED", None}
+
+    async def test_a_cross_cloud_control_weighs_only_the_clouds_in_use(
+        self, replay, connected_account, rule_catalogue
+    ) -> None:
+        """An Azure-only organization's ISO 27001 controls name no AWS rule.
+
+        A scan no longer runs AWS rules there (DECISIONS.md section 184), so
+        one listed under a control would read as "never ran" and hold the
+        control INCONCLUSIVE beside a passing Azure rule for ever.
+        """
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+
+        detail = await self._framework(org_id, "ISO_27001")
+        named = {rule["rule_id"] for c in detail["controls"] for rule in c["rules"]}
+
+        assert named, "no control named a rule at all"
+        assert not {r for r in named if r.startswith("AWS-")}
 
     async def test_a_passing_control_is_the_one_that_needed_this(
         self, replay, connected_account, rule_catalogue

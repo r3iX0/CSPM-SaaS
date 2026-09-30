@@ -93,6 +93,27 @@ describe("the asset page", () => {
     vi.restoreAllMocks();
   });
 
+  it("says where a context value came from, and where to declare one it could only guess", async () => {
+    // A row labelled "Value", and "Unknown" with nothing to do about it (§189).
+    mount(
+      asset({
+        context: {
+          criticality: { value: "UNKNOWN", source: "none", confidence: 0 },
+          data_sensitivity: { value: "HIGH", source: "customer", confidence: 1 },
+          environment: { value: "production", source: "inferred", confidence: 0.6 },
+        },
+      }),
+    );
+
+    expect(await screen.findByText("Not declared")).toBeInTheDocument();
+    expect(screen.getByText("Declared")).toBeInTheDocument();
+    expect(screen.queryByText("Value")).not.toBeInTheDocument();
+    // Only the undeclared one offers the way to declare it.
+    const links = screen.getAllByRole("link", { name: "Declare it for the subscription" });
+    expect(links).toHaveLength(1);
+    expect(links[0]).toHaveAttribute("href", "/settings#context");
+  });
+
   it("goes back to the list exactly as it was left", async () => {
     mount(asset(), {
       pathname: "/assets/asset-1",

@@ -11,11 +11,14 @@ import { cn } from "@/lib/format";
  * reading line.
  */
 export function SettingsSection({
+  id,
   title,
   description,
   tone,
   children,
 }: {
+  /** The anchor the page's section links jump to. */
+  id?: string;
   title: ReactNode;
   description?: ReactNode;
   /** `danger` for the section that deletes things; it is the only one. */
@@ -23,8 +26,9 @@ export function SettingsSection({
   children: ReactNode;
 }) {
   return (
-    <section>
+    <section id={id} aria-labelledby={id ? `${id}-title` : undefined} className="scroll-mt-20">
       <h2
+        id={id ? `${id}-title` : undefined}
         className={cn(
           "text-sm font-semibold",
           tone === "danger" ? "text-critical" : "text-foreground",

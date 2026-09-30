@@ -67,7 +67,6 @@ class AzureRegistryAdminUserRule(_RegistryRule):
         ),
         cli=("az acr update --name <registry> --resource-group <rg> --admin-enabled false",),
         notes=_NO_POLICY,
-        terraform_resource_types=("azurerm_container_registry",),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.16", "A.5.17"],
@@ -133,7 +132,6 @@ class AzureRegistryPublicNetworkRule(_RegistryRule):
             "az acr update --name <registry> --resource-group <rg> --default-action Deny",
         ),
         notes=_NO_POLICY,
-        terraform_resource_types=("azurerm_container_registry",),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.20", "A.8.22"],

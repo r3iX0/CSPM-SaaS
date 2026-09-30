@@ -75,7 +75,11 @@ describe("the remediation queue", () => {
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
         const url = String(input);
-        const body = url.includes("/findings/") ? FINDING : tasks;
+        const body = url.includes("/findings/")
+          ? FINDING
+          : url.includes("/findings?")
+            ? [{ ...FINDING, status: "OPEN" }]
+            : tasks;
         return {
           ok: true,
           status: 200,
@@ -87,6 +91,21 @@ describe("the remediation queue", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it("offers the worst open findings when the queue is empty", async () => {
+    // "Track a finding from its detail page", to somebody with fifty-eight
+    // open ones, was a page away from the answer (DECISIONS.md §187).
+    tasks = [];
+    renderPage();
+
+    const start = await screen.findByRole("region", { name: "Where to start" });
+    expect(start).toHaveTextContent("Storage account allows public blob access");
+    expect(
+      screen.getByRole("button", {
+        name: "Track the fix for Storage account allows public blob access",
+      }),
+    ).toBeInTheDocument();
   });
 
   it("names the finding and the asset the work is on", async () => {

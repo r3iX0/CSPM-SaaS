@@ -87,6 +87,25 @@ describe("the assets page", () => {
     vi.unstubAllGlobals();
   });
 
+  it("leads with the group holding the worst asset, not the biggest group", async () => {
+    // Nineteen archive accounts with two findings each led the page; the one
+    // asset with seven sat below them (DECISIONS.md §187).
+    const archive = (n: number) => ({
+      ...ASSET,
+      id: `archive-${n}`,
+      name: `archive${n}`,
+      provider_resource_id: `/subscriptions/sub-1/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/archive${n}`,
+      open_findings: 2,
+    });
+    mount([{ ...ASSET, open_findings: 7 }, archive(1), archive(2), archive(3)]);
+
+    const payroll = await screen.findByText("payroll");
+    const firstArchive = screen.getByText("archive1");
+    expect(
+      payroll.compareDocumentPosition(firstArchive) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("narrows the list to the group a link arrived with", async () => {
     vi.stubGlobal(
       "fetch",

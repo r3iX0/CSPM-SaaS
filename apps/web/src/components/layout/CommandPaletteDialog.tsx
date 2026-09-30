@@ -13,8 +13,9 @@ import {
 } from "lucide-react";
 
 import { api } from "@/lib/api";
-import type { Asset, Rule } from "@/lib/types";
+import type { Asset, Finding, Rule } from "@/lib/types";
 import { NAV_GROUPS } from "@/components/layout/nav";
+import { RISK_KIND_ICONS } from "@/lib/icons";
 import { setThemeChoice, type ThemeChoice } from "@/lib/theme";
 import { SHORTCUTS_EVENT } from "@/lib/keyboard";
 import { useScanWizard } from "@/components/scans/ScanWizardProvider";
@@ -35,6 +36,9 @@ const MIN_QUERY = 2;
 const RESULT_LIMIT = 6;
 const DEBOUNCE_MS = 200;
 
+// The finding glyph from the one icon table, so a finding keeps one shape.
+const FindingIcon = RISK_KIND_ICONS.FINDING;
+
 const THEME_COMMANDS: {
   choice: ThemeChoice;
   label: string;
@@ -51,6 +55,24 @@ function matches(haystack: string, query: string): boolean {
 }
 
 /**
+ * A rule matches where a word of it starts with what was typed.
+ *
+ * Rules are filtered here rather than by the API, and a bare substring made
+ * "stg" -- the first letters of an asset name -- match six PostgreSQL rules
+ * ("po*stg*reSQL") under the one asset it was meant to find. A query with a
+ * space or a hyphen in it ("public access", "AZ-STO") is a phrase or an id,
+ * and matches as a substring, as before (DECISIONS.md §188).
+ */
+function matchesRule(haystack: string, query: string): boolean {
+  const needle = query.toLowerCase();
+  if (/[^a-z0-9]/.test(needle)) return haystack.toLowerCase().includes(needle);
+  return haystack
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .some((word) => word.startsWith(needle));
+}
+
+/**
  * Everything reachable, from the keyboard, in one place.
  *
  * The product's own shape is what makes this worth having rather than a
@@ -61,11 +83,10 @@ function matches(haystack: string, query: string): boolean {
  * **What it searches, and why not more.** Assets go to the API, which already
  * filters by name (`GET /assets?search=`). Rules are filtered here, out of the
  * cache the rules page has usually already filled -- the catalogue is dozens of
- * entries, not thousands, so a round trip would buy nothing. Findings are
- * absent: the endpoint has no text search, and the honest workaround is that a
- * rule opens its own findings (`/findings?rule_id=`) and an asset opens its
- * own. Faking it by filtering one loaded page would silently search a
- * hundredth of the data and report nothing found for the rest.
+ * entries, not thousands, so a round trip would buy nothing. Open findings go
+ * to the API too, which searches them by title, rule and asset
+ * (`GET /findings?search=`) -- they were left out when it could not, and are
+ * searched now that it does (DECISIONS.md §188).
  *
  * **Navigation only, no mutations.** No "run a scan" entry, deliberately.
  * Everything here is one keystroke from a highlighted row, and a scan reads a
@@ -106,6 +127,17 @@ export function CommandPaletteDialog({
     enabled: open && searching,
   });
 
+  const { data: findings } = useQuery({
+    queryKey: ["command-findings", debounced],
+    queryFn: () =>
+      api
+        .get<Finding[]>(
+          `/api/v1/findings?search=${encodeURIComponent(debounced)}&status=OPEN&sort=risk&limit=${RESULT_LIMIT}`,
+        )
+        .then((r) => r.data),
+    enabled: open && searching,
+  });
+
   // The same key the rules page uses, so opening the palette after visiting it
   // costs nothing and the two can never show different catalogues.
   const { data: rules } = useQuery({
@@ -134,7 +166,7 @@ export function CommandPaletteDialog({
     if (!filtering || !rules) return [];
     return rules
       .filter((rule) =>
-        matches(`${rule.name} ${rule.rule_id} ${rule.category}`, trimmed),
+        matchesRule(`${rule.name} ${rule.rule_id} ${rule.category}`, trimmed),
       )
       .slice(0, RESULT_LIMIT);
   }, [rules, filtering, trimmed]);
@@ -172,10 +204,12 @@ export function CommandPaletteDialog({
   );
 
   const assetHits = searching ? (assets ?? []) : [];
+  const findingHits = searching && Array.isArray(findings) ? findings : [];
   const nothing =
     actionHits.length === 0 &&
     pages.length === 0 &&
     assetHits.length === 0 &&
+    findingHits.length === 0 &&
     ruleHits.length === 0 &&
     themeHits.length === 0;
 
@@ -187,7 +221,8 @@ export function CommandPaletteDialog({
         if (!next) setQuery("");
       }}
       title="Search Cleave"
-      description="Jump to a page, an asset, or a rule."
+      description="Jump to a page, an asset, a finding or a rule."
+      className="sm:max-w-xl"
     >
       {/* Filtering is done above, against the same substring rule the API
         uses, so cmdk's own scoring is switched off rather than layered on. */}
@@ -212,8 +247,7 @@ export function CommandPaletteDialog({
               {/* Says what was searched, because a bare "no results" over a
               partial search is a claim the product cannot support. */}
               <span className="mt-1 block text-xs text-muted-foreground">
-                Assets, rules and pages are searched. Findings are reached
-                through their rule or their asset.
+                Pages, assets, open findings and rules are searched.
               </span>
             </div>
           )}
@@ -278,6 +312,22 @@ export function CommandPaletteDialog({
                   {/* Exposure travels with the name: an asset worth jumping to
                   is usually one somebody is worried about. */}
                   <SeverityBadge level={asset.public_exposure} size="sm" />
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+
+          {findingHits.length > 0 && (
+            <CommandGroup heading="Open findings">
+              {findingHits.map((finding) => (
+                <CommandItem
+                  key={finding.id}
+                  value={`finding-${finding.id}`}
+                  onSelect={() => go(`/findings/${finding.id}`)}
+                >
+                  <FindingIcon />
+                  <span className="min-w-0 flex-1 truncate">{finding.title}</span>
+                  <SeverityBadge level={finding.severity} size="sm" />
                 </CommandItem>
               ))}
             </CommandGroup>

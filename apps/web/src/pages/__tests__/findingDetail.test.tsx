@@ -111,6 +111,7 @@ function mount(
   paths: unknown[],
   finding: object = FINDING,
   provenance: object | null = PROVENANCE,
+  frameworks: object[] = [],
 ) {
   vi.stubGlobal(
     "fetch",
@@ -120,7 +121,9 @@ function mount(
       // `/attack-paths` nor anything else that would route it correctly, and a
       // fallback that handed it the finding would render nonsense rather than
       // fail.
-      const data = url.includes("/provenance")
+      const data = url.endsWith("/compliance")
+        ? frameworks
+        : url.includes("/provenance")
         ? provenance
         : url.includes("/attack-paths")
           ? paths
@@ -168,6 +171,43 @@ describe("the finding detail page", () => {
     ).toHaveAttribute("href", "/risks/risk-1");
     expect(screen.queryByRole("button", { name: /Accept/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Mark in progress/ })).not.toBeInTheDocument();
+  });
+
+  it("names a finding's frameworks as the compliance page does, and only those offered", async () => {
+    // "MITRE ATTACK" where every other page says ATT&CK, and CIS AWS on an
+    // Azure-only organization's finding (DECISIONS.md §189).
+    mount(
+      [],
+      { ...FINDING, compliance_mappings: { MITRE_ATTACK: ["T1078"], CIS_AWS_3_0: ["1.8"] } },
+      PROVENANCE,
+      [{ id: "MITRE_ATTACK", short_name: "ATT&CK" }],
+    );
+
+    expect(await screen.findByRole("link", { name: "ATT&CK" })).toHaveAttribute(
+      "href",
+      "/compliance/MITRE_ATTACK",
+    );
+    expect(screen.queryByText(/CIS AWS/)).not.toBeInTheDocument();
+  });
+
+  it("leaves out a region and an environment the asset does not have", async () => {
+    mount([], {
+      ...FINDING,
+      resource: { ...(FINDING as { resource: object }).resource, region: null, environment: null },
+    });
+
+    await screen.findByText("Type");
+    expect(screen.queryByText("Region")).not.toBeInTheDocument();
+    expect(screen.queryByText("Environment")).not.toBeInTheDocument();
+  });
+
+  it("offers proving the fix once, where the fix is", async () => {
+    // A filled "Rescan to verify" in the header and a filled "Verify it now"
+    // under the fix did one thing twice (DECISIONS.md §187).
+    mount([]);
+
+    expect(await screen.findByRole("button", { name: /Verify it now/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Rescan to verify/ })).not.toBeInTheDocument();
   });
 
   it("says when an accepted finding comes back", async () => {

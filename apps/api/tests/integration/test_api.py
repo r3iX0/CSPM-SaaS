@@ -2859,8 +2859,9 @@ class TestAssetNeighborhood:
         body = response.json()
         (box,) = body["data"]["boxes"]
         assert box["id"] == f"scope:{subscription}"
-        # Named as the hierarchy names it: no display name, so the id.
-        assert box["name"] == subscription
+        # Named as the asset page names it: no display name, so the account's
+        # name -- never the bare id, which a reader cannot place (§185).
+        assert box["name"] == "Production"
         assert (box["entry"], box["sensitive"]) == (1, 1)
         assert box["findings"] == {"open": 1, "worst": "CRITICAL"}
         assert body["meta"]["routes_total"] == 1

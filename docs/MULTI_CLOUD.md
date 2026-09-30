@@ -210,7 +210,18 @@ provider, which covers per-resource rules. AGGREGATE rules never call `matches`
 rule to its own cloud, memoized per provider rather than per rule. A
 single-provider context returns itself unchanged, so today's scans pay nothing.
 
-`tests/unit/test_rule_provider_scope.py` pins both paths.
+There was a third. Narrowing an Azure scan's context for an AWS rule leaves no
+resources, but `controls` is not narrowed, and an AGGREGATE rule that reads an
+account setting from `controls` read its absence as "not set": every
+Azure-only organization carried AWS-IAM-004, "the account password policy is
+weak or absent". `RuleContext.providers` now says which clouds the scan read
+(its accounts and its directory, not its resources, so a cloud whose every
+listing failed still owes its rules an UNKNOWN), and the engine does not run a
+rule of any other cloud. Compliance weighs only the rules of an organization's
+connected clouds, and migration 0048 deleted the findings already raised
+(DECISIONS.md §184).
+
+`tests/unit/test_rule_provider_scope.py` pins all three.
 
 ---
 

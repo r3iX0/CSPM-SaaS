@@ -35,6 +35,7 @@ import { useIsDemo } from "@/lib/useDemo";
 import { cn, formatDate } from "@/lib/format";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RiskTriageBar } from "@/components/security/RiskTriage";
+import { GraphLink } from "@/components/graph/GraphLink";
 
 const PAGE_SIZE = 25;
 const SEARCH_DEBOUNCE_MS = 250;
@@ -199,11 +200,28 @@ export function RisksPage() {
       <StatStrip
         stats={[
           { label: "Live risks", value: live ?? "—" },
-          { label: "Critical", value: critical ?? "—", tone: "CRITICAL" },
-          { label: "High", value: high ?? "—", tone: "HIGH" },
+          // Each count is also the way to its slice, as on Findings: pressed,
+          // it narrows the list; pressed again, it lets go (§186, §188).
+          ...(["CRITICAL", "HIGH"] as const).map((band) => ({
+            label: band === "CRITICAL" ? "Critical" : "High",
+            value: (band === "CRITICAL" ? critical : high) ?? "—",
+            tone: band,
+            selected: level === band,
+            selectLabel: `Show only ${band.toLowerCase()} risks`,
+            onSelect: () => refilter({ level: level === band ? null : band }),
+          })),
           {
             label: "Needs triage",
             value: typeof untriaged.data === "number" ? untriaged.data : "—",
+            // Equal to the live count until somebody decides about one, and
+            // two equal figures side by side read as a mistake without this.
+            hint:
+              typeof untriaged.data === "number" && untriaged.data === live && live > 0
+                ? "none decided yet"
+                : undefined,
+            selected: status === "OPEN",
+            selectLabel: "Show only risks that need triage",
+            onSelect: () => refilter({ status: status === "OPEN" ? null : "OPEN" }),
           },
         ]}
       />
@@ -658,7 +676,8 @@ function SelectRow({
  * so the three strongest are named here and the attack paths page has the rest
  * (DECISIONS.md §103). In the brand's soft tint: it is a suggestion to look
  * at, not a level of anything. Each link is named with its evidence -- the
- * role, the port -- in the same mono notation the attack-path page uses.
+ * role, the port -- in the same mono notation the attack-path page uses, and
+ * opens that page's Simulate tab with the cut in the plan.
  */
 function TopFixes({ chokes }: { chokes: ChokePoint[] }) {
   return (
@@ -683,7 +702,21 @@ function TopFixes({ chokes }: { chokes: ChokePoint[] }) {
             key={`${choke.source.id}-${choke.relationship}-${choke.target.id}`}
             className="flex flex-wrap items-baseline justify-between gap-x-4 text-meta"
           >
-            <span className="min-w-0 font-mono break-words text-foreground">{choke.detail || choke.description}</span>
+            {/* The way to act on it: the attack-path page's Simulate tab with
+                this cut already in the plan, as the overview's panel opens it.
+                A fix named here and not reachable from here was a dead end
+                (§186). */}
+            <GraphLink
+              to={{
+                kind: "cut",
+                source: choke.source.id,
+                relationship: choke.relationship,
+                target: choke.target.id,
+              }}
+              className="min-w-0 rounded-sm font-mono break-words text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring"
+            >
+              {choke.detail || choke.description}
+            </GraphLink>
             <span className="shrink-0 text-muted-foreground">
               closes{" "}
               <strong className="font-semibold tabular-nums text-foreground">{choke.severs}</strong> of{" "}

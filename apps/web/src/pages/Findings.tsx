@@ -50,6 +50,12 @@ import { useUrlFilters } from "@/lib/useUrlFilters";
 import { ROW_ACTIVE, useRowNavigation } from "@/lib/keyboard";
 
 const SEVERITIES = ["CRITICAL", "HIGH", "MEDIUM", "LOW"] as const;
+const SEVERITY_LABEL: Record<(typeof SEVERITIES)[number], string> = {
+  CRITICAL: "Critical",
+  HIGH: "High",
+  MEDIUM: "Medium",
+  LOW: "Low",
+};
 const PAGE_SIZE = 50;
 const SEARCH_DEBOUNCE_MS = 250;
 
@@ -214,11 +220,22 @@ export function FindingsPage() {
       {counts && (
         <StatStrip
           stats={[
-            { label: "Critical", value: counts.CRITICAL ?? 0, tone: "CRITICAL" },
-            { label: "High", value: counts.HIGH ?? 0, tone: "HIGH" },
-            { label: "Medium", value: counts.MEDIUM ?? 0, tone: "MEDIUM" },
-            { label: "Low", value: counts.LOW ?? 0, tone: "LOW" },
-            { label: "No verdict", value: overview.data?.coverage.unknown ?? 0, tone: "UNKNOWN" },
+            // A count is also the way to that slice: pressed, it narrows the
+            // list to that severity; pressed again, it lets go (§186).
+            ...SEVERITIES.map((level) => ({
+              label: SEVERITY_LABEL[level],
+              value: counts[level] ?? 0,
+              tone: level,
+              selected: severity === level,
+              selectLabel: `Show only ${SEVERITY_LABEL[level].toLowerCase()} findings`,
+              onSelect: () => refilter({ severity: severity === level ? null : level }),
+            })),
+            {
+              label: "No verdict",
+              value: overview.data?.coverage.unknown ?? 0,
+              tone: "UNKNOWN",
+              hint: "checks, not findings",
+            },
           ]}
         />
       )}
@@ -365,7 +382,11 @@ export function FindingsPage() {
         <>
           <Card className="gap-0 overflow-hidden py-0">
             <CardContent className="px-0">
-              <Table className="min-w-[760px]">
+              {/* On a phone the list is three columns -- what, how bad, how
+                  risky -- with the asset under the title, rather than six
+                  columns scrolled sideways under titles cut to fifteen
+                  characters (DECISIONS.md §188). */}
+              <Table className="sm:min-w-[760px]">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
                     <TableHead className="w-[45%]">Finding</TableHead>
@@ -375,7 +396,7 @@ export function FindingsPage() {
                       active={sort}
                       onSort={(key) => refilter({ sort: key })}
                     />
-                    <TableHead>{t.findings.asset}</TableHead>
+                    <TableHead className="max-sm:hidden">{t.findings.asset}</TableHead>
                     <SortableHead
                       label={t.findings.riskScore}
                       sortKey="risk"
@@ -383,12 +404,13 @@ export function FindingsPage() {
                       align="right"
                       onSort={(key) => refilter({ sort: key })}
                     />
-                    <TableHead>{t.common.status}</TableHead>
+                    <TableHead className="max-sm:hidden">{t.common.status}</TableHead>
                     <SortableHead
                       label={t.findings.lastSeen}
                       sortKey="recent"
                       active={sort}
                       align="right"
+                      className="max-sm:hidden"
                       onSort={(key) => refilter({ sort: key })}
                     />
                   </TableRow>
@@ -414,7 +436,7 @@ export function FindingsPage() {
                       data-row-index={index}
                       data-active={activeRow === index}
                     >
-                      <TableCell className="max-w-0">
+                      <TableCell className="max-w-0 max-sm:whitespace-normal">
                         {/* The column truncates, which is right for a table
                             and wrong for the reader who has to open six rows
                             to work out which one they meant. The preview is
@@ -427,7 +449,7 @@ export function FindingsPage() {
                             render={
                               <Link
                                 to={`/findings/${finding.id}`}
-                                className="block truncate text-body font-medium text-foreground after:absolute after:inset-0 hover:underline"
+                                className="block truncate text-body font-medium text-foreground after:absolute after:inset-0 hover:underline max-sm:line-clamp-2 max-sm:whitespace-normal"
                               />
                             }
                           >
@@ -452,11 +474,14 @@ export function FindingsPage() {
                         <p className="mt-0.5 truncate font-mono text-caption text-muted-foreground">
                           {finding.rule_id}
                         </p>
+                        <p className="mt-0.5 truncate text-caption text-muted-foreground sm:hidden">
+                          {finding.resource?.name ?? "Tenant-wide"}
+                        </p>
                       </TableCell>
                       <TableCell>
                         <SeverityBadge level={finding.severity} />
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell className="text-muted-foreground max-sm:hidden">
                         {finding.resource ? (
                           <span className="flex min-w-0 items-center gap-2">
                             <ResourceIcon type={finding.resource.resource_type} />
@@ -476,11 +501,11 @@ export function FindingsPage() {
                       <TableCell className="text-right">
                         <RiskScore score={finding.risk_score} className="text-body text-foreground" />
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="max-sm:hidden">
                         <StatusPill status={finding.status} />
                       </TableCell>
                       <TableCell
-                        className="text-right text-xs text-muted-foreground tabular-nums"
+                        className="text-right text-xs text-muted-foreground tabular-nums max-sm:hidden"
                         title={formatDate(finding.last_detected_at)}
                       >
                         {formatRelative(finding.last_detected_at)}
@@ -523,19 +548,21 @@ function SortableHead({
   sortKey,
   active,
   align = "left",
+  className,
   onSort,
 }: {
   label: string;
   sortKey: SortKey;
   active: SortKey;
   align?: "left" | "right";
+  className?: string;
   onSort: (key: SortKey) => void;
 }) {
   const isActive = active === sortKey;
   return (
     <TableHead
       aria-sort={isActive ? "descending" : "none"}
-      className={align === "right" ? "text-right" : undefined}
+      className={cn(align === "right" && "text-right", className)}
     >
       <button
         type="button"

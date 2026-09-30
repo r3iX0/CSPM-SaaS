@@ -81,6 +81,21 @@ describe("SeverityStrip", () => {
     expect(screen.getByRole("link", { name: /No verdict\s*5/ })).toHaveAttribute("href", "/scans");
   });
 
+  it("says what each figure counts, findings apart from checks", () => {
+    // "Critical 2" sat above five critical risks with nothing saying one
+    // counted findings and the other risks (§186).
+    render(
+      <MemoryRouter>
+        <SeverityStrip counts={{ CRITICAL: 2 }} unknown={5} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("link", { name: /Critical\s*2\s*open findings/ })).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /No verdict\s*5\s*checks, not findings/ }),
+    ).toBeInTheDocument();
+  });
+
   it("marks no verdict dashed, so it never reads as a quiet low", () => {
     render(
       <MemoryRouter>

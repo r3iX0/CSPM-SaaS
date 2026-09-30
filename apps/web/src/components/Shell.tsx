@@ -151,7 +151,7 @@ export function Shell() {
               />
             </Link>
           </SidebarHeader>
-          <SidebarContent className="gap-3.5 p-3 group-data-[collapsible=icon]:px-2">
+          <SidebarContent className="gap-3.5 p-3 group-data-[collapsible=icon]:px-2 [@media(max-height:760px)]:gap-2">
             <SidebarNav />
           </SidebarContent>
           <SidebarFooter className="flex-row items-center gap-1 border-t group-data-[collapsible=icon]:flex-col">

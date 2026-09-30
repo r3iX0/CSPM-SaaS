@@ -73,7 +73,6 @@ SPECS = (
         safe=True,
         describes="Blob versioning keeps earlier versions of overwritten blobs",
         terraform_attribute="blob_properties.versioning_enabled",
-        terraform_resource_types=("azurerm_storage_account",),
         failure="keeps no earlier versions of overwritten blobs",
         mappings={
             "ISO_27001": ["A.8.13"],
@@ -117,7 +116,6 @@ SPECS = (
         absent="fail",
         describes="Data is encrypted twice at rest",
         terraform_attribute="infrastructure_encryption_enabled",
-        terraform_resource_types=("azurerm_storage_account",),
         failure="encrypts its data at rest once rather than twice",
         mappings=_ENCRYPTION,
     ),
@@ -187,7 +185,6 @@ SPECS = (
         absent="fail",
         describes="The portal uses the signed-in user's Entra permissions by default",
         terraform_attribute="default_to_oauth_authentication",
-        terraform_resource_types=("azurerm_storage_account",),
         failure="lets the portal read its data with its access keys by default",
         mappings={
             "ISO_27001": ["A.5.15"],

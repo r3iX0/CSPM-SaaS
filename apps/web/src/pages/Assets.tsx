@@ -215,7 +215,11 @@ export function AssetsPage() {
             : (asset.environment ?? "Unlabelled");
       map.set(key, [...(map.get(key) ?? []), asset]);
     }
-    return [...map.entries()].sort((a, b) => b[1].length - a[1].length);
+    // In queue order: the group holding the asset at the top of the queue
+    // comes first, which is the order a Map keeps as the rows arrive. Sorted
+    // by size, nineteen archive accounts with two findings each led the page
+    // and the one asset with seven sat below them (DECISIONS.md §187).
+    return [...map.entries()];
   }, [assets, groupBy]);
 
   // Rows in the order they are drawn -- grouped, then within each group -- so
@@ -558,7 +562,7 @@ export function AssetsPage() {
                             className="bg-muted/60 py-1.5 font-mono text-caption font-medium text-muted-foreground"
                           >
                             {groupName}
-                            <span className="ml-2 tabular-nums opacity-70">{rows.length}</span>
+                            <span className="ml-2 tabular-nums text-muted-foreground">{rows.length}</span>
                           </TableCell>
                         </MotionTableRow>
                       )}

@@ -267,7 +267,10 @@ def test_aws_is_refused_without_a_public_api_address(
     aws = next(p for p in available_providers() if p["id"] == "aws")
 
     assert aws["available"] is False
-    assert "API_URL" in (aws["unavailable_reason"] or "")
+    assert "API_URL" in (aws["operator_detail"] or "")
+    # The customer is told it cannot be connected here, not what to set.
+    assert "API_URL" not in (aws["unavailable_reason"] or "")
+    assert aws["unavailable_reason"]
 
 
 def test_aws_is_offered_once_the_address_is_set(
@@ -287,6 +290,7 @@ def test_aws_is_offered_once_the_address_is_set(
 
     assert aws["available"] is True
     assert aws["unavailable_reason"] is None
+    assert aws["operator_detail"] is None
 
 
 def test_the_checklist_gate_is_reported_before_the_address(
@@ -307,4 +311,7 @@ def test_the_checklist_gate_is_reported_before_the_address(
 
     aws = next(p for p in available_providers() if p["id"] == "aws")
 
-    assert "AWS_INTEGRATION.md" in (aws["unavailable_reason"] or "")
+    assert "AWS_INTEGRATION.md" in (aws["operator_detail"] or "")
+    assert aws["unavailable_reason"] == (
+        "Coming soon. Cleave does not connect AWS accounts yet."
+    )

@@ -137,7 +137,10 @@ function NavRow({
         // fill and a ring, the same weight of type as its neighbours. The fill
         // is one element shared by every row (`layoutId`), so moving between
         // pages slides it from the row left to the row arrived at (§179).
-        className="relative isolate h-auto rounded-lg px-2.5 py-2 text-body data-active:bg-transparent data-active:font-normal data-active:text-foreground"
+        // Tighter on a short screen: at a laptop's 640-odd pixels of page the
+        // last two rows, Environments and Settings, sat below the sidebar's
+        // fold with nothing saying it scrolled (DECISIONS.md §188).
+        className="relative isolate h-auto rounded-lg px-2.5 py-2 text-body data-active:bg-transparent data-active:font-normal data-active:text-foreground [@media(max-height:760px)]:py-1"
       >
         {match !== null && (
           <m.span

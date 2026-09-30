@@ -235,6 +235,29 @@ describe("the findings list", () => {
     expect(screen.getByText("No verdict", { selector: "dt" }).nextElementSibling).toHaveTextContent("1");
   });
 
+  it("narrows the list from a severity count, and lets go on a second press", async () => {
+    overview = {
+      findings_by_severity: { CRITICAL: 6, HIGH: 9, MEDIUM: 8, LOW: 4 },
+      coverage: { unknown: 1 },
+    };
+    renderPage();
+
+    const critical = await screen.findByRole("button", { name: "Show only critical findings" });
+    fireEvent.click(critical);
+    await waitFor(() =>
+      expect(requested[requested.length - 1]).toContain("severity=CRITICAL"),
+    );
+    expect(critical).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(critical);
+    await waitFor(() =>
+      expect(requested[requested.length - 1]).not.toContain("severity="),
+    );
+    expect(critical).toHaveAttribute("aria-pressed", "false");
+    // A count of checks is not a slice of this list, so it is not a toggle.
+    expect(screen.queryByRole("button", { name: /no verdict/i })).not.toBeInTheDocument();
+  });
+
   it("draws no counts until it has them, rather than a row of zeros", async () => {
     renderPage();
 

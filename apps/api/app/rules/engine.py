@@ -78,13 +78,23 @@ class RuleEngine:
         self.rules = rules if rules is not None else enabled_rules()
 
     def evaluate(self, context: RuleContext) -> EvaluationReport:
-        report = EvaluationReport(rules_run=len(self.rules))
+        # Only the clouds the scan read. A rule about another one is not run,
+        # rather than run and found UNKNOWN: it has nothing to look at, and
+        # counting it would both raise findings from absent evidence and pull
+        # the coverage ratio down with checks nobody could have asked for
+        # (DECISIONS.md §184).
+        rules = [
+            rule
+            for rule in self.rules
+            if context.providers is None or rule.provider in context.providers
+        ]
+        report = EvaluationReport(rules_run=len(rules))
         # Narrowed once per provider rather than once per rule: rebuilding the
         # id and relationship indexes is the expensive part, and a scan holds
         # at most a handful of providers against a great many rules.
         scoped: dict[Provider, RuleContext] = {}
 
-        for rule in self.rules:
+        for rule in rules:
             coverage = RuleCoverage(rule_id=rule.rule_id)
             report.coverage[rule.rule_id] = coverage
 

@@ -26,7 +26,9 @@ export function TodayStats({
 }) {
   const t = useT();
   return (
-    <ul className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+    // Three across at every width: three short figures fit a phone, and one
+    // per row made the overview three screens of stacked boxes (§188).
+    <ul className="grid grid-cols-3 gap-2">
       <Stat to="/risks" label={t.dashboard.openRisks} value={risks} />
       <Stat to="/attack-paths" label={t.dashboard.attackRoutes} value={routes} />
       <Stat

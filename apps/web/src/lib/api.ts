@@ -168,9 +168,7 @@ async function request<T>(
 ): Promise<{ data: T; meta: Record<string, unknown> }> {
   const { skipAuth, ...init } = options;
   const headers = new Headers(init.headers);
-  // A form's content type carries its multipart boundary, which only the
-  // browser knows; setting one here would make the upload unreadable.
-  if (!(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
+  headers.set("Content-Type", "application/json");
 
   if (!skipAuth && auth.token) {
     headers.set("Authorization", `Bearer ${auth.token}`);
@@ -243,8 +241,6 @@ export const api = {
     request<T>(path, { method: "POST", body: JSON.stringify(body ?? {}), ...opts }),
   patch: <T,>(path: string, body: unknown) =>
     request<T>(path, { method: "PATCH", body: JSON.stringify(body) }),
-  /** Files, as multipart. Nothing is stored unless the endpoint says so. */
-  upload: <T,>(path: string, form: FormData) => request<T>(path, { method: "POST", body: form }),
   /** A full replacement. Used where the API stores a statement, not a profile. */
   put: <T,>(path: string, body: unknown) =>
     request<T>(path, { method: "PUT", body: JSON.stringify(body) }),

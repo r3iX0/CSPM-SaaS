@@ -198,6 +198,34 @@ describe("the scan wizard", () => {
     expect(screen.getByRole("tab", { name: "Details" })).toBeInTheDocument();
   });
 
+  it("compares a one-subscription scan with the last of the same subscription", async () => {
+    // Only connection-wide scans were compared, so a finding's rescan -- and
+    // the demo -- said nothing about what changed (DECISIONS.md §187).
+    const finished = {
+      status: "COMPLETED",
+      connection_id: null,
+      cloud_account_id: "acct-1",
+      resource_count: 40,
+      rule_count: 169,
+      finding_count: 58,
+      created_at: "2026-09-13T10:00:00Z",
+      stages: [],
+    };
+    stubApi({
+      scanDetail: detail(finished),
+      scans: [
+        detail({ ...finished, id: "scan-0", finding_count: 62, created_at: "2026-09-12T10:00:00Z" }),
+        // Another subscription's scan is not the last one of this scope.
+        detail({ ...finished, id: "scan-x", cloud_account_id: "acct-9", finding_count: 3, created_at: "2026-09-13T09:00:00Z" }),
+      ],
+    });
+    mount("scan-1");
+
+    expect(await screen.findByText("-4")).toBeInTheDocument();
+    // Opened on a finished scan, Enter must not start another one.
+    expect(document.activeElement).toHaveAttribute("role", "dialog");
+  });
+
   it("skips choosing when only one environment can be scanned", async () => {
     stubApi();
     mount();

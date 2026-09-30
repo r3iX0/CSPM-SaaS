@@ -102,6 +102,13 @@ class RuleContext:
     # servers perfectly well, and degrading the SQL rule over its sibling would
     # be a gap CloudGuard invented rather than one it found.
     collection_errors: dict[str, str] = field(default_factory=dict)
+    # The clouds this scan read. A rule of any other provider is not run at
+    # all: an AWS account check evaluated over an Azure tenant's state finds
+    # none of its evidence and reads the absence as "no password policy set"
+    # -- a finding about an account that does not exist (DECISIONS.md §184).
+    # ``None`` states nothing and runs every rule, which is what a test that
+    # builds a context by hand means.
+    providers: frozenset[Provider] | None = None
 
     _by_id: dict[str, CloudResource] = field(default_factory=dict, init=False, repr=False)
     _inverse: dict[tuple[str, str], list[str]] = field(
@@ -188,6 +195,7 @@ class RuleContext:
             # here could do is silently lose a control while keeping the finding
             # it moderates.
             controls=self.controls,
+            providers=self.providers,
         )
 
 

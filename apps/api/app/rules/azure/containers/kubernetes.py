@@ -92,6 +92,7 @@ class AzureClusterPublicApiRule(_ClusterRule):
                 comparison=Comparison.NOT_EMPTY,
                 example="203.0.113.0/24",
                 describes="The API server accepts only named address ranges",
+                terraform_attribute="api_server_access_profile.authorized_ip_ranges",
             ),
         ),
         cli=(
@@ -168,7 +169,6 @@ class AzureClusterLocalAccountsRule(_ClusterRule):
             "az aks update --name <cluster> --resource-group <rg> --disable-local-accounts",
         ),
         notes=_NO_POLICY,
-        terraform_resource_types=("azurerm_kubernetes_cluster",),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.15", "A.5.17"],
@@ -236,7 +236,6 @@ class AzureClusterRbacRule(_ClusterRule):
             "--enable-azure-rbac",
         ),
         notes=_NO_POLICY,
-        terraform_resource_types=("azurerm_kubernetes_cluster",),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.15", "A.8.2"],

@@ -69,7 +69,11 @@ panel is absent until something is tied to a region.
 
 **UNKNOWN sits in the severity strip**, at the end and labelled "no verdict". It
 is not a fifth severity and it is never a pass, but a reader tallying what is
-wrong has to see what could not be answered in the same glance.
+wrong has to see what could not be answered in the same glance. Each tile says
+what it counts — "open findings", or "checks, not findings" — because the
+strip sits above the priority risks, which are counted differently. On
+Findings the four severity counts are also the filter: pressed, a count narrows
+the list to its severity, and pressed again lets go (DECISIONS.md §186).
 
 **A ranked risk carries the terms it was ranked by** — internet-facing,
 sensitive data, business-critical — so a rank reads as a reason rather than as
@@ -219,7 +223,7 @@ refuses to poll a finished one overnight, and there is no "in flight" here.
 Empty reads *"Nothing new"* plus what it would have told you about; a failed
 request renders nothing at all, because a network error is not an all-clear.
 
-**Rules** — the catalogue, filterable by severity and free text. It lists what CloudGuard *runs*: a rule withdrawn from the registry (`enabled: false`) is held back behind a toggle and named as withdrawn, because it no longer runs and compliance coverage no longer counts it. Each rule expands to its rationale and the fix in every form the backend holds — prose, CLI, Terraform, Azure Policy.
+**Rules** — the catalogue, filterable by severity, cloud and free text. It opens on the clouds the organization connects (all of them before any is connected), since a scan runs no other cloud's rules (DECISIONS.md §184, §186). It lists what CloudGuard *runs*: a rule withdrawn from the registry (`enabled: false`) is held back behind a toggle and named as withdrawn, because it no longer runs and compliance coverage no longer counts it. Each rule expands to its rationale and the fix in every form the backend holds — prose, CLI, Terraform, Azure Policy.
 
 **Compliance — a framework, control by control.** Controls keep the framework's
 own section order, because somebody arrives holding an auditor's spreadsheet in

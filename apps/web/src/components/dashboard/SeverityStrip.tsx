@@ -43,6 +43,7 @@ export function SeverityStrip({
           to={`/findings?severity=${level}`}
           badge={<SeverityBadge level={level}>{label}</SeverityBadge>}
           value={counts[level] ?? 0}
+          unit="open findings"
         />
       ))}
 
@@ -50,6 +51,7 @@ export function SeverityStrip({
         to="/scans"
         badge={<SeverityBadge level="UNKNOWN">No verdict</SeverityBadge>}
         value={unknown}
+        unit="checks, not findings"
       />
     </section>
   );
@@ -59,10 +61,17 @@ function Tile({
   to,
   badge,
   value,
+  unit,
 }: {
   to: string;
   badge: React.ReactNode;
   value: number;
+  /**
+   * What the figure counts. The strip sits under the score and above the
+   * priority risks, and without it "Critical 2" beside five critical risks
+   * read as a contradiction rather than two different things (§186).
+   */
+  unit: string;
 }) {
   const shown = Math.round(useCountUp(value));
 
@@ -85,6 +94,7 @@ function Tile({
       >
         {shown}
       </span>
+      <span className="-mt-1 text-meta text-muted-foreground">{unit}</span>
     </Link>
   );
 }

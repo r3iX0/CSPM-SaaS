@@ -155,7 +155,10 @@ function ComingSoon() {
         {planned.map((id) => (
           <li
             key={id}
-            className="flex items-center gap-2.5 rounded-lg border border-border bg-card px-3.5 py-2.5 opacity-60"
+            // Dashed and muted rather than faded: at 60% opacity the names
+            // failed contrast, and a tile nobody can read says nothing about
+            // what is coming (DECISIONS.md §189).
+            className="flex items-center gap-2.5 rounded-lg border border-dashed border-border bg-card px-3.5 py-2.5"
           >
             <ProviderMark provider={id} tile className="text-muted-foreground" />
             <span className="text-meta font-medium text-muted-foreground">

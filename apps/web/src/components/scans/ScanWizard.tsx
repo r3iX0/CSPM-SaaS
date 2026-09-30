@@ -91,6 +91,16 @@ export function ScanWizard({
       {/* A dialog on a desk, the whole screen on a phone: the lanes of a
           forty-subscription tenant do not fit a narrow card. */}
       <DialogContent
+        // Opened on a scan, the dialog itself takes focus, announced by its
+        // title. Left to the default, focus landed on the first control in
+        // the footer -- "Run another" on a finished scan -- so Enter started
+        // a new scan (DECISIONS.md §187). Setup keeps the default: its first
+        // control is the choice the reader came to make.
+        initialFocus={
+          scanId
+            ? () => document.querySelector<HTMLElement>('[data-slot="dialog-content"]')
+            : true
+        }
         className={cn(
           "flex max-h-[calc(100dvh-4rem)] flex-col gap-0 p-0 sm:max-w-2xl",
           "max-sm:inset-0 max-sm:max-h-none max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-none",

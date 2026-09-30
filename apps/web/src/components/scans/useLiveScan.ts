@@ -51,15 +51,23 @@ export function useLiveScan(scanId: string) {
     }
   }, [data, running, queryClient]);
 
-  // The last finished scan of the same connection -- left out rather than
-  // guessed when there is none.
+  // The last finished scan of the same scope -- left out rather than guessed
+  // when there is none. A scan covers a whole connection or one subscription
+  // (`Scan.connection_id` / `cloud_account_id`), and is compared only with
+  // one covering the same: a subscription's count against a tenant's would be
+  // a difference in scope, not in findings. One subscription used to have no
+  // comparison at all, so a finding's rescan -- and the demo -- ended on
+  // "what it changed" with nothing said about change (DECISIONS.md §187).
+  const sameScope = (s: Scan) =>
+    data?.connection_id
+      ? s.connection_id === data.connection_id
+      : !s.connection_id && s.cloud_account_id === data?.cloud_account_id;
   const previous = data
     ? (scans.data ?? [])
         .filter(
           (s) =>
             s.id !== data.id &&
-            s.connection_id != null &&
-            s.connection_id === data.connection_id &&
+            sameScope(s) &&
             (s.status === "COMPLETED" || s.status === "PARTIAL") &&
             s.created_at < data.created_at,
         )

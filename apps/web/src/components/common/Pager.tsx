@@ -33,7 +33,11 @@ function pageList(page: number, pages: number): (number | null)[] {
   const out: (number | null)[] = [];
   let previous: number | null = null;
   for (const value of sorted) {
-    if (previous !== null && value - previous > 1) out.push(null);
+    // A gap of exactly one page is that page, not an ellipsis: "1 2 … 4"
+    // took as much room as "1 2 3 4" and hid the one page it stood for
+    // (DECISIONS.md §188).
+    if (previous !== null && value - previous === 2) out.push(previous + 1);
+    else if (previous !== null && value - previous > 2) out.push(null);
     out.push(value);
     previous = value;
   }

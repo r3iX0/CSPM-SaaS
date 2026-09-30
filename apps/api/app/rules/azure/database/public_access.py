@@ -85,7 +85,6 @@ class AzurePublicDatabaseRule(SecurityRule):
             "the generated policy closes public network access and does not "
             "claim to close an over-broad firewall rule."
         ),
-        terraform_resource_types=("azurerm_mssql_server", "azurerm_postgresql_flexible_server"),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["4.1.2"],
@@ -235,7 +234,6 @@ class AzureDatabasePrivateConnectivityRule(SecurityRule):
                 equals="Disabled",
                 describes="The server's public endpoint is turned off",
                 terraform_attribute="public_network_access_enabled",
-                terraform_value=False,
             ),
         ),
         # Who the expectation is about. Stated so a reader knows this is not a
@@ -257,7 +255,6 @@ class AzureDatabasePrivateConnectivityRule(SecurityRule):
             "preventive form of this is a landing-zone decision rather than a rule on "
             "the server."
         ),
-        terraform_resource_types=("azurerm_mssql_server", "azurerm_postgresql_flexible_server"),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.20", "A.8.22"],

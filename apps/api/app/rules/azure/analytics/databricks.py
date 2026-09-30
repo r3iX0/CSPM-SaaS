@@ -87,7 +87,6 @@ class AzureDatabricksPublicNetworkRule(_WorkspaceRule):
             "--set properties.publicNetworkAccess=Disabled",
         ),
         notes=_NO_POLICY,
-        terraform_resource_types=("azurerm_databricks_workspace",),
     )
 
     def evaluate(
@@ -148,7 +147,6 @@ class AzureDatabricksNoPublicIpRule(_WorkspaceRule):
             "--set properties.parameters.enableNoPublicIp.value=true",
         ),
         notes=_NO_POLICY,
-        terraform_resource_types=("azurerm_databricks_workspace",),
     )
 
     def evaluate(

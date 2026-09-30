@@ -306,7 +306,6 @@ class AzureLinuxPasswordSignInRule(SecurityRule):
         ),
         applies_when={"os_type": "Linux"},
         notes=_NO_POLICY,
-        terraform_resource_types=("azurerm_linux_virtual_machine",),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.17"],

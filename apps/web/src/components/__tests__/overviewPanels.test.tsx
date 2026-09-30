@@ -132,10 +132,12 @@ describe("ComplianceSummary", () => {
       coverage_ratio: ratio,
     }) as ComplianceFramework;
 
-  it("keeps the count behind each percentage for a screen reader", () => {
+  it("prints each framework as a count of verdicts, and says it in words", () => {
     wrap(<ComplianceSummary loading={false} frameworks={[framework("cis", 0.5)]} />);
 
-    expect(screen.getByText("50%")).toBeInTheDocument();
+    // A count out of the total, never a percentage (DECISIONS.md §185).
+    expect(screen.getByText("10/20")).toBeInTheDocument();
+    expect(screen.queryByText("50%")).not.toBeInTheDocument();
     expect(screen.getByText("10 of 20 controls reached a conclusion")).toHaveClass("sr-only");
   });
 

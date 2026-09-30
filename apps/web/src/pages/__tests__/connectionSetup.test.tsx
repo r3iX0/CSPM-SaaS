@@ -75,6 +75,39 @@ describe("the connection wizard", () => {
     expect(await screen.findByLabelText(/connection name/i)).toBeInTheDocument();
   });
 
+  it("tells a customer a cloud is unavailable, and keeps the variables for the operator", async () => {
+    // "Set AWS_ACCESS_KEY_ID" read as an instruction to whoever was
+    // connecting (DECISIONS.md §186).
+    vi.spyOn(api, "get").mockImplementation(async (path: string) =>
+      ({
+        data: path.endsWith("/providers")
+          ? [
+              { id: "azure", name: "Microsoft Azure", available: true, unavailable_reason: null, operator_detail: null },
+              {
+                id: "aws",
+                name: "Amazon Web Services",
+                available: false,
+                unavailable_reason: "Coming soon. Cleave does not connect AWS accounts yet.",
+                operator_detail: "Set AWS_ACCESS_KEY_ID.",
+              },
+            ]
+          : null,
+        meta: {},
+      }) as never,
+    );
+    mount(null, "/connections/new");
+
+    expect(
+      await screen.findByText("Coming soon. Cleave does not connect AWS accounts yet."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/AWS_ACCESS_KEY_ID/)).not.toBeInTheDocument();
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Notes for whoever runs this deployment" }),
+    );
+    expect(await screen.findByText(/AWS_ACCESS_KEY_ID/)).toBeVisible();
+  });
+
   it("gives the consent link to somebody who cannot grant it themselves", async () => {
     // The step most often looked at by a person who is not a Global
     // Administrator. Handing the link on is a way of finishing it, not of

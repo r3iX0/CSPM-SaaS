@@ -113,6 +113,14 @@ async def evaluate(
         relationships=group_edges(merged),
         collection_errors=merged.collection_errors,
         controls=merged.controls,
+        # What this run read, and so which clouds' rules have anything to
+        # judge. Taken from the accounts and the directory rather than the
+        # resources: a subscription whose every listing failed still owes its
+        # rules an UNKNOWN (DECISIONS.md §184).
+        providers=frozenset(
+            [account.provider for account, _ in account_state]
+            + ([directory[0].provider] if directory is not None else [])
+        ),
     )
     report = engine.evaluate(context)
     scan.rule_count = report.rules_run

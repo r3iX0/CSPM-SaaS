@@ -102,6 +102,25 @@ describe("RiskDetailPage", () => {
     expect(screen.getByText("AZ-STO-001")).toBeInTheDocument();
   });
 
+  it("lists a route's open findings before the ones already fixed, and counts the fixed", async () => {
+    // Verified fixes sat between open findings, and read as more to do (§189).
+    mount(
+      scenarioRisk({
+        findings: [
+          { id: "f-fixed", rule_id: "AZ-DB-001", title: "Database publicly accessible", severity: "CRITICAL", status: "RESOLVED" },
+          { id: "f-open", rule_id: "AZ-ID-001", title: "Admin without MFA", severity: "CRITICAL", status: "OPEN" },
+        ],
+      } as Partial<RiskDetail>),
+    );
+
+    expect(await screen.findByText("1 of 2 already fixed; the rest are open.")).toBeInTheDocument();
+    const [first, second] = screen
+      .getAllByRole("link")
+      .filter((link) => link.getAttribute("href")?.startsWith("/findings/"));
+    expect(first).toHaveAttribute("href", "/findings/f-open");
+    expect(second).toHaveAttribute("href", "/findings/f-fixed");
+  });
+
   it("shows a scenario its own arithmetic, not the finding formula", async () => {
     mount(scenarioRisk());
 

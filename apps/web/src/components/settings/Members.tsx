@@ -83,6 +83,10 @@ export function MembersSection({ organization }: { organization: Organization })
                   // Only an owner changes an owner, or makes one.
                   editable={manages && (owner || member.role !== "OWNER")}
                   roles={owner ? ROLES : INVITABLE}
+                  lastOwner={
+                    member.role === "OWNER" &&
+                    members.data.filter((row) => row.role === "OWNER").length === 1
+                  }
                 />
               ))}
             </TableBody>
@@ -98,13 +102,21 @@ export function MembersSection({ organization }: { organization: Organization })
 
 function MemberRow({
   member,
-  editable,
+  editable: canEdit,
   roles,
+  lastOwner,
 }: {
   member: Member;
   editable: boolean;
   roles: MemberRole[];
+  /**
+   * The organization's only owner. The API refuses to remove or demote them
+   * (§162), and offering "Remove" beside the one person who cannot be removed
+   * led straight to a refusal (DECISIONS.md §188).
+   */
+  lastOwner: boolean;
 }) {
+  const editable = canEdit && !lastOwner;
   const t = useT();
   const queryClient = useQueryClient();
   const [confirming, setConfirming] = useState(false);
@@ -163,6 +175,9 @@ function MemberRow({
         </TableCell>
         <TableCell className="text-muted-foreground">{formatDate(member.joined_at)}</TableCell>
         <TableCell className="pr-5 text-right">
+          {lastOwner && (
+            <span className="text-xs text-muted-foreground">{t.team.lastOwner}</span>
+          )}
           {editable && !confirming && (
             <Button
               variant="ghost"

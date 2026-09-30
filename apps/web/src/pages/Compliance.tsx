@@ -9,7 +9,7 @@ import type {
   ControlStatus,
 } from "@/lib/types";
 import { useT } from "@/i18n";
-import { cn, formatPercent } from "@/lib/format";
+import { cn } from "@/lib/format";
 import { EvidenceNotice } from "@/components/compliance";
 import { Bars } from "@/components/charts/Bars";
 import { Donut } from "@/components/charts/Donut";
@@ -31,10 +31,10 @@ import {
 /**
  * Framework overview.
  *
- * The headline number is deliberately *assessable coverage*, not a compliance
- * percentage. "You are 78% GDPR compliant" is a sentence this product must
- * never produce — it is not true, it is not checkable, and someone would put it
- * in front of an auditor. "CloudGuard can speak to 9 of these 11 requirements"
+ * The headline number is deliberately how many controls reached a verdict out
+ * of how many there are, never a compliance percentage. "You are 78% GDPR
+ * compliant" is a sentence this product must never produce — it is not true,
+ * it is not checkable, and someone would put it in front of an auditor. "CloudGuard can speak to 9 of these 11 requirements"
  * is both true and useful.
  */
 export function CompliancePage() {
@@ -98,6 +98,7 @@ const STATUSES: { key: ControlStatus; label: string; tone: string; dot: string }
 function FrameworkCard({ framework }: { framework: ComplianceFramework }) {
   const t = useT();
   const counts = framework.status_counts;
+  const verdicts = (counts.PASSING ?? 0) + (counts.FAILING ?? 0);
   const slices: Slice[] = STATUSES.filter((status) => (counts[status.key] ?? 0) > 0).map(
     (status) => ({
       key: status.key,
@@ -117,18 +118,22 @@ function FrameworkCard({ framework }: { framework: ComplianceFramework }) {
         <CardHeader className="py-4">
           <div className="flex items-start gap-4">
             {/* The ring is the controls divided by status; the figure in it
-                is coverage -- the share that reached a conclusion -- so the
-                one number on the card is never read as a grade. */}
+                is how many reached a verdict, pass or fail, out of how many
+                there are. It was a percentage, and "94%" over a ring of red
+                read as a grade to anyone who did not open the card -- a
+                count out of a total cannot be (DECISIONS.md §185). */}
             <div className="flex shrink-0 flex-col items-center gap-1">
               <Donut
                 slices={slices}
-                centerValue={formatPercent(framework.coverage_ratio)}
+                centerValue={`${verdicts}/${framework.control_count}`}
                 centerLabel=""
-                ariaLabel={`${formatPercent(framework.coverage_ratio)} of ${framework.control_count} controls reached a conclusion`}
+                ariaLabel={`${verdicts} of ${framework.control_count} controls ${t.compliance.withVerdict}`}
                 className="size-16"
-                valueClassName="text-title"
+                valueClassName="text-meta"
               />
-              <span className="text-caption text-muted-foreground">assessable</span>
+              <span className="text-caption text-muted-foreground">
+                {t.compliance.withVerdict}
+              </span>
             </div>
             <div className="min-w-0">
               <CardTitle>{framework.short_name}</CardTitle>

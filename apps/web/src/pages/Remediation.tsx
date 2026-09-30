@@ -9,7 +9,7 @@ import { CheckIcon, WrenchIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { api } from "@/lib/api";
-import type { FindingDetail, RemediationTask } from "@/lib/types";
+import type { Finding, FindingDetail, RemediationTask } from "@/lib/types";
 import { useT } from "@/i18n";
 import { StatusPill } from "@/components/security/StatusPill";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
@@ -114,19 +114,22 @@ export function RemediationPage() {
       )}
 
       {data && data.length === 0 && (
-        <EmptyState
-          icon={WrenchIcon}
-          title={t.remediation.empty}
-          detail="Assign a finding from its detail page to start tracking the work."
-          action={
-            <Link
-              to="/findings"
-              className={buttonVariants({ variant: "outline" })}
-            >
-              Go to findings
-            </Link>
-          }
-        />
+        <>
+          <EmptyState
+            icon={WrenchIcon}
+            title={t.remediation.empty}
+            detail="Track a fix from a finding, or start with the worst open ones below."
+            action={
+              <Link
+                to="/findings"
+                className={buttonVariants({ variant: "outline" })}
+              >
+                Go to findings
+              </Link>
+            }
+          />
+          <WhereToStart />
+        </>
       )}
 
       {data && data.length > 0 && <QueueSummary tasks={data} />}
@@ -290,5 +293,83 @@ function QueueSummary({ tasks }: { tasks: RemediationTask[] }) {
         { label: "Overdue", value: late, alert: late > 0 },
       ]}
     />
+  );
+}
+
+/** How many findings the empty queue offers to start with. */
+const STARTERS = 5;
+
+/**
+ * The worst open findings, each a press away from the queue.
+ *
+ * An empty queue said "track a finding from its detail page" to somebody with
+ * fifty-eight open ones, which is a page away from the answer. The findings
+ * list's own first page -- worst risk first -- is the answer, and each row
+ * queues its fix in place, the same `POST /remediation` the finding's page
+ * sends (DECISIONS.md §187). Not in the demo, where the API refuses it.
+ */
+function WhereToStart() {
+  const queryClient = useQueryClient();
+  const isDemo = useIsDemo();
+  const open = useQuery({
+    queryKey: ["findings", "starters"],
+    queryFn: () =>
+      api
+        .get<Finding[]>(`/api/v1/findings?status=OPEN&sort=risk&limit=${STARTERS}&offset=0`)
+        .then((r) => r.data),
+    retry: false,
+  });
+  const track = useMutation({
+    mutationFn: (findingId: string) =>
+      api.post<RemediationTask>("/api/v1/remediation", { finding_id: findingId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["remediation"] });
+      queryClient.invalidateQueries({ queryKey: ["findings"] });
+    },
+    onError: (err) =>
+      toast.error("Could not track this fix", {
+        description: err instanceof Error ? err.message : "The API rejected the request.",
+      }),
+  });
+
+  const rows = Array.isArray(open.data) ? open.data : [];
+  if (isDemo || rows.length === 0) return null;
+
+  return (
+    <section
+      aria-labelledby="where-to-start"
+      className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10"
+    >
+      <h2 id="where-to-start" className="px-5 pt-4 pb-3 text-body font-semibold">
+        Where to start
+      </h2>
+      <ul className="divide-y border-t">
+        {rows.map((finding) => (
+          <li key={finding.id} className="flex items-center gap-3 px-5 py-2.5">
+            <SeverityBadge level={finding.severity} />
+            <Link
+              to={`/findings/${finding.id}`}
+              className="min-w-0 flex-1 truncate rounded-sm text-body outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring"
+            >
+              {finding.title}
+            </Link>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={track.isPending}
+              onClick={() => track.mutate(finding.id)}
+              aria-label={`Track the fix for ${finding.title}`}
+            >
+              {track.isPending && track.variables === finding.id ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <WrenchIcon data-icon="inline-start" aria-hidden />
+              )}
+              Track
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

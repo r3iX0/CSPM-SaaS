@@ -107,11 +107,15 @@ export function statusSummary(connection: CloudConnection): {
       detail: "Every subscription is unticked",
       tone: "high",
     };
+  // "On a schedule" only when there is one. It was said of every live
+  // connection, beside a last-read line saying "only when asked" (§185).
   return {
     label: "Live",
     detail: connection.change_events_enabled
       ? "Listening for changes"
-      : "Read on a schedule",
+      : connection.scan_interval_hours === null
+        ? "Read when a scan is run"
+        : "Read on a schedule",
     tone: "ok",
   };
 }

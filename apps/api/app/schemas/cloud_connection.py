@@ -163,8 +163,12 @@ class ProviderOptionOut(ClosedModel):
     id: Provider
     name: str
     available: bool
-    #: Why not, where it is not; ``None`` where it is.
+    #: Why not, where it is not, in the customer's words; ``None`` where it is.
     unavailable_reason: str | None
+    #: The same, for whoever runs the deployment: the variable to set or the
+    #: checklist to finish. Kept apart so a customer is not handed an
+    #: environment variable as an instruction (DECISIONS.md section 186).
+    operator_detail: str | None
 
 
 class AppRegistrationOut(ClosedModel):

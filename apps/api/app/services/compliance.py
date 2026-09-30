@@ -125,10 +125,18 @@ class _Snapshot:
         ]
 
 
-async def _snapshot(session: AsyncSession, organization_id: UUID) -> _Snapshot:
-    rules = list(
-        (await session.execute(select(Rule).where(Rule.enabled.is_(True)))).scalars().all()
-    )
+async def _snapshot(
+    session: AsyncSession, organization_id: UUID, providers: set[Provider]
+) -> _Snapshot:
+    # Only the rules of clouds this organization uses. A scan never runs the
+    # others (DECISIONS.md §184), so under a cross-cloud framework such as ISO
+    # 27001 they would read as "never ran" and hold every control they share
+    # with a passing native rule at INCONCLUSIVE. No connection yet: every
+    # rule, for the reason ``frameworks_for`` gives.
+    query = select(Rule).where(Rule.enabled.is_(True))
+    if providers:
+        query = query.where(Rule.provider.in_([p.value for p in providers]))
+    rules = list((await session.execute(query)).scalars().all())
 
     open_rows = (
         await session.execute(
@@ -416,8 +424,8 @@ def frameworks_for(providers: set[Provider]) -> list[Framework]:
 
 async def list_frameworks(session: AsyncSession, organization_id: UUID) -> list[dict]:
     """One summary card per framework this organization's clouds are measured by."""
-    snapshot = await _snapshot(session, organization_id)
     providers = await connected_providers(session, organization_id)
+    snapshot = await _snapshot(session, organization_id, providers)
 
     summaries = []
     for framework in frameworks_for(providers):
@@ -442,7 +450,8 @@ async def get_framework_detail(
     if framework is None:
         return None
 
-    snapshot = await _snapshot(session, organization_id)
+    providers = await connected_providers(session, organization_id)
+    snapshot = await _snapshot(session, organization_id, providers)
     resolved = _resolve(framework, snapshot)
     statuses = [status for _, status in resolved]
 

@@ -10,7 +10,7 @@
  * it is only visible where they are ranked together.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -149,6 +149,20 @@ describe("RisksPage", () => {
     expect(screen.getByText("Critical", { selector: "dt" }).nextElementSibling).toHaveTextContent("4");
     expect(screen.getByText("High", { selector: "dt" }).nextElementSibling).toHaveTextContent("3");
     expect(screen.queryByText("No verdict", { selector: "dt" })).not.toBeInTheDocument();
+  });
+
+  it("says an untriaged count equal to the whole is none decided, and filters from it", async () => {
+    // "Live risks 77" beside "Needs triage 77" read as a mistake (§188).
+    mount([findingRisk()], { counts: { all: 9, CRITICAL: 4, HIGH: 3 }, untriaged: 9 });
+
+    expect(await screen.findByText("none decided yet")).toBeInTheDocument();
+    const triage = screen.getByRole("button", { name: "Show only risks that need triage" });
+    fireEvent.click(triage);
+    await waitFor(() => expect(triage).toHaveAttribute("aria-pressed", "true"));
+    expect(screen.getByRole("button", { name: "Show only critical risks" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
   });
 
   it("says what deciding about a row decides about", async () => {
@@ -301,6 +315,9 @@ describe("RisksPage", () => {
     // Named with its evidence, in the attack-path page's notation.
     expect(fixes).toHaveTextContent("mi-jump-01 —Owner→ sub-1");
     expect(fixes).toHaveTextContent("closes 4 of 6 routes");
+    // And is the way to act on it: the Simulate tab, with this cut planned.
+    const link = within(fixes).getByRole("link", { name: "mi-jump-01 —Owner→ sub-1" });
+    expect(link.getAttribute("href")).toMatch(/^\/attack-paths\?.*cut=/);
   });
 
   it("shows a scenario's route, hop by hop", async () => {

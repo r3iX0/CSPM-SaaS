@@ -91,6 +91,7 @@ async def load_placements(session: AsyncSession, organization_id: UUID) -> Place
             ResourceRecord.id,
             CloudAccount.subscription_id,
             CloudAccount.display_name,
+            CloudAccount.account_name,
             ResourceRecord.provider,
             RESOURCE_GROUP,
         )
@@ -106,7 +107,15 @@ async def load_placements(session: AsyncSession, organization_id: UUID) -> Place
     row_ids: dict[str, UUID] = {}
     names: dict[str, str] = {}
     providers: dict[str, str] = {}
-    for provider_id, row_id, subscription_id, display_name, provider, group in rows.tuples():
+    for (
+        provider_id,
+        row_id,
+        subscription_id,
+        display_name,
+        account_name,
+        provider,
+        group,
+    ) in rows.tuples():
         if provider_id in of:
             continue
         # An account row with no subscription id is not a scope anybody can
@@ -114,8 +123,14 @@ async def load_placements(session: AsyncSession, organization_id: UUID) -> Place
         scope = subscription_id or DIRECTORY_SCOPE
         of[provider_id] = Placement(scope, group or None)
         row_ids[provider_id] = row_id
+        # The name the asset page's breadcrumb gives the same subscription.
+        # Without ``account_name`` a subscription with no display name was
+        # drawn on the map and named on a route as its bare id (§185).
         names.setdefault(
-            scope, "Directory" if scope == DIRECTORY_SCOPE else display_name or scope
+            scope,
+            "Directory"
+            if scope == DIRECTORY_SCOPE
+            else display_name or account_name or scope,
         )
         providers.setdefault(scope, provider.value)
     return Placements(of, row_ids, names, providers)

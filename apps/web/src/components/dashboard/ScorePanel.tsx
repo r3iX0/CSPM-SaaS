@@ -118,6 +118,16 @@ export function ScorePanel({
 
         <div className="mt-auto">
           {series.length >= 2 ? (
+            <>
+            {/* What the line is, and where it went. Drawn in the score's own
+                band colour with no axis, a red line climbing read as a
+                warning rather than as a score of 1 becoming 3 (§189). */}
+            <p className="mb-1 flex items-baseline justify-between gap-3 text-caption text-muted-foreground">
+              <span>Security score</span>
+              <span className="tabular-nums">
+                {Math.round(series[0])} → {Math.round(series[series.length - 1])}
+              </span>
+            </p>
             <Sparkline
               key={trend.changes}
               values={series}
@@ -126,6 +136,7 @@ export function ScorePanel({
               fill
               className="h-16 w-full"
             />
+            </>
           ) : (
             <p className="text-xs text-muted-foreground">
               One scan so far. The trend starts at the next one.

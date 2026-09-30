@@ -44,6 +44,18 @@ describe("ReportsPage", () => {
     expect(screen.getByText(/does not touch Azure/)).toBeInTheDocument();
   });
 
+  it("says beside each button what the document will hold", async () => {
+    // The options sit below the documents, so a box unticked earlier has to
+    // be readable where the download is (DECISIONS.md §188).
+    mount();
+
+    expect(screen.getAllByText("Last 30 days · every section")).toHaveLength(2);
+    await userEvent.click(screen.getByRole("checkbox", { name: "Full findings list" }));
+    // The findings list is the technical report's alone.
+    expect(screen.getByText("Last 30 days · 4 of 5 sections")).toBeInTheDocument();
+    expect(screen.getByText("Last 30 days · every section")).toBeInTheDocument();
+  });
+
   it("fetches the PDF through the authenticated path, not a bare link", async () => {
     const doc = vi.spyOn(api, "document").mockResolvedValue(new Blob(["%PDF-"]));
     mount();

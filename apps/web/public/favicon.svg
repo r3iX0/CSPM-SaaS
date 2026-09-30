@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round">
+  <!-- The brand's cut mark (components/Brand.tsx), in the tab: one line, severed.
+       Colours are the --foreground and --primary tokens of each theme, written
+       out because a favicon cannot read the page's stylesheet. -->
+  <style>
+    .route { stroke: oklch(0.145 0 0); }
+    .cut { stroke: oklch(0.45 0.072 196); }
+    @media (prefers-color-scheme: dark) {
+      .route { stroke: oklch(0.985 0 0); }
+      .cut { stroke: oklch(0.74 0.082 194); }
+    }
+  </style>
+  <line class="route" x1="1.5" y1="17" x2="9" y2="9.5" />
+  <line class="cut" x1="15" y1="14.5" x2="22.5" y2="7" />
+</svg>

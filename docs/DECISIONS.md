@@ -10288,77 +10288,258 @@ state of things, not news. The before-and-after screenshots the plan asked for
 were not taken: the development machine has no environment for the frontend
 and no API to point it at, so they are for the deployed app.
 
-## 184. A fix is written into the customer's own Terraform only by changing one value that is already there
+## 184. A scan runs only the rules of the clouds it read
 
-Fix-as-Code (`docs/FIX_AS_CODE.md`) turns a failing finding into an edit of the
-customer's HCL: first as a diff of a file they upload, later as a pull request.
-`terraform_hints` already refused to generate a resource block, because a block
-is either missing the arguments Terraform requires and will not apply, or fills
-them in and applies something nobody asked for. Writing into a real file raises
-the cost of being wrong -- the customer runs `plan` on what CloudGuard wrote --
-so the same refusal becomes the rule for the edit engine.
+Found by walking the app against the Azure demo: the Findings list carried
+AWS-IAM-004, "The account password policy is weak or absent", tenant-wide, in
+an organization with no AWS account. The engine ran every enabled rule over
+every scan. Per-resource rules were held to their cloud by `matches()` and
+AGGREGATE rules by `for_provider()` (MULTI_CLOUD.md §6), but narrowing an Azure
+context for an AWS rule only empties its resources -- `controls` is shared on
+purpose -- and AWS-IAM-004 reads a missing `password_policy` as "no policy
+set". The rest of the AWS aggregate rules found nothing and said UNKNOWN,
+which cost less but was still wrong: fifty checks nobody could have asked for
+counted against coverage, and "rules run" said 219 when 169 could run.
 
-**One argument, in a block that exists, whose value is a literal.** The engine
-replaces the byte range of one value and nothing else, so formatting and
-comments survive; it re-parses afterwards and refuses unless the block reads
-back with exactly the values asked for. Where the argument is absent -- the
-usual shape of an insecure default, `https_only` left out and so `false` -- it
-adds the one line to the block, after its last argument and at its indent, and
-the diff shows it as added. That is an optional argument set, not a required
-one filled in; the rule is about structure. It never creates a resource or a
-nested block -- a missing `network_rules` block is a decline, because
-`default_action = "Deny"` with no IP rules would cut off every client. It
-declines, with a reason a machine can read, when the resource's `name` is
-interpolated, when the value comes from a variable or a module input, when the
-resource is under `count` or `for_each`, when more than one block matches, or
-when the provider version is outside the releases the attribute was checked
-against. A decline is an answer, not an error. Collection states
-(`NONE_MATCHING`, `NOT_EMPTY`) are structural edits and are not attempted.
+`RuleContext.providers` names the clouds a scan read, and `RuleEngine` does not
+run a rule of any other: no verdict, no coverage entry, not counted in
+`rules_run`. It is taken from the scan's accounts and its directory
+connection, not from the resources that came back, because a subscription
+whose every listing failed still owes its rules an UNKNOWN -- scoping by
+resources would turn "could not look" into "nothing to look at". `None` runs
+everything, which is what a context built by hand in a test means.
 
-**In an upload, the only block of its kind is the asset's.** Matching on a
-literal `name` alone edited 3 of 468 resource blocks in HashiCorp's azurerm
-examples and Azure's quickstarts: public HCL builds names from variables and
-`random_string`. But a file that holds a type holds one block of it 94% of the
-time, and an upload is a person saying which file defines this asset. So where
-no block carries the asset's name, exactly one block of the rule's types exists,
-and its name is an expression, the upload flow takes it -- with `matched_by:
-"sole_block"` in the answer and a line in the UI asking the reviewer to check
-it is the asset. A sole block with a different *literal* name is another
-resource and is not taken. Measured again, 55% and 69% of the same blocks get a
-diff; most of the rest are nested blocks the file does not have. It is opt-in
-(`sole_block=True`) and only the upload route opts in: in a repository
-CloudGuard searched, nobody chose the file, and "the only one here" means
-nothing.
+Compliance follows. A rule a scan does not run reads as "never ran", and
+`resolve_control_status` makes that INCONCLUSIVE, so an ISO 27001 control
+mapped to a passing Azure rule and an AWS one would have stayed inconclusive
+for ever in an Azure-only organization. `_snapshot` now reads only the rules of
+the organization's connected clouds, with the same no-connection exception as
+`frameworks_for` (§74).
 
-**Every attribute is held to the provider's own schema.** The azurerm schemas
-of 3.117.1 and 4.81.0, dumped by `terraform providers schema -json` and trimmed
-by `tools/iac/trim_azurerm_schema.py`, are test fixtures; each
-`terraform_attribute` must be a settable argument of each declared
-`terraform_resource_types` entry in both, of the type the hint writes. The
-first run found three hints that would have failed a customer's `plan`:
-AZ-STO-002 named `https_traffic_only`, which azurerm never had; AZ-DB-002 wrote
-`"Disabled"` into a boolean; AZ-KV-001 wrote `true` into
-`soft_delete_retention_days`, a number of days. All seventeen Azure attributes
-now carry the same name in both releases, so no attribute needs a per-version
-spelling yet, and one whose name differs between majors needs the file's
-provider version before it is written. `azurerm_app_service`, which spells the
-web TLS floor `min_tls_version`, is left out of the web rules' types rather than
-given a second spelling.
+Migration 0048 deletes the findings already raised this way -- a rule's
+provider with neither a connection nor an account of it in the organization --
+and the risks they leave with no member, deleted rather than resolved for the
+reason §124 gives. An organization that uses AWS keeps every AWS finding; its
+own AWS scans judge them.
 
-**Parsing is tree-sitter.** The HCL and Bicep grammars ship as binary wheels
-for macOS and manylinux on 3.12 (`tree-sitter`, `tree-sitter-hcl`,
-`tree-sitter-bicep`) and give exact byte ranges; a literal name parses as
-`literal_value` and an interpolated one as `template_expr`, which is the decline
-test. python-hcl2 was ruled out because it cannot write a file back unchanged.
-Repository and upload contents are untrusted input: parsed, never evaluated,
-under size and depth caps.
+## 185. Four places the app contradicted itself, from the same walk
 
-**For pull requests, later: a GitHub App, no auto-merge.** Installation tokens
-are scoped to the repositories the customer picks and expire in an hour; a
-personal access token is neither. The App's key is an environment variable and
-tokens are never stored. CloudGuard opens a PR on its own branch and never
-pushes to a default branch or merges. A merged PR records a claimed fix; only
-the next scan's PASS resolves the finding.
+The walk that found §184 ran every page against the demo recording, and four
+things on it said one thing beside something that said the opposite.
+
+**A framework card's figure is a count, not a percentage.** The ring's centre
+was `coverage_ratio` as a percentage, captioned "assessable". It was never a
+grade -- the page says so twice -- but HIPAA read "94%" over a ring almost all
+red, with no control passing, and nobody reads the caption before the number.
+The centre is now controls with a verdict out of all of them ("32/34"), under
+"with a verdict", and the overview's compliance panel prints the same count
+beside its bar. A fraction says what it counts; a percentage invites the
+sentence the product must never produce. The framework page keeps its
+"40% assessable coverage": there it heads a bar split by status and a paragraph
+saying what it measures.
+
+**"Read on a schedule" only when there is a schedule.** The Environments row
+said it of every live connection that was not listening for changes, next to a
+last-read line saying "only when asked". A connection with no interval now
+says "Read when a scan is run".
+
+**A subscription is named, not numbered, on the map and on a route.**
+`load_placements` fell back from the account's display name straight to the
+subscription id, so a subscription with no display name was drawn on the
+estate map, listed under "Your subscriptions" and named where a traced route
+enters it as `00000000-…`, while the asset page's breadcrumb, which falls back
+through `account_name` first, called it "Production Subscription". Both now
+take the same chain.
+
+**An identity's kind is words.** `_identity_kind` lowercased Azure's
+`principalType` whole, so a link's evidence reached the Risks page's top fixes
+as "(serviceprincipal)". CamelCase is split into words: "service principal",
+"foreign group".
+
+## 186. Counts that say what they count, a catalogue of your clouds, reasons for the customer, and fixes that lead somewhere
+
+Four more from the §184 walk.
+
+**The overview's severity strip says what each figure counts.** "Critical 2"
+sat under the score and above five critical *risks* at 100, and nothing said
+the strip counts findings. Each tile now carries a line: "open findings", or
+"checks, not findings" under no verdict. The strip is otherwise as §178 left
+it -- one measurement split four ways, with the unanswered beside it.
+
+**On Findings, a severity count is the filter.** The four counts above the
+list were figures only, with a severity dropdown beside the search doing the
+same job out of sight of them. `StatStrip` takes an optional `onSelect`: the
+cell gets a button stretched over it, `aria-pressed`, named "Show only critical
+findings", and pressing the selected one again lets go. The cell stays a
+`dt`/`dd` pair, the button inside the `dd`. No verdict is not a toggle: it
+counts checks, which are not a slice of this list. Its hint -- and any
+`StatStrip` hint -- moved inside the `dd`, because a paragraph beside the pair
+is not valid in a `dl`, which axe caught the first time a strip used one.
+
+**The rule catalogue opens on the clouds you use.** An Azure-only
+organization's catalogue opened on fifty AWS checks, first in rule-id order,
+that §184 now guarantees will never run for it. A cloud filter defaults to
+"Your clouds" -- the providers of the organization's connections, or every
+cloud before one is connected, as `frameworks_for` treats compliance -- and
+offers "All clouds" and each cloud by name. It is drawn only when the
+catalogue holds more than one cloud.
+
+**An unavailable cloud's reason is written for the customer.**
+`available_providers` returned one reason, and it was the operator's: "Set
+AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_PRINCIPAL_ARN", printed on the
+card a customer was choosing between, beside the environments page calling
+the same thing "Coming soon". `unavailable_reason` is now the customer's
+sentence -- "Coming soon" for AWS not yet verified or configured, and "Not set
+up on this deployment yet" for anything else -- and `operator_detail` carries
+the variable or the checklist. The wizard shows the second closed beneath the
+picker, under "Notes for whoever runs this deployment", rather than on the
+cards: still shown, since hiding it would leave the person running a
+self-hosted deployment with nothing to go on.
+
+**Top fixes lead to the fix.** The three links on the Risks page that close
+the most routes were text. Each is now a `GraphLink` to the attack-path page's
+Simulate tab with that cut in the plan, as the overview's "Simulate this cut"
+already opened it.
+
+## 187. The worst asset first, one way to prove a fix, somewhere to start, and a scan compared with its own last
+
+Five more from the §184 walk; two of them were not what they looked like.
+
+**Asset groups in queue order.** The list arrives worst first, and grouping by
+resource group kept that within each group -- then sorted the groups by size.
+Nineteen archive accounts with two findings each led the page, and the one
+account with seven sat below them, under a subtitle saying "ranked by open
+findings". Groups now keep the order the rows arrive in, so the group holding
+the top of the queue comes first. Grouping stays the default (§112's reason
+stands).
+
+**Proving a fix is offered once.** A finding's header carried a filled "Rescan
+to verify", and the end of its fix a filled "Verify it now", which does the
+same. The header's appears only where the fix has none -- a finding on no
+asset, or one already resolved.
+
+**An empty queue says where to start.** "Assign a finding from its detail page"
+greeted somebody with fifty-eight open findings. Under it now are the five
+worst open ones -- the findings list's own first page -- each with "Track",
+the same `POST /remediation` a finding's page sends. Not in the demo, where
+the API refuses it. The line above says "track", as the button does.
+
+**A scan is compared with the last scan of the same scope.** `useLiveScan`
+looked for a previous scan of the same connection, so a scan of one
+subscription -- a finding's rescan, and every scan the demo seed replays --
+had no comparison, and the dialog subtitled "what it changed" said nothing
+about change. A subscription's scan is now compared with the last of that
+subscription, a connection's with the last of that connection; never one with
+the other, which would be a difference in scope. "-1 findings" is "-1 finding".
+
+**Opened on a scan, the dialog takes focus itself.** Focus went to the first
+control in the footer, which on a finished scan is "Run another", so Enter
+started a scan. `initialFocus` now focuses the popup, which its title names;
+setup keeps the default.
+
+Not changed, because the walk misread them. A traced route on the attack-path
+canvas *is* framed (`RouteMapCanvas` fits its boxes); a route from the first
+column to the last spans the whole drawing, so framing it barely changes the
+zoom. The asset page's neighbourhood looked drawn low, but it is centred in a
+canvas taller than the part of it above the fold.
+
+## 188. Smaller things from the same walk: settings in effect, a first scan's arrivals, one-page gaps, the palette, the last owner, a long settings page, equal counts, a short sidebar and a phone
+
+**Reports keep their order and say their settings.** The options sit below
+the two documents on purpose -- they refine one rather than gate it -- so
+moving them above was not the fix. Each card now says what its document will
+hold ("Last 30 days · every section", or "4 of 5 sections"), counted over the
+sections that report takes, so a box unticked earlier is readable where the
+download is.
+
+**A scan's many arrivals are one row.** A first scan introduces every asset
+at once, and forty "First seen" rows buried the two changes that day meant
+something. Six or more arrivals from one scan fold into "N assets first seen"
+where the first of them stood, with "Show them" opening the list.
+
+**A one-page gap is that page.** The pager wrote "1 2 … 4": the ellipsis took
+the room of the "3" it hid. A gap of exactly one page is drawn as its number.
+
+**The palette searches findings, and matches a rule at a word.** It left out
+findings because the endpoint once had no text search; it has one
+(`GET /findings?search=`, which the findings page uses), so open findings are
+a group now, worst risk first. Rules are filtered in the browser, and a bare
+substring made "stg" -- the start of an asset's name -- match six PostgreSQL
+rules. A rule now matches where one of its words starts; a query with a space
+or a hyphen is a phrase or an id, and matches anywhere as before. The dialog
+is wider, so a rule's name is not cut at thirty characters.
+
+**The last owner is not offered removal.** The API refuses to remove or demote
+an organization's only owner (§162); the members table offered both anyway.
+That row now says "The last owner stays" in their place.
+
+**Settings links to its sections.** The page is seven topics and 2,600 pixels
+long; a row of links under the heading names what is on it -- only the
+sections this reader is shown -- and jumps to each.
+
+**Risks: an untriaged count equal to the whole says so, and the counts
+filter.** "Live risks 77" beside "Needs triage 77" read as a mistake; they are
+equal until someone decides about a risk. The triage cell says "none decided
+yet" then. Critical, High and Needs triage are toggles for the list, as the
+severity counts on Findings are (§186).
+
+**A short screen shows the whole sidebar.** At a laptop's 640-odd pixels of
+page, Environments and Settings sat below the sidebar's fold with nothing
+saying it scrolled. Below 760 pixels of height the rows and the gaps between
+the groups tighten until the twelve rows fit.
+
+**A phone reads the findings list.** The table was held at 760 pixels and
+scrolled sideways under titles cut to fifteen characters. Under the small
+breakpoint it is three columns -- finding, severity, score -- with the title on
+up to two lines and the asset under it. The overview's three "Today" figures
+sit side by side at every width rather than one per row.
+
+Left alone: the organization's country stays a two-letter box. A picker of two
+hundred countries for a field read only on a report's cover is more control
+than the field is worth.
+
+## 189. The last of the walk: a labelled trend, context you can act on, rows that exist, frameworks by name, fixed findings last, readable tiles and an icon
+
+**The overview's trend says what it is.** The "Today" panel drew the score's
+history in the score's band colour with no axis, so a score of 1 becoming 3
+was a red line climbing -- a warning, to anyone who did not know. Above it now:
+"Security score", and where it went ("1 → 3"). The colour stays: it is the
+band, and §84's ramp is authoritative.
+
+**An asset's context says where it came from, and how to settle it.** The
+criticality and data sensitivity tiles each held one row labelled "Value",
+beside the tile's own name. The row is now labelled by origin -- "Declared",
+"Inferred" or "Not declared" -- and anything not declared carries "Declare it
+for the subscription", to `/settings#context`. Settings scrolls to a fragment
+once its sections exist; the router does not do that on its own.
+
+**A finding's asset lists only what it has.** A user has no region and no
+environment, and two rows of "—" under a person's name said nothing. Each row
+is drawn only when there is a value.
+
+**A finding's frameworks are named as the compliance page names them.** The
+rail spaced the id -- "MITRE ATTACK", "CIS AZURE 6.0" -- and listed frameworks
+about a cloud the organization does not use. It now reads the compliance list
+the page already caches: the catalogue's short name ("ATT&CK"), in the
+catalogue's order, and only frameworks offered to this organization (§74).
+Until the list arrives it falls back to the spaced id, as before.
+
+**A risk lists its open findings first.** A route's verified fixes sat between
+its open findings and read as more to do. Open ones come first, then the
+fixed, under "N of M already fixed; the rest are open".
+
+**Two tiles pass contrast.** The asset list's group count was faded with
+`opacity-70`, and the environments page's "Coming soon" tiles with
+`opacity-60`; both failed axe in both themes. The count is `text-muted-foreground`;
+the tiles are dashed rather than faded.
+
+**The tab has an icon.** With none declared, every load asked for a
+`/favicon.ico` that does not exist. `public/favicon.svg` is the brand's cut
+mark, in each theme's foreground and primary.
+
+Not done from the walk's list: the overview's "link to cut" panel keeps its
+height beside the priority risks -- it is one of a pair of panels sharing a
+row, and shrinking it would leave the row ragged instead.
 
 ## Open items carried forward
 

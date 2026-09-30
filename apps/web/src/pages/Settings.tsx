@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BoxesIcon } from "lucide-react";
 
@@ -52,6 +52,16 @@ export function SettingsPage() {
     organizations.data?.find((org) => org.id === auth.organizationId) ??
     organizations.data?.[0];
 
+  // A link to a section (`/settings#context`, from an asset whose context is
+  // not declared) lands on it. The router does not scroll to a fragment, and
+  // the sections exist only once the organization has loaded (§189).
+  const { hash } = useLocation();
+  const loaded = Boolean(current);
+  useEffect(() => {
+    if (!hash || !loaded) return;
+    document.getElementById(decodeURIComponent(hash.slice(1)))?.scrollIntoView?.({ block: "start" });
+  }, [hash, loaded]);
+
   if (organizations.isLoading) return <CardsSkeleton count={2} />;
 
   if (organizations.error) {
@@ -67,6 +77,20 @@ export function SettingsPage() {
 
   if (!current) return null;
 
+  const manages = (current.role === "OWNER" || current.role === "ADMIN") && !current.is_demo;
+  const sections = [
+    { id: "organization", title: t.settings.orgTitle },
+    ...(current.is_demo ? [] : [{ id: "members", title: t.team.title }]),
+    { id: "context", title: t.settings.contextTitle },
+    ...(manages
+      ? [
+          { id: "integrations", title: t.webhooks.title },
+          { id: "activity", title: t.audit.title },
+        ]
+      : []),
+    { id: "danger", title: t.settings.dangerTitle },
+  ];
+
   return (
     <div className="flex max-w-[820px] flex-col gap-7">
       <PageHeader
@@ -74,7 +98,21 @@ export function SettingsPage() {
         description={t.settings.intro}
       />
 
-      <SettingsSection title={t.settings.orgTitle} description={t.settings.orgHelp}>
+      {/* The page is seven topics long; the links say what is on it and get to
+          the one that was wanted without a scroll hunt (DECISIONS.md §188). */}
+      <nav aria-label="Settings sections" className="-mt-3 flex flex-wrap gap-x-4 gap-y-1 text-meta">
+        {sections.map((section) => (
+          <a
+            key={section.id}
+            href={`#${section.id}`}
+            className="rounded-sm text-muted-foreground underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring"
+          >
+            {section.title}
+          </a>
+        ))}
+      </nav>
+
+      <SettingsSection id="organization" title={t.settings.orgTitle} description={t.settings.orgHelp}>
         {/* Keyed, so switching organization remounts the form with the new
             values rather than leaving the previous one's name in the boxes. */}
         <OrganizationForm key={current.id} organization={current} />
@@ -83,12 +121,12 @@ export function SettingsPage() {
       {/* Not in the demo: its members are strangers to one another, and each
           visitor would see a list of one. */}
       {!current.is_demo && (
-        <SettingsSection title={t.team.title} description={t.team.help}>
+        <SettingsSection id="members" title={t.team.title} description={t.team.help}>
           <MembersSection key={current.id} organization={current} />
         </SettingsSection>
       )}
 
-      <SettingsSection title={t.settings.contextTitle} description={t.settings.contextHelp}>
+      <SettingsSection id="context" title={t.settings.contextTitle} description={t.settings.contextHelp}>
         {accounts.isLoading && <CardsSkeleton count={1} />}
 
         {accounts.data && accounts.data.length === 0 && (
@@ -114,12 +152,12 @@ export function SettingsPage() {
       </SettingsSection>
 
       {/* Owners and admins only, as the API allows; the demo has no owners. */}
-      {(current.role === "OWNER" || current.role === "ADMIN") && !current.is_demo && (
+      {manages && (
         <>
-          <SettingsSection title={t.webhooks.title} description={t.webhooks.help}>
+          <SettingsSection id="integrations" title={t.webhooks.title} description={t.webhooks.help}>
             <WebhooksSection key={current.id} organizationId={current.id} />
           </SettingsSection>
-          <SettingsSection title={t.audit.title} description={t.audit.help}>
+          <SettingsSection id="activity" title={t.audit.title} description={t.audit.help}>
             <ActivitySection key={current.id} organizationId={current.id} />
           </SettingsSection>
         </>
@@ -161,6 +199,7 @@ function DangerZone({ organization }: { organization: Organization }) {
 
   return (
     <SettingsSection
+      id="danger"
       title={t.settings.dangerTitle}
       description={t.settings.dangerHelp}
       tone="danger"

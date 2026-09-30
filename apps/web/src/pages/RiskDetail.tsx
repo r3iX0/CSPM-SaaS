@@ -104,9 +104,13 @@ export function RiskDetailPage() {
   const scenario = data.kind !== "FINDING";
   // What a decision here reaches, for the accept dialog to say before the
   // click. The list endpoint counts it; the detail already has the members.
-  const openFindings = data.findings.filter(
-    (f) => f.status !== "RESOLVED" && f.status !== "FALSE_POSITIVE",
-  ).length;
+  const isOpen = (f: { status: string }) => f.status !== "RESOLVED" && f.status !== "FALSE_POSITIVE";
+  const openFindings = data.findings.filter(isOpen).length;
+  // Open first, in the order the API gave, then what is already fixed: a
+  // route's verified fixes sat between its open findings, and the list read as
+  // though every one of them still needed doing (DECISIONS.md §189).
+  const members = [...data.findings.filter(isOpen), ...data.findings.filter((f) => !isOpen(f))];
+  const fixed = data.findings.length - openFindings;
   const breakdown = data.score_breakdown;
   const components = breakdown.components ?? {};
   const capped = (breakdown.uncapped ?? 0) > 100;
@@ -247,8 +251,14 @@ export function RiskDetailPage() {
                   detail={t.risks.noMembersDetail}
                 />
               ) : (
+                <>
+                {fixed > 0 && (
+                  <p className="mb-2 text-xs text-muted-foreground">
+                    {fixed} of {data.findings.length} already fixed; the rest are open.
+                  </p>
+                )}
                 <ul className="divide-y divide-border rounded-lg border border-border">
-                  {data.findings.map((finding) => (
+                  {members.map((finding) => (
                     <li key={finding.id} className="px-4 py-3">
                       <div className="flex flex-wrap items-center gap-2">
                         <SeverityBadge level={finding.severity} size="sm" />
@@ -266,6 +276,7 @@ export function RiskDetailPage() {
                     </li>
                   ))}
                 </ul>
+                </>
               )}
             </CardContent>
           </Card>
