@@ -243,6 +243,27 @@ export interface RemediationSpec {
   notes: string;
 }
 
+/**
+ * A finding's fix written into an uploaded Terraform file, or why it was not
+ * (DECISIONS.md §184). A decline is an answer, not an error.
+ */
+export interface IacDiff {
+  filename: string;
+  outcome: "patched" | "declined";
+  diff: string | null;
+  edits: { attribute: string; before: string | null; after: string; line: number }[];
+  decline_reason: string | null;
+  detail: string | null;
+  /** From the lock file, where one was sent; `null` is "not known". */
+  provider_version: string | null;
+  checked_against: string[];
+  /**
+   * `sole_block`: the only block of the type in the file, its name an
+   * expression -- the reviewer checks it is the right one. `null` on a decline.
+   */
+  matched_by?: "name" | "sole_block" | null;
+}
+
 export interface FindingDetail extends Finding {
   /**
    * When an accepted finding comes back to the queue. `null` when it is not

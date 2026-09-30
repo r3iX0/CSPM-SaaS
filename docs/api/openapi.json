@@ -8324,6 +8324,112 @@
         }
       }
     },
+    "/api/v1/findings/{finding_id}/iac-diff": {
+      "post": {
+        "tags": [
+          "findings"
+        ],
+        "summary": "Finding Iac Diff",
+        "description": "This finding's fix, written into a Terraform file the customer uploads.\n\nReturns a unified diff that changes one argument in the block defining the\nasset, or a decline with its reason -- an answer, not an error, when the\nedit would need a guess (DECISIONS.md \u00a7184). ``lockfile`` is the optional\n``.terraform.lock.hcl``, which lets the answer say which azurerm release it\nholds. Nothing uploaded is stored, and the finding is not changed, so a\nviewer and the demo organization may ask.",
+        "operationId": "finding_iac_diff_api_v1_findings__finding_id__iac_diff_post",
+        "parameters": [
+          {
+            "name": "finding_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Finding Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_finding_iac_diff_api_v1_findings__finding_id__iac_diff_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_IacDiffOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
     "/api/v1/risks": {
       "get": {
         "tags": [
@@ -11085,6 +11191,32 @@
         ],
         "title": "BlastAssetOut"
       },
+      "Body_finding_iac_diff_api_v1_findings__finding_id__iac_diff_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File"
+          },
+          "lockfile": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "binary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lockfile"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_finding_iac_diff_api_v1_findings__finding_id__iac_diff_post"
+      },
       "BulkRiskStatusRequest": {
         "properties": {
           "status": {
@@ -13137,6 +13269,26 @@
           "meta"
         ],
         "title": "Envelope[HealthOut, NoMeta]"
+      },
+      "Envelope_IacDiffOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/IacDiffOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[IacDiffOut, NoMeta]"
       },
       "Envelope_InvitationCreatedOut_NoMeta_": {
         "properties": {
@@ -15991,6 +16143,143 @@
         ],
         "title": "HierarchyScopeOut",
         "description": "A subscription, or the directory, and its groups -- worst first."
+      },
+      "IacDiffOut": {
+        "properties": {
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "patched",
+              "declined"
+            ],
+            "title": "Outcome"
+          },
+          "diff": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diff"
+          },
+          "edits": {
+            "items": {
+              "$ref": "#/components/schemas/IacEditOut"
+            },
+            "type": "array",
+            "title": "Edits"
+          },
+          "decline_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decline Reason"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "provider_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Version"
+          },
+          "checked_against": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Checked Against"
+          },
+          "matched_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "name",
+                  "sole_block"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matched By"
+          }
+        },
+        "type": "object",
+        "required": [
+          "filename",
+          "outcome",
+          "diff",
+          "edits",
+          "decline_reason",
+          "detail",
+          "provider_version",
+          "checked_against"
+        ],
+        "title": "IacDiffOut",
+        "description": "A finding's fix written into the customer's Terraform, or why it was not.\n\nA decline is an answer, not an error (DECISIONS.md \u00a7184): the file was read\nand the edit would have needed a guess. ``decline_reason`` is for a program\nto branch on; ``detail`` is the sentence a person reads."
+      },
+      "IacEditOut": {
+        "properties": {
+          "attribute": {
+            "type": "string",
+            "title": "Attribute"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before"
+          },
+          "after": {
+            "type": "string",
+            "title": "After"
+          },
+          "line": {
+            "type": "integer",
+            "title": "Line"
+          }
+        },
+        "type": "object",
+        "required": [
+          "attribute",
+          "before",
+          "after",
+          "line"
+        ],
+        "title": "IacEditOut"
       },
       "InvitationCreate": {
         "properties": {

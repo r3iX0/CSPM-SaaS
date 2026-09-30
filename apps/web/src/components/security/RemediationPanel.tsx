@@ -4,6 +4,7 @@ import type { RemediationSpec } from "@/lib/types";
 import { formatEffort } from "@/lib/format";
 import { fillPlaceholders } from "@/lib/remediationFill";
 import { CodeBlock } from "@/components/common/CodeBlock";
+import { IacDiffCheck } from "@/components/security/IacDiffCheck";
 import {
   Card,
   CardContent,
@@ -35,6 +36,7 @@ export function RemediationPanel({
   effortMinutes,
   footer,
   fill,
+  findingId,
 }: {
   remediation: string;
   spec?: RemediationSpec | null;
@@ -51,6 +53,12 @@ export function RemediationPanel({
    * placeholders are the honest answer.
    */
   fill?: { values: Record<string, string>; resourceName: string };
+  /**
+   * The finding this fix is for, which lets the Terraform tab write the fix
+   * into an uploaded file. Absent on the rules catalogue: there is no asset,
+   * so no block to find.
+   */
+  findingId?: string;
 }) {
   const hasCli = (spec?.cli?.length ?? 0) > 0;
   const hasTerraform = (spec?.terraform?.length ?? 0) > 0;
@@ -126,6 +134,9 @@ export function RemediationPanel({
                 block, which would be missing everything Terraform requires and could not
                 be applied.
               </p>
+              {findingId && fill && (
+                <IacDiffCheck findingId={findingId} resourceName={fill.resourceName} />
+              )}
             </TabsContent>
           )}
 

@@ -10288,6 +10288,78 @@ state of things, not news. The before-and-after screenshots the plan asked for
 were not taken: the development machine has no environment for the frontend
 and no API to point it at, so they are for the deployed app.
 
+## 184. A fix is written into the customer's own Terraform only by changing one value that is already there
+
+Fix-as-Code (`docs/FIX_AS_CODE.md`) turns a failing finding into an edit of the
+customer's HCL: first as a diff of a file they upload, later as a pull request.
+`terraform_hints` already refused to generate a resource block, because a block
+is either missing the arguments Terraform requires and will not apply, or fills
+them in and applies something nobody asked for. Writing into a real file raises
+the cost of being wrong -- the customer runs `plan` on what CloudGuard wrote --
+so the same refusal becomes the rule for the edit engine.
+
+**One argument, in a block that exists, whose value is a literal.** The engine
+replaces the byte range of one value and nothing else, so formatting and
+comments survive; it re-parses afterwards and refuses unless the block reads
+back with exactly the values asked for. Where the argument is absent -- the
+usual shape of an insecure default, `https_only` left out and so `false` -- it
+adds the one line to the block, after its last argument and at its indent, and
+the diff shows it as added. That is an optional argument set, not a required
+one filled in; the rule is about structure. It never creates a resource or a
+nested block -- a missing `network_rules` block is a decline, because
+`default_action = "Deny"` with no IP rules would cut off every client. It
+declines, with a reason a machine can read, when the resource's `name` is
+interpolated, when the value comes from a variable or a module input, when the
+resource is under `count` or `for_each`, when more than one block matches, or
+when the provider version is outside the releases the attribute was checked
+against. A decline is an answer, not an error. Collection states
+(`NONE_MATCHING`, `NOT_EMPTY`) are structural edits and are not attempted.
+
+**In an upload, the only block of its kind is the asset's.** Matching on a
+literal `name` alone edited 3 of 468 resource blocks in HashiCorp's azurerm
+examples and Azure's quickstarts: public HCL builds names from variables and
+`random_string`. But a file that holds a type holds one block of it 94% of the
+time, and an upload is a person saying which file defines this asset. So where
+no block carries the asset's name, exactly one block of the rule's types exists,
+and its name is an expression, the upload flow takes it -- with `matched_by:
+"sole_block"` in the answer and a line in the UI asking the reviewer to check
+it is the asset. A sole block with a different *literal* name is another
+resource and is not taken. Measured again, 55% and 69% of the same blocks get a
+diff; most of the rest are nested blocks the file does not have. It is opt-in
+(`sole_block=True`) and only the upload route opts in: in a repository
+CloudGuard searched, nobody chose the file, and "the only one here" means
+nothing.
+
+**Every attribute is held to the provider's own schema.** The azurerm schemas
+of 3.117.1 and 4.81.0, dumped by `terraform providers schema -json` and trimmed
+by `tools/iac/trim_azurerm_schema.py`, are test fixtures; each
+`terraform_attribute` must be a settable argument of each declared
+`terraform_resource_types` entry in both, of the type the hint writes. The
+first run found three hints that would have failed a customer's `plan`:
+AZ-STO-002 named `https_traffic_only`, which azurerm never had; AZ-DB-002 wrote
+`"Disabled"` into a boolean; AZ-KV-001 wrote `true` into
+`soft_delete_retention_days`, a number of days. All seventeen Azure attributes
+now carry the same name in both releases, so no attribute needs a per-version
+spelling yet, and one whose name differs between majors needs the file's
+provider version before it is written. `azurerm_app_service`, which spells the
+web TLS floor `min_tls_version`, is left out of the web rules' types rather than
+given a second spelling.
+
+**Parsing is tree-sitter.** The HCL and Bicep grammars ship as binary wheels
+for macOS and manylinux on 3.12 (`tree-sitter`, `tree-sitter-hcl`,
+`tree-sitter-bicep`) and give exact byte ranges; a literal name parses as
+`literal_value` and an interpolated one as `template_expr`, which is the decline
+test. python-hcl2 was ruled out because it cannot write a file back unchanged.
+Repository and upload contents are untrusted input: parsed, never evaluated,
+under size and depth caps.
+
+**For pull requests, later: a GitHub App, no auto-merge.** Installation tokens
+are scoped to the repositories the customer picks and expire in an hour; a
+personal access token is neither. The App's key is an environment variable and
+tokens are never stored. CloudGuard opens a PR on its own branch and never
+pushes to a default branch or merges. A merged PR records a claimed fix; only
+the next scan's PASS resolves the finding.
+
 ## Open items carried forward
 
 **Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read
