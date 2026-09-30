@@ -112,7 +112,7 @@ export function StepDeploy({
           value only they and CloudGuard know. Somebody who cannot see it cannot
           check that the stack they ran actually asks for it. */}
       {externalId && (
-        <div className="rounded-[10px] bg-muted p-4">
+        <div className="rounded-lg bg-muted p-4">
           <p className="text-meta font-medium text-foreground">{t.setup.aws.externalIdTitle}</p>
           <div className="mt-2.5 flex items-center gap-2">
             <code className="min-w-0 flex-1 truncate rounded-lg border border-border bg-background px-3 py-2 font-mono text-xs text-foreground">
@@ -157,7 +157,7 @@ export function StepDeploy({
       </div>
 
       {connection.deploy_stalled ? (
-        <div className="overflow-hidden rounded-[10px] border border-high-border">
+        <div className="overflow-hidden rounded-lg border border-high-border">
           <div className="flex items-start gap-3 bg-high-bg px-4 py-3.5">
             <Stalled className="mt-0.5 size-4 shrink-0 text-high" aria-hidden />
             <div className="min-w-0">

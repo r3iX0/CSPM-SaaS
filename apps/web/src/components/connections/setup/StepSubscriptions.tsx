@@ -50,7 +50,7 @@ export function StepSubscriptions({
   return (
     <>
       {connection.is_ready_to_scan ? (
-        <div className="flex flex-col gap-4 rounded-[10px] border border-ok-border bg-ok-bg p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 rounded-lg border border-ok-border bg-ok-bg p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3.5">
             {/* The one flourish in the flow, and it is earned: this is the
                 moment both grants have landed and something can be read. */}
@@ -88,7 +88,11 @@ export function StepSubscriptions({
           </div>
         </div>
       ) : (
-        <StepHeader title={t.setup.reviewTitle} description={t.setup.reviewBody} />
+        <StepHeader
+          title={t.setup.reviewTitle}
+          description={t.setup.reviewBody}
+          explain={t.setup.reviewBodyExplain}
+        />
       )}
 
       <div>

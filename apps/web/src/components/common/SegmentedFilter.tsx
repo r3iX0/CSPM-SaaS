@@ -1,3 +1,7 @@
+import { useId } from "react";
+import { m } from "motion/react";
+
+import { layoutSpring } from "@/lib/motion";
 import { cn } from "@/lib/format";
 
 export type Segment = { value: string; label: string };
@@ -29,12 +33,16 @@ export function SegmentedFilter({
   onChange: (value: string) => void;
   className?: string;
 }) {
+  // One indicator per filter, moving from the option that was chosen to the
+  // one that is: a shared `layoutId`, unique to this instance so two filters
+  // on one page do not trade theirs (DECISIONS.md §179).
+  const indicator = `segment-${useId()}`;
   return (
     <div
       role="group"
       aria-label={label}
       className={cn(
-        "inline-flex max-w-full items-stretch overflow-x-auto rounded-[9px] border border-border bg-card",
+        "inline-flex max-w-full items-stretch overflow-x-auto rounded-lg border border-border bg-card",
         className,
       )}
     >
@@ -48,15 +56,24 @@ export function SegmentedFilter({
             onClick={() => onChange(segment.value)}
             // The chosen slice is the brand's soft fill with a 2px rule along
             // its foot, the way a selected tab reads; the rest are muted words
-            // divided by a hairline.
+            // divided by a hairline. The fill is its own element so it can
+            // slide; the label sits above it.
             className={cn(
-              "shrink-0 border-l border-border px-3 py-1.5 text-meta whitespace-nowrap transition-colors outline-none first:border-l-0",
+              "relative isolate shrink-0 border-l border-border px-3 py-1.5 text-meta whitespace-nowrap transition-colors outline-none first:border-l-0",
               "focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring-inset focus-visible:ring-inset",
               active
-                ? "bg-primary-soft font-medium text-foreground shadow-[inset_0_-2px_0_var(--primary)]"
+                ? "font-medium text-foreground"
                 : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
             )}
           >
+            {active && (
+              <m.span
+                layoutId={indicator}
+                transition={layoutSpring}
+                className="absolute inset-0 -z-10 bg-primary-soft shadow-[inset_0_-2px_0_var(--primary)]"
+                aria-hidden
+              />
+            )}
             {segment.label}
           </button>
         );

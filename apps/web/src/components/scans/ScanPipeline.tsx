@@ -3,7 +3,8 @@ import { CheckIcon, MinusIcon, XIcon } from "lucide-react";
 
 import type { Scan, ScanDetail, ScanStage } from "@/lib/types";
 import { cn, formatSeconds, label } from "@/lib/format";
-import { DURATION, EASE_OUT, fadeUp, useCountUp } from "@/lib/motion";
+import { DURATION, EASE_OUT, fadeUp, useCountUp, useValueChange } from "@/lib/motion";
+import { DrawnCheck } from "@/components/common/DrawnCheck";
 import { IN_FLIGHT } from "@/components/scans/status";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -224,6 +225,10 @@ function PhaseTrack({ stages, status }: { stages: ScanStage[]; status: string })
 }
 
 function PhaseNode({ state }: { state: PhaseState }) {
+  // A phase that finishes while the reader watches draws its check; one that
+  // was already done when the scan was opened shows it still (§182).
+  const { previous } = useValueChange(state);
+  const justDone = previous === "active";
   return (
     <span className="relative flex size-8 shrink-0 items-center justify-center">
       {state === "active" && (
@@ -247,7 +252,9 @@ function PhaseNode({ state }: { state: PhaseState }) {
         )}
       >
         {state === "active" && <Spinner className="size-4" />}
-        {(state === "done" || state === "partial") && <CheckIcon className="size-4" aria-hidden />}
+        {(state === "done" || state === "partial") && (
+          <DrawnCheck draw={justDone} className="size-4" strokeWidth={2} />
+        )}
         {state === "failed" && <XIcon className="size-4" aria-hidden />}
         {state === "skipped" && <MinusIcon className="size-4" aria-hidden />}
         {state === "pending" && <span className="size-1.5 rounded-full bg-muted-foreground/50" />}
@@ -344,8 +351,18 @@ function CollectLanes({ stages }: { stages: ScanStage[] }) {
 }
 
 function LaneMark({ status }: { status: ScanStage["status"] }) {
+  // A subscription's collection finishing under the reader's eye draws its
+  // check -- the moment the spinner stops, said by the mark that replaces it.
+  const { previous } = useValueChange(status);
   if (status === "RUNNING") return <Spinner className="size-3.5 shrink-0" />;
-  if (status === "SUCCEEDED") return <CheckIcon className="size-3.5 shrink-0 text-ok" aria-hidden />;
+  if (status === "SUCCEEDED")
+    return (
+      <DrawnCheck
+        draw={previous === "RUNNING"}
+        className="size-3.5 shrink-0 text-ok"
+        strokeWidth={2}
+      />
+    );
   if (status === "FAILED") return <XIcon className="size-3.5 shrink-0 text-critical" aria-hidden />;
   if (status === "SKIPPED")
     return <MinusIcon className="size-3.5 shrink-0 text-unknown" aria-hidden />;

@@ -70,7 +70,7 @@ function Tile({
     <Link
       to={to}
       className={cn(
-        "flex flex-col gap-2.5 bg-card px-[18px] py-3.5 transition-colors hover:bg-muted/60",
+        "flex flex-col gap-2.5 bg-card px-5 py-3.5 transition-colors hover:bg-muted/60",
         "focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring-inset focus-visible:ring-inset",
       )}
     >

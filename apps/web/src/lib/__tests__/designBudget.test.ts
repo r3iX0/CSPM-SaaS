@@ -4,8 +4,8 @@ import { en } from "@/i18n/en";
 import { OVER_BUDGET } from "@/i18n/overBudget";
 
 /**
- * The two budgets the interface is held to (DECISIONS.md §166): how long a
- * line of copy may run, and which font sizes exist.
+ * The budgets the interface is held to (DECISIONS.md §166, §183): how long a
+ * line of copy may run, which font sizes exist, and which radii and spacings.
  */
 
 /** Characters. About one line of a panel at the reading size. */
@@ -55,3 +55,20 @@ describe("type scale", () => {
     expect(offenders).toEqual([]);
   });
 });
+
+describe("radius and spacing", () => {
+  it("takes a radius and a margin, padding or gap from the scale, never as pixels", () => {
+    // `--radius` makes the radii 4, 6, 8 and 12px; spacing runs on Tailwind's
+    // 4px steps. Nine- and ten-pixel corners and 7, 13, 18, 22 and 26px gaps
+    // had crept in beside them (DECISIONS.md §183).
+    const offenders = Object.entries(sources).flatMap(([file, text]) =>
+      [
+        ...text.matchAll(
+          /\b(?:rounded(?:-[a-z]+)?|p[xytblr]?|m[xytblr]?|gap(?:-[xy])?)-\[\d+(?:\.\d+)?px\]/g,
+        ),
+      ].map((match) => `${file}: ${match[0]}`),
+    );
+    expect(offenders).toEqual([]);
+  });
+});
+

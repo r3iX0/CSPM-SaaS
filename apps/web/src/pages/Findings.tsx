@@ -39,12 +39,13 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  MotionTableRow,
 } from "@/components/ui/table";
 import { LiveStatus } from "@/components/common/LiveStatus";
 import { Pager } from "@/components/common/Pager";
 import { StatStrip } from "@/components/common/StatStrip";
 import { cn, formatDate, formatRelative, resourceTypeLabel } from "@/lib/format";
-import { stagger } from "@/lib/motion";
+import { listLayout, stagger } from "@/lib/motion";
 import { useUrlFilters } from "@/lib/useUrlFilters";
 import { ROW_ACTIVE, useRowNavigation } from "@/lib/keyboard";
 
@@ -179,6 +180,7 @@ export function FindingsPage() {
 
   const rows = data?.findings ?? [];
   const activeRow = useRowNavigation(rows.map((finding) => `/findings/${finding.id}`));
+  const rowsLayout = listLayout(rows.map((finding) => finding.id));
   const total = data?.total ?? 0;
   const pages = Math.ceil(total / PAGE_SIZE);
 
@@ -200,7 +202,9 @@ export function FindingsPage() {
     <div className="flex flex-col gap-4">
       <PageHeader
         title={t.findings.title}
-        description="Misconfigurations Cleave observed, ranked by what they mean on the asset they were found on."
+        description="Misconfigurations Cleave observed, worst first."
+        explain={t.findings.pageExplain}
+        explainLabel={t.findings.pageExplainLabel}
       />
 
       {/* Drawn only once the counts are known: a strip of zeros while they
@@ -322,11 +326,9 @@ export function FindingsPage() {
         <EmptyState
           icon={ShieldCheckIcon}
           title={emptyTitle}
-          detail={
-            filtered
-              ? "Widen the filters, or clear the search, to see the rest of this environment."
-              : "Your latest scan reached a verdict on every check it could run and raised nothing. Coverage gaps, if any, are shown on the scan."
-          }
+          // Filtered, the button says what to do; the sentence that said it
+          // again is gone (DECISIONS.md §179).
+          detail={filtered ? undefined : "The latest scan raised nothing on any check it could run."}
           action={
             filtered ? (
               <Button
@@ -393,17 +395,19 @@ export function FindingsPage() {
                 </TableHeader>
                 <TableBody>
                   {rows.map((finding, index) => (
-                    // The same arrival the dashboard's lists use, in CSS
-                    // rather than through the motion runtime: a `tr` cannot be
-                    // wrapped without breaking the table, and the rise is the
-                    // one thing needed here. Capped at eight rows of stagger,
-                    // so a fifty-row page does not become a slow page.
-                    <TableRow
+                    // The same arrival the dashboard's lists use, in CSS: a row
+                    // new to the list rises into place, capped at eight rows of
+                    // stagger so a fifty-row page does not become a slow page.
+                    // `backwards`, not `both`: a fill that outlived the rise
+                    // would pin the row's transform and stop the slide that
+                    // `listLayout` gives a row that stayed (§179).
+                    <MotionTableRow
                       key={finding.id}
+                      {...rowsLayout}
                       // Relative, so the title link's overlay covers this row
                       // and no more: the whole row opens the finding.
                       className={cn(
-                        "group relative cursor-pointer [animation:cg-rise_260ms_ease-out_both]",
+                        "group relative cursor-pointer [animation:cg-rise_260ms_ease-out_backwards]",
                         ROW_ACTIVE,
                       )}
                       style={stagger(index)}
@@ -481,7 +485,7 @@ export function FindingsPage() {
                       >
                         {formatRelative(finding.last_detected_at)}
                       </TableCell>
-                    </TableRow>
+                    </MotionTableRow>
                   ))}
                 </TableBody>
               </Table>

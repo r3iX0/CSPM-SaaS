@@ -18,7 +18,7 @@ export function WaitingNote({ text, detail }: { text: string; detail?: string })
   return (
     <div
       role="status"
-      className="flex items-start gap-3 rounded-[10px] border border-dashed border-border px-4 py-3"
+      className="flex items-start gap-3 rounded-lg border border-dashed border-border px-4 py-3"
     >
       <span className="relative mt-1.5 flex size-2 shrink-0" aria-hidden>
         <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary/40" />

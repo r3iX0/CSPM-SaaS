@@ -145,32 +145,13 @@ export const en = {
     demoDetail:
       "A real scan of a demo environment — real rules, real risk engine, nothing of yours connected.",
   },
-  connect: {
-    title: "Connect your Azure environment",
-    readOnlyPromise: "Cleave requests read-only access. It never modifies your Azure resources.",
-    whatWeAccess: "What Cleave can see",
-    whatWeCannot: "What Cleave cannot do",
-    noSecrets:
-      "You never give Cleave a password, client secret, or certificate. Cleave authenticates as its own application against your directory, so there is no credential of yours for us to store or lose.",
-    step1: "Grant admin consent",
-    step1Detail:
-      "Your Entra ID Global Administrator approves read access to directory data. One click, applied tenant-wide.",
-    step2: "Deploy the scanner role",
-    step2Detail:
-      "Click Deploy to Azure to grant Cleave read-only access at the scope you chose. Nothing to type — the template is pre-filled.",
-    accountName: "Connection name",
-    openConsent: "Open admin consent",
-    verified: "Connection verified",
-  },
   connection: {
     title: "Environments",
-    intro:
-      "Everything Cleave reads from. New subscriptions under a connection are picked up automatically.",
+    intro: "Everything Cleave reads from. New subscriptions are picked up automatically.",
     connectCloud: "Connect environment",
     comingSoon: "Coming soon",
     noConnections: "No cloud environment connected yet.",
-    noConnectionsHelp:
-      "Connecting takes a few minutes and one deployment you run yourself. You will not be asked for any credential.",
+    noConnectionsHelp: "A few minutes and one deployment you run yourself. No credential is asked for.",
     step: "Step",
     of: "of",
     stepConsent: "Grant admin consent",
@@ -190,8 +171,6 @@ export const en = {
     // dropdown to explain itself: a customer choosing an interval is choosing
     // a recurring cost on their own Azure bill.
     scheduleTitle: "Automatic scanning",
-    scheduleHelp:
-      "A security report ages the moment it is written \u2014 cloud environments change daily, and a scan from last month describes an environment that has moved on. Choose how often Cleave should re-read this one.",
     scheduleLabel: "Re-read this environment",
     scheduleManual: "Only when I ask",
     scheduleEvery6Hours: "Every 6 hours",
@@ -202,19 +181,18 @@ export const en = {
     scheduleSaved: "Saved",
     scheduleOn: "Scanning automatically",
     scheduleOff: "Manual scanning only",
-    scheduleFirstRunNote:
-      "The first automatic scan starts within a few minutes; after that it runs on the interval you chose.",
-    scheduleNotReady:
-      "This connection cannot scan yet, so there is nothing to schedule. Finish the 2 grants above first.",
-    scheduleFloorNote:
-      "An interval rather than a time of day: Cleave promises to read this environment at least this often, not to start at a particular minute.",
+    scheduleFirstRunNote: "The first automatic scan starts within minutes, then runs on this interval.",
+    scheduleFloorNote: "At least this often \u2014 an interval, not a time of day.",
 
     // Change-triggered scanning. Two things have to survive the copy: that
     // turning it on wires nothing up on its own, and *why* -- CloudGuard holds
     // no write permission in the customer's tenant and will not ask for one.
     changeTitle: "React to changes",
-    changeHelp:
+    changeHelp: "Scans when something changes, not on a clock.",
+    changeHelpExplain:
       "A schedule reads this environment on a clock. This reads it when something actually moves \u2014 a port opened, a role assigned, a storage account made public \u2014 so the finding arrives while whoever made the change is still at their desk.",
+    changeTimingExplain:
+      "A burst of changes becomes one scan, not one per event: Cleave waits for {quiet} minutes of quiet, and scans a connection at most once every {interval} minutes for change.",
     changeOn: "Listening for changes",
     changeOff: "Not listening",
     changeSaving: "Saving\u2026",
@@ -234,14 +212,11 @@ export const en = {
     changeLastEvent: "Last change heard",
     changeNeverHeard: "Nothing yet",
     changePending: "A change is settling; a scan starts once the environment is quiet",
-    changeTiming:
-      "A burst of changes becomes one scan, not one per event: Cleave waits for {quiet} minutes of quiet, and scans a connection at most once every {interval} minutes for change.",
 
     // The empty state, which is the first meaningful screen in the product.
     readWhatItDoes: "Read what Cleave will do",
     hideWhatItDoes: "Hide the detail",
-    readOnlyPromise:
-      "The role Cleave asks for is read-only. It cannot change your configuration, and it cannot read the data inside your storage accounts, databases or key vaults.",
+    readOnlyPromise: "Read-only: it cannot change configuration or read data in storage, databases or vaults.",
     permissionsTitle: "The exact access Cleave asks for",
     graphPermissions: "Directory permissions",
     rbacRole: "Azure role",
@@ -303,8 +278,7 @@ export const en = {
     moreSubscriptions: "more",
     discoveryPromise:
       "Anything created beneath this connection appears here on the next read.",
-    scopeFootnote:
-      "Unticking one stops Cleave reading it. Existing findings for it are kept and marked out of scope, not deleted.",
+    scopeFootnote: "Unticking one stops Cleave reading it. Its findings are kept, marked out of scope.",
 
     noSubscriptionsTitle: "Nothing found yet",
     noSubscriptionsBody:
@@ -318,10 +292,6 @@ export const en = {
     cannotStartConsent: "Cleave cannot start the consent flow",
     cannotDeployYet: "Cleave cannot generate the deployment yet",
     whoYouNeed: "Who you will need",
-    whoYouNeedDetail:
-      "Admin consent needs a work or school account that is a Global Administrator. A personal Microsoft account \u2014 outlook.com, hotmail.com, live.com \u2014 cannot grant it, even if that account owns the subscription. Granting read access then needs Owner or User Access Administrator on the scope you chose. These are different permissions, and often different people.",
-    noGuidsNeeded:
-      "You will not be asked for your tenant id. Entra reports it when your administrator consents, which is also what binds this connection to your directory.",
     openConsent: "Open admin consent",
     copyConsentLink: "Copy link for your administrator",
     consentExpiry: "This link works once and expires in 30 minutes.",
@@ -346,8 +316,6 @@ export const en = {
     yes: "Yes",
     notYet: "Not yet",
     whatItReads: "The exact operations Cleave performs",
-    noWriteActions:
-      "No write actions and no data-plane access. Cleave cannot modify anything, and cannot read the contents of your storage or databases.",
     principalId: "Service principal",
     scopePath: "Scope",
     cancel: "Cancel",
@@ -357,13 +325,11 @@ export const en = {
     discard: "Discard connection",
     discarding: "Discarding\u2026",
     discardTitle: "Discard this half-finished connection?",
-    discardDetail:
-      "Nothing has been scanned yet, so there is nothing to lose. You can also leave it and pick up where you left off.",
+    discardDetail: "Nothing has been scanned, so nothing is lost. Or leave it and resume later.",
     remove: "Remove connection",
     removing: "Removing\u2026",
     removeTitle: "Remove this connection?",
-    removeDetail:
-      "Its discovered accounts, their assets, scan history and findings are deleted with it. This cannot be undone.",
+    removeDetail: "Its accounts, assets, scans and findings are deleted with it. This cannot be undone.",
     revokeTitle: "Revoke access in Azure",
     revokeIntro:
       "Removing the connection here deletes Cleave's copy of the data. It does not take away the access you granted \u2014 run these in Azure to do that.",
@@ -384,23 +350,18 @@ export const en = {
   // seen the product before, and they have to make sense in sequence.
   setup: {
     title: "Connect Azure",
-    intro:
-      "2 grants and about 3 minutes. You will not be asked for a tenant id, a subscription id, or any credential.",
+    intro: "2 grants, about 3 minutes. No tenant id, subscription id or credential needed.",
     backToConnections: "Back to environments",
     railTitle: "What the 3 minutes look like",
 
     stepScope: "Choose the scope, and name it",
-    stepScopeDetail:
-      "A whole tenant, one management group, or a single subscription. The name is yours \u2014 it is what you will see on every finding.",
+    stepScopeDetail: "A tenant, a management group or one subscription, under a name you choose.",
     stepConsent: "A Global Administrator grants admin consent",
-    stepConsentDetail:
-      "One Microsoft prompt, once per tenant. If that is not you, Cleave gives you a link to send.",
+    stepConsentDetail: "One Microsoft prompt per tenant. If that is not you, send the link Cleave gives you.",
     stepDeploy: "Deploy the reader role",
-    stepDeployDetail:
-      "One ARM template in Azure Portal. Needs Owner at the scope you chose \u2014 the form says which, before you start.",
+    stepDeployDetail: "One ARM template in Azure Portal. Needs Owner at the scope you chose.",
     stepAccounts: "Then Cleave finds the rest",
-    stepAccountsDetail:
-      "Every subscription beneath the scope is discovered and kept in step \u2014 including the ones created after today.",
+    stepAccountsDetail: "Every subscription beneath the scope, including ones created later.",
 
     // The wizard's frame: the header's facts, the rail's heading, the footer.
     // Short on purpose -- each one states a fact the intro used to spend a
@@ -426,11 +387,9 @@ export const en = {
     permissionNeeded: "Permission needed",
     beforeYouStart: "Before you start",
     needFirstTitle: "A Global Administrator",
-    needFirstDetail:
-      "Approves admin consent once. It has to be a work or school account \u2014 a personal Microsoft account cannot grant it, even one that owns the subscription.",
+    needFirstDetail: "Approves admin consent once. A work or school account \u2014 a personal one cannot.",
     needSecondTitle: "Owner at the scope you choose",
-    needSecondDetail:
-      "Or User Access Administrator, to assign Cleave\u2019s read-only role. Often a different person from the first.",
+    needSecondDetail: "Or User Access Administrator, to assign the read-only role. Often someone else.",
     noIdsNeeded:
       "No tenant id, subscription id or secret. Entra reports the tenant when consent is granted.",
 
@@ -518,12 +477,12 @@ export const en = {
 
     // Consent step.
     consentTitle: "Ask a Global Administrator to consent",
-    consentBody:
-      "This is one Microsoft prompt, granted once for the whole directory. Nothing is scanned by it \u2014 it is what lets Cleave ask Azure who exists.",
+    consentBody: "One Microsoft prompt, granted once for the whole directory. It scans nothing.",
+    consentBodyExplain:
+      "Consent is what lets Cleave ask your directory who exists \u2014 its users, groups and applications. Nothing is read from a subscription until the scanner role is deployed and a scan runs.",
     notAdmin: "I am not a Global Administrator",
     handoffTitle: "Send it to someone who is",
-    handoffBody:
-      "The link works once and expires in 30 minutes, so send it when they are at their desk. This page keeps waiting; you can close it and come back.",
+    handoffBody: "The link works once and expires in 30 minutes. This page keeps waiting.",
     handoffMessage:
       "Please open this link and approve read-only access for Cleave, our cloud security tool. It needs a Global Administrator, takes one click, and grants no permission to change anything:",
     copyMessage: "Copy the message",
@@ -532,8 +491,7 @@ export const en = {
 
     // Deploy step.
     deployTitle: "Grant read access at the scope you chose",
-    deployBody:
-      "The template is pre-filled. Azure Portal opens on a review screen; there is nothing to type.",
+    deployBody: "The template is pre-filled. Azure Portal opens on a review screen.",
     deployToAzure: "Deploy to Azure",
     stalledTitle: "This is taking longer than a deployment should",
     stalledBody:
@@ -555,22 +513,19 @@ export const en = {
     // The accounts step.
     discoverTitle: "Looking for what is beneath it",
     reviewTitle: "Choose what Cleave reads",
-    reviewBody:
-      "Everything beneath the scope is in scope by default. Unticking one stops Cleave reading it; existing findings are kept and marked out of scope, not deleted.",
+    reviewBody: "Everything beneath the scope is in scope. Untick any Cleave should not read.",
+    reviewBodyExplain:
+      "Unticking one stops Cleave reading it. Findings it already has are kept and marked out of scope, not deleted, and a subscription created later is picked up on its own.",
     nothingInScopeTitle: "Nothing is ticked, so nothing will be read",
-    nothingInScopeBody:
-      "Everything found beneath this scope is out of scope. Tick at least one above, or leave it — the connection stays and picks up whatever is ticked later.",
+    nothingInScopeBody: "Nothing is in scope. Tick at least one, or leave it and tick one later.",
     doneTitle: "Connected",
-    doneBody:
-      "Nothing is read until a scan runs. The first one is worth starting now \u2014 after that, the scans page decides how often this environment is re-read.",
     backToList: "Back to connections",
 
     // Footer, on every step, and the way back in from the connections list.
     continueSetup: "Continue setup",
     finishLater: "Finish later",
     paused: "Setup is paused",
-    pausedBody:
-      "Nothing has been scanned and nothing was granted. Pick it up whenever the right person is available.",
+    pausedBody: "Nothing was scanned or granted. Pick it up when the right person is free.",
   },
 
   dashboard: {
@@ -627,6 +582,9 @@ export const en = {
       "The share of each framework's controls that reached a conclusion at the last scan. It says what Cleave can speak to, never whether you comply.",
   },
   findings: {
+    pageExplainLabel: "How findings are ranked",
+    pageExplain:
+      "Ranked by what each means on the asset it was found on \u2014 how exposed it is, what data it holds and how critical it is \u2014 not by how loudly the rule fired. A finding closes only when a later scan observes the fix.",
     title: "Findings",
     empty: "No findings match these filters.",
     whyItMatters: "Why this matters",
@@ -673,6 +631,9 @@ export const en = {
     compliance: "Related controls",
   },
   assets: {
+    pageExplainLabel: "How assets are listed",
+    pageExplain:
+      "Every resource a scan discovered, with what it is worth and how exposed it is. Ranked by open findings rather than by name, so what needs attention comes first.",
     title: "Assets",
     empty: "No assets discovered yet.",
     openFindings: "Open findings",
@@ -735,7 +696,7 @@ export const en = {
     // they call for three different actions.
     emptyNoPaths: "Nothing exposed can reach anything sensitive",
     emptyNoPathsDetail:
-      "Cleave found assets reachable from the internet and assets holding sensitive data, and no route between them. Below is where each way in stops.",
+      "No route joins what is exposed to what is sensitive. Below: where each way in stops.",
     exposedCount: "Exposed",
     sensitiveCount: "Sensitive",
     deadEndsTitle: "Where each way in stops",
@@ -746,28 +707,26 @@ export const en = {
         : "Runs as no identity, and no other machine on its network lets it in.",
     deadEndIdentityWithoutRole: "Runs as an identity that holds no role over anything Cleave scanned.",
     deadEndRolesWithoutControl:
-      "Runs as an identity whose roles control nothing: they only read configuration, could not be read, or carry a condition Cleave cannot evaluate.",
+      "Its identity's roles control nothing: read-only, unreadable, or under a condition.",
     deadEndNothingSensitive: (n: number) =>
       `Reaches ${n} ${n === 1 ? "asset" : "assets"}, none of them classified as sensitive.`,
     onlyAccountsSensitive:
-      "The only assets classified as sensitive are accounts. Tag your storage, databases and vaults with a data classification so Cleave knows what a route to them would cost.",
+      "Only accounts are classified as sensitive. Tag storage, databases and vaults too.",
     emptyNoEntry: "Nothing is reachable from the internet",
     emptyNoEntryDetail:
-      "A route has to start somewhere. No asset in this environment is exposed enough to be an entry point, so there is nothing for a path to begin from.",
+      "No asset here is exposed enough to be an entry point, so no route can start.",
     emptyNoTargets: "Nothing has been classified as sensitive",
     emptyNoTargetsDetail:
-      "A route has to end somewhere worth reaching. Tag your storage and databases with a data classification, or set asset criticality, so Cleave knows what would actually cost you.",
+      "No asset is classified as sensitive. Tag data, or set criticality, to give routes an end.",
     emptyNoScan: "No scan has run yet",
     emptyNoScanDetail:
-      "Attack paths are built from what a scan found. Run one, and any route from an exposed asset to a sensitive one appears here.",
+      "Built from what a scan found. Run one, and routes appear here.",
     hops: "hops",
     oneHop: "hop",
     from: "From",
     to: "To",
     route: "The route",
     cutHere: "Cut it here",
-    cutHereDetail:
-      "Removing this one link severs the route. Containment cannot be removed \u2014 a storage account has to live somewhere \u2014 so the fix is always an identity or a role.",
     chokeSitsOn:
       "It sits on {on} \u2014 the rest have another way round, so cutting this does not close them.",
     entryPoints: "exposed assets",
@@ -780,9 +739,9 @@ export const en = {
     // A link named a route the latest reading does not have: it closed, or the
     // estate changed under it. Said, rather than landing untraced in silence.
     traceMissing:
-      "The route this link names is not among the routes in the latest reading \u2014 it may have closed since. Every route is drawn below.",
+      "That route is not in the latest reading \u2014 it may have closed. Every route is below.",
     traceMissingClear: "Clear",
-    mapHelp:
+    mapHelpExplain:
       "Left to right is hops from the outside in. A line's thickness is how many routes close if it is cut — checked for every link. Press a line to add it to the simulation, or a box for the routes through it; press the empty canvas to put the box down. While a route is being read, pressing one of its own lines or boxes reads that hop instead. Pointing at a box fades what it does not touch. Arrow keys move between boxes.",
     mapHelpLabel: "How to read the drawing",
     legendEntry: "Reachable from the internet",
@@ -796,7 +755,7 @@ export const en = {
     panelLabel: "The routes",
     listTitle: "Routes",
     patternsTitle: "The same route, repeated",
-    patternsHelp:
+    patternsHelpExplain:
       "Grouped only where the routes are identical apart from one end, so each group is a claim you can check by opening it.",
     routesThrough: (n: number) => `On ${n} ${n === 1 ? "route" : "routes"}`,
     simulating: (n: number) =>
@@ -904,13 +863,13 @@ export const en = {
     // The choice itself, stated once above the two options: which of the two
     // deletions this is has to be decided before either button is read.
     deleteIntro:
-      "Deleting a run and deleting what it found are two different things. Choose which one you mean.",
+      "Deleting a run and deleting what it found are different. Choose which you mean.",
     deleteRecordOnly: "Delete record only",
     deleteRecordOnlyDetail:
-      "Removes the execution log. Findings it raised stay \u2014 they describe your environment, not this run.",
+      "Removes the log. Its findings stay \u2014 they describe your environment, not this run.",
     deleteWithFindings: "Delete record and its unresolved findings",
     deleteWithFindingsDetail:
-      "Also deletes the unresolved findings this scan last detected. Verified fixes are never deleted \u2014 each one is the evidence a remediation worked.",
+      "Also deletes the unresolved findings it last detected. Verified fixes are never deleted.",
     // Replay. Every scan stores the provider's own JSON before interpreting
     // it, so a rule written after that scan ran can still be applied to it --
     // and doing so costs nothing in the customer's cloud.
@@ -924,19 +883,19 @@ export const en = {
     // capture may touch findings; an older one reports and stops.
     replayAdvisoryTitle: "What the rules would have found",
     replayAdvisoryDetail:
-      "This capture is no longer Cleave's current picture of the environment \u2014 it has been read again since. The counts below say what today's rules would have made of it. No finding was created, resolved or reopened: a capture from before nobody looked at cannot verify a fix.",
+      "Advisory: an older capture. No finding was created, resolved or reopened.",
     replayCurrentTitle: "Applied to your current picture",
     replayCurrentDetail:
-      "This was still the newest capture for everything it covered, so the results count: findings were raised, resolved and reopened exactly as a fresh scan would have done, without reading your cloud again.",
+      "Still the newest capture, so results count: findings change as a fresh scan would.",
     wouldHaveFound: "Findings (would have)",
     stuckTitle: "Nothing has picked this scan up",
     stuckDetail:
       "A scan is collected by Cleave's worker within seconds of being queued. Minutes of silence means no worker is running \u2014 check that the Celery worker service is deployed and can reach Redis.",
     nothingFound: "No resources were found here",
     nothingFoundHelp:
-      "Every resource category Cleave reads returned successfully and was empty, so there is nothing here to assess. If that is unexpected, open the scan and check in Details what it covered \u2014 a connection discovers everything it can see, including empty environments.",
+      "Every category came back empty: nothing to assess. Check Details if that is unexpected.",
     nothingFoundPartial:
-      "Nothing was assessed, and some categories could not be read at all \u2014 see the gaps below. A category that failed is not the same as a category that was empty.",
+      "Nothing assessed, and some categories failed to read \u2014 which is not the same as empty.",
     supportsOne: "1 finding rests on this",
     supportsMany: "{count} findings rest on this",
     supportsNone: "no findings rest on this",
@@ -952,16 +911,19 @@ export const en = {
     outcomeFailed: "Could not read",
     outcomeSkipped: "Not attempted",
     partialHint:
-      "An incomplete listing cannot support a pass, so the checks that needed it report unknown rather than clean.",
+      "An incomplete listing cannot support a pass: checks needing it report unknown.",
     // The same invariant for the readings that produced nothing at all. It
     // used to be stated only for PARTIAL, so a scan where storage failed
     // outright showed a badge, a count, and no word about what it cost --
     // leaving "could not read" to be read as "nothing to report".
     unreadHint:
-      "A reading that produced nothing supports nothing: the checks that needed it report unknown, never passed.",
+      "A reading that produced nothing supports nothing: its checks report unknown, never passed.",
     partial: "Some data could not be collected — affected checks are marked unknown, not passed.",
   },
   rules: {
+    pageExplainLabel: "How rules work",
+    pageExplain:
+      "Each rule reads configuration a scan collected and answers pass, fail, no verdict or not applicable. Rules are deterministic: the same environment always gives the same result, and a check that cannot be answered is never counted as a pass.",
     title: "Rule library",
     empty: "No rules loaded.",
     // A withdrawn rule is not a check CloudGuard runs, and listing it beside

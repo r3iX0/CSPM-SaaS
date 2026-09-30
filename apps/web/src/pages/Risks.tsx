@@ -23,7 +23,7 @@ import { StatStrip } from "@/components/common/StatStrip";
 import { Input } from "@/components/ui/input";
 import { SelectField } from "@/components/common/SelectField";
 import { SegmentedFilter } from "@/components/common/SegmentedFilter";
-import { listContainer, listItem } from "@/lib/motion";
+import { listContainer, listItem, listLayout } from "@/lib/motion";
 import { FACTOR_ICONS, RISK_KIND_ICONS } from "@/lib/icons";
 import { IconLabel } from "@/components/security/IconLabel";
 import type { LucideIcon } from "lucide-react";
@@ -107,6 +107,7 @@ export function RisksPage() {
 
   const risks = data?.risks ?? [];
   const activeRow = useRowNavigation(risks.map((risk) => `/risks/${risk.id}`));
+  const rowsLayout = listLayout(risks.map((risk) => risk.id));
   const isDemo = useIsDemo();
 
   // Ids rather than rows, so a refetch after a decision shows each selected
@@ -300,11 +301,6 @@ export function RisksPage() {
         <EmptyState
           icon={RadarIcon}
           title={emptyTitle}
-          detail={
-            filtering
-              ? "Widen the filters, or clear the search, to see the rest of the ranking."
-              : undefined
-          }
           action={
             filtering ? (
               <Button variant="outline" onClick={clearFilters}>
@@ -339,6 +335,7 @@ export function RisksPage() {
               <m.div
                 key={risk.id}
                 variants={listItem}
+                {...rowsLayout}
                 data-row-index={index}
                 data-active={activeRow === index}
                 className="rounded-xl data-[active=true]:ring-2 data-[active=true]:ring-foreground/60"

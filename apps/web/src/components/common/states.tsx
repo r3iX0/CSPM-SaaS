@@ -33,6 +33,19 @@ import { InfoTip } from "@/components/common/InfoTip";
 export const PAGE_TITLE_CLASS = "text-page font-semibold tracking-[-0.02em] text-foreground";
 
 /**
+ * The name of one section of a detail page's rail -- the score, the asset, the
+ * dates -- when several sit in one card rather than a card each (DECISIONS.md
+ * §180). Small and muted, so the figures under it lead.
+ */
+export function RailHeading({ id, children }: { id: string; children: ReactNode }) {
+  return (
+    <h2 id={id} className="text-meta font-medium text-muted-foreground">
+      {children}
+    </h2>
+  );
+}
+
+/**
  * The page's own title block.
  *
  * Every page grew its own, and they drifted: three heading sizes, two spacing

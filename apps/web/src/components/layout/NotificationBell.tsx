@@ -12,6 +12,7 @@ import {
 import { api } from "@/lib/api";
 import type { AppNotification, NotificationKind } from "@/lib/types";
 import { useT } from "@/i18n";
+import { useValueChange } from "@/lib/motion";
 import { formatDateTime, formatRelative } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import {
@@ -74,6 +75,12 @@ export function NotificationBell() {
 
   const rows = data?.rows ?? [];
   const unread = data?.unread ?? 0;
+  // The bell rings once when the unread count rises -- news arriving while
+  // somebody is on the page. Compared from the first loaded count, not from
+  // nothing, so a page load with three unread does not ring (§179).
+  const count = useValueChange(data?.unread);
+  const rang =
+    count.changes > 0 && typeof count.previous === "number" && unread > count.previous;
 
   // Read on open, not on close: the panel being on screen is the moment the
   // news was seen, and marking on close would leave the badge lit behind
@@ -124,7 +131,10 @@ export function NotificationBell() {
           />
         }
       >
-        <BellIcon />
+        <BellIcon
+          key={rang ? count.changes : 0}
+          className={rang ? "origin-top animate-[cg-ring_700ms_ease-in-out]" : undefined}
+        />
         {unread > 0 && (
           // A dot with a count, not a count alone: the number is only useful
           // once somebody has noticed the bell changed at all.

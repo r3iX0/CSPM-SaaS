@@ -680,7 +680,7 @@ function RouteMapFrame({
               : []),
           ]}
         >
-          <p>{t.attackPaths.mapHelp}</p>
+          <p>{t.attackPaths.mapHelpExplain}</p>
         </GraphLegend>
       </div>
 
@@ -913,7 +913,7 @@ function RouteList({
                 · {t.attackPaths.patternsCount(listing.patterns.length)}
               </span>
               <InfoTip label={t.attackPaths.patternsHelpLabel} align="end" className="ml-auto">
-                {t.attackPaths.patternsHelp}
+                {t.attackPaths.patternsHelpExplain}
               </InfoTip>
             </div>
             {listing.patterns.map(({ pattern, members }) => (

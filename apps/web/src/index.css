@@ -146,6 +146,26 @@
   initial-value: transparent;
 }
 
+/* The notification bell, when the unread count rises (DECISIONS.md §179). */
+@keyframes cg-ring {
+  0%,
+  100% {
+    transform: none;
+  }
+  15% {
+    transform: rotate(14deg);
+  }
+  35% {
+    transform: rotate(-12deg);
+  }
+  55% {
+    transform: rotate(8deg);
+  }
+  75% {
+    transform: rotate(-4deg);
+  }
+}
+
 /* A score delta arriving: the arrow's direction, said once by moving. */
 @keyframes cg-nudge-up {
   0%,

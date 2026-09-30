@@ -194,4 +194,34 @@ describe("the notification bell", () => {
 
     await waitFor(() => expect(container).toBeEmptyDOMElement());
   });
+
+  it("rings when news arrives, and not for the news already there on arrival", async () => {
+    // Motion follows a changed value (DECISIONS.md §179): three unread when
+    // the page loads is the state of things; a fourth arriving is news.
+    let unread = 3;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({ data: ROWS, error: null, meta: { unread } }),
+      })) as unknown as typeof fetch,
+    );
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { container } = render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <NotificationBell />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await screen.findByRole("button", { name: "Notifications, 3 unread" });
+    expect(container.querySelector("svg")?.getAttribute("class")).not.toContain("cg-ring");
+
+    unread = 4;
+    await client.invalidateQueries({ queryKey: ["notifications"] });
+    await screen.findByRole("button", { name: "Notifications, 4 unread" });
+    expect(container.querySelector("svg")?.getAttribute("class")).toContain("cg-ring");
+  });
 });

@@ -237,6 +237,25 @@ export const layoutSpring = {
 export const LAYOUT_ROW_LIMIT = 100;
 
 /**
+ * The props that let a list's rows slide to their new places (DECISIONS.md
+ * §179), for the `m.*` element of each row.
+ *
+ * `layoutDependency` is the list's order, so a row measures and moves only
+ * when the rows themselves changed -- a filter, a sort, a search -- and never
+ * because a banner above pushed the table down or a hover re-rendered it. A
+ * row that is new to the list simply appears; one that left is gone; the ones
+ * that stayed slide. Past `LAYOUT_ROW_LIMIT` rows, nothing: the list is a list.
+ */
+export function listLayout(ids: readonly string[]) {
+  if (ids.length > LAYOUT_ROW_LIMIT) return {};
+  return {
+    layout: "position",
+    layoutDependency: ids.join(","),
+    transition: { layout: layoutSpring },
+  } as const;
+}
+
+/**
  * An SVG stroke drawing itself: a proved fix's check, a sparkline arriving.
  *
  * On a `m.path`. The stroke draws over `chart` as a chart's line does; its

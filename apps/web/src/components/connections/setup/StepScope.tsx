@@ -316,7 +316,7 @@ export function StepScope({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               transition={{ duration: DURATION.quick / 1000, ease: EASE_OUT }}
-              className="mt-3 flex items-start gap-3 rounded-[10px] bg-muted px-4 py-3"
+              className="mt-3 flex items-start gap-3 rounded-lg bg-muted px-4 py-3"
             >
               <PermissionIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
               <p className="text-xs leading-relaxed text-muted-foreground">
@@ -424,7 +424,7 @@ function ChoiceCard({
     <label
       htmlFor={id}
       className={cn(
-        "relative flex w-full cursor-pointer rounded-[10px] border border-border bg-card p-4 text-left transition-[border-color,background-color,box-shadow]",
+        "relative flex w-full cursor-pointer rounded-lg border border-border bg-card p-4 text-left transition-[border-color,background-color,box-shadow]",
         stacked ? "flex-col items-start" : "items-center gap-3 pr-11",
         "hover:border-foreground/25 hover:bg-muted/30",
         "has-data-checked:border-primary has-data-checked:bg-primary-soft has-data-checked:shadow-[0_0_0_1px_var(--primary)]",

@@ -165,7 +165,7 @@ export function SignInPage() {
                 </>
               )}
 
-              <form onSubmit={submit} className={mode === "reset" ? "mt-7" : "mt-[22px]"}>
+              <form onSubmit={submit} className={mode === "reset" ? "mt-7" : "mt-6"}>
                 <label htmlFor="email" className="block text-body font-medium text-foreground">
                   {t.auth.email}
                 </label>
@@ -221,7 +221,7 @@ export function SignInPage() {
                 <button
                   type="submit"
                   aria-disabled={busy || undefined}
-                  className="mt-[22px] flex h-[42px] w-full items-center justify-center gap-2 rounded-[9px] bg-primary px-4 text-body font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring aria-disabled:cursor-not-allowed aria-disabled:bg-muted aria-disabled:text-muted-foreground"
+                  className="mt-6 flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-body font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring aria-disabled:cursor-not-allowed aria-disabled:bg-muted aria-disabled:text-muted-foreground"
                 >
                   {busy && (
                     <span
@@ -239,7 +239,7 @@ export function SignInPage() {
                   none: there is no password typed here yet and no Microsoft
                   button on screen to qualify. */}
               {mode !== "reset" && (
-                <p className="mt-[26px] border-t border-border pt-5 text-caption leading-[1.7] text-muted-foreground">
+                <p className="mt-6 border-t border-border pt-5 text-caption leading-[1.7] text-muted-foreground">
                   {needsPassword ? t.auth.passwordNotice : t.auth.microsoftHint}
                 </p>
               )}
@@ -252,7 +252,7 @@ export function SignInPage() {
 }
 
 const FIELD_CLASS =
-  "mt-2 h-10 w-full rounded-[9px] border border-input bg-background px-[13px] text-body text-foreground transition-colors placeholder:text-muted-foreground hover:border-ring focus-visible:border-ring focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
+  "mt-2 h-10 w-full rounded-lg border border-input bg-background px-3 text-body text-foreground transition-colors placeholder:text-muted-foreground hover:border-ring focus-visible:border-ring focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
 
 function submitLabel(mode: Mode, busy: boolean, t: ReturnType<typeof useT>): string {
   if (busy) {
@@ -300,7 +300,7 @@ function authErrorMessage(err: unknown): string {
 
 function Divider({ label }: { label: string }) {
   return (
-    <div className="mt-[22px] flex items-center gap-3" aria-hidden="true">
+    <div className="mt-6 flex items-center gap-3" aria-hidden="true">
       <span className="h-px flex-1 bg-border" />
       <span className="text-caption text-muted-foreground">{label}</span>
       <span className="h-px flex-1 bg-border" />
@@ -322,7 +322,7 @@ function MicrosoftButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="mt-7 flex h-[42px] w-full items-center justify-center gap-2.5 rounded-[9px] border border-border bg-card px-4 text-body font-medium text-foreground transition-colors hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring disabled:cursor-not-allowed disabled:text-muted-foreground"
+      className="mt-7 flex h-10 w-full items-center justify-center gap-2.5 rounded-lg border border-border bg-card px-4 text-body font-medium text-foreground transition-colors hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring disabled:cursor-not-allowed disabled:text-muted-foreground"
     >
       <MicrosoftMark />
       {label}
@@ -386,7 +386,7 @@ function PasswordField({
           type="button"
           onClick={() => setVisible((v) => !v)}
           aria-label={visible ? t.auth.hidePassword : t.auth.showPassword}
-          className="absolute inset-y-0 right-0 mt-2 flex items-center rounded-r-[9px] px-3 text-muted-foreground transition hover:text-foreground focus-ring-inset"
+          className="absolute inset-y-0 right-0 mt-2 flex items-center rounded-r-lg px-3 text-muted-foreground transition hover:text-foreground focus-ring-inset"
         >
           <EyeIcon crossed={visible} />
         </button>
@@ -418,14 +418,14 @@ function AlternateRoutes({ mode, onSwitch }: { mode: Mode; onSwitch: (mode: Mode
 
   if (mode === "reset") {
     return (
-      <div className="mt-[22px] text-center text-body">
+      <div className="mt-6 text-center text-body">
         <TextLink onClick={() => onSwitch("signin")}>{t.auth.backToSignIn}</TextLink>
       </div>
     );
   }
 
   return (
-    <div className="mt-[22px] space-y-3 text-center text-body">
+    <div className="mt-6 space-y-3 text-center text-body">
       <p>
         <TextLink onClick={() => onSwitch(mode === "magic" ? "signin" : "magic")}>
           {mode === "magic" ? t.auth.passwordInstead : t.auth.magicLinkInstead}
@@ -464,7 +464,7 @@ function BrandPanel() {
         <h2 className="max-w-[15ch] text-4xl leading-[1.12] font-semibold tracking-[-0.03em]">
           Cut the one link that matters.
         </h2>
-        <p className="mt-[18px] max-w-[46ch] text-sm leading-[1.7] text-muted-foreground">
+        <p className="mt-4 max-w-[46ch] text-sm leading-[1.7] text-muted-foreground">
           Cleave reads your Azure environment, ranks what it finds by what it
           would cost this business, and proves the fix worked on the next scan.
         </p>
@@ -587,7 +587,7 @@ function SentNotice({ sent, onUseAnother }: { sent: Sent; onUseAnother: () => vo
         {t.auth.openOnThisDevice}
       </p>
 
-      <p className="mt-6 rounded-[10px] bg-muted px-4 py-3 text-caption leading-[1.7] text-muted-foreground">
+      <p className="mt-6 rounded-lg bg-muted px-4 py-3 text-caption leading-[1.7] text-muted-foreground">
         The link works once and expires after an hour. If nothing arrives, check
         spam — and note that some disposable inboxes open links automatically,
         which uses the link up before you get to it.

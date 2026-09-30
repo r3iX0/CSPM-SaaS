@@ -3,9 +3,11 @@ import { PlusIcon, ScissorsIcon, XIcon } from "lucide-react";
 
 import type { ChokePoint, MappedRoute, RouteMap, Simulation } from "@/lib/types";
 import { cn } from "@/lib/format";
+import { useCountUp } from "@/lib/motion";
 import { useT } from "@/i18n";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { CopyButton } from "@/components/common/CopyButton";
+import { InfoTip } from "@/components/common/InfoTip";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -88,12 +90,16 @@ export function SimulationPanel({
     return (
       <div className="flex flex-col gap-4 overflow-y-auto p-3">
         <div className="flex flex-col gap-1">
-          <h3 className="text-sm font-medium">Try a change before you make it</h3>
+          <div className="flex items-center gap-1">
+            <h3 className="text-sm font-medium">Try a change before you make it</h3>
+            <InfoTip label="How a plan is checked">
+              Add everything you would change together: the plan is checked as a whole,
+              because two changes can close routes neither closes alone. Nothing in your
+              cloud changes.
+            </InfoTip>
+          </div>
           <p className="text-xs leading-relaxed text-muted-foreground">
-            Press a line on the drawing to add it to a plan, or start from one of the
-            changes below. Add everything you would change together: the plan is checked
-            as a whole, because two changes can close routes neither closes alone.
-            Nothing in your cloud changes.
+            Press a line on the drawing, or start from a change below.
           </p>
         </div>
         <Suggestions
@@ -259,6 +265,9 @@ function Outcome({
   checking: boolean;
 }) {
   const share = closed !== null && before ? closed / before : 0;
+  // The count and the bar move to a new answer when the plan changes, and
+  // arrive in place when the panel opens (DECISIONS.md §167, §182).
+  const shown = Math.round(useCountUp(closed ?? 0));
   return (
     <div className="flex shrink-0 flex-col gap-2 border-b border-border p-3">
       <div className="flex items-baseline justify-between gap-2">
@@ -268,7 +277,7 @@ function Outcome({
           ) : (
             <>
               <span className="text-lg font-semibold tabular-nums text-foreground">
-                {closed}
+                {shown}
               </span>{" "}
               of {before} {before === 1 ? "route closes" : "routes close"}
             </>
@@ -278,8 +287,8 @@ function Outcome({
       </div>
       <div aria-hidden className="h-1.5 overflow-hidden rounded-full bg-muted">
         <div
-          className="h-full rounded-full bg-ok transition-[width] duration-300 motion-reduce:transition-none"
-          style={{ width: `${share * 100}%` }}
+          className="h-full origin-left rounded-full bg-ok transition-transform duration-300 motion-reduce:transition-none"
+          style={{ transform: `scaleX(${share})` }}
         />
       </div>
       {after !== undefined && (

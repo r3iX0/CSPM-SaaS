@@ -68,7 +68,7 @@ export const MARKS = {
   counted: (
     <span
       aria-hidden
-      className="inline-block h-2.5 w-4 rounded-[2px] border border-dashed border-foreground/60"
+      className="inline-block h-2.5 w-4 rounded-xs border border-dashed border-foreground/60"
     />
   ),
   /** A thin line and a thick one: the thicker, the more routes it closes. */
@@ -96,7 +96,7 @@ export const MARKS = {
   closed: (
     <span
       aria-hidden
-      className="inline-block h-2.5 w-4 rounded-[2px] border border-foreground/25 bg-muted-foreground/20"
+      className="inline-block h-2.5 w-4 rounded-xs border border-foreground/25 bg-muted-foreground/20"
     />
   ),
 } satisfies Record<string, ReactNode>;

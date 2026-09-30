@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useUrlFilters } from "@/lib/useUrlFilters";
 import { useQuery } from "@tanstack/react-query";
+import { m } from "motion/react";
 import { ArchiveIcon, ChevronDownIcon, ListChecksIcon, SearchIcon } from "lucide-react";
 import { api } from "@/lib/api";
 import type { Rule } from "@/lib/types";
@@ -19,6 +20,7 @@ import { LiveStatus } from "@/components/common/LiveStatus";
 import { SelectField } from "@/components/common/SelectField";
 import { RemediationPanel } from "@/components/security/RemediationPanel";
 import { cn, formatEffort, resourceTypeLabel } from "@/lib/format";
+import { listLayout } from "@/lib/motion";
 
 const SEVERITIES = ["CRITICAL", "HIGH", "MEDIUM", "LOW"] as const;
 
@@ -76,6 +78,9 @@ export function RulesPage() {
     });
   }, [data, search, severity, showWithdrawn]);
 
+  // A rule that stays in the list slides to its place as a search narrows it;
+  // the whole catalogue is past the row limit, so it only moves once narrowed.
+  const rowsLayout = listLayout(rules.map((rule) => rule.rule_id));
   const live = (data ?? []).length - withdrawnCount;
   const filtering = search.trim().length > 0 || severity !== "all";
   const emptyTitle = filtering ? "No rules match" : t.rules.empty;
@@ -85,7 +90,9 @@ export function RulesPage() {
     <div className="flex flex-col gap-4">
       <PageHeader
         title={t.rules.title}
-        description="Every check Cleave runs. Deterministic: the same environment always gives the same result."
+        description="Every check Cleave runs."
+        explain={t.rules.pageExplain}
+        explainLabel={t.rules.pageExplainLabel}
       />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -150,11 +157,6 @@ export function RulesPage() {
         <EmptyState
           icon={ListChecksIcon}
           title={emptyTitle}
-          detail={
-            filtering
-              ? "Widen the filters to see the rest of the catalogue."
-              : undefined
-          }
           action={
             filtering ? (
               <Button
@@ -176,7 +178,9 @@ export function RulesPage() {
               was a page to scroll, not to scan. */}
           <div className="divide-y divide-border overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
             {rules.map((rule) => (
-              <RuleCard key={rule.rule_id} rule={rule} />
+              <m.div key={rule.rule_id} {...rowsLayout}>
+                <RuleCard rule={rule} />
+              </m.div>
             ))}
           </div>
           <p className="text-xs text-muted-foreground">

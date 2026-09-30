@@ -34,7 +34,7 @@ import { PAGE_TITLE_CLASS } from "@/components/common/states";
  * a name now, a cloud next -- and the second segment is the connection wizard
  * the button lands on.
  */
-const FIELD_CLASS = "h-10 rounded-[9px] px-[13px] text-body";
+const FIELD_CLASS = "h-10 rounded-lg px-3 text-body";
 
 export function OnboardingPage() {
   const t = useT();
@@ -176,7 +176,7 @@ export function OnboardingPage() {
               <Button
                 type="submit"
                 disabled={busy}
-                className="h-[42px] w-full rounded-[9px] text-body"
+                className="h-10 w-full rounded-lg text-body"
               >
                 {busy && <Spinner data-icon="inline-start" />}
                 {busy ? t.common.loading : t.onboarding.create}
@@ -188,7 +188,7 @@ export function OnboardingPage() {
               Below the form rather than beside it, because creating an
               organization is still the path, and the demo is the detour for
               somebody not ready to take it. */}
-          <div className="mt-[22px] flex items-center gap-3 text-caption text-muted-foreground" aria-hidden>
+          <div className="mt-6 flex items-center gap-3 text-caption text-muted-foreground" aria-hidden>
             <span className="h-px flex-1 bg-border" />
             {t.auth.orDivider}
             <span className="h-px flex-1 bg-border" />
@@ -203,7 +203,7 @@ export function OnboardingPage() {
             aria-disabled={joinDemo.isPending || undefined}
             className="group mt-4 flex w-full items-center gap-3 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring aria-disabled:opacity-60"
           >
-            <span className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-primary-soft text-primary">
+            <span className="flex size-[34px] shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary">
               <DEMO_ICON className="size-4" aria-hidden />
             </span>
             <span className="min-w-0 flex-1">

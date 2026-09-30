@@ -59,7 +59,7 @@ export function StatStrip({ stats, className }: { stats: Stat[]; className?: str
       )}
     >
       {stats.map((stat) => (
-        <div key={stat.label} className="bg-card px-[18px] py-3.5">
+        <div key={stat.label} className="bg-card px-5 py-3.5">
           <dt className="flex items-center gap-1.5 text-caption text-muted-foreground">
             {stat.icon && <stat.icon className="size-3 shrink-0" strokeWidth={1.5} aria-hidden />}
             {stat.label}

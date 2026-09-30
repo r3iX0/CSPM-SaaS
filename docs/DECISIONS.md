@@ -10072,6 +10072,222 @@ checklist's progress grow by `scaleX` from the left, only when their value
 changes. All of it is answered by the one reduced-motion media query and
 `MotionConfig`, as before.
 
+## 179. Lists move their rows, indicators slide, and a list page says what it is in a line
+
+The second pass of §166 and §167, over the list pages -- Findings, Risks,
+Assets, Rules -- and the navigation around them.
+
+**Rows slide when the list changes, and only then.** A filter, a sort or a
+search used to redraw a table in one frame: the rows that stayed jumped to new
+places and the eye lost them. Each row is now a motion element carrying
+`listLayout(ids)` (`lib/motion.ts`): `layout="position"`, the `layoutSpring`,
+and a `layoutDependency` that is the list's order joined into a string. So a
+row measures itself and moves only when the rows themselves changed -- never
+because a banner above pushed the table down, a hover re-rendered it, or the
+keyboard's current row moved. A row new to the list rises as it did (the CSS
+`cg-rise`, capped stagger); one that left is gone; the ones that stayed slide.
+Past `LAYOUT_ROW_LIMIT` (100) rows the helper returns nothing and the list does
+not animate its layout at all, which is why the rule catalogue only moves once
+a search has narrowed it. Table rows use `MotionTableRow`, an `m.tr` added
+beside the vendored `TableRow` with the same classes, because a `tr` cannot be
+wrapped. The rise on Findings and Assets rows changed its fill from `both` to
+`backwards`: a fill that outlived the animation pinned the row's `transform`
+to `none` and would have overridden the slide. Asset group headings are rows
+too and are part of the order, so they move with the rows under them.
+
+**Indicators slide.** The selected option of a `SegmentedFilter` and the
+current row of the navigation are each one element with a shared `layoutId`
+that moves from the option or row left to the one arrived at, instead of one
+fill disappearing and another appearing. A filter's `layoutId` comes from
+`useId`, so two filters on a page never trade theirs; the navigation's is one
+name, because there is one current page. Both keep their look -- the soft fill,
+the rule along a segment's foot, the ring around a nav row -- as the moving
+element under the label.
+
+**The engine is `domMax`.** Layout animation is not in `domAnimation`, which
+§149 chose because nothing animated layout. `lib/motionFeatures.ts` now loads
+`domMax`. It is still a separate chunk loaded after the first paint, so no page
+waits on it; the cost is a larger chunk (28 kB gzipped) arriving a moment later.
+
+**The bell rings when news arrives.** When the unread count rises while
+somebody is on the page, the bell icon swings once (`cg-ring`). It compares
+against the first count that loaded, never against nothing, so a page opened
+with three unread does not ring. It uses `useValueChange` like everything else
+under §167.
+
+**A list page says what it is in one line.** Findings, Assets and Rules each
+had a description of a sentence and a half; each is now a line ("Misconfigurations
+Cleave observed, worst first."), with how the list is ranked or how rules work
+behind the question mark beside the title (`pageExplain` in `en.ts`). The empty
+states lost the sentence under "No findings match" that said to widen the
+filters, because the "Clear filters" button under it says the same. The
+unfiltered empty states keep one line.
+
+**Two things from the plan were not done.** The count line under each list does
+not tick: §165 has each page draw the exact string it speaks through
+`LiveStatus`, and a number counting up inside it would be a second, moving
+version of that string. Navigable rows did not get a chevron on hover. Every
+row already opens its subject from anywhere on it and fills on hover, and a
+chevron would have needed a column in each table to sit in.
+
+## 180. Detail pages: facts in one rail, the rest in tabs, every tab strip slides, and a proved fix draws its check
+
+The third pass of §166 and §167, over the finding, risk and asset pages, and
+the one moment the product exists for.
+
+**A finding's evidence, provenance and routes are tabs.** The finding page
+stacked seven cards in its main column. What was seen (the evidence), where it
+came from (the provenance, "How we know") and what it is part of (the attack
+paths) are now one card of tabs under the fix, rather than three cards to
+scroll past. The page opens on Attack paths when the asset is on a route --
+that is what changes how urgent a finding is, and a medium misconfiguration on
+a jump box between the internet and customer data is not a medium problem --
+and on Evidence otherwise; the reader's choice replaces the page's once they
+make one. The route count is on the tab. Every panel stays mounted
+(`keepMounted`), so the browser's find still reaches text in a tab not shown. A
+tab whose request failed is not offered, as the provenance panel already
+rendered nothing then: an empty tab would say "no citation" out of a network
+error. The explanation of why, the fix, the verification and the compensating
+controls stay above as they were.
+
+**The facts are one card.** On the finding page the score and its working,
+the asset and its factors, the dates it was seen, and the controls it is
+evidence toward were four cards; on the risk page the arithmetic, the factors
+weighed and the note that a decision closes nothing were three. Each is now one
+card of sections divided by a hairline, each section named by a small muted
+`RailHeading` (`components/common/states.tsx`) so the figures lead. "Evidence
+toward these controls -- not a compliance claim" moved behind a question mark;
+"Nothing resolves without proof" stays printed, shortened to two sentences,
+because it is said where the decision is made.
+
+**Every tab strip slides.** The vendored `TabsList` now renders Base UI's
+`Tabs.Indicator` before its tabs: the default variant's raised fill and the
+line variant's underline are one element that moves to the tab chosen,
+positioned from the `--active-tab-*` variables Base UI writes, with the
+per-tab fill and `::after` underline kept only for a vertical strip, which
+CloudGuard has none of. Base UI keeps the indicator `hidden` until the layout
+has settled, so it appears in place and moves only on a change. It is a CSS
+`translate` and `width` transition on one small absolute element rather than a
+`layoutId`: the primitive already knows where the tab is, and every tab strip
+in the app -- the asset page, the attack-path panel, the scan wizard, the
+remediation panel -- gets it without a change at the call site.
+
+**A proved fix draws its check.** When a verification comes back fixed, the
+check in `FixVerification` is Lucide's check path stroked on with `drawPath`
+over the chart duration, and its circle crossfades to the pass colour. It is
+drawn because it arrived: the panel exists only after somebody asked for the
+check. A finding that was already fixed when the page opened gets the "Verified
+fixed" alert, which does not move. The plan's second half -- the resolved row
+collapsing out of the open list -- was not done as an exit animation: a table
+row cannot collapse its height cleanly, and the list refetch already removes
+it, with the rows that stay sliding up under §179.
+
+## 181. Connecting a cloud: one line a step, the copy nobody reads deleted, and a step that finishes draws its check
+
+The fourth pass of §166 and §167, over connecting a cloud and managing the
+connection -- the flows that held the most words (`connection` and `setup`
+were about 2,370 of the catalogue's 5,970) and 58 of the strings over the copy
+budget.
+
+**What was read on every visit is one line.** The setup intro, each rail step's
+line, the consent, deploy, review and hand-off bodies, the two "who you need"
+notes, the paused and nothing-in-scope notes, the connections page's intro and
+empty state, the read-only promise, the schedule notes, the scope footnote and
+the discard and remove confirmations were each cut to one line of at most 90
+characters. Where the cut part carried something a reader may want -- why admin
+consent scans nothing, what unticking a subscription does to findings already
+held, what change detection reacts to and how a burst of changes becomes one
+scan -- it is an `Explain` string behind a question mark: `StepHeader` takes
+`explain` beside its title, and the change-detection panel's title carries the
+reaction and the timing. The read-only promise stays printed at the foot of
+the connect screen with its icon, as one line: it is the claim somebody deciding
+whether to grant anything reads.
+
+**Copy nobody could read is deleted.** The whole `connect` namespace -- an
+earlier connect page's twelve strings -- had no reader left in the code, and
+six more over-budget strings under `connection` and `setup` (`noGuidsNeeded`,
+`noWriteActions`, `scheduleHelp`, `scheduleNotReady`, `whoYouNeedDetail`,
+`doneBody`) were read by no component. They are removed rather than shortened.
+
+**What is left over the budget is left on purpose.** The strings still in
+`overBudget.ts` under `connection` and `setup` are the ones shown when something
+has gone wrong or is about to be destroyed: why a deployment stalled (Contributor
+instead of Owner, the wrong scope, propagation), consent that did not grant a
+permission, a role upgrade, the change-detection wiring Cleave cannot do for
+the customer, and how to revoke in Azure what removing a connection here does
+not. Each appears only in that situation, and there its detail is the help;
+hiding it behind a question mark would make a stuck person hunt for the fix.
+The AWS strings are untouched: AWS is gated out of the UI and every string about
+it is unverified (CLAUDE.md). The baseline went from 123 to 90.
+
+**A step that finishes draws its check.** Each row of the setup rail is its
+own component (`RailStep`) so it can hold `useValueChange` on whether it is
+done: a step that finishes while the reader watches -- consent landing, the
+role verified -- turns its number into a check that draws itself, and the line
+down to the next step fills from the top (`scaleY`). A step already done when
+the page opened is drawn done and still. The check is `DrawnCheck`
+(`components/common`), now shared with the proved fix of §180, which draws
+only when told the check is news.
+
+## 182. Attack paths and scans: empty states in a line, how-to-read behind the question marks, and finishing said by the mark that replaces the spinner
+
+The fifth pass of §166 and §167, over the attack-path page, the simulation
+panel, and the scan cards and pipeline.
+
+**Copy.** The attack-path empty states (no scan, no entry point, nothing
+sensitive, no route) each had a paragraph under their title; each is now one
+line. The map's how-to-read and the note on route groups were already behind
+question marks and are now `mapHelpExplain` and `patternsHelpExplain`, which
+the copy budget lets run long. The simulation panel's intro is a line ("Press a
+line on the drawing, or start from a change below"), with why a plan is checked
+as a whole behind a question mark beside its title. On the scans side the delete
+dialog, the nothing-found notes, the replay results and the two collection
+hints are one line each. `cutHereDetail` had no reader and is deleted. The
+phrases that carry the product's rule stay word for word: a reading that
+produced nothing leaves its checks "unknown, never passed", and an advisory
+replay says "No finding was created, resolved or reopened". The stuck-worker
+diagnostic keeps its detail, as §181's troubleshooting copy does. The baseline
+went from 90 to 71.
+
+**Motion.** The simulation's "N of M routes close" counts to its new answer when
+the plan changes, and the bar under it grows by `scaleX` instead of animating
+its width. The route map already closes routes in hop order (`closeDelay` in `RouteMapCanvas`), so that part
+of the plan needed nothing. In the scan pipeline, a phase that finishes while the
+reader watches, or a subscription's collection that does, replaces its spinner
+with a `DrawnCheck` that draws itself -- keyed on `useValueChange` seeing the
+previous state as running -- and a phase or lane that was already done when the
+scan was opened shows its check still. The pipeline's counters already counted
+up (§87), so nothing else changed there. The phase marks carried a `layout`
+prop that did nothing under `domAnimation`; since §179 loads `domMax`, it now
+animates a mark's move when the phase row reflows, which it was written for.
+
+## 183. One radius scale and one spacing grid, held by the design budget test; what the polish pass did not do
+
+The last pass of the series §166 began. `--radius` (0.5rem) gives four corners
+-- 4, 6, 8 and 12px as `rounded-sm`, `-md`, `-lg` and `-xl` -- and Tailwind's
+spacing runs in 4px steps. Beside them, 19 corners had been typed as 9 or 10px
+(inputs on sign-in and onboarding, the setup step boxes, the code block, the
+segmented filter, the cut panel's callout) and 3 as 2px for legend swatches, and 13
+margins and paddings as 7, 13, 18, 22 or 26px. The 9 and 10px corners are
+`rounded-lg`, the 2px swatches `rounded-xs`; 22 and 26px are `mt-6`, 18 is
+`mt-4` or `px-5` (so the severity strip and stat strips line up with every
+other card's `px-5`), 13 is `px-3`, 7 is `py-2`, and the sign-in button's 42px
+height is `h-10`, the height of the inputs above it. A navigation row is 2px
+taller for it. `designBudget.test.ts` now also fails on a radius, margin,
+padding or gap written in pixels outside the vendored primitives, as it does on
+a pixel font size.
+
+Three items of the plan were not done, on purpose. Replacing bordered cards
+with section headers across the app, and restricting muted text to metadata,
+are judgements a screen has to be looked at to make; the passes above already
+removed the cards they could see a reason to (the dashboard's, and the detail
+pages' rails and tabs), and a codemod would have made the rest blind. The
+empty-state icon drawing its outline once is not done because it would be motion
+on arrival rather than on a change, which §167 rules out -- an empty list is the
+state of things, not news. The before-and-after screenshots the plan asked for
+were not taken: the development machine has no environment for the frontend
+and no API to point it at, so they are for the deployed app.
+
 ## Open items carried forward
 
 **Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read

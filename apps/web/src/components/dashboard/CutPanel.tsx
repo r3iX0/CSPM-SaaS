@@ -77,7 +77,7 @@ export function CutPanel({
 
         {!loading && !failed && choke && (
           <>
-            <div className="rounded-[10px] border border-primary-border bg-primary-soft px-4 py-3">
+            <div className="rounded-lg border border-primary-border bg-primary-soft px-4 py-3">
               <p className="font-mono text-meta break-words">{choke.detail}</p>
               <p className="mt-1.5 text-body">
                 Cutting this link closes{" "}

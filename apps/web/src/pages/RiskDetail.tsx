@@ -16,6 +16,7 @@ import {
   EmptyState,
   ErrorState,
   PAGE_TITLE_CLASS,
+  RailHeading,
 } from "@/components/common/states";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -270,12 +271,15 @@ export function RiskDetailPage() {
           </Card>
         </div>
 
+        {/* The working, as one card of short sections: how the score was
+            reached, what was weighed, and what a decision here does not do
+            (DECISIONS.md §180). */}
         <div className="flex min-w-0 flex-col gap-4">
           <Card>
-            <CardHeader>
-              <CardTitle>{t.risks.theArithmetic}</CardTitle>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="flex flex-col divide-y divide-border [&>section]:py-4 [&>section:first-child]:pt-0 [&>section:last-child]:pb-0">
+              <section aria-labelledby="risk-arithmetic">
+                <RailHeading id="risk-arithmetic">{t.risks.theArithmetic}</RailHeading>
+                <div className="mt-2">
               {scenario ? (
                 /* Floored at the worst member and amplified for being short.
                    The six weighted components do not apply, and showing them
@@ -323,18 +327,17 @@ export function RiskDetailPage() {
                   ))}
                 </ul>
               )}
-            </CardContent>
-          </Card>
+                </div>
+              </section>
 
-          {/* The factors, for a finding risk. A scenario was not scored from
-              them, so it does not get a panel inviting them to be read. */}
-          {!scenario && (
-            <Card>
-              <CardHeader>
-                <CardTitle>What was weighed</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <dl className="flex flex-col gap-2 text-xs">
+              {/* The factors, for a finding risk. A scenario was not scored
+                  from them, so it does not get a section inviting them to be
+                  read. */}
+              {!scenario && (
+                <section aria-labelledby="risk-weighed">
+                  <RailHeading id="risk-weighed">What was weighed</RailHeading>
+                  <div className="mt-2">
+                  <dl className="flex flex-col gap-2 text-xs">
                   <Row
                     icon={FACTOR_ICONS.criticality}
                     label="Asset criticality"
@@ -361,23 +364,20 @@ export function RiskDetailPage() {
                     value={data.business_impact}
                   />
                 </dl>
-              </CardContent>
-            </Card>
-          )}
+                  </div>
+                </section>
+              )}
 
-          {/* What a decision here does and does not do, where the decision is
-              made: accepting records a person's call, and only a scan closes
-              anything (DECISIONS.md §107). */}
-          <Card className="bg-muted/40">
-            <CardHeader>
-              <CardTitle>Nothing resolves without proof</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-body leading-relaxed text-muted-foreground">
-                Accepting a risk records a decision and a date. It does not
-                close the findings underneath it, and a route stays drawn until
-                a scan stops tracing it.
-              </p>
+              {/* What a decision here does and does not do, where the decision
+                  is made: accepting records a person's call, and only a scan
+                  closes anything (DECISIONS.md §107). */}
+              <section aria-labelledby="risk-proof">
+                <RailHeading id="risk-proof">Nothing resolves without proof</RailHeading>
+                <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                  Accepting records a decision and a date. It does not close the findings
+                  underneath it; only a scan does.
+                </p>
+              </section>
             </CardContent>
           </Card>
         </div>

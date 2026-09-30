@@ -51,6 +51,14 @@ describe("verifying a fix", () => {
     expect(await screen.findByText("Verified fixed")).toBeInTheDocument();
   });
 
+  it("draws the check it proves, rather than showing a stock icon", async () => {
+    // The one moment the product exists for (DECISIONS.md §180): the check is a
+    // stroke drawn on when the verdict lands, not a glyph that was always there.
+    const { container } = mount("COMPLETED", "RESOLVED");
+    await screen.findByText("Verified fixed");
+    expect(container.querySelector('path[d="M20 6 9 17l-5-5"]')).not.toBeNull();
+  });
+
   it("calls a finding still open after a finished scan still failing, and offers another try", async () => {
     mount("COMPLETED", "OPEN");
     expect(await screen.findByText("Still failing")).toBeInTheDocument();

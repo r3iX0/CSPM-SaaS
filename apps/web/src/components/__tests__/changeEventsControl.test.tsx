@@ -96,9 +96,11 @@ describe("the change-events control", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("states the quiet period and the floor between change scans", async () => {
+  it("states the quiet period and the floor between change scans, a question mark away", async () => {
     mount(setup());
 
+    // How a burst becomes one scan is the detail behind the title (§181).
+    fireEvent.click(await screen.findByRole("button", { name: "React to changes" }));
     await waitFor(() => expect(screen.getByText(/3 minutes of quiet/)).toBeInTheDocument());
     expect(screen.getByText(/at most once every 30 minutes/)).toBeInTheDocument();
   });

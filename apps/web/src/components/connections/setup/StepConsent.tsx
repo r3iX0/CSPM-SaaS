@@ -60,6 +60,7 @@ export function StepConsent({
       <StepHeader
         title={t.setup.consentTitle}
         description={t.setup.consentBody}
+        explain={t.setup.consentBodyExplain}
       />
 
       {/* Azure's own reason for the last attempt, carried back through the
@@ -114,7 +115,7 @@ export function StepConsent({
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: DURATION.quick / 1000, ease: EASE_OUT }}
-            className="rounded-[10px] bg-muted p-4"
+            className="rounded-lg bg-muted p-4"
           >
             <div className="flex items-start gap-3">
               <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-background text-muted-foreground ring-1 ring-border">
