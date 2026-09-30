@@ -80,9 +80,8 @@ class GrantReading:
 
     ``version`` is the permission set it covers. ``reference`` is anything else
     the same reading established that only this cloud has a word for, merged
-    into ``provider_ref``: on Azure, whether the grant also carries the every-read
-    breadth the extended checks need, which no role version measures because
-    the custom role never names those reads.
+    into ``provider_ref``. No cloud records anything there today; Azure's
+    every-read answer went with the second engine (DECISIONS.md section 168).
     """
 
     version: str
@@ -271,18 +270,6 @@ class ProviderOnboarding(ABC):
 
     def grant_is_behind(self, connection: CloudConnection) -> bool:
         return connection.role_version != self.grant_version()
-
-    def extended_checks_blocked(self, connection: CloudConnection) -> bool:
-        """Whether the deployed grant is known to be too narrow for the
-        extended checks (DECISIONS.md section 150).
-
-        A second question beside ``grant_is_behind``, because the answer does
-        not follow from the role version: on Azure the extended checks read
-        through a Reader assignment the template makes beside the custom role,
-        and a connection deployed before the template made it has a current
-        role and no Reader. False for a cloud whose grant already covers them.
-        """
-        return False
 
     def grant_needs_reading(self, connection: CloudConnection) -> bool:
         """Whether the deployed grant should be read back from the provider on

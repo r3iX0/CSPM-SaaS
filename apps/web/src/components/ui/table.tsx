@@ -1,5 +1,7 @@
 import * as React from "react"
 
+import { m, type HTMLMotionProps } from "motion/react"
+
 import { cn } from "@/lib/utils"
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
@@ -52,16 +54,23 @@ function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
   )
 }
 
+const tableRowClass =
+  "border-b transition-colors hover:bg-muted/60 has-aria-expanded:bg-muted/60 data-[state=selected]:bg-muted"
+
 function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
   return (
-    <tr
-      data-slot="table-row"
-      className={cn(
-        "border-b transition-colors hover:bg-muted/60 has-aria-expanded:bg-muted/60 data-[state=selected]:bg-muted",
-        className
-      )}
-      {...props}
-    />
+    <tr data-slot="table-row" className={cn(tableRowClass, className)} {...props} />
+  )
+}
+
+/**
+ * A row that can slide to its new place when the rows around it change
+ * (`listLayout`, DECISIONS.md §179). CloudGuard's own addition: the registry
+ * has no motion rows, and a `tr` cannot be wrapped without breaking the table.
+ */
+function MotionTableRow({ className, ...props }: HTMLMotionProps<"tr">) {
+  return (
+    <m.tr data-slot="table-row" className={cn(tableRowClass, className)} {...props} />
   )
 }
 
@@ -70,7 +79,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
     <th
       data-slot="table-head"
       className={cn(
-        "h-10 px-3 text-left align-middle text-[11.5px] font-normal whitespace-nowrap text-muted-foreground first:pl-5 last:pr-5 [&:has([role=checkbox])]:pr-0",
+        "h-10 px-3 text-left align-middle text-caption font-normal whitespace-nowrap text-muted-foreground first:pl-5 last:pr-5 [&:has([role=checkbox])]:pr-0",
         className
       )}
       {...props}
@@ -111,6 +120,7 @@ export {
   TableFooter,
   TableHead,
   TableRow,
+  MotionTableRow,
   TableCell,
   TableCaption,
 }

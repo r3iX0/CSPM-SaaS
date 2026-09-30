@@ -196,7 +196,7 @@ function TaskCard({
             <Link
               to={`/findings/${task.finding_id}`}
               className={cn(
-                "block truncate text-[13.5px] font-medium hover:underline",
+                "block truncate text-body font-medium hover:underline",
                 done ? "text-muted-foreground line-through decoration-muted-foreground/50" : "text-foreground",
               )}
             >
@@ -207,7 +207,7 @@ function TaskCard({
             // does not reflow under the reader's cursor.
             <Skeleton className="h-4 w-72 max-w-full" />
           )}
-          <p className="mt-0.5 truncate text-[11.5px] text-muted-foreground">
+          <p className="mt-0.5 truncate text-caption text-muted-foreground">
             {finding?.resource
               ? `${finding.resource.name} · ${resourceTypeLabel(finding.resource.resource_type)}`
               : finding
@@ -237,7 +237,7 @@ function TaskCard({
           (finding?.status === "RESOLVED" ? (
             <StatusPill status="RESOLVED" />
           ) : (
-            <span className="inline-flex rounded-full border border-border bg-muted px-2 py-px text-[11px] font-medium">
+            <span className="inline-flex rounded-full border border-border bg-muted px-2 py-px text-caption font-medium">
               {t.remediation.waitingOnScan}
             </span>
           ))}

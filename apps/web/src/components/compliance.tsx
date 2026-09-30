@@ -51,7 +51,7 @@ export function CoverageBar({
           return (
             <span
               key={status}
-              className="flex items-center gap-1.5 text-[11px] text-muted-foreground"
+              className="flex items-center gap-1.5 text-caption text-muted-foreground"
               title={t.compliance.statusHelp[status]}
             >
               <span className={cn("h-2 w-2 rounded-full", className)} aria-hidden="true" />

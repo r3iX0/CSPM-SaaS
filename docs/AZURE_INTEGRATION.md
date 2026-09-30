@@ -229,7 +229,7 @@ checked.
 
 ### The role is exactly what the scanner reads
 
-The custom role declares 19 read actions, and every one is exercised by a real
+The custom role declares 56 read actions, and every one is exercised by a real
 call in `app/connectors/azure/client.py`. Nothing is granted speculatively.
 
 It was briefly wider — 30 actions, with 17 declared ahead of the rules that
@@ -258,7 +258,7 @@ az provider operation show --namespace Microsoft.KeyVault \
   --query "resourceTypes[].operations[].name"
 ```
 
-`ROLE_VERSION` is `v8`, and `ROLE_HISTORY` records what every published version
+`ROLE_VERSION` is `v12`, and `ROLE_HISTORY` records what every published version
 granted. A version exists to flag a deployed role that is *insufficient* for a
 newer rule; narrowing is backward compatible and does not warrant a bump. `v2`
 added Resource Graph, which inventory needs since it moved off the ARM resource
@@ -276,6 +276,54 @@ which roles a principal could activate under Privileged Identity Management
 (`DECISIONS.md` §130) -- twenty-six reads in all. A v7 connection keeps every
 verdict and every route; the access view cannot list eligible holders until the
 role is redeployed.
+`v9` adds six, one `/read` per type the connector now models
+(`DECISIONS.md` §169): `Microsoft.ContainerService/managedClusters/read`,
+`Microsoft.ContainerRegistry/registries/read`,
+`Microsoft.DocumentDB/databaseAccounts/read`,
+`Microsoft.DBforMySQL/flexibleServers/read`,
+`Microsoft.Databricks/workspaces/read` and `Microsoft.Search/searchServices/read`
+-- thirty-two reads in all, each checked against the published operations
+reference on 2026-09-29. None reaches a credential: a cluster's kubeconfig, a
+registry's login, a Cosmos DB account's keys and a search service's admin keys
+are all `/action` reads the role does not request. A v8 connection keeps every
+verdict and route it had; the six types stay in the inventory as unchecked
+until the redeploy, and the connection page names Compute and Databases as
+affected.
+`v10` adds one: `Microsoft.DBforMySQL/flexibleServers/configurations/read`, two
+MySQL server parameters (`require_secure_transport`, `tls_version`) read by name
+as PostgreSQL's one is (`DECISIONS.md` §172) -- thirty-three reads in all. The
+tenant's authorization policy is read from Graph under `Policy.Read.All`, which
+every connected tenant already consented for Conditional Access, so it needs no
+new consent.
+`v11` adds twenty-one, the reads the rest of the coverage backlog's Tier 2
+needed (`DECISIONS.md` §176) -- fifty-four reads in all, each string checked on
+2026-09-30 against the published operations reference and each shape against
+the provider's REST specification. Beneath each SQL server: Defender for SQL's
+own setting (`securityAlertPolicies/read`), the TDE protector
+(`encryptionProtector/read`), and both forms of vulnerability assessment
+(`vulnerabilityAssessments/read`, `sqlVulnerabilityAssessments/read`). The file
+service beneath each storage account (`fileServices/read`). The keys and secrets
+in each vault through the management plane (`vaults/keys/read`,
+`vaults/secrets/read`), which returns attributes -- enabled, expiry, rotation
+policy -- and never a secret's value or a key's private material; reading a
+value is `secrets/getSecret/action`, a data action the role still does not
+hold. Defender for Cloud's security contacts, settings, IoT solutions and
+just-in-time policies (both just-in-time reads, since the reference does not
+say which one ARM checks for the subscription-wide listing). Recovery Services
+vaults and their protected items, managed disks, activity-log alerts, policy
+assignments, virtual networks, Network Watchers, flow logs and Bastion hosts.
+A v10 connection keeps every verdict and route it had and is prompted to
+redeploy with Network, Compute, Storage, Databases, Logging, Secrets and
+Posture named as affected; the checks resting on the new reads report UNKNOWN
+until then. Entra's named locations are read from Graph under
+`Policy.Read.All`, already consented, and web apps' diagnostic settings under
+the diagnostic settings read held since v1.
+`v12` adds two for the coverage backlog's Tier 3 (`DECISIONS.md` §177):
+`Microsoft.RecoveryServices/Vaults/backupPolicies/read`, how long each vault
+keeps its recovery points, and `Microsoft.Compute/virtualMachineScaleSets/read`
+-- fifty-six reads in all. A v11 connection keeps every verdict and route and is
+prompted to redeploy with Compute named; the backup retention and scale set
+checks report UNKNOWN until then.
 A connection on an older role keeps every
 other category and loses exactly the checks the missing actions serve, which
 `degraded_categories` names in those terms rather than as a 403 — and those
@@ -298,17 +346,11 @@ The connection page re-reads it on demand
 role is believed to be behind, so a customer who redeploys and comes back finds
 the prompt gone without having to press anything (`DECISIONS.md` §65).
 
-**The same reading says whether the grant allows every read.** The extended
-checks read through the built-in `Reader` the template assigns beside the custom
-role (`DECISIONS.md` §150), and the custom role did not change when that was
-added, so no version measures it. The definitions already resolved for the
-version are asked whether any allows `Microsoft.CleaveProbe/anything/read` -- a
-read no role names, so only `*/read` or `*` covers it -- and the answer is kept
-as `provider_ref.every_read`. While the scanner service runs (`ASSESS_ENABLED`),
-a connection whose answer is not yet yes is read on each detail request, and one
-whose answer is no gets the redeploy prompt with "Reader missing" on the role
-line. Assignments are listed with `$filter=atScope()`, so only those at the
-connection's scope or above it count (`DECISIONS.md` §153).
+Assignments are listed with `$filter=atScope()`, so only those at the
+connection's scope or above it count: Reader on one resource group is not Reader
+over the connection (`DECISIONS.md` §153). The template no longer assigns the
+built-in `Reader` beside the custom role; it did only for the second engine,
+which is gone (`DECISIONS.md` §168).
 
 ### Permission modes
 

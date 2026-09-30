@@ -30,7 +30,6 @@ from app.connectors.azure.rbac import (
     actions_granted_by,
     arm_template,
     categories_behind,
-    grants_every_read,
     role_is_current,
     version_of_granted,
 )
@@ -59,13 +58,6 @@ READY_TO_DEPLOY = "Admin consent granted. Deploy the scanner role next."
 # without a schema change: everything else on this connection may be healthy
 # while this is not, and the message must not be replaced by a cheerful one.
 GRANT_INCOMPLETE_PREFIX = "Admin consent did not grant"
-
-# The ``provider_ref`` key recording whether Cleave's principal holds every read
-# over this connection's scope -- the Reader assignment the template makes for
-# the extended checks, or anything broader. Absent until the grant is first read
-# back; True or False after (DECISIONS.md section 153).
-EVERY_READ = "every_read"
-
 
 class AzureOnboarding(ProviderOnboarding):
     provider = Provider.AZURE
@@ -409,36 +401,6 @@ class AzureOnboarding(ProviderOnboarding):
         """
         return not role_is_current(connection.role_version)
 
-    def extended_checks_blocked(self, connection: CloudConnection) -> bool:
-        """Whether the grant is known to lack the Reader the extended checks
-        read through.
-
-        The template has assigned Reader beside the custom role since the
-        extended checks shipped, without a role version bump -- the custom role
-        did not change -- so a connection deployed before then has a current
-        role, no Reader, and Prowler refused on every resource type the custom
-        role does not name. Only while the scanner service runs: with it off,
-        nothing needs the breadth, and a prompt to grant it would be asking for
-        access Cleave has no use for. Unknown is not missing -- a grant not yet
-        read back raises nothing.
-        """
-        return bool(
-            settings.assess_enabled
-            and (connection.provider_ref or {}).get(EVERY_READ) is False
-        )
-
-    def grant_needs_reading(self, connection: CloudConnection) -> bool:
-        """Also while the scanner service runs and the every-read answer is not
-        yes: every connection deployed before the extended checks has never had
-        it read, and one that lacks it has to be read again to see a redeploy.
-        """
-        if self.grant_is_behind(connection):
-            return True
-        return bool(
-            settings.assess_enabled
-            and (connection.provider_ref or {}).get(EVERY_READ) is not True
-        )
-
     def degraded_categories(
         self, connection: CloudConnection
     ) -> dict[EvidenceCategory, str]:
@@ -457,7 +419,6 @@ class AzureOnboarding(ProviderOnboarding):
 
     async def detect_grant(self, connection: CloudConnection) -> GrantReading | None:
         """Which role version Azure says is actually assigned, read from Azure,
-        and whether the grant also allows every read.
 
         ``role_version`` was stamped at creation and never written again, so the
         column recorded which role a customer was *offered* on the day they
@@ -471,11 +432,6 @@ class AzureOnboarding(ProviderOnboarding):
         the connection's scope is resolved to its definition and the granted
         actions unioned, which also makes the answer right for the customer who
         assigned the built-in Reader instead of deploying the template at all.
-
-        The every-read answer comes from the same definitions. It is what the
-        extended checks need and no role version measures: the Reader the
-        template assigns for them sits beside the custom role, whose actions
-        did not change when it was added (DECISIONS.md section 153).
 
         Returns None when the question could not be answered -- no token, a
         failed call, or a principal holding nothing this scanner recognises.
@@ -516,10 +472,7 @@ class AzureOnboarding(ProviderOnboarding):
         version = version_of_granted(actions_granted_by(permissions))
         if version is None:
             return None
-        return GrantReading(
-            version=version,
-            reference={EVERY_READ: grants_every_read(permissions)},
-        )
+        return GrantReading(version=version)
 
     # ------------------------------------------------------------ teardown
 

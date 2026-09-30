@@ -167,7 +167,7 @@ function DangerZone({ organization }: { organization: Organization }) {
     >
       <div className="max-w-[420px] rounded-xl border border-critical-border bg-card p-5">
         {!owner ? (
-          <p className="text-[13px] text-muted-foreground">{t.settings.dangerOwnerOnly}</p>
+          <p className="text-body text-muted-foreground">{t.settings.dangerOwnerOnly}</p>
         ) : (
           <div className="flex flex-col gap-3">
             <Field>

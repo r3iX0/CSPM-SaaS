@@ -1,5 +1,3 @@
-import { CheckIcon } from "lucide-react";
-
 import { useT } from "@/i18n";
 import {
   scopeName,
@@ -11,6 +9,8 @@ import {
 import { setupCopy } from "@/lib/setupCopy";
 import type { CloudConnection, Provider } from "@/lib/types";
 import { cn, formatDate } from "@/lib/format";
+import { useValueChange } from "@/lib/motion";
+import { DrawnCheck } from "@/components/common/DrawnCheck";
 
 /**
  * The steps, and where the customer is in them.
@@ -59,53 +59,107 @@ export function SetupRail({
 
   return (
     <nav aria-label={copy.railHeading}>
-      <ol className="flex flex-col gap-3.5">
+      <ol className="flex flex-col">
         {steps.map((step, index) => {
           const done = index < current || (index === current && finished);
           const active = index === current && !finished;
-          const note = done ? settled(step.key) : active ? copy[`${step.key}Detail`] : null;
           return (
-            <li
+            <RailStep
               key={step.stage}
-              aria-current={active ? "step" : undefined}
-              // On a phone the rail sits above the panel, where four rows of
-              // it would push the step itself below the fold: there it is the
-              // current row, and the full list is for wider screens.
-              className={cn("items-start gap-2.5", active ? "flex" : "hidden lg:flex")}
-            >
-              <span
-                className={cn(
-                  "flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] tabular-nums transition-colors",
-                  done && "bg-primary text-primary-foreground",
-                  active && "border border-primary text-primary",
-                  !done && !active && "border border-border text-muted-foreground",
-                )}
-              >
-                {/* A tick rather than a number once a step is behind the
-                    reader, so finished and pending differ by shape and not by
-                    colour alone. */}
-                {done ? <CheckIcon className="size-3" strokeWidth={3} aria-hidden /> : index + 1}
-                {done && <span className="sr-only">{t.setup.railDone}</span>}
-              </span>
-              <span className="min-w-0">
-                <span
-                  className={cn(
-                    "block text-[12.5px] leading-snug",
-                    done || active ? "font-medium text-foreground" : "text-muted-foreground",
-                  )}
-                >
-                  {copy[step.key]}
-                </span>
-                {note && (
-                  <span className="mt-0.5 block text-[11.5px] leading-relaxed text-muted-foreground">
-                    {note}
-                  </span>
-                )}
-              </span>
-            </li>
+              title={copy[step.key]}
+              note={done ? settled(step.key) : active ? copy[`${step.key}Detail`] : null}
+              number={index + 1}
+              done={done}
+              active={active}
+              last={index === steps.length - 1}
+              doneLabel={t.setup.railDone}
+            />
           );
         })}
       </ol>
     </nav>
   );
 }
+
+/**
+ * One row of the rail.
+ *
+ * Its own component for the hook: a step finishing while the reader watches --
+ * consent landing, the role verified -- is news, so its number becomes a check
+ * that draws itself and the line down to the next step fills. A step that was
+ * already done when the page opened is drawn done, and nothing moves
+ * (DECISIONS.md §167, §181). The line is a `scaleY` from the top, and the
+ * circle's fill a colour transition.
+ */
+function RailStep({
+  title,
+  note,
+  number,
+  done,
+  active,
+  last,
+  doneLabel,
+}: {
+  title: string;
+  note: string | null;
+  number: number;
+  done: boolean;
+  active: boolean;
+  last: boolean;
+  doneLabel: string;
+}) {
+  const { changes } = useValueChange(done);
+  const justDone = done && changes > 0;
+  return (
+    <li
+      aria-current={active ? "step" : undefined}
+      // On a phone the rail sits above the panel, where four rows of it would
+      // push the step itself below the fold: there it is the current row, and
+      // the full list is for wider screens.
+      className={cn("relative items-start gap-2.5 pb-3.5 last:pb-0", active ? "flex" : "hidden lg:flex")}
+    >
+      {!last && (
+        <span
+          className="absolute top-6 bottom-0.5 left-2.5 hidden w-px -translate-x-1/2 overflow-hidden bg-border lg:block"
+          aria-hidden
+        >
+          <span
+            className={cn(
+              "block size-full origin-top bg-primary transition-transform duration-600 ease-out",
+              done ? "scale-y-100" : "scale-y-0",
+            )}
+          />
+        </span>
+      )}
+      <span
+        className={cn(
+          "relative flex size-5 shrink-0 items-center justify-center rounded-full text-caption tabular-nums transition-colors duration-240",
+          done && "bg-primary text-primary-foreground",
+          active && "border border-primary text-primary",
+          !done && !active && "border border-border bg-card text-muted-foreground",
+        )}
+      >
+        {/* A tick rather than a number once a step is behind the reader, so
+            finished and pending differ by shape and not by colour alone. */}
+        {done ? <DrawnCheck draw={justDone} className="size-3" /> : number}
+        {done && <span className="sr-only">{doneLabel}</span>}
+      </span>
+      <span className="min-w-0">
+        <span
+          className={cn(
+            "block text-meta leading-snug",
+            done || active ? "font-medium text-foreground" : "text-muted-foreground",
+          )}
+        >
+          {title}
+        </span>
+        {note && (
+          <span className="mt-0.5 block text-caption leading-relaxed text-muted-foreground">
+            {note}
+          </span>
+        )}
+      </span>
+    </li>
+  );
+}
+

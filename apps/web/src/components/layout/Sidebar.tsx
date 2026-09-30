@@ -1,5 +1,6 @@
 import { NavLink, useMatch } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { m } from "motion/react";
 
 import { NAV_GROUPS } from "@/components/layout/nav";
 import {
@@ -14,6 +15,7 @@ import {
 import { api } from "@/lib/api";
 import type { Dashboard } from "@/lib/types";
 import { useRiskCount } from "@/lib/useRiskCount";
+import { layoutSpring } from "@/lib/motion";
 
 type NavItem = (typeof NAV_GROUPS)[number]["items"][number];
 
@@ -72,7 +74,7 @@ export function SidebarNav() {
             // even when there is no room to name it.
             <span className="mx-2 mb-1 border-t" aria-hidden />
           ) : (
-            <SidebarGroupLabel className="mb-1 h-auto px-2 text-[11px] tracking-[0.04em] text-muted-foreground uppercase">
+            <SidebarGroupLabel className="mb-1 h-auto px-2 text-caption tracking-[0.04em] text-muted-foreground uppercase">
               {group.label}
             </SidebarGroupLabel>
           )}
@@ -132,9 +134,19 @@ function NavRow({
         tooltip={item.label}
         render={<NavLink to={item.to} end={exact} onClick={onNavigate} />}
         // The selected row is the brand's one job in the navigation: a soft
-        // fill and a ring, the same weight of type as its neighbours.
-        className="h-auto rounded-lg px-2.5 py-[7px] text-[13.5px] data-active:bg-primary-soft data-active:font-normal data-active:text-foreground data-active:ring-1 data-active:ring-primary-border data-active:ring-inset"
+        // fill and a ring, the same weight of type as its neighbours. The fill
+        // is one element shared by every row (`layoutId`), so moving between
+        // pages slides it from the row left to the row arrived at (§179).
+        className="relative isolate h-auto rounded-lg px-2.5 py-2 text-body data-active:bg-transparent data-active:font-normal data-active:text-foreground"
       >
+        {match !== null && (
+          <m.span
+            layoutId="nav-current"
+            transition={layoutSpring}
+            className="absolute inset-0 -z-10 rounded-lg bg-primary-soft ring-1 ring-primary-border ring-inset"
+            aria-hidden
+          />
+        )}
         <item.icon aria-hidden strokeWidth={1.5} />
         <span className="min-w-0 flex-1 truncate">
           {item.label}
@@ -143,7 +155,7 @@ function NavRow({
         {count !== undefined && (
           <span
             aria-hidden
-            className="ml-auto text-[11.5px] text-muted-foreground tabular-nums group-data-[collapsible=icon]:hidden"
+            className="ml-auto text-caption text-muted-foreground tabular-nums group-data-[collapsible=icon]:hidden"
           >
             {count}
           </span>

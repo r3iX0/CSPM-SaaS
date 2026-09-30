@@ -611,7 +611,7 @@ function SelectedHere({
                 <li className="flex items-center gap-1.5">
                   <span
                     className={cn(
-                      "rounded border px-1 text-[10px] leading-4 font-medium tabular-nums",
+                      "rounded border px-1 text-micro leading-4 font-medium tabular-nums",
                       levelStyle(node.findings.worst ?? "UNKNOWN"),
                     )}
                   >

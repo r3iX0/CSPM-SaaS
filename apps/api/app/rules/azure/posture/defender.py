@@ -172,6 +172,10 @@ class AzureExposedVulnerableMachineRule(_DefenderRule):
             finding
             for finding in _matching(findings, "vulnerab", "patch", "update")
             if str(finding.get("provider_severity") or "").lower() in SERIOUS
+            # "No vulnerability assessment solution" matches the word and is not
+            # a vulnerability found; AZ-VULN-002 reports it (section 176).
+            and str(finding.get("assessment_id") or "").lower()
+            != VULNERABILITY_ASSESSMENT_MISSING
         ]
 
         exposed = resource.public_exposure in (Level.HIGH, Level.CRITICAL)
@@ -271,4 +275,66 @@ class AzureMissingEndpointProtectionRule(_DefenderRule):
                 f"Defender for Cloud reports no working endpoint protection on "
                 f"{resource.name}"
             ),
+        )
+
+
+# Defender's assessment "Machines should have a vulnerability assessment
+# solution", by its stable name -- the one the built-in policy
+# 501541f7-f7e7-4cd6-868c-4190fdad3ac9 reads (DECISIONS.md section 176).
+VULNERABILITY_ASSESSMENT_MISSING = "ffff0522-1e88-47fc-8382-2a80ba848f5d"
+
+
+class AzureMissingVulnerabilityAssessmentRule(_DefenderRule):
+    rule_id = "AZ-VULN-002"
+    name = "Machine has no vulnerability assessment"
+    description = (
+        "Microsoft Defender for Cloud reports that no vulnerability assessment "
+        "solution scans this machine, so nothing reports what it is missing."
+    )
+    severity = Severity.MEDIUM
+    # A gap in what is watched, not a way in.
+    exploitability = 1
+    applies_to: ClassVar[list[ResourceType]] = [ResourceType.VIRTUAL_MACHINE]
+    estimated_effort_minutes = 30
+    rationale = (
+        "AZ-VULN-001 can only report the vulnerabilities something found. A machine "
+        "nothing scans has none reported, which reads exactly like a machine with none "
+        "-- this is the check that tells the two apart."
+    )
+    remediation = (
+        "Turn on vulnerability assessment for the machine.\n\n"
+        "Azure Portal: Defender for Cloud > Recommendations > 'Machines should have a "
+        "vulnerability assessment solution' > select the machine > Fix. With Defender "
+        "for Servers on, the built-in Defender Vulnerability Management scanner is the "
+        "default and needs no agent of its own."
+    )
+    compliance_mappings: ClassVar[dict[str, list[str]]] = {
+        "ISO_27001": ["A.8.8"],
+        "NIST_CSF": ["ID.RA-1", "DE.CM-1"],
+        "GDPR": ["32(1)(d)"],
+        "NIST_800_53": ["RA-5"],
+        "SOC2": ["CC7.1"],
+        "PCI_DSS_4": ["11.3.1"],
+    }
+
+    def evaluate(
+        self, resource: CloudResource | None, context: RuleContext
+    ) -> RuleResult | list[RuleResult]:
+        guard = self._guard(resource, context)
+        if guard is not None:
+            return guard
+        assert resource is not None
+
+        findings = _findings(resource) or []
+        missing = [
+            f
+            for f in findings
+            if str(f.get("assessment_id") or "").lower() == VULNERABILITY_ASSESSMENT_MISSING
+        ]
+        evidence = {"assessment": missing[0] if missing else None}
+        if not missing:
+            return RuleResult.passed(evidence)
+        return RuleResult.failed(
+            evidence=evidence,
+            message=f"No vulnerability assessment solution scans {resource.name}",
         )

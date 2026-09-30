@@ -15,6 +15,8 @@ import {
   DetailSkeleton,
   EmptyState,
   ErrorState,
+  PAGE_TITLE_CLASS,
+  RailHeading,
 } from "@/components/common/states";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -142,10 +144,10 @@ export function RiskDetailPage() {
         </div>
         <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="text-2xl font-semibold tracking-[-0.02em] text-foreground">
+            <h1 className={PAGE_TITLE_CLASS}>
               {data.title}
             </h1>
-            <p className="mt-1.5 max-w-[78ch] text-[13.5px] leading-relaxed text-muted-foreground">
+            <p className="mt-1.5 max-w-[78ch] text-body leading-relaxed text-muted-foreground">
               {data.description}
             </p>
             {/* The one place a risk -- and so a finding -- is decided about
@@ -162,7 +164,7 @@ export function RiskDetailPage() {
           <div className="flex shrink-0 flex-col items-end gap-1">
             <span
               className={cn(
-                "text-[36px] leading-none font-semibold tabular-nums",
+                "text-display leading-none font-semibold tabular-nums",
                 LEVEL_TEXT[data.risk_level] ?? "text-unknown",
               )}
               aria-label={
@@ -173,7 +175,7 @@ export function RiskDetailPage() {
             >
               {data.risk_level === "UNKNOWN" ? "?" : Math.round(Number(data.risk_score))}
             </span>
-            <span className="text-[11.5px] text-muted-foreground" aria-hidden>
+            <span className="text-caption text-muted-foreground" aria-hidden>
               risk score
             </span>
           </div>
@@ -251,13 +253,13 @@ export function RiskDetailPage() {
                       <div className="flex flex-wrap items-center gap-2">
                         <SeverityBadge level={finding.severity} size="sm" />
                         <StatusPill status={finding.status} />
-                        <code className="font-mono text-[11px] text-muted-foreground">
+                        <code className="font-mono text-caption text-muted-foreground">
                           {finding.rule_id}
                         </code>
                       </div>
                       <Link
                         to={`/findings/${finding.id}`}
-                        className="mt-1 block text-[13.5px] font-medium text-foreground underline-offset-4 hover:underline"
+                        className="mt-1 block text-body font-medium text-foreground underline-offset-4 hover:underline"
                       >
                         {finding.title}
                       </Link>
@@ -269,12 +271,15 @@ export function RiskDetailPage() {
           </Card>
         </div>
 
+        {/* The working, as one card of short sections: how the score was
+            reached, what was weighed, and what a decision here does not do
+            (DECISIONS.md §180). */}
         <div className="flex min-w-0 flex-col gap-4">
           <Card>
-            <CardHeader>
-              <CardTitle>{t.risks.theArithmetic}</CardTitle>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="flex flex-col divide-y divide-border [&>section]:py-4 [&>section:first-child]:pt-0 [&>section:last-child]:pb-0">
+              <section aria-labelledby="risk-arithmetic">
+                <RailHeading id="risk-arithmetic">{t.risks.theArithmetic}</RailHeading>
+                <div className="mt-2">
               {scenario ? (
                 /* Floored at the worst member and amplified for being short.
                    The six weighted components do not apply, and showing them
@@ -322,18 +327,17 @@ export function RiskDetailPage() {
                   ))}
                 </ul>
               )}
-            </CardContent>
-          </Card>
+                </div>
+              </section>
 
-          {/* The factors, for a finding risk. A scenario was not scored from
-              them, so it does not get a panel inviting them to be read. */}
-          {!scenario && (
-            <Card>
-              <CardHeader>
-                <CardTitle>What was weighed</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <dl className="flex flex-col gap-2 text-xs">
+              {/* The factors, for a finding risk. A scenario was not scored
+                  from them, so it does not get a section inviting them to be
+                  read. */}
+              {!scenario && (
+                <section aria-labelledby="risk-weighed">
+                  <RailHeading id="risk-weighed">What was weighed</RailHeading>
+                  <div className="mt-2">
+                  <dl className="flex flex-col gap-2 text-xs">
                   <Row
                     icon={FACTOR_ICONS.criticality}
                     label="Asset criticality"
@@ -360,23 +364,20 @@ export function RiskDetailPage() {
                     value={data.business_impact}
                   />
                 </dl>
-              </CardContent>
-            </Card>
-          )}
+                  </div>
+                </section>
+              )}
 
-          {/* What a decision here does and does not do, where the decision is
-              made: accepting records a person's call, and only a scan closes
-              anything (DECISIONS.md §107). */}
-          <Card className="bg-muted/40">
-            <CardHeader>
-              <CardTitle>Nothing resolves without proof</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-[13px] leading-relaxed text-muted-foreground">
-                Accepting a risk records a decision and a date. It does not
-                close the findings underneath it, and a route stays drawn until
-                a scan stops tracing it.
-              </p>
+              {/* What a decision here does and does not do, where the decision
+                  is made: accepting records a person's call, and only a scan
+                  closes anything (DECISIONS.md §107). */}
+              <section aria-labelledby="risk-proof">
+                <RailHeading id="risk-proof">Nothing resolves without proof</RailHeading>
+                <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                  Accepting records a decision and a date. It does not close the findings
+                  underneath it; only a scan does.
+                </p>
+              </section>
             </CardContent>
           </Card>
         </div>

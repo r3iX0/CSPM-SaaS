@@ -87,7 +87,64 @@ V7_CATEGORIES = frozenset(
 # 130). Every older version lacks it, and it is an Authorization read.
 V8_READS = {"Microsoft.Authorization/roleEligibilityScheduleInstances/read"}
 V8_CATEGORIES = frozenset({EvidenceCategory.AUTHORIZATION})
-BEHIND_SINCE_V7 = V7_CATEGORIES | V8_CATEGORIES
+# Six configuration reads, one per type v9 models (DECISIONS.md section 169).
+V9_READS = {
+    "Microsoft.ContainerService/managedClusters/read",
+    "Microsoft.ContainerRegistry/registries/read",
+    "Microsoft.DocumentDB/databaseAccounts/read",
+    "Microsoft.DBforMySQL/flexibleServers/read",
+    "Microsoft.Databricks/workspaces/read",
+    "Microsoft.Search/searchServices/read",
+}
+V9_CATEGORIES = frozenset({EvidenceCategory.COMPUTE, EvidenceCategory.DATABASE})
+# Two MySQL server parameters (DECISIONS.md section 172).
+V10_READS = {"Microsoft.DBforMySQL/flexibleServers/configurations/read"}
+V10_CATEGORIES = frozenset({EvidenceCategory.DATABASE})
+# The rest of Tier 2 (DECISIONS.md section 176): twenty-one reads across every
+# category but resources, authorization and identity.
+V11_READS = {
+    "Microsoft.Sql/servers/securityAlertPolicies/read",
+    "Microsoft.Sql/servers/encryptionProtector/read",
+    "Microsoft.Sql/servers/vulnerabilityAssessments/read",
+    "Microsoft.Sql/servers/sqlVulnerabilityAssessments/read",
+    "Microsoft.Storage/storageAccounts/fileServices/read",
+    "Microsoft.KeyVault/vaults/keys/read",
+    "Microsoft.KeyVault/vaults/secrets/read",
+    "Microsoft.Security/securityContacts/read",
+    "Microsoft.Security/settings/read",
+    "Microsoft.Security/iotSecuritySolutions/read",
+    "Microsoft.Security/jitNetworkAccessPolicies/read",
+    "Microsoft.Security/locations/jitNetworkAccessPolicies/read",
+    "Microsoft.RecoveryServices/Vaults/read",
+    "Microsoft.RecoveryServices/Vaults/backupProtectedItems/read",
+    "Microsoft.Compute/disks/read",
+    "Microsoft.Insights/activityLogAlerts/read",
+    "Microsoft.Authorization/policyAssignments/read",
+    "Microsoft.Network/virtualNetworks/read",
+    "Microsoft.Network/networkWatchers/read",
+    "Microsoft.Network/networkWatchers/flowLogs/read",
+    "Microsoft.Network/bastionHosts/read",
+}
+V11_CATEGORIES = frozenset(
+    {
+        EvidenceCategory.NETWORK,
+        EvidenceCategory.COMPUTE,
+        EvidenceCategory.STORAGE,
+        EvidenceCategory.DATABASE,
+        EvidenceCategory.LOGGING,
+        EvidenceCategory.SECRETS,
+        EvidenceCategory.POSTURE,
+    }
+)
+# Tier 3 (DECISIONS.md section 177): backup policies and scale sets.
+V12_READS = {
+    "Microsoft.RecoveryServices/Vaults/backupPolicies/read",
+    "Microsoft.Compute/virtualMachineScaleSets/read",
+}
+V12_CATEGORIES = frozenset({EvidenceCategory.COMPUTE})
+BEHIND_SINCE_V7 = (
+    V7_CATEGORIES | V8_CATEGORIES | V9_CATEGORIES | V10_CATEGORIES | V11_CATEGORIES
+)
 
 
 # --------------------------------------------------------------- the guards
@@ -202,8 +259,8 @@ def role_v2(monkeypatch: pytest.MonkeyPatch) -> None:
 
     Hypothetical on purpose, and only ever monkeypatched: it is not in the role
     and has not been verified against Azure. It was the blob service read until
-    v7 made that one real."""
-    new_action = "Microsoft.Storage/storageAccounts/fileServices/read"
+    v7 made that one real, and the file service read until v11 did."""
+    new_action = "Microsoft.Storage/storageAccounts/queueServices/read"
     grown = (*ARM_READ_ACTIONS, new_action)
 
     monkeypatch.setattr(rbac, "ARM_READ_ACTIONS", grown)
@@ -218,7 +275,7 @@ def role_v2(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_an_older_role_is_behind_in_exactly_the_affected_category(role_v2: None) -> None:
     assert rbac.actions_missing_from("v1")[-1] == (
-        "Microsoft.Storage/storageAccounts/fileServices/read"
+        "Microsoft.Storage/storageAccounts/queueServices/read"
     )
     assert rbac.categories_behind("v1") == frozenset({"storage"})
 
@@ -269,22 +326,51 @@ class TestRoleUpgrades:
     redeploy, the rules behind it report UNKNOWN rather than PASS.
     """
 
-    def test_the_current_role_is_v8(self) -> None:
-        assert rbac.ROLE_VERSION == "v8"
-        assert rbac.role_is_current("v8")
+    def test_the_current_role_is_v12(self) -> None:
+        assert rbac.ROLE_VERSION == "v12"
+        assert rbac.role_is_current("v12")
 
-    def test_a_v7_role_lacks_exactly_the_eligibility_read(self) -> None:
-        """One read, and only Authorization is behind -- a v7 customer keeps
-        every assignment, route and verdict, and the access view cannot list
-        who is eligible until the redeploy."""
-        assert set(rbac.actions_missing_from("v7")) == V8_READS
-        assert rbac.categories_behind("v7") == V8_CATEGORIES
+    def test_a_v11_role_lacks_exactly_the_tier_three_reads(self) -> None:
+        """Compute alone is behind: backup policies and scale sets."""
+        assert set(rbac.actions_missing_from("v11")) == V12_READS
+        assert rbac.categories_behind("v11") == V12_CATEGORIES
+
+    def test_a_v10_role_lacks_exactly_the_tier_two_reads(self) -> None:
+        """Every category the reads touch is behind, and resources, authorization
+        and identity are not: a v10 customer keeps every verdict and route they
+        had."""
+        assert set(rbac.actions_missing_from("v10")) == V11_READS | V12_READS
+        assert rbac.categories_behind("v10") == V11_CATEGORIES
+
+    def test_a_v9_role_lacks_exactly_the_mysql_parameter_read(self) -> None:
+        assert set(rbac.actions_missing_from("v9")) == V10_READS | V11_READS | V12_READS
+        assert rbac.categories_behind("v9") == V10_CATEGORIES | V11_CATEGORIES
+
+    def test_a_v8_role_lacks_exactly_the_six_type_reads(self) -> None:
+        """Compute and databases are behind, and nothing else: a v8 customer
+        keeps every verdict and route they had, and the six types stay listed
+        as unchecked inventory until the redeploy."""
+        assert set(rbac.actions_missing_from("v8")) == (
+            V9_READS | V10_READS | V11_READS | V12_READS
+        )
+        assert rbac.categories_behind("v8") == V9_CATEGORIES | V11_CATEGORIES
+
+    def test_a_v7_role_lacks_the_eligibility_read_and_the_v9_reads(self) -> None:
+        """One read for v8 -- a v7 customer keeps every assignment, route and
+        verdict, and the access view cannot list who is eligible until the
+        redeploy -- and v9's six."""
+        assert set(rbac.actions_missing_from("v7")) == (
+            V8_READS | V9_READS | V10_READS | V11_READS | V12_READS
+        )
+        assert rbac.categories_behind("v7") == V8_CATEGORIES | V9_CATEGORIES | V11_CATEGORIES
 
     def test_a_v6_role_lacks_exactly_the_v7_and_v8_reads(self) -> None:
         """Six reads for v7 -- Defender plans, blob recovery, the SQL Entra
         administrator, one PostgreSQL parameter, and App Service -- and v8's
         eligibility read."""
-        assert set(rbac.actions_missing_from("v6")) == V7_READS | V8_READS
+        assert set(rbac.actions_missing_from("v6")) == (
+            V7_READS | V8_READS | V9_READS | V10_READS | V11_READS | V12_READS
+        )
         assert rbac.categories_behind("v6") == BEHIND_SINCE_V7
 
     def test_a_v6_role_keeps_every_category_v7_did_not_touch(self) -> None:
@@ -296,7 +382,17 @@ class TestRoleUpgrades:
             EvidenceCategory.LOGGING,
             EvidenceCategory.SECRETS,
         }
-        assert not untouched & rbac.categories_behind("v6")
+        # Only v7's own reads: v11 touches network, logging and secrets too,
+        # and that is a later upgrade's cost, not this one's.
+        v7_only = set(rbac.actions_missing_from("v6")) - V8_READS - V9_READS
+        v7_only -= V10_READS | V11_READS | V12_READS
+        assert v7_only == V7_READS
+        touched = {
+            category
+            for category, actions in rbac.COLLECTION_ACTIONS.items()
+            if v7_only & set(actions)
+        }
+        assert not untouched & touched
 
     def test_a_v5_role_lacks_the_encryption_reads_and_the_v7_reads(self) -> None:
         assert set(rbac.actions_missing_from("v5")) == {
@@ -304,6 +400,10 @@ class TestRoleUpgrades:
             "Microsoft.Sql/servers/databases/transparentDataEncryption/read",
             *V7_READS,
             *V8_READS,
+            *V9_READS,
+            *V10_READS,
+            *V11_READS,
+            *V12_READS,
         }
         assert rbac.categories_behind("v5") == BEHIND_SINCE_V7
 
@@ -314,6 +414,10 @@ class TestRoleUpgrades:
             "Microsoft.Sql/servers/databases/transparentDataEncryption/read",
             *V7_READS,
             *V8_READS,
+            *V9_READS,
+            *V10_READS,
+            *V11_READS,
+            *V12_READS,
         }
         assert rbac.categories_behind("v4") == BEHIND_SINCE_V7
 
@@ -325,6 +429,10 @@ class TestRoleUpgrades:
             "Microsoft.Security/assessments/read",
             *V7_READS,
             *V8_READS,
+            *V9_READS,
+            *V10_READS,
+            *V11_READS,
+            *V12_READS,
         }
         assert not rbac.role_is_current("v3")
 
@@ -349,7 +457,7 @@ class TestRoleUpgrades:
         believed to grant, and ``actions_missing_from`` would stop reporting a
         gap that is still real.
         """
-        versions = ["v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8"]
+        versions = ["v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12"]
         for older, newer in itertools.pairwise(versions):
             assert set(rbac.ROLE_HISTORY[older]) <= set(rbac.ROLE_HISTORY[newer]), (
                 f"{newer} dropped an action {older} granted"
@@ -360,17 +468,36 @@ class TestRoleUpgrades:
         vault is destroyable or a database unaudited, and cannot read one secret
         or one row -- so no action may reach past the resource's own settings.
         """
+        # The vault, and the attributes of what it holds -- when each key and
+        # secret stops working -- through the management plane, which never
+        # returns a secret's value or a key's private material (section 176).
+        # Reading a value is ``secrets/getSecret/action``, a data action, and
+        # the role carries no data action at all.
         assert [
             a for a in rbac.ARM_READ_ACTIONS if a.startswith("Microsoft.KeyVault/")
-        ] == ["Microsoft.KeyVault/vaults/read"]
-        assert not [
-            a for a in rbac.ARM_READ_ACTIONS if a.endswith("/secrets/read")
+        ] == [
+            "Microsoft.KeyVault/vaults/read",
+            "Microsoft.KeyVault/vaults/keys/read",
+            "Microsoft.KeyVault/vaults/secrets/read",
         ]
+        assert not [a for a in rbac.ARM_READ_ACTIONS if "getsecret" in a.lower()]
+        assert not [a for a in rbac.ARM_READ_ACTIONS if "readmetadata" in a.lower()]
         # Defender is read and never driven. No action here starts a scan,
         # dismisses a finding, or changes what the customer is assessed on.
         assert [
             a for a in rbac.ARM_READ_ACTIONS if a.startswith("Microsoft.Security/")
-        ] == ["Microsoft.Security/assessments/read", "Microsoft.Security/pricings/read"]
+        ] == [
+            "Microsoft.Security/assessments/read",
+            "Microsoft.Security/pricings/read",
+            "Microsoft.Security/securityContacts/read",
+            "Microsoft.Security/settings/read",
+            "Microsoft.Security/iotSecuritySolutions/read",
+            "Microsoft.Security/jitNetworkAccessPolicies/read",
+            "Microsoft.Security/locations/jitNetworkAccessPolicies/read",
+        ]
+        # A disk is described, never exported: ``beginGetAccess/action`` is the
+        # read of its contents.
+        assert not [a for a in rbac.ARM_READ_ACTIONS if "getaccess" in a.lower()]
         # App Service configuration, never its secrets. Application settings
         # and connection strings are ``config/list``, an action this role must
         # never carry.
@@ -447,12 +574,19 @@ class TestTheConnectionPayloadExplainsTheGap:
     def test_a_stale_role_names_the_checks_that_cannot_run(self) -> None:
         """The same categories the scanner uses to explain its own gaps, so the
         screen and the scan cannot disagree about which checks are affected."""
-        since_v7 = ["authorization", "compute", "database", "posture", "storage"]
-        assert self._payload("v7")["degraded_categories"] == ["authorization"]
+        # v11 touches every category but resources, authorization and
+        # identity, so every older role is behind in those seven.
+        since_v11 = sorted(category.value for category in V11_CATEGORIES)
+        since_v7 = sorted({*since_v11, "authorization"})
+        assert self._payload("v11")["degraded_categories"] == ["compute"]
+        assert self._payload("v10")["degraded_categories"] == since_v11
+        assert self._payload("v9")["degraded_categories"] == since_v11
+        assert self._payload("v8")["degraded_categories"] == since_v11
+        assert self._payload("v7")["degraded_categories"] == since_v7
         assert self._payload("v6")["degraded_categories"] == since_v7
         assert self._payload("v5")["degraded_categories"] == since_v7
         assert self._payload("v3")["degraded_categories"] == since_v7
-        assert self._payload("v2")["degraded_categories"] == sorted([*since_v7, "secrets"])
+        assert self._payload("v2")["degraded_categories"] == since_v7
 
 
 
@@ -522,65 +656,6 @@ class TestReadingTheGrantedActions:
         )
 
         assert rbac.version_of_granted(granted) == ROLE_VERSION
-
-
-class TestEveryRead:
-    """Whether a grant carries the breadth the extended checks read through.
-
-    Asked of what the definitions allow, like the version, so the built-in
-    Reader, Contributor and Owner all answer yes and the custom role -- which
-    names only the reads Cleave's own collectors make -- answers no.
-    """
-
-    @staticmethod
-    def _permissions(*actions: str, denied: tuple[str, ...] = ()) -> list[dict]:
-        return [{"actions": list(actions), "notActions": list(denied)}]
-
-    def test_the_built_in_reader_allows_every_read(self) -> None:
-        assert rbac.grants_every_read(self._permissions("*/read"))
-
-    def test_a_broader_role_allows_every_read(self) -> None:
-        assert rbac.grants_every_read(self._permissions("*"))
-
-    def test_the_custom_role_alone_does_not(self) -> None:
-        """The connection this exists for: a current role and no Reader."""
-        assert not rbac.grants_every_read(self._permissions(*ARM_READ_ACTIONS))
-
-    def test_a_provider_wide_read_is_not_every_read(self) -> None:
-        assert not rbac.grants_every_read(self._permissions("Microsoft.Storage/*/read"))
-
-    def test_a_notaction_on_every_read_takes_it_away(self) -> None:
-        assert not rbac.grants_every_read(self._permissions("*", denied=("*/read",)))
-
-    def test_one_role_carrying_it_is_enough(self) -> None:
-        assert rbac.grants_every_read(
-            [*self._permissions(*ARM_READ_ACTIONS), *self._permissions("*/read")]
-        )
-
-
-async def test_the_grant_is_read_only_at_and_above_the_connection_scope() -> None:
-    """Unfiltered, ARM's listing includes every assignment beneath the scope,
-    and Reader on one resource group would read as Reader over the whole
-    connection -- the prompt withheld from a grant that cannot serve it."""
-    import httpx
-
-    from app.connectors.azure.client import ArmClient
-
-    requested: list[httpx.URL] = []
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        requested.append(request.url)
-        return httpx.Response(200, json={"value": []})
-
-    class Tokens:
-        def arm_token(self) -> str:
-            return "arm-token"
-
-    http = httpx.AsyncClient(transport=httpx.MockTransport(handler))
-    async with ArmClient(Tokens(), http) as arm:
-        await arm.list_role_assignments_at_scope("/subscriptions/sub-1")
-
-    assert [url.params.get("$filter") for url in requested] == ["atScope()"]
 
 
 class FakeArm:
@@ -701,9 +776,6 @@ class TestTheDeployedRoleIsRecorded:
         from app.services import cloud_connections as service
 
         connection = self._connection(ROLE_VERSION)
-        # Already read once: the first reading records whether the grant allows
-        # every read, which is a change of its own.
-        connection.provider_ref = {"every_read": False}
         self._deploy(ARM_READ_ACTIONS)
         session = FakeSession()
 
@@ -748,161 +820,6 @@ class TestTheDeployedRoleIsRecorded:
 
         reading = await AzureOnboarding().detect_grant(connection)
         assert reading is not None and reading.version == ROLE_VERSION
-
-
-class TestTheExtendedChecksReader:
-    """A current role is not a complete grant while the scanner service runs.
-
-    The template has assigned Reader beside the custom role since the extended
-    checks shipped, and the custom role did not change, so no version bump
-    said so. A connection deployed before then read a current role, showed no
-    prompt, and had Prowler refused on storage file services, SQL encryption
-    protectors and every other type the custom role does not name
-    (DECISIONS.md section 153).
-    """
-
-    PRINCIPAL = TestTheDeployedRoleIsRecorded.PRINCIPAL
-    CUSTOM = "/providers/.../roleDefinitions/custom"
-    READER = f"/providers/Microsoft.Authorization/roleDefinitions/{rbac.READER_ROLE_DEFINITION_ID}"
-
-    @pytest.fixture(autouse=True)
-    def azure(self, monkeypatch: pytest.MonkeyPatch):
-        from app.connectors.azure import auth
-        from app.core.config import settings
-
-        class FakeTokens:
-            def __init__(self, tenant_id: str) -> None:
-                self.tenant_id = tenant_id
-
-        monkeypatch.setattr(auth, "TokenProvider", FakeTokens)
-        monkeypatch.setattr("app.connectors.azure.onboarding.ArmClient", FakeArm)
-        monkeypatch.setattr(settings, "assess_enabled", True)
-        FakeArm.assignments = []
-        FakeArm.definitions = {
-            self.CUSTOM: [{"actions": list(ARM_READ_ACTIONS), "notActions": []}],
-            self.READER: [{"actions": ["*/read"], "notActions": []}],
-        }
-        FakeArm.fails = False
-        FakeArm.scopes_read = []
-        return settings
-
-    def _assign(self, *definitions: str) -> None:
-        FakeArm.assignments = [
-            {"properties": {"principalId": self.PRINCIPAL, "roleDefinitionId": d}}
-            for d in definitions
-        ]
-
-    def _connection(self) -> CloudConnection:
-        connection = make_connection(ROLE_VERSION)
-        connection.id = uuid.uuid4()
-        connection.tenant_id = "8e482025-7ac9-4323-81e5-bc9fa528afd7"
-        connection.service_principal_object_id = self.PRINCIPAL
-        connection.rbac_verified_at = datetime.now(UTC)
-        connection.created_at = datetime.now(UTC)
-        return connection
-
-    async def test_a_current_role_without_reader_is_prompted_to_redeploy(self) -> None:
-        from app.services import cloud_connections as service
-
-        connection = self._connection()
-        self._assign(self.CUSTOM)
-        session = FakeSession()
-
-        # The version did not move, so nothing new is returned -- but what was
-        # learned is recorded.
-        assert await service.refresh_grant_version(session, connection) is None
-        assert session.commits == 1
-        assert connection.provider_ref == {"every_read": False}
-
-        assert service.extended_checks_blocked(connection) is True
-        assert grant_upgrade_available(connection) is True
-        # Cleave's own collectors are unaffected: nothing they read is missing.
-        assert degraded_categories(connection) == {}
-
-    async def test_the_payload_says_which_redeploy_it_is(self) -> None:
-        """The panel must not print "v8, behind (v8)" for a current role."""
-        from app.services import cloud_connections as service
-
-        connection = self._connection()
-        self._assign(self.CUSTOM)
-        await service.refresh_grant_version(FakeSession(), connection)
-
-        payload = routes._serialize(connection).model_dump(mode="json")
-        assert payload["role_upgrade_available"] is True
-        assert payload["extended_checks_blocked"] is True
-        assert payload["role_version"] == payload["role_required_version"]
-        assert payload["degraded_categories"] == []
-
-    async def test_redeploying_with_reader_clears_the_prompt(self) -> None:
-        from app.services import cloud_connections as service
-
-        connection = self._connection()
-        self._assign(self.CUSTOM)
-        await service.refresh_grant_version(FakeSession(), connection)
-
-        self._assign(self.CUSTOM, self.READER)
-        session = FakeSession()
-        await service.refresh_grant_version(session, connection)
-
-        assert connection.provider_ref == {"every_read": True}
-        assert session.commits == 1
-        assert service.extended_checks_blocked(connection) is False
-        assert grant_upgrade_available(connection) is False
-        assert AzureOnboarding().grant_needs_reading(connection) is False
-
-    async def test_reader_alone_is_a_complete_grant(self) -> None:
-        """A customer who assigned Reader instead of deploying the template has
-        every read both engines need."""
-        from app.services import cloud_connections as service
-
-        connection = self._connection()
-        self._assign(self.READER)
-        await service.refresh_grant_version(FakeSession(), connection)
-
-        assert connection.role_version == ROLE_VERSION
-        assert grant_upgrade_available(connection) is False
-
-    async def test_other_reference_entries_survive_the_reading(self) -> None:
-        from app.services import cloud_connections as service
-
-        connection = self._connection()
-        connection.provider_ref = {"note": "kept"}
-        self._assign(self.CUSTOM)
-        await service.refresh_grant_version(FakeSession(), connection)
-
-        assert connection.provider_ref == {"note": "kept", "every_read": False}
-
-    def test_a_grant_never_read_is_read_but_not_flagged(self) -> None:
-        """Every connection deployed before this shipped has no answer yet.
-        Unknown is not missing: it is read on the next look, and raises
-        nothing until then."""
-        connection = self._connection()
-
-        assert AzureOnboarding().grant_needs_reading(connection) is True
-        assert AzureOnboarding().extended_checks_blocked(connection) is False
-        assert grant_upgrade_available(connection) is False
-
-    def test_nothing_is_asked_while_the_scanner_service_is_off(self, azure) -> None:
-        """With no second engine, the breadth serves nothing, and a prompt for
-        it would be asking a customer for access Cleave has no use for."""
-        azure.assess_enabled = False
-        connection = self._connection()
-        connection.provider_ref = {"every_read": False}
-
-        assert AzureOnboarding().extended_checks_blocked(connection) is False
-        assert AzureOnboarding().grant_needs_reading(connection) is False
-        assert grant_upgrade_available(connection) is False
-
-    async def test_a_failed_reading_records_nothing(self) -> None:
-        from app.services import cloud_connections as service
-
-        connection = self._connection()
-        FakeArm.fails = True
-        session = FakeSession()
-
-        assert await service.refresh_grant_version(session, connection) is None
-        assert session.commits == 0
-        assert connection.provider_ref in ({}, None)
 
 
 def test_the_redeploy_template_grants_the_current_role() -> None:

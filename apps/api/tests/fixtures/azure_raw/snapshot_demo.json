@@ -196,6 +196,13 @@
           "hardwareProfile": {
             "vmSize": "Standard_D4s_v5"
           },
+          "osProfile": {
+            "computerName": "vm-build-agent",
+            "adminUsername": "azureuser",
+            "linuxConfiguration": {
+              "disablePasswordAuthentication": true
+            }
+          },
           "storageProfile": {
             "osDisk": {
               "osType": "Linux",
@@ -1652,6 +1659,62 @@
         }
       }
     ],
+    "key_vault_keys": {
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments": [
+        {
+          "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments/keys/ledger-signing",
+          "name": "ledger-signing",
+          "type": "Microsoft.KeyVault/vaults/keys",
+          "properties": {
+            "attributes": {
+              "enabled": true,
+              "exp": 1830297600
+            },
+            "kty": "RSA",
+            "rotationPolicy": {
+              "attributes": {
+                "expiryTime": "P1Y"
+              },
+              "lifetimeActions": [
+                {
+                  "trigger": {
+                    "timeBeforeExpiry": "P30D"
+                  },
+                  "action": {
+                    "type": "rotate"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "key_vault_secrets": {
+      "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments": [
+        {
+          "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments/secrets/ledger-db-connection",
+          "name": "ledger-db-connection",
+          "type": "Microsoft.KeyVault/vaults/secrets",
+          "properties": {
+            "attributes": {
+              "enabled": true,
+              "exp": 1798761600
+            }
+          }
+        },
+        {
+          "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments/secrets/payment-provider-api-key",
+          "name": "payment-provider-api-key",
+          "type": "Microsoft.KeyVault/vaults/secrets",
+          "properties": {
+            "attributes": {
+              "enabled": true
+            }
+          }
+        }
+      ]
+    },
     "role_group_members": {
       "8a7e0c3f-5d21-4b6e-9f43-2c1d0e9b7a65": {
         "display_name": "Data analysts",
@@ -1794,6 +1857,18 @@
       "item_count": 1
     },
     "key_vaults": {
+      "category": "secrets",
+      "outcome": "COMPLETE",
+      "detail": "",
+      "item_count": 1
+    },
+    "key_vault_keys": {
+      "category": "secrets",
+      "outcome": "COMPLETE",
+      "detail": "",
+      "item_count": 1
+    },
+    "key_vault_secrets": {
       "category": "secrets",
       "outcome": "COMPLETE",
       "detail": "",

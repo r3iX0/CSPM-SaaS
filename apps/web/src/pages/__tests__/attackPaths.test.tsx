@@ -391,7 +391,7 @@ describe("AttackPathsPage", () => {
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/The only assets classified as sensitive are accounts/),
+      screen.getByText(/Only accounts are classified as sensitive/),
     ).toBeInTheDocument();
     expect(screen.getByText("and 1 more")).toBeInTheDocument();
   });
@@ -816,10 +816,10 @@ describe("AttackPathsPage", () => {
     );
 
     expect(
-      await screen.findByText(/not among the routes in the latest reading/),
+      await screen.findByText(/not in the latest reading/),
     ).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Clear" }));
-    expect(screen.queryByText(/not among the routes/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/not in the latest reading/)).not.toBeInTheDocument();
     expect(screen.getByTestId("where")).not.toHaveTextContent("trace=");
   });
 

@@ -165,6 +165,16 @@ class AwsEvidence(EvidenceKey):
     # reach what, and it is the only service that answers it.
     ACCESS_ANALYZERS = "access_analyzers"
 
+    # --- v5: Cognito user pools (DECISIONS.md section 177) -----------------
+    #
+    # An application's own sign-in directory. The pools, then two readings
+    # beneath each: its threat protection risk configuration, and the WAF web
+    # ACL in front of it. Separate keys because they are separate calls --
+    # the last to a different service -- and separately deniable.
+    COGNITO_USER_POOLS = "cognito_user_pools"
+    COGNITO_RISK_CONFIGURATIONS = "cognito_risk_configurations"
+    COGNITO_WEB_ACLS = "cognito_web_acls"
+
     @property
     def category(self) -> EvidenceCategory:
         return _CATEGORIES[self]
@@ -232,6 +242,9 @@ _CATEGORIES: dict[AwsEvidence, EvidenceCategory] = {
     AwsEvidence.CLOUDWATCH_ALARMS: EvidenceCategory.LOGGING,
     AwsEvidence.GUARDDUTY_DETECTORS: EvidenceCategory.POSTURE,
     AwsEvidence.SECURITYHUB_STATUS: EvidenceCategory.POSTURE,
+    AwsEvidence.COGNITO_USER_POOLS: EvidenceCategory.IDENTITY,
+    AwsEvidence.COGNITO_RISK_CONFIGURATIONS: EvidenceCategory.IDENTITY,
+    AwsEvidence.COGNITO_WEB_ACLS: EvidenceCategory.NETWORK,
 }
 
 # Enumerated rather than compared at call time: a key added without a category
@@ -264,6 +277,9 @@ _REGIONAL: frozenset[AwsEvidence] = frozenset(
         AwsEvidence.CLOUDWATCH_ALARMS,
         AwsEvidence.SECURITYHUB_STATUS,
         AwsEvidence.ACCESS_ANALYZERS,
+        AwsEvidence.COGNITO_USER_POOLS,
+        AwsEvidence.COGNITO_RISK_CONFIGURATIONS,
+        AwsEvidence.COGNITO_WEB_ACLS,
     }
 )
 

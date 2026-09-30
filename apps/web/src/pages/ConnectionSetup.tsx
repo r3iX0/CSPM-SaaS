@@ -15,7 +15,8 @@ import { StepDeploy } from "@/components/connections/setup/StepDeploy";
 import { StepHeader } from "@/components/connections/setup/StepHeader";
 import { StepScope } from "@/components/connections/setup/StepScope";
 import { StepSubscriptions } from "@/components/connections/setup/StepSubscriptions";
-import { CardsSkeleton } from "@/components/common/states";
+import { CardsSkeleton, PAGE_TITLE_CLASS } from "@/components/common/states";
+import { cn } from "@/lib/utils";
 import { ProviderMark } from "@/components/security/ProviderMark";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -124,7 +125,7 @@ export function ConnectionSetupPage() {
       <header>
         <Link
           to="/connections"
-          className="text-[12.5px] text-muted-foreground underline underline-offset-3 transition-colors hover:text-foreground"
+          className="text-meta text-muted-foreground underline underline-offset-3 transition-colors hover:text-foreground"
         >
           {t.setup.backToConnections}
         </Link>
@@ -135,7 +136,7 @@ export function ConnectionSetupPage() {
               <ProviderMark provider={provider} className="size-5" />
             </span>
             <div className="min-w-0">
-              <h1 className="truncate text-[22px] font-semibold tracking-[-0.02em] text-foreground">
+              <h1 className={cn("truncate", PAGE_TITLE_CLASS)}>
                 {connection ? connection.name : copy.title}
               </h1>
               {/* What setup costs, which stops being worth saying once it is

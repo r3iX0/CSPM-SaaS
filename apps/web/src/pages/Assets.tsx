@@ -28,13 +28,14 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  MotionTableRow,
 } from "@/components/ui/table";
 import { LiveStatus } from "@/components/common/LiveStatus";
 import { Pager } from "@/components/common/Pager";
 import { cn, formatDate, formatRelative, resourceTypeLabel } from "@/lib/format";
 import { scopeLabel } from "@/lib/scope";
 import { regionLabel } from "@/lib/geo/regions";
-import { stagger } from "@/lib/motion";
+import { listLayout, stagger } from "@/lib/motion";
 
 const PAGE_SIZE = 50;
 const SEARCH_DEBOUNCE_MS = 250;
@@ -227,6 +228,10 @@ export function AssetsPage() {
   const activeRow = useRowNavigation(
     view === "list" ? drawn.map((asset) => `/assets/${asset.id}`) : [],
   );
+  // Group headings are rows too, and move with the rows under them.
+  const rowsLayout = listLayout(
+    groups.flatMap(([name, rows]) => [`group:${name}`, ...rows.map((asset) => asset.id)]),
+  );
 
   const filtering =
     search !== "" ||
@@ -278,7 +283,9 @@ export function AssetsPage() {
     <div className="flex flex-col gap-4">
       <PageHeader
         title={t.assets.title}
-        description="Everything Cleave has discovered, with what it is worth and how exposed it is. Ranked by open findings, not by name."
+        description="Everything Cleave discovered, ranked by open findings."
+        explain={t.assets.pageExplain}
+        explainLabel={t.assets.pageExplainLabel}
         actions={
           // Two readings of one inventory: the queue and the map. The list
           // ranks by what is wrong; the map says which part of the estate --
@@ -484,11 +491,7 @@ export function AssetsPage() {
         <EmptyState
           icon={BoxesIcon}
           title={emptyTitle}
-          detail={
-            filtering
-              ? "Widen the filters, or clear the search, to see the rest of the inventory."
-              : "Once a scan completes, everything it discovered appears here."
-          }
+          detail={filtering ? undefined : "Everything a scan discovers appears here."}
           action={
             filtering ? (
               <Button
@@ -549,23 +552,24 @@ export function AssetsPage() {
                   {groups.map(([groupName, rows]) => (
                     <Fragment key={groupName}>
                       {groupName && (
-                        <TableRow className="hover:bg-transparent">
+                        <MotionTableRow className="hover:bg-transparent" {...rowsLayout}>
                           <TableCell
                             colSpan={7}
-                            className="bg-muted/60 py-1.5 font-mono text-[11.5px] font-medium text-muted-foreground"
+                            className="bg-muted/60 py-1.5 font-mono text-caption font-medium text-muted-foreground"
                           >
                             {groupName}
                             <span className="ml-2 tabular-nums opacity-70">{rows.length}</span>
                           </TableCell>
-                        </TableRow>
+                        </MotionTableRow>
                       )}
                       {rows.map((asset, index) => (
-                        <TableRow
+                        <MotionTableRow
                           key={asset.id}
+                          {...rowsLayout}
                           // Relative, so the name's overlay makes the whole
                           // row the way into the asset.
                           className={cn(
-                            "relative cursor-pointer [animation:cg-rise_260ms_ease-out_both]",
+                            "relative cursor-pointer [animation:cg-rise_260ms_ease-out_backwards]",
                             ROW_ACTIVE,
                           )}
                           style={stagger(index)}
@@ -578,7 +582,7 @@ export function AssetsPage() {
                               <Link
                                 to={`/assets/${asset.id}`}
                                 state={returnTo}
-                                className="block truncate text-[13.5px] font-medium text-foreground after:absolute after:inset-0 hover:underline"
+                                className="block truncate text-body font-medium text-foreground after:absolute after:inset-0 hover:underline"
                               >
                                 {asset.name}
                               </Link>
@@ -592,7 +596,7 @@ export function AssetsPage() {
                           <TableCell className="text-muted-foreground">
                             {/* An unmodelled resource is named by the provider's own
                                 type, so the reader sees what is unchecked. */}
-                            <span className="text-[12.5px]">
+                            <span className="text-meta">
                               {asset.azure_type ?? resourceTypeLabel(asset.resource_type)}
                             </span>
                           </TableCell>
@@ -627,7 +631,7 @@ export function AssetsPage() {
                           >
                             {formatRelative(asset.last_seen_at)}
                           </TableCell>
-                        </TableRow>
+                        </MotionTableRow>
                       ))}
                     </Fragment>
                   ))}
@@ -673,7 +677,7 @@ function OnRouteMark() {
   return (
     <span
       title="On an attack path"
-      className="inline-flex shrink-0 items-center gap-1 rounded-md border border-primary-border bg-primary-soft px-1 py-px text-[10.5px] font-medium text-foreground"
+      className="inline-flex shrink-0 items-center gap-1 rounded-md border border-primary-border bg-primary-soft px-1 py-px text-micro font-medium text-foreground"
     >
       <Route className="size-3" aria-hidden />
       <span className="sr-only">On an attack path</span>

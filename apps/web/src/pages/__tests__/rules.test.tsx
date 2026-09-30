@@ -144,35 +144,3 @@ describe("the rule catalogue", () => {
     expect(screen.getByText("Set allowBlobPublicAccess to false.")).toBeInTheDocument();
   });
 });
-
-describe("the second engine in the catalogue (DECISIONS.md §150)", () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  const extended = rule({
-    rule_id: "PRW-AZ-aks_cluster_rbac_enabled",
-    name: "AKS cluster has Kubernetes RBAC enabled",
-    engine: "prowler",
-    engine_version: "5.43.0",
-  });
-
-  it("says which rules are Prowler's, and filters by engine", async () => {
-    mount([rule({ engine: "native" }), extended]);
-
-    expect(await screen.findByText("AKS cluster has Kubernetes RBAC enabled")).toBeInTheDocument();
-    expect(screen.getByText("Extended check")).toBeInTheDocument();
-    expect(screen.getByLabelText("Filter by engine")).toBeInTheDocument();
-  });
-
-  it("does not call a check the deployment is not running withdrawn", async () => {
-    mount([rule({ engine: "native" }), { ...extended, enabled: false }]);
-
-    expect(await screen.findByText("Storage account allows public blob access")).toBeInTheDocument();
-    expect(screen.queryByText("AKS cluster has Kubernetes RBAC enabled")).not.toBeInTheDocument();
-    expect(screen.queryByText(/withdrawn/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/not switched the scanner service on/)).toBeInTheDocument();
-    // Nothing to filter between while only one engine runs.
-    expect(screen.queryByLabelText("Filter by engine")).not.toBeInTheDocument();
-  });
-});

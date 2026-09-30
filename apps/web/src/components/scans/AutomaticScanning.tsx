@@ -48,7 +48,7 @@ export function AutomaticScanning({
     >
       <header className="flex flex-wrap items-start justify-between gap-3 px-5 py-4">
         <div>
-          <h2 id="automatic-scanning" className="text-[13.5px] font-semibold">
+          <h2 id="automatic-scanning" className="text-body font-semibold">
             Automatic scanning
           </h2>
           <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">

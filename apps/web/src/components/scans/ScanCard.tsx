@@ -78,10 +78,10 @@ export function ScanCard({ scan }: { scan: Scan }) {
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <StatusPill status={scan.status} />
           <div className="min-w-0">
-            <p className="truncate text-[13.5px] font-medium text-foreground tabular-nums">
+            <p className="truncate text-body font-medium text-foreground tabular-nums">
               {formatDateTime(scan.completed_at ?? scan.started_at ?? scan.created_at)}
             </p>
-            <p className="text-[11.5px] text-muted-foreground">
+            <p className="text-caption text-muted-foreground">
               {formatRelative(scan.completed_at ?? scan.started_at ?? scan.created_at)}
               {scan.trigger === "SCHEDULED" && ` · ${t.scans.scheduled}`}
               {scan.trigger === "MANUAL" && ` · ${t.scans.manualUnknownUser}`}
@@ -91,7 +91,7 @@ export function ScanCard({ scan }: { scan: Scan }) {
               sits in the list looking like a scan that went and checked,
               which is the one thing it did not do. */}
           {scan.replay_of_scan_id && (
-            <span className="inline-flex shrink-0 items-center rounded-full border border-border bg-muted px-2 py-px text-[11px] font-medium text-muted-foreground">
+            <span className="inline-flex shrink-0 items-center rounded-full border border-border bg-muted px-2 py-px text-caption font-medium text-muted-foreground">
               {t.scans.replayOfLabel}
             </span>
           )}
@@ -295,7 +295,7 @@ function StuckNote() {
 function Stat({ label: text, value }: { label: string; value: number | string }) {
   return (
     <div className="min-w-14">
-      <dt className="text-[11px] text-muted-foreground">{text}</dt>
+      <dt className="text-caption text-muted-foreground">{text}</dt>
       <dd className="font-medium tabular-nums text-foreground">{value}</dd>
     </div>
   );

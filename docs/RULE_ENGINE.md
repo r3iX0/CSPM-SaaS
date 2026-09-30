@@ -89,7 +89,7 @@ When a later scan runs the same rule against the same resource and returns PASS 
 
 ## 5. The Rule Set
 
-> 📖 **Full Rule Reference**: For the complete, auto-generated catalog of all 98 registered rules (52 Azure + 46 AWS), including severity, exploitability, compliance mappings, and remediation commands, see [`docs/RULE_CATALOG.md`](RULE_CATALOG.md).
+> 📖 **Full Rule Reference**: For the complete, auto-generated catalog of all 148 registered rules (102 Azure + 46 AWS), including severity, exploitability, compliance mappings, and remediation commands, see [`docs/RULE_CATALOG.md`](RULE_CATALOG.md).
 > Generator script: [`apps/api/scripts/generate_rule_catalog.py`](../apps/api/scripts/generate_rule_catalog.py).
 
 Below is the initial baseline rule set:

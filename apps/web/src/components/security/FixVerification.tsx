@@ -1,13 +1,14 @@
 import { useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { m } from "motion/react";
-import { CheckIcon, RotateCcwIcon, XIcon } from "lucide-react";
+import { RotateCcwIcon, XIcon } from "lucide-react";
 
 import { api } from "@/lib/api";
 import type { EvidenceCitation, FindingStatus, ScanDetail } from "@/lib/types";
 import { DURATION, EASE_OUT } from "@/lib/motion";
 import { cn, formatDateTime } from "@/lib/format";
 import { IN_FLIGHT } from "@/components/scans/status";
+import { DrawnCheck } from "@/components/common/DrawnCheck";
 import { useScanEvents } from "@/lib/scanEvents";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -123,14 +124,14 @@ export function FixVerification({
         <div className="flex min-w-0 items-start gap-3">
           <span
             className={cn(
-              "flex size-9 shrink-0 items-center justify-center rounded-full",
+              "flex size-9 shrink-0 items-center justify-center rounded-full transition-colors duration-240",
               verified && "bg-ok text-background",
               stillFailing && "bg-high text-background",
               failedScan && "bg-critical text-background",
               !finished && "bg-muted text-foreground",
             )}
           >
-            {verified && <CheckIcon className="size-4.5" strokeWidth={3} aria-hidden />}
+            {verified && <DrawnCheck draw className="size-4.5" />}
             {(stillFailing || failedScan) && <XIcon className="size-4.5" strokeWidth={3} aria-hidden />}
             {!finished && <Spinner />}
           </span>
@@ -145,7 +146,7 @@ export function FixVerification({
                 critical tint is under 4.5:1. */}
             <p
               className={cn(
-                "mt-0.5 text-[13px] leading-relaxed",
+                "mt-0.5 text-body leading-relaxed",
                 finished ? "text-foreground" : "text-muted-foreground",
               )}
             >
@@ -187,7 +188,7 @@ export function FixVerification({
               </span>
               <span
                 className={cn(
-                  "text-[11px]",
+                  "text-caption",
                   active || done ? "text-foreground" : "text-muted-foreground",
                 )}
               >
@@ -199,7 +200,7 @@ export function FixVerification({
       </ol>
 
       {proof && (
-        <p className="mt-4 font-mono text-[11.5px] break-all text-foreground/80">
+        <p className="mt-4 font-mono text-caption break-all text-foreground/80">
           evidence sha256 {proof.content_hash?.slice(0, 12)}… · {proof.evidence_key} · read{" "}
           {proof.collected_at}
         </p>

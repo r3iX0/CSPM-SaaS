@@ -39,12 +39,13 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  MotionTableRow,
 } from "@/components/ui/table";
 import { LiveStatus } from "@/components/common/LiveStatus";
 import { Pager } from "@/components/common/Pager";
 import { StatStrip } from "@/components/common/StatStrip";
 import { cn, formatDate, formatRelative, resourceTypeLabel } from "@/lib/format";
-import { stagger } from "@/lib/motion";
+import { listLayout, stagger } from "@/lib/motion";
 import { useUrlFilters } from "@/lib/useUrlFilters";
 import { ROW_ACTIVE, useRowNavigation } from "@/lib/keyboard";
 
@@ -179,6 +180,7 @@ export function FindingsPage() {
 
   const rows = data?.findings ?? [];
   const activeRow = useRowNavigation(rows.map((finding) => `/findings/${finding.id}`));
+  const rowsLayout = listLayout(rows.map((finding) => finding.id));
   const total = data?.total ?? 0;
   const pages = Math.ceil(total / PAGE_SIZE);
 
@@ -200,7 +202,9 @@ export function FindingsPage() {
     <div className="flex flex-col gap-4">
       <PageHeader
         title={t.findings.title}
-        description="Misconfigurations Cleave observed, ranked by what they mean on the asset they were found on."
+        description="Misconfigurations Cleave observed, worst first."
+        explain={t.findings.pageExplain}
+        explainLabel={t.findings.pageExplainLabel}
       />
 
       {/* Drawn only once the counts are known: a strip of zeros while they
@@ -248,7 +252,7 @@ export function FindingsPage() {
               placeholder="Search findings, rules or assets"
               aria-label="Search findings"
               data-page-search
-              className="h-8 pl-8 text-[12.5px]"
+              className="h-8 pl-8 text-meta"
             />
           </div>
           {/* A select, like every other filter in the product: the trigger
@@ -322,11 +326,9 @@ export function FindingsPage() {
         <EmptyState
           icon={ShieldCheckIcon}
           title={emptyTitle}
-          detail={
-            filtered
-              ? "Widen the filters, or clear the search, to see the rest of this environment."
-              : "Your latest scan reached a verdict on every check it could run and raised nothing. Coverage gaps, if any, are shown on the scan."
-          }
+          // Filtered, the button says what to do; the sentence that said it
+          // again is gone (DECISIONS.md §179).
+          detail={filtered ? undefined : "The latest scan raised nothing on any check it could run."}
           action={
             filtered ? (
               <Button
@@ -393,17 +395,19 @@ export function FindingsPage() {
                 </TableHeader>
                 <TableBody>
                   {rows.map((finding, index) => (
-                    // The same arrival the dashboard's lists use, in CSS
-                    // rather than through the motion runtime: a `tr` cannot be
-                    // wrapped without breaking the table, and the rise is the
-                    // one thing needed here. Capped at eight rows of stagger,
-                    // so a fifty-row page does not become a slow page.
-                    <TableRow
+                    // The same arrival the dashboard's lists use, in CSS: a row
+                    // new to the list rises into place, capped at eight rows of
+                    // stagger so a fifty-row page does not become a slow page.
+                    // `backwards`, not `both`: a fill that outlived the rise
+                    // would pin the row's transform and stop the slide that
+                    // `listLayout` gives a row that stayed (§179).
+                    <MotionTableRow
                       key={finding.id}
+                      {...rowsLayout}
                       // Relative, so the title link's overlay covers this row
                       // and no more: the whole row opens the finding.
                       className={cn(
-                        "group relative cursor-pointer [animation:cg-rise_260ms_ease-out_both]",
+                        "group relative cursor-pointer [animation:cg-rise_260ms_ease-out_backwards]",
                         ROW_ACTIVE,
                       )}
                       style={stagger(index)}
@@ -423,7 +427,7 @@ export function FindingsPage() {
                             render={
                               <Link
                                 to={`/findings/${finding.id}`}
-                                className="block truncate text-[13.5px] font-medium text-foreground after:absolute after:inset-0 hover:underline"
+                                className="block truncate text-body font-medium text-foreground after:absolute after:inset-0 hover:underline"
                               />
                             }
                           >
@@ -440,12 +444,12 @@ export function FindingsPage() {
                             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                               {finding.description}
                             </p>
-                            <p className="mt-2 text-[11px] text-muted-foreground">
+                            <p className="mt-2 text-caption text-muted-foreground">
                               {finding.rule_id} · v{finding.rule_version}
                             </p>
                           </HoverCardContent>
                         </HoverCard>
-                        <p className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground">
+                        <p className="mt-0.5 truncate font-mono text-caption text-muted-foreground">
                           {finding.rule_id}
                         </p>
                       </TableCell>
@@ -457,20 +461,20 @@ export function FindingsPage() {
                           <span className="flex min-w-0 items-center gap-2">
                             <ResourceIcon type={finding.resource.resource_type} />
                             <span className="min-w-0">
-                              <span className="block max-w-[14rem] truncate text-[12.5px] text-foreground">
+                              <span className="block max-w-[14rem] truncate text-meta text-foreground">
                                 {finding.resource.name}
                               </span>
-                              <span className="block max-w-[14rem] truncate text-[11px]">
+                              <span className="block max-w-[14rem] truncate text-caption">
                                 {resourceTypeLabel(finding.resource.resource_type)}
                               </span>
                             </span>
                           </span>
                         ) : (
-                          <span className="text-[12.5px]">Tenant-wide</span>
+                          <span className="text-meta">Tenant-wide</span>
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <RiskScore score={finding.risk_score} className="text-[13px] text-foreground" />
+                        <RiskScore score={finding.risk_score} className="text-body text-foreground" />
                       </TableCell>
                       <TableCell>
                         <StatusPill status={finding.status} />
@@ -481,7 +485,7 @@ export function FindingsPage() {
                       >
                         {formatRelative(finding.last_detected_at)}
                       </TableCell>
-                    </TableRow>
+                    </MotionTableRow>
                   ))}
                 </TableBody>
               </Table>

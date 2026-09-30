@@ -1,4 +1,5 @@
 import { useT } from "@/i18n";
+import { useValueChange } from "@/lib/motion";
 
 /**
  * Movement since the previous reading.
@@ -22,6 +23,10 @@ import { useT } from "@/i18n";
  */
 export function ScoreDelta({ delta }: { delta: number | null }) {
   const t = useT();
+  // A new delta nudges its arrow once, the way it points. Keyed on the change
+  // count, so the keyframe replays for a new reading and never for a refetch
+  // or a remount (DECISIONS.md §178).
+  const { changes } = useValueChange(delta);
 
   if (delta === null) {
     return <p className="text-xs text-muted-foreground">{t.dashboard.noPreviousScan}</p>;
@@ -35,11 +40,23 @@ export function ScoreDelta({ delta }: { delta: number | null }) {
     <p
       className={
         improved
-          ? "inline-flex items-center gap-1 rounded-full border border-ok-border bg-ok-bg px-2 py-px text-[11.5px] font-medium tabular-nums text-ok"
-          : "inline-flex items-center gap-1 rounded-full border border-critical-border bg-critical-bg px-2 py-px text-[11.5px] font-medium tabular-nums text-critical"
+          ? "inline-flex items-center gap-1 rounded-full border border-ok-border bg-ok-bg px-2 py-px text-caption font-medium tabular-nums text-ok"
+          : "inline-flex items-center gap-1 rounded-full border border-critical-border bg-critical-bg px-2 py-px text-caption font-medium tabular-nums text-critical"
       }
     >
-      <span aria-hidden="true">{improved ? "\u2191" : "\u2193"}</span>{" "}
+      <span
+        key={changes}
+        aria-hidden="true"
+        className={
+          changes > 0
+            ? improved
+              ? "inline-block animate-[cg-nudge-up_360ms_ease-out]"
+              : "inline-block animate-[cg-nudge-down_360ms_ease-out]"
+            : "inline-block"
+        }
+      >
+        {improved ? "\u2191" : "\u2193"}
+      </span>{" "}
       {Math.abs(delta)}{" "}
       {improved ? t.dashboard.sinceLastScan : t.dashboard.scoreWorse}
     </p>

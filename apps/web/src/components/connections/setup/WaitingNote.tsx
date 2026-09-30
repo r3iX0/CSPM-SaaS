@@ -18,14 +18,14 @@ export function WaitingNote({ text, detail }: { text: string; detail?: string })
   return (
     <div
       role="status"
-      className="flex items-start gap-3 rounded-[10px] border border-dashed border-border px-4 py-3"
+      className="flex items-start gap-3 rounded-lg border border-dashed border-border px-4 py-3"
     >
       <span className="relative mt-1.5 flex size-2 shrink-0" aria-hidden>
         <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary/40" />
         <span className="relative inline-flex size-2 rounded-full bg-primary" />
       </span>
       <span className="min-w-0">
-        <span className="block text-[13px] font-medium text-foreground">{text}</span>
+        <span className="block text-body font-medium text-foreground">{text}</span>
         {detail && (
           <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
             {detail}

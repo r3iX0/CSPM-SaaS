@@ -136,13 +136,13 @@ function DeclarationFields({
     >
       <div>
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <p className="text-[13px] font-medium text-foreground">{account.account_name}</p>
+          <p className="text-body font-medium text-foreground">{account.account_name}</p>
           {!declared && (
-            <span className="rounded-full border border-dashed border-unknown-border px-2 py-px text-[11px] text-unknown">
+            <span className="rounded-full border border-dashed border-unknown-border px-2 py-px text-caption text-unknown">
               {t.settings.notDeclared}
             </span>
           )}
-          <code className="ml-auto text-[11px] text-muted-foreground">
+          <code className="ml-auto text-caption text-muted-foreground">
             {account.subscription_id}
           </code>
         </div>
@@ -232,7 +232,7 @@ function DeclarationFields({
 }
 
 /** Field labels in a declaration row: small and muted, three to a line. */
-const LABEL = "text-[11.5px] font-normal text-muted-foreground";
+const LABEL = "text-caption font-normal text-muted-foreground";
 
 function LevelField({
   id,

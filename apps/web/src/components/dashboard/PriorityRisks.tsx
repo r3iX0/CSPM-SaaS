@@ -11,11 +11,12 @@ import {
   Card,
   CardAction,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { stagger } from "@/lib/motion";
+import { useT } from "@/i18n";
+import { InfoTip } from "@/components/common/InfoTip";
 import { cn } from "@/lib/format";
 
 type Risk = Dashboard["top_risks"][number];
@@ -40,6 +41,7 @@ const GraphIcon = GRAPH_ICON;
  * that will go looking for a misconfiguration that exists on no single asset.
  */
 export function PriorityRisks({ risks }: { risks: Risk[] }) {
+  const t = useT();
   return (
     <Card
       role="region"
@@ -47,13 +49,14 @@ export function PriorityRisks({ risks }: { risks: Risk[] }) {
       className="gap-0 py-0 [--card-spacing:--spacing(5)]"
     >
       <CardHeader className="py-4">
-        <CardTitle id="priority-risks" className="text-[13.5px] font-semibold">
-          Priority risks
-        </CardTitle>
-        <CardDescription className="mt-1 text-xs">
-          Ranked by what each would cost this business, not by how many alerts
-          fired.
-        </CardDescription>
+        <div className="flex items-center gap-1">
+          <CardTitle id="priority-risks" className="text-body font-semibold">
+            Priority risks
+          </CardTitle>
+          <InfoTip label={t.dashboard.priorityExplainLabel}>
+            {t.dashboard.priorityExplain}
+          </InfoTip>
+        </div>
         <CardAction>
           <Link
             to="/risks"
@@ -66,10 +69,9 @@ export function PriorityRisks({ risks }: { risks: Risk[] }) {
 
       {risks.length === 0 ? (
         <CardContent className="border-t py-8">
-          <p className="text-center text-sm text-muted-foreground">
-            Nothing is currently ranked as a risk. Every check that reached a
-            verdict passed — the coverage note above says how much of the estate
-            that covers.
+          <p className="text-center text-body text-muted-foreground">
+            Nothing ranked as a risk. Every check with a verdict passed — coverage
+            says how much that is.
           </p>
         </CardContent>
       ) : (
@@ -88,7 +90,7 @@ export function PriorityRisks({ risks }: { risks: Risk[] }) {
                 <ScoreTile score={Number(risk.risk_score)} level={risk.risk_level} />
 
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[13.5px] font-medium">{risk.title}</p>
+                  <p className="truncate text-body font-medium">{risk.title}</p>
                   <RiskContext risk={risk} />
                 </div>
 
@@ -162,7 +164,7 @@ function RiskContext({ risk }: { risk: Risk }) {
 
   if (risk.kind === "ATTACK_PATH" && facts.length === 0) {
     return (
-      <p className="mt-0.5 truncate text-[11.5px] text-muted-foreground">
+      <p className="mt-0.5 truncate text-caption text-muted-foreground">
         Scenario — findings already counted individually below
       </p>
     );
@@ -174,7 +176,7 @@ function RiskContext({ risk }: { risk: Risk }) {
   return (
     // The separator is drawn, not written: it is punctuation for the eye, and
     // a screen reader already hears the items as a list.
-    <ul className="mt-0.5 flex min-w-0 flex-wrap items-center text-[11.5px] text-muted-foreground [&>li+li]:before:mx-1 [&>li+li]:before:content-['·']">
+    <ul className="mt-0.5 flex min-w-0 flex-wrap items-center text-caption text-muted-foreground [&>li+li]:before:mx-1 [&>li+li]:before:content-['·']">
       {parts.map((part) => (
         <li key={part} className="whitespace-nowrap">
           {part}

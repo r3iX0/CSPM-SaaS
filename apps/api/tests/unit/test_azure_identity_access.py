@@ -67,6 +67,18 @@ class FakeGraph:
         self._check("get_security_defaults")
         return {"isEnabled": False}
 
+    async def get_authorization_policy(self) -> dict:
+        return {}
+
+    async def get_authentication_methods_policy(self) -> dict:
+        return {}
+
+    async def list_group_settings(self) -> list[dict]:
+        return []
+
+    async def list_named_locations(self) -> list[dict]:
+        return []
+
     async def list_conditional_access_policies(self) -> list[dict]:
         self._check("list_conditional_access_policies")
         return []

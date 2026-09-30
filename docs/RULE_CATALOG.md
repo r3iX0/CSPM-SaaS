@@ -10,14 +10,14 @@
 
 Deterministic security evaluations against normalized cloud resources.
 
-- **Total Registered Rules**: 98
-- **Azure Rules (Active / Production Verified)**: 52
-- **AWS Rules (Preview / Unverified on Live Accounts)**: 46
+- **Total Registered Rules**: 219
+- **Azure Rules (Active / Production Verified)**: 169
+- **AWS Rules (Preview / Unverified on Live Accounts)**: 50
 
 | Provider | Status | Critical | High | Medium | Low | Total |
 |---|---|---|---|---|---|---|
-| **Azure** | 🟢 Active / Live Verified | 8 | 20 | 23 | 1 | 52 |
-| **AWS** | 🟡 Preview / Offline Tested | 5 | 12 | 27 | 2 | 46 |
+| **Azure** | 🟢 Active / Live Verified | 8 | 31 | 68 | 62 | 169 |
+| **AWS** | 🟡 Preview / Offline Tested | 5 | 12 | 30 | 3 | 50 |
 
 > [!IMPORTANT]
 > **AWS Rules Status**: The 40+ AWS rules are fully implemented and verified against
@@ -53,6 +53,9 @@ must possess to exploit the worst-case instance:
 | [AWS-DB-001](#aws-db-001) | RDS instance is publicly accessible | AWS | database | CRITICAL | 4 | `sql_server`, `postgresql_server` |
 | [AWS-DB-002](#aws-db-002) | RDS storage is not encrypted | AWS | database | HIGH | 1 | `sql_server`, `postgresql_server` |
 | [AWS-DB-003](#aws-db-003) | RDS instance does not take minor version upgrades | AWS | database | MEDIUM | 2 | `sql_server`, `postgresql_server` |
+| [AWS-COG-001](#aws-cog-001) | User pool threat protection is not enforced | AWS | identity | MEDIUM | 3 | `user_pool` |
+| [AWS-COG-002](#aws-cog-002) | User pool does not block sign-ins with compromised credentials | AWS | identity | MEDIUM | 3 | `user_pool` |
+| [AWS-COG-003](#aws-cog-003) | User pool lets risky sign-ins through unchallenged | AWS | identity | MEDIUM | 3 | `user_pool` |
 | [AWS-IAM-001](#aws-iam-001) | IAM user can sign in without MFA | AWS | identity | HIGH | 4 | `user` |
 | [AWS-IAM-002](#aws-iam-002) | The root user has an active access key | AWS | identity | CRITICAL | 3 | Aggregate (Tenant-wide) |
 | [AWS-IAM-003](#aws-iam-003) | An access key has gone unused | AWS | identity | MEDIUM | 3 | `user` |
@@ -80,6 +83,7 @@ must possess to exploit the worst-case instance:
 | [AWS-LOG-019](#aws-log-019) | Route table changes raise no alarm | AWS | logging | MEDIUM | 1 | Aggregate (Tenant-wide) |
 | [AWS-LOG-020](#aws-log-020) | VPC changes raise no alarm | AWS | logging | MEDIUM | 1 | Aggregate (Tenant-wide) |
 | [AWS-LOG-021](#aws-log-021) | AWS Organizations changes raise no alarm | AWS | logging | HIGH | 1 | Aggregate (Tenant-wide) |
+| [AWS-COG-004](#aws-cog-004) | User pool has no web ACL in front of it | AWS | network | LOW | 3 | `user_pool` |
 | [AWS-NET-001](#aws-net-001) | SSH is open to the internet | AWS | network | HIGH | 4 | `network_security_group` |
 | [AWS-NET-002](#aws-net-002) | RDP is open to the internet | AWS | network | CRITICAL | 4 | `network_security_group` |
 | [AWS-NET-003](#aws-net-003) | A database port is open to the internet | AWS | network | CRITICAL | 4 | `network_security_group` |
@@ -91,14 +95,52 @@ must possess to exploit the worst-case instance:
 | [AWS-STO-001](#aws-sto-001) | S3 bucket allows public access | AWS | storage | HIGH | 5 | `storage_account` |
 | [AWS-STO-002](#aws-sto-002) | S3 bucket has no default encryption | AWS | storage | MEDIUM | 1 | `storage_account` |
 | [AWS-STO-003](#aws-sto-003) | S3 bucket accepts plaintext HTTP | AWS | storage | MEDIUM | 2 | `storage_account` |
+| [AZ-ACR-001](#az-acr-001) | Container registry admin user is enabled | Azure | compute | HIGH | 3 | `container_registry` |
+| [AZ-ACR-002](#az-acr-002) | Container registry answers the whole internet | Azure | compute | MEDIUM | 3 | `container_registry` |
+| [AZ-ACR-003](#az-acr-003) | Container registry has no private endpoint | Azure | compute | LOW | 1 | `container_registry` |
+| [AZ-AKS-001](#az-aks-001) | Kubernetes API server answers the whole internet | Azure | compute | HIGH | 4 | `kubernetes_cluster` |
+| [AZ-AKS-002](#az-aks-002) | Kubernetes cluster keeps local admin accounts | Azure | compute | HIGH | 3 | `kubernetes_cluster` |
+| [AZ-AKS-003](#az-aks-003) | Kubernetes RBAC is disabled | Azure | compute | HIGH | 4 | `kubernetes_cluster` |
+| [AZ-AKS-004](#az-aks-004) | Kubernetes nodes have public IP addresses | Azure | compute | MEDIUM | 3 | `kubernetes_cluster` |
+| [AZ-AKS-005](#az-aks-005) | Kubernetes cluster has no network policy engine | Azure | compute | MEDIUM | 2 | `kubernetes_cluster` |
+| [AZ-AKS-006](#az-aks-006) | Kubernetes cluster does not upgrade itself | Azure | compute | MEDIUM | 1 | `kubernetes_cluster` |
+| [AZ-AKS-007](#az-aks-007) | Kubernetes cluster sends no monitoring data | Azure | compute | LOW | 0 | `kubernetes_cluster` |
+| [AZ-AKS-008](#az-aks-008) | Kubernetes cluster has no Defender security profile | Azure | compute | MEDIUM | 1 | `kubernetes_cluster` |
+| [AZ-BKP-001](#az-bkp-001) | Recovery Services vault protects nothing | Azure | compute | LOW | 0 | `backup_vault` |
+| [AZ-BKP-002](#az-bkp-002) | Backup policy keeps recovery points under 30 days | Azure | compute | LOW | 0 | `backup_vault` |
 | [AZ-CMP-001](#az-cmp-001) | Internet-facing virtual machine with an administrative port open | Azure | compute | HIGH | 4 | `virtual_machine` |
 | [AZ-CMP-002](#az-cmp-002) | Virtual machine governed by no network security group | Azure | compute | MEDIUM | 2 | `virtual_machine` |
 | [AZ-CMP-003](#az-cmp-003) | Virtual machine runs on unmanaged disks | Azure | compute | MEDIUM | 2 | `virtual_machine` |
+| [AZ-CMP-004](#az-cmp-004) | Linux virtual machine accepts password sign-in | Azure | compute | MEDIUM | 4 | `virtual_machine` |
+| [AZ-CMP-005](#az-cmp-005) | Virtual machine does not use Trusted Launch | Azure | compute | LOW | 1 | `virtual_machine` |
+| [AZ-CMP-006](#az-cmp-006) | Virtual machine disks use Microsoft's keys | Azure | compute | LOW | 0 | `virtual_machine` |
+| [AZ-CMP-008](#az-cmp-008) | Virtual machine is not behind just-in-time access | Azure | compute | LOW | 1 | `virtual_machine` |
+| [AZ-CMP-009](#az-cmp-009) | Virtual machine is not backed up | Azure | compute | MEDIUM | 0 | `virtual_machine` |
+| [AZ-CMP-010](#az-cmp-010) | Unattached disk is encrypted with Microsoft's keys | Azure | compute | LOW | 0 | `disk` |
+| [AZ-CMP-011](#az-cmp-011) | Virtual machine backups are kept under 7 days | Azure | compute | LOW | 0 | `virtual_machine` |
+| [AZ-CMP-012](#az-cmp-012) | Scale set is fronted by no load balancer | Azure | compute | LOW | 0 | `scale_set` |
+| [AZ-CMP-013](#az-cmp-013) | Scale set runs no instances | Azure | compute | LOW | 0 | `scale_set` |
+| [AZ-DBW-001](#az-dbw-001) | Databricks workspace answers the whole internet | Azure | compute | MEDIUM | 3 | `analytics_workspace` |
+| [AZ-DBW-002](#az-dbw-002) | Databricks cluster nodes get public IP addresses | Azure | compute | HIGH | 3 | `analytics_workspace` |
+| [AZ-DBW-003](#az-dbw-003) | Databricks workspace is not in a customer-managed network | Azure | compute | MEDIUM | 2 | `analytics_workspace` |
+| [AZ-DBW-004](#az-dbw-004) | Databricks workspace encrypts its notebooks with Microsoft's keys | Azure | compute | LOW | 1 | `analytics_workspace` |
 | [AZ-WEB-001](#az-web-001) | Web app accepts plain HTTP | Azure | compute | MEDIUM | 2 | `app_service` |
 | [AZ-WEB-002](#az-web-002) | Web app negotiates TLS below 1.2 | Azure | compute | MEDIUM | 2 | `app_service` |
 | [AZ-WEB-003](#az-web-003) | Web app accepts unencrypted FTP deployments | Azure | compute | HIGH | 3 | `app_service` |
 | [AZ-WEB-004](#az-web-004) | Web app has remote debugging switched on | Azure | compute | MEDIUM | 2 | `app_service` |
 | [AZ-WEB-005](#az-web-005) | Web app runs without a managed identity | Azure | compute | LOW | 1 | `app_service` |
+| [AZ-WEB-008](#az-web-008) | App Service Authentication is off | Azure | compute | LOW | 2 | `app_service` |
+| [AZ-WEB-009](#az-web-009) | Web app sends its HTTP logs nowhere | Azure | compute | LOW | 1 | `app_service` |
+| [AZ-WEB-010](#az-web-010) | Web app does not use HTTP/2 | Azure | compute | LOW | 0 | `app_service` |
+| [AZ-WEB-011](#az-web-011) | Web app runs a Python version past end of support | Azure | compute | MEDIUM | 2 | `app_service` |
+| [AZ-WEB-012](#az-web-012) | Web app runs a PHP version past end of support | Azure | compute | MEDIUM | 2 | `app_service` |
+| [AZ-WEB-013](#az-web-013) | Web app runs a Java version past end of support | Azure | compute | MEDIUM | 2 | `app_service` |
+| [AZ-COS-001](#az-cos-001) | Cosmos DB account answers the whole internet | Azure | database | HIGH | 4 | `document_database` |
+| [AZ-COS-002](#az-cos-002) | Cosmos DB account accepts its account keys | Azure | database | MEDIUM | 3 | `document_database` |
+| [AZ-COS-003](#az-cos-003) | Cosmos DB account accepts TLS below 1.2 | Azure | database | MEDIUM | 2 | `document_database` |
+| [AZ-COS-004](#az-cos-004) | Cosmos DB account has no private endpoint | Azure | database | LOW | 1 | `document_database` |
+| [AZ-COS-005](#az-cos-005) | Cosmos DB account does not fail over automatically | Azure | database | LOW | 0 | `document_database` |
+| [AZ-COS-006](#az-cos-006) | Cosmos DB account has no continuous backup | Azure | database | LOW | 0 | `document_database` |
 | [AZ-DB-001](#az-db-001) | Database server publicly accessible | Azure | database | CRITICAL | 5 | `sql_server`, `postgresql_server` |
 | [AZ-DB-002](#az-db-002) | Sensitive database has no private connectivity | Azure | database | MEDIUM | 2 | `sql_server`, `postgresql_server` |
 | [AZ-DB-003](#az-db-003) | Database server keeps no audit trail | Azure | database | MEDIUM | 1 | `sql_server` |
@@ -106,6 +148,28 @@ must possess to exploit the worst-case instance:
 | [AZ-DB-007](#az-db-007) | SQL server accepts TLS below 1.2 | Azure | database | MEDIUM | 2 | `sql_server` |
 | [AZ-DB-008](#az-db-008) | SQL server has no Entra administrator | Azure | database | MEDIUM | 3 | `sql_server` |
 | [AZ-DB-009](#az-db-009) | PostgreSQL server accepts connections without TLS | Azure | database | HIGH | 3 | `postgresql_server` |
+| [AZ-DB-010](#az-db-010) | PostgreSQL server does not log checkpoints | Azure | database | LOW | 1 | `postgresql_server` |
+| [AZ-DB-011](#az-db-011) | PostgreSQL server does not log connection attempts | Azure | database | MEDIUM | 1 | `postgresql_server` |
+| [AZ-DB-012](#az-db-012) | PostgreSQL server does not log session ends | Azure | database | LOW | 1 | `postgresql_server` |
+| [AZ-DB-013](#az-db-013) | PostgreSQL server does not throttle repeated failed sign-ins | Azure | database | LOW | 1 | `postgresql_server` |
+| [AZ-DB-014](#az-db-014) | PostgreSQL server keeps its logs for three days or less | Azure | database | LOW | 0 | `postgresql_server` |
+| [AZ-DB-015](#az-db-015) | PostgreSQL server does not accept Entra authentication | Azure | database | MEDIUM | 2 | `postgresql_server` |
+| [AZ-DB-016](#az-db-016) | SQL server keeps its audit records for under 90 days | Azure | database | LOW | 0 | `sql_server` |
+| [AZ-DB-017](#az-db-017) | SQL server encrypts with a service-managed key | Azure | database | LOW | 0 | `sql_server` |
+| [AZ-DB-018](#az-db-018) | SQL server is not watched by Defender for SQL | Azure | database | MEDIUM | 1 | `sql_server` |
+| [AZ-DB-019](#az-db-019) | SQL server is not assessed for vulnerabilities | Azure | database | MEDIUM | 1 | `sql_server` |
+| [AZ-DB-020](#az-db-020) | SQL vulnerability assessment does not scan on a schedule | Azure | database | LOW | 1 | `sql_server` |
+| [AZ-DB-021](#az-db-021) | SQL vulnerability scan results are sent to nobody | Azure | database | LOW | 1 | `sql_server` |
+| [AZ-DB-022](#az-db-022) | SQL vulnerability scans do not notify subscription administrators | Azure | database | LOW | 1 | `sql_server` |
+| [AZ-DB-023](#az-db-023) | PostgreSQL server backups are not geo-redundant | Azure | database | LOW | 0 | `postgresql_server` |
+| [AZ-DB-024](#az-db-024) | PostgreSQL server has no high availability | Azure | database | LOW | 0 | `postgresql_server` |
+| [AZ-MYS-001](#az-mys-001) | MySQL server accepts unencrypted connections | Azure | database | HIGH | 3 | `mysql_server` |
+| [AZ-MYS-002](#az-mys-002) | MySQL server accepts TLS below 1.2 | Azure | database | MEDIUM | 2 | `mysql_server` |
+| [AZ-MYS-003](#az-mys-003) | MySQL server keeps no audit log | Azure | database | MEDIUM | 1 | `mysql_server` |
+| [AZ-MYS-004](#az-mys-004) | MySQL audit log does not record connections | Azure | database | LOW | 1 | `mysql_server` |
+| [AZ-MYS-005](#az-mys-005) | MySQL server backups are not geo-redundant | Azure | database | LOW | 0 | `mysql_server` |
+| [AZ-MYS-006](#az-mys-006) | MySQL server has no high availability | Azure | database | LOW | 0 | `mysql_server` |
+| [AZ-SRCH-001](#az-srch-001) | AI Search service answers the whole internet | Azure | database | HIGH | 3 | `search_service` |
 | [AZ-APP-001](#az-app-001) | Application credential valid for years | Azure | identity | MEDIUM | 3 | `application` |
 | [AZ-IAM-001](#az-iam-001) | Person holds full control of a subscription | Azure | identity | HIGH | 3 | `user`, `service_principal`, `group` |
 | [AZ-IAM-002](#az-iam-002) | Workload identity holds full control of a subscription | Azure | identity | HIGH | 3 | `user`, `service_principal`, `group` |
@@ -121,9 +185,34 @@ must possess to exploit the worst-case instance:
 | [AZ-ID-006](#az-id-006) | Legacy authentication is not blocked | Azure | identity | HIGH | 4 | Aggregate (Tenant-wide) |
 | [AZ-ID-011](#az-id-011) | Guest account holds a privileged role | Azure | identity | HIGH | 3 | `user` |
 | [AZ-ID-012](#az-id-012) | Disabled account still holds a privileged role | Azure | identity | MEDIUM | 2 | `user` |
+| [AZ-ID-013](#az-id-013) | Azure management does not require multi-factor authentication | Azure | identity | HIGH | 4 | Aggregate (Tenant-wide) |
+| [AZ-ID-014](#az-id-014) | Microsoft admin portals do not require multi-factor authentication | Azure | identity | MEDIUM | 3 | Aggregate (Tenant-wide) |
+| [AZ-ID-015](#az-id-015) | Users can consent to any application | Azure | identity | HIGH | 4 | Aggregate (Tenant-wide) |
+| [AZ-ID-016](#az-id-016) | Any user can register applications | Azure | identity | MEDIUM | 2 | Aggregate (Tenant-wide) |
+| [AZ-ID-017](#az-id-017) | Any member can invite guests | Azure | identity | MEDIUM | 2 | Aggregate (Tenant-wide) |
+| [AZ-ID-018](#az-id-018) | Guests can read the directory | Azure | identity | MEDIUM | 2 | Aggregate (Tenant-wide) |
+| [AZ-ID-019](#az-id-019) | Any user can create tenants or security groups | Azure | identity | LOW | 1 | Aggregate (Tenant-wide) |
+| [AZ-ID-020](#az-id-020) | No strong sign-in method is offered, or registration is not campaigned | Azure | identity | MEDIUM | 2 | Aggregate (Tenant-wide) |
+| [AZ-ID-021](#az-id-021) | Any user can create Microsoft 365 groups | Azure | identity | LOW | 1 | Aggregate (Tenant-wide) |
+| [AZ-ID-022](#az-id-022) | No trusted named location is defined | Azure | identity | LOW | 1 | Aggregate (Tenant-wide) |
 | [AZ-LOG-001](#az-log-001) | Diagnostic logging not configured | Azure | logging | MEDIUM | 1 | `storage_account`, `sql_server`, `postgresql_server`, `network_security_group` |
 | [AZ-LOG-002](#az-log-002) | Subscription activity log is not exported | Azure | logging | MEDIUM | 1 | `subscription` |
 | [AZ-LOG-004](#az-log-004) | Critical resource keeps no record of what happens to it | Azure | logging | MEDIUM | 1 | `key_vault`, `virtual_machine` |
+| [AZ-LOG-005](#az-log-005) | No alert fires when a policy is assigned | Azure | logging | LOW | 1 | `subscription` |
+| [AZ-LOG-006](#az-log-006) | No alert fires when a policy assignment is removed | Azure | logging | MEDIUM | 1 | `subscription` |
+| [AZ-LOG-007](#az-log-007) | No alert fires when a network security group is created or changed | Azure | logging | MEDIUM | 1 | `subscription` |
+| [AZ-LOG-008](#az-log-008) | No alert fires when a network security group is deleted | Azure | logging | MEDIUM | 1 | `subscription` |
+| [AZ-LOG-009](#az-log-009) | No alert fires when a security solution is created or changed | Azure | logging | LOW | 1 | `subscription` |
+| [AZ-LOG-010](#az-log-010) | No alert fires when a security solution is deleted | Azure | logging | LOW | 1 | `subscription` |
+| [AZ-LOG-011](#az-log-011) | No alert fires when a SQL server firewall rule is created or changed | Azure | logging | MEDIUM | 1 | `subscription` |
+| [AZ-LOG-012](#az-log-012) | No alert fires when a SQL server firewall rule is deleted | Azure | logging | LOW | 1 | `subscription` |
+| [AZ-LOG-013](#az-log-013) | No alert fires when a public IP address is created or changed | Azure | logging | LOW | 1 | `subscription` |
+| [AZ-LOG-014](#az-log-014) | No alert fires when a public IP address is deleted | Azure | logging | LOW | 1 | `subscription` |
+| [AZ-LOG-015](#az-log-015) | No alert fires on a Service Health incident | Azure | logging | LOW | 0 | `subscription` |
+| [AZ-LOG-016](#az-log-016) | The activity log export leaves out security categories | Azure | logging | MEDIUM | 1 | `subscription` |
+| [AZ-LOG-017](#az-log-017) | Activity log storage uses Microsoft's keys | Azure | logging | LOW | 0 | `storage_account` |
+| [AZ-LOG-018](#az-log-018) | Activity log storage allows public blob access | Azure | logging | HIGH | 2 | `storage_account` |
+| [AZ-LOG-019](#az-log-019) | Apps run with no Application Insights resource | Azure | logging | LOW | 0 | `subscription` |
 | [AZ-NET-001](#az-net-001) | RDP exposed to the internet | Azure | network | CRITICAL | 5 | `network_security_group` |
 | [AZ-NET-002](#az-net-002) | SSH exposed to the internet | Azure | network | HIGH | 4 | `network_security_group` |
 | [AZ-NET-003](#az-net-003) | Unrestricted inbound NSG rule | Azure | network | HIGH | 4 | `network_security_group` |
@@ -131,18 +220,50 @@ must possess to exploit the worst-case instance:
 | [AZ-NET-005](#az-net-005) | SQL exposed to the internet | Azure | network | CRITICAL | 4 | `network_security_group` |
 | [AZ-NET-008](#az-net-008) | SMB exposed publicly | Azure | network | CRITICAL | 5 | `network_security_group` |
 | [AZ-NET-009](#az-net-009) | UDP exposed to the internet | Azure | network | MEDIUM | 3 | `network_security_group` |
+| [AZ-NET-010](#az-net-010) | Virtual network traffic reaches no workspace | Azure | network | MEDIUM | 1 | `virtual_network` |
+| [AZ-NET-011](#az-net-011) | Flow logs are kept for under 90 days | Azure | network | LOW | 1 | `virtual_network` |
+| [AZ-NET-012](#az-net-012) | No Network Watcher in the network's region | Azure | network | MEDIUM | 1 | `virtual_network` |
+| [AZ-NET-013](#az-net-013) | Virtual network has no DDoS Network Protection | Azure | network | LOW | 1 | `virtual_network` |
+| [AZ-NET-014](#az-net-014) | No Bastion host for administering machines | Azure | network | LOW | 1 | `subscription` |
 | [AZ-NET-015](#az-net-015) | Sensitive machine holds a public IP address | Azure | network | HIGH | 3 | `virtual_machine` |
 | [AZ-DEF-001](#az-def-001) | Defender for Cloud plans are off | Azure | posture | MEDIUM | 1 | `subscription` |
+| [AZ-DEF-002](#az-def-002) | Defender for Cloud emails no security contact | Azure | posture | LOW | 1 | `subscription` |
+| [AZ-DEF-003](#az-def-003) | Defender for Cloud sends no email about high-severity alerts | Azure | posture | MEDIUM | 1 | `subscription` |
+| [AZ-DEF-004](#az-def-004) | Defender for Cloud does not email subscription owners | Azure | posture | LOW | 1 | `subscription` |
+| [AZ-DEF-005](#az-def-005) | Defender for Cloud sends no email about attack paths | Azure | posture | LOW | 1 | `subscription` |
+| [AZ-DEF-006](#az-def-006) | Defender for Endpoint integration is off | Azure | posture | MEDIUM | 1 | `subscription` |
+| [AZ-DEF-007](#az-def-007) | Defender for Cloud Apps integration is off | Azure | posture | LOW | 1 | `subscription` |
+| [AZ-DEF-008](#az-def-008) | Container images are not scanned for vulnerabilities | Azure | posture | MEDIUM | 1 | `subscription` |
+| [AZ-DEF-009](#az-def-009) | IoT hub is not watched by Defender for IoT | Azure | posture | MEDIUM | 1 | `subscription` |
+| [AZ-DEF-010](#az-def-010) | The Microsoft cloud security benchmark is not enforced | Azure | posture | MEDIUM | 1 | `subscription` |
+| [AZ-DEF-011](#az-def-011) | Defender CSPM is off | Azure | posture | LOW | 1 | `subscription` |
 | [AZ-MAL-001](#az-mal-001) | Machine has no working endpoint protection | Azure | posture | MEDIUM | 2 | `virtual_machine` |
 | [AZ-VULN-001](#az-vuln-001) | Internet-facing machine has unpatched vulnerabilities | Azure | posture | CRITICAL | 5 | `virtual_machine` |
+| [AZ-VULN-002](#az-vuln-002) | Machine has no vulnerability assessment | Azure | posture | MEDIUM | 1 | `virtual_machine` |
 | [AZ-KV-001](#az-kv-001) | Key vault can be permanently destroyed | Azure | secrets | HIGH | 2 | `key_vault` |
 | [AZ-KV-002](#az-kv-002) | Key vault answers the whole internet | Azure | secrets | HIGH | 4 | `key_vault` |
 | [AZ-KV-003](#az-kv-003) | Key vault authorizes through access policies | Azure | secrets | MEDIUM | 2 | `key_vault` |
+| [AZ-KV-004](#az-kv-004) | Key vault holds keys that never expire | Azure | secrets | MEDIUM | 1 | `key_vault` |
+| [AZ-KV-005](#az-kv-005) | Key vault holds secrets that never expire | Azure | secrets | MEDIUM | 1 | `key_vault` |
+| [AZ-KV-006](#az-kv-006) | Key vault holds keys that never rotate | Azure | secrets | MEDIUM | 1 | `key_vault` |
 | [AZ-STO-001](#az-sto-001) | Storage account allows public access | Azure | storage | HIGH | 5 | `storage_account` |
 | [AZ-STO-002](#az-sto-002) | Storage account transport and encryption settings insufficient | Azure | storage | HIGH | 2 | `storage_account` |
 | [AZ-STO-003](#az-sto-003) | Storage account accepts insecure connections | Azure | storage | MEDIUM | 2 | `storage_account` |
 | [AZ-STO-004](#az-sto-004) | Storage account can replicate into another tenant | Azure | storage | MEDIUM | 2 | `storage_account` |
 | [AZ-STO-005](#az-sto-005) | Deleted blobs cannot be recovered | Azure | storage | MEDIUM | 2 | `storage_account` |
+| [AZ-STO-006](#az-sto-006) | Blob versioning is off | Azure | storage | MEDIUM | 2 | `storage_account` |
+| [AZ-STO-007](#az-sto-007) | Storage infrastructure encryption is off | Azure | storage | LOW | 0 | `storage_account` |
+| [AZ-STO-008](#az-sto-008) | Storage account is encrypted with Microsoft's keys | Azure | storage | LOW | 0 | `storage_account` |
+| [AZ-STO-009](#az-sto-009) | Storage portal access does not default to Entra authorization | Azure | storage | LOW | 1 | `storage_account` |
+| [AZ-STO-010](#az-sto-010) | Trusted Azure services cannot reach a network-restricted account | Azure | storage | LOW | 0 | `storage_account` |
+| [AZ-STO-011](#az-sto-011) | Storage account has no private endpoint | Azure | storage | LOW | 1 | `storage_account` |
+| [AZ-STO-012](#az-sto-012) | File share soft delete is off | Azure | storage | MEDIUM | 1 | `storage_account` |
+| [AZ-STO-013](#az-sto-013) | File shares accept SMB versions older than 3.1.1 | Azure | storage | LOW | 1 | `storage_account` |
+| [AZ-STO-014](#az-sto-014) | File shares accept SMB channel ciphers weaker than AES-256-GCM | Azure | storage | LOW | 1 | `storage_account` |
+| [AZ-STO-015](#az-sto-015) | Storage access keys are not set to expire within 90 days | Azure | storage | MEDIUM | 1 | `storage_account` |
+| [AZ-STO-016](#az-sto-016) | Storage account is not geo-redundant | Azure | storage | LOW | 0 | `storage_account` |
+| [AZ-WEB-006](#az-web-006) | Function app answers the whole internet | Azure | web | MEDIUM | 3 | `app_service` |
+| [AZ-WEB-007](#az-web-007) | Function app has no virtual network integration | Azure | web | LOW | 1 | `app_service` |
 
 ---
 
@@ -150,7 +271,258 @@ must possess to exploit the worst-case instance:
 
 ### Azure Rules
 
-#### compute (8 rules)
+#### compute (40 rules)
+
+##### <a id="az-acr-001"></a>`AZ-ACR-001` — Container registry admin user is enabled
+
+- **Severity**: `HIGH` | **Exploitability**: `3/5` | **Effort**: `~60 min`
+- **Scope**: `per_resource`
+- **Applies to**: `container_registry`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.16, A.5.17` &bull; `NIST_800_53: IA-2, IA-5` &bull; `NIST_CSF: PR.AC-1` &bull; `PCI_DSS_4: 8.2.1, 8.3.1` &bull; `SOC2: CC6.1`
+
+**Description**: The registry's admin user is on: one shared username and password that can push and pull every image, outside the directory and without an owner.
+
+**Rationale**: Whoever holds the admin password can replace an image that production pulls -- a supply-chain compromise with no sign-in to attribute it to.
+
+**Remediation**:
+```bash
+Move the pipelines and clusters that use the admin login to an identity -- a managed identity or a service principal holding AcrPull or AcrPush -- then disable the admin user.
+
+Azure CLI:
+  az acr update --name <registry> --resource-group <rg> --admin-enabled false
+```
+
+##### <a id="az-acr-002"></a>`AZ-ACR-002` — Container registry answers the whole internet
+
+- **Severity**: `MEDIUM` | **Exploitability**: `3/5` | **Effort**: `~90 min`
+- **Scope**: `per_resource`
+- **Applies to**: `container_registry`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF: PR.AC-5` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
+
+**Description**: The registry accepts connections from any network. Pushes and pulls still need a credential, and a leaked one works from anywhere.
+
+**Rationale**: A registry that only the build agents and clusters can reach turns a leaked push credential into a credential nobody outside can use.
+
+**Remediation**:
+```bash
+Deny by default and allow the networks your build agents and clusters use, or disable public access and reach the registry through a private endpoint. Both need the Premium tier.
+
+Azure CLI:
+  az acr network-rule add --name <registry> --ip-address <cidr>
+  az acr update --name <registry> --resource-group <rg> --default-action Deny
+```
+
+##### <a id="az-acr-003"></a>`AZ-ACR-003` — Container registry has no private endpoint
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~120 min`
+- **Scope**: `per_resource`
+- **Applies to**: `container_registry`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF: PR.AC-5` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
+
+**Description**: No approved private endpoint serves the registry, so build agents and clusters can only reach it over its public endpoint.
+
+**Rationale**: A private endpoint gives the registry an address inside the customer's own network, which is what lets public access be switched off without cutting off the workloads that use it.
+
+**Remediation**:
+```bash
+Create a private endpoint for the registry in the virtual network its callers use, add the private DNS zone, and then switch public access off.
+
+Azure CLI:
+  az network private-endpoint create --name <endpoint> --resource-group <rg> \
+    --vnet-name <vnet> --subnet <subnet> \
+    --private-connection-resource-id <resource-id> --group-id registry \
+    --connection-name <connection>
+```
+
+##### <a id="az-aks-001"></a>`AZ-AKS-001` — Kubernetes API server answers the whole internet
+
+- **Severity**: `HIGH` | **Exploitability**: `4/5` | **Effort**: `~60 min`
+- **Scope**: `per_resource`
+- **Applies to**: `kubernetes_cluster`
+- **Compliance Mappings**: `GDPR: 5(1)(f), 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7, AC-17` &bull; `NIST_CSF: PR.AC-3, PR.AC-5` &bull; `PCI_DSS_4: 1.3.1, 1.4.1` &bull; `SOC2: CC6.1, CC6.6`
+
+**Description**: A managed Kubernetes cluster's API server accepts connections from any address. It is private to no network and limited to no address range, so a stolen kubeconfig or a leaked token works from anywhere.
+
+**Rationale**: The API server is where every workload on the cluster is created, read and deleted. Left open, the only thing between the internet and it is whatever credential leaks next -- and cluster credentials travel: CI runners, developer laptops, shared kubeconfig files.
+
+**Remediation**:
+```bash
+Limit the API server to the networks that operate the cluster.
+
+The lightest change is authorized IP ranges: only the named addresses can reach the API server. The strongest is a private cluster, whose API server has no public address at all -- which has to be planned, because everything that deploys to the cluster must then reach it privately.
+
+Azure CLI:
+  az aks update --name <cluster> --resource-group <rg> \
+    --api-server-authorized-ip-ranges <cidr>
+```
+
+##### <a id="az-aks-002"></a>`AZ-AKS-002` — Kubernetes cluster keeps local admin accounts
+
+- **Severity**: `HIGH` | **Exploitability**: `3/5` | **Effort**: `~45 min`
+- **Scope**: `per_resource`
+- **Applies to**: `kubernetes_cluster`
+- **Compliance Mappings**: `GDPR: 25, 32(1)(b)` &bull; `ISO_27001: A.5.15, A.5.17` &bull; `NIST_800_53: IA-2, AC-2` &bull; `NIST_CSF: PR.AC-1, PR.AC-7` &bull; `PCI_DSS_4: 8.2.1, 8.4.2` &bull; `SOC2: CC6.1, CC6.2`
+
+**Description**: The cluster still issues its local cluster-admin credential. Whoever holds it is an administrator of the cluster without the directory being asked -- no multi-factor authentication, no Conditional Access, no sign-in record.
+
+**Rationale**: A local admin kubeconfig is a static credential with no expiry, and it bypasses everything the directory enforces. Disabling it makes every sign-in to the cluster an Entra sign-in, subject to the tenant's own rules.
+
+**Remediation**:
+```bash
+Disable local accounts, after confirming the cluster is integrated with Microsoft Entra ID and that the people and pipelines that operate it can sign in that way.
+
+Azure CLI:
+  az aks update --name <cluster> --resource-group <rg> --disable-local-accounts
+```
+
+##### <a id="az-aks-003"></a>`AZ-AKS-003` — Kubernetes RBAC is disabled
+
+- **Severity**: `HIGH` | **Exploitability**: `4/5` | **Effort**: `~240 min`
+- **Scope**: `per_resource`
+- **Applies to**: `kubernetes_cluster`
+- **Compliance Mappings**: `GDPR: 25, 32(1)(b)` &bull; `ISO_27001: A.5.15, A.8.2` &bull; `NIST_800_53: AC-3, AC-6` &bull; `NIST_CSF: PR.AC-4` &bull; `PCI_DSS_4: 7.2.1, 7.2.2` &bull; `SOC2: CC6.1, CC6.3`
+
+**Description**: The cluster runs without Kubernetes role-based access control, so anyone who can authenticate to it can do anything inside it.
+
+**Rationale**: Without RBAC there is no least privilege inside the cluster: a pipeline that deploys one service can read every secret in every namespace.
+
+**Remediation**:
+```bash
+Kubernetes RBAC cannot be switched on for an existing cluster. Create a replacement with RBAC enabled -- the default for every cluster created today -- and move workloads onto it.
+
+Azure CLI:
+  az aks create --name <cluster> --resource-group <rg> --enable-aad \
+    --enable-azure-rbac
+```
+
+##### <a id="az-aks-004"></a>`AZ-AKS-004` — Kubernetes nodes have public IP addresses
+
+- **Severity**: `MEDIUM` | **Exploitability**: `3/5` | **Effort**: `~120 min`
+- **Scope**: `per_resource`
+- **Applies to**: `kubernetes_cluster`
+- **Compliance Mappings**: `GDPR: 5(1)(f), 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7, AC-17` &bull; `NIST_CSF: PR.AC-3, PR.AC-5` &bull; `PCI_DSS_4: 1.3.1, 1.4.1` &bull; `SOC2: CC6.1, CC6.6`
+
+**Description**: A node pool gives each of its machines a public IP address, so the nodes themselves answer the internet on whatever their network rules allow.
+
+**Rationale**: Cluster nodes run every pod scheduled on them and hold the kubelet identity. A public address on each one turns a network rule mistake into direct access to the machines the whole cluster runs on.
+
+**Remediation**:
+```bash
+Recreate the node pool without node public IPs and reach the internet through the cluster's load balancer or a NAT gateway instead. The setting cannot be changed on an existing pool.
+
+Azure CLI:
+  az aks nodepool add --cluster-name <cluster> --resource-group <rg> \
+    --name <pool>
+```
+
+##### <a id="az-aks-005"></a>`AZ-AKS-005` — Kubernetes cluster has no network policy engine
+
+- **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~180 min`
+- **Scope**: `per_resource`
+- **Applies to**: `kubernetes_cluster`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF: PR.AC-5` &bull; `PCI_DSS_4: 1.2.1, 1.3.1` &bull; `SOC2: CC6.6`
+
+**Description**: The cluster runs no network policy engine, so every pod can reach every other pod and nothing a team writes to restrict that is enforced.
+
+**Rationale**: Without network policy one compromised pod can reach the database pods, the internal APIs and the metrics endpoints of every other service on the cluster. Policies can only be written once an engine enforces them.
+
+**Remediation**:
+```bash
+Enable a network policy engine -- Azure, Calico or Cilium -- and then write policies that allow only the traffic each service needs.
+
+Azure CLI:
+  az aks update --name <cluster> --resource-group <rg> --network-policy azure
+```
+
+##### <a id="az-aks-006"></a>`AZ-AKS-006` — Kubernetes cluster does not upgrade itself
+
+- **Severity**: `MEDIUM` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `kubernetes_cluster`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: CM-6, SI-2` &bull; `NIST_CSF: ID.RA-1` &bull; `PCI_DSS_4: 6.3.3` &bull; `SOC2: CC7.1`
+
+**Description**: The cluster has no automatic upgrade channel, so it stays on whatever Kubernetes version and node image it has until someone upgrades it by hand.
+
+**Rationale**: Clusters left alone fall out of support and keep known vulnerabilities in the control plane and node images. A patch channel keeps both current.
+
+**Remediation**:
+```bash
+Azure CLI:
+  az aks update --name <cluster> --resource-group <rg> \
+    --auto-upgrade-channel patch
+```
+
+##### <a id="az-aks-007"></a>`AZ-AKS-007` — Kubernetes cluster sends no monitoring data
+
+- **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `kubernetes_cluster`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.15, A.8.16` &bull; `NIST_800_53: AU-2, SI-4` &bull; `NIST_CSF: PR.PT-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
+
+**Description**: Neither Container insights nor managed Prometheus collects the cluster's metrics and logs.
+
+**Rationale**: Without them a compromised pod, a crash loop or a node under attack leaves nothing to investigate afterwards.
+
+**Remediation**:
+```bash
+Azure CLI:
+  az aks enable-addons --name <cluster> --resource-group <rg> --addons monitoring
+```
+
+##### <a id="az-aks-008"></a>`AZ-AKS-008` — Kubernetes cluster has no Defender security profile
+
+- **Severity**: `MEDIUM` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `kubernetes_cluster`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.15, A.8.16` &bull; `NIST_800_53: AU-2, SI-4` &bull; `NIST_CSF: PR.PT-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
+
+**Description**: Defender for Containers' sensor is not enabled on the cluster, so its nodes and workloads get no runtime threat detection.
+
+**Rationale**: The sensor is what sees a container spawning a shell, a miner started in a pod or a node reaching for the metadata service. The plan being on is not enough if the cluster never received it.
+
+**Remediation**:
+```bash
+Azure CLI:
+  az aks update --name <cluster> --resource-group <rg> --enable-defender
+```
+
+##### <a id="az-bkp-001"></a>`AZ-BKP-001` — Recovery Services vault protects nothing
+
+- **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `backup_vault`
+- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF: PR.IP-4, RC.RP-1` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
+
+**Description**: The vault holds no protected item, so whatever it was created to back up is not being backed up by it.
+
+**Rationale**: An empty vault usually means protection was removed or never finished, and a machine somebody believes is backed up is not.
+
+**Remediation**:
+```bash
+Protect the workloads the vault was made for, or delete it.
+
+Azure CLI:
+  az backup protection enable-for-vm --resource-group <rg> \
+    --vault-name <vault> --vm <vm> --policy-name DefaultPolicy
+```
+
+##### <a id="az-bkp-002"></a>`AZ-BKP-002` — Backup policy keeps recovery points under 30 days
+
+- **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `backup_vault`
+- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF: PR.IP-4, RC.RP-1` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
+
+**Description**: A backup policy in the vault keeps daily recovery points for less than 30 days, shorter than intrusions and silent corruption usually go unnoticed.
+
+**Rationale**: Restoring is only possible to a point still kept. Ransomware that sat quietly for five weeks has already aged out every clean copy of a four-week policy.
+
+**Remediation**:
+```bash
+Raise daily retention on the policies named in the finding to 30 days or more.
+
+Azure Portal: Recovery Services vault > Backup policies > select the policy > Modify > Retention of daily backup point > 30 days > Update.
+```
 
 ##### <a id="az-cmp-001"></a>`AZ-CMP-001` — Internet-facing virtual machine with an administrative port open
 
@@ -220,6 +592,263 @@ Azure CLI:
   az vm start --resource-group <rg> --name <vm>
 
 Delete the original VHD blobs once the machine is confirmed working -- until then they are a full copy of its disks in a storage account.
+```
+
+##### <a id="az-cmp-004"></a>`AZ-CMP-004` — Linux virtual machine accepts password sign-in
+
+- **Severity**: `MEDIUM` | **Exploitability**: `4/5` | **Effort**: `~60 min`
+- **Scope**: `per_resource`
+- **Applies to**: `virtual_machine`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17` &bull; `NIST_800_53: IA-2, IA-5` &bull; `NIST_CSF: PR.AC-1, PR.AC-7` &bull; `PCI_DSS_4: 8.3.1` &bull; `SOC2: CC6.1`
+
+**Description**: A Linux machine was deployed with password authentication allowed for SSH, so its accounts can be guessed and sprayed rather than needing a key.
+
+**Rationale**: Password sign-in is what SSH brute forcing needs. With keys only, a reachable port is a door with no keyhole a guess can fit.
+
+**Remediation**:
+```bash
+The setting is fixed when the machine is created. Rebuild it with SSH keys only; until then set `PasswordAuthentication no` in the machine's sshd configuration, which closes the door but does not change what Azure records -- so this finding stays open until the rebuild.
+
+Azure CLI, for the interim change:
+  az vm run-command invoke --name <vm> --resource-group <rg> \
+    --command-id RunShellScript --scripts \
+    "sed -i 's/^#\\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config && systemctl reload sshd"
+```
+
+##### <a id="az-cmp-005"></a>`AZ-CMP-005` — Virtual machine does not use Trusted Launch
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `virtual_machine`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: CM-6, SI-2` &bull; `NIST_CSF: ID.RA-1` &bull; `PCI_DSS_4: 6.3.3` &bull; `SOC2: CC7.1`
+
+**Description**: The machine is not a Trusted Launch VM with secure boot and a virtual TPM, so a bootkit or rootkit can load before the operating system.
+
+**Rationale**: Secure boot refuses unsigned boot components and the vTPM lets the boot be measured and attested.
+
+**Remediation**:
+```bash
+Recreate the machine as Trusted Launch, or upgrade a Gen2 machine in place.
+
+Azure CLI:
+  az vm update --name <vm> --resource-group <rg> \
+    --security-type TrustedLaunch --enable-secure-boot true --enable-vtpm true
+```
+
+##### <a id="az-cmp-006"></a>`AZ-CMP-006` — Virtual machine disks use Microsoft's keys
+
+- **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `virtual_machine`
+- **Compliance Mappings**: `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-12, SC-28` &bull; `NIST_CSF: PR.DS-1` &bull; `PCI_DSS_4: 3.5.1` &bull; `SOC2: CC6.1`
+
+**Description**: At least one managed disk attached to the machine is encrypted with a platform key rather than through a disk encryption set holding the customer's key.
+
+**Rationale**: A customer-managed key lets the customer make the disks unreadable by revoking the key, and some regulated data requires it.
+
+**Remediation**:
+```bash
+Create a disk encryption set on a key in the customer's vault and assign it to each disk.
+
+Azure CLI:
+  az disk update --name <disk> --resource-group <rg> \
+    --encryption-type EncryptionAtRestWithCustomerKey \
+    --disk-encryption-set <disk-encryption-set-id>
+```
+
+##### <a id="az-cmp-008"></a>`AZ-CMP-008` — Virtual machine is not behind just-in-time access
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `virtual_machine`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.5.15` &bull; `NIST_800_53: AC-17, SC-7` &bull; `NIST_CSF: PR.AC-3, PR.AC-5` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
+
+**Description**: No just-in-time access policy covers this machine, so its management ports are governed only by its network security groups, open or closed all the time.
+
+**Rationale**: Just-in-time access keeps RDP and SSH closed until someone asks, for one address and a few hours. A port that is only open while it is used is a port nobody can spray passwords at the rest of the week.
+
+**Remediation**:
+```bash
+Enable just-in-time access for the machine (needs Defender for Servers Plan 2).
+
+Azure Portal: select the machine > Configuration > Just-in-time VM access > Enable just-in-time.
+```
+
+##### <a id="az-cmp-009"></a>`AZ-CMP-009` — Virtual machine is not backed up
+
+- **Severity**: `MEDIUM` | **Exploitability**: `0/5` | **Effort**: `~45 min`
+- **Scope**: `per_resource`
+- **Applies to**: `virtual_machine`
+- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF: PR.IP-4, RC.RP-1` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
+
+**Description**: No Recovery Services vault the scanner can read backs up this machine, so a deleted disk or an encrypted one is unrecoverable.
+
+**Rationale**: Ransomware encrypts what it can reach and deletes what it can find. A backup in a vault with its own soft delete is the copy it cannot reach.
+
+**Remediation**:
+```bash
+Protect the machine with Azure Backup.
+
+Azure CLI:
+  az backup protection enable-for-vm --resource-group <rg> \
+    --vault-name <vault> --vm <vm> --policy-name DefaultPolicy
+```
+
+##### <a id="az-cmp-010"></a>`AZ-CMP-010` — Unattached disk is encrypted with Microsoft's keys
+
+- **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `disk`
+- **Compliance Mappings**: `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-12, SC-28` &bull; `NIST_CSF: PR.DS-1` &bull; `PCI_DSS_4: 3.5.1` &bull; `SOC2: CC6.1`
+
+**Description**: A managed disk attached to no machine is encrypted with a platform key. It still holds everything its machine wrote, and only a customer-managed key lets the customer make it unreadable.
+
+**Rationale**: Unattached disks outlive the machines they were made for and are forgotten with them. Encrypting them with a key the customer controls means revoking one key retires them all.
+
+**Remediation**:
+```bash
+Delete the disk if nobody needs it; otherwise encrypt it through a disk encryption set.
+
+Azure CLI:
+  az disk update --name <disk> --resource-group <rg> \
+    --encryption-type EncryptionAtRestWithCustomerKey \
+    --disk-encryption-set <disk-encryption-set-id>
+```
+
+##### <a id="az-cmp-011"></a>`AZ-CMP-011` — Virtual machine backups are kept under 7 days
+
+- **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `virtual_machine`
+- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF: PR.IP-4, RC.RP-1` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
+
+**Description**: The backup policy protecting this machine keeps daily recovery points for less than a week.
+
+**Rationale**: A week is the least that covers noticing a problem over a weekend. Fewer days and the clean copy may be gone before anyone looks.
+
+**Remediation**:
+```bash
+Move the machine to a policy that keeps daily points for 7 days or more, or modify its policy.
+
+Azure CLI:
+  az backup item set-policy --resource-group <rg> --vault-name <vault> \
+    --container-name <vm> --name <vm> --policy-name <policy>
+```
+
+##### <a id="az-cmp-012"></a>`AZ-CMP-012` — Scale set is fronted by no load balancer
+
+- **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `scale_set`
+- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF: PR.IP-4, RC.RP-1` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
+
+**Description**: The scale set's instances are in no load balancer or application gateway backend pool, so nothing spreads traffic across them or stops sending it to one that failed.
+
+**Rationale**: A scale set exists to run interchangeable instances. Without something in front of them, one unhealthy instance is an outage for its clients.
+
+**Remediation**:
+```bash
+Add the scale set's network configuration to a load balancer backend pool.
+
+Azure CLI:
+  az vmss update --name <scale-set> --resource-group <rg> --add \
+    virtualMachineProfile.networkProfile.networkInterfaceConfigurations[0].ipConfigurations[0].loadBalancerBackendAddressPools id=<pool-id>
+```
+
+##### <a id="az-cmp-013"></a>`AZ-CMP-013` — Scale set runs no instances
+
+- **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `scale_set`
+- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF: PR.IP-4, RC.RP-1` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
+
+**Description**: The scale set's capacity is zero, so it serves nothing.
+
+**Rationale**: An empty scale set is either a service that is down or one nobody removed; either is worth a look.
+
+**Remediation**:
+```bash
+Scale it out, or delete it if nothing uses it.
+
+Azure CLI:
+  az vmss scale --name <scale-set> --resource-group <rg> --new-capacity 2
+```
+
+##### <a id="az-dbw-001"></a>`AZ-DBW-001` — Databricks workspace answers the whole internet
+
+- **Severity**: `MEDIUM` | **Exploitability**: `3/5` | **Effort**: `~180 min`
+- **Scope**: `per_resource`
+- **Applies to**: `analytics_workspace`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF: PR.AC-5` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
+
+**Description**: The workspace's web application and REST API accept connections from any network. Sign-in still goes through the directory, and a stolen session or personal access token works from anywhere.
+
+**Rationale**: A Databricks personal access token runs code on the workspace's clusters and reads whatever those clusters can. Reachable only from the customer's networks, a leaked one is worth much less.
+
+**Remediation**:
+```bash
+Put the workspace behind Private Link and disable public network access. The workspace must be deployed into a virtual network the customer manages first.
+
+Azure CLI:
+  az resource update --ids <resource-id> \
+    --set properties.publicNetworkAccess=Disabled
+```
+
+##### <a id="az-dbw-002"></a>`AZ-DBW-002` — Databricks cluster nodes get public IP addresses
+
+- **Severity**: `HIGH` | **Exploitability**: `3/5` | **Effort**: `~240 min`
+- **Scope**: `per_resource`
+- **Applies to**: `analytics_workspace`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF: PR.AC-5` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
+
+**Description**: Secure cluster connectivity is off, so every cluster the workspace starts gives its nodes public IP addresses.
+
+**Rationale**: Cluster nodes hold the credentials the workspace's jobs use to reach data. With public addresses they are reachable machines rather than private workers, and a network rule mistake exposes all of them at once.
+
+**Remediation**:
+```bash
+Enable secure cluster connectivity (No Public IP). On an existing workspace this is an update of the workspace's custom parameters; on one deployed without VNet injection it may need a new workspace.
+
+Azure CLI:
+  az resource update --ids <resource-id> \
+    --set properties.parameters.enableNoPublicIp.value=true
+```
+
+##### <a id="az-dbw-003"></a>`AZ-DBW-003` — Databricks workspace is not in a customer-managed network
+
+- **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~480 min`
+- **Scope**: `per_resource`
+- **Applies to**: `analytics_workspace`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF: PR.AC-5` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
+
+**Description**: The workspace's clusters run in a virtual network Databricks manages, which the customer's own network security groups, firewalls and private endpoints cannot govern.
+
+**Rationale**: Without VNet injection there is no customer-controlled boundary around the clusters: their egress cannot be filtered and the data stores they reach cannot be limited to private endpoints.
+
+**Remediation**:
+```bash
+Deploy a replacement workspace into a virtual network you manage (VNet injection) and move notebooks and jobs to it; an existing workspace cannot be moved into one.
+```
+
+##### <a id="az-dbw-004"></a>`AZ-DBW-004` — Databricks workspace encrypts its notebooks with Microsoft's keys
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~120 min`
+- **Scope**: `per_resource`
+- **Applies to**: `analytics_workspace`
+- **Compliance Mappings**: `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-12, SC-28` &bull; `NIST_CSF: PR.DS-1` &bull; `PCI_DSS_4: 3.5.1` &bull; `SOC2: CC6.1`
+
+**Description**: The workspace's managed services -- notebooks, queries, secrets and job results in the control plane -- are encrypted with a key Microsoft holds rather than one in the customer's key vault.
+
+**Rationale**: A customer-managed key is what lets the customer revoke access to what the workspace stores by revoking a key, and what some regulated data requires.
+
+**Remediation**:
+```bash
+Create a key in a key vault with purge protection, grant the Databricks service access to it, and set it as the workspace's managed-services key. Needs the Premium tier.
+
+Azure CLI:
+  az databricks workspace update --name <workspace> --resource-group <rg> \
+    --key-source Microsoft.KeyVault --key-name <key> \
+    --key-vault <vault-uri> --key-version <version>
 ```
 
 ##### <a id="az-web-001"></a>`AZ-WEB-001` — Web app accepts plain HTTP
@@ -329,7 +958,239 @@ Azure CLI:
 Then move each connection string to identity-based access -- Key Vault references, Entra authentication to Azure SQL, RBAC on storage -- and delete the setting that held the secret.
 ```
 
-#### database (7 rules)
+##### <a id="az-web-008"></a>`AZ-WEB-008` — App Service Authentication is off
+
+- **Severity**: `LOW` | **Exploitability**: `2/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `app_service`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.16, A.5.17` &bull; `NIST_800_53: IA-2, AC-2` &bull; `NIST_CSF: PR.AC-1` &bull; `PCI_DSS_4: 8.2.1` &bull; `SOC2: CC6.1`
+
+**Description**: The app does not use App Service Authentication, so every request reaches the application code whether or not the caller signed in.
+
+**Rationale**: Platform authentication turns away unauthenticated requests before the application runs. An app that authenticates in its own code is not wrong, and can dismiss this; one that relies on nobody finding its address is.
+
+**Remediation**:
+```bash
+Turn on App Service Authentication with an identity provider.
+
+Azure Portal: select the app > Authentication > Add identity provider > Microsoft > Require authentication > Add.
+```
+
+##### <a id="az-web-009"></a>`AZ-WEB-009` — Web app sends its HTTP logs nowhere
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `app_service`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.15, A.8.16` &bull; `NIST_800_53: AU-2, SI-4` &bull; `NIST_CSF: PR.PT-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
+
+**Description**: No diagnostic setting sends the web app's HTTP logs anywhere, so there is no record of which requests it served.
+
+**Rationale**: HTTP logs are what show the probing before an exploit and the requests that carried it. Written nowhere, they cannot be searched afterwards.
+
+**Remediation**:
+```bash
+Send the AppServiceHTTPLogs category to a workspace.
+
+Azure CLI:
+  az monitor diagnostic-settings create --name http-logs \
+    --resource <app-id> --workspace <workspace-id> \
+    --logs '[{"category":"AppServiceHTTPLogs","enabled":true}]'
+```
+
+##### <a id="az-web-010"></a>`AZ-WEB-010` — Web app does not use HTTP/2
+
+- **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `app_service`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: CM-6, SI-2` &bull; `NIST_CSF: ID.RA-1` &bull; `PCI_DSS_4: 6.3.3` &bull; `SOC2: CC7.1`
+
+**Description**: The app serves HTTP/1.1 only.
+
+**Rationale**: HTTP/2 is faster over TLS and every current browser speaks it. Listed for completeness at LOW: it is performance, not a door.
+
+**Remediation**:
+```bash
+Azure CLI:
+  az webapp config set --name <app> --resource-group <rg> --http20-enabled true
+```
+
+##### <a id="az-web-011"></a>`AZ-WEB-011` — Web app runs a Python version past end of support
+
+- **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `app_service`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: CM-6, SI-2` &bull; `NIST_CSF: ID.RA-1` &bull; `PCI_DSS_4: 6.3.3` &bull; `SOC2: CC7.1`
+
+**Description**: The app runs a Python version whose community support has ended, so App Service no longer patches it.
+
+**Rationale**: App Service follows each language's community timeline and stops patching a version when its community does. The app keeps running, and every vulnerability found in that runtime afterwards stays in it.
+
+**Remediation**:
+```bash
+Move the app to a supported Python version, and test it there first.
+
+Azure CLI:
+  az webapp config set --name <app> --resource-group <rg> \
+    --linux-fx-version "<STACK>|<version>"
+```
+
+##### <a id="az-web-012"></a>`AZ-WEB-012` — Web app runs a PHP version past end of support
+
+- **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `app_service`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: CM-6, SI-2` &bull; `NIST_CSF: ID.RA-1` &bull; `PCI_DSS_4: 6.3.3` &bull; `SOC2: CC7.1`
+
+**Description**: The app runs a PHP version whose community support has ended, so App Service no longer patches it.
+
+**Rationale**: App Service follows each language's community timeline and stops patching a version when its community does. The app keeps running, and every vulnerability found in that runtime afterwards stays in it.
+
+**Remediation**:
+```bash
+Move the app to a supported PHP version, and test it there first.
+
+Azure CLI:
+  az webapp config set --name <app> --resource-group <rg> \
+    --linux-fx-version "<STACK>|<version>"
+```
+
+##### <a id="az-web-013"></a>`AZ-WEB-013` — Web app runs a Java version past end of support
+
+- **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `app_service`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: CM-6, SI-2` &bull; `NIST_CSF: ID.RA-1` &bull; `PCI_DSS_4: 6.3.3` &bull; `SOC2: CC7.1`
+
+**Description**: The app runs a Java version whose community support has ended, so App Service no longer patches it.
+
+**Rationale**: App Service follows each language's community timeline and stops patching a version when its community does. The app keeps running, and every vulnerability found in that runtime afterwards stays in it.
+
+**Remediation**:
+```bash
+Move the app to a supported Java version, and test it there first.
+
+Azure CLI:
+  az webapp config set --name <app> --resource-group <rg> \
+    --linux-fx-version "<STACK>|<version>"
+```
+
+#### database (35 rules)
+
+##### <a id="az-cos-001"></a>`AZ-COS-001` — Cosmos DB account answers the whole internet
+
+- **Severity**: `HIGH` | **Exploitability**: `4/5` | **Effort**: `~60 min`
+- **Scope**: `per_resource`
+- **Applies to**: `document_database`
+- **Compliance Mappings**: `GDPR: 5(1)(f), 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7, AC-3` &bull; `NIST_CSF: PR.AC-3, PR.AC-5, PR.DS-5` &bull; `PCI_DSS_4: 1.3.1, 7.2.1` &bull; `SOC2: CC6.1, CC6.6`
+
+**Description**: The account accepts connections from any network: public access is on and no IP rule or virtual network filter narrows it. Its keys are then the only thing between the internet and every document it holds.
+
+**Rationale**: Cosmos DB account keys are long-lived and routinely end up in configuration files. Reachable from anywhere, one leaked key reads the whole account from any network in the world.
+
+**Remediation**:
+```bash
+Allow only the networks that need the account -- IP rules for fixed addresses, virtual network rules for workloads in Azure -- or disable public access and reach it through a private endpoint.
+
+Azure CLI:
+  az cosmosdb update --name <account> --resource-group <rg> \
+    --public-network-access DISABLED
+```
+
+##### <a id="az-cos-002"></a>`AZ-COS-002` — Cosmos DB account accepts its account keys
+
+- **Severity**: `MEDIUM` | **Exploitability**: `3/5` | **Effort**: `~120 min`
+- **Scope**: `per_resource`
+- **Applies to**: `document_database`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.16, A.5.17` &bull; `NIST_800_53: IA-2, IA-5` &bull; `NIST_CSF: PR.AC-1, PR.AC-7` &bull; `PCI_DSS_4: 8.2.1, 8.3.1` &bull; `SOC2: CC6.1`
+
+**Description**: The account still accepts its primary and secondary keys, which grant full access to every database in it and belong to nobody in the directory.
+
+**Rationale**: Keys cannot be scoped, cannot require multi-factor authentication and do not say who used them. With key access off, every request is an Entra identity holding a Cosmos DB role.
+
+**Remediation**:
+```bash
+Move applications to Microsoft Entra authentication with Cosmos DB's own data-plane roles, then disable key-based authentication on the account.
+
+Azure CLI:
+  az resource update --ids <resource-id> --set properties.disableLocalAuth=true
+```
+
+##### <a id="az-cos-003"></a>`AZ-COS-003` — Cosmos DB account accepts TLS below 1.2
+
+- **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `document_database`
+- **Compliance Mappings**: `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-8` &bull; `NIST_CSF: PR.DS-2` &bull; `PCI_DSS_4: 4.2.1` &bull; `SOC2: CC6.7`
+
+**Description**: The account's minimum TLS version is below 1.2, so clients may connect over protocol versions with known weaknesses.
+
+**Rationale**: TLS 1.0 and 1.1 are deprecated. Accepting them lets a downgraded or outdated client move data over a channel that no longer protects it.
+
+**Remediation**:
+```bash
+Set the minimum TLS version to 1.2 after confirming no client still connects with an older one.
+
+Azure CLI:
+  az resource update --ids <resource-id> --set properties.minimalTlsVersion=Tls12
+```
+
+##### <a id="az-cos-004"></a>`AZ-COS-004` — Cosmos DB account has no private endpoint
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~120 min`
+- **Scope**: `per_resource`
+- **Applies to**: `document_database`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF: PR.AC-5` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
+
+**Description**: No approved private endpoint serves the account, so every client reaches it over its public endpoint.
+
+**Rationale**: A private endpoint gives the account an address inside the customer's own network, which is what lets public access be switched off without cutting off the workloads that use it.
+
+**Remediation**:
+```bash
+Create a private endpoint for the account in the virtual network its callers use, add the private DNS zone, and then switch public access off.
+
+Azure CLI:
+  az network private-endpoint create --name <endpoint> --resource-group <rg> \
+    --vnet-name <vnet> --subnet <subnet> \
+    --private-connection-resource-id <resource-id> --group-id Sql \
+    --connection-name <connection>
+```
+
+##### <a id="az-cos-005"></a>`AZ-COS-005` — Cosmos DB account does not fail over automatically
+
+- **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `document_database`
+- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF: PR.IP-4, RC.RP-1` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
+
+**Description**: Automatic failover is off, so a regional outage leaves a multi-region account's writes down until someone fails it over by hand.
+
+**Rationale**: Failover that needs a person happens at the speed of the pager.
+
+**Remediation**:
+```bash
+Azure CLI:
+  az cosmosdb update --name <account> --resource-group <rg> \
+    --enable-automatic-failover true
+```
+
+##### <a id="az-cos-006"></a>`AZ-COS-006` — Cosmos DB account has no continuous backup
+
+- **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `document_database`
+- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF: PR.IP-4, RC.RP-1` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
+
+**Description**: The account takes periodic backups only, so data can be restored to a backup's moment rather than to any point before a bad write.
+
+**Rationale**: Continuous backup restores to the second before the mistake, or before the ransomware; periodic backup loses everything since the last copy.
+
+**Remediation**:
+```bash
+Azure CLI:
+  az cosmosdb update --name <account> --resource-group <rg> \
+    --backup-policy-type Continuous
+```
 
 ##### <a id="az-db-001"></a>`AZ-DB-001` — Database server publicly accessible
 
@@ -506,7 +1367,418 @@ Azure CLI:
 Clients connecting without TLS are refused afterwards; set sslmode=require (or verify-full) in their connection strings first.
 ```
 
-#### identity (15 rules)
+##### <a id="az-db-010"></a>`AZ-DB-010` — PostgreSQL server does not log checkpoints
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `postgresql_server`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.15, A.8.16` &bull; `NIST_800_53: AU-2, SI-4` &bull; `NIST_CSF: PR.PT-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
+
+**Description**: The PostgreSQL flexible server's `log_checkpoints` parameter is off, so it does not log checkpoints.
+
+**Rationale**: Checkpoint records are part of the timeline an investigation rebuilds, and cost almost nothing to keep.
+
+**Remediation**:
+```bash
+Azure CLI:
+  az postgres flexible-server parameter set --resource-group <rg> \
+    --server-name <server> --name log_checkpoints --value on
+```
+
+##### <a id="az-db-011"></a>`AZ-DB-011` — PostgreSQL server does not log connection attempts
+
+- **Severity**: `MEDIUM` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `postgresql_server`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.15, A.8.16` &bull; `NIST_800_53: AU-2, SI-4` &bull; `NIST_CSF: PR.PT-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
+
+**Description**: The PostgreSQL flexible server's `log_connections` parameter is off, so it does not log connection attempts.
+
+**Rationale**: Connection attempts are how password spraying against a database shows up. Without them there is no record of who tried to sign in.
+
+**Remediation**:
+```bash
+Azure CLI:
+  az postgres flexible-server parameter set --resource-group <rg> \
+    --server-name <server> --name log_connections --value on
+```
+
+##### <a id="az-db-012"></a>`AZ-DB-012` — PostgreSQL server does not log session ends
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `postgresql_server`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.15, A.8.16` &bull; `NIST_800_53: AU-2, SI-4` &bull; `NIST_CSF: PR.PT-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
+
+**Description**: The PostgreSQL flexible server's `log_disconnections` parameter is off, so it does not log session ends.
+
+**Rationale**: Session ends and their durations complete the connection record, and show an unusually long session that read more than it should.
+
+**Remediation**:
+```bash
+Azure CLI:
+  az postgres flexible-server parameter set --resource-group <rg> \
+    --server-name <server> --name log_disconnections --value on
+```
+
+##### <a id="az-db-013"></a>`AZ-DB-013` — PostgreSQL server does not throttle repeated failed sign-ins
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `postgresql_server`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.15, A.8.16` &bull; `NIST_800_53: AU-2, SI-4` &bull; `NIST_CSF: PR.PT-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
+
+**Description**: The PostgreSQL flexible server's `connection_throttle.enable` parameter is off, so it does not throttle repeated failed sign-ins.
+
+**Rationale**: Throttling slows a password guessing attack against the server to the point it stops being worth running.
+
+**Remediation**:
+```bash
+Azure CLI:
+  az postgres flexible-server parameter set --resource-group <rg> \
+    --server-name <server> --name connection_throttle.enable --value on
+```
+
+##### <a id="az-db-014"></a>`AZ-DB-014` — PostgreSQL server keeps its logs for three days or less
+
+- **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `postgresql_server`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.15, A.8.16` &bull; `NIST_800_53: AU-2, SI-4` &bull; `NIST_CSF: PR.PT-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
+
+**Description**: The server's `logfiles.retention_days` is three days or less, so the logs an incident needs are gone before most incidents are noticed.
+
+**Rationale**: Three days is shorter than the time most intrusions go unnoticed.
+
+**Remediation**:
+```bash
+Azure CLI:
+  az postgres flexible-server parameter set --resource-group <rg> \
+    --server-name <server> --name logfiles.retention_days --value 7
+```
+
+##### <a id="az-db-015"></a>`AZ-DB-015` — PostgreSQL server does not accept Entra authentication
+
+- **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `postgresql_server`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.16, A.5.17` &bull; `NIST_800_53: IA-2, AC-2` &bull; `NIST_CSF: PR.AC-1` &bull; `PCI_DSS_4: 8.2.1` &bull; `SOC2: CC6.1`
+
+**Description**: The server authenticates only its own PostgreSQL accounts, so database access is outside the directory's multi-factor, Conditional Access and offboarding.
+
+**Rationale**: A local database password is not revoked when its owner leaves, and is never asked for a second factor.
+
+**Remediation**:
+```bash
+Azure CLI:
+  az postgres flexible-server update --name <server> --resource-group <rg> \
+    --microsoft-entra-auth Enabled
+```
+
+##### <a id="az-db-016"></a>`AZ-DB-016` — SQL server keeps its audit records for under 90 days
+
+- **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `sql_server`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.15, A.8.16` &bull; `NIST_800_53: AU-2, SI-4` &bull; `NIST_CSF: PR.PT-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
+
+**Description**: The server's auditing keeps records for fewer than 90 days, shorter than most investigations need to look back.
+
+**Rationale**: An intrusion found after a month needs the audit trail from before it started. Zero means kept indefinitely and passes.
+
+**Remediation**:
+```bash
+Azure CLI:
+  az sql server audit-policy update --name <server> --resource-group <rg> \
+    --retention-days 90
+```
+
+##### <a id="az-db-017"></a>`AZ-DB-017` — SQL server encrypts with a service-managed key
+
+- **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `sql_server`
+- **Compliance Mappings**: `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-12, SC-28` &bull; `NIST_CSF: PR.DS-1` &bull; `PCI_DSS_4: 3.5.1` &bull; `SOC2: CC6.1`
+
+**Description**: The server's transparent data encryption is protected by a key Azure manages rather than one in the customer's vault.
+
+**Rationale**: A customer-managed protector lets the customer make every database on the server unreadable by revoking one key, and some regulated data requires it. AZ-DB-006 asks whether each database is encrypted at all.
+
+**Remediation**:
+```bash
+Set a key from your vault as the server's TDE protector.
+
+Azure CLI:
+  az sql server key create --server <server> --resource-group <rg> \
+    --kid <key-identifier>
+  az sql server tde-key set --server <server> --resource-group <rg> \
+    --server-key-type AzureKeyVault --kid <key-identifier>
+```
+
+##### <a id="az-db-018"></a>`AZ-DB-018` — SQL server is not watched by Defender for SQL
+
+- **Severity**: `MEDIUM` | **Exploitability**: `1/5` | **Effort**: `~20 min`
+- **Scope**: `per_resource`
+- **Applies to**: `sql_server`
+- **Compliance Mappings**: `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.16` &bull; `NIST_800_53: SI-4` &bull; `NIST_CSF: DE.CM-1` &bull; `PCI_DSS_4: 11.4.1` &bull; `SOC2: CC7.2`
+
+**Description**: Neither the subscription's Defender for Azure SQL plan nor the server's own setting turns on Defender for SQL, so SQL injection, brute force and anomalous access raise no alert.
+
+**Rationale**: Defender for SQL is what notices a query shaped like an injection or a login from somewhere this server has never seen. Without it those events happen in a database nobody is watching.
+
+**Remediation**:
+```bash
+Turn on the Defender for Azure SQL plan for the subscription, or Defender for SQL on this server.
+
+Azure CLI:
+  az security pricing create --name SqlServers --tier Standard
+```
+
+##### <a id="az-db-019"></a>`AZ-DB-019` — SQL server is not assessed for vulnerabilities
+
+- **Severity**: `MEDIUM` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `sql_server`
+- **Compliance Mappings**: `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: RA-5` &bull; `NIST_CSF: ID.RA-1, DE.CM-1` &bull; `PCI_DSS_4: 11.3.1` &bull; `SOC2: CC7.1`
+
+**Description**: Neither the express nor the classic vulnerability assessment is on for this server, so nothing reports its misconfigurations, excessive permissions or unprotected sensitive data.
+
+**Rationale**: Vulnerability assessment is the database's own view of itself: logins with more than they need, features that should be off, columns holding data nobody classified. Nothing outside the database can see those.
+
+**Remediation**:
+```bash
+Turn on vulnerability assessment with the express configuration.
+
+Azure Portal: select the server > Microsoft Defender for Cloud > Vulnerability assessment settings > Express configuration > Enable.
+```
+
+##### <a id="az-db-020"></a>`AZ-DB-020` — SQL vulnerability assessment does not scan on a schedule
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~15 min`
+- **Scope**: `per_resource`
+- **Applies to**: `sql_server`
+- **Compliance Mappings**: `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: RA-5` &bull; `NIST_CSF: ID.RA-1, DE.CM-1` &bull; `PCI_DSS_4: 11.3.1` &bull; `SOC2: CC7.1`
+
+**Description**: The server's classic vulnerability assessment has recurring scans off, so it reports only when somebody remembers to run it.
+
+**Rationale**: A database drifts -- a login added, a permission widened. A weekly scan catches the drift; a manual one catches whatever was true the day it ran.
+
+**Remediation**:
+```bash
+Turn on recurring scans, or move the server to the express configuration, which scans weekly by design.
+
+Azure Portal: select the server > Microsoft Defender for Cloud > Vulnerability assessment settings > Periodic recurring scans: On > Save.
+```
+
+##### <a id="az-db-021"></a>`AZ-DB-021` — SQL vulnerability scan results are sent to nobody
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~15 min`
+- **Scope**: `per_resource`
+- **Applies to**: `sql_server`
+- **Compliance Mappings**: `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: RA-5` &bull; `NIST_CSF: ID.RA-1, DE.CM-1` &bull; `PCI_DSS_4: 11.3.1` &bull; `SOC2: CC7.1`
+
+**Description**: The server's classic vulnerability assessment names no email recipient and does not notify subscription administrators, so its results wait unread in a storage container.
+
+**Rationale**: A scan result nobody receives changes nothing. Sending the summary somewhere is what turns a finding into a ticket.
+
+**Remediation**:
+```bash
+Name recipients for scan reports, or notify subscription administrators.
+
+Azure Portal: select the server > Microsoft Defender for Cloud > Vulnerability assessment settings > Send scan reports to > Save.
+```
+
+##### <a id="az-db-022"></a>`AZ-DB-022` — SQL vulnerability scans do not notify subscription administrators
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~15 min`
+- **Scope**: `per_resource`
+- **Applies to**: `sql_server`
+- **Compliance Mappings**: `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: RA-5` &bull; `NIST_CSF: ID.RA-1, DE.CM-1` &bull; `PCI_DSS_4: 11.3.1` &bull; `SOC2: CC7.1`
+
+**Description**: The server's classic vulnerability assessment has notifications to subscription administrators switched off.
+
+**Rationale**: Administrators can act on a result without asking for access, and the setting keeps reports flowing after a named recipient leaves.
+
+**Remediation**:
+```bash
+Turn on notifications to subscription administrators.
+
+Azure Portal: select the server > Microsoft Defender for Cloud > Vulnerability assessment settings > Also send email notification to admins and subscription owners > Save.
+```
+
+##### <a id="az-db-023"></a>`AZ-DB-023` — PostgreSQL server backups are not geo-redundant
+
+- **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `postgresql_server`
+- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF: PR.IP-4, RC.RP-1` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
+
+**Description**: The server's backups stay in its own region, so losing the region loses them with the server.
+
+**Rationale**: A backup in the same region as the thing it backs up shares its fate.
+
+**Remediation**:
+```bash
+Geo-redundant backup is chosen at creation: restore the server with geo-redundant backup enabled.
+
+Azure CLI:
+  az postgres flexible-server geo-restore --source-server <server> \
+    --name <new-server> --resource-group <rg> --location <paired-region>
+```
+
+##### <a id="az-db-024"></a>`AZ-DB-024` — PostgreSQL server has no high availability
+
+- **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `postgresql_server`
+- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF: PR.IP-4, RC.RP-1` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
+
+**Description**: The server runs without a standby, so a zone or host failure takes it down until Azure restores it.
+
+**Rationale**: A standby replica is what turns an outage into a failover.
+
+**Remediation**:
+```bash
+Azure CLI:
+  az postgres flexible-server update --name <server> --resource-group <rg> \
+    --high-availability ZoneRedundant
+```
+
+##### <a id="az-mys-001"></a>`AZ-MYS-001` — MySQL server accepts unencrypted connections
+
+- **Severity**: `HIGH` | **Exploitability**: `3/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `mysql_server`
+- **Compliance Mappings**: `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-8` &bull; `NIST_CSF: PR.DS-2` &bull; `PCI_DSS_4: 4.2.1` &bull; `SOC2: CC6.7`
+
+**Description**: The MySQL flexible server's `require_secure_transport` parameter is off, so clients may connect without TLS and send credentials and data in the clear.
+
+**Rationale**: One misconfigured client connection string is enough to put a database password on the network in plain text. Requiring TLS on the server makes that connection fail instead.
+
+**Remediation**:
+```bash
+Turn `require_secure_transport` on after confirming every client connects with TLS.
+
+Azure CLI:
+  az mysql flexible-server parameter set --resource-group <rg> \
+    --server-name <server> --name require_secure_transport --value ON
+```
+
+##### <a id="az-mys-002"></a>`AZ-MYS-002` — MySQL server accepts TLS below 1.2
+
+- **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `mysql_server`
+- **Compliance Mappings**: `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-8` &bull; `NIST_CSF: PR.DS-2` &bull; `PCI_DSS_4: 4.2.1` &bull; `SOC2: CC6.7`
+
+**Description**: The MySQL flexible server's `tls_version` parameter still lists TLS 1.0 or 1.1, so clients may negotiate protocol versions with known weaknesses.
+
+**Rationale**: TLS 1.0 and 1.1 are deprecated. Offering them lets a downgraded or outdated client carry database traffic over a channel that no longer protects it.
+
+**Remediation**:
+```bash
+Set `tls_version` to TLS 1.2 (and 1.3 where the server version supports it).
+
+Azure CLI:
+  az mysql flexible-server parameter set --resource-group <rg> \
+    --server-name <server> --name tls_version --value TLSv1.2
+```
+
+##### <a id="az-mys-003"></a>`AZ-MYS-003` — MySQL server keeps no audit log
+
+- **Severity**: `MEDIUM` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `mysql_server`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.15, A.8.16` &bull; `NIST_800_53: AU-2, SI-4` &bull; `NIST_CSF: PR.PT-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
+
+**Description**: The server's `audit_log_enabled` parameter is off.
+
+**Rationale**: Without an audit log there is no record of who connected or what ran.
+
+**Remediation**:
+```bash
+Azure CLI:
+  az mysql flexible-server parameter set --resource-group <rg> \
+    --server-name <server> --name audit_log_enabled --value ON
+```
+
+##### <a id="az-mys-004"></a>`AZ-MYS-004` — MySQL audit log does not record connections
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `mysql_server`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.15, A.8.16` &bull; `NIST_800_53: AU-2, SI-4` &bull; `NIST_CSF: PR.PT-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
+
+**Description**: The server's `audit_log_events` does not include CONNECTION.
+
+**Rationale**: Connection events are how a credential attack shows up in the audit log.
+
+**Remediation**:
+```bash
+Azure CLI:
+  az mysql flexible-server parameter set --resource-group <rg> \
+    --server-name <server> --name audit_log_events --value CONNECTION
+```
+
+##### <a id="az-mys-005"></a>`AZ-MYS-005` — MySQL server backups are not geo-redundant
+
+- **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `mysql_server`
+- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF: PR.IP-4, RC.RP-1` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
+
+**Description**: The server's backups stay in its own region, so losing the region loses them with the server.
+
+**Rationale**: A backup in the same region as the thing it backs up shares its fate.
+
+**Remediation**:
+```bash
+Geo-redundant backup is chosen at creation: restore the server with geo-redundant backup enabled.
+
+Azure CLI:
+  az mysql flexible-server geo-restore --source-server <server> \
+    --name <new-server> --resource-group <rg> --location <paired-region>
+```
+
+##### <a id="az-mys-006"></a>`AZ-MYS-006` — MySQL server has no high availability
+
+- **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `mysql_server`
+- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF: PR.IP-4, RC.RP-1` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
+
+**Description**: The server runs without a standby, so a zone or host failure takes it down until Azure restores it.
+
+**Rationale**: A standby replica is what turns an outage into a failover.
+
+**Remediation**:
+```bash
+Azure CLI:
+  az mysql flexible-server update --name <server> --resource-group <rg> \
+    --high-availability ZoneRedundant
+```
+
+##### <a id="az-srch-001"></a>`AZ-SRCH-001` — AI Search service answers the whole internet
+
+- **Severity**: `HIGH` | **Exploitability**: `3/5` | **Effort**: `~60 min`
+- **Scope**: `per_resource`
+- **Applies to**: `search_service`
+- **Compliance Mappings**: `GDPR: 5(1)(f), 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7, AC-3` &bull; `NIST_CSF: PR.AC-3, PR.AC-5, PR.DS-5` &bull; `PCI_DSS_4: 1.3.1, 7.2.1` &bull; `SOC2: CC6.1, CC6.6`
+
+**Description**: The search service accepts queries from any network: public access is on and no IP rule narrows it. Its admin and query keys are then the only thing between the internet and every document in its indexes.
+
+**Rationale**: Query keys are embedded in front-end code by design, and an index is often fed from sources nobody meant to publish. Open to every network, whatever the index holds is one key away from anyone.
+
+**Remediation**:
+```bash
+Allow only the networks that query the service, or disable public access and reach it through a private endpoint.
+
+Azure CLI:
+  az search service update --name <service> --resource-group <rg> \
+    --public-network-access disabled
+```
+
+#### identity (25 rules)
 
 ##### <a id="az-app-001"></a>`AZ-APP-001` — Application credential valid for years
 
@@ -856,7 +2128,169 @@ Azure CLI:
 Disabling is the right first step during offboarding, because it is reversible while questions are still being asked. Removing the privilege is the step that makes it stick.
 ```
 
-#### logging (3 rules)
+##### <a id="az-id-013"></a>`AZ-ID-013` — Azure management does not require multi-factor authentication
+
+- **Severity**: `HIGH` | **Exploitability**: `4/5` | **Effort**: `~45 min`
+- **Scope**: `aggregate`
+- **Applies to**: Aggregate (Tenant-wide)
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17` &bull; `NIST_800_53: IA-2` &bull; `NIST_CSF: PR.AC-7` &bull; `PCI_DSS_4: 8.4.2` &bull; `SOC2: CC6.1`
+
+**Description**: No security default and no enabled Conditional Access policy requires a second factor of every user signing in to Azure management -- the portal, Azure CLI, PowerShell and the Resource Manager API.
+
+**Rationale**: Azure management is where a stolen password becomes control of the estate: every resource, role and key is one API call away. It is the one door where a second factor protects everything behind it at once.
+
+**Remediation**:
+```bash
+Create a Conditional Access policy: Users: All users (exclude one break-glass account) > Target resources: Windows Azure Service Management API > Grant: Require multifactor authentication > On. On Entra ID Free, enable security defaults instead.
+```
+
+##### <a id="az-id-014"></a>`AZ-ID-014` — Microsoft admin portals do not require multi-factor authentication
+
+- **Severity**: `MEDIUM` | **Exploitability**: `3/5` | **Effort**: `~30 min`
+- **Scope**: `aggregate`
+- **Applies to**: Aggregate (Tenant-wide)
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17, A.8.2` &bull; `NIST_800_53: IA-2` &bull; `NIST_CSF: PR.AC-7` &bull; `PCI_DSS_4: 8.4.2` &bull; `SOC2: CC6.1`
+
+**Description**: No security default and no enabled Conditional Access policy requires a second factor of every user reaching the Microsoft admin portals -- the Entra, Microsoft 365, Exchange and other administration centres.
+
+**Rationale**: The admin portals are where directory roles are used. A policy on the portals themselves covers every administrator, including ones assigned a role tomorrow that no per-role policy names yet.
+
+**Remediation**:
+```bash
+Create a Conditional Access policy: Users: All users (exclude one break-glass account) > Target resources: Microsoft Admin Portals > Grant: Require multifactor authentication > On.
+```
+
+##### <a id="az-id-015"></a>`AZ-ID-015` — Users can consent to any application
+
+- **Severity**: `HIGH` | **Exploitability**: `4/5` | **Effort**: `~60 min`
+- **Scope**: `aggregate`
+- **Applies to**: Aggregate (Tenant-wide)
+- **Compliance Mappings**: `GDPR: 5(1)(f), 32(1)(b)` &bull; `ISO_27001: A.5.15, A.8.2` &bull; `NIST_800_53: AC-3, AC-6` &bull; `NIST_CSF: PR.AC-4` &bull; `PCI_DSS_4: 7.2.1` &bull; `SOC2: CC6.1, CC6.3`
+
+**Description**: Ordinary users may grant any application access to organization data on their own behalf -- the legacy default consent policy is assigned -- so one click on a convincing consent screen hands a stranger's app their mailbox and files.
+
+**Rationale**: Consent phishing needs no password and survives a password reset: the attacker's app holds a token of its own. Limiting user consent to verified publishers asking for low-impact permissions removes the whole technique.
+
+**Remediation**:
+```bash
+Entra admin centre > Enterprise applications > Consent and permissions > User consent settings > Allow user consent for apps from verified publishers, for selected permissions (or Do not allow user consent), and set up the admin consent workflow so requests reach someone.
+```
+
+##### <a id="az-id-016"></a>`AZ-ID-016` — Any user can register applications
+
+- **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~30 min`
+- **Scope**: `aggregate`
+- **Applies to**: Aggregate (Tenant-wide)
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.15, A.5.16` &bull; `NIST_800_53: AC-2, AC-6` &bull; `NIST_CSF: PR.AC-1, PR.AC-4` &bull; `PCI_DSS_4: 7.2.1` &bull; `SOC2: CC6.2`
+
+**Description**: Ordinary users may create application registrations, each an identity that can hold credentials and be granted access, owned by whoever made it.
+
+**Rationale**: Every registration is a principal with its own secrets. Letting anyone create them makes the tenant's identities impossible to inventory and gives a compromised account a place to plant a credential that outlives it.
+
+**Remediation**:
+```bash
+Entra admin centre > Users > User settings > Users can register applications > No, and give the people who build integrations the Application Developer role.
+```
+
+##### <a id="az-id-017"></a>`AZ-ID-017` — Any member can invite guests
+
+- **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~30 min`
+- **Scope**: `aggregate`
+- **Applies to**: Aggregate (Tenant-wide)
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.16, A.5.18` &bull; `NIST_800_53: AC-2` &bull; `NIST_CSF: PR.AC-1` &bull; `PCI_DSS_4: 7.2.1` &bull; `SOC2: CC6.2`
+
+**Description**: Guest invitations are open to every member -- or to everyone, guests included -- rather than to administrators and the Guest Inviter role.
+
+**Rationale**: An invitation is how an outside identity becomes a principal the tenant's roles and groups can be granted to. Left to everyone, the tenant's guest list is whatever any compromised account made it.
+
+**Remediation**:
+```bash
+Entra admin centre > External Identities > External collaboration settings > Guest invite settings > Only users assigned to specific admin roles can invite guest users.
+```
+
+##### <a id="az-id-018"></a>`AZ-ID-018` — Guests can read the directory
+
+- **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~20 min`
+- **Scope**: `aggregate`
+- **Applies to**: Aggregate (Tenant-wide)
+- **Compliance Mappings**: `GDPR: 5(1)(f), 32(1)(b)` &bull; `ISO_27001: A.5.15, A.8.3` &bull; `NIST_800_53: AC-3, AC-6` &bull; `NIST_CSF: PR.AC-4` &bull; `PCI_DSS_4: 7.2.1` &bull; `SOC2: CC6.1`
+
+**Description**: Guests are not held to the Restricted Guest User role, so they can enumerate users, groups and memberships rather than seeing only their own objects.
+
+**Rationale**: The directory is the map of the organization: who administers what, which groups hold which roles. A guest account -- the easiest kind to obtain -- should not be able to read it.
+
+**Remediation**:
+```bash
+Entra admin centre > External Identities > External collaboration settings > Guest user access > Guest user access is restricted to properties and memberships of their own directory objects.
+```
+
+##### <a id="az-id-019"></a>`AZ-ID-019` — Any user can create tenants or security groups
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~20 min`
+- **Scope**: `aggregate`
+- **Applies to**: Aggregate (Tenant-wide)
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.15` &bull; `NIST_800_53: AC-6, CM-7` &bull; `NIST_CSF: PR.AC-4` &bull; `PCI_DSS_4: 7.2.1` &bull; `SOC2: CC6.2`
+
+**Description**: Ordinary users may create new Entra tenants, security groups, or both -- directory objects that then exist outside any administrator's decision.
+
+**Rationale**: A tenant created by an employee holds company data under no one's governance; a security group created by anyone can later be granted access by someone who assumed an administrator made it.
+
+**Remediation**:
+```bash
+Entra admin centre > Users > User settings > Restrict non-admin users from creating tenants > Yes; and Groups > General > Users can create security groups > No.
+```
+
+##### <a id="az-id-020"></a>`AZ-ID-020` — No strong sign-in method is offered, or registration is not campaigned
+
+- **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~60 min`
+- **Scope**: `aggregate`
+- **Applies to**: Aggregate (Tenant-wide)
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17` &bull; `NIST_800_53: IA-2, IA-5` &bull; `NIST_CSF: PR.AC-7` &bull; `PCI_DSS_4: 8.4.2` &bull; `SOC2: CC6.1`
+
+**Description**: The tenant's authentication methods policy enables none of Microsoft Authenticator, FIDO2 security keys or certificate-based sign-in, or its registration campaign is switched off -- so users are left on SMS and voice, or never asked to set a second factor up at all.
+
+**Rationale**: A second factor only protects accounts that registered one, and SMS and voice codes are phished and intercepted routinely. The strong methods and the campaign that prompts people to use them are what make MFA real.
+
+**Remediation**:
+```bash
+Entra admin centre > Protection > Authentication methods > Policies: enable Microsoft Authenticator (and passkeys / FIDO2 where you can), then Registration campaign > Enabled for all users, targeting Microsoft Authenticator.
+```
+
+##### <a id="az-id-021"></a>`AZ-ID-021` — Any user can create Microsoft 365 groups
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `aggregate`
+- **Applies to**: Aggregate (Tenant-wide)
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.15` &bull; `NIST_800_53: AC-6, CM-7` &bull; `NIST_CSF: PR.AC-4` &bull; `PCI_DSS_4: 7.2.1` &bull; `SOC2: CC6.2`
+
+**Description**: Every user may create Microsoft 365 groups, each with a mailbox, a SharePoint site and a Teams team -- a place to share data that no administrator created.
+
+**Rationale**: Unrestricted group creation scatters organization data across sites and teams that nobody reviews, often with guests added by whoever made them.
+
+**Remediation**:
+```bash
+Restrict creation to a named security group: set EnableGroupCreation to false and GroupCreationAllowedGroupId to that group in the Group.Unified directory setting (Microsoft Graph or the Microsoft Graph PowerShell module).
+```
+
+##### <a id="az-id-022"></a>`AZ-ID-022` — No trusted named location is defined
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `aggregate`
+- **Applies to**: Aggregate (Tenant-wide)
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20` &bull; `NIST_800_53: AC-17` &bull; `NIST_CSF: PR.AC-3` &bull; `PCI_DSS_4: 8.4.2` &bull; `SOC2: CC6.6`
+
+**Description**: The tenant has no named location marked trusted with IP ranges, so Conditional Access cannot treat the organization's own networks differently from any other address on the internet.
+
+**Rationale**: Without a trusted location every sign-in looks alike to Conditional Access: an administrator at their desk and a password sprayed from a botnet are judged the same way, and Identity Protection has no known-good network to weigh risk against.
+
+**Remediation**:
+```bash
+Define the organization's egress ranges as a trusted named location.
+
+Microsoft Entra admin center: Protection > Conditional Access > Named locations > IP ranges location > add the ranges > Mark as trusted location > Create.
+```
+
+#### logging (18 rules)
 
 ##### <a id="az-log-001"></a>`AZ-LOG-001` — Diagnostic logging not configured
 
@@ -936,7 +2370,324 @@ Azure CLI:
 Do it once across the estate with an Azure Policy assignment that deploys the setting, rather than per resource: the resources created next month are the ones a manual pass will miss.
 ```
 
-#### network (8 rules)
+##### <a id="az-log-005"></a>`AZ-LOG-005` — No alert fires when a policy is assigned
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~15 min`
+- **Scope**: `per_resource`
+- **Applies to**: `subscription`
+- **Compliance Mappings**: `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.16` &bull; `NIST_800_53: SI-4, AU-6` &bull; `NIST_CSF: DE.CM-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
+
+**Description**: No enabled activity-log alert across the subscription watches `Microsoft.Authorization/policyAssignments/write`, so nobody is told when a policy is assigned.
+
+**Rationale**: A new policy assignment can change what is allowed or audited across a whole scope; one nobody expected is worth hearing about the day it lands.
+
+**Remediation**:
+```bash
+Create an activity-log alert scoped to the subscription, with an action group that reaches a person.
+
+Azure CLI:
+  az monitor activity-log alert create --name <name> --resource-group <rg> \
+    --scope /subscriptions/<subscription-id> \
+    --condition category=Administrative and operationName=Microsoft.Authorization/policyAssignments/write \
+    --action-group <action-group-id>
+```
+
+##### <a id="az-log-006"></a>`AZ-LOG-006` — No alert fires when a policy assignment is removed
+
+- **Severity**: `MEDIUM` | **Exploitability**: `1/5` | **Effort**: `~15 min`
+- **Scope**: `per_resource`
+- **Applies to**: `subscription`
+- **Compliance Mappings**: `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.16` &bull; `NIST_800_53: SI-4, AU-6` &bull; `NIST_CSF: DE.CM-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
+
+**Description**: No enabled activity-log alert across the subscription watches `Microsoft.Authorization/policyAssignments/delete`, so nobody is told when a policy assignment is removed.
+
+**Rationale**: Removing an assignment switches off whatever it enforced or audited, in one call, and is how guardrails quietly disappear.
+
+**Remediation**:
+```bash
+Create an activity-log alert scoped to the subscription, with an action group that reaches a person.
+
+Azure CLI:
+  az monitor activity-log alert create --name <name> --resource-group <rg> \
+    --scope /subscriptions/<subscription-id> \
+    --condition category=Administrative and operationName=Microsoft.Authorization/policyAssignments/delete \
+    --action-group <action-group-id>
+```
+
+##### <a id="az-log-007"></a>`AZ-LOG-007` — No alert fires when a network security group is created or changed
+
+- **Severity**: `MEDIUM` | **Exploitability**: `1/5` | **Effort**: `~15 min`
+- **Scope**: `per_resource`
+- **Applies to**: `subscription`
+- **Compliance Mappings**: `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.16` &bull; `NIST_800_53: SI-4, AU-6` &bull; `NIST_CSF: DE.CM-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
+
+**Description**: No enabled activity-log alert across the subscription watches `Microsoft.Network/networkSecurityGroups/write`, so nobody is told when a network security group is created or changed.
+
+**Rationale**: One added rule is the difference between a private machine and one answering the internet. AZ-NET-001 reports the open port at scan time; this is the moment it opened.
+
+**Remediation**:
+```bash
+Create an activity-log alert scoped to the subscription, with an action group that reaches a person.
+
+Azure CLI:
+  az monitor activity-log alert create --name <name> --resource-group <rg> \
+    --scope /subscriptions/<subscription-id> \
+    --condition category=Administrative and operationName=Microsoft.Network/networkSecurityGroups/write \
+    --action-group <action-group-id>
+```
+
+##### <a id="az-log-008"></a>`AZ-LOG-008` — No alert fires when a network security group is deleted
+
+- **Severity**: `MEDIUM` | **Exploitability**: `1/5` | **Effort**: `~15 min`
+- **Scope**: `per_resource`
+- **Applies to**: `subscription`
+- **Compliance Mappings**: `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.16` &bull; `NIST_800_53: SI-4, AU-6` &bull; `NIST_CSF: DE.CM-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
+
+**Description**: No enabled activity-log alert across the subscription watches `Microsoft.Network/networkSecurityGroups/delete`, so nobody is told when a network security group is deleted.
+
+**Rationale**: Deleting a group removes every rule it held, leaving whatever it guarded open to the network defaults.
+
+**Remediation**:
+```bash
+Create an activity-log alert scoped to the subscription, with an action group that reaches a person.
+
+Azure CLI:
+  az monitor activity-log alert create --name <name> --resource-group <rg> \
+    --scope /subscriptions/<subscription-id> \
+    --condition category=Administrative and operationName=Microsoft.Network/networkSecurityGroups/delete \
+    --action-group <action-group-id>
+```
+
+##### <a id="az-log-009"></a>`AZ-LOG-009` — No alert fires when a security solution is created or changed
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~15 min`
+- **Scope**: `per_resource`
+- **Applies to**: `subscription`
+- **Compliance Mappings**: `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.16` &bull; `NIST_800_53: SI-4, AU-6` &bull; `NIST_CSF: DE.CM-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
+
+**Description**: No enabled activity-log alert across the subscription watches `Microsoft.Security/securitySolutions/write`, so nobody is told when a security solution is created or changed.
+
+**Rationale**: A security solution feeds Defender for Cloud; changing one changes what is watched.
+
+**Remediation**:
+```bash
+Create an activity-log alert scoped to the subscription, with an action group that reaches a person.
+
+Azure CLI:
+  az monitor activity-log alert create --name <name> --resource-group <rg> \
+    --scope /subscriptions/<subscription-id> \
+    --condition category=Administrative and operationName=Microsoft.Security/securitySolutions/write \
+    --action-group <action-group-id>
+```
+
+##### <a id="az-log-010"></a>`AZ-LOG-010` — No alert fires when a security solution is deleted
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~15 min`
+- **Scope**: `per_resource`
+- **Applies to**: `subscription`
+- **Compliance Mappings**: `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.16` &bull; `NIST_800_53: SI-4, AU-6` &bull; `NIST_CSF: DE.CM-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
+
+**Description**: No enabled activity-log alert across the subscription watches `Microsoft.Security/securitySolutions/delete`, so nobody is told when a security solution is deleted.
+
+**Rationale**: Deleting a security solution stops whatever it was watching, which is the first thing an intruder who can would do.
+
+**Remediation**:
+```bash
+Create an activity-log alert scoped to the subscription, with an action group that reaches a person.
+
+Azure CLI:
+  az monitor activity-log alert create --name <name> --resource-group <rg> \
+    --scope /subscriptions/<subscription-id> \
+    --condition category=Administrative and operationName=Microsoft.Security/securitySolutions/delete \
+    --action-group <action-group-id>
+```
+
+##### <a id="az-log-011"></a>`AZ-LOG-011` — No alert fires when a SQL server firewall rule is created or changed
+
+- **Severity**: `MEDIUM` | **Exploitability**: `1/5` | **Effort**: `~15 min`
+- **Scope**: `per_resource`
+- **Applies to**: `subscription`
+- **Compliance Mappings**: `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.16` &bull; `NIST_800_53: SI-4, AU-6` &bull; `NIST_CSF: DE.CM-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
+
+**Description**: No enabled activity-log alert across the subscription watches `Microsoft.Sql/servers/firewallRules/write`, so nobody is told when a SQL server firewall rule is created or changed.
+
+**Rationale**: A firewall rule is what opens a database to an address range; a new one admitting 0.0.0.0 to 255.255.255.255 is a public database.
+
+**Remediation**:
+```bash
+Create an activity-log alert scoped to the subscription, with an action group that reaches a person.
+
+Azure CLI:
+  az monitor activity-log alert create --name <name> --resource-group <rg> \
+    --scope /subscriptions/<subscription-id> \
+    --condition category=Administrative and operationName=Microsoft.Sql/servers/firewallRules/write \
+    --action-group <action-group-id>
+```
+
+##### <a id="az-log-012"></a>`AZ-LOG-012` — No alert fires when a SQL server firewall rule is deleted
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~15 min`
+- **Scope**: `per_resource`
+- **Applies to**: `subscription`
+- **Compliance Mappings**: `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.16` &bull; `NIST_800_53: SI-4, AU-6` &bull; `NIST_CSF: DE.CM-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
+
+**Description**: No enabled activity-log alert across the subscription watches `Microsoft.Sql/servers/firewallRules/delete`, so nobody is told when a SQL server firewall rule is deleted.
+
+**Rationale**: Deleting rules is how access is cut, and how evidence of who was admitted is removed; either is worth knowing about.
+
+**Remediation**:
+```bash
+Create an activity-log alert scoped to the subscription, with an action group that reaches a person.
+
+Azure CLI:
+  az monitor activity-log alert create --name <name> --resource-group <rg> \
+    --scope /subscriptions/<subscription-id> \
+    --condition category=Administrative and operationName=Microsoft.Sql/servers/firewallRules/delete \
+    --action-group <action-group-id>
+```
+
+##### <a id="az-log-013"></a>`AZ-LOG-013` — No alert fires when a public IP address is created or changed
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~15 min`
+- **Scope**: `per_resource`
+- **Applies to**: `subscription`
+- **Compliance Mappings**: `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.16` &bull; `NIST_800_53: SI-4, AU-6` &bull; `NIST_CSF: DE.CM-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
+
+**Description**: No enabled activity-log alert across the subscription watches `Microsoft.Network/publicIPAddresses/write`, so nobody is told when a public IP address is created or changed.
+
+**Rationale**: A new public address is a new way in from the internet, created by whoever held the permission.
+
+**Remediation**:
+```bash
+Create an activity-log alert scoped to the subscription, with an action group that reaches a person.
+
+Azure CLI:
+  az monitor activity-log alert create --name <name> --resource-group <rg> \
+    --scope /subscriptions/<subscription-id> \
+    --condition category=Administrative and operationName=Microsoft.Network/publicIPAddresses/write \
+    --action-group <action-group-id>
+```
+
+##### <a id="az-log-014"></a>`AZ-LOG-014` — No alert fires when a public IP address is deleted
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~15 min`
+- **Scope**: `per_resource`
+- **Applies to**: `subscription`
+- **Compliance Mappings**: `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.16` &bull; `NIST_800_53: SI-4, AU-6` &bull; `NIST_CSF: DE.CM-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
+
+**Description**: No enabled activity-log alert across the subscription watches `Microsoft.Network/publicIPAddresses/delete`, so nobody is told when a public IP address is deleted.
+
+**Rationale**: Deleting an address can take a service offline, and a released address can be claimed by someone else while DNS still points at it.
+
+**Remediation**:
+```bash
+Create an activity-log alert scoped to the subscription, with an action group that reaches a person.
+
+Azure CLI:
+  az monitor activity-log alert create --name <name> --resource-group <rg> \
+    --scope /subscriptions/<subscription-id> \
+    --condition category=Administrative and operationName=Microsoft.Network/publicIPAddresses/delete \
+    --action-group <action-group-id>
+```
+
+##### <a id="az-log-015"></a>`AZ-LOG-015` — No alert fires on a Service Health incident
+
+- **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~15 min`
+- **Scope**: `per_resource`
+- **Applies to**: `subscription`
+- **Compliance Mappings**: `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.16` &bull; `NIST_800_53: SI-4, AU-6` &bull; `NIST_CSF: DE.CM-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
+
+**Description**: No enabled activity-log alert across the subscription watches Service Health, so an Azure outage or planned maintenance affecting it reaches nobody until something breaks.
+
+**Rationale**: Service Health is Azure telling you about its own incidents, including security advisories. Without an alert those notices sit in the portal.
+
+**Remediation**:
+```bash
+Create a Service Health alert for the subscription.
+
+Azure Portal: Service Health > Health alerts > Create service health alert > Subscription: this one > Event types: all > Action group > Create.
+```
+
+##### <a id="az-log-016"></a>`AZ-LOG-016` — The activity log export leaves out security categories
+
+- **Severity**: `MEDIUM` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `subscription`
+- **Compliance Mappings**: `GDPR: 5(2)` &bull; `ISO_27001: A.8.15` &bull; `NIST_800_53: AU-2, AU-11` &bull; `NIST_CSF: PR.PT-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
+
+**Description**: The subscription's activity log is exported, but not with all of the Administrative, Security, Alert and Policy categories, so part of the record is kept for 90 days and then lost.
+
+**Rationale**: AZ-LOG-002 asks whether the log is exported at all. The categories decide what survives: Security holds Defender's alerts, Policy the deny and audit decisions, and an export without them keeps the changes and loses the context.
+
+**Remediation**:
+```bash
+Add the missing categories to the subscription's diagnostic setting.
+
+Azure Portal: Monitor > Activity log > Export Activity Logs > edit the setting > tick Administrative, Security, Alert and Policy > Save.
+```
+
+##### <a id="az-log-017"></a>`AZ-LOG-017` — Activity log storage uses Microsoft's keys
+
+- **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `storage_account`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.15` &bull; `NIST_800_53: AU-9` &bull; `NIST_CSF: PR.PT-1` &bull; `PCI_DSS_4: 10.3.2` &bull; `SOC2: CC7.2`
+
+**Description**: The storage account the subscription's activity log is exported to encrypts it with Microsoft-managed keys rather than a key the customer controls.
+
+**Rationale**: The activity log is evidence. A customer-managed key puts who can read it -- and the ability to revoke that -- in the customer's own vault.
+
+**Remediation**:
+```bash
+Encrypt the account with a key from your vault.
+
+Azure CLI:
+  az storage account update --name <account> --resource-group <rg> \
+    --encryption-key-source Microsoft.Keyvault \
+    --encryption-key-vault <vault-uri> --encryption-key-name <key>
+```
+
+##### <a id="az-log-018"></a>`AZ-LOG-018` — Activity log storage allows public blob access
+
+- **Severity**: `HIGH` | **Exploitability**: `2/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `storage_account`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.15` &bull; `NIST_800_53: AU-9` &bull; `NIST_CSF: PR.PT-1` &bull; `PCI_DSS_4: 10.3.2` &bull; `SOC2: CC7.2`
+
+**Description**: The storage account the subscription's activity log is exported to allows containers to be made public, so one setting away from anonymous readers.
+
+**Rationale**: The activity log records every change and who made it -- the map an intruder would want first, and the record they would most like to read without leaving a sign-in.
+
+**Remediation**:
+```bash
+Disallow public blob access on the account.
+
+Azure CLI:
+  az storage account update --name <account> --resource-group <rg> \
+    --allow-blob-public-access false
+```
+
+##### <a id="az-log-019"></a>`AZ-LOG-019` — Apps run with no Application Insights resource
+
+- **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `subscription`
+- **Compliance Mappings**: `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.16` &bull; `NIST_800_53: SI-4` &bull; `NIST_CSF: DE.CM-1` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
+
+**Description**: The subscription runs web or function apps and has no Application Insights resource, so no request, failure or dependency call from them is recorded.
+
+**Rationale**: Application telemetry is where an injection attempt shows up as a burst of 500s and an unfamiliar dependency call. Without it an app's behaviour is visible only as platform metrics.
+
+**Remediation**:
+```bash
+Create an Application Insights resource and connect the apps to it.
+
+Azure CLI:
+  az monitor app-insights component create --app <name> --location <region> \
+    --resource-group <rg> --workspace <workspace-id>
+```
+
+#### network (13 rules)
 
 ##### <a id="az-net-001"></a>`AZ-NET-001` — RDP exposed to the internet
 
@@ -1099,6 +2850,107 @@ Azure CLI:
 A VPN gateway or Azure Firewall in front of a UDP service that must be public gives it a single, logged point of entry.
 ```
 
+##### <a id="az-net-010"></a>`AZ-NET-010` — Virtual network traffic reaches no workspace
+
+- **Severity**: `MEDIUM` | **Exploitability**: `1/5` | **Effort**: `~45 min`
+- **Scope**: `per_resource`
+- **Applies to**: `virtual_network`
+- **Compliance Mappings**: `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.15, A.8.16` &bull; `NIST_800_53: AU-2, SI-4` &bull; `NIST_CSF: DE.CM-1, PR.PT-1` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
+
+**Description**: No enabled flow log sends this network's traffic to a Log Analytics workspace through traffic analytics, so who talked to what is either not recorded or recorded where nobody queries it.
+
+**Rationale**: Flow records are how an investigation finds the machine that was talked to after the first one fell. Written only to a storage account they are there in principle; in a workspace they can be searched the day they are needed.
+
+**Remediation**:
+```bash
+Create a virtual network flow log with traffic analytics on.
+
+Azure CLI:
+  az network watcher flow-log create --location <region> --name <name> \
+    --resource-group <rg> --vnet <vnet> --storage-account <account-id> \
+    --traffic-analytics true --workspace <workspace-id>
+```
+
+##### <a id="az-net-011"></a>`AZ-NET-011` — Flow logs are kept for under 90 days
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~15 min`
+- **Scope**: `per_resource`
+- **Applies to**: `virtual_network`
+- **Compliance Mappings**: `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.15, A.8.16` &bull; `NIST_800_53: AU-2, SI-4` &bull; `NIST_CSF: DE.CM-1, PR.PT-1` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
+
+**Description**: A flow log recording this network deletes its records in under 90 days, shorter than most intrusions go unnoticed.
+
+**Rationale**: Breaches are found months late. Flow records that have rolled over cannot show where the intruder went, and 90 days is the least CIS asks for.
+
+**Remediation**:
+```bash
+Keep flow logs for 90 days or more, or switch retention off to keep them.
+
+Azure CLI:
+  az network watcher flow-log update --location <region> --name <name> \
+    --retention 90
+```
+
+##### <a id="az-net-012"></a>`AZ-NET-012` — No Network Watcher in the network's region
+
+- **Severity**: `MEDIUM` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `virtual_network`
+- **Compliance Mappings**: `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.15, A.8.16` &bull; `NIST_800_53: AU-2, SI-4` &bull; `NIST_CSF: DE.CM-1, PR.PT-1` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
+
+**Description**: The virtual network's region has no Network Watcher, so no flow log, connection troubleshooting or packet capture is possible there.
+
+**Rationale**: Network Watcher is what flow logs are created under. Without it in a region nothing about that region's traffic can be recorded.
+
+**Remediation**:
+```bash
+Enable Network Watcher for the region.
+
+Azure CLI:
+  az network watcher configure --locations <region> --enabled true \
+    --resource-group NetworkWatcherRG
+```
+
+##### <a id="az-net-013"></a>`AZ-NET-013` — Virtual network has no DDoS Network Protection
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~60 min`
+- **Scope**: `per_resource`
+- **Applies to**: `virtual_network`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF: PR.AC-5, PR.PT-4` &bull; `PCI_DSS_4: 1.4.1` &bull; `SOC2: CC6.6`
+
+**Description**: The virtual network is not covered by an Azure DDoS Network Protection plan, so the public endpoints in it have only the platform's basic infrastructure protection.
+
+**Rationale**: Network Protection tunes mitigation to the application's own traffic and comes with rapid response and cost protection. It is priced per plan, not per network, so one plan can cover every network that needs it.
+
+**Remediation**:
+```bash
+Associate the network with a DDoS protection plan.
+
+Azure CLI:
+  az network vnet update --name <vnet> --resource-group <rg> \
+    --ddos-protection true --ddos-protection-plan <plan-id>
+```
+
+##### <a id="az-net-014"></a>`AZ-NET-014` — No Bastion host for administering machines
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~60 min`
+- **Scope**: `per_resource`
+- **Applies to**: `subscription`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20` &bull; `NIST_800_53: AC-17` &bull; `NIST_CSF: PR.AC-3` &bull; `PCI_DSS_4: 1.4.1` &bull; `SOC2: CC6.6`
+
+**Description**: The subscription runs virtual machines and has no Azure Bastion host, so the way to administer them is a public address with RDP or SSH open, or a VPN somebody has to maintain.
+
+**Rationale**: Bastion gives RDP and SSH through the portal over TLS, with no public address on the machine. Its absence is why machines end up with port 3389 open to the internet -- the finding AZ-CMP-001 raises.
+
+**Remediation**:
+```bash
+Deploy Azure Bastion into the virtual network the machines use.
+
+Azure CLI:
+  az network bastion create --name <name> --resource-group <rg> \
+    --vnet-name <vnet> --public-ip-address <public-ip> --location <region>
+```
+
 ##### <a id="az-net-015"></a>`AZ-NET-015` — Sensitive machine holds a public IP address
 
 - **Severity**: `HIGH` | **Exploitability**: `3/5` | **Effort**: `~120 min`
@@ -1123,7 +2975,7 @@ Azure CLI:
 Reach it through Azure Bastion for administration, a load balancer or Application Gateway for published services, and a NAT gateway for outbound traffic -- each of which keeps the machine itself unaddressable from the internet.
 ```
 
-#### posture (3 rules)
+#### posture (14 rules)
 
 ##### <a id="az-def-001"></a>`AZ-DEF-001` — Defender for Cloud plans are off
 
@@ -1148,6 +3000,187 @@ Azure CLI:
   az security pricing create --name <PlanName> --tier Standard
 
 Each plan is billed per protected resource. Check the pricing page before enabling Servers or Containers on a large estate.
+```
+
+##### <a id="az-def-002"></a>`AZ-DEF-002` — Defender for Cloud emails no security contact
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `subscription`
+- **Compliance Mappings**: `GDPR: 32(1)(d), 33` &bull; `ISO_27001: A.8.16` &bull; `NIST_800_53: SI-4, IR-4` &bull; `NIST_CSF: DE.CM-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2, CC7.3`
+
+**Description**: No email address is set on the subscription's security contact, so Defender for Cloud's alerts reach nobody named to act on them.
+
+**Rationale**: An alert nobody receives is an alert nobody acts on. A named address -- a security team's shared mailbox -- is what turns detection into response.
+
+**Remediation**:
+```bash
+Add the security team's address to the subscription's security contact.
+
+Azure Portal: Microsoft Defender for Cloud > Environment settings > select the subscription > Email notifications. Add email addresses > Save.
+```
+
+##### <a id="az-def-003"></a>`AZ-DEF-003` — Defender for Cloud sends no email about high-severity alerts
+
+- **Severity**: `MEDIUM` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `subscription`
+- **Compliance Mappings**: `GDPR: 32(1)(d), 33` &bull; `ISO_27001: A.8.16` &bull; `NIST_800_53: SI-4, IR-4` &bull; `NIST_CSF: DE.CM-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2, CC7.3`
+
+**Description**: Alert email notifications are off, so a high-severity Defender for Cloud alert is raised in the portal and nowhere else.
+
+**Rationale**: High-severity alerts are the ones that mean an attack in progress -- a crypto-miner, a credential used from an attacker's infrastructure. They should reach a person the moment they are raised.
+
+**Remediation**:
+```bash
+Turn on alert notifications at High (or a lower minimum).
+
+Azure Portal: Microsoft Defender for Cloud > Environment settings > select the subscription > Email notifications. Notify about alerts with the following severity (or higher): High > Save.
+```
+
+##### <a id="az-def-004"></a>`AZ-DEF-004` — Defender for Cloud does not email subscription owners
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `subscription`
+- **Compliance Mappings**: `GDPR: 32(1)(d), 33` &bull; `ISO_27001: A.8.16` &bull; `NIST_800_53: SI-4, IR-4` &bull; `NIST_CSF: DE.CM-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2, CC7.3`
+
+**Description**: Defender for Cloud's alert emails do not go to the subscription's Owners, the people who can change anything in it.
+
+**Rationale**: Owners can act on an alert without asking anyone for access. Telling them is cheap, and it survives the day the named contact leaves.
+
+**Remediation**:
+```bash
+Send notifications to the Owner role.
+
+Azure Portal: Microsoft Defender for Cloud > Environment settings > select the subscription > Email notifications. All users with the following roles: Owner > Save.
+```
+
+##### <a id="az-def-005"></a>`AZ-DEF-005` — Defender for Cloud sends no email about attack paths
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `subscription`
+- **Compliance Mappings**: `GDPR: 32(1)(d), 33` &bull; `ISO_27001: A.8.16` &bull; `NIST_800_53: SI-4, IR-4` &bull; `NIST_CSF: DE.CM-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2, CC7.3`
+
+**Description**: Attack path notifications are off, or limited to Critical, so Defender raises a new high-risk route to sensitive data and emails nobody.
+
+**Rationale**: An attack path is a chain an attacker can walk today. A new one appearing is worth an email the day it appears, not the next time somebody opens the portal.
+
+**Remediation**:
+```bash
+Turn on attack path notifications at High risk or lower.
+
+Azure Portal: Microsoft Defender for Cloud > Environment settings > select the subscription > Email notifications. Notify about attack paths with the following risk level (or higher): High > Save.
+```
+
+##### <a id="az-def-006"></a>`AZ-DEF-006` — Defender for Endpoint integration is off
+
+- **Severity**: `MEDIUM` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `subscription`
+- **Compliance Mappings**: `GDPR: 32(1)(d), 33` &bull; `ISO_27001: A.8.16` &bull; `NIST_800_53: SI-4, IR-4` &bull; `NIST_CSF: DE.CM-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2, CC7.3`
+
+**Description**: Defender for Cloud does not hand this subscription's machines to Microsoft Defender for Endpoint, so they get no endpoint detection and response.
+
+**Rationale**: Endpoint detection is what sees a process injecting into another or a credential dumped from memory -- the steps after a foothold that network and configuration checks never will.
+
+**Remediation**:
+```bash
+Turn on the integration.
+
+Azure Portal: Microsoft Defender for Cloud > Environment settings > select the subscription > Integrations > Allow Microsoft Defender for Endpoint to access my data > Save.
+```
+
+##### <a id="az-def-007"></a>`AZ-DEF-007` — Defender for Cloud Apps integration is off
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `subscription`
+- **Compliance Mappings**: `GDPR: 32(1)(d), 33` &bull; `ISO_27001: A.8.16` &bull; `NIST_800_53: SI-4, IR-4` &bull; `NIST_CSF: DE.CM-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2, CC7.3`
+
+**Description**: Defender for Cloud does not share this subscription's data with Microsoft Defender for Cloud Apps, so its activity analytics see none of it.
+
+**Rationale**: Cloud Apps correlates what users do across services -- an impossible trip, a mass download. Without the integration, activity here is missing from that picture.
+
+**Remediation**:
+```bash
+Turn on the integration.
+
+Azure Portal: Microsoft Defender for Cloud > Environment settings > select the subscription > Integrations > Allow Microsoft Defender for Cloud Apps to access my data > Save.
+```
+
+##### <a id="az-def-008"></a>`AZ-DEF-008` — Container images are not scanned for vulnerabilities
+
+- **Severity**: `MEDIUM` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `subscription`
+- **Compliance Mappings**: `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: RA-5, SI-2` &bull; `NIST_CSF: ID.RA-1, DE.CM-1` &bull; `PCI_DSS_4: 11.3.1` &bull; `SOC2: CC7.1`
+
+**Description**: Defender for Containers is off, or on without registry image scanning, so images pushed to this subscription's registries are never checked for known vulnerabilities.
+
+**Rationale**: An image is code that runs. A known-vulnerable base image pulled into every cluster is a vulnerability deployed everywhere at once, and the registry is where it is cheapest to catch.
+
+**Remediation**:
+```bash
+Turn on Defender for Containers with registry image scanning.
+
+Azure Portal: Microsoft Defender for Cloud > Environment settings > select the subscription > Defender plans > Containers: On > Settings > Agentless container vulnerability assessment: On > Save.
+```
+
+##### <a id="az-def-009"></a>`AZ-DEF-009` — IoT hub is not watched by Defender for IoT
+
+- **Severity**: `MEDIUM` | **Exploitability**: `1/5` | **Effort**: `~45 min`
+- **Scope**: `per_resource`
+- **Applies to**: `subscription`
+- **Compliance Mappings**: `GDPR: 32(1)(d), 33` &bull; `ISO_27001: A.8.16` &bull; `NIST_800_53: SI-4, IR-4` &bull; `NIST_CSF: DE.CM-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2, CC7.3`
+
+**Description**: An IoT hub in this subscription is covered by no enabled Defender for IoT solution, so threats against it and its devices raise no alert.
+
+**Rationale**: IoT devices are rarely patched and often reachable. Defender for IoT is what notices a device behaving unlike its twin, or a hub being enumerated.
+
+**Remediation**:
+```bash
+Turn on Defender for IoT for each hub.
+
+Azure Portal: select the IoT hub > Defender for IoT > Overview > Secure your IoT solution.
+```
+
+##### <a id="az-def-010"></a>`AZ-DEF-010` — The Microsoft cloud security benchmark is not enforced
+
+- **Severity**: `MEDIUM` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `subscription`
+- **Compliance Mappings**: `GDPR: 25` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: CM-6` &bull; `NIST_CSF: ID.GV-1` &bull; `PCI_DSS_4: 12.1.1` &bull; `SOC2: CC5.2`
+
+**Description**: The Microsoft cloud security benchmark -- the policy initiative Defender for Cloud's recommendations come from -- is unassigned here, or assigned with enforcement turned off.
+
+**Rationale**: With the initiative unenforced its policies evaluate nothing, and the recommendations built on them go quiet: the posture view reads cleaner than the estate is.
+
+**Remediation**:
+```bash
+Assign the initiative, or set its enforcement mode back to Default.
+
+Azure Portal: Policy > Assignments > ASC Default (the Microsoft cloud security benchmark) > Edit assignment > Policy enforcement: Enabled > Save.
+```
+
+##### <a id="az-def-011"></a>`AZ-DEF-011` — Defender CSPM is off
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `subscription`
+- **Compliance Mappings**: `GDPR: 32(1)(d), 33` &bull; `ISO_27001: A.8.16` &bull; `NIST_800_53: SI-4, IR-4` &bull; `NIST_CSF: DE.CM-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2, CC7.3`
+
+**Description**: The subscription is on the free foundational posture tier. The paid Defender CSPM plan's attack path analysis, agentless scanning and data awareness are off.
+
+**Rationale**: Foundational posture lists misconfigurations one by one; Defender CSPM is what Microsoft uses to join them into the routes an attacker would take.
+
+**Remediation**:
+```bash
+Turn on the Defender CSPM plan.
+
+Azure CLI:
+  az security pricing create --name CloudPosture --tier Standard
 ```
 
 ##### <a id="az-mal-001"></a>`AZ-MAL-001` — Machine has no working endpoint protection
@@ -1188,7 +3221,25 @@ Removing the public IP or closing the port is minutes of work and ends the reach
 Azure Portal: Defender for Cloud > Recommendations, filtered to this machine, lists what to apply. Reach the host through Azure Bastion or just-in-time access rather than a standing public address.
 ```
 
-#### secrets (3 rules)
+##### <a id="az-vuln-002"></a>`AZ-VULN-002` — Machine has no vulnerability assessment
+
+- **Severity**: `MEDIUM` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `virtual_machine`
+- **Compliance Mappings**: `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: RA-5` &bull; `NIST_CSF: ID.RA-1, DE.CM-1` &bull; `PCI_DSS_4: 11.3.1` &bull; `SOC2: CC7.1`
+
+**Description**: Microsoft Defender for Cloud reports that no vulnerability assessment solution scans this machine, so nothing reports what it is missing.
+
+**Rationale**: AZ-VULN-001 can only report the vulnerabilities something found. A machine nothing scans has none reported, which reads exactly like a machine with none -- this is the check that tells the two apart.
+
+**Remediation**:
+```bash
+Turn on vulnerability assessment for the machine.
+
+Azure Portal: Defender for Cloud > Recommendations > 'Machines should have a vulnerability assessment solution' > select the machine > Fix. With Defender for Servers on, the built-in Defender Vulnerability Management scanner is the default and needs no agent of its own.
+```
+
+#### secrets (6 rules)
 
 ##### <a id="az-kv-001"></a>`AZ-KV-001` — Key vault can be permanently destroyed
 
@@ -1261,7 +3312,67 @@ Azure CLI:
   az keyvault update --name <vault> --resource-group <rg> --enable-rbac-authorization true
 ```
 
-#### storage (5 rules)
+##### <a id="az-kv-004"></a>`AZ-KV-004` — Key vault holds keys that never expire
+
+- **Severity**: `MEDIUM` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `key_vault`
+- **Compliance Mappings**: `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-12, IA-5` &bull; `NIST_CSF: PR.DS-1, PR.AC-1` &bull; `PCI_DSS_4: 3.6.1` &bull; `SOC2: CC6.1`
+
+**Description**: An enabled key in the vault has no expiration date, so it stays usable indefinitely however long ago it was meant to be replaced.
+
+**Rationale**: An expiry date bounds how long a key that leaked stays useful, and forces the rotation that a key nobody remembers creating never gets.
+
+**Remediation**:
+```bash
+Set an expiration date on each key named in the finding, or give it a rotation policy that sets one.
+
+Azure CLI:
+  az keyvault key set-attributes --vault-name <vault> --name <key> \
+    --expires <YYYY-MM-DDThh:mm:ssZ>
+```
+
+##### <a id="az-kv-005"></a>`AZ-KV-005` — Key vault holds secrets that never expire
+
+- **Severity**: `MEDIUM` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `key_vault`
+- **Compliance Mappings**: `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-12, IA-5` &bull; `NIST_CSF: PR.DS-1, PR.AC-1` &bull; `PCI_DSS_4: 3.6.1` &bull; `SOC2: CC6.1`
+
+**Description**: An enabled secret in the vault has no expiration date, so a password or connection string stored there is never forced to change.
+
+**Rationale**: Secrets leak -- into logs, repositories, laptops. An expiry date is what makes a leaked one stop working without anyone noticing it leaked.
+
+**Remediation**:
+```bash
+Set an expiration date on each secret named in the finding.
+
+Azure CLI:
+  az keyvault secret set-attributes --vault-name <vault> --name <secret> \
+    --expires <YYYY-MM-DDThh:mm:ssZ>
+```
+
+##### <a id="az-kv-006"></a>`AZ-KV-006` — Key vault holds keys that never rotate
+
+- **Severity**: `MEDIUM` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `key_vault`
+- **Compliance Mappings**: `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-12, IA-5` &bull; `NIST_CSF: PR.DS-1, PR.AC-1` &bull; `PCI_DSS_4: 3.6.1` &bull; `SOC2: CC6.1`
+
+**Description**: An enabled key's rotation policy has no rotate action, so Key Vault never issues a new version of it.
+
+**Rationale**: Automatic rotation replaces key material on a schedule without anyone having to remember, and services reading the key's latest version follow it without a deployment.
+
+**Remediation**:
+```bash
+Give each key named in the finding a rotation policy that rotates it.
+
+Azure CLI:
+  az keyvault key rotation-policy update --vault-name <vault> --name <key> \
+    --value @rotation-policy.json
+```
+
+#### storage (16 rules)
 
 ##### <a id="az-sto-001"></a>`AZ-STO-001` — Storage account allows public access
 
@@ -1383,6 +3494,264 @@ Azure CLI:
     --account-name <account> --resource-group <rg> \
     --enable-delete-retention true --delete-retention-days 14 \
     --enable-container-delete-retention true --container-delete-retention-days 14
+```
+
+##### <a id="az-sto-006"></a>`AZ-STO-006` — Blob versioning is off
+
+- **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `storage_account`
+- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF: PR.IP-4` &bull; `PCI_DSS_4: 10.5.1` &bull; `SOC2: A1.2`
+
+**Description**: The account keeps no earlier versions of a blob when it is overwritten, so a bad write or ransomware's encryption replaces the only copy.
+
+**Rationale**: Soft delete recovers what was deleted; only versioning recovers what was overwritten -- which is what ransomware does to storage it can write to.
+
+**Remediation**:
+```bash
+Turn on blob versioning, with a lifecycle rule to expire old versions.
+
+Azure CLI:
+  az storage account blob-service-properties update \
+    --account-name <account> --resource-group <rg> --enable-versioning true
+```
+
+##### <a id="az-sto-007"></a>`AZ-STO-007` — Storage infrastructure encryption is off
+
+- **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `storage_account`
+- **Compliance Mappings**: `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-12, SC-28` &bull; `NIST_CSF: PR.DS-1` &bull; `PCI_DSS_4: 3.5.1` &bull; `SOC2: CC6.1`
+
+**Description**: Data is encrypted once at rest, not twice: the account was created without the second, infrastructure-level layer of encryption.
+
+**Rationale**: The second layer uses a different algorithm and key, so a flaw in one does not expose the data. It can only be chosen when the account is created.
+
+**Remediation**:
+```bash
+Create a replacement account with infrastructure encryption and move the data; the setting cannot be changed on an existing account.
+
+Azure CLI:
+  az storage account create --name <account> --resource-group <rg> \
+    --require-infrastructure-encryption
+```
+
+##### <a id="az-sto-008"></a>`AZ-STO-008` — Storage account is encrypted with Microsoft's keys
+
+- **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `storage_account`
+- **Compliance Mappings**: `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-12, SC-28` &bull; `NIST_CSF: PR.DS-1` &bull; `PCI_DSS_4: 3.5.1` &bull; `SOC2: CC6.1`
+
+**Description**: The account's data is encrypted with a key Microsoft manages rather than one in the customer's key vault.
+
+**Rationale**: A customer-managed key is what lets the customer make the data unreadable by revoking a key, and what some regulated data requires.
+
+**Remediation**:
+```bash
+Grant the account's managed identity access to a key in a vault with purge protection, then point the account's encryption at it.
+
+Azure CLI:
+  az storage account update --name <account> --resource-group <rg> \
+    --encryption-key-source Microsoft.Keyvault \
+    --encryption-key-vault <vault-uri> --encryption-key-name <key>
+```
+
+##### <a id="az-sto-009"></a>`AZ-STO-009` — Storage portal access does not default to Entra authorization
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `storage_account`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.15` &bull; `NIST_800_53: AC-3, AC-6` &bull; `NIST_CSF: PR.AC-4` &bull; `PCI_DSS_4: 7.2.1` &bull; `SOC2: CC6.1`
+
+**Description**: The Azure portal reaches this account's data with its access keys by default rather than with the signed-in user's own Entra permissions.
+
+**Rationale**: With key-based access as the default, anyone who can list the keys sees all the data in the portal, whatever data roles they were given.
+
+**Remediation**:
+```bash
+Azure CLI:
+  az storage account update --name <account> --resource-group <rg> \
+    --set defaultToOAuthAuthentication=true
+```
+
+##### <a id="az-sto-010"></a>`AZ-STO-010` — Trusted Azure services cannot reach a network-restricted account
+
+- **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `storage_account`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF: PR.AC-5` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
+
+**Description**: The account's network rules do not let trusted Azure services through, so backup, logging and Defender cannot reach it once the rules deny by default.
+
+**Rationale**: Without the bypass, tightening the network rules breaks the services that protect the account, and the usual response is to open the rules again.
+
+**Remediation**:
+```bash
+Azure CLI:
+  az storage account update --name <account> --resource-group <rg> \
+    --bypass AzureServices
+```
+
+##### <a id="az-sto-011"></a>`AZ-STO-011` — Storage account has no private endpoint
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `storage_account`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF: PR.AC-5` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
+
+**Description**: No approved private endpoint serves the account, so every client reaches it over its public endpoint.
+
+**Rationale**: A private endpoint is what lets public access be switched off without cutting off the workloads that use the account.
+
+**Remediation**:
+```bash
+Azure CLI:
+  az network private-endpoint create --name <endpoint> --resource-group <rg> \
+    --vnet-name <vnet> --subnet <subnet> \
+    --private-connection-resource-id <resource-id> --group-id blob \
+    --connection-name <connection>
+```
+
+##### <a id="az-sto-012"></a>`AZ-STO-012` — File share soft delete is off
+
+- **Severity**: `MEDIUM` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `storage_account`
+- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF: PR.IP-4, RC.RP-1` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
+
+**Description**: Deleted file shares in this account are gone at once: soft delete is off, so a share removed by mistake or by an intruder cannot be restored.
+
+**Rationale**: Deleting a share is one call and removes every file in it. Soft delete keeps it recoverable for a retention period, which is the difference between an outage and a loss.
+
+**Remediation**:
+```bash
+Turn on soft delete for file shares.
+
+Azure CLI:
+  az storage account file-service-properties update \
+    --account-name <account> --resource-group <rg> \
+    --enable-delete-retention true --delete-retention-days 7
+```
+
+##### <a id="az-sto-013"></a>`AZ-STO-013` — File shares accept SMB versions older than 3.1.1
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `storage_account`
+- **Compliance Mappings**: `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-8` &bull; `NIST_CSF: PR.DS-2` &bull; `PCI_DSS_4: 4.2.1` &bull; `SOC2: CC6.7`
+
+**Description**: The account's file shares accept SMB 2.1 or 3.0 as well as 3.1.1. An unset setting accepts all three.
+
+**Rationale**: SMB 3.1.1 adds pre-authentication integrity, which stops a downgrade to a weaker dialect by someone on the path. Older clients are the only reason to keep the rest.
+
+**Remediation**:
+```bash
+Allow SMB 3.1.1 only.
+
+Azure CLI:
+  az storage account file-service-properties update \
+    --account-name <account> --resource-group <rg> --versions SMB3.1.1
+```
+
+##### <a id="az-sto-014"></a>`AZ-STO-014` — File shares accept SMB channel ciphers weaker than AES-256-GCM
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `storage_account`
+- **Compliance Mappings**: `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-8` &bull; `NIST_CSF: PR.DS-2` &bull; `PCI_DSS_4: 4.2.1` &bull; `SOC2: CC6.7`
+
+**Description**: The account's file shares negotiate AES-128 channel encryption as well as AES-256-GCM. An unset setting accepts all three ciphers.
+
+**Rationale**: AES-256-GCM is the strongest cipher SMB offers and every current client supports it; allowing the others only helps a downgrade.
+
+**Remediation**:
+```bash
+Allow AES-256-GCM only.
+
+Azure CLI:
+  az storage account file-service-properties update \
+    --account-name <account> --resource-group <rg> \
+    --channel-encryption AES-256-GCM
+```
+
+##### <a id="az-sto-015"></a>`AZ-STO-015` — Storage access keys are not set to expire within 90 days
+
+- **Severity**: `MEDIUM` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `storage_account`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17` &bull; `NIST_800_53: IA-5` &bull; `NIST_CSF: PR.AC-1` &bull; `PCI_DSS_4: 8.3.1` &bull; `SOC2: CC6.1`
+
+**Description**: The account has no key expiration policy, or one longer than 90 days, so nothing prompts its access keys to be rotated.
+
+**Rationale**: An access key is full control of the account's data. A key expiration policy makes Azure flag a key overdue for rotation, which is how a key copied into a script three years ago gets noticed.
+
+**Remediation**:
+```bash
+Set a key expiration policy of 90 days or less.
+
+Azure CLI:
+  az storage account update --name <account> --resource-group <rg> \
+    --key-exp-days 90
+```
+
+##### <a id="az-sto-016"></a>`AZ-STO-016` — Storage account is not geo-redundant
+
+- **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `storage_account`
+- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF: PR.IP-4, RC.RP-1` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
+
+**Description**: The account keeps its data in one region (LRS or ZRS), so a regional disaster loses it.
+
+**Rationale**: Geo-redundant replication keeps a copy in the paired region. It costs more, which is why this is a LOW finding a customer may reasonably dismiss for data that can be rebuilt.
+
+**Remediation**:
+```bash
+Azure CLI:
+  az storage account update --name <account> --resource-group <rg> \
+    --sku Standard_GZRS
+```
+
+#### web (2 rules)
+
+##### <a id="az-web-006"></a>`AZ-WEB-006` — Function app answers the whole internet
+
+- **Severity**: `MEDIUM` | **Exploitability**: `3/5` | **Effort**: `~60 min`
+- **Scope**: `per_resource`
+- **Applies to**: `app_service`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7, AC-3` &bull; `NIST_CSF: PR.AC-3, PR.AC-5` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.1, CC6.6`
+
+**Description**: A function app accepts requests from any network: public access is on and its access restrictions admit every address. Each HTTP trigger is then protected by its function key at most.
+
+**Rationale**: Function apps are glue: they are called by other services far more often than by the public, and they run as identities that reach storage, queues and databases. A web app is usually meant to be public; a function app usually is not, and nothing but a key stands in front of it.
+
+**Remediation**:
+```bash
+Restrict the app to the networks and services that call it -- access restrictions naming their addresses, virtual networks or service tags -- or disable public access and reach it through a private endpoint. Leave it open only where the function is genuinely a public API.
+
+Azure CLI:
+  az functionapp config access-restriction add --name <app> \
+    --resource-group <rg> --rule-name <name> --action Allow \
+    --ip-address <cidr> --priority 100
+```
+
+##### <a id="az-web-007"></a>`AZ-WEB-007` — Function app has no virtual network integration
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `app_service`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF: PR.AC-5` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
+
+**Description**: The function app's outbound traffic does not go through a virtual network, so the data stores it calls must accept connections from the public internet.
+
+**Rationale**: VNet integration is what lets a function reach storage and databases over private endpoints, so those can switch public access off.
+
+**Remediation**:
+```bash
+Azure CLI:
+  az functionapp vnet-integration add --name <app> --resource-group <rg> \
+    --vnet <vnet> --subnet <subnet>
 ```
 
 ### AWS Rules (Preview)
@@ -1579,7 +3948,65 @@ Turn it on and let it apply in the maintenance window:
 Set the maintenance window to a time you are happy to take a brief failover; the upgrade itself is the same operation you would run by hand, on a schedule instead of on a reminder.
 ```
 
-#### identity (6 rules)
+#### identity (9 rules)
+
+##### <a id="aws-cog-001"></a>`AWS-COG-001` — User pool threat protection is not enforced
+
+- **Severity**: `MEDIUM` | **Exploitability**: `3/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `user_pool`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17, A.8.16` &bull; `NIST_800_53: IA-2, SI-4` &bull; `NIST_CSF: PR.AC-7, DE.CM-1` &bull; `PCI_DSS_4: 8.3.1` &bull; `SOC2: CC6.1`
+
+**Description**: The Cognito user pool's threat protection is off or only auditing, so sign-ins with leaked passwords or from risky contexts are let through.
+
+**Rationale**: A user pool's sign-in faces the internet by design and is sprayed with breached passwords like any other. Enforced threat protection is what blocks or challenges those sign-ins; audit mode only records them.
+
+**Remediation**:
+```bash
+Move the pool to the Plus tier and set threat protection to full function.
+
+  aws cognito-idp update-user-pool --user-pool-id <pool-id> \
+    --user-pool-tier PLUS \
+    --user-pool-add-ons AdvancedSecurityMode=ENFORCED
+
+Plus is billed per monthly active user.
+```
+
+##### <a id="aws-cog-002"></a>`AWS-COG-002` — User pool does not block sign-ins with compromised credentials
+
+- **Severity**: `MEDIUM` | **Exploitability**: `3/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `user_pool`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17, A.8.16` &bull; `NIST_800_53: IA-2, SI-4` &bull; `NIST_CSF: PR.AC-7, DE.CM-1` &bull; `PCI_DSS_4: 8.3.1` &bull; `SOC2: CC6.1`
+
+**Description**: Threat protection is enforced but takes no action when a user signs in with a password found in a breach.
+
+**Rationale**: A password known to be leaked is the one attackers try first. Detecting it and letting the sign-in through leaves the account to whoever has the breach list.
+
+**Remediation**:
+```bash
+Set the compromised-credentials action to BLOCK.
+
+  aws cognito-idp set-risk-configuration --user-pool-id <pool-id> --cli-input-json file://risk-configuration.json
+```
+
+##### <a id="aws-cog-003"></a>`AWS-COG-003` — User pool lets risky sign-ins through unchallenged
+
+- **Severity**: `MEDIUM` | **Exploitability**: `3/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `user_pool`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17, A.8.16` &bull; `NIST_800_53: IA-2, SI-4` &bull; `NIST_CSF: PR.AC-7, DE.CM-1` &bull; `PCI_DSS_4: 8.3.1` &bull; `SOC2: CC6.1`
+
+**Description**: Threat protection is enforced, but at some risk level a suspicious sign-in is allowed without being blocked or required to pass MFA.
+
+**Rationale**: Adaptive authentication is only as strong as its weakest level. The catalogue asked for BLOCK at every level; requiring MFA is accepted here too, since it stops the attacker and not the user.
+
+**Remediation**:
+```bash
+Set the account-takeover action to BLOCK or MFA_REQUIRED at low, medium and high risk.
+
+  aws cognito-idp set-risk-configuration --user-pool-id <pool-id> --cli-input-json file://risk-configuration.json
+```
 
 ##### <a id="aws-iam-001"></a>`AWS-IAM-001` — IAM user can sign in without MFA
 
@@ -2275,7 +4702,26 @@ Then the filter, and the alarm on the metric it publishes:
 The `--alarm-actions` is not optional. An alarm with no action changes a colour on a dashboard nobody is looking at.
 ```
 
-#### network (5 rules)
+#### network (6 rules)
+
+##### <a id="aws-cog-004"></a>`AWS-COG-004` — User pool has no web ACL in front of it
+
+- **Severity**: `LOW` | **Exploitability**: `3/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `user_pool`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF: PR.AC-5` &bull; `PCI_DSS_4: 6.5.1` &bull; `SOC2: CC6.6`
+
+**Description**: No AWS WAF web ACL is associated with the user pool, so its hosted sign-in and public API endpoints take every request that reaches them.
+
+**Rationale**: A web ACL rate-limits and filters sign-in traffic before Cognito sees it, which is where a credential-stuffing run is cheapest to stop.
+
+**Remediation**:
+```bash
+Associate a regional web ACL with the pool.
+
+  aws wafv2 associate-web-acl --web-acl-arn <web-acl-arn> \
+    --resource-arn <user-pool-arn>
+```
 
 ##### <a id="aws-net-001"></a>`AWS-NET-001` — SSH is open to the internet
 
@@ -2535,876 +4981,3 @@ Add a deny to the bucket policy:
 
 Both ARNs matter: the bucket for operations on the bucket itself, and the wildcard for the objects in it.
 ```
-
-
-## Extended checks (Prowler)
-
-Run by the scanner service on Prowler 5.43.0. 816 of 853 checks are enabled; 111 of those are answered by a native rule, which raises the finding while the check's verdict is compared against it. Generated from `tools/prowler/curation.json` by `tools/prowler/build_catalog.py`.
-
-### Azure (184)
-
-| Rule ID | Severity | Check | Answered by |
-|---|---|---|---|
-| `PRW-AZ-aisearch_service_not_publicly_accessible` | HIGH | AI Search service has public network access disabled | - |
-| `PRW-AZ-aks_cluster_auto_upgrade_enabled` | MEDIUM | AKS cluster has automatic upgrade enabled | - |
-| `PRW-AZ-aks_cluster_azure_monitor_enabled` | MEDIUM | AKS cluster has Azure Monitor metrics enabled | - |
-| `PRW-AZ-aks_cluster_local_accounts_disabled` | HIGH | AKS cluster has local accounts disabled | - |
-| `PRW-AZ-aks_cluster_rbac_enabled` | HIGH | AKS cluster has RBAC enabled | - |
-| `PRW-AZ-aks_clusters_created_with_private_nodes` | HIGH | AKS cluster nodes do not have public IP addresses | - |
-| `PRW-AZ-aks_clusters_public_access_disabled` | HIGH | AKS cluster has a private endpoint and node public access is disabled | - |
-| `PRW-AZ-aks_network_policy_enabled` | MEDIUM | AKS cluster has network policy enabled | - |
-| `PRW-AZ-app_client_certificates_on` | MEDIUM | Web app requires incoming client certificates | - |
-| `PRW-AZ-app_ensure_auth_is_set_up` | MEDIUM | App Service app has App Service Authentication enabled | - |
-| `PRW-AZ-app_ensure_http_is_redirected_to_https` | HIGH | App Service web app redirects HTTP to HTTPS | AZ-WEB-001 |
-| `PRW-AZ-app_ensure_java_version_is_latest` | LOW | App Service web app uses the latest supported Java version or 17 by default | - |
-| `PRW-AZ-app_ensure_php_version_is_latest` | LOW | App Service web app uses the latest supported PHP version or 8.2 by default | - |
-| `PRW-AZ-app_ensure_python_version_is_latest` | LOW | App Service web app uses the latest supported Python version or 3.12 by default | - |
-| `PRW-AZ-app_ensure_using_http20` | LOW | App Service web app has HTTP/2.0 enabled | - |
-| `PRW-AZ-app_ftp_deployment_disabled` | HIGH | App Service web app has FTP disabled or FTPS-only enforced | AZ-WEB-003 |
-| `PRW-AZ-app_function_application_insights_enabled` | MEDIUM | Function App has Application Insights configured | - |
-| `PRW-AZ-app_function_ensure_http_is_redirected_to_https` | HIGH | Function app redirects HTTP to HTTPS | AZ-WEB-001 |
-| `PRW-AZ-app_function_ftps_deployment_disabled` | MEDIUM | Function app has FTP and FTPS deployments disabled | AZ-WEB-003 |
-| `PRW-AZ-app_function_identity_is_configured` | MEDIUM | Function app has a system-assigned or user-assigned managed identity enabled | AZ-WEB-005 |
-| `PRW-AZ-app_function_identity_without_admin_privileges` | HIGH | Function app managed identity is not assigned Owner, Contributor, User Access Administrator, or Role Based Access Control Administrator roles | - |
-| `PRW-AZ-app_function_latest_runtime_version` | MEDIUM | Function app uses the latest supported runtime version (~4) | - |
-| `PRW-AZ-app_function_not_publicly_accessible` | HIGH | Function app is not publicly accessible | - |
-| `PRW-AZ-app_function_vnet_integration_enabled` | MEDIUM | Function app has Virtual Network integration enabled | - |
-| `PRW-AZ-app_http_logs_enabled` | LOW | App Service web app has HTTP logs enabled in diagnostic settings | - |
-| `PRW-AZ-app_minimum_tls_version_12` | MEDIUM | App Service web app has minimum TLS version set to 1.2 or 1.3 | AZ-WEB-002 |
-| `PRW-AZ-app_register_with_identity` | MEDIUM | App Service web app has a managed identity configured | AZ-WEB-005 |
-| `PRW-AZ-appinsights_ensure_is_configured` | LOW | Subscription has at least one Application Insights resource configured | - |
-| `PRW-AZ-containerregistry_admin_user_disabled` | HIGH | Container Registry admin user is disabled | - |
-| `PRW-AZ-containerregistry_not_publicly_accessible` | HIGH | Container Registry public network access is disabled | - |
-| `PRW-AZ-containerregistry_uses_private_link` | HIGH | Container Registry uses a private endpoint (Private Link) | - |
-| `PRW-AZ-cosmosdb_account_automatic_failover_enabled` | MEDIUM | Cosmos DB account has automatic failover enabled | - |
-| `PRW-AZ-cosmosdb_account_backup_policy_continuous` | MEDIUM | Cosmos DB account uses continuous backup policy | - |
-| `PRW-AZ-cosmosdb_account_firewall_use_selected_networks` | MEDIUM | Cosmos DB account firewall allows access only from selected networks | - |
-| `PRW-AZ-cosmosdb_account_minimum_tls_version` | MEDIUM | Cosmos DB account enforces TLS 1.2 or higher | - |
-| `PRW-AZ-cosmosdb_account_public_network_access_disabled` | MEDIUM | Cosmos DB account has public network access disabled | - |
-| `PRW-AZ-cosmosdb_account_use_aad_and_rbac` | HIGH | Cosmos DB account has local authentication disabled and uses Azure AD authentication with Azure RBAC | - |
-| `PRW-AZ-cosmosdb_account_use_private_endpoints` | HIGH | Cosmos DB account uses private endpoint connections | - |
-| `PRW-AZ-databricks_workspace_cmk_encryption_enabled` | HIGH | Databricks workspace uses a customer-managed key (CMK) for encryption at rest | - |
-| `PRW-AZ-databricks_workspace_no_public_ip_enabled` | MEDIUM | Databricks workspace has secure cluster connectivity (no public IP) | - |
-| `PRW-AZ-databricks_workspace_public_network_access_disabled` | HIGH | Databricks workspace has public network access disabled | - |
-| `PRW-AZ-databricks_workspace_vnet_injection_enabled` | HIGH | Databricks workspace is deployed in a customer-managed VNet (VNet Injection enabled) | - |
-| `PRW-AZ-defender_additional_email_configured_with_a_security_contact` | LOW | Security contact has additional email addresses configured | - |
-| `PRW-AZ-defender_assessments_vm_endpoint_protection_installed` | HIGH | All virtual machines in the subscription have endpoint protection installed | AZ-MAL-001 |
-| `PRW-AZ-defender_attack_path_notifications_properly_configured` | HIGH | Security contact has attack path email notifications enabled at or above the configured minimum risk level | - |
-| `PRW-AZ-defender_auto_provisioning_log_analytics_agent_vms_on` | HIGH | Defender auto-provisioning of Log Analytics agent for Azure VMs is enabled | - |
-| `PRW-AZ-defender_auto_provisioning_vulnerabilty_assessments_machines_on` | MEDIUM | All virtual machines in the subscription have a vulnerability assessment solution installed | - |
-| `PRW-AZ-defender_container_images_resolved_vulnerabilities` | CRITICAL | All Azure running container images in the subscription have no unresolved vulnerabilities | - |
-| `PRW-AZ-defender_container_images_scan_enabled` | HIGH | Subscription has container image vulnerability scanning enabled | - |
-| `PRW-AZ-defender_ensure_defender_for_app_services_is_on` | HIGH | Defender for App Services is set to On (Standard pricing tier) | AZ-DEF-001 |
-| `PRW-AZ-defender_ensure_defender_for_arm_is_on` | HIGH | Defender for Azure Resource Manager is set to On (Standard pricing tier) | AZ-DEF-001 |
-| `PRW-AZ-defender_ensure_defender_for_azure_sql_databases_is_on` | HIGH | Defender for Azure SQL databases is set to On (Standard pricing tier) | AZ-DEF-001 |
-| `PRW-AZ-defender_ensure_defender_for_containers_is_on` | HIGH | Defender for Containers is set to On (Standard pricing tier) | AZ-DEF-001 |
-| `PRW-AZ-defender_ensure_defender_for_cosmosdb_is_on` | HIGH | Defender for Cosmos DB is set to On (Standard pricing tier) | AZ-DEF-001 |
-| `PRW-AZ-defender_ensure_defender_for_databases_is_on` | HIGH | Defender for Databases is set to On (Standard pricing tier) | AZ-DEF-001 |
-| `PRW-AZ-defender_ensure_defender_for_dns_is_on` | HIGH | Defender for DNS is set to On (Standard pricing tier) | AZ-DEF-001 |
-| `PRW-AZ-defender_ensure_defender_for_keyvault_is_on` | HIGH | Defender for Key Vaults is set to On (Standard pricing tier) | AZ-DEF-001 |
-| `PRW-AZ-defender_ensure_defender_for_os_relational_databases_is_on` | HIGH | Defender for Open-Source Relational Databases is set to On (Standard pricing tier) | AZ-DEF-001 |
-| `PRW-AZ-defender_ensure_defender_for_server_is_on` | HIGH | Defender for Servers is set to On (Standard pricing tier) | AZ-DEF-001 |
-| `PRW-AZ-defender_ensure_defender_for_sql_servers_is_on` | HIGH | Defender for SQL servers on machines is set to On (Standard pricing tier) | AZ-DEF-001 |
-| `PRW-AZ-defender_ensure_defender_for_storage_is_on` | HIGH | Defender for Storage is set to On (Standard pricing tier) | AZ-DEF-001 |
-| `PRW-AZ-defender_ensure_iot_hub_defender_is_on` | HIGH | Defender for IoT Hub is set to On | - |
-| `PRW-AZ-defender_ensure_mcas_is_enabled` | MEDIUM | Defender for Cloud Apps is enabled | - |
-| `PRW-AZ-defender_ensure_notify_alerts_severity_is_high` | HIGH | Security contact has alert notifications enabled with minimum severity High or lower | - |
-| `PRW-AZ-defender_ensure_notify_emails_to_owners` | MEDIUM | Security contact notifications include the Owner role | - |
-| `PRW-AZ-defender_ensure_system_updates_are_applied` | HIGH | All virtual machines in the subscription have system updates applied | AZ-VULN-001 |
-| `PRW-AZ-defender_ensure_wdatp_is_enabled` | HIGH | Defender for Endpoint is enabled | - |
-| `PRW-AZ-entra_app_registration_credential_not_expired` | HIGH | App registration credentials are not expired or expiring soon | AZ-APP-001 |
-| `PRW-AZ-entra_authentication_methods_policy_strong_auth_enforced` | HIGH | Strong authentication methods are enabled with registration enforcement | - |
-| `PRW-AZ-entra_conditional_access_policy_require_mfa_for_admin_portals` | MEDIUM | Conditional Access policy requires MFA for Microsoft Admin Portals | - |
-| `PRW-AZ-entra_conditional_access_policy_require_mfa_for_management_api` | MEDIUM | Multifactor Authentication is required for Windows Azure Service Management API | - |
-| `PRW-AZ-entra_global_admin_in_less_than_five_users` | HIGH | Global Administrator role has fewer than 5 members | AZ-ID-002 |
-| `PRW-AZ-entra_non_privileged_user_has_mfa` | MEDIUM | Non-privileged user has multi-factor authentication enabled | AZ-ID-004 |
-| `PRW-AZ-entra_policy_default_users_cannot_create_security_groups` | MEDIUM | Authorization policy disallows non-privileged users from creating security groups | - |
-| `PRW-AZ-entra_policy_ensure_default_user_cannot_create_apps` | HIGH | Tenant does not allow non-admin users to register applications | - |
-| `PRW-AZ-entra_policy_ensure_default_user_cannot_create_tenants` | MEDIUM | Authorization policy restricts non-admin users from creating tenants | - |
-| `PRW-AZ-entra_policy_guest_invite_only_for_admin_roles` | HIGH | Tenant authorization policy restricts guest invitations to users with specific admin roles or disables guest invitations | - |
-| `PRW-AZ-entra_policy_guest_users_access_restrictions` | MEDIUM | Authorization policy restricts guest user access to properties and memberships of their own directory objects | - |
-| `PRW-AZ-entra_policy_restricts_user_consent_for_apps` | HIGH | Entra authorization policy disallows user consent for applications | - |
-| `PRW-AZ-entra_policy_user_consent_for_verified_apps` | HIGH | Entra tenant does not allow users to consent to non-verified applications | - |
-| `PRW-AZ-entra_privileged_user_has_mfa` | HIGH | Privileged user has multi-factor authentication enabled | AZ-ID-001 |
-| `PRW-AZ-entra_security_defaults_enabled` | CRITICAL | Microsoft Entra ID tenant has Security Defaults enabled | AZ-ID-005, AZ-ID-006 |
-| `PRW-AZ-entra_trusted_named_locations_exists` | LOW | Entra tenant has a trusted named location with IP ranges defined | - |
-| `PRW-AZ-entra_user_with_recent_sign_in` | MEDIUM | Enabled user has signed in within the last 90 days | AZ-ID-003 |
-| `PRW-AZ-entra_user_with_vm_access_has_mfa` | HIGH | Entra ID user with VM access has multi-factor authentication enabled | - |
-| `PRW-AZ-entra_users_cannot_create_microsoft_365_groups` | MEDIUM | Microsoft 365 group creation by users is disabled | - |
-| `PRW-AZ-iam_custom_role_has_permissions_to_administer_resource_locks` | MEDIUM | Custom role has permission to administer resource locks | - |
-| `PRW-AZ-iam_role_user_access_admin_restricted` | HIGH | Role assignment does not grant the User Access Administrator role | - |
-| `PRW-AZ-iam_subscription_roles_owner_custom_not_created` | HIGH | Custom role is not a subscription owner role | AZ-IAM-010 |
-| `PRW-AZ-keyvault_access_only_through_private_endpoints` | HIGH | Key Vault using private endpoints has public network access disabled | AZ-KV-002 |
-| `PRW-AZ-keyvault_key_expiration_set_in_non_rbac` | HIGH | Key in non-RBAC Key Vault has expiration date set | - |
-| `PRW-AZ-keyvault_key_rotation_enabled` | HIGH | Key Vault key has automatic rotation enabled | - |
-| `PRW-AZ-keyvault_logging_enabled` | HIGH | Key Vault has at least one diagnostic setting with audit logging enabled | AZ-LOG-004 |
-| `PRW-AZ-keyvault_non_rbac_secret_expiration_set` | MEDIUM | Secret in non-RBAC Key Vault has expiration date set | - |
-| `PRW-AZ-keyvault_private_endpoints` | HIGH | Key Vault uses private endpoints | AZ-KV-002 |
-| `PRW-AZ-keyvault_rbac_enabled` | HIGH | Key Vault uses Azure RBAC for access control | AZ-KV-003 |
-| `PRW-AZ-keyvault_rbac_key_expiration_set` | MEDIUM | Key in RBAC-enabled Key Vault has expiration date set | - |
-| `PRW-AZ-keyvault_rbac_secret_expiration_set` | MEDIUM | Secret in RBAC-enabled Key Vault has expiration date set | - |
-| `PRW-AZ-keyvault_recoverable` | HIGH | Key Vault has soft delete and purge protection enabled | AZ-KV-001 |
-| `PRW-AZ-monitor_alert_create_policy_assignment` | MEDIUM | Subscription has an Azure Monitor activity log alert for policy assignment creation | - |
-| `PRW-AZ-monitor_alert_create_update_nsg` | HIGH | Subscription has an Activity Log alert for Network Security Group create or update operations | - |
-| `PRW-AZ-monitor_alert_create_update_public_ip_address_rule` | MEDIUM | Subscription has an Activity Log Alert for Public IP address create or update operations | - |
-| `PRW-AZ-monitor_alert_create_update_security_solution` | MEDIUM | Subscription has Activity Log alert for Security Solution create or update | - |
-| `PRW-AZ-monitor_alert_create_update_sqlserver_fr` | MEDIUM | Subscription has an Activity Log alert for SQL Server firewall rule create or update events | - |
-| `PRW-AZ-monitor_alert_delete_nsg` | HIGH | Subscription has an Activity Log alert for Network Security Group delete operations | - |
-| `PRW-AZ-monitor_alert_delete_policy_assignment` | HIGH | Subscription has an Activity Log alert for policy assignment deletion | - |
-| `PRW-AZ-monitor_alert_delete_public_ip_address_rule` | MEDIUM | Azure subscription has an Activity Log alert for public IP address deletion | - |
-| `PRW-AZ-monitor_alert_delete_security_solution` | MEDIUM | Subscription has an Azure Monitor Activity Log alert for Microsoft.Security/securitySolutions delete operations | - |
-| `PRW-AZ-monitor_alert_delete_sqlserver_fr` | MEDIUM | Subscription has an Activity Log Alert for SQL Server firewall rule deletions | - |
-| `PRW-AZ-monitor_alert_service_health_exists` | MEDIUM | Azure subscription has an enabled Activity Log alert for Service Health incidents | - |
-| `PRW-AZ-monitor_diagnostic_setting_with_appropriate_categories` | HIGH | Subscription has a diagnostic setting capturing Administrative, Security, Alert, and Policy categories | - |
-| `PRW-AZ-monitor_diagnostic_settings_exists` | HIGH | Subscription has an Activity Log diagnostic setting | AZ-LOG-002 |
-| `PRW-AZ-monitor_storage_account_with_activity_logs_cmk_encrypted` | MEDIUM | Storage account storing Activity Log data is encrypted with a customer-managed key | - |
-| `PRW-AZ-monitor_storage_account_with_activity_logs_is_private` | HIGH | Storage account storing activity logs does not allow public blob access | - |
-| `PRW-AZ-mysql_flexible_server_audit_log_connection_activated` | MEDIUM | MySQL flexible server has audit_log_events including CONNECTION | - |
-| `PRW-AZ-mysql_flexible_server_audit_log_enabled` | MEDIUM | MySQL flexible server has audit_log_enabled set to ON | - |
-| `PRW-AZ-mysql_flexible_server_geo_redundant_backup_enabled` | MEDIUM | MySQL flexible server has geo-redundant backup enabled | - |
-| `PRW-AZ-mysql_flexible_server_high_availability_enabled` | MEDIUM | MySQL flexible server has high availability enabled | - |
-| `PRW-AZ-mysql_flexible_server_minimum_tls_version_12` | HIGH | MySQL flexible server enforces TLS 1.2 or higher | - |
-| `PRW-AZ-mysql_flexible_server_ssl_connection_enabled` | HIGH | MySQL Flexible Server enforces SSL connections | - |
-| `PRW-AZ-network_bastion_host_exists` | MEDIUM | Azure subscription has at least one Bastion Host | - |
-| `PRW-AZ-network_flow_log_captured_sent` | HIGH | Network Watcher has flow logs enabled and sent to a Log Analytics workspace | - |
-| `PRW-AZ-network_flow_log_more_than_90_days` | MEDIUM | Network Watcher has all flow logs enabled with retention set to 0 or at least 90 days | - |
-| `PRW-AZ-network_http_internet_access_restricted` | HIGH | Network security group restricts inbound HTTP (port 80) access from the Internet | - |
-| `PRW-AZ-network_rdp_internet_access_restricted` | HIGH | Network security group does not allow inbound RDP (TCP 3389) from the Internet | AZ-NET-001 |
-| `PRW-AZ-network_ssh_internet_access_restricted` | HIGH | Network security group does not allow inbound SSH (TCP port 22) from the Internet | AZ-NET-002 |
-| `PRW-AZ-network_subnet_nsg_associated` | HIGH | Subnet has a network security group associated | AZ-CMP-002 |
-| `PRW-AZ-network_udp_internet_access_restricted` | HIGH | Network security group does not allow inbound UDP from the Internet | AZ-NET-009 |
-| `PRW-AZ-network_vnet_ddos_protection_enabled` | MEDIUM | Virtual network has Azure DDoS Network Protection enabled | - |
-| `PRW-AZ-network_watcher_enabled` | HIGH | Network Watcher is enabled for all locations in the subscription | - |
-| `PRW-AZ-policy_ensure_asc_enforcement_enabled` | MEDIUM | Security Center built-in policy assignment has enforcement mode set to Default | - |
-| `PRW-AZ-postgresql_flexible_server_allow_access_services_disabled` | HIGH | PostgreSQL flexible server has 'Allow public access from any Azure service' disabled | AZ-DB-001 |
-| `PRW-AZ-postgresql_flexible_server_connection_throttling_on` | MEDIUM | Flexible PostgreSQL server has connection_throttling enabled | - |
-| `PRW-AZ-postgresql_flexible_server_enforce_ssl_enabled` | HIGH | PostgreSQL Flexible Server enforces SSL connections | AZ-DB-009 |
-| `PRW-AZ-postgresql_flexible_server_entra_id_authentication_enabled` | MEDIUM | Microsoft Entra ID authentication is enabled for PostgreSQL Flexible Server | - |
-| `PRW-AZ-postgresql_flexible_server_geo_redundant_backup_enabled` | MEDIUM | PostgreSQL flexible server has geo-redundant backup enabled | - |
-| `PRW-AZ-postgresql_flexible_server_high_availability_enabled` | MEDIUM | PostgreSQL flexible server has high availability enabled | - |
-| `PRW-AZ-postgresql_flexible_server_log_checkpoints_on` | LOW | PostgreSQL Flexible Server has checkpoint logging enabled | - |
-| `PRW-AZ-postgresql_flexible_server_log_connections_on` | MEDIUM | PostgreSQL flexible server has log_connections enabled | - |
-| `PRW-AZ-postgresql_flexible_server_log_disconnections_on` | MEDIUM | PostgreSQL Flexible Server has disconnection logging enabled | - |
-| `PRW-AZ-postgresql_flexible_server_log_retention_days_greater_3` | MEDIUM | PostgreSQL flexible server log_retention_days is between 4 and 7 days | - |
-| `PRW-AZ-recovery_vault_backup_policy_retention_adequate` | MEDIUM | Recovery Services backup policy has at least 30 days retention | - |
-| `PRW-AZ-recovery_vault_has_protected_items` | MEDIUM | Recovery Services vault has backup protected items configured | - |
-| `PRW-AZ-sqlserver_auditing_enabled` | HIGH | SQL Server has an auditing policy configured | AZ-DB-003 |
-| `PRW-AZ-sqlserver_auditing_retention_90_days` | MEDIUM | SQL server has auditing enabled with retention greater than 90 days | - |
-| `PRW-AZ-sqlserver_azuread_administrator_enabled` | MEDIUM | SQL Server has an Azure Active Directory administrator configured | AZ-DB-008 |
-| `PRW-AZ-sqlserver_microsoft_defender_enabled` | HIGH | SQL Server has Microsoft Defender for SQL enabled | - |
-| `PRW-AZ-sqlserver_recommended_minimal_tls_version` | MEDIUM | SQL server enforces minimal TLS version 1.2 or 1.3 | AZ-DB-007 |
-| `PRW-AZ-sqlserver_tde_encrypted_with_cmk` | CRITICAL | SQL server uses a customer-managed key for the TDE protector and all databases have TDE enabled | - |
-| `PRW-AZ-sqlserver_tde_encryption_enabled` | HIGH | SQL database has Transparent Data Encryption (TDE) enabled | AZ-DB-006 |
-| `PRW-AZ-sqlserver_unrestricted_inbound_access` | CRITICAL | Azure SQL Server does not have firewall rules allowing 0.0.0.0-255.255.255.255 | AZ-DB-001 |
-| `PRW-AZ-sqlserver_va_emails_notifications_admins_enabled` | MEDIUM | SQL Server has Vulnerability Assessment enabled and email notifications to subscription admins configured | - |
-| `PRW-AZ-sqlserver_va_periodic_recurring_scans_enabled` | MEDIUM | SQL Server has Vulnerability Assessment periodic recurring scans enabled | - |
-| `PRW-AZ-sqlserver_va_scan_reports_configured` | MEDIUM | SQL server has Vulnerability Assessment enabled and scan report recipients configured | - |
-| `PRW-AZ-sqlserver_vulnerability_assessment_enabled` | MEDIUM | SQL server has vulnerability assessment enabled with storage container configured | - |
-| `PRW-AZ-storage_account_key_access_disabled` | HIGH | Storage account has shared key access disabled | AZ-STO-002 |
-| `PRW-AZ-storage_account_public_network_access_disabled` | HIGH | Storage account has 'Public Network Access' disabled | AZ-STO-001 |
-| `PRW-AZ-storage_blob_public_access_level_is_disabled` | HIGH | Storage account has 'Allow Blob Anonymous Access' disabled | AZ-STO-001 |
-| `PRW-AZ-storage_blob_versioning_is_enabled` | MEDIUM | Storage account has blob versioning enabled | - |
-| `PRW-AZ-storage_cross_tenant_replication_disabled` | HIGH | Storage account has cross-tenant replication disabled | AZ-STO-004 |
-| `PRW-AZ-storage_default_network_access_rule_is_denied` | HIGH | Storage account default network access rule is set to Deny | AZ-STO-001 |
-| `PRW-AZ-storage_default_to_entra_authorization_enabled` | MEDIUM | Storage account uses Microsoft Entra authorization by default | - |
-| `PRW-AZ-storage_ensure_azure_services_are_trusted_to_access_is_enabled` | MEDIUM | Storage account has 'Allow trusted Microsoft services to access this storage account' enabled | - |
-| `PRW-AZ-storage_ensure_encryption_with_customer_managed_keys` | HIGH | Azure Storage account uses customer-managed keys (CMKs) for encryption | - |
-| `PRW-AZ-storage_ensure_file_shares_soft_delete_is_enabled` | MEDIUM | Storage account has soft delete enabled for file shares | - |
-| `PRW-AZ-storage_ensure_minimum_tls_version_12` | MEDIUM | Storage account minimum TLS version is 1.2 | AZ-STO-003 |
-| `PRW-AZ-storage_ensure_private_endpoints_in_storage_accounts` | MEDIUM | Storage account has private endpoint connections | - |
-| `PRW-AZ-storage_ensure_soft_delete_is_enabled` | MEDIUM | Storage account has soft delete for containers enabled | AZ-STO-005 |
-| `PRW-AZ-storage_geo_redundant_enabled` | MEDIUM | Azure Storage account uses geo-redundant replication (GRS, GZRS, RA-GRS, or RA-GZRS) | - |
-| `PRW-AZ-storage_infrastructure_encryption_is_enabled` | LOW | Storage account has infrastructure encryption enabled | - |
-| `PRW-AZ-storage_key_rotation_90_days` | MEDIUM | Storage account has access key expiration period set to 90 days or less | - |
-| `PRW-AZ-storage_secure_transfer_required_is_enabled` | HIGH | Storage account has secure transfer required enabled | AZ-STO-003 |
-| `PRW-AZ-storage_smb_channel_encryption_with_secure_algorithm` | MEDIUM | Storage account uses AES-256-GCM for SMB channel encryption on file shares | - |
-| `PRW-AZ-storage_smb_protocol_version_is_latest` | MEDIUM | Storage account allows only the latest SMB protocol version for file shares | - |
-| `PRW-AZ-vm_backup_enabled` | HIGH | Virtual Machine is protected by Azure Backup | - |
-| `PRW-AZ-vm_ensure_attached_disks_encrypted_with_cmk` | MEDIUM | Virtual Machine OS or data disk is encrypted with a customer-managed key (CMK) | - |
-| `PRW-AZ-vm_ensure_unattached_disks_encrypted_with_cmk` | MEDIUM | Unattached disk is encrypted with a customer-managed key (CMK) | - |
-| `PRW-AZ-vm_ensure_using_managed_disks` | HIGH | Virtual Machine uses managed disks for OS and data disks | AZ-CMP-003 |
-| `PRW-AZ-vm_jit_access_enabled` | MEDIUM | Virtual Machine has Just-in-Time (JIT) access enabled | - |
-| `PRW-AZ-vm_linux_enforce_ssh_authentication` | HIGH | Linux Virtual Machine has password authentication disabled (SSH key authentication enforced) | - |
-| `PRW-AZ-vm_scaleset_associated_with_load_balancer` | MEDIUM | Virtual Machine Scale Set is associated with a load balancer backend pool | - |
-| `PRW-AZ-vm_scaleset_not_empty` | MEDIUM | Virtual Machine Scale Set has at least one VM instance | - |
-| `PRW-AZ-vm_sufficient_daily_backup_retention_period` | MEDIUM | Virtual Machine has a backup policy with a daily retention period meeting the configured minimum | - |
-| `PRW-AZ-vm_trusted_launch_enabled` | MEDIUM | Virtual Machine has Trusted Launch with Secure Boot and vTPM enabled | - |
-
-### AWS (632)
-
-| Rule ID | Severity | Check | Answered by |
-|---|---|---|---|
-| `PRW-AWS-accessanalyzer_enabled` | LOW | IAM Access Analyzer is enabled | AWS-IAM-008 |
-| `PRW-AWS-accessanalyzer_enabled_without_findings` | LOW | IAM Access Analyzer analyzer is active and has no active findings | - |
-| `PRW-AWS-account_maintain_current_contact_details` | MEDIUM | AWS account contact information is current | - |
-| `PRW-AWS-account_maintain_different_contact_details_to_security_billing_and_operations` | MEDIUM | AWS account has distinct Security, Billing, and Operations contact details, different from each other and from the root contact | - |
-| `PRW-AWS-account_security_contact_information_is_registered` | MEDIUM | AWS account has security alternate contact registered | - |
-| `PRW-AWS-account_security_questions_are_registered_in_the_aws_account` | MEDIUM | [DEPRECATED] AWS root user has security challenge questions configured | - |
-| `PRW-AWS-acm_certificates_expiration_check` | HIGH | ACM certificate expires in more than the configured threshold of days | - |
-| `PRW-AWS-acm_certificates_transparency_logs_enabled` | MEDIUM | ACM certificate is imported or has Certificate Transparency logging enabled | - |
-| `PRW-AWS-acm_certificates_with_secure_key_algorithms` | HIGH | ACM certificate uses a secure key algorithm | - |
-| `PRW-AWS-acmpca_certificate_authority_pqc_key_algorithm` | LOW | AWS Private CA certificate authorities use a post-quantum (ML-DSA) key algorithm | - |
-| `PRW-AWS-apigateway_domain_name_pqc_tls_enabled` | LOW | API Gateway custom domain names use a post-quantum TLS security policy | - |
-| `PRW-AWS-apigateway_restapi_authorizers_enabled` | MEDIUM | API Gateway REST API has an authorizer at API level or all methods are authorized | - |
-| `PRW-AWS-apigateway_restapi_cache_encrypted` | MEDIUM | API Gateway REST API stage cache data is encrypted at rest | - |
-| `PRW-AWS-apigateway_restapi_client_certificate_enabled` | MEDIUM | API Gateway REST API stage has client certificate enabled | - |
-| `PRW-AWS-apigateway_restapi_logging_enabled` | MEDIUM | API Gateway REST API stage has logging enabled | - |
-| `PRW-AWS-apigateway_restapi_public` | MEDIUM | API Gateway REST API endpoint is private | - |
-| `PRW-AWS-apigateway_restapi_public_with_authorizer` | MEDIUM | API Gateway REST API with a public endpoint has an authorizer configured | - |
-| `PRW-AWS-apigateway_restapi_tracing_enabled` | LOW | API Gateway REST API stage has X-Ray tracing enabled | - |
-| `PRW-AWS-apigateway_restapi_waf_acl_attached` | MEDIUM | API Gateway stage has a WAF Web ACL attached | - |
-| `PRW-AWS-apigatewayv2_api_access_logging_enabled` | MEDIUM | API Gateway V2 API stage has access logging enabled | - |
-| `PRW-AWS-apigatewayv2_api_authorizers_enabled` | MEDIUM | API Gateway V2 API has an authorizer configured | - |
-| `PRW-AWS-appstream_fleet_default_internet_access_disabled` | MEDIUM | AppStream fleet has default internet access disabled | - |
-| `PRW-AWS-appstream_fleet_maximum_session_duration` | MEDIUM | AppStream fleet maximum user session duration is less than 10 hours | - |
-| `PRW-AWS-appstream_fleet_session_disconnect_timeout` | MEDIUM | AppStream fleet session disconnect timeout is 5 minutes or less | - |
-| `PRW-AWS-appstream_fleet_session_idle_disconnect_timeout` | MEDIUM | AppStream fleet session idle disconnect timeout is 10 minutes or less | - |
-| `PRW-AWS-appsync_field_level_logging_enabled` | MEDIUM | AWS AppSync API has field-level logging set to ALL or ERROR | - |
-| `PRW-AWS-appsync_graphql_api_no_api_key_authentication` | HIGH | AWS AppSync GraphQL API does not use API key authentication | - |
-| `PRW-AWS-athena_workgroup_encryption` | MEDIUM | Athena workgroup encrypts query results in S3 with server-side encryption | - |
-| `PRW-AWS-athena_workgroup_enforce_configuration` | MEDIUM | Athena workgroup enforces workgroup configuration and cannot be overridden by client-side settings | - |
-| `PRW-AWS-athena_workgroup_logging_enabled` | MEDIUM | Amazon Athena workgroup has CloudWatch logging enabled | - |
-| `PRW-AWS-autoscaling_group_capacity_rebalance_enabled` | MEDIUM | Amazon EC2 Auto Scaling group has Capacity Rebalancing enabled | - |
-| `PRW-AWS-autoscaling_group_elb_health_check_enabled` | LOW | Auto Scaling group associated with a load balancer has ELB health checks enabled | - |
-| `PRW-AWS-autoscaling_group_launch_configuration_no_public_ip` | HIGH | Auto Scaling group associated launch configuration does not assign a public IP address | - |
-| `PRW-AWS-autoscaling_group_launch_configuration_requires_imdsv2` | HIGH | Auto Scaling group enforces IMDSv2 or disables the instance metadata service | - |
-| `PRW-AWS-autoscaling_group_multiple_az` | MEDIUM | Auto Scaling group uses multiple Availability Zones | - |
-| `PRW-AWS-autoscaling_group_multiple_instance_types` | MEDIUM | Auto Scaling group spans multiple Availability Zones and has multiple instance types per Availability Zone | - |
-| `PRW-AWS-autoscaling_group_using_ec2_launch_template` | MEDIUM | Amazon EC2 Auto Scaling group uses an EC2 launch template | - |
-| `PRW-AWS-awslambda_function_env_vars_not_encrypted_with_cmk` | MEDIUM | Lambda function environment variables are encrypted with a customer-managed KMS key | - |
-| `PRW-AWS-awslambda_function_inside_vpc` | LOW | Lambda function is deployed inside a VPC | - |
-| `PRW-AWS-awslambda_function_invoke_api_operations_cloudtrail_logging_enabled` | LOW | Lambda function Invoke API calls are recorded by CloudTrail | - |
-| `PRW-AWS-awslambda_function_no_dead_letter_queue` | MEDIUM | Lambda function has a Dead Letter Queue configured | - |
-| `PRW-AWS-awslambda_function_not_publicly_accessible` | CRITICAL | Lambda function resource-based policy does not allow public access | - |
-| `PRW-AWS-awslambda_function_url_cors_policy` | MEDIUM | Lambda function URL CORS does not allow wildcard origins (*) | - |
-| `PRW-AWS-awslambda_function_url_public` | HIGH | Lambda function URL is not publicly accessible | - |
-| `PRW-AWS-awslambda_function_using_cross_account_layers` | HIGH | Lambda function does not use cross-account layers | - |
-| `PRW-AWS-awslambda_function_using_supported_runtimes` | MEDIUM | Lambda function uses a supported runtime | - |
-| `PRW-AWS-awslambda_function_vpc_multi_az` | MEDIUM | Lambda function is configured with VPC subnets in at least two Availability Zones | - |
-| `PRW-AWS-backup_plans_exist` | LOW | At least one AWS Backup plan exists | - |
-| `PRW-AWS-backup_recovery_point_encrypted` | MEDIUM | AWS Backup recovery point is encrypted at rest | - |
-| `PRW-AWS-backup_reportplans_exist` | LOW | At least one AWS Backup report plan exists | - |
-| `PRW-AWS-backup_vaults_encrypted` | MEDIUM | AWS Backup vault is encrypted at rest | - |
-| `PRW-AWS-backup_vaults_exist` | LOW | At least one AWS Backup vault exists | - |
-| `PRW-AWS-bedrock_agent_guardrail_enabled` | HIGH | Amazon Bedrock agent uses a guardrail to protect agent sessions | - |
-| `PRW-AWS-bedrock_agent_role_least_privilege` | HIGH | Amazon Bedrock agent execution role follows least privilege | - |
-| `PRW-AWS-bedrock_agent_role_not_shared_across_agents` | HIGH | Bedrock Agent has a dedicated execution role | - |
-| `PRW-AWS-bedrock_api_key_no_administrative_privileges` | HIGH | Amazon Bedrock API key does not have administrative privileges, privilege escalation paths, or full Bedrock service access | - |
-| `PRW-AWS-bedrock_api_key_no_long_term_credentials` | HIGH | Amazon Bedrock long-term API key has expired | - |
-| `PRW-AWS-bedrock_custom_model_encrypted_with_cmk` | CRITICAL | Bedrock custom model is encrypted with a customer-managed KMS key | - |
-| `PRW-AWS-bedrock_full_access_policy_attached` | HIGH | IAM role does not have AmazonBedrockFullAccess managed policy attached | - |
-| `PRW-AWS-bedrock_guardrail_contextual_grounding_filter_enabled` | HIGH | Bedrock guardrail blocks ungrounded and irrelevant model responses | - |
-| `PRW-AWS-bedrock_guardrail_prompt_attack_filter_enabled` | HIGH | Amazon Bedrock guardrail has prompt attack filter strength set to HIGH | - |
-| `PRW-AWS-bedrock_guardrail_sensitive_information_filter_enabled` | HIGH | Amazon Bedrock guardrail blocks or masks sensitive information | - |
-| `PRW-AWS-bedrock_guardrails_configured` | MEDIUM | Bedrock has at least one guardrail configured in the audited region | - |
-| `PRW-AWS-bedrock_knowledge_base_encrypted_with_cmk` | HIGH | Bedrock knowledge base data source is encrypted with a customer-managed KMS key | - |
-| `PRW-AWS-bedrock_model_invocation_logging_enabled` | MEDIUM | Amazon Bedrock model invocation logging is enabled | - |
-| `PRW-AWS-bedrock_model_invocation_logs_encryption_enabled` | HIGH | Amazon Bedrock model invocation logs are encrypted in the S3 bucket and KMS-encrypted in the CloudWatch log group | - |
-| `PRW-AWS-bedrock_prompt_encrypted_with_cmk` | MEDIUM | Amazon Bedrock prompt is encrypted at rest with a customer-managed KMS key | - |
-| `PRW-AWS-bedrock_prompt_management_exists` | LOW | Amazon Bedrock Prompt Management prompts exist in the region | - |
-| `PRW-AWS-bedrock_vpc_endpoints_configured` | MEDIUM | VPC endpoints ensure private connectivity for all Bedrock APIs | - |
-| `PRW-AWS-cloudformation_stack_cdktoolkit_bootstrap_version` | HIGH | CDKToolkit CloudFormation stack has Bootstrap version 21 or higher | - |
-| `PRW-AWS-cloudformation_stacks_termination_protection_enabled` | MEDIUM | CloudFormation stack has termination protection enabled | - |
-| `PRW-AWS-cloudfront_distributions_custom_ssl_certificate` | MEDIUM | CloudFront distribution uses a custom SSL/TLS certificate | - |
-| `PRW-AWS-cloudfront_distributions_default_root_object` | HIGH | CloudFront distribution has a default root object configured | - |
-| `PRW-AWS-cloudfront_distributions_field_level_encryption_enabled` | LOW | CloudFront distribution has Field Level Encryption enabled | - |
-| `PRW-AWS-cloudfront_distributions_geo_restrictions_enabled` | LOW | CloudFront distribution has Geo restrictions enabled | - |
-| `PRW-AWS-cloudfront_distributions_https_enabled` | MEDIUM | CloudFront distribution has viewer protocol policy set to HTTPS only or redirect to HTTPS | - |
-| `PRW-AWS-cloudfront_distributions_https_sni_enabled` | LOW | CloudFront distribution serves HTTPS requests using SNI | - |
-| `PRW-AWS-cloudfront_distributions_logging_enabled` | MEDIUM | CloudFront distribution has logging enabled | - |
-| `PRW-AWS-cloudfront_distributions_multiple_origin_failover_configured` | LOW | CloudFront distribution has origin failover configured with at least two origins | - |
-| `PRW-AWS-cloudfront_distributions_origin_traffic_encrypted` | MEDIUM | CloudFront distribution encrypts traffic to custom origins | - |
-| `PRW-AWS-cloudfront_distributions_pqc_tls_enabled` | LOW | CloudFront distributions enforce a post-quantum TLS 1.3 security policy | - |
-| `PRW-AWS-cloudfront_distributions_s3_origin_access_control` | MEDIUM | CloudFront distribution uses Origin Access Control (OAC) for all S3 origins | - |
-| `PRW-AWS-cloudfront_distributions_s3_origin_non_existent_bucket` | HIGH | CloudFront distribution S3 origins reference existing buckets | - |
-| `PRW-AWS-cloudfront_distributions_using_deprecated_ssl_protocols` | LOW | CloudFront distribution does not use SSLv3, TLSv1, or TLSv1.1 for origin connections | - |
-| `PRW-AWS-cloudfront_distributions_using_waf` | MEDIUM | CloudFront distribution uses an AWS WAF web ACL | - |
-| `PRW-AWS-cloudtrail_bedrock_logging_enabled` | MEDIUM | CloudTrail logs Amazon Bedrock API calls for security auditing | - |
-| `PRW-AWS-cloudtrail_bucket_requires_mfa_delete` | MEDIUM | CloudTrail trail S3 bucket has MFA delete enabled | - |
-| `PRW-AWS-cloudtrail_cloudwatch_logging_enabled` | LOW | CloudTrail trail has delivered logs to CloudWatch Logs in the last 24 hours | - |
-| `PRW-AWS-cloudtrail_insights_exist` | LOW | CloudTrail trail has Insights enabled | - |
-| `PRW-AWS-cloudtrail_kms_encryption_enabled` | MEDIUM | CloudTrail trail logs are encrypted at rest with a KMS key | AWS-LOG-005 |
-| `PRW-AWS-cloudtrail_log_file_validation_enabled` | MEDIUM | CloudTrail trail has log file validation enabled | AWS-LOG-002 |
-| `PRW-AWS-cloudtrail_logs_s3_bucket_access_logging_enabled` | MEDIUM | CloudTrail trail destination S3 bucket has access logging enabled | AWS-LOG-004 |
-| `PRW-AWS-cloudtrail_logs_s3_bucket_is_not_publicly_accessible` | CRITICAL | CloudTrail trail S3 bucket is not publicly accessible | - |
-| `PRW-AWS-cloudtrail_multi_region_enabled` | HIGH | Region has at least one CloudTrail trail logging | AWS-LOG-001 |
-| `PRW-AWS-cloudtrail_multi_region_enabled_logging_management_events` | LOW | CloudTrail trail logs management events for read and write operations | - |
-| `PRW-AWS-cloudtrail_s3_dataevents_read_enabled` | LOW | CloudTrail trail records S3 object-level read events for all S3 buckets | - |
-| `PRW-AWS-cloudtrail_s3_dataevents_write_enabled` | LOW | CloudTrail trail records all S3 object-level API operations for all buckets | - |
-| `PRW-AWS-cloudwatch_alarm_actions_alarm_state_configured` | HIGH | CloudWatch metric alarm has actions configured for the ALARM state | - |
-| `PRW-AWS-cloudwatch_alarm_actions_enabled` | HIGH | CloudWatch metric alarm has actions enabled | - |
-| `PRW-AWS-cloudwatch_changes_to_network_acls_alarm_configured` | MEDIUM | CloudWatch log metric filter and alarm exist for Network ACL (NACL) change events | AWS-LOG-017 |
-| `PRW-AWS-cloudwatch_changes_to_network_gateways_alarm_configured` | MEDIUM | CloudWatch Logs metric filter and alarm exist for changes to network gateways | AWS-LOG-018 |
-| `PRW-AWS-cloudwatch_changes_to_network_route_tables_alarm_configured` | MEDIUM | Account monitors VPC route table changes with a CloudWatch Logs metric filter and alarm | AWS-LOG-019 |
-| `PRW-AWS-cloudwatch_changes_to_vpcs_alarm_configured` | MEDIUM | AWS account has a CloudWatch Logs metric filter and alarm for VPC changes | AWS-LOG-020 |
-| `PRW-AWS-cloudwatch_cross_account_sharing_disabled` | MEDIUM | CloudWatch does not allow cross-account sharing | - |
-| `PRW-AWS-cloudwatch_log_group_agentcore_data_protection_policy_enabled` | MEDIUM | Bedrock AgentCore log groups have a CloudWatch Logs data protection policy activated | - |
-| `PRW-AWS-cloudwatch_log_group_kms_encryption_enabled` | MEDIUM | CloudWatch log group is encrypted with an AWS KMS key | - |
-| `PRW-AWS-cloudwatch_log_group_not_publicly_accessible` | HIGH | CloudWatch Log Group is not publicly accessible | - |
-| `PRW-AWS-cloudwatch_log_group_retention_policy_specific_days_enabled` | MEDIUM | CloudWatch log group has a retention policy of at least the configured minimum days or never expires | - |
-| `PRW-AWS-cloudwatch_log_metric_filter_and_alarm_for_aws_config_configuration_changes_enabled` | MEDIUM | CloudWatch Logs metric filter and alarm exist for AWS Config configuration changes | AWS-LOG-015 |
-| `PRW-AWS-cloudwatch_log_metric_filter_and_alarm_for_cloudtrail_configuration_changes_enabled` | MEDIUM | CloudWatch Logs metric filter and alarm exist for CloudTrail configuration changes | AWS-LOG-011 |
-| `PRW-AWS-cloudwatch_log_metric_filter_authentication_failures` | MEDIUM | Account has a CloudWatch Logs metric filter and alarm for AWS Management Console authentication failures | AWS-LOG-012 |
-| `PRW-AWS-cloudwatch_log_metric_filter_aws_organizations_changes` | MEDIUM | CloudWatch Logs metric filter and alarm exist for AWS Organizations changes | AWS-LOG-021 |
-| `PRW-AWS-cloudwatch_log_metric_filter_disable_or_scheduled_deletion_of_kms_cmk` | MEDIUM | Account has a CloudWatch log metric filter and alarm for disabling or scheduled deletion of customer-managed KMS keys | AWS-LOG-013 |
-| `PRW-AWS-cloudwatch_log_metric_filter_for_s3_bucket_policy_changes` | MEDIUM | CloudWatch log metric filter and alarm exist for S3 bucket policy changes | AWS-LOG-014 |
-| `PRW-AWS-cloudwatch_log_metric_filter_policy_changes` | MEDIUM | CloudWatch Logs metric filter and alarm exist for IAM policy changes | AWS-LOG-010 |
-| `PRW-AWS-cloudwatch_log_metric_filter_root_usage` | MEDIUM | Account has a CloudWatch Logs metric filter and alarm for root account usage | AWS-LOG-008 |
-| `PRW-AWS-cloudwatch_log_metric_filter_security_group_changes` | MEDIUM | CloudWatch Logs metric filter and alarm exist for security group changes | AWS-LOG-016 |
-| `PRW-AWS-cloudwatch_log_metric_filter_sign_in_without_mfa` | MEDIUM | CloudWatch log metric filter and alarm exist for Management Console sign-in without MFA | AWS-LOG-009 |
-| `PRW-AWS-cloudwatch_log_metric_filter_unauthorized_api_calls` | MEDIUM | CloudWatch Logs metric filter and alarm exist for unauthorized API calls | AWS-LOG-007 |
-| `PRW-AWS-codeartifact_packages_external_public_publishing_disabled` | CRITICAL | Internal CodeArtifact package does not allow publishing versions already present in external public sources | - |
-| `PRW-AWS-codebuild_project_logging_enabled` | MEDIUM | CodeBuild project has CloudWatch Logs or S3 logging enabled | - |
-| `PRW-AWS-codebuild_project_not_publicly_accessible` | HIGH | CodeBuild project visibility is private | - |
-| `PRW-AWS-codebuild_project_older_90_days` | MEDIUM | CodeBuild project has been invoked in the last 90 days | - |
-| `PRW-AWS-codebuild_project_s3_logs_encrypted` | LOW | CodeBuild project S3 logs are encrypted at rest | - |
-| `PRW-AWS-codebuild_project_source_repo_url_no_sensitive_credentials` | CRITICAL | CodeBuild project source repository URLs do not contain sensitive credentials | - |
-| `PRW-AWS-codebuild_project_user_controlled_buildspec` | MEDIUM | CodeBuild project does not use a user-controlled buildspec file | - |
-| `PRW-AWS-codebuild_project_uses_allowed_github_organizations` | HIGH | CodeBuild project using GitHub uses an allowed GitHub organization | - |
-| `PRW-AWS-codebuild_project_webhook_filters_use_anchored_patterns` | HIGH | CodeBuild project webhook filters use anchored regex patterns | - |
-| `PRW-AWS-codebuild_report_group_export_encrypted` | MEDIUM | CodeBuild report group exports to S3 are encrypted at rest | - |
-| `PRW-AWS-codepipeline_project_repo_private` | MEDIUM | CodePipeline pipeline should use private repository source with authenticated connection | - |
-| `PRW-AWS-cognito_identity_pool_guest_access_disabled` | MEDIUM | Cognito identity pool has guest access disabled | - |
-| `PRW-AWS-cognito_user_pool_client_prevent_user_existence_errors` | MEDIUM | Amazon Cognito user pool client has Prevent User Existence Errors enabled | - |
-| `PRW-AWS-cognito_user_pool_client_token_revocation_enabled` | MEDIUM | Amazon Cognito user pool client has token revocation enabled | - |
-| `PRW-AWS-cognito_user_pool_deletion_protection_enabled` | MEDIUM | Cognito user pool has deletion protection enabled | - |
-| `PRW-AWS-cognito_user_pool_mfa_enabled` | MEDIUM | Amazon Cognito user pool requires Multi-Factor Authentication (MFA) | - |
-| `PRW-AWS-cognito_user_pool_password_policy_lowercase` | MEDIUM | Cognito user pool password policy requires at least one lowercase letter | - |
-| `PRW-AWS-cognito_user_pool_password_policy_minimum_length_14` | MEDIUM | Cognito user pool has a password policy with a minimum length of 14 characters or more | - |
-| `PRW-AWS-cognito_user_pool_password_policy_number` | MEDIUM | Cognito user pool password policy requires at least one number | - |
-| `PRW-AWS-cognito_user_pool_password_policy_symbol` | MEDIUM | Cognito user pool password policy requires at least one symbol | - |
-| `PRW-AWS-cognito_user_pool_password_policy_uppercase` | MEDIUM | Cognito user pool password policy requires at least one uppercase letter | - |
-| `PRW-AWS-cognito_user_pool_self_registration_disabled` | MEDIUM | Amazon Cognito user pool has self registration disabled | - |
-| `PRW-AWS-cognito_user_pool_temporary_password_expiration` | MEDIUM | Cognito user pool has temporary password expiration set to 7 days or less | - |
-| `PRW-AWS-config_delegated_admin_and_org_aggregator_all_regions` | HIGH | AWS Config has a delegated administrator and an organization aggregator covering all AWS regions | - |
-| `PRW-AWS-config_recorder_all_regions_enabled` | MEDIUM | AWS Config recorder is enabled and not in failure state or disabled | AWS-LOG-003 |
-| `PRW-AWS-config_recorder_using_aws_service_role` | MEDIUM | AWS Config recorder uses the AWSServiceRoleForConfig service-linked role | - |
-| `PRW-AWS-datasync_task_logging_enabled` | HIGH | DataSync task has CloudWatch Logs log group configured for logging | - |
-| `PRW-AWS-directconnect_connection_redundancy` | MEDIUM | Direct Connect connections span at least two locations per region | - |
-| `PRW-AWS-directconnect_virtual_interface_redundancy` | MEDIUM | Direct Connect gateway or virtual private gateway has at least two virtual interfaces on different Direct Connect connections | - |
-| `PRW-AWS-directoryservice_directory_log_forwarding_enabled` | MEDIUM | Directory Service directory has log forwarding to CloudWatch Logs enabled | - |
-| `PRW-AWS-directoryservice_directory_monitor_notifications` | MEDIUM | Directory Service directory has SNS notifications enabled | - |
-| `PRW-AWS-directoryservice_directory_snapshots_limit` | LOW | Directory Service directory has adequate remaining manual snapshot quota | - |
-| `PRW-AWS-directoryservice_ldap_certificate_expiration` | MEDIUM | Directory Service LDAP certificate expires in more than 90 days | - |
-| `PRW-AWS-directoryservice_radius_server_security_protocol` | MEDIUM | Directory Service directory RADIUS server uses MS-CHAPv2 | - |
-| `PRW-AWS-directoryservice_supported_mfa_radius_enabled` | MEDIUM | AWS Directory Service directory has RADIUS-based MFA enabled | - |
-| `PRW-AWS-dlm_ebs_snapshot_lifecycle_policy_exists` | MEDIUM | Region with EBS snapshots has at least one EBS snapshot lifecycle policy defined | - |
-| `PRW-AWS-dms_endpoint_mongodb_authentication_enabled` | MEDIUM | DMS MongoDB endpoint has an authentication mechanism enabled | - |
-| `PRW-AWS-dms_endpoint_neptune_iam_authorization_enabled` | MEDIUM | DMS endpoint for Neptune has IAM authorization enabled | - |
-| `PRW-AWS-dms_endpoint_redis_in_transit_encryption_enabled` | MEDIUM | DMS endpoint for Redis OSS is encrypted in transit | - |
-| `PRW-AWS-dms_endpoint_ssl_enabled` | HIGH | DMS endpoint has SSL enabled | - |
-| `PRW-AWS-dms_instance_minor_version_upgrade_enabled` | MEDIUM | DMS replication instance has auto minor version upgrade enabled | - |
-| `PRW-AWS-dms_instance_multi_az_enabled` | MEDIUM | DMS replication instance has Multi-AZ enabled | - |
-| `PRW-AWS-dms_instance_no_public_access` | CRITICAL | DMS replication instance is not publicly exposed to the Internet | - |
-| `PRW-AWS-dms_replication_task_source_logging_enabled` | MEDIUM | DMS replication task has logging enabled and SOURCE_CAPTURE and SOURCE_UNLOAD components set to at least Default severity | - |
-| `PRW-AWS-dms_replication_task_target_logging_enabled` | MEDIUM | DMS replication task has TARGET_APPLY and TARGET_LOAD logging enabled with at least default severity | - |
-| `PRW-AWS-documentdb_cluster_backup_enabled` | MEDIUM | DocumentDB cluster has automated backups enabled with retention period of at least 7 days | - |
-| `PRW-AWS-documentdb_cluster_cloudwatch_log_export` | MEDIUM | DocumentDB cluster exports audit and profiler logs to CloudWatch Logs | - |
-| `PRW-AWS-documentdb_cluster_deletion_protection` | MEDIUM | DocumentDB cluster has deletion protection enabled | - |
-| `PRW-AWS-documentdb_cluster_multi_az_enabled` | MEDIUM | DocumentDB cluster has Multi-AZ enabled | - |
-| `PRW-AWS-documentdb_cluster_public_snapshot` | CRITICAL | DocumentDB manual cluster snapshot is not shared publicly | - |
-| `PRW-AWS-documentdb_cluster_storage_encrypted` | MEDIUM | DocumentDB cluster storage is encrypted at rest | - |
-| `PRW-AWS-drs_job_exist` | MEDIUM | Region has AWS Elastic Disaster Recovery (DRS) enabled with at least one recovery job | - |
-| `PRW-AWS-dynamodb_accelerator_cluster_encryption_enabled` | MEDIUM | DynamoDB DAX cluster has encryption at rest enabled | - |
-| `PRW-AWS-dynamodb_accelerator_cluster_in_transit_encryption_enabled` | MEDIUM | DynamoDB Accelerator (DAX) cluster has encryption in transit enabled | - |
-| `PRW-AWS-dynamodb_accelerator_cluster_multi_az` | MEDIUM | DynamoDB Accelerator (DAX) cluster has nodes in multiple Availability Zones | - |
-| `PRW-AWS-dynamodb_table_autoscaling_enabled` | MEDIUM | DynamoDB table uses on-demand capacity or has auto scaling enabled for read and write capacity units | - |
-| `PRW-AWS-dynamodb_table_cross_account_access` | MEDIUM | DynamoDB table resource-based policy does not allow cross-account access | - |
-| `PRW-AWS-dynamodb_table_deletion_protection_enabled` | MEDIUM | DynamoDB table has deletion protection enabled | - |
-| `PRW-AWS-dynamodb_table_protected_by_backup_plan` | MEDIUM | DynamoDB table is protected by a backup plan | - |
-| `PRW-AWS-dynamodb_tables_kms_cmk_encryption_enabled` | MEDIUM | DynamoDB table is encrypted at rest with AWS KMS | - |
-| `PRW-AWS-dynamodb_tables_pitr_enabled` | MEDIUM | DynamoDB table has point-in-time recovery (PITR) enabled | - |
-| `PRW-AWS-ec2_ami_account_block_public_access` | MEDIUM | AMI block public access is enabled at the account level | - |
-| `PRW-AWS-ec2_ami_public` | CRITICAL | EC2 AMI owned by the account is not public | - |
-| `PRW-AWS-ec2_client_vpn_endpoint_connection_logging_enabled` | LOW | EC2 Client VPN endpoint has client connection logging enabled | - |
-| `PRW-AWS-ec2_confidential_workload_host_imdsv2_not_enforced` | HIGH | Confidential-workload host enforces IMDSv2 | - |
-| `PRW-AWS-ec2_confidential_workload_host_not_running` | MEDIUM | Nitro Enclave parent instance is in the running state | - |
-| `PRW-AWS-ec2_confidential_workload_host_public_ip` | MEDIUM | Confidential-workload host is not exposed to the internet | - |
-| `PRW-AWS-ec2_confidential_workload_host_unrestricted_ingress` | HIGH | Confidential-workload host does not expose non-standard ports to the internet | - |
-| `PRW-AWS-ec2_confidential_workload_host_vsock_proxy_exposed` | MEDIUM | Confidential-workload host does not expose likely vsock-proxy TCP ports to the internet | - |
-| `PRW-AWS-ec2_ebs_default_encryption` | HIGH | EBS default encryption is enabled | AWS-CMP-001 |
-| `PRW-AWS-ec2_ebs_public_snapshot` | CRITICAL | EBS snapshot is not public | - |
-| `PRW-AWS-ec2_ebs_snapshot_account_block_public_access` | HIGH | All EBS snapshots have public access blocked | - |
-| `PRW-AWS-ec2_ebs_snapshots_encrypted` | HIGH | EBS snapshot is encrypted | - |
-| `PRW-AWS-ec2_ebs_volume_encryption` | HIGH | EBS volume is encrypted | - |
-| `PRW-AWS-ec2_ebs_volume_protected_by_backup_plan` | MEDIUM | EBS volume is protected by a backup plan | - |
-| `PRW-AWS-ec2_ebs_volume_snapshots_exists` | HIGH | EBS volume has at least one snapshot | - |
-| `PRW-AWS-ec2_elastic_ip_shodan` | MEDIUM | EC2 Elastic IP address is not listed in Shodan | - |
-| `PRW-AWS-ec2_elastic_ip_unassigned` | LOW | Elastic IP is associated with an instance or network interface | - |
-| `PRW-AWS-ec2_instance_account_imdsv2_enabled` | HIGH | IMDSv2 is required by default for EC2 instances at the account level | - |
-| `PRW-AWS-ec2_instance_detailed_monitoring_enabled` | LOW | EC2 instance has detailed monitoring enabled | - |
-| `PRW-AWS-ec2_instance_imdsv2_enabled` | HIGH | EC2 instance requires IMDSv2 or has the instance metadata service disabled | AWS-CMP-002 |
-| `PRW-AWS-ec2_instance_internet_facing_with_instance_profile` | HIGH | EC2 instance is not internet-facing with an instance profile attached | - |
-| `PRW-AWS-ec2_instance_managed_by_ssm` | MEDIUM | EC2 instance is managed by AWS Systems Manager or not running | - |
-| `PRW-AWS-ec2_instance_older_than_specific_days` | MEDIUM | EC2 instance is not older than the configured maximum age or is not running | - |
-| `PRW-AWS-ec2_instance_paravirtual_type` | MEDIUM | EC2 instance virtualization type is HVM | - |
-| `PRW-AWS-ec2_instance_port_cassandra_exposed_to_internet` | CRITICAL | EC2 instance does not have Cassandra ports (TCP 7000, 7001, 7199, 9042, 9160) open to the Internet | - |
-| `PRW-AWS-ec2_instance_port_cifs_exposed_to_internet` | CRITICAL | EC2 instance does not allow Internet ingress to TCP ports 139 or 445 (CIFS) | - |
-| `PRW-AWS-ec2_instance_port_elasticsearch_kibana_exposed_to_internet` | CRITICAL | EC2 instance does not allow ingress from the Internet to Elasticsearch and Kibana ports (TCP 9200, 9300, 5601) | - |
-| `PRW-AWS-ec2_instance_port_ftp_exposed_to_internet` | CRITICAL | EC2 instance does not allow ingress from the Internet to TCP ports 20 or 21 (FTP) | - |
-| `PRW-AWS-ec2_instance_port_kafka_exposed_to_internet` | CRITICAL | EC2 instance does not allow ingress from the Internet to TCP port 9092 (Kafka) | - |
-| `PRW-AWS-ec2_instance_port_kerberos_exposed_to_internet` | CRITICAL | EC2 instance does not allow ingress from the Internet to TCP ports 88, 464, 749, or 750 (Kerberos) | - |
-| `PRW-AWS-ec2_instance_port_ldap_exposed_to_internet` | CRITICAL | EC2 instance does not allow ingress from the Internet to TCP ports 389 or 636 (LDAP/LDAPS) | - |
-| `PRW-AWS-ec2_instance_port_memcached_exposed_to_internet` | CRITICAL | EC2 instance does not allow ingress from the Internet to TCP port 11211 (Memcached) | - |
-| `PRW-AWS-ec2_instance_port_mongodb_exposed_to_internet` | CRITICAL | EC2 instance does not allow ingress from the Internet to TCP ports 27017 or 27018 (MongoDB) | - |
-| `PRW-AWS-ec2_instance_port_mysql_exposed_to_internet` | CRITICAL | EC2 instance does not allow ingress from the Internet to TCP port 3306 (MySQL) | - |
-| `PRW-AWS-ec2_instance_port_oracle_exposed_to_internet` | CRITICAL | EC2 instance does not allow ingress from the Internet to TCP ports 1521, 2483, or 2484 (Oracle) | - |
-| `PRW-AWS-ec2_instance_port_postgresql_exposed_to_internet` | CRITICAL | EC2 instance does not allow ingress from the Internet to TCP port 5432 (PostgreSQL) | - |
-| `PRW-AWS-ec2_instance_port_rdp_exposed_to_internet` | CRITICAL | EC2 instance does not allow ingress from the Internet to TCP port 3389 (RDP) | - |
-| `PRW-AWS-ec2_instance_port_redis_exposed_to_internet` | CRITICAL | EC2 instance does not allow ingress from the Internet to TCP port 6379 (Redis) | - |
-| `PRW-AWS-ec2_instance_port_sqlserver_exposed_to_internet` | CRITICAL | EC2 instance does not allow ingress from the Internet to TCP ports 1433 or 1434 (SQL Server) | - |
-| `PRW-AWS-ec2_instance_port_ssh_exposed_to_internet` | CRITICAL | EC2 instance does not allow ingress from the Internet to TCP port 22 (SSH) | - |
-| `PRW-AWS-ec2_instance_port_telnet_exposed_to_internet` | CRITICAL | EC2 instance does not allow ingress from the Internet to TCP port 23 (Telnet) | - |
-| `PRW-AWS-ec2_instance_profile_attached` | MEDIUM | EC2 instance is associated with an IAM instance profile role | - |
-| `PRW-AWS-ec2_instance_public_ip` | MEDIUM | EC2 instance does not have a public IP address | - |
-| `PRW-AWS-ec2_instance_stopped_older_than_specific_days` | LOW | EC2 instance has not been stopped longer than the configured maximum days | - |
-| `PRW-AWS-ec2_instance_uses_single_eni` | LOW | EC2 instance has no more than one Elastic Network Interface (ENI) attached | - |
-| `PRW-AWS-ec2_instance_with_outdated_ami` | MEDIUM | EC2 instance uses a non-deprecated Amazon AMI | - |
-| `PRW-AWS-ec2_launch_template_imdsv2_required` | HIGH | EC2 launch template has IMDSv2 enabled and required or instance metadata service disabled | - |
-| `PRW-AWS-ec2_launch_template_no_public_ip` | HIGH | Amazon EC2 launch template has no public IP addresses configured on network interfaces | - |
-| `PRW-AWS-ec2_networkacl_allow_ingress_any_port` | HIGH | Network ACL does not allow ingress from 0.0.0.0/0 to any port | AWS-NET-004 |
-| `PRW-AWS-ec2_networkacl_allow_ingress_tcp_port_22` | MEDIUM | Network ACL does not allow ingress from the Internet to TCP port 22 (SSH) | AWS-NET-004 |
-| `PRW-AWS-ec2_networkacl_allow_ingress_tcp_port_3389` | MEDIUM | Network ACL does not allow ingress from the Internet to TCP port 3389 (RDP) | AWS-NET-004 |
-| `PRW-AWS-ec2_networkacl_unused` | LOW | Non-default network ACL is associated with a subnet | - |
-| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_all_ports` | CRITICAL | Security group does not have all ports open to the Internet | - |
-| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_any_port` | HIGH | Security group has no 0.0.0.0/0 or ::/0 ingress to any port, or is attached only to allowed interface types or instance owners | - |
-| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_any_port_from_ip` | MEDIUM | Security group does not have any port open to a specific public IP address | - |
-| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_high_risk_tcp_ports` | HIGH | Security group does not allow ingress from 0.0.0.0/0 or ::/0 to high-risk TCP ports | - |
-| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_22` | HIGH | Security group does not allow ingress from 0.0.0.0/0 or ::/0 to TCP port 22 (SSH) | AWS-NET-001 |
-| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_3389` | HIGH | Security group does not allow ingress from the Internet to TCP port 3389 (RDP) | AWS-NET-002 |
-| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_cassandra_7199_9160_8888` | HIGH | Security group does not allow ingress from 0.0.0.0/0 or ::/0 to Cassandra TCP ports 7199, 9160, or 8888 | AWS-NET-003 |
-| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_elasticsearch_kibana_9200_9300_5601` | HIGH | Security group does not allow ingress from 0.0.0.0/0 or ::/0 to Elasticsearch/Kibana TCP ports 9200, 9300, and 5601 | - |
-| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_ftp_20_21` | HIGH | Security group does not allow ingress from 0.0.0.0/0 or ::/0 to FTP ports 20 or 21 | - |
-| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_kafka_9092` | HIGH | Security group does not allow ingress from 0.0.0.0/0 or ::/0 to TCP port 9092 (Kafka) | - |
-| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_memcached_11211` | HIGH | Security group does not allow ingress from 0.0.0.0/0 or ::/0 to Memcached TCP port 11211 | - |
-| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_mongodb_27017_27018` | HIGH | Security group does not allow ingress from 0.0.0.0/0 or ::/0 to MongoDB TCP ports 27017 and 27018 | AWS-NET-003 |
-| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_mysql_3306` | HIGH | Security group does not allow ingress from 0.0.0.0/0 or ::/0 to MySQL port 3306 | AWS-NET-003 |
-| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_oracle_1521_2483` | HIGH | Security group does not allow ingress from 0.0.0.0/0 or ::/0 to Oracle TCP ports 1521 or 2483 | AWS-NET-003 |
-| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_postgres_5432` | HIGH | Security group does not allow ingress from 0.0.0.0/0 or ::/0 to Postgres TCP port 5432 | AWS-NET-003 |
-| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_redis_6379` | HIGH | Security group does not allow ingress from 0.0.0.0/0 or ::/0 to Redis TCP port 6379 | AWS-NET-003 |
-| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_sql_server_1433_1434` | HIGH | Security group does not allow ingress from 0.0.0.0/0 or ::/0 to Microsoft SQL Server ports 1433 and 1434 | AWS-NET-003 |
-| `PRW-AWS-ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_telnet_23` | HIGH | Security group does not allow ingress from the Internet to TCP port 23 (Telnet) | - |
-| `PRW-AWS-ec2_securitygroup_allow_wide_open_public_ipv4` | HIGH | Security group has no ingress or egress rules with public IPv4 CIDR ranges from /1 to /23 | - |
-| `PRW-AWS-ec2_securitygroup_default_restrict_traffic` | HIGH | VPC default security group has no inbound or outbound rules | AWS-NET-005 |
-| `PRW-AWS-ec2_securitygroup_from_launch_wizard` | MEDIUM | Security group not created using the EC2 Launch Wizard | - |
-| `PRW-AWS-ec2_securitygroup_not_used` | LOW | Non-default EC2 security group is in use | - |
-| `PRW-AWS-ec2_securitygroup_with_many_ingress_egress_rules` | MEDIUM | Security group has 50 or fewer inbound rules and 50 or fewer outbound rules | - |
-| `PRW-AWS-ec2_transitgateway_auto_accept_vpc_attachments` | HIGH | Amazon EC2 Transit Gateway does not automatically accept shared VPC attachments | - |
-| `PRW-AWS-ecr_registry_enhanced_scanning_enabled` | MEDIUM | ECR registry has enhanced scanning enabled | - |
-| `PRW-AWS-ecr_registry_scan_images_on_push_enabled` | MEDIUM | ECR registry has automated image scanning enabled for all repositories | - |
-| `PRW-AWS-ecr_repositories_lifecycle_policy_enabled` | LOW | ECR repository has a lifecycle policy configured | - |
-| `PRW-AWS-ecr_repositories_not_publicly_accessible` | CRITICAL | ECR repository is not publicly accessible | - |
-| `PRW-AWS-ecr_repositories_scan_images_on_push_enabled` | MEDIUM | [DEPRECATED] ECR repository has image scanning on push enabled | - |
-| `PRW-AWS-ecr_repositories_scan_vulnerabilities_in_latest_image` | MEDIUM | ECR repository latest image is scanned with no vulnerabilities at or above the configured minimum severity | - |
-| `PRW-AWS-ecr_repositories_tag_immutability` | MEDIUM | ECR repository has image tag immutability enabled | - |
-| `PRW-AWS-ecs_cluster_container_insights_enabled` | MEDIUM | ECS cluster has Container Insights enabled or enhanced | - |
-| `PRW-AWS-ecs_service_fargate_latest_platform_version` | MEDIUM | ECS Fargate service uses the latest Fargate platform version | - |
-| `PRW-AWS-ecs_service_no_assign_public_ip` | HIGH | ECS service does not have automatic public IP assignment | - |
-| `PRW-AWS-ecs_task_definitions_containers_readonly_access` | HIGH | ECS task definition has all containers with read-only root filesystems | - |
-| `PRW-AWS-ecs_task_definitions_host_namespace_not_shared` | HIGH | ECS task definition does not share the host's process namespace with its containers | - |
-| `PRW-AWS-ecs_task_definitions_host_networking_mode_users` | HIGH | Amazon ECS task definition does not use host network mode, or non-privileged containers specify a non-root user | - |
-| `PRW-AWS-ecs_task_definitions_logging_block_mode` | LOW | ECS task definition has container logging in non-blocking mode | - |
-| `PRW-AWS-ecs_task_definitions_logging_enabled` | HIGH | ECS task definition has logging configured for all containers | - |
-| `PRW-AWS-ecs_task_definitions_no_privileged_containers` | HIGH | ECS task definition has no privileged containers | - |
-| `PRW-AWS-ecs_task_set_no_assign_public_ip` | HIGH | ECS task set does not automatically assign a public IP address | - |
-| `PRW-AWS-efs_access_point_enforce_root_directory` | MEDIUM | EFS file system has no access points allowing access to the root directory | - |
-| `PRW-AWS-efs_access_point_enforce_user_identity` | MEDIUM | EFS file system has all access points with a defined POSIX user | - |
-| `PRW-AWS-efs_encryption_at_rest_enabled` | MEDIUM | EFS file system has encryption at rest enabled | - |
-| `PRW-AWS-efs_have_backup_enabled` | MEDIUM | EFS file system has backup enabled | - |
-| `PRW-AWS-efs_mount_target_not_publicly_accessible` | MEDIUM | EFS file system has no publicly accessible mount targets | - |
-| `PRW-AWS-efs_multi_az_enabled` | MEDIUM | EFS file system is Multi-AZ with more than one mount target | - |
-| `PRW-AWS-efs_not_publicly_accessible` | MEDIUM | EFS file system policy does not allow access to any client within the VPC | - |
-| `PRW-AWS-eks_cluster_deletion_protection_enabled` | HIGH | EKS cluster has deletion protection enabled | - |
-| `PRW-AWS-eks_cluster_kms_cmk_encryption_in_secrets_enabled` | MEDIUM | EKS cluster has Kubernetes secrets encryption enabled | - |
-| `PRW-AWS-eks_cluster_network_policy_enabled` | HIGH | EKS cluster has network policy enabled | - |
-| `PRW-AWS-eks_cluster_not_publicly_accessible` | HIGH | EKS cluster endpoint is not publicly accessible from 0.0.0.0/0 | - |
-| `PRW-AWS-eks_cluster_private_nodes_enabled` | HIGH | EKS cluster has private endpoint access enabled | - |
-| `PRW-AWS-eks_cluster_uses_a_supported_version` | HIGH | EKS cluster uses a supported Kubernetes version | - |
-| `PRW-AWS-eks_cluster_vpc_cni_network_policy_enforced` | MEDIUM | EKS cluster enforces Kubernetes network policies through the Amazon VPC CNI add-on | - |
-| `PRW-AWS-eks_control_plane_logging_all_types_enabled` | MEDIUM | EKS cluster has control plane logging enabled for api, audit, authenticator, controllerManager, and scheduler | - |
-| `PRW-AWS-elasticache_cluster_uses_public_subnet` | MEDIUM | ElastiCache cluster is not using public subnets | - |
-| `PRW-AWS-elasticache_redis_cluster_auto_minor_version_upgrades` | HIGH | ElastiCache Redis cache cluster has automatic minor version upgrades enabled | - |
-| `PRW-AWS-elasticache_redis_cluster_automatic_failover_enabled` | MEDIUM | ElastiCache Redis cluster has automatic failover enabled | - |
-| `PRW-AWS-elasticache_redis_cluster_backup_enabled` | HIGH | ElastiCache Redis cache cluster has automated snapshot backups enabled with retention of at least 7 days | - |
-| `PRW-AWS-elasticache_redis_cluster_in_transit_encryption_enabled` | MEDIUM | ElastiCache Redis cache cluster has in-transit encryption enabled | - |
-| `PRW-AWS-elasticache_redis_cluster_multi_az_enabled` | MEDIUM | ElastiCache Redis replication group has Multi-AZ enabled | - |
-| `PRW-AWS-elasticache_redis_cluster_rest_encryption_enabled` | MEDIUM | ElastiCache Redis cache cluster has at rest encryption enabled | - |
-| `PRW-AWS-elasticache_redis_replication_group_auth_enabled` | MEDIUM | ElastiCache Redis replication group with engine version < 6.0 has Redis OSS AUTH enabled | - |
-| `PRW-AWS-elasticbeanstalk_environment_cloudwatch_logging_enabled` | HIGH | Elastic Beanstalk environment streams logs to CloudWatch Logs | - |
-| `PRW-AWS-elasticbeanstalk_environment_enhanced_health_reporting` | LOW | Elastic Beanstalk environment has enhanced health reporting enabled | - |
-| `PRW-AWS-elasticbeanstalk_environment_managed_updates_enabled` | HIGH | Elastic Beanstalk environment has managed platform updates enabled | - |
-| `PRW-AWS-elb_connection_draining_enabled` | MEDIUM | Classic Load Balancer has connection draining enabled | - |
-| `PRW-AWS-elb_cross_zone_load_balancing_enabled` | MEDIUM | Classic Load Balancer has cross-zone load balancing enabled | - |
-| `PRW-AWS-elb_desync_mitigation_mode` | MEDIUM | Classic Load Balancer desync mitigation mode is defensive or strictest | - |
-| `PRW-AWS-elb_insecure_ssl_ciphers` | MEDIUM | Elastic Load Balancer HTTPS listeners, if present, use the ELBSecurityPolicy-TLS-1-2-2017-01 policy | - |
-| `PRW-AWS-elb_internet_facing` | MEDIUM | Elastic Load Balancer is not internet-facing | - |
-| `PRW-AWS-elb_is_in_multiple_az` | MEDIUM | Classic Load Balancer is in multiple Availability Zones | - |
-| `PRW-AWS-elb_logging_enabled` | MEDIUM | Elastic Load Balancer has access logs to S3 configured | - |
-| `PRW-AWS-elb_ssl_listeners` | MEDIUM | Elastic Load Balancer has only HTTPS or SSL listeners | - |
-| `PRW-AWS-elb_ssl_listeners_use_acm_certificate` | MEDIUM | Classic Load Balancer HTTPS/SSL listeners use ACM-issued certificates | - |
-| `PRW-AWS-elbv2_alb_drop_invalid_header_fields_enabled` | MEDIUM | Application Load Balancer should be configured to drop invalid HTTP header fields | - |
-| `PRW-AWS-elbv2_cross_zone_load_balancing_enabled` | MEDIUM | ELBv2 Network or Gateway Load Balancer has cross-zone load balancing enabled | - |
-| `PRW-AWS-elbv2_deletion_protection` | MEDIUM | ELBv2 load balancer has deletion protection enabled | - |
-| `PRW-AWS-elbv2_desync_mitigation_mode` | MEDIUM | Application Load Balancer has desync mitigation mode set to strictest or defensive, or drops invalid header fields | - |
-| `PRW-AWS-elbv2_insecure_ssl_ciphers` | MEDIUM | ELBv2 load balancer uses a secure SSL policy on HTTPS listeners | - |
-| `PRW-AWS-elbv2_internet_facing` | MEDIUM | Application Load Balancer is not publicly accessible (no inbound TCP from 0.0.0.0/0 or ::/0) | - |
-| `PRW-AWS-elbv2_is_in_multiple_az` | MEDIUM | ELBv2 load balancer is configured across multiple Availability Zones | - |
-| `PRW-AWS-elbv2_listener_fips_tls_enabled` | LOW | ELBv2 HTTPS/TLS listeners use a FIPS TLS security policy | - |
-| `PRW-AWS-elbv2_listener_pqc_tls_enabled` | LOW | ELBv2 HTTPS/TLS listeners use a post-quantum TLS security policy | - |
-| `PRW-AWS-elbv2_listeners_underneath` | MEDIUM | ELBv2 load balancer has at least one listener | - |
-| `PRW-AWS-elbv2_logging_enabled` | MEDIUM | ELBv2 Application Load Balancer has access logs to S3 configured | - |
-| `PRW-AWS-elbv2_nlb_tls_termination_enabled` | MEDIUM | ELBv2 Network Load Balancer has TLS termination enabled | - |
-| `PRW-AWS-elbv2_ssl_listeners` | MEDIUM | ELBv2 Application Load Balancer listeners use HTTPS or redirect HTTP to HTTPS | - |
-| `PRW-AWS-elbv2_waf_acl_attached` | MEDIUM | Application Load Balancer has a WAF Web ACL attached | - |
-| `PRW-AWS-emr_cluster_account_public_block_enabled` | HIGH | EMR account has Block Public Access enabled | - |
-| `PRW-AWS-emr_cluster_master_nodes_no_public_ip` | MEDIUM | EMR Cluster without Public IP. | - |
-| `PRW-AWS-emr_cluster_publicly_accesible` | MEDIUM | EMR cluster is not publicly accessible | - |
-| `PRW-AWS-eventbridge_bus_cross_account_access` | HIGH | AWS EventBridge event bus does not allow cross-account access | - |
-| `PRW-AWS-eventbridge_bus_exposed` | HIGH | AWS EventBridge event bus policy does not allow public access | - |
-| `PRW-AWS-eventbridge_global_endpoint_event_replication_enabled` | MEDIUM | EventBridge global endpoint has event replication enabled | - |
-| `PRW-AWS-eventbridge_schema_registry_cross_account_access` | HIGH | AWS EventBridge schema registry does not allow cross-account access | - |
-| `PRW-AWS-firehose_stream_encrypted_at_rest` | MEDIUM | Kinesis Data Firehose delivery stream is encrypted at rest | - |
-| `PRW-AWS-fms_policy_compliant` | MEDIUM | All AWS FMS policies in the admin account are compliant for all accounts | - |
-| `PRW-AWS-fsx_file_system_copy_tags_to_backups_enabled` | LOW | FSx file system has copy tags to backups enabled | - |
-| `PRW-AWS-fsx_file_system_copy_tags_to_volumes_enabled` | LOW | FSx file system has copy tags to volumes enabled | - |
-| `PRW-AWS-fsx_windows_file_system_multi_az_enabled` | LOW | FSx Windows file system is configured for Multi-AZ deployment | - |
-| `PRW-AWS-glacier_vaults_policy_public_access` | CRITICAL | S3 Glacier vault has no policy or its policy does not allow access to everyone | - |
-| `PRW-AWS-glue_data_catalogs_connection_passwords_encryption_enabled` | HIGH | Glue data catalog connection password is encrypted with a KMS key | - |
-| `PRW-AWS-glue_data_catalogs_metadata_encryption_enabled` | MEDIUM | Glue Data Catalog metadata is encrypted with KMS | - |
-| `PRW-AWS-glue_data_catalogs_not_publicly_accessible` | HIGH | Glue Data Catalog is not publicly accessible via its resource policy | - |
-| `PRW-AWS-glue_database_connections_ssl_enabled` | HIGH | Glue connection has SSL enabled | - |
-| `PRW-AWS-glue_development_endpoints_cloudwatch_logs_encryption_enabled` | MEDIUM | Glue development endpoint has CloudWatch Logs encryption enabled | - |
-| `PRW-AWS-glue_development_endpoints_job_bookmark_encryption_enabled` | MEDIUM | Glue development endpoint has Job Bookmark encryption enabled | - |
-| `PRW-AWS-glue_development_endpoints_s3_encryption_enabled` | MEDIUM | Glue development endpoint has S3 encryption enabled | - |
-| `PRW-AWS-glue_etl_jobs_amazon_s3_encryption_enabled` | HIGH | Glue job has S3 encryption enabled | - |
-| `PRW-AWS-glue_etl_jobs_cloudwatch_logs_encryption_enabled` | MEDIUM | Glue ETL job has CloudWatch Logs encryption enabled | - |
-| `PRW-AWS-glue_etl_jobs_job_bookmark_encryption_enabled` | MEDIUM | Glue ETL job has Job bookmark encryption enabled | - |
-| `PRW-AWS-glue_etl_jobs_logging_enabled` | MEDIUM | Glue ETL job has continuous CloudWatch logging enabled | - |
-| `PRW-AWS-glue_ml_transform_encrypted_at_rest` | MEDIUM | Glue ML Transform is encrypted at rest | - |
-| `PRW-AWS-guardduty_ai_protection_enabled` | HIGH | GuardDuty detector has AI Protection enabled | - |
-| `PRW-AWS-guardduty_centrally_managed` | MEDIUM | GuardDuty detector is managed by an administrator account or is the administrator with member accounts | - |
-| `PRW-AWS-guardduty_delegated_admin_enabled_all_regions` | HIGH | GuardDuty has delegated admin configured and is enabled in all regions with organization auto-enable | - |
-| `PRW-AWS-guardduty_ec2_malware_protection_enabled` | HIGH | GuardDuty detector has Malware Protection for EC2 enabled | - |
-| `PRW-AWS-guardduty_eks_audit_log_enabled` | HIGH | GuardDuty detector has EKS Audit Log Monitoring enabled | - |
-| `PRW-AWS-guardduty_eks_runtime_monitoring_enabled` | MEDIUM | GuardDuty detector has EKS Runtime Monitoring enabled | - |
-| `PRW-AWS-guardduty_is_enabled` | HIGH | GuardDuty detector is enabled and not suspended | AWS-POS-001 |
-| `PRW-AWS-guardduty_lambda_protection_enabled` | HIGH | GuardDuty detector has Lambda Protection enabled | - |
-| `PRW-AWS-guardduty_no_high_severity_findings` | HIGH | GuardDuty detector has no high severity findings | - |
-| `PRW-AWS-guardduty_rds_protection_enabled` | HIGH | GuardDuty detector has RDS Protection enabled | - |
-| `PRW-AWS-guardduty_runtime_monitoring_enabled` | HIGH | GuardDuty detector has Runtime Monitoring enabled | - |
-| `PRW-AWS-guardduty_s3_protection_enabled` | HIGH | GuardDuty detector has S3 Protection enabled | - |
-| `PRW-AWS-iam_administrator_access_with_mfa` | HIGH | IAM group members granted AdministratorAccess have MFA enabled | - |
-| `PRW-AWS-iam_avoid_root_usage` | HIGH | AWS account root user has not been used in the last day | - |
-| `PRW-AWS-iam_aws_attached_policy_no_administrative_privileges` | CRITICAL | Attached AWS-managed IAM policy does not allow '*:*' administrative privileges | - |
-| `PRW-AWS-iam_check_saml_providers_sts` | LOW | IAM SAML provider exists in the account | - |
-| `PRW-AWS-iam_customer_attached_policy_no_administrative_privileges` | HIGH | Attached IAM customer-managed policy does not allow '*:*' administrative privileges | AWS-IAM-006 |
-| `PRW-AWS-iam_customer_unattached_policy_no_administrative_privileges` | MEDIUM | Unattached customer managed IAM policy does not allow '*:*' administrative privileges | - |
-| `PRW-AWS-iam_group_administrator_access_policy` | HIGH | IAM group does not have AdministratorAccess policy attached | - |
-| `PRW-AWS-iam_inline_policy_allows_privilege_escalation` | HIGH | IAM inline policy does not allow privilege escalation | - |
-| `PRW-AWS-iam_inline_policy_no_administrative_privileges` | CRITICAL | Inline IAM policy does not allow '*:*' administrative privileges | - |
-| `PRW-AWS-iam_inline_policy_no_full_access_to_cloudtrail` | HIGH | Inline IAM policy does not allow 'cloudtrail:*' privileges | - |
-| `PRW-AWS-iam_inline_policy_no_full_access_to_kms` | MEDIUM | Inline IAM policy does not allow kms:* privileges | - |
-| `PRW-AWS-iam_inline_policy_no_wildcard_marketplace_subscribe` | MEDIUM | Inline IAM policy does not allow 'aws-marketplace:Subscribe' on all resources | - |
-| `PRW-AWS-iam_no_custom_policy_permissive_role_assumption` | HIGH | Custom IAM policy does not allow STS role assumption on wildcard resources | - |
-| `PRW-AWS-iam_no_expired_server_certificates_stored` | HIGH | IAM server certificate is not expired | AWS-IAM-007 |
-| `PRW-AWS-iam_no_root_access_key` | CRITICAL | Root account has no active access keys | AWS-IAM-002 |
-| `PRW-AWS-iam_password_policy_expires_passwords_within_90_days_or_less` | MEDIUM | IAM account password policy enforces password expiration within 90 days or less | - |
-| `PRW-AWS-iam_password_policy_lowercase` | LOW | IAM password policy requires at least one lowercase letter | - |
-| `PRW-AWS-iam_password_policy_minimum_length_14` | MEDIUM | IAM password policy requires passwords to be at least 14 characters long | AWS-IAM-004 |
-| `PRW-AWS-iam_password_policy_number` | MEDIUM | IAM password policy requires at least one number | - |
-| `PRW-AWS-iam_password_policy_reuse_24` | MEDIUM | IAM password policy prevents reuse of the last 24 passwords | AWS-IAM-004 |
-| `PRW-AWS-iam_password_policy_symbol` | MEDIUM | IAM password policy requires at least one symbol | - |
-| `PRW-AWS-iam_password_policy_uppercase` | MEDIUM | IAM password policy requires at least one uppercase letter | - |
-| `PRW-AWS-iam_policy_allows_privilege_escalation` | HIGH | Customer managed IAM policy does not allow actions that can lead to privilege escalation | - |
-| `PRW-AWS-iam_policy_attached_only_to_group_or_roles` | LOW | IAM user has no inline or attached policies | - |
-| `PRW-AWS-iam_policy_cloudshell_admin_not_attached` | MEDIUM | No IAM users, groups, or roles have the AWSCloudShellFullAccess policy attached | - |
-| `PRW-AWS-iam_policy_no_agentcore_workload_access_token_wildcard` | HIGH | Custom IAM policy scopes Bedrock AgentCore workload access token retrieval to workload identity ARNs | - |
-| `PRW-AWS-iam_policy_no_full_access_to_cloudtrail` | MEDIUM | Customer managed IAM policy does not allow cloudtrail:* privileges | - |
-| `PRW-AWS-iam_policy_no_full_access_to_kms` | MEDIUM | Custom IAM policy does not allow 'kms:*' privileges | - |
-| `PRW-AWS-iam_policy_no_wildcard_marketplace_subscribe` | MEDIUM | Custom IAM policy does not allow 'aws-marketplace:Subscribe' on all resources | - |
-| `PRW-AWS-iam_policy_passrole_to_bedrock_agentcore_restricted` | HIGH | Custom IAM policy restricts iam:PassRole to Bedrock AgentCore to specific roles | - |
-| `PRW-AWS-iam_role_access_not_stale_to_bedrock` | MEDIUM | Regular Bedrock access ensures IAM roles retain only actively used permissions | - |
-| `PRW-AWS-iam_role_administratoraccess_policy` | HIGH | IAM role does not have AdministratorAccess policy attached | - |
-| `PRW-AWS-iam_role_cross_account_readonlyaccess_policy` | HIGH | IAM role does not grant ReadOnlyAccess to external AWS accounts | - |
-| `PRW-AWS-iam_role_cross_service_confused_deputy_prevention` | HIGH | IAM service role prevents cross-service confused deputy attack | - |
-| `PRW-AWS-iam_role_service_trust_restricts_source_to_account` | MEDIUM | IAM role trust policy confines AWS service principals to a specific source account | - |
-| `PRW-AWS-iam_root_credentials_management_enabled` | HIGH | AWS Organization has centralized root credentials management enabled | - |
-| `PRW-AWS-iam_root_hardware_mfa_enabled` | CRITICAL | Root account has a hardware MFA device enabled | - |
-| `PRW-AWS-iam_root_mfa_enabled` | CRITICAL | Root account has MFA enabled | AWS-IAM-005 |
-| `PRW-AWS-iam_rotate_access_key_90_days` | MEDIUM | IAM user does not have active access keys older than 90 days | - |
-| `PRW-AWS-iam_securityaudit_role_created` | LOW | At least one IAM role has the SecurityAudit AWS managed policy attached | - |
-| `PRW-AWS-iam_support_role_created` | LOW | At least one IAM role has the AWSSupportAccess managed policy attached | AWS-IAM-009 |
-| `PRW-AWS-iam_user_access_not_stale_to_bedrock` | MEDIUM | Regular Bedrock access ensures IAM users retain only actively used permissions | - |
-| `PRW-AWS-iam_user_access_not_stale_to_sagemaker` | MEDIUM | Regular SageMaker access ensures IAM users retain only actively used permissions | - |
-| `PRW-AWS-iam_user_accesskey_unused` | MEDIUM | IAM user does not have unused access keys older than 45 days | AWS-IAM-003 |
-| `PRW-AWS-iam_user_administrator_access_policy` | CRITICAL | IAM user does not have AdministratorAccess policy attached | - |
-| `PRW-AWS-iam_user_console_access_unused` | MEDIUM | IAM user console access is disabled, used within the configured inactivity period, or never used | - |
-| `PRW-AWS-iam_user_hardware_mfa_enabled` | HIGH | IAM user has hardware MFA enabled | - |
-| `PRW-AWS-iam_user_mfa_enabled_console_access` | HIGH | IAM user has MFA enabled for console access or no console password is set | AWS-IAM-001 |
-| `PRW-AWS-iam_user_no_setup_initial_access_key` | MEDIUM | IAM user does not have active access keys that have never been used | - |
-| `PRW-AWS-iam_user_two_active_access_key` | MEDIUM | IAM user has at most one active access key | - |
-| `PRW-AWS-iam_user_with_temporary_credentials` | HIGH | IAM user does not use long-lived credentials to access services other than IAM or STS | - |
-| `PRW-AWS-inspector2_active_findings_exist` | HIGH | Inspector2 is enabled with no active findings | - |
-| `PRW-AWS-inspector2_active_findings_kev_within_due_date` | CRITICAL | Inspector2 has no active findings for CISA Known Exploited Vulnerabilities past their remediation due date | - |
-| `PRW-AWS-inspector2_active_findings_no_known_exploited_vulnerabilities` | HIGH | Inspector2 has no active findings for CISA Known Exploited Vulnerabilities | - |
-| `PRW-AWS-inspector2_active_findings_within_max_age` | MEDIUM | Inspector2 has no active findings older than the configured maximum age | - |
-| `PRW-AWS-inspector2_coverage_recently_scanned` | MEDIUM | Inspector2 covered resource was scanned within the configured number of days | - |
-| `PRW-AWS-inspector2_coverage_scan_status_active` | MEDIUM | Inspector2 covered resource is actively scanned | - |
-| `PRW-AWS-inspector2_is_enabled` | MEDIUM | Inspector2 is enabled for Amazon EC2 instances, ECR container images, Lambda functions, and Lambda code | - |
-| `PRW-AWS-kafka_cluster_encryption_at_rest_uses_cmk` | MEDIUM | Kafka cluster has encryption at rest enabled with a customer managed key (CMK) or is serverless | - |
-| `PRW-AWS-kafka_cluster_enhanced_monitoring_enabled` | MEDIUM | Amazon MSK cluster has enhanced monitoring enabled | - |
-| `PRW-AWS-kafka_cluster_in_transit_encryption_enabled` | HIGH | Kafka cluster has encryption in transit enabled | - |
-| `PRW-AWS-kafka_cluster_is_public` | CRITICAL | Kafka cluster is not publicly accessible | - |
-| `PRW-AWS-kafka_cluster_mutual_tls_authentication_enabled` | HIGH | Kafka cluster has TLS authentication enabled | - |
-| `PRW-AWS-kafka_cluster_unrestricted_access_disabled` | CRITICAL | Kafka cluster requires authentication | - |
-| `PRW-AWS-kafka_cluster_uses_latest_version` | MEDIUM | MSK cluster uses the latest Kafka version or is serverless with AWS-managed version | - |
-| `PRW-AWS-kafka_connector_in_transit_encryption_enabled` | HIGH | MSK Connect connector has encryption in transit enabled | - |
-| `PRW-AWS-kinesis_stream_data_retention_period` | MEDIUM | Kinesis stream retains data for at least the required minimum hours | - |
-| `PRW-AWS-kinesis_stream_encrypted_at_rest` | HIGH | Kinesis stream is encrypted at rest with KMS | - |
-| `PRW-AWS-kms_cmk_are_used` | LOW | KMS customer managed key is enabled or scheduled for deletion | - |
-| `PRW-AWS-kms_cmk_not_deleted_unintentionally` | CRITICAL | AWS KMS customer managed key is not scheduled for deletion | - |
-| `PRW-AWS-kms_cmk_not_multi_region` | MEDIUM | AWS KMS customer managed key is single-Region | - |
-| `PRW-AWS-kms_cmk_rotation_enabled` | HIGH | KMS customer-managed symmetric CMK has automatic rotation enabled | AWS-SEC-001 |
-| `PRW-AWS-kms_key_enclave_attestation_bypassable_path` | HIGH | KMS enclave key has no authorization path that bypasses attestation | - |
-| `PRW-AWS-kms_key_enclave_attestation_not_enforced` | HIGH | KMS enclave key requires kms:RecipientAttestation conditions on sensitive actions | - |
-| `PRW-AWS-kms_key_enclave_attestation_pcr_mismatch` | MEDIUM | KMS enclave key attestation PCRs match customer-supplied golden values | - |
-| `PRW-AWS-kms_key_enclave_attestation_unknown_image` | MEDIUM | No enclave with an unknown image identity has called this KMS key | - |
-| `PRW-AWS-kms_key_enclave_debug_attestation_detected` | HIGH | No Nitro Enclave debug-mode attestation observed against this KMS key | - |
-| `PRW-AWS-kms_key_not_publicly_accessible` | CRITICAL | Cloud KMS key does not grant access to allUsers or allAuthenticatedUsers | - |
-| `PRW-AWS-lightsail_database_public` | HIGH | Lightsail database public access disabled | - |
-| `PRW-AWS-lightsail_instance_automated_snapshots` | MEDIUM | Lightsail instance has automated snapshots enabled | - |
-| `PRW-AWS-lightsail_instance_public` | HIGH | Lightsail instance has no publicly accessible ports | - |
-| `PRW-AWS-lightsail_static_ip_unused` | LOW | Lightsail static IP is associated with an instance | - |
-| `PRW-AWS-macie_automated_sensitive_data_discovery_enabled` | HIGH | Macie automated sensitive data discovery is enabled | - |
-| `PRW-AWS-macie_is_enabled` | MEDIUM | Amazon Macie is enabled | - |
-| `PRW-AWS-memorydb_cluster_auto_minor_version_upgrades` | MEDIUM | MemoryDB cluster has automatic minor version upgrades enabled | - |
-| `PRW-AWS-memorydb_cluster_in_transit_encryption_enabled` | MEDIUM | MemoryDB cluster has in-transit encryption enabled | - |
-| `PRW-AWS-mq_broker_active_deployment_mode` | LOW | Apache ActiveMQ broker is configured in active/standby Multi-AZ deployment mode | - |
-| `PRW-AWS-mq_broker_auto_minor_version_upgrades` | LOW | Amazon MQ broker has automated minor version upgrades enabled | - |
-| `PRW-AWS-mq_broker_cluster_deployment_mode` | MEDIUM | MQ RabbitMQ broker has cluster (multi-AZ) deployment mode | - |
-| `PRW-AWS-mq_broker_logging_enabled` | LOW | MQ broker has general logging enabled and, for ActiveMQ, audit logging enabled | - |
-| `PRW-AWS-mq_broker_not_publicly_accessible` | HIGH | Amazon MQ broker is not publicly accessible | - |
-| `PRW-AWS-neptune_cluster_backup_enabled` | MEDIUM | Neptune cluster has automated backups enabled with retention period equal to or greater than the configured minimum | - |
-| `PRW-AWS-neptune_cluster_copy_tags_to_snapshots` | LOW | Neptune DB cluster is configured to copy tags to snapshots. | - |
-| `PRW-AWS-neptune_cluster_deletion_protection` | MEDIUM | Neptune cluster has deletion protection enabled | - |
-| `PRW-AWS-neptune_cluster_iam_authentication_enabled` | MEDIUM | Neptune cluster has IAM authentication enabled | - |
-| `PRW-AWS-neptune_cluster_integration_cloudwatch_logs` | MEDIUM | Neptune cluster has CloudWatch audit logs enabled | - |
-| `PRW-AWS-neptune_cluster_multi_az` | MEDIUM | Neptune cluster has Multi-AZ enabled | - |
-| `PRW-AWS-neptune_cluster_public_snapshot` | CRITICAL | NeptuneDB cluster snapshot is not publicly shared | - |
-| `PRW-AWS-neptune_cluster_snapshot_encrypted` | MEDIUM | Neptune DB cluster snapshot is encrypted at rest | - |
-| `PRW-AWS-neptune_cluster_storage_encrypted` | HIGH | Neptune cluster storage is encrypted at rest | - |
-| `PRW-AWS-neptune_cluster_uses_public_subnet` | MEDIUM | Neptune cluster is not using public subnets | - |
-| `PRW-AWS-networkfirewall_deletion_protection` | MEDIUM | Network Firewall has deletion protection enabled | - |
-| `PRW-AWS-networkfirewall_in_all_vpc` | MEDIUM | VPC has Network Firewall enabled | - |
-| `PRW-AWS-networkfirewall_logging_enabled` | HIGH | Network Firewall has logging enabled | - |
-| `PRW-AWS-networkfirewall_multi_az` | HIGH | Network Firewall firewall is deployed across multiple Availability Zones | - |
-| `PRW-AWS-networkfirewall_policy_default_action_fragmented_packets` | HIGH | Network Firewall policy drops or forwards fragmented packets by default | - |
-| `PRW-AWS-networkfirewall_policy_default_action_full_packets` | HIGH | Network Firewall firewall policy default stateless action for full packets is drop or forward | - |
-| `PRW-AWS-networkfirewall_policy_rule_group_associated` | HIGH | Network Firewall policy has at least one rule group associated | - |
-| `PRW-AWS-opensearch_service_domains_access_control_enabled` | HIGH | Amazon OpenSearch Service domain has fine-grained access control enabled | - |
-| `PRW-AWS-opensearch_service_domains_audit_logging_enabled` | HIGH | Amazon OpenSearch Service domain has audit logging enabled | - |
-| `PRW-AWS-opensearch_service_domains_cloudwatch_logging_enabled` | LOW | Amazon OpenSearch Service domain publishes search and index slow logs to CloudWatch Logs | - |
-| `PRW-AWS-opensearch_service_domains_encryption_at_rest_enabled` | CRITICAL | Amazon OpenSearch Service domain has encryption at rest enabled | - |
-| `PRW-AWS-opensearch_service_domains_fault_tolerant_data_nodes` | MEDIUM | OpenSearch domain has at least 3 data nodes and Zone Awareness enabled | - |
-| `PRW-AWS-opensearch_service_domains_fault_tolerant_master_nodes` | MEDIUM | OpenSearch domain has at least 3 dedicated master nodes | - |
-| `PRW-AWS-opensearch_service_domains_https_communications_enforced` | HIGH | OpenSearch domain has HTTPS enforcement enabled | - |
-| `PRW-AWS-opensearch_service_domains_internal_user_database_enabled` | MEDIUM | Amazon OpenSearch Service domain has internal user database disabled | - |
-| `PRW-AWS-opensearch_service_domains_node_to_node_encryption_enabled` | HIGH | Amazon OpenSearch Service domain has node-to-node encryption enabled | - |
-| `PRW-AWS-opensearch_service_domains_not_publicly_accessible` | CRITICAL | Amazon OpenSearch Service domain is not publicly accessible | - |
-| `PRW-AWS-opensearch_service_domains_updated_to_the_latest_service_software_version` | HIGH | Amazon OpenSearch Service domain is updated to the latest service software version | - |
-| `PRW-AWS-opensearch_service_domains_use_cognito_authentication_for_kibana` | MEDIUM | Amazon OpenSearch Service domain has either Amazon Cognito or SAML authentication enabled for Kibana | - |
-| `PRW-AWS-organizations_account_part_of_organizations` | MEDIUM | AWS account is a member of an active AWS Organization | - |
-| `PRW-AWS-organizations_delegated_administrators` | CRITICAL | AWS Organization has only trusted delegated administrators | - |
-| `PRW-AWS-organizations_opt_out_ai_services_policy` | MEDIUM | AWS Organization has opted out of all AI services and child accounts cannot override the policy | - |
-| `PRW-AWS-organizations_scp_check_deny_regions` | HIGH | AWS Organization restricts operations to only the configured AWS Regions with SCP policies | - |
-| `PRW-AWS-organizations_tags_policies_enabled_and_attached` | LOW | AWS Organization has tag policies enabled and attached | - |
-| `PRW-AWS-rds_cluster_backtrack_enabled` | LOW | RDS Aurora MySQL cluster has Backtrack enabled | - |
-| `PRW-AWS-rds_cluster_copy_tags_to_snapshots` | LOW | RDS DB cluster has copy tags to snapshots enabled | - |
-| `PRW-AWS-rds_cluster_critical_event_subscription` | MEDIUM | RDS cluster event subscription is enabled for maintenance and failure categories | - |
-| `PRW-AWS-rds_cluster_default_admin` | MEDIUM | RDS cluster master username is not admin or postgres | - |
-| `PRW-AWS-rds_cluster_deletion_protection` | MEDIUM | RDS cluster has deletion protection enabled | - |
-| `PRW-AWS-rds_cluster_iam_authentication_enabled` | MEDIUM | RDS cluster has IAM authentication enabled | - |
-| `PRW-AWS-rds_cluster_integration_cloudwatch_logs` | MEDIUM | RDS cluster has CloudWatch Logs export enabled | - |
-| `PRW-AWS-rds_cluster_minor_version_upgrade_enabled` | MEDIUM | RDS cluster has automatic minor version upgrades enabled | - |
-| `PRW-AWS-rds_cluster_multi_az` | MEDIUM | RDS cluster has Multi-AZ enabled | - |
-| `PRW-AWS-rds_cluster_non_default_port` | LOW | RDS cluster uses a non-default port for its database engine | - |
-| `PRW-AWS-rds_cluster_protected_by_backup_plan` | HIGH | RDS cluster is protected by an AWS Backup plan | - |
-| `PRW-AWS-rds_cluster_storage_encrypted` | HIGH | RDS cluster storage is encrypted | - |
-| `PRW-AWS-rds_instance_backup_enabled` | MEDIUM | RDS instance has backup retention period greater than 0 days | - |
-| `PRW-AWS-rds_instance_certificate_expiration` | HIGH | RDS instance SSL/TLS certificate has more than 3 months of validity remaining | - |
-| `PRW-AWS-rds_instance_copy_tags_to_snapshots` | LOW | RDS DB instance has copy tags to snapshots enabled | - |
-| `PRW-AWS-rds_instance_critical_event_subscription` | MEDIUM | RDS instance event subscription is enabled for maintenance, configuration change, and failure categories | - |
-| `PRW-AWS-rds_instance_default_admin` | MEDIUM | RDS instance does not use the default master username (admin or postgres) | - |
-| `PRW-AWS-rds_instance_deletion_protection` | MEDIUM | RDS instance has deletion protection enabled | - |
-| `PRW-AWS-rds_instance_deprecated_engine_version` | HIGH | RDS instance uses a supported engine version | - |
-| `PRW-AWS-rds_instance_enhanced_monitoring_enabled` | LOW | RDS instance has enhanced monitoring enabled | - |
-| `PRW-AWS-rds_instance_event_subscription_parameter_groups` | LOW | RDS DB parameter group event subscription is enabled and subscribes to configuration change events or all categories | - |
-| `PRW-AWS-rds_instance_event_subscription_security_groups` | MEDIUM | RDS event subscription for DB security groups is enabled for configuration change and failure events | - |
-| `PRW-AWS-rds_instance_extended_support` | MEDIUM | RDS instance is not enrolled in RDS Extended Support | - |
-| `PRW-AWS-rds_instance_iam_authentication_enabled` | MEDIUM | RDS instance has IAM database authentication enabled | - |
-| `PRW-AWS-rds_instance_inside_vpc` | HIGH | RDS instance is deployed in a VPC | - |
-| `PRW-AWS-rds_instance_integration_cloudwatch_logs` | MEDIUM | RDS instance exports logs to CloudWatch Logs | - |
-| `PRW-AWS-rds_instance_minor_version_upgrade_enabled` | MEDIUM | RDS instance has minor version upgrade enabled | AWS-DB-003 |
-| `PRW-AWS-rds_instance_multi_az` | MEDIUM | RDS instance has Multi-AZ enabled | - |
-| `PRW-AWS-rds_instance_no_public_access` | CRITICAL | RDS instance is not publicly exposed to the Internet | AWS-DB-001 |
-| `PRW-AWS-rds_instance_non_default_port` | LOW | RDS instance uses a non-default port for its engine | - |
-| `PRW-AWS-rds_instance_protected_by_backup_plan` | HIGH | RDS instance is protected by an AWS Backup plan | - |
-| `PRW-AWS-rds_instance_storage_encrypted` | HIGH | RDS DB instance storage is encrypted at rest | AWS-DB-002 |
-| `PRW-AWS-rds_instance_transport_encrypted` | HIGH | RDS instance or cluster enforces SSL/TLS encryption for client connections | - |
-| `PRW-AWS-rds_snapshots_encrypted` | HIGH | RDS DB instance snapshot or DB cluster snapshot is encrypted | - |
-| `PRW-AWS-rds_snapshots_public_access` | CRITICAL | RDS snapshot is not publicly shared | - |
-| `PRW-AWS-redshift_cluster_audit_logging` | MEDIUM | Redshift cluster has audit logging enabled | - |
-| `PRW-AWS-redshift_cluster_automated_snapshot` | HIGH | Redshift cluster has automated snapshots enabled | - |
-| `PRW-AWS-redshift_cluster_automatic_upgrades` | MEDIUM | Redshift cluster has automatic version upgrade enabled | - |
-| `PRW-AWS-redshift_cluster_encrypted_at_rest` | CRITICAL | Redshift cluster is encrypted at rest | - |
-| `PRW-AWS-redshift_cluster_enhanced_vpc_routing` | MEDIUM | Redshift cluster has Enhanced VPC Routing enabled | - |
-| `PRW-AWS-redshift_cluster_in_transit_encryption_enabled` | HIGH | Redshift cluster is encrypted in transit | - |
-| `PRW-AWS-redshift_cluster_multi_az_enabled` | MEDIUM | Redshift cluster has Multi-AZ enabled | - |
-| `PRW-AWS-redshift_cluster_non_default_database_name` | LOW | Redshift cluster does not use the default database name dev | - |
-| `PRW-AWS-redshift_cluster_non_default_username` | MEDIUM | Amazon Redshift cluster does not use the default admin username | - |
-| `PRW-AWS-redshift_cluster_public_access` | CRITICAL | Redshift cluster is not publicly exposed to the Internet | - |
-| `PRW-AWS-resourceexplorer2_indexes_found` | LOW | Resource Explorer indexes exist | - |
-| `PRW-AWS-rolesanywhere_profile_restricts_session_permissions` | MEDIUM | IAM Roles Anywhere profiles scope down the vended session permissions | - |
-| `PRW-AWS-rolesanywhere_trust_anchor_pqc_pki` | LOW | IAM Roles Anywhere trust anchors are backed by a post-quantum (ML-DSA) PKI | - |
-| `PRW-AWS-route53_dangling_ip_subdomain_takeover` | HIGH | Route53 record does not point to a dangling AWS resource | - |
-| `PRW-AWS-route53_domains_privacy_protection_enabled` | MEDIUM | Route 53 domain has admin contact privacy protection enabled | - |
-| `PRW-AWS-route53_domains_transferlock_enabled` | HIGH | Route 53 domain has Transfer Lock enabled | - |
-| `PRW-AWS-route53_public_hosted_zones_cloudwatch_logging_enabled` | MEDIUM | Route53 public hosted zone has query logging enabled to a CloudWatch Logs log group | - |
-| `PRW-AWS-s3_access_point_public_access_block` | CRITICAL | S3 access point has all Block Public Access settings enabled | - |
-| `PRW-AWS-s3_account_level_public_access_blocks` | HIGH | S3 account-level Block Public Access ignores public ACLs and restricts public buckets | AWS-STO-001 |
-| `PRW-AWS-s3_bucket_acl_prohibited` | MEDIUM | S3 bucket has bucket ACLs disabled | - |
-| `PRW-AWS-s3_bucket_cross_account_access` | HIGH | S3 bucket policy does not allow cross-account access | - |
-| `PRW-AWS-s3_bucket_cross_region_replication` | LOW | S3 bucket has cross-region replication configured to a bucket in a different region | - |
-| `PRW-AWS-s3_bucket_default_encryption` | MEDIUM | [DEPRECATED] S3 bucket has default server-side encryption (SSE) enabled | AWS-STO-002 |
-| `PRW-AWS-s3_bucket_event_notifications_enabled` | LOW | S3 bucket has event notifications enabled | - |
-| `PRW-AWS-s3_bucket_kms_encryption` | MEDIUM | S3 bucket has server-side encryption with AWS KMS | - |
-| `PRW-AWS-s3_bucket_level_public_access_block` | HIGH | S3 bucket has Block Public Access with IgnorePublicAcls and RestrictPublicBuckets enabled at bucket or account level | AWS-STO-001 |
-| `PRW-AWS-s3_bucket_lifecycle_enabled` | LOW | S3 bucket has a lifecycle configuration enabled | - |
-| `PRW-AWS-s3_bucket_no_mfa_delete` | MEDIUM | S3 bucket has MFA Delete enabled | - |
-| `PRW-AWS-s3_bucket_object_lock` | LOW | S3 bucket has Object Lock enabled | - |
-| `PRW-AWS-s3_bucket_object_public` | LOW | Spot-check S3 bucket objects for public ACLs | - |
-| `PRW-AWS-s3_bucket_object_versioning` | MEDIUM | S3 bucket has object versioning enabled | - |
-| `PRW-AWS-s3_bucket_policy_public_write_access` | CRITICAL | S3 bucket policy does not allow public write access | - |
-| `PRW-AWS-s3_bucket_public_access` | CRITICAL | S3 bucket is not publicly accessible to Everyone or Authenticated Users | AWS-STO-001 |
-| `PRW-AWS-s3_bucket_public_list_acl` | CRITICAL | S3 bucket is not publicly listable by Everyone or any authenticated AWS user | - |
-| `PRW-AWS-s3_bucket_public_write_acl` | CRITICAL | S3 bucket ACL does not grant write access to Everyone or any AWS customer | - |
-| `PRW-AWS-s3_bucket_secure_transport_policy` | MEDIUM | S3 bucket policy denies requests over insecure transport | AWS-STO-003 |
-| `PRW-AWS-s3_bucket_server_access_logging_enabled` | MEDIUM | S3 bucket has server access logging enabled | - |
-| `PRW-AWS-s3_bucket_shadow_resource_vulnerability` | HIGH | S3 bucket is not a known shadow resource owned by another account | - |
-| `PRW-AWS-s3_multi_region_access_point_public_access_block` | HIGH | S3 Multi-Region Access Point has all Block Public Access settings enabled | - |
-| `PRW-AWS-sagemaker_clarify_exists` | LOW | Amazon SageMaker Clarify processing jobs exist in the region | - |
-| `PRW-AWS-sagemaker_domain_sso_configured` | MEDIUM | SageMaker domains use SSO authentication instead of IAM mode | - |
-| `PRW-AWS-sagemaker_endpoint_config_kms_encryption_enabled` | MEDIUM | SageMaker endpoint configuration is encrypted with a KMS key | - |
-| `PRW-AWS-sagemaker_endpoint_config_prod_variant_instances` | MEDIUM | SageMaker endpoint configuration has all production variants with at least two initial instances | - |
-| `PRW-AWS-sagemaker_models_monitor_enabled` | LOW | Amazon SageMaker has a monitoring schedule scheduled | - |
-| `PRW-AWS-sagemaker_models_network_isolation_enabled` | HIGH | Amazon SageMaker model has network isolation enabled | - |
-| `PRW-AWS-sagemaker_models_registry_in_use` | LOW | Amazon SageMaker Model Registry should have at least one approved model package | - |
-| `PRW-AWS-sagemaker_models_vpc_settings_configured` | MEDIUM | Amazon SageMaker model has VPC settings enabled | - |
-| `PRW-AWS-sagemaker_notebook_instance_encryption_enabled` | HIGH | SageMaker notebook instance is encrypted with a KMS key | - |
-| `PRW-AWS-sagemaker_notebook_instance_root_access_disabled` | MEDIUM | Amazon SageMaker notebook instance has root access disabled | - |
-| `PRW-AWS-sagemaker_notebook_instance_vpc_settings_configured` | HIGH | Amazon SageMaker notebook instance has VPC settings configured | - |
-| `PRW-AWS-sagemaker_notebook_instance_without_direct_internet_access_configured` | HIGH | Amazon SageMaker notebook instance has direct internet access disabled | - |
-| `PRW-AWS-sagemaker_training_jobs_intercontainer_encryption_enabled` | MEDIUM | Amazon SageMaker training job has inter-container traffic encryption enabled | - |
-| `PRW-AWS-sagemaker_training_jobs_network_isolation_enabled` | HIGH | Amazon SageMaker training job has network isolation enabled | - |
-| `PRW-AWS-sagemaker_training_jobs_volume_and_output_encryption_enabled` | HIGH | Amazon SageMaker training job volume has KMS encryption enabled | - |
-| `PRW-AWS-sagemaker_training_jobs_vpc_settings_configured` | HIGH | Amazon SageMaker training job has VPC configuration enabled | - |
-| `PRW-AWS-secretsmanager_automatic_rotation_enabled` | HIGH | Secrets Manager secret has rotation enabled | - |
-| `PRW-AWS-secretsmanager_has_restrictive_resource_policy` | HIGH | Secrets Manager secret has a restrictive resource-based policy | - |
-| `PRW-AWS-secretsmanager_not_publicly_accessible` | HIGH | Secrets Manager secret resource policy does not allow public access | - |
-| `PRW-AWS-secretsmanager_secret_rotated_periodically` | MEDIUM | AWS Secrets Manager secret is rotated within the configured maximum number of days | - |
-| `PRW-AWS-secretsmanager_secret_unused` | MEDIUM | Secrets Manager secret has been accessed within the last 90 days | - |
-| `PRW-AWS-securityhub_delegated_admin_enabled_all_regions` | HIGH | Security Hub has delegated admin configured and is enabled in all regions with organization auto-enable | - |
-| `PRW-AWS-securityhub_enabled` | HIGH | Security Hub is enabled with standards or integrations configured | AWS-POS-002 |
-| `PRW-AWS-servicecatalog_portfolio_shared_within_organization_only` | HIGH | Service Catalog portfolio is shared only within the AWS Organization | - |
-| `PRW-AWS-ses_identity_dkim_enabled` | MEDIUM | SES identity has DKIM signing enabled | - |
-| `PRW-AWS-ses_identity_not_publicly_accessible` | HIGH | SES identity resource policy does not allow public access | - |
-| `PRW-AWS-shield_advanced_protection_in_associated_elastic_ips` | MEDIUM | Elastic IP address is protected by AWS Shield Advanced | - |
-| `PRW-AWS-shield_advanced_protection_in_classic_load_balancers` | MEDIUM | Classic Load Balancer is protected by AWS Shield Advanced | - |
-| `PRW-AWS-shield_advanced_protection_in_cloudfront_distributions` | MEDIUM | CloudFront distribution is protected by AWS Shield Advanced | - |
-| `PRW-AWS-shield_advanced_protection_in_global_accelerators` | MEDIUM | Global Accelerator accelerator is protected by AWS Shield Advanced | - |
-| `PRW-AWS-shield_advanced_protection_in_internet_facing_load_balancers` | MEDIUM | Internet-facing Application Load Balancer is protected by AWS Shield Advanced | - |
-| `PRW-AWS-shield_advanced_protection_in_route53_hosted_zones` | MEDIUM | Route53 hosted zone is protected by AWS Shield Advanced | - |
-| `PRW-AWS-sns_subscription_not_using_http_endpoints` | HIGH | SNS subscription uses an HTTPS endpoint | - |
-| `PRW-AWS-sns_topics_kms_encryption_at_rest_enabled` | HIGH | SNS topic is encrypted at rest with KMS | - |
-| `PRW-AWS-sns_topics_not_publicly_accessible` | HIGH | SNS topic is not publicly accessible | - |
-| `PRW-AWS-sqs_queues_not_publicly_accessible` | CRITICAL | SQS queue policy does not allow public access | - |
-| `PRW-AWS-sqs_queues_server_side_encryption_enabled` | MEDIUM | SQS queue has server-side encryption enabled | - |
-| `PRW-AWS-ssm_documents_set_as_public` | HIGH | SSM document is not public and shared only with trusted AWS accounts | - |
-| `PRW-AWS-ssm_managed_compliant_patching` | HIGH | EC2 managed instance is compliant with Systems Manager patching requirements | - |
-| `PRW-AWS-ssmincidents_enabled_with_plans` | MEDIUM | SSM Incidents replication set is ACTIVE and has at least one response plan | - |
-| `PRW-AWS-stepfunctions_statemachine_encrypted_with_cmk` | MEDIUM | Step Functions state machine is encrypted at rest with a customer-managed KMS key | - |
-| `PRW-AWS-stepfunctions_statemachine_logging_enabled` | MEDIUM | Step Functions state machine has logging enabled | - |
-| `PRW-AWS-storagegateway_fileshare_encryption_enabled` | MEDIUM | Storage Gateway file share is encrypted with KMS CMK | - |
-| `PRW-AWS-storagegateway_gateway_fault_tolerant` | MEDIUM | AWS Storage Gateway gateway is not hosted on EC2 | - |
-| `PRW-AWS-transfer_server_fips_security_policy_enabled` | LOW | AWS Transfer Family server uses a FIPS security policy | - |
-| `PRW-AWS-transfer_server_in_transit_encryption_enabled` | HIGH | Transfer Family server has encryption in transit enabled | - |
-| `PRW-AWS-transfer_server_pqc_ssh_kex_enabled` | LOW | AWS Transfer Family server uses a post-quantum hybrid SSH key exchange security policy | - |
-| `PRW-AWS-trustedadvisor_errors_and_warnings` | MEDIUM | Trusted Advisor check has no errors or warnings | - |
-| `PRW-AWS-trustedadvisor_premium_support_plan_subscribed` | LOW | AWS account is subscribed to an AWS Premium Support plan | - |
-| `PRW-AWS-vpc_different_regions` | MEDIUM | VPCs are present in more than one region | - |
-| `PRW-AWS-vpc_endpoint_connections_trust_boundaries` | HIGH | VPC endpoint policy allows access only from trusted AWS accounts | - |
-| `PRW-AWS-vpc_endpoint_for_ec2_enabled` | MEDIUM | VPC has an Amazon EC2 VPC endpoint | - |
-| `PRW-AWS-vpc_endpoint_multi_az_enabled` | MEDIUM | Amazon VPC interface endpoint has subnets in multiple Availability Zones | - |
-| `PRW-AWS-vpc_endpoint_services_allowed_principals_trust_boundaries` | HIGH | VPC endpoint service allows only trusted principals or none | - |
-| `PRW-AWS-vpc_flow_logs_enabled` | MEDIUM | VPC flow logs are enabled | AWS-LOG-006 |
-| `PRW-AWS-vpc_peering_routing_tables_with_least_privilege` | MEDIUM | VPC peering connection route tables do not include 0.0.0.0/0 or entire requester/accepter VPC CIDR routes | - |
-| `PRW-AWS-vpc_subnet_different_az` | MEDIUM | VPC has subnets in more than one Availability Zone | - |
-| `PRW-AWS-vpc_subnet_no_public_ip_by_default` | HIGH | VPC subnet does not assign public IP addresses by default | - |
-| `PRW-AWS-vpc_subnet_separate_private_public` | MEDIUM | VPC has both public and private subnets | - |
-| `PRW-AWS-vpc_vpn_connection_tunnels_up` | MEDIUM | AWS Site-to-Site VPN connection has both tunnels up | - |
-| `PRW-AWS-waf_global_rule_with_conditions` | MEDIUM | AWS WAF Classic Global rule has at least one condition | - |
-| `PRW-AWS-waf_global_rulegroup_not_empty` | HIGH | AWS WAF Classic global rule group has at least one rule | - |
-| `PRW-AWS-waf_global_webacl_logging_enabled` | MEDIUM | AWS WAF Classic Global Web ACL has logging enabled | - |
-| `PRW-AWS-waf_global_webacl_with_rules` | MEDIUM | AWS WAF Classic global Web ACL has at least one rule or rule group | - |
-| `PRW-AWS-waf_regional_rule_with_conditions` | MEDIUM | AWS WAF Classic Regional rule has at least one condition | - |
-| `PRW-AWS-waf_regional_rulegroup_not_empty` | MEDIUM | AWS WAF Classic Regional rule group has at least one rule | - |
-| `PRW-AWS-waf_regional_webacl_logging_enabled` | MEDIUM | AWS WAF Classic Regional Web ACL has logging enabled | - |
-| `PRW-AWS-waf_regional_webacl_with_rules` | MEDIUM | AWS WAF Classic Regional Web ACL has at least one rule or rule group | - |
-| `PRW-AWS-wafv2_webacl_logging_enabled` | MEDIUM | AWS WAFv2 Web ACL has logging enabled | - |
-| `PRW-AWS-wafv2_webacl_rule_logging_enabled` | MEDIUM | AWS WAFv2 Web ACL has Amazon CloudWatch metrics enabled for all rules and rule groups | - |
-| `PRW-AWS-wafv2_webacl_with_rules` | HIGH | AWS WAFv2 Web ACL has at least one rule or rule group attached | - |
-| `PRW-AWS-wellarchitected_workload_no_high_or_medium_risks` | MEDIUM | AWS Well-Architected Tool workload has no high or medium risks | - |
-| `PRW-AWS-workspaces_volume_encryption_enabled` | HIGH | Amazon WorkSpaces workspace root and user volumes are encrypted | - |
-| `PRW-AWS-workspaces_vpc_2private_1public_subnets_nat` | HIGH | Workspace is in a private subnet and its VPC has at least 1 public subnet, 2 private subnets, and a NAT Gateway | - |
-
-### Not run (37)
-
-| Check | Why not |
-|---|---|
-| `amplify_app_no_secrets_in_environment` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
-| `apigateway_restapi_no_secrets_in_stage_variables` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
-| `autoscaling_find_secrets_ec2_launch_configuration` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
-| `awslambda_function_no_secrets_in_code` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
-| `awslambda_function_no_secrets_in_variables` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
-| `awslambda_layer_no_secrets_in_content` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
-| `batch_job_definition_no_secrets` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
-| `cloudformation_stack_outputs_find_secrets` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
-| `cloudtrail_threat_detection_enumeration` | Reads activity records (sign-ins, API calls, log contents) rather than configuration. Cleave assesses posture and does not ingest a customer's event stream. |
-| `cloudtrail_threat_detection_llm_jacking` | Reads activity records (sign-ins, API calls, log contents) rather than configuration. Cleave assesses posture and does not ingest a customer's event stream. |
-| `cloudtrail_threat_detection_privilege_escalation` | Reads activity records (sign-ins, API calls, log contents) rather than configuration. Cleave assesses posture and does not ingest a customer's event stream. |
-| `cloudwatch_log_group_no_secrets_in_logs` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
-| `codebuild_project_no_secrets_in_variables` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
-| `codecommit_repository_no_secrets` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
-| `cognito_user_pool_advanced_security_enabled` | Reads activity records (sign-ins, API calls, log contents) rather than configuration. Cleave assesses posture and does not ingest a customer's event stream. |
-| `cognito_user_pool_blocks_compromised_credentials_sign_in_attempts` | Reads activity records (sign-ins, API calls, log contents) rather than configuration. Cleave assesses posture and does not ingest a customer's event stream. |
-| `cognito_user_pool_blocks_potential_malicious_sign_in_attempts` | Reads activity records (sign-ins, API calls, log contents) rather than configuration. Cleave assesses posture and does not ingest a customer's event stream. |
-| `cognito_user_pool_waf_acl_attached` | Reads activity records (sign-ins, API calls, log contents) rather than configuration. Cleave assesses posture and does not ingest a customer's event stream. |
-| `datapipeline_pipeline_no_secrets_in_definition` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
-| `ec2_instance_secrets_user_data` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
-| `ec2_launch_template_no_secrets` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
-| `ecr_repository_image_no_secrets` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
-| `ecs_task_definitions_no_environment_secrets` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
-| `elasticbeanstalk_environment_no_secrets_in_configuration` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
-| `glue_catalog_connection_no_secrets` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
-| `glue_etl_jobs_no_secrets_in_arguments` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
-| `kms_key_enclave_attestation_no_deployment_binding` | Informational: Prowler reports it without saying anything is wrong. |
-| `sagemaker_notebook_instance_no_secrets` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
-| `ssm_document_secrets` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
-| `stepfunctions_statemachine_no_secrets_in_definition` | Scans the contents of code, environment variables, user data or logs for secrets. Cleave never reads secret material, so it neither asks for the permission nor stores what such a check would print. |
-| `aks_cluster_defender_enabled` | Reads activity records (sign-ins, API calls, log contents) rather than configuration. Cleave assesses posture and does not ingest a customer's event stream. |
-| `apim_threat_detection_llm_jacking` | Queries the customer's log contents rather than reading configuration. |
-| `app_function_access_keys_configured` | Needs Microsoft.Web/sites/host/listkeys/action, which returns the function keys themselves. The scanner holds Reader and no list-keys action. |
-| `defender_ensure_defender_cspm_is_on` | Reads activity records (sign-ins, API calls, log contents) rather than configuration. Cleave assesses posture and does not ingest a customer's event stream. |
-| `network_public_ip_shodan` | Sends the customer's public IP addresses to Shodan, a third party, and needs an API key of its own. |
-| `vm_desired_sku_size` | Judges against a list of approved sizes the customer has not given Cleave; with Prowler's empty default every machine fails. |
-| `vm_ensure_using_approved_images` | Judges against a list of approved images the customer has not given Cleave; with Prowler's empty default every machine fails. |

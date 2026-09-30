@@ -119,58 +119,6 @@ describe("the access panel", () => {
     expect(screen.queryByText(/behind/)).not.toBeInTheDocument();
   });
 
-  describe("a current role deployed before the template assigned Reader", () => {
-    /** Seen on a live tenant: the extended checks were refused on storage file
-     * services and SQL encryption protectors, and this panel said the role was
-     * verified, because the role was current -- the Reader beside it was what
-     * was missing (DECISIONS.md §153). */
-    const readerMissing = {
-      role_version: "v4",
-      role_required_version: "v4",
-      role_upgrade_available: true,
-      extended_checks_blocked: true,
-    } satisfies Partial<CloudConnection>;
-
-    it("says Reader is missing rather than that the role is behind itself", () => {
-      mount(readerMissing);
-
-      expect(screen.getByText(/v4, Reader missing/)).toBeInTheDocument();
-      expect(screen.queryByText(/behind/)).not.toBeInTheDocument();
-      expect(screen.queryByText(/verified/)).not.toBeInTheDocument();
-    });
-
-    it("says what the redeploy is for, and names the extended checks", () => {
-      mount(readerMissing);
-
-      expect(screen.getByText(/deployed before it did/)).toBeInTheDocument();
-      expect(screen.getByText(/Extended checks/)).toBeInTheDocument();
-      expect(
-        screen.queryByText(/scanner role gained permissions/),
-      ).not.toBeInTheDocument();
-    });
-
-    it("offers the same redeploy link", () => {
-      mount(readerMissing);
-
-      expect(
-        screen.getByRole("link", { name: /redeploy the role/i }),
-      ).toBeInTheDocument();
-    });
-
-    it("says both when the role is behind as well", () => {
-      mount({
-        ...readerMissing,
-        role_version: "v3",
-        degraded_categories: ["database"],
-      });
-
-      expect(screen.getByText(/v3, behind \(v4\)/)).toBeInTheDocument();
-      expect(screen.getByText(/scanner role gained permissions/)).toBeInTheDocument();
-      expect(screen.getByText(/deployed before it did/)).toBeInTheDocument();
-      expect(screen.getByText(/Databases, Extended checks/)).toBeInTheDocument();
-    });
-  });
-
   it("still states that Cleave holds no write permission", () => {
     /** The product's central claim about itself. It sits on this panel, and a
      * new alert above it must not be what pushes it off the screen. */

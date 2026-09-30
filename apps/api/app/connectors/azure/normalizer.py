@@ -18,6 +18,7 @@ import re
 from datetime import UTC, datetime
 from typing import Any
 
+from app.connectors.azure import settings as v11
 from app.connectors.azure.access import access_profile
 from app.connectors.azure.network import network_access
 from app.connectors.azure.rbac import action_matches
@@ -155,6 +156,21 @@ def _workload_identities(workload: dict[str, Any]) -> list[tuple[str, str | None
             if user_principal and user_principal != principal_id:
                 name = str(resource_id).rstrip("/").rsplit("/", 1)[-1]
                 found.append((str(user_principal), f"{name} (user-assigned identity)"))
+    # A Kubernetes cluster's nodes run as an identity of their own, the kubelet
+    # identity, beside the control plane's: it is the one a pod that reaches the
+    # node's metadata endpoint acts as, so a route through a cluster runs
+    # through it. ARM states it under ``identityProfile``, as an object id
+    # rather than a principal id -- the same thing by another name.
+    profile = (workload.get("properties") or {}).get("identityProfile") or {}
+    kubelet = profile.get("kubeletidentity") if isinstance(profile, dict) else None
+    kubelet_object = (kubelet or {}).get("objectId") if isinstance(kubelet, dict) else None
+    if kubelet_object and all(kubelet_object != known for known, _ in found):
+        found.append(
+            (
+                str(kubelet_object),
+                f"{workload['name']} (kubelet identity)" if workload.get("name") else None,
+            )
+        )
     return found
 
 
@@ -509,10 +525,29 @@ class AzureNormalizer:
         }
 
         state.resources.extend(self._normalize_nsgs(data, diagnostics))
-        state.resources.extend(self._normalize_storage(data, diagnostics))
+        # Which storage accounts hold the subscription's activity log, so the
+        # checks on that account can apply to it alone (section 176).
+        activity_log_accounts = v11.activity_log_accounts(
+            diagnostics.get(f"/subscriptions/{snapshot.subscription_id}")
+            if snapshot.subscription_id
+            else None
+        )
+        state.resources.extend(
+            self._normalize_storage(data, diagnostics, activity_log_accounts)
+        )
         state.resources.extend(self._normalize_databases(data, diagnostics))
         state.resources.extend(self._normalize_key_vaults(data, diagnostics))
-        state.resources.extend(self._normalize_app_services(data))
+        state.resources.extend(
+            self._normalize_app_services(data, diagnostics, snapshot.collected_at)
+        )
+        state.resources.extend(self._normalize_platforms(data))
+        # Section 176: managed disks and virtual networks, modelled rather than
+        # left as unchecked inventory rows.
+        state.resources.extend(v11.disks(data, _context))
+        state.resources.extend(v11.virtual_networks(data, _context))
+        # Section 177: Recovery Services vaults and scale sets.
+        state.resources.extend(v11.backup_vaults(data, _context))
+        state.resources.extend(v11.scale_sets(data, _context))
 
         vms, vm_edges = self._normalize_vms(data, nics, public_ips)
         state.resources.extend(vms)
@@ -832,6 +867,12 @@ class AzureNormalizer:
                     "diagnostic_settings": self._diagnostics_for(
                         subscription_node, diagnostics
                     ),
+                    # Section 176: Defender for Cloud's contacts and
+                    # integrations, the security benchmark's assignment, the
+                    # activity-log alerts and categories, Bastion, and IoT.
+                    **v11.subscription_settings(
+                        snapshot.data, subscription_node, diagnostics.get(subscription_node)
+                    ),
                 },
             )
         ]
@@ -936,7 +977,11 @@ class AzureNormalizer:
             ),
             None,
         )
-        workloads = [*data.get("virtual_machines", []), *data.get("app_services", [])]
+        workloads = [
+            *data.get("virtual_machines", []),
+            *data.get("app_services", []),
+            *data.get("kubernetes_clusters", []),
+        ]
 
         # What to call a principal CloudGuard mints: the name the directory
         # knows it by, where the payload carries it (``_workload_identities``).
@@ -1237,7 +1282,10 @@ class AzureNormalizer:
 
     # ---------------------------------------------------------------- storage
     def _normalize_storage(
-        self, data: dict[str, Any], diagnostics: dict[str, Any]
+        self,
+        data: dict[str, Any],
+        diagnostics: dict[str, Any],
+        activity_log_accounts: set[str] | None = None,
     ) -> list[CloudResource]:
         resources = []
         for account in data.get("storage_accounts", []):
@@ -1285,6 +1333,35 @@ class AzureNormalizer:
                         ),
                         "infrastructure_encryption": _first(
                             props, "encryption", "requireInfrastructureEncryption"
+                        ),
+                        # Section 174. Whether data at rest is encrypted with a
+                        # key in the customer's vault, whether the portal
+                        # defaults to Entra authorization, which services may
+                        # bypass the network rules, and the private endpoints.
+                        "customer_managed_key": (
+                            str(_first(props, "encryption", "keySource") or "").lower()
+                            == "microsoft.keyvault"
+                            if _first(props, "encryption", "keySource") is not None
+                            else None
+                        ),
+                        "default_to_entra_auth": props.get("defaultToOAuthAuthentication"),
+                        "network_bypass": network_acls.get("bypass"),
+                        "private_endpoints": self._private_endpoints(props),
+                        # Section 176. The file service beneath the account,
+                        # the access key expiry policy from the listing, and
+                        # whether the subscription's activity log is kept here
+                        # -- None where the subscription's settings were not
+                        # read.
+                        **v11.file_service(account, data.get("storage_file_services")),
+                        # Section 177: the replication the account's SKU names.
+                        "sku": (account.get("sku") or {}).get("name"),
+                        "key_expiration_days": _first(
+                            props, "keyPolicy", "keyExpirationPeriodInDays"
+                        ),
+                        "holds_activity_log": (
+                            account["id"].lower() in activity_log_accounts
+                            if activity_log_accounts is not None
+                            else None
                         ),
                         "ip_rules": network_acls.get("ipRules") or [],
                         "virtual_network_rules": network_acls.get("virtualNetworkRules") or [],
@@ -1352,6 +1429,12 @@ class AzureNormalizer:
                             else None
                         ),
                         "access_policy_count": len(props.get("accessPolicies") or []),
+                        # Section 176: the attributes of what the vault holds.
+                        **v11.vault_contents(
+                            vault["id"],
+                            data.get("key_vault_keys"),
+                            data.get("key_vault_secrets"),
+                        ),
                         "diagnostic_settings": self._diagnostics_for(
                             vault["id"], diagnostics
                         ),
@@ -1397,6 +1480,9 @@ class AzureNormalizer:
                             server["id"], data.get("sql_administrators", {}) or {}
                         ),
                         "auditing": self._auditing(server["id"], auditing),
+                        # Section 176: Defender for SQL, the encryption
+                        # protector and vulnerability assessment.
+                        **v11.sql_defences(server["id"], data),
                         # What each database on this server does about
                         # encryption at rest. None where the reading never
                         # arrived, which the rule reports as UNKNOWN rather
@@ -1442,6 +1528,31 @@ class AzureNormalizer:
                         "version": props.get("version"),
                         "require_secure_transport": self._server_parameter(
                             server["id"], data.get("postgresql_configurations", {}) or {}
+                        ),
+                        # Section 175.
+                        **self._named_parameters(
+                            server["id"],
+                            data.get("postgresql_logging") or {},
+                            {
+                                "log_checkpoints": "log_checkpoints",
+                                "log_connections": "log_connections",
+                                "log_disconnections": "log_disconnections",
+                                "connection_throttling": "connection_throttle.enable",
+                                "log_retention_days": "logfiles.retention_days",
+                            },
+                        ),
+                        # Section 177.
+                        "high_availability": (props.get("highAvailability") or {}).get(
+                            "mode"
+                        ),
+                        "geo_redundant_backup": (props.get("backup") or {}).get(
+                            "geoRedundantBackup"
+                        ),
+                        "entra_authentication": (
+                            str(_first(props, "authConfig", "activeDirectoryAuth") or "").lower()
+                            == "enabled"
+                            if _first(props, "authConfig", "activeDirectoryAuth") is not None
+                            else None
                         ),
                         "diagnostic_settings": self._diagnostics_for(server["id"], diagnostics),
                         "tags": server.get("tags") or {},
@@ -1507,6 +1618,23 @@ class AzureNormalizer:
             for entry in raw
             if isinstance(entry, dict)
         ]
+
+    @staticmethod
+    def _named_parameters(
+        server_id: str, parameters: dict[str, Any], names: dict[str, str]
+    ) -> dict[str, str | None]:
+        """Several server parameters read by name, lower-cased, keyed by field.
+
+        None for any not read -- the server's read failed, or the role predates
+        it -- so a rule can tell "not read" from "off" (section 175).
+        """
+        raw = parameters.get(server_id) if isinstance(parameters, dict) else None
+        found: dict[str, str | None] = {}
+        for field, name in names.items():
+            entry = raw.get(name) if isinstance(raw, dict) else None
+            value = _first(entry, "properties", "value") if isinstance(entry, dict) else None
+            found[field] = str(value).strip().lower() if value is not None else None
+        return found
 
     @staticmethod
     def _server_parameter(server_id: str, parameters: dict[str, Any]) -> str | None:
@@ -1691,7 +1819,23 @@ class AzureNormalizer:
                         "has_public_ip": has_public_ip,
                         "public_ips": vm_public_ips,
                         "os_type": _first(props, "storageProfile", "osDisk", "osType"),
+                        # Linux only, and None where the record carries no Linux
+                        # configuration -- a Windows machine, or one whose
+                        # osProfile was not returned (DECISIONS.md section 171).
+                        # Section 175. Trusted Launch with both secure boot and
+                        # a virtual TPM, and whether every managed disk is
+                        # encrypted through a disk encryption set.
+                        "trusted_launch": self._trusted_launch(props),
+                        "disks_customer_managed_key": self._disks_cmk(props),
+                        "password_authentication_disabled": _first(
+                            props,
+                            "osProfile",
+                            "linuxConfiguration",
+                            "disablePasswordAuthentication",
+                        ),
                         "unmanaged_disks": self._unmanaged_disks(props),
+                        # Section 176: just-in-time access and Azure Backup.
+                        **v11.vm_protection(vm["id"], data),
                         "vm_size": _first(props, "hardwareProfile", "vmSize"),
                         "network_interfaces": attached_nic_ids,
                         "guarding_nsgs": sorted(guarding_nsgs),
@@ -1706,6 +1850,27 @@ class AzureNormalizer:
             )
 
         return resources, edges
+
+    @staticmethod
+    def _trusted_launch(props: dict[str, Any]) -> bool:
+        security = props.get("securityProfile") or {}
+        uefi = security.get("uefiSettings") or {}
+        return (
+            str(security.get("securityType", "")).lower() == "trustedlaunch"
+            and uefi.get("secureBootEnabled") is True
+            and uefi.get("vTpmEnabled") is True
+        )
+
+    @staticmethod
+    def _disks_cmk(props: dict[str, Any]) -> bool | None:
+        """Whether every managed disk attached is encrypted through a disk
+        encryption set. None for a machine with no managed disk."""
+        storage = props.get("storageProfile") or {}
+        disks = [storage.get("osDisk") or {}, *(storage.get("dataDisks") or [])]
+        managed = [d.get("managedDisk") for d in disks if isinstance(d.get("managedDisk"), dict)]
+        if not managed:
+            return None
+        return all((m.get("diskEncryptionSet") or {}).get("id") for m in managed)
 
     @staticmethod
     def _unmanaged_disks(props: dict[str, Any]) -> list[str] | None:
@@ -1729,7 +1894,12 @@ class AzureNormalizer:
         return [name for name, disk in disks if disk.get("vhd") and not disk.get("managedDisk")]
 
     # ------------------------------------------------------------ app service
-    def _normalize_app_services(self, data: dict[str, Any]) -> list[CloudResource]:
+    def _normalize_app_services(
+        self,
+        data: dict[str, Any],
+        diagnostics: dict[str, Any] | None = None,
+        collected_at: datetime | None = None,
+    ) -> list[CloudResource]:
         """Web apps and function apps, with the configuration read beneath each.
 
         The configuration fields are None where that second read failed or
@@ -1749,6 +1919,9 @@ class AzureNormalizer:
 
             raw_config = configs.get(site["id"])
             cfg = (raw_config.get("properties", {}) or {}) if isinstance(raw_config, dict) else {}
+            restricted = (
+                self._access_restricted(cfg) if isinstance(raw_config, dict) else None
+            )
 
             resources.append(
                 CloudResource(
@@ -1762,15 +1935,23 @@ class AzureNormalizer:
                     # turned that off. Access restrictions can narrow it and
                     # are not read, so "not disabled" is reachable rather than
                     # guessed safe.
+                    # Access restrictions narrow a site to named networks; read
+                    # from the configuration since section 171, and a site whose
+                    # configuration was not read stays reachable.
                     public_exposure=(
                         Level.LOW
                         if str(public_access).lower() == "disabled"
+                        else Level.MEDIUM
+                        if restricted is True
                         else Level.HIGH
                     ),
                     metadata={
                         "kind": site.get("kind"),
+                        "access_restricted": restricted,
                         "https_only": props.get("httpsOnly"),
                         "client_cert_enabled": props.get("clientCertEnabled"),
+                        "client_cert_mode": props.get("clientCertMode"),
+                        "vnet_integrated": bool(props.get("virtualNetworkSubnetId")),
                         "public_network_access": public_access,
                         "identity_type": identity.get("type"),
                         # From the configuration read. Every one is None where
@@ -1779,11 +1960,374 @@ class AzureNormalizer:
                         "scm_min_tls_version": cfg.get("scmMinTlsVersion"),
                         "ftps_state": cfg.get("ftpsState"),
                         "remote_debugging": cfg.get("remoteDebuggingEnabled"),
+                        # Section 176.
+                        "is_function_app": "functionapp" in str(site.get("kind") or "").lower(),
+                        "authentication_enabled": v11.app_authentication(site["id"], data),
+                        "http_logs_exported": v11.http_logs_exported(
+                            (diagnostics or {}).get(site["id"])
+                        ),
+                        # Section 177: HTTP/2, and which language versions the
+                        # site runs, judged as of when this was collected.
+                        "http2_enabled": cfg.get("http20Enabled")
+                        if isinstance(raw_config, dict)
+                        else None,
+                        **v11.web_runtime(
+                            cfg if isinstance(raw_config, dict) else None,
+                            collected_at or datetime.now(UTC),
+                        ),
                         "tags": site.get("tags") or {},
                     },
                 )
             )
         return resources
+
+    # -------------------------------------------------------------- platforms
+    def _normalize_platforms(self, data: dict[str, Any]) -> list[CloudResource]:
+        """The six types read since role v9, each from its own listing.
+
+        Modelled so the graph has them and their rules have something to judge
+        (DECISIONS.md section 169). Exposure is established the way it is for
+        the types before them -- disabled public access is LOW, access narrowed
+        to named networks is MEDIUM, open to every network is HIGH -- and left
+        UNKNOWN where the setting that decides it is not read, rather than
+        guessed either way.
+        """
+        resources: list[CloudResource] = []
+        builders: tuple[tuple[str, ResourceType, Any], ...] = (
+            ("kubernetes_clusters", ResourceType.KUBERNETES_CLUSTER, self._cluster),
+            ("container_registries", ResourceType.CONTAINER_REGISTRY, self._registry),
+            ("cosmos_accounts", ResourceType.DOCUMENT_DATABASE, self._cosmos_account),
+            ("mysql_servers", ResourceType.MYSQL_SERVER, self._mysql_server),
+            (
+                "databricks_workspaces",
+                ResourceType.ANALYTICS_WORKSPACE,
+                self._databricks_workspace,
+            ),
+            ("search_services", ResourceType.SEARCH_SERVICE, self._search_service),
+        )
+        mysql_parameters = data.get("mysql_configurations") or {}
+        for key, resource_type, build in builders:
+            for item in data.get(key, []) or []:
+                if not item.get("id"):
+                    continue
+                props = item.get("properties", {}) or {}
+                exposure, metadata = build(item, props)
+                if resource_type is ResourceType.MYSQL_SERVER:
+                    metadata.update(self._mysql_tls(item["id"], mysql_parameters))
+                resources.append(
+                    CloudResource(
+                        provider_resource_id=item["id"],
+                        resource_type=resource_type,
+                        name=item.get("name", "unnamed"),
+                        provider=Provider.AZURE,
+                        region=item.get("location"),
+                        **_context(item, resource_type).fields(),
+                        public_exposure=exposure,
+                        metadata={
+                            **metadata,
+                            "sku": (item.get("sku") or {}).get("name"),
+                            "identity_type": (item.get("identity") or {}).get("type"),
+                            "tags": item.get("tags") or {},
+                        },
+                    )
+                )
+        return resources
+
+    @staticmethod
+    def _private_endpoints(props: dict[str, Any]) -> int | None:
+        """How many approved private endpoints serve this resource.
+
+        None where the listing did not carry the field, which is not the same
+        as none: a rule asking for private endpoints must be able to tell "not
+        stated" from "stated and empty".
+        """
+        connections = props.get("privateEndpointConnections")
+        if not isinstance(connections, list):
+            return None
+        return sum(
+            1
+            for connection in connections
+            if str(
+                ((connection or {}).get("properties") or {})
+                .get("privateLinkServiceConnectionState", {})
+                .get("status", "")
+            ).lower()
+            == "approved"
+        )
+
+    @staticmethod
+    def _cluster(
+        cluster: dict[str, Any], props: dict[str, Any]
+    ) -> tuple[Level, dict[str, Any]]:
+        """A managed Kubernetes cluster: who can reach its API server, and what
+        its nodes expose."""
+        access = props.get("apiServerAccessProfile") or {}
+        private = access.get("enablePrivateCluster")
+        ranges = access.get("authorizedIPRanges") or []
+        public_access = props.get("publicNetworkAccess")
+        pools = props.get("agentPoolProfiles") or []
+        # The API server answers on a public address unless the cluster is
+        # private or public access is switched off, and ARM leaves the profile
+        # out entirely for a cluster created with the defaults -- which is the
+        # public one. So absence reads as reachable, as it does for a web app.
+        if private is True or str(public_access).lower() == "disabled":
+            exposure = Level.LOW
+        elif ranges:
+            exposure = Level.MEDIUM
+        else:
+            exposure = Level.HIGH
+        aad = props.get("aadProfile") or {}
+        network = props.get("networkProfile") or {}
+        defender = ((props.get("securityProfile") or {}).get("defender") or {}).get(
+            "securityMonitoring"
+        ) or {}
+        return exposure, {
+            "kubernetes_version": props.get("kubernetesVersion"),
+            "private_cluster": private,
+            "authorized_ip_ranges": ranges,
+            "public_network_access": public_access,
+            "fqdn": props.get("fqdn"),
+            "local_accounts_disabled": props.get("disableLocalAccounts"),
+            "rbac_enabled": props.get("enableRBAC"),
+            "entra_integrated": aad.get("managed") if aad else False,
+            "azure_rbac": aad.get("enableAzureRBAC") if aad else False,
+            "network_policy": network.get("networkPolicy"),
+            # Per pool rather than one flag: a single pool handing its nodes
+            # public addresses is enough to expose the cluster's machines.
+            "node_public_ip_pools": [
+                pool.get("name")
+                for pool in pools
+                if isinstance(pool, dict) and pool.get("enableNodePublicIP") is True
+            ],
+            "node_pool_count": len(pools),
+            "auto_upgrade_channel": (props.get("autoUpgradeProfile") or {}).get(
+                "upgradeChannel"
+            ),
+            "defender_enabled": defender.get("enabled"),
+            # Container insights or managed Prometheus: either is monitoring.
+            "monitoring_enabled": bool(
+                ((props.get("addonProfiles") or {}).get("omsagent") or {}).get("enabled")
+                or (
+                    ((props.get("azureMonitorProfile") or {}).get("metrics") or {}).get(
+                        "enabled"
+                    )
+                )
+            ),
+        }
+
+    @classmethod
+    def _registry(
+        cls, registry: dict[str, Any], props: dict[str, Any]
+    ) -> tuple[Level, dict[str, Any]]:
+        """A container registry's configuration. Never its images."""
+        public_access = props.get("publicNetworkAccess")
+        rules = props.get("networkRuleSet") or {}
+        default_action = rules.get("defaultAction")
+        if str(public_access).lower() == "disabled":
+            exposure = Level.LOW
+        elif str(default_action).lower() == "deny":
+            exposure = Level.MEDIUM
+        else:
+            exposure = Level.HIGH
+        return exposure, {
+            "admin_user_enabled": props.get("adminUserEnabled"),
+            "anonymous_pull_enabled": props.get("anonymousPullEnabled"),
+            "public_network_access": public_access,
+            "network_default_action": default_action,
+            "ip_rules": rules.get("ipRules") or [],
+            "network_bypass": props.get("networkRuleBypassOptions"),
+            "private_endpoints": cls._private_endpoints(props),
+            "data_endpoint_enabled": props.get("dataEndpointEnabled"),
+            "encryption_status": (props.get("encryption") or {}).get("status"),
+        }
+
+    @classmethod
+    def _cosmos_account(
+        cls, account: dict[str, Any], props: dict[str, Any]
+    ) -> tuple[Level, dict[str, Any]]:
+        """A Cosmos DB account's configuration. Its keys are never read; the
+        listing carries only when they were last generated, which is kept."""
+        public_access = props.get("publicNetworkAccess")
+        ip_rules = props.get("ipRules") or []
+        vnet_filter = props.get("isVirtualNetworkFilterEnabled")
+        if str(public_access).lower() == "disabled":
+            exposure = Level.LOW
+        elif ip_rules or vnet_filter is True:
+            exposure = Level.MEDIUM
+        else:
+            exposure = Level.HIGH
+        backup = props.get("backupPolicy") or {}
+        return exposure, {
+            "kind": account.get("kind"),
+            "public_network_access": public_access,
+            "ip_rules": [
+                rule.get("ipAddressOrRange")
+                for rule in ip_rules
+                if isinstance(rule, dict)
+            ],
+            "virtual_network_filter": vnet_filter,
+            "private_endpoints": cls._private_endpoints(props),
+            "local_auth_disabled": props.get("disableLocalAuth"),
+            "minimal_tls_version": props.get("minimalTlsVersion"),
+            "key_metadata_writes_disabled": props.get(
+                "disableKeyBasedMetadataWriteAccess"
+            ),
+            "network_bypass": props.get("networkAclBypass"),
+            "customer_managed_key": bool(props.get("keyVaultKeyUri")),
+            "automatic_failover": props.get("enableAutomaticFailover"),
+            "backup_type": backup.get("type"),
+            "keys_generated": {
+                name: (meta or {}).get("generationTime")
+                for name, meta in (props.get("keysMetadata") or {}).items()
+            },
+        }
+
+    @staticmethod
+    def _mysql_server(
+        server: dict[str, Any], props: dict[str, Any]
+    ) -> tuple[Level, dict[str, Any]]:
+        """A MySQL flexible server's configuration.
+
+        Exposure is LOW when public access is off and UNKNOWN otherwise: what
+        decides it is the server's firewall rules, which are not read, and a
+        public server with none admits nobody. The PostgreSQL servers are held
+        to the same rule when their rules could not be read.
+        """
+        network = props.get("network") or {}
+        public_access = network.get("publicNetworkAccess")
+        exposure = (
+            Level.LOW if str(public_access).lower() == "disabled" else Level.UNKNOWN
+        )
+        backup = props.get("backup") or {}
+        return exposure, {
+            "version": props.get("version"),
+            "public_network_access": public_access,
+            "vnet_integrated": bool(network.get("delegatedSubnetResourceId")),
+            "high_availability": (props.get("highAvailability") or {}).get("mode"),
+            "geo_redundant_backup": backup.get("geoRedundantBackup"),
+            "backup_retention_days": backup.get("backupRetentionDays"),
+            "customer_managed_key": (
+                str((props.get("dataEncryption") or {}).get("type", "")).lower()
+                == "azurekeyvault"
+                if props.get("dataEncryption")
+                else None
+            ),
+        }
+
+    @staticmethod
+    def _mysql_tls(server_id: str, parameters: dict[str, Any]) -> dict[str, Any]:
+        """The two TLS parameters read beneath a MySQL server (section 172).
+
+        Each is None where it was not read -- a role before v10, or a read that
+        failed for this server -- so a rule can tell "not read" from "off".
+        """
+        raw = parameters.get(server_id) if isinstance(parameters, dict) else None
+        if not isinstance(raw, dict):
+            return {
+                "require_secure_transport": None,
+                "tls_version": None,
+                "audit_log_enabled": None,
+                "audit_log_events": None,
+            }
+
+        def value(name: str) -> str | None:
+            entry = raw.get(name)
+            found = _first(entry, "properties", "value") if isinstance(entry, dict) else None
+            return str(found).strip().lower() if found is not None else None
+
+        return {
+            "require_secure_transport": value("require_secure_transport"),
+            "tls_version": value("tls_version"),
+            "audit_log_enabled": value("audit_log_enabled"),
+            "audit_log_events": value("audit_log_events"),
+        }
+
+    @classmethod
+    def _databricks_workspace(
+        cls, workspace: dict[str, Any], props: dict[str, Any]
+    ) -> tuple[Level, dict[str, Any]]:
+        """A Databricks workspace: whether its front end answers the internet,
+        and whether its cluster nodes get public addresses."""
+        public_access = props.get("publicNetworkAccess")
+        # Enabled unless switched off, which is the service's own default.
+        exposure = (
+            Level.LOW if str(public_access).lower() == "disabled" else Level.HIGH
+        )
+        parameters = props.get("parameters") or {}
+
+        def parameter(name: str) -> Any:
+            value = parameters.get(name)
+            return value.get("value") if isinstance(value, dict) else None
+
+        services = (
+            ((props.get("encryption") or {}).get("entities") or {}).get("managedServices")
+            or {}
+        )
+        return exposure, {
+            "public_network_access": public_access,
+            "no_public_ip": parameter("enableNoPublicIp"),
+            # None where the listing carried no parameters, which is not the
+            # same as "no custom network" (the published sample shows null).
+            "custom_virtual_network": (
+                bool(parameter("customVirtualNetworkId")) if parameters else None
+            ),
+            "required_nsg_rules": props.get("requiredNsgRules"),
+            "private_endpoints": cls._private_endpoints(props),
+            "managed_services_cmk": (
+                str(services.get("keySource", "")).lower() == "microsoft.keyvault"
+                if services
+                else False
+            ),
+            "compute_mode": props.get("computeMode"),
+        }
+
+    @classmethod
+    def _search_service(
+        cls, service: dict[str, Any], props: dict[str, Any]
+    ) -> tuple[Level, dict[str, Any]]:
+        """An AI Search service's configuration. Its keys are never read."""
+        public_access = props.get("publicNetworkAccess")
+        ip_rules = (props.get("networkRuleSet") or {}).get("ipRules") or []
+        if str(public_access).lower() == "disabled":
+            exposure = Level.LOW
+        elif ip_rules:
+            exposure = Level.MEDIUM
+        else:
+            exposure = Level.HIGH
+        return exposure, {
+            "public_network_access": public_access,
+            "ip_rules": [rule.get("value") for rule in ip_rules if isinstance(rule, dict)],
+            "private_endpoints": cls._private_endpoints(props),
+            "local_auth_disabled": props.get("disableLocalAuth"),
+            "cmk_enforcement": (props.get("encryptionWithCmk") or {}).get("enforcement"),
+        }
+
+    @staticmethod
+    def _access_restricted(cfg: dict[str, Any]) -> bool | None:
+        """Whether a site's access restrictions admit only named sources.
+
+        Unmatched traffic is denied when ``ipSecurityRestrictionsDefaultAction``
+        says Deny, or -- where the field is absent, as on configurations older
+        than it -- as soon as any restriction exists. A rule allowing ``Any``
+        undoes either. None where the configuration carried no restrictions
+        field at all.
+        """
+        rules = cfg.get("ipSecurityRestrictions")
+        if not isinstance(rules, list):
+            return None
+        allows_any = any(
+            str((rule or {}).get("action", "")).lower() == "allow"
+            and str((rule or {}).get("ipAddress", "")).lower() in {"any", "0.0.0.0/0"}
+            for rule in rules
+        )
+        if allows_any:
+            return False
+        default = str(cfg.get("ipSecurityRestrictionsDefaultAction") or "").lower()
+        if default == "deny":
+            return True
+        if default == "allow":
+            return False
+        return bool(rules)
 
     # --------------------------------------------------------------- identity
     def _normalize_users(
@@ -2021,10 +2565,41 @@ class AzureNormalizer:
         if isinstance(defaults, dict) and defaults.get("isEnabled") is not None:
             controls["security_defaults_enabled"] = bool(defaults.get("isEnabled"))
 
+        methods = data.get("authentication_methods_policy")
+        if isinstance(methods, dict) and methods:
+            controls["authentication_methods"] = self._authentication_methods(methods)
+
+        locations = data.get("named_locations")
+        if isinstance(locations, list):
+            # Section 176: the IP ranges marked trusted.
+            controls["trusted_named_locations"] = sorted(
+                str(location.get("displayName") or location.get("id"))
+                for location in locations
+                if isinstance(location, dict)
+                and location.get("isTrusted") is True
+                and location.get("ipRanges")
+            )
+
+        settings = data.get("group_settings")
+        if isinstance(settings, list):
+            controls["m365_group_creation_open"] = self._group_creation_open(settings)
+
+        authorization = data.get("authorization_policy")
+        if isinstance(authorization, dict) and authorization:
+            controls["authorization_policy"] = self._authorization_policy(authorization)
+
         policies = data.get("conditional_access_policies")
         if policies is not None:
             controls["mfa_policies"] = self._mfa_policies(
                 policies, data.get("directory_roles") or [], data.get("group_members")
+            )
+            # Which applications an enabled policy requires a second factor for,
+            # of every user (section 172). Kept apart from ``mfa_policies``,
+            # which holds only policies covering every application: a policy
+            # scoped to Azure management protects that one door, and the rules
+            # asking about that door can say so.
+            controls["mfa_protected_apps"] = self._mfa_protected_apps(
+                policies, data.get("group_members")
             )
             # Whether anything stops a client that cannot present a second
             # factor from authenticating at all. Recorded as a fact about the
@@ -2035,6 +2610,99 @@ class AzureNormalizer:
                 policies
             )
         return controls
+
+    @staticmethod
+    def _authorization_policy(policy: dict[str, Any]) -> dict[str, Any]:
+        """The tenant authorization policy, in the words the rules use.
+
+        Each value is None where Graph did not state it, so a rule can decline
+        to judge rather than read absence as either setting (section 172).
+        """
+        defaults = policy.get("defaultUserRolePermissions") or {}
+        grants = defaults.get("permissionGrantPoliciesAssigned")
+        return {
+            "allow_invites_from": policy.get("allowInvitesFrom"),
+            "guest_user_role_id": policy.get("guestUserRoleId"),
+            "users_can_create_apps": defaults.get("allowedToCreateApps"),
+            "users_can_create_security_groups": defaults.get("allowedToCreateSecurityGroups"),
+            "users_can_create_tenants": defaults.get("allowedToCreateTenants"),
+            "user_consent_policies": (
+                [str(g) for g in grants] if isinstance(grants, list) else None
+            ),
+        }
+
+    @staticmethod
+    def _authentication_methods(policy: dict[str, Any]) -> dict[str, Any]:
+        """Which phishing-resistant or app-based methods are on, and whether the
+        tenant campaigns for registration (section 173)."""
+        strong = {"microsoftauthenticator", "fido2", "x509certificate"}
+        enabled = sorted(
+            str(method.get("id"))
+            for method in (policy.get("authenticationMethodConfigurations") or [])
+            if isinstance(method, dict)
+            and str(method.get("id", "")).lower() in strong
+            and str(method.get("state", "")).lower() == "enabled"
+        )
+        campaign = _first(
+            policy,
+            "registrationEnforcement",
+            "authenticationMethodsRegistrationCampaign",
+            "state",
+        )
+        return {
+            "strong_methods_enabled": enabled,
+            "registration_campaign": str(campaign).lower() if campaign else None,
+        }
+
+    @staticmethod
+    def _group_creation_open(settings: list[dict[str, Any]]) -> bool:
+        """Whether any user may create Microsoft 365 groups.
+
+        ``Group.Unified`` exists only once changed from the defaults, and the
+        default lets every user create groups -- so a tenant without the
+        setting is open, not unknown (section 173).
+        """
+        unified = next(
+            (s for s in settings if str(s.get("displayName", "")) == "Group.Unified"),
+            None,
+        )
+        if unified is None:
+            return True
+        values = {
+            str(v.get("name")): str(v.get("value", ""))
+            for v in (unified.get("values") or [])
+            if isinstance(v, dict)
+        }
+        return values.get("EnableGroupCreation", "true").strip().lower() != "false"
+
+    def _mfa_protected_apps(
+        self, policies: list[dict[str, Any]], group_members: dict[str, Any] | None
+    ) -> list[str]:
+        """Applications an enabled policy requires multi-factor for, of all users.
+
+        Lower-cased as Conditional Access writes them: ``all``, a keyword such as
+        ``microsoftadminportals``, or an application id. A policy excluding a
+        group whose membership was not read is left out, as ``_mfa_policies``
+        leaves it out: the exclusion could hold the account that matters.
+        """
+        members = group_members or {}
+        protected: set[str] = set()
+        for policy in policies:
+            if str(policy.get("state", "")).lower() != "enabled":
+                continue
+            if not self._requires_mfa(policy):
+                continue
+            conditions = policy.get("conditions") or {}
+            users = conditions.get("users") or {}
+            if "all" not in [str(u).lower() for u in (users.get("includeUsers") or [])]:
+                continue
+            if any(str(g) not in members for g in (users.get("excludeGroups") or [])):
+                continue
+            applications = conditions.get("applications") or {}
+            protected.update(
+                str(app).lower() for app in (applications.get("includeApplications") or [])
+            )
+        return sorted(protected)
 
     @staticmethod
     def _blocks_legacy_auth(policies: list[dict[str, Any]]) -> bool:
@@ -2206,6 +2874,7 @@ class AzureNormalizer:
                 "workspace_id": _first(d, "properties", "workspaceId"),
                 "storage_account_id": _first(d, "properties", "storageAccountId"),
                 "event_hub_id": _first(d, "properties", "eventHubAuthorizationRuleId"),
+                "log_categories": sorted(v11.enabled_log_categories(d)),
             }
             for d in entry
         ]

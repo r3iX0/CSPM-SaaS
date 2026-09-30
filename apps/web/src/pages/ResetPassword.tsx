@@ -4,6 +4,7 @@ import { updatePassword } from "@/lib/supabase";
 import { useAuthToken } from "@/lib/useAuth";
 import { useT } from "@/i18n";
 import { Wordmark } from "@/components/Brand";
+import { PAGE_TITLE_CLASS } from "@/components/common/states";
 
 /**
  * Where a password-reset email lands.
@@ -63,7 +64,7 @@ export function ResetPasswordPage() {
 
         {token ? (
           <>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            <h1 className={PAGE_TITLE_CLASS}>
               {t.auth.setPassword}
             </h1>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
@@ -129,7 +130,7 @@ export function ResetPasswordPage() {
           </>
         ) : (
           <>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            <h1 className={PAGE_TITLE_CLASS}>
               This link has expired
             </h1>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">

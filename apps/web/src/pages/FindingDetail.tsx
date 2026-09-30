@@ -12,9 +12,11 @@ import type {
   FindingProvenance,
 } from "@/lib/types";
 import { useT } from "@/i18n";
+import { InfoTip } from "@/components/common/InfoTip";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusPill } from "@/components/security/StatusPill";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
-import { Breadcrumbs, DetailSkeleton, ErrorState } from "@/components/common/states";
+import { Breadcrumbs, DetailSkeleton, ErrorState, PAGE_TITLE_CLASS, RailHeading } from "@/components/common/states";
 import { CodeBlock } from "@/components/common/CodeBlock";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -35,7 +37,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { AttackPathRoute } from "@/components/graph/AttackPathRoute";
 import { RemediationPanel } from "@/components/security/RemediationPanel";
-import { EngineBadge, ProwlerPanel } from "@/components/security/EnginePanel";
 import { TrackFix } from "@/components/security/TrackFix";
 import { FixVerification } from "@/components/security/FixVerification";
 import { placeholderValues } from "@/lib/remediationFill";
@@ -152,6 +153,8 @@ export function FindingDetailPage() {
   });
 
   usePageTitle(data?.title);
+  // Which tab the reader chose; until they choose, the page picks (below).
+  const [tab, setTab] = useState<string | null>(null);
 
   if (isLoading) return <DetailSkeleton />;
   if (error)
@@ -166,6 +169,8 @@ export function FindingDetailPage() {
   if (!data) return null;
 
   const components = data.risk?.score_breakdown?.components ?? {};
+  const routeCount = paths.data?.length ?? 0;
+  const detailTab = tab ?? (data.resource && routeCount > 0 ? "paths" : "evidence");
 
   return (
     <div className="flex flex-col gap-4">
@@ -193,12 +198,11 @@ export function FindingDetailPage() {
             <span className="font-mono text-xs text-muted-foreground">
               {data.rule_id} · v{data.rule_version}
             </span>
-            <EngineBadge engine={data.engine} version={data.rule_version} />
           </div>
-          <h1 className="mt-3 text-2xl font-semibold tracking-[-0.02em] text-foreground">
+          <h1 className={cn("mt-3", PAGE_TITLE_CLASS)}>
             {data.title}
           </h1>
-          <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted-foreground">
+          <p className="mt-1.5 text-body leading-relaxed text-muted-foreground">
             {data.description}
           </p>
         </div>
@@ -295,9 +299,6 @@ export function FindingDetailPage() {
             }
             footer={
               <div className="flex flex-col gap-4">
-                {/* Prowler's own fix for a Prowler finding; for a Cleave rule
-                    Prowler cross-checks, which check and why they may differ. */}
-                <ProwlerPanel detail={data.prowler} />
                 <TrackFix
                   findingId={data.id}
                   status={data.status}
@@ -334,172 +335,169 @@ export function FindingDetailPage() {
           {/* WHAT IS ALREADY IN THE WAY */}
           <ControlsPanel controls={data.evidence.compensating_controls} />
 
-          {/* EVIDENCE */}
-          <EvidencePanel evidence={data.evidence} />
-
-          {/* WHERE THAT EVIDENCE CAME FROM */}
-          <ProvenancePanel
-            provenance={provenance.data}
-            loading={provenance.isLoading}
-          />
-
-          {/* WHAT IT IS PART OF */}
-          <AttackPathContext
-            paths={paths.data}
-            loading={paths.isLoading}
-            hasAsset={Boolean(data.resource)}
-          />
-
-        </div>
-
-        <div className="flex min-w-0 flex-col gap-4">
-          {/* HOW BAD */}
-          {data.risk && (
-            <Card>
-              <CardHeader>
-                <CardTitle>{t.findings.riskScore}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-[36px] leading-none font-semibold tabular-nums text-foreground">
-                    {Number(data.risk.risk_score).toFixed(0)}
-                  </span>
-                  <SeverityBadge level={data.risk.risk_level} />
-                </div>
-
-                <p className="mt-4 text-xs font-medium text-muted-foreground">
-                  {t.findings.scoreBreakdown}
-                </p>
-                <ul className="mt-2 flex flex-col gap-1.5">
-                  {Object.entries(components).map(([name, component]) => (
-                    <li
-                      key={name}
-                      className="flex items-center justify-between gap-3 text-xs"
-                    >
-                      <span className="text-muted-foreground">
-                        {name.replace(/_/g, " ")}
-                        <span className="ml-1 text-muted-foreground">
-                          ({component.value} × {component.weight})
-                        </span>
-                      </span>
-                      <span className="font-medium tabular-nums text-foreground">
-                        {component.contribution.toFixed(1)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          )}
-
-          {data.resource && (
-            <Card>
-              <CardHeader>
-                <CardTitle>{t.findings.asset}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Link
-                  to={`/assets/${data.resource.id}`}
-                  className="text-sm font-medium text-foreground hover:underline"
-                >
-                  {data.resource.name}
-                </Link>
-                <dl className="mt-3 flex flex-col gap-2 text-xs">
-                  <Row
-                    icon={resourceTypeIcon(data.resource.resource_type)}
-                    label="Type"
-                    value={resourceTypeLabel(data.resource.resource_type)}
-                  />
-                  <Row
-                    icon={FACT_ICONS.environment}
-                    label="Environment"
-                    value={data.resource.environment ?? "—"}
-                  />
-                  <Row
-                    icon={FACT_ICONS.region}
-                    label="Region"
-                    value={data.resource.region ?? "—"}
-                  />
-                  <Row
-                    icon={FACTOR_ICONS.criticality}
-                    label="Criticality"
-                    value={
-                      <SeverityBadge
-                        level={data.resource.criticality}
-                        size="sm"
-                      />
-                    }
-                  />
-                  <Row
-                    icon={FACTOR_ICONS.dataSensitivity}
-                    label="Data sensitivity"
-                    value={
-                      <SeverityBadge
-                        level={data.resource.data_sensitivity}
-                        size="sm"
-                      />
-                    }
-                  />
-                  <Row
-                    icon={FACTOR_ICONS.exposure}
-                    label="Internet exposure"
-                    value={
-                      <SeverityBadge
-                        level={data.resource.public_exposure}
-                        size="sm"
-                      />
-                    }
-                  />
-                </dl>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* History under the score and the asset: how bad and where come
-              first, how it got here after. */}
-          {data.timeline && data.timeline.length > 0 && (
-            <FindingTimeline events={data.timeline} />
-          )}
+          {/* WHAT WAS SEEN, WHERE IT CAME FROM, AND WHAT IT IS PART OF --
+              one card of tabs rather than three cards to scroll past
+              (DECISIONS.md §180). It opens on the routes when the asset is on
+              one: that is what changes how urgent a finding is. Every panel
+              stays mounted, so the browser's find still reaches it. A tab
+              whose request failed is not offered, rather than offered empty. */}
           <Card>
-            <CardHeader>
-              <CardTitle>Timeline</CardTitle>
-            </CardHeader>
             <CardContent>
-              <dl className="flex flex-col gap-2 text-xs">
-                <Row
-                  icon={FACT_ICONS.firstSeen}
-                  label={t.findings.firstSeen}
-                  value={formatDateTime(data.first_detected_at)}
-                />
-                <Row
-                  icon={FACT_ICONS.lastSeen}
-                  label={t.findings.lastSeen}
-                  value={formatDateTime(data.last_detected_at)}
-                />
-                {data.resolved_at && (
-                  <Row
-                    icon={FACT_ICONS.resolved}
-                    label={t.findings.resolvedBy}
-                    value={formatDateTime(data.resolved_at)}
-                  />
+              <Tabs value={detailTab} onValueChange={(value) => setTab(String(value))}>
+                <TabsList variant="line">
+                  {data.resource && (
+                    <TabsTrigger value="paths">
+                      Attack paths
+                      {routeCount > 0 && (
+                        <span className="text-muted-foreground tabular-nums">{routeCount}</span>
+                      )}
+                    </TabsTrigger>
+                  )}
+                  <TabsTrigger value="evidence">{t.findings.evidence}</TabsTrigger>
+                  {(provenance.isLoading || provenance.data) && (
+                    <TabsTrigger value="provenance">{t.findings.provenance}</TabsTrigger>
+                  )}
+                </TabsList>
+                {data.resource && (
+                  <TabsContent value="paths" keepMounted className="pt-3">
+                    <AttackPathContext
+                      paths={paths.data}
+                      loading={paths.isLoading}
+                      hasAsset={Boolean(data.resource)}
+                    />
+                  </TabsContent>
                 )}
-              </dl>
+                <TabsContent value="evidence" keepMounted className="pt-3">
+                  <EvidencePanel evidence={data.evidence} />
+                </TabsContent>
+                {(provenance.isLoading || provenance.data) && (
+                  <TabsContent value="provenance" keepMounted className="pt-3">
+                    <ProvenancePanel
+                      provenance={provenance.data}
+                      loading={provenance.isLoading}
+                    />
+                  </TabsContent>
+                )}
+              </Tabs>
             </CardContent>
           </Card>
 
-          {data.compliance_mappings &&
-            Object.keys(data.compliance_mappings).length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>{t.findings.compliance}</CardTitle>
-                  <CardDescription>
-                    Evidence toward these controls — not a compliance claim
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ul className="flex flex-col gap-2">
-                    {Object.entries(data.compliance_mappings).map(
-                      ([framework, controls]) => (
+        </div>
+
+        {/* The facts, as one card of short rows rather than four cards: how
+            bad, on what, when, and toward which controls (DECISIONS.md §180). */}
+        <div className="flex min-w-0 flex-col gap-4">
+          <Card>
+            <CardContent className="flex flex-col divide-y divide-border [&>section]:py-4 [&>section:first-child]:pt-0 [&>section:last-child]:pb-0">
+              {/* HOW BAD */}
+              {data.risk && (
+                <section aria-labelledby="finding-score">
+                  <RailHeading id="finding-score">{t.findings.riskScore}</RailHeading>
+                  <div className="mt-2 flex items-baseline gap-2">
+                    <span className="text-display leading-none font-semibold tabular-nums text-foreground">
+                      {Number(data.risk.risk_score).toFixed(0)}
+                    </span>
+                    <SeverityBadge level={data.risk.risk_level} />
+                  </div>
+                  <ul className="mt-3 flex flex-col gap-1.5" aria-label={t.findings.scoreBreakdown}>
+                    {Object.entries(components).map(([name, component]) => (
+                      <li key={name} className="flex items-center justify-between gap-3 text-xs">
+                        <span className="text-muted-foreground">
+                          {name.replace(/_/g, " ")}
+                          <span className="ml-1 text-muted-foreground">
+                            ({component.value} × {component.weight})
+                          </span>
+                        </span>
+                        <span className="font-medium tabular-nums text-foreground">
+                          {component.contribution.toFixed(1)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+
+              {/* ON WHAT */}
+              {data.resource && (
+                <section aria-labelledby="finding-asset">
+                  <RailHeading id="finding-asset">{t.findings.asset}</RailHeading>
+                  <Link
+                    to={`/assets/${data.resource.id}`}
+                    className="mt-2 block text-sm font-medium text-foreground hover:underline"
+                  >
+                    {data.resource.name}
+                  </Link>
+                  <dl className="mt-3 flex flex-col gap-2 text-xs">
+                    <Row
+                      icon={resourceTypeIcon(data.resource.resource_type)}
+                      label="Type"
+                      value={resourceTypeLabel(data.resource.resource_type)}
+                    />
+                    <Row
+                      icon={FACT_ICONS.environment}
+                      label="Environment"
+                      value={data.resource.environment ?? "—"}
+                    />
+                    <Row
+                      icon={FACT_ICONS.region}
+                      label="Region"
+                      value={data.resource.region ?? "—"}
+                    />
+                    <Row
+                      icon={FACTOR_ICONS.criticality}
+                      label="Criticality"
+                      value={<SeverityBadge level={data.resource.criticality} size="sm" />}
+                    />
+                    <Row
+                      icon={FACTOR_ICONS.dataSensitivity}
+                      label="Data sensitivity"
+                      value={<SeverityBadge level={data.resource.data_sensitivity} size="sm" />}
+                    />
+                    <Row
+                      icon={FACTOR_ICONS.exposure}
+                      label="Internet exposure"
+                      value={<SeverityBadge level={data.resource.public_exposure} size="sm" />}
+                    />
+                  </dl>
+                </section>
+              )}
+
+              {/* WHEN */}
+              <section aria-labelledby="finding-dates">
+                <RailHeading id="finding-dates">Seen</RailHeading>
+                <dl className="mt-2 flex flex-col gap-2 text-xs">
+                  <Row
+                    icon={FACT_ICONS.firstSeen}
+                    label={t.findings.firstSeen}
+                    value={formatDateTime(data.first_detected_at)}
+                  />
+                  <Row
+                    icon={FACT_ICONS.lastSeen}
+                    label={t.findings.lastSeen}
+                    value={formatDateTime(data.last_detected_at)}
+                  />
+                  {data.resolved_at && (
+                    <Row
+                      icon={FACT_ICONS.resolved}
+                      label={t.findings.resolvedBy}
+                      value={formatDateTime(data.resolved_at)}
+                    />
+                  )}
+                </dl>
+              </section>
+
+              {/* TOWARD WHICH CONTROLS */}
+              {data.compliance_mappings &&
+                Object.keys(data.compliance_mappings).length > 0 && (
+                  <section aria-labelledby="finding-compliance">
+                    <div className="flex items-center gap-1">
+                      <RailHeading id="finding-compliance">{t.findings.compliance}</RailHeading>
+                      <InfoTip label="What these controls mean">
+                        Evidence toward these controls — not a compliance claim.
+                      </InfoTip>
+                    </div>
+                    <ul className="mt-2 flex flex-col gap-2">
+                      {Object.entries(data.compliance_mappings).map(([framework, controls]) => (
                         <li key={framework} className="text-xs">
                           <Link
                             to={`/compliance/${encodeURIComponent(framework)}`}
@@ -507,16 +505,19 @@ export function FindingDetailPage() {
                           >
                             {framework.replace(/_/g, " ")}
                           </Link>
-                          <span className="ml-2 text-muted-foreground">
-                            {controls.join(", ")}
-                          </span>
+                          <span className="ml-2 text-muted-foreground">{controls.join(", ")}</span>
                         </li>
-                      ),
-                    )}
-                  </ul>
-                </CardContent>
-              </Card>
-            )}
+                      ))}
+                    </ul>
+                  </section>
+                )}
+            </CardContent>
+          </Card>
+
+          {/* How it got here, after how bad and where. */}
+          {data.timeline && data.timeline.length > 0 && (
+            <FindingTimeline events={data.timeline} />
+          )}
         </div>
       </div>
     </div>
@@ -598,7 +599,6 @@ function ControlsPanel({
 }
 
 function EvidencePanel({ evidence }: { evidence: unknown }) {
-  const t = useT();
   const [expanded, setExpanded] = useState(false);
   const json = JSON.stringify(evidence, null, 2);
   // Roughly two screens of a small monospace font. Below this there is nothing
@@ -606,12 +606,9 @@ function EvidencePanel({ evidence }: { evidence: unknown }) {
   const long = json.split("\n").length > 24;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t.findings.evidence}</CardTitle>
-        <CardDescription>Exactly what Cleave observed</CardDescription>
-      </CardHeader>
-      <CardContent>
+    <div className="flex flex-col gap-3">
+      <p className="text-xs text-muted-foreground">Exactly what Cleave observed</p>
+      <div>
         <Collapsible open={expanded || !long} onOpenChange={setExpanded}>
           <div className="relative">
             <CollapsibleContent
@@ -644,8 +641,8 @@ function EvidencePanel({ evidence }: { evidence: unknown }) {
             </CollapsibleTrigger>
           )}
         </Collapsible>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -672,15 +669,10 @@ function ProvenancePanel({
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>{t.findings.provenance}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <Skeleton className="h-4 w-2/3" />
-          <Skeleton className="h-4 w-1/2" />
-        </CardContent>
-      </Card>
+      <div className="space-y-2">
+        <Skeleton className="h-4 w-2/3" />
+        <Skeleton className="h-4 w-1/2" />
+      </div>
     );
   }
 
@@ -695,12 +687,8 @@ function ProvenancePanel({
   const citations = provenance.evidence;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t.findings.provenance}</CardTitle>
-        <CardDescription>{t.findings.provenanceIntro}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <div className="space-y-3">
+      <p className="text-xs text-muted-foreground">{t.findings.provenanceIntro}</p>
         {citations === null ? (
           // `null` and `[]` are different answers and the page must not blur
           // them. This one is about CloudGuard, not about the finding.
@@ -724,8 +712,7 @@ function ProvenancePanel({
             .replace("{rule}", provenance.rule_id)
             .replace("{version}", provenance.rule_version)}
         </p>
-      </CardContent>
-    </Card>
+    </div>
   );
 }
 
@@ -802,7 +789,7 @@ function Citation({ citation }: { citation: EvidenceCitation }) {
           {citation.endpoints.map((endpoint) => (
             <li
               key={`${endpoint.path}-${endpoint.api_version}`}
-              className="font-mono text-[11px] text-muted-foreground"
+              className="font-mono text-caption text-muted-foreground"
               title={endpoint.path}
             >
               {endpoint.path.replace(/^https?:\/\/[^/]+/, "")}
@@ -820,7 +807,7 @@ function Citation({ citation }: { citation: EvidenceCitation }) {
         // at all because it is what makes the reading identifiable: two scans
         // citing the same hash read byte-identical bytes.
         <p
-          className="mt-1 font-mono text-[11px] text-muted-foreground"
+          className="mt-1 font-mono text-caption text-muted-foreground"
           title={citation.content_hash}
         >
           sha256 {citation.content_hash.slice(0, 12)}…
@@ -854,41 +841,24 @@ function AttackPathContext({
   // nothing worth saying about one.
   if (!hasAsset) return null;
 
-  if (loading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Attack paths</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-20 w-full" />
-        </CardContent>
-      </Card>
-    );
-  }
+  if (loading) return <Skeleton className="h-20 w-full" />;
 
   const routes = paths ?? [];
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Attack paths</CardTitle>
-        <CardDescription>
-          {routes.length === 0
-            ? "Whether this asset stands between something exposed and something sensitive"
-            : `This asset is on ${routes.length} route${routes.length === 1 ? "" : "s"} from an exposed asset to a sensitive one`}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5">
+      {routes.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {`On ${routes.length} route${routes.length === 1 ? "" : "s"} from an exposed asset to a sensitive one`}
+        </p>
+      )}
         {routes.length === 0 ? (
           // Not an all-clear, and it does not read as one. What counts as
           // sensitive is something the customer declares, so an estate that
           // has declared nothing produces no routes at all.
           <p className="text-sm leading-relaxed text-muted-foreground">
-            Cleave traced no route from an internet-facing asset to a
-            sensitive one through this one. What counts as sensitive is
-            declared per subscription in Settings — an estate where nothing has
-            been classified will also show none.
+            No route from an internet-facing asset to a sensitive one runs through
+            this one. What counts as sensitive is declared per subscription in Settings.
           </p>
         ) : (
           routes.slice(0, 2).map((path) => (
@@ -926,8 +896,7 @@ function AttackPathContext({
               : "See every route in this estate"}
           </Link>
         )}
-      </CardContent>
-    </Card>
+    </div>
   );
 }
 

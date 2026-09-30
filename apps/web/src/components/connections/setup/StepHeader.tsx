@@ -1,25 +1,35 @@
 import type { ReactNode } from "react";
 
+import { InfoTip } from "@/components/common/InfoTip";
+
 /**
- * The top of every step: a title and one paragraph.
+ * The top of every step: a title and one line.
  *
  * Every step opens the same way so the reader's eye learns where to look once,
  * rather than finding each step's instruction in a different place. There is no
  * mark beside it: the page header already carries the provider's tile, and a
  * second one inside the panel said the same thing twice.
+ *
+ * The line says what the step asks for; why, and what it does not do, is
+ * `explain`, a question mark beside the title (DECISIONS.md §166, §181).
  */
 export function StepHeader({
   title,
   description,
+  explain,
 }: {
-  title: ReactNode;
+  title: string;
   description?: ReactNode;
+  explain?: ReactNode;
 }) {
   return (
     <div className="min-w-0">
-      <h2 className="text-[17px] font-semibold tracking-[-0.015em] text-foreground">{title}</h2>
+      <div className="flex items-center gap-1">
+        <h2 className="text-heading font-semibold tracking-[-0.015em] text-foreground">{title}</h2>
+        {explain && <InfoTip label={`About: ${title}`}>{explain}</InfoTip>}
+      </div>
       {description && (
-        <p className="mt-2 max-w-[70ch] text-[13.5px] leading-[1.65] text-muted-foreground">
+        <p className="mt-2 max-w-[70ch] text-body leading-[1.65] text-muted-foreground">
           {description}
         </p>
       )}

@@ -8,7 +8,7 @@
  * all-clear — what counts as sensitive is something the customer declares.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -201,6 +201,25 @@ describe("the finding detail page", () => {
     expect(
       await screen.findByText(/Cutting this link severs the route/),
     ).toBeInTheDocument();
+  });
+
+  it("opens on the routes when the asset is on one, and on the evidence when it is not", async () => {
+    // The route is what changes how urgent a finding is, so it leads when
+    // there is one (DECISIONS.md §180); otherwise the capture does.
+    mount([PATH]);
+    await waitFor(() =>
+      expect(screen.getByRole("tab", { name: /Attack paths/ })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      ),
+    );
+    expect(screen.getByRole("tab", { name: /Attack paths/ })).toHaveTextContent("1");
+  });
+
+  it("opens on the evidence when the asset is on no route", async () => {
+    mount([]);
+    await screen.findByText(/declared per subscription in Settings/);
+    expect(screen.getByRole("tab", { name: "Evidence" })).toHaveAttribute("aria-selected", "true");
   });
 
   it("does not report an empty result as an all-clear", async () => {

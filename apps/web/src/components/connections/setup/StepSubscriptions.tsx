@@ -50,7 +50,7 @@ export function StepSubscriptions({
   return (
     <>
       {connection.is_ready_to_scan ? (
-        <div className="flex flex-col gap-4 rounded-[10px] border border-ok-border bg-ok-bg p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 rounded-lg border border-ok-border bg-ok-bg p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3.5">
             {/* The one flourish in the flow, and it is earned: this is the
                 moment both grants have landed and something can be read. */}
@@ -63,7 +63,7 @@ export function StepSubscriptions({
               <CheckIcon className="size-4" strokeWidth={3} aria-hidden />
             </m.span>
             <div className="min-w-0">
-              <h2 className="text-[15px] font-semibold tracking-[-0.015em] text-foreground">
+              <h2 className="text-title font-semibold tracking-[-0.015em] text-foreground">
                 {t.setup.doneHeadline.replace("{name}", connection.name)}
               </h2>
               <p className="mt-0.5 text-xs leading-relaxed text-foreground">
@@ -88,12 +88,16 @@ export function StepSubscriptions({
           </div>
         </div>
       ) : (
-        <StepHeader title={t.setup.reviewTitle} description={t.setup.reviewBody} />
+        <StepHeader
+          title={t.setup.reviewTitle}
+          description={t.setup.reviewBody}
+          explain={t.setup.reviewBodyExplain}
+        />
       )}
 
       <div>
         {connection.is_ready_to_scan && (
-          <p className="mb-2.5 text-[12.5px] font-medium text-foreground">{t.setup.reviewTitle}</p>
+          <p className="mb-2.5 text-meta font-medium text-foreground">{t.setup.reviewTitle}</p>
         )}
         <SubscriptionScopeList connection={connection} onError={onError} />
       </div>

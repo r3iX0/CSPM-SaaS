@@ -85,7 +85,7 @@ export function ScansPage() {
           status rather than by being one more box. */}
       {scans.data && scans.data.length > 0 && (
         <section>
-          <h2 className="mb-2 text-[13.5px] font-semibold text-foreground">{t.scans.history}</h2>
+          <h2 className="mb-2 text-body font-semibold text-foreground">{t.scans.history}</h2>
           <div className="divide-y divide-border overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
             {scans.data.map((scan) => (
               <ScanCard key={scan.id} scan={scan} />

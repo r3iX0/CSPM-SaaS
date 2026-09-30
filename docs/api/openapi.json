@@ -9683,109 +9683,6 @@
         }
       }
     },
-    "/api/v1/engine-audit": {
-      "get": {
-        "tags": [
-          "engine audit"
-        ],
-        "summary": "Get Engine Audit",
-        "description": "What the extended checks ran, what they could not read, and every asset\nwhere a Cleave rule and the Prowler checks answering the same question\ndisagreed -- for one scan, or the newest the second engine ran in.",
-        "operationId": "get_engine_audit_api_v1_engine_audit_get",
-        "parameters": [
-          {
-            "name": "scan_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Scan Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
-            "name": "x-organization-id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Organization-Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Envelope_EngineAuditOut_NoMeta_"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          }
-        }
-      }
-    },
     "/api/v1/dashboard": {
       "get": {
         "tags": [
@@ -10494,82 +10391,6 @@
         ],
         "title": "AssessmentOut",
         "description": "Which reading of the estate an assessment is of."
-      },
-      "AssessmentRunOut": {
-        "properties": {
-          "scope": {
-            "type": "string",
-            "title": "Scope"
-          },
-          "provider": {
-            "$ref": "#/components/schemas/Provider"
-          },
-          "outcome": {
-            "type": "string",
-            "title": "Outcome"
-          },
-          "engine_version": {
-            "type": "string",
-            "title": "Engine Version"
-          },
-          "checks_requested": {
-            "type": "integer",
-            "title": "Checks Requested"
-          },
-          "checks_completed": {
-            "type": "integer",
-            "title": "Checks Completed"
-          },
-          "result_count": {
-            "type": "integer",
-            "title": "Result Count"
-          },
-          "fatal": {
-            "title": "Fatal"
-          },
-          "services_unread": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Services Unread"
-          },
-          "checks_raised": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Checks Raised"
-          },
-          "duration_seconds": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Duration Seconds"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "scope",
-          "provider",
-          "outcome",
-          "engine_version",
-          "checks_requested",
-          "checks_completed",
-          "result_count",
-          "fatal",
-          "services_unread",
-          "checks_raised",
-          "duration_seconds"
-        ],
-        "title": "AssessmentRunOut",
-        "description": "One ASSESS step: what the extended checks ran for one scope."
       },
       "AssetBoxOut": {
         "properties": {
@@ -11297,65 +11118,6 @@
           "created_at"
         ],
         "title": "AuditEntryOut"
-      },
-      "AuditScanOut": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "status": {
-            "$ref": "#/components/schemas/ScanStatus"
-          },
-          "completed_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Completed At"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "id",
-          "status",
-          "completed_at"
-        ],
-        "title": "AuditScanOut"
-      },
-      "AuditSummaryOut": {
-        "properties": {
-          "total": {
-            "type": "integer",
-            "title": "Total"
-          },
-          "unexpected": {
-            "type": "integer",
-            "title": "Unexpected"
-          },
-          "by_kind": {
-            "additionalProperties": {
-              "type": "integer"
-            },
-            "type": "object",
-            "title": "By Kind"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "total",
-          "unexpected",
-          "by_kind"
-        ],
-        "title": "AuditSummaryOut"
       },
       "AzurePermissionsOut": {
         "properties": {
@@ -12165,11 +11927,6 @@
               }
             ],
             "title": "Role Required Version"
-          },
-          "extended_checks_blocked": {
-            "type": "boolean",
-            "title": "Extended Checks Blocked",
-            "default": false
           },
           "degraded_categories": {
             "items": {
@@ -13153,276 +12910,6 @@
         ],
         "title": "DismissedOut"
       },
-      "DivergenceOut": {
-        "properties": {
-          "rule_id": {
-            "type": "string",
-            "title": "Rule Id"
-          },
-          "rule_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rule Name"
-          },
-          "check_id": {
-            "type": "string",
-            "title": "Check Id"
-          },
-          "kind": {
-            "type": "string",
-            "title": "Kind"
-          },
-          "native_state": {
-            "type": "string",
-            "title": "Native State"
-          },
-          "prowler_state": {
-            "type": "string",
-            "title": "Prowler State"
-          },
-          "expected": {
-            "type": "boolean",
-            "title": "Expected"
-          },
-          "detail": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Detail"
-          },
-          "resource": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/DivergenceResourceOut"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "provider_resource_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Provider Resource Id"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "rule_id",
-          "rule_name",
-          "check_id",
-          "kind",
-          "native_state",
-          "prowler_state",
-          "expected",
-          "detail",
-          "resource",
-          "provider_resource_id"
-        ],
-        "title": "DivergenceOut",
-        "description": "One asset where the two engines answered differently."
-      },
-      "DivergencePairOut": {
-        "properties": {
-          "rule_id": {
-            "type": "string",
-            "title": "Rule Id"
-          },
-          "rule_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rule Name"
-          },
-          "checks": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Checks"
-          },
-          "count": {
-            "type": "integer",
-            "title": "Count"
-          },
-          "expected": {
-            "type": "boolean",
-            "title": "Expected"
-          },
-          "note": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Note"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "rule_id",
-          "rule_name",
-          "checks",
-          "count",
-          "expected",
-          "note"
-        ],
-        "title": "DivergencePairOut",
-        "description": "A rule and the checks that answered the same question, and how often\nthey disagreed."
-      },
-      "DivergenceResourceOut": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
-          },
-          "resource_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Resource Type"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "id",
-          "name",
-          "resource_type"
-        ],
-        "title": "DivergenceResourceOut"
-      },
-      "EngineAuditOut": {
-        "properties": {
-          "engine": {
-            "$ref": "#/components/schemas/EngineSummaryOut"
-          },
-          "scan": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AuditScanOut"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "assessments": {
-            "items": {
-              "$ref": "#/components/schemas/AssessmentRunOut"
-            },
-            "type": "array",
-            "title": "Assessments"
-          },
-          "summary": {
-            "$ref": "#/components/schemas/AuditSummaryOut"
-          },
-          "pairs": {
-            "items": {
-              "$ref": "#/components/schemas/DivergencePairOut"
-            },
-            "type": "array",
-            "title": "Pairs"
-          },
-          "divergences": {
-            "items": {
-              "$ref": "#/components/schemas/DivergenceOut"
-            },
-            "type": "array",
-            "title": "Divergences"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "engine",
-          "scan",
-          "assessments",
-          "summary",
-          "pairs",
-          "divergences"
-        ],
-        "title": "EngineAuditOut"
-      },
-      "EngineSummaryOut": {
-        "properties": {
-          "enabled": {
-            "type": "boolean",
-            "title": "Enabled"
-          },
-          "prowler_version": {
-            "type": "string",
-            "title": "Prowler Version"
-          },
-          "checks_enabled": {
-            "type": "integer",
-            "title": "Checks Enabled"
-          },
-          "checks_covered": {
-            "type": "integer",
-            "title": "Checks Covered"
-          },
-          "native_rules": {
-            "type": "integer",
-            "title": "Native Rules"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "enabled",
-          "prowler_version",
-          "checks_enabled",
-          "checks_covered",
-          "native_rules"
-        ],
-        "title": "EngineSummaryOut",
-        "description": "The second engine as this deployment runs it."
-      },
       "Envelope_AccessOut_AccessMeta_": {
         "properties": {
           "data": {
@@ -13662,26 +13149,6 @@
           "meta"
         ],
         "title": "Envelope[DismissedOut, NoMeta]"
-      },
-      "Envelope_EngineAuditOut_NoMeta_": {
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/EngineAuditOut"
-          },
-          "error": {
-            "type": "null",
-            "title": "Error"
-          },
-          "meta": {
-            "$ref": "#/components/schemas/NoMeta"
-          }
-        },
-        "type": "object",
-        "required": [
-          "data",
-          "meta"
-        ],
-        "title": "Envelope[EngineAuditOut, NoMeta]"
       },
       "Envelope_EstateOut_EstateMeta_": {
         "properties": {
@@ -15749,30 +15216,6 @@
                 "type": "null"
               }
             ]
-          },
-          "engine": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/RuleEngineKind"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "prowler": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ProwlerCheckOut"
-              },
-              {
-                "$ref": "#/components/schemas/ProwlerCrossCheckOut"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Prowler"
           },
           "compliance_mappings": {
             "additionalProperties": {
@@ -18061,118 +17504,6 @@
         "title": "ProviderOptionOut",
         "description": "A cloud this deployment can connect, or why it cannot."
       },
-      "ProwlerCheckOut": {
-        "properties": {
-          "check_id": {
-            "type": "string",
-            "title": "Check Id"
-          },
-          "service": {
-            "type": "string",
-            "title": "Service"
-          },
-          "prowler_version": {
-            "type": "string",
-            "title": "Prowler Version"
-          },
-          "resource_type": {
-            "type": "string",
-            "title": "Resource Type"
-          },
-          "categories": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Categories"
-          },
-          "remediation": {
-            "$ref": "#/components/schemas/ProwlerRemediationOut"
-          },
-          "additional_urls": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Additional Urls"
-          }
-        },
-        "type": "object",
-        "required": [
-          "check_id",
-          "service",
-          "prowler_version",
-          "resource_type",
-          "categories",
-          "remediation",
-          "additional_urls"
-        ],
-        "title": "ProwlerCheckOut",
-        "description": "A Prowler rule: which check, which release."
-      },
-      "ProwlerCrossCheckOut": {
-        "properties": {
-          "cross_checked_by": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Cross Checked By"
-          },
-          "divergence_note": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Divergence Note"
-          }
-        },
-        "type": "object",
-        "required": [
-          "cross_checked_by",
-          "divergence_note"
-        ],
-        "title": "ProwlerCrossCheckOut",
-        "description": "A native rule some Prowler checks answer too, and why they may disagree."
-      },
-      "ProwlerRemediationOut": {
-        "properties": {
-          "cli": {
-            "type": "string",
-            "title": "Cli"
-          },
-          "terraform": {
-            "type": "string",
-            "title": "Terraform"
-          },
-          "native_iac": {
-            "type": "string",
-            "title": "Native Iac"
-          },
-          "other": {
-            "type": "string",
-            "title": "Other"
-          },
-          "url": {
-            "type": "string",
-            "title": "Url"
-          }
-        },
-        "type": "object",
-        "required": [
-          "cli",
-          "terraform",
-          "native_iac",
-          "other",
-          "url"
-        ],
-        "title": "ProwlerRemediationOut",
-        "description": "Prowler's own remediation code, kept apart from the prose on findings."
-      },
       "ReadThroughOut": {
         "properties": {
           "read_through": {
@@ -18835,6 +18166,16 @@
           "diagnostic_setting",
           "key_vault",
           "app_service",
+          "kubernetes_cluster",
+          "container_registry",
+          "document_database",
+          "mysql_server",
+          "analytics_workspace",
+          "search_service",
+          "disk",
+          "backup_vault",
+          "scale_set",
+          "user_pool",
           "unknown"
         ],
         "title": "ResourceType",
@@ -19884,15 +19225,6 @@
         ],
         "title": "RouteTargetEndOut"
       },
-      "RuleEngineKind": {
-        "type": "string",
-        "enum": [
-          "native",
-          "prowler"
-        ],
-        "title": "RuleEngineKind",
-        "description": "Which engine reached a rule's verdicts (DECISIONS.md section 150).\n\n``NATIVE`` rules are evaluated by ``app/rules/engine.py`` over the raw\ncaptures Cleave's own collectors stored. ``PROWLER`` rules are Prowler's\nchecks, run by the scanner service against the same scope and read back\nfrom the capture it stored. Everything downstream of a verdict -- findings,\nrisks, verification, compliance -- treats the two alike; the difference is\nwhere the verdict came from, which is what a customer disputing one needs\nto know first."
-      },
       "RuleOut": {
         "properties": {
           "rule_id": {
@@ -19972,35 +19304,6 @@
                 "type": "null"
               }
             ]
-          },
-          "engine": {
-            "type": "string",
-            "title": "Engine"
-          },
-          "engine_version": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Engine Version"
-          },
-          "prowler": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ProwlerCheckOut"
-              },
-              {
-                "$ref": "#/components/schemas/ProwlerCrossCheckOut"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Prowler"
           }
         },
         "type": "object",
@@ -20020,10 +19323,7 @@
           "rationale",
           "estimated_effort_minutes",
           "compliance_mappings",
-          "remediation_spec",
-          "engine",
-          "engine_version",
-          "prowler"
+          "remediation_spec"
         ],
         "title": "RuleOut",
         "description": "A row of the ``rules`` mirror, with what only the registry can say.\n\nThe mirror's own columns are plain strings, severity aside: a rule removed\nfrom the registry stays in the mirror disabled, and a value renamed since\nwould otherwise turn the whole list into a 500."
@@ -20644,7 +19944,6 @@
         "enum": [
           "PLAN",
           "COLLECT",
-          "ASSESS",
           "ANALYZE"
         ],
         "title": "ScanStepKind",

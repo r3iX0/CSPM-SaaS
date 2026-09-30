@@ -23,7 +23,7 @@ import { StatStrip } from "@/components/common/StatStrip";
 import { Input } from "@/components/ui/input";
 import { SelectField } from "@/components/common/SelectField";
 import { SegmentedFilter } from "@/components/common/SegmentedFilter";
-import { listContainer, listItem } from "@/lib/motion";
+import { listContainer, listItem, listLayout } from "@/lib/motion";
 import { FACTOR_ICONS, RISK_KIND_ICONS } from "@/lib/icons";
 import { IconLabel } from "@/components/security/IconLabel";
 import type { LucideIcon } from "lucide-react";
@@ -107,6 +107,7 @@ export function RisksPage() {
 
   const risks = data?.risks ?? [];
   const activeRow = useRowNavigation(risks.map((risk) => `/risks/${risk.id}`));
+  const rowsLayout = listLayout(risks.map((risk) => risk.id));
   const isDemo = useIsDemo();
 
   // Ids rather than rows, so a refetch after a decision shows each selected
@@ -237,7 +238,7 @@ export function RisksPage() {
               placeholder="Search risks"
               aria-label="Search risks"
               data-page-search
-              className="h-8 pl-8 text-[12.5px]"
+              className="h-8 pl-8 text-meta"
             />
           </div>
 
@@ -300,11 +301,6 @@ export function RisksPage() {
         <EmptyState
           icon={RadarIcon}
           title={emptyTitle}
-          detail={
-            filtering
-              ? "Widen the filters, or clear the search, to see the rest of the ranking."
-              : undefined
-          }
           action={
             filtering ? (
               <Button variant="outline" onClick={clearFilters}>
@@ -339,6 +335,7 @@ export function RisksPage() {
               <m.div
                 key={risk.id}
                 variants={listItem}
+                {...rowsLayout}
                 data-row-index={index}
                 data-active={activeRow === index}
                 className="rounded-xl data-[active=true]:ring-2 data-[active=true]:ring-foreground/60"
@@ -428,7 +425,7 @@ function ScenarioCard({ risk, select }: { risk: Risk; select?: React.ReactNode }
                 key={`${step.source_id}-${step.relationship}-${step.target_id}`}
                 className="flex items-start gap-2.5 text-sm text-muted-foreground"
               >
-                <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border bg-background text-[10px] font-medium text-muted-foreground">
+                <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border bg-background text-micro font-medium text-muted-foreground">
                   {index + 1}
                 </span>
                 {step.description}
@@ -583,7 +580,7 @@ function RiskHead({
           to={`/risks/${risk.id}`}
           // The overlay makes the whole card the way into the risk; the title
           // stays the link's accessible name.
-          className="mt-1.5 block text-[14px] font-medium text-foreground underline-offset-4 after:absolute after:inset-0 hover:underline"
+          className="mt-1.5 block text-title font-medium text-foreground underline-offset-4 after:absolute after:inset-0 hover:underline"
         >
           {risk.title}
         </Link>
@@ -601,7 +598,7 @@ function RiskHead({
 
 function RiskFooter({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex flex-wrap gap-x-6 gap-y-2 border-t border-border bg-muted/40 px-4 py-2.5 text-[11.5px] sm:pl-[4.5rem]">
+    <div className="flex flex-wrap gap-x-6 gap-y-2 border-t border-border bg-muted/40 px-4 py-2.5 text-caption sm:pl-[4.5rem]">
       {children}
     </div>
   );
@@ -670,7 +667,7 @@ function TopFixes({ chokes }: { chokes: ChokePoint[] }) {
       className="rounded-xl border border-primary-border bg-primary-soft px-5 py-4"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="top-fixes" className="text-[13.5px] font-semibold">
+        <h2 id="top-fixes" className="text-body font-semibold">
           Top fixes
         </h2>
         <Link
@@ -684,7 +681,7 @@ function TopFixes({ chokes }: { chokes: ChokePoint[] }) {
         {chokes.slice(0, 3).map((choke) => (
           <li
             key={`${choke.source.id}-${choke.relationship}-${choke.target.id}`}
-            className="flex flex-wrap items-baseline justify-between gap-x-4 text-[12.5px]"
+            className="flex flex-wrap items-baseline justify-between gap-x-4 text-meta"
           >
             <span className="min-w-0 font-mono break-words text-foreground">{choke.detail || choke.description}</span>
             <span className="shrink-0 text-muted-foreground">

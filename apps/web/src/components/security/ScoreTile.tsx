@@ -36,7 +36,7 @@ export function ScoreTile({
         unknown ? "Risk score: no verdict" : `Risk score ${Math.round(score)}, ${level.toLowerCase()}`
       }
     >
-      <span className="text-[15px] leading-none font-semibold" aria-hidden>
+      <span className="text-title leading-none font-semibold" aria-hidden>
         {unknown ? "?" : Math.round(score)}
       </span>
     </span>

@@ -1,9 +1,8 @@
 import type { ReactNode } from "react";
-import { CircleHelpIcon, MoveRightIcon } from "lucide-react";
+import { MoveRightIcon } from "lucide-react";
 
 import { FACTOR_ICONS, RISK_KIND_ICONS } from "@/lib/icons";
-import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { InfoTip } from "@/components/common/InfoTip";
 
 /** One mark a canvas draws, and the word for it. */
 export interface LegendItem {
@@ -39,18 +38,9 @@ export function GraphLegend({
           {item.label}
         </span>
       ))}
-      <Popover>
-        <PopoverTrigger
-          render={
-            <Button variant="ghost" size="icon-sm" aria-label={label}>
-              <CircleHelpIcon />
-            </Button>
-          }
-        />
-        <PopoverContent align="end" className="w-80 text-xs leading-relaxed" aria-label={label}>
-          {children}
-        </PopoverContent>
-      </Popover>
+      <InfoTip label={label} align="end" size="icon-sm" contentClassName="w-80">
+        {children}
+      </InfoTip>
     </div>
   );
 }
@@ -78,7 +68,7 @@ export const MARKS = {
   counted: (
     <span
       aria-hidden
-      className="inline-block h-2.5 w-4 rounded-[2px] border border-dashed border-foreground/60"
+      className="inline-block h-2.5 w-4 rounded-xs border border-dashed border-foreground/60"
     />
   ),
   /** A thin line and a thick one: the thicker, the more routes it closes. */
@@ -106,7 +96,7 @@ export const MARKS = {
   closed: (
     <span
       aria-hidden
-      className="inline-block h-2.5 w-4 rounded-[2px] border border-foreground/25 bg-muted-foreground/20"
+      className="inline-block h-2.5 w-4 rounded-xs border border-foreground/25 bg-muted-foreground/20"
     />
   ),
 } satisfies Record<string, ReactNode>;

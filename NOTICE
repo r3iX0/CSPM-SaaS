@@ -1,10 +1,12 @@
 Cleave (CloudGuard)
 
-This product includes software developed by the Prowler project
+This product includes material derived from the Prowler project
 (https://github.com/prowler-cloud/prowler), licensed under the Apache License,
-Version 2.0. The scanner service (apps/scanner) runs Prowler unmodified as a
-dependency, and apps/api/app/prowler/data/catalog.json is generated from
-Prowler's check metadata and compliance mappings by tools/prowler/build_catalog.py.
+Version 2.0. apps/api/app/compliance/data/frameworks.json and
+apps/api/app/compliance/data/crosswalk.json were first generated from Prowler
+5.43.0's compliance files and check metadata, and docs/NATIVE_COVERAGE_BACKLOG.md
+lists Prowler's check identifiers and titles. Prowler itself is no longer run
+or distributed with this product.
 
 Prowler
 Copyright Prowler contributors

@@ -32,7 +32,7 @@ export function DonutLegend({
       {slices.map((slice) => (
         <li key={slice.key} className="flex items-center gap-2 text-xs">
           <span
-            className="size-2 shrink-0 rounded-[2px]"
+            className="size-2 shrink-0 rounded-xs"
             style={{ background: slice.tone }}
             aria-hidden
           />

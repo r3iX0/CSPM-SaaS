@@ -633,25 +633,8 @@ def grant_upgrade_available(connection: CloudConnection) -> bool:
     bumping it to ship a check needing a new permission would leave every
     existing customer silently collecting UNKNOWN for it, with no prompt and no
     explanation.
-
-    Also true when the grant is current but too narrow for the extended checks:
-    redeploying is the fix for both, so both raise the same prompt.
     """
-    onboarding = flow(connection)
-    return onboarding.grant_is_behind(connection) or onboarding.extended_checks_blocked(
-        connection
-    )
-
-
-def extended_checks_blocked(connection: CloudConnection) -> bool:
-    """Whether this connection's grant is known to be too narrow for the
-    extended checks, which then read as unknown until it is redeployed.
-
-    Separate from the role version because it does not follow from it, and the
-    screen has to say which of the two a redeploy is for (DECISIONS.md section
-    153).
-    """
-    return flow(connection).extended_checks_blocked(connection)
+    return flow(connection).grant_is_behind(connection)
 
 
 def required_grant_version(connection: CloudConnection) -> str | None:
@@ -681,9 +664,8 @@ async def refresh_grant_version(
 
     Returns None when the version did not change, so a caller can tell
     "checked, same answer" from "checked, and this connection just gained the
-    checks it was missing". What else the reading established -- on Azure,
-    whether the grant allows every read -- is recorded in ``provider_ref`` and
-    committed whether or not the version moved. A provider that cannot answer
+    checks it was missing". What else the reading established is recorded in
+    ``provider_ref`` and committed whether or not the version moved. A provider that cannot answer
     returns None too, and the recorded grant is left alone rather than replaced
     by a probe that did not land.
     """

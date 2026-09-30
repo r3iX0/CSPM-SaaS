@@ -18,13 +18,6 @@ class Rule(UUIDPrimaryKey, Timestamps, Base):
     __tablename__ = "rules"
 
     rule_id: Mapped[str] = mapped_column(String(128), nullable=False, unique=True, index=True)
-    # Which engine reaches this rule's verdicts, and which release of it. A
-    # native rule's version is its own ``version``; a Prowler check's is the
-    # Prowler release the scanner runs (DECISIONS.md section 150).
-    engine: Mapped[str] = mapped_column(
-        String(16), nullable=False, default="native", server_default="native"
-    )
-    engine_version: Mapped[str | None] = mapped_column(String(32))
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     category: Mapped[str] = mapped_column(String(32), nullable=False)

@@ -213,8 +213,9 @@ def test_no_rule_reads_evidence_that_may_be_carried_forward() -> None:
 
 
 # ------------------------------------- a reading no verdict rests on
-def test_no_rule_degrades_on_the_inventory() -> None:
-    """The inventory is collected for the product, not for a verdict.
+def test_only_the_declared_rules_degrade_on_the_inventory() -> None:
+    """The inventory is collected for the product, not for a verdict -- with one
+    declared exception.
 
     Resource Graph answers "what is in this subscription" across every resource
     type, including the many CloudGuard has no rule for. Every rule reads its
@@ -226,13 +227,19 @@ def test_no_rule_degrades_on_the_inventory() -> None:
     took the verdict of rules reading the others. A key nothing declares cannot
     do that, and this is what keeps it so -- the day a rule reads the inventory,
     it declares it here and this test says so.
+
+    AZ-DEF-009 is that day (DECISIONS.md section 176), and AZ-LOG-019 the next
+    (section 177). IoT hubs and Application Insights components are not types
+    the connector models, so the inventory is the only reading that says a
+    subscription has one; a failed query leaves those rules, and only those,
+    unable to tell "none" from "none listed".
     """
     declaring = [
         rule.rule_id
         for rule in RULE_REGISTRY
         if AzureEvidence.RESOURCES in rule.requires_evidence
     ]
-    assert declaring == [], (
+    assert declaring == ["AZ-DEF-009", "AZ-LOG-019"], (
         "these rules depend on the inventory, so a failed Resource Graph query "
         f"now costs them their verdict: {declaring}"
     )

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { ChangeEventSetup, CloudConnection } from "@/lib/types";
 import { useT } from "@/i18n";
+import { InfoTip } from "@/components/common/InfoTip";
 import { formatDateTime } from "@/lib/format";
 import { Switch } from "@/components/ui/switch";
 import { CodeBlock } from "@/components/common/CodeBlock";
@@ -90,7 +91,7 @@ export function ChangeEventsControl({
 
   if (!data) return null;
 
-  const timing = t.connection.changeTiming
+  const timing = t.connection.changeTimingExplain
     .replace("{quiet}", String(data.quiet_period_minutes))
     .replace("{interval}", String(data.minimum_interval_minutes));
 
@@ -98,9 +99,18 @@ export function ChangeEventsControl({
     <div className="mt-4 rounded-lg border border-border bg-muted/40 px-4 py-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-medium text-foreground">
-            {t.connection.changeTitle}
-          </p>
+          <div className="flex items-center gap-1">
+            <p className="text-sm font-medium text-foreground">
+              {t.connection.changeTitle}
+            </p>
+            {/* What it reacts to, and how a burst becomes one scan: behind a
+                question mark, with the line under the title saying what it is
+                (DECISIONS.md §181). */}
+            <InfoTip label={t.connection.changeTitle}>
+              <p>{t.connection.changeHelpExplain}</p>
+              <p className="mt-2">{timing}</p>
+            </InfoTip>
+          </div>
           <p className="mt-1 max-w-prose text-xs leading-relaxed text-muted-foreground">
             {t.connection.changeHelp}
           </p>
@@ -176,7 +186,7 @@ export function ChangeEventsControl({
 
               {data.commands.length > 0 && (
                 <div className="mt-3">
-                  <p className="text-[11px] font-medium text-muted-foreground">
+                  <p className="text-caption font-medium text-muted-foreground">
                     {connection.provider === "aws"
                       ? t.connection.changeCommandsLabelAws
                       : t.connection.changeCommandsLabel}
@@ -195,9 +205,6 @@ export function ChangeEventsControl({
             </>
           )}
 
-          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-            {timing}
-          </p>
         </>
       )}
     </div>
@@ -222,14 +229,14 @@ function CommandRow({
 
   return (
     <li className="rounded-md border border-border bg-background px-3 py-2">
-      <code className="text-[11px] text-muted-foreground">{subscriptionId}</code>
+      <code className="text-caption text-muted-foreground">{subscriptionId}</code>
       {/* One copy control, on the command itself. The text button that used to
           sit in this header copied the same string from a foot away, and two
           buttons for one command invited the reader to wonder what the other
           one copied. */}
       <CodeBlock
         code={command}
-        className="mt-1 border-0 bg-transparent p-0 text-[11px] text-foreground"
+        className="mt-1 border-0 bg-transparent p-0 text-caption text-foreground"
         label={`${t.connection.changeCopyCommand}: ${subscriptionId}`}
       />
     </li>

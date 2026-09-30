@@ -183,3 +183,93 @@ export const listItem = {
     transition: { duration: DURATION.quick / 1000, ease: EASE_OUT },
   },
 } as const;
+
+/* -------------------------------------------------------------------------
+ * Change-driven motion (DECISIONS.md §167)
+ *
+ * The rule is the one `useCountUp` already keeps: something moves because a
+ * value changed, never because a component rendered or a poll came back.
+ * ---------------------------------------------------------------------- */
+
+/**
+ * How many times `value` has changed since mount, and what it was before.
+ *
+ * Zero on mount and on every render that carries the same value, so a tile
+ * that remounts or a query that refetches the same number moves nothing. Use
+ * `changes` as a `key` to replay a CSS keyframe, or as the dependency of an
+ * effect that animates; use `previous` for which way a number went.
+ *
+ * Compared with `Object.is`: pass the number or string that is shown, not the
+ * object it came from, or every refetch counts as a change.
+ */
+export function useValueChange<T>(value: T): { changes: number; previous: T | undefined } {
+  const [state, setState] = useState<{ value: T; changes: number; previous: T | undefined }>(
+    () => ({ value, changes: 0, previous: undefined }),
+  );
+  if (!Object.is(state.value, value)) {
+    // Adjusting state while rendering, React's pattern for "remember the last
+    // value": the caller sees the change in this render, not one frame late.
+    const next = { value, changes: state.changes + 1, previous: state.value };
+    setState(next);
+    return { changes: next.changes, previous: next.previous };
+  }
+  return { changes: state.changes, previous: state.previous };
+}
+
+/**
+ * How a row or an indicator moves to its new place: `layout`, and a shared
+ * `layoutId` sliding from one tab or filter option to the next.
+ *
+ * A spring with no bounce -- it settles without overshooting, because a row
+ * that wobbles past its place reads as uncertainty -- timed like a page so it
+ * finishes before the reader has moved on.
+ */
+export const layoutSpring = {
+  type: "spring",
+  duration: DURATION.page / 1000,
+  bounce: 0,
+} as const;
+
+/**
+ * Past this many rows a list stops animating its layout: measuring every row
+ * on every filter costs more than the movement tells anyone.
+ */
+export const LAYOUT_ROW_LIMIT = 100;
+
+/**
+ * The props that let a list's rows slide to their new places (DECISIONS.md
+ * §179), for the `m.*` element of each row.
+ *
+ * `layoutDependency` is the list's order, so a row measures and moves only
+ * when the rows themselves changed -- a filter, a sort, a search -- and never
+ * because a banner above pushed the table down or a hover re-rendered it. A
+ * row that is new to the list simply appears; one that left is gone; the ones
+ * that stayed slide. Past `LAYOUT_ROW_LIMIT` rows, nothing: the list is a list.
+ */
+export function listLayout(ids: readonly string[]) {
+  if (ids.length > LAYOUT_ROW_LIMIT) return {};
+  return {
+    layout: "position",
+    layoutDependency: ids.join(","),
+    transition: { layout: layoutSpring },
+  } as const;
+}
+
+/**
+ * An SVG stroke drawing itself: a proved fix's check, a sparkline arriving.
+ *
+ * On a `m.path`. The stroke draws over `chart` as a chart's line does; its
+ * opacity arrives at once, so the path's round cap is not left as a dot at the
+ * start before the line moves.
+ */
+export const drawPath = {
+  initial: { pathLength: 0, opacity: 0 },
+  animate: {
+    pathLength: 1,
+    opacity: 1,
+    transition: {
+      pathLength: { duration: DURATION.chart / 1000, ease: EASE_OUT },
+      opacity: { duration: DURATION.instant / 1000 },
+    },
+  },
+} as const;

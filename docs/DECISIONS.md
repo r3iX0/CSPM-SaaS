@@ -7868,7 +7868,7 @@ palette at 58.2 kB (19.9 kB) when somebody opens it. The entry is now mostly
 report; React Router 7 (§148) sits in the separate `react` chunk and does not
 touch these figures.
 
-## 150. A second engine: Prowler's checks, run beside Cleave's rules and audited against them
+## 150. A second engine: Prowler's checks, run beside Cleave's rules and audited against them — **superseded by §168**
 
 Cleave's native rule engine is deep and narrow: 98 rules, each reading evidence
 its own collectors stored verbatim, each feeding the graph. Prowler is the
@@ -8072,7 +8072,7 @@ on the snapshot schedule, keeping the row and the newest run of every scope.
 - The demo organization replays native captures only, so it shows no extended
   checks.
 
-## 151. The second engine, audited: stale messages, queue waits, silent refusals, and whose scope a verdict is
+## 151. The second engine, audited: stale messages, queue waits, silent refusals, and whose scope a verdict is — **superseded by §168**
 
 An audit of §150 against Prowler 5.43.0's own source found six places where the
 second engine could run twice, never run, read silence as a clean estate, or
@@ -8229,7 +8229,7 @@ to Railway's infrastructure-as-code file (`.railway/railway.ts`); see the open
 items. `railway config migrate` cannot do it unassisted: it maps the one root
 file onto the wrong service.
 
-## 153. A connection without the extended checks' Reader is told to redeploy
+## 153. A connection without the extended checks' Reader is told to redeploy — **superseded by §168**, except the `atScope()` filter
 
 §150 made the template assign the built-in Reader beside the custom role and
 said a connection deployed before then "reads those services as UNKNOWN until it
@@ -9325,21 +9325,10 @@ the next scan's PASS resolves the finding.
 ## Open items carried forward
 
 **Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read
-`infrastructure/railway/api.json` and `worker.json`; the scanner's settings live
-on the service. All three have to move to `.railway/railway.ts` (`railway config
+`infrastructure/railway/api.json` and `worker.json`. Both have to move to
+`.railway/railway.ts` (`railway config
 pull`, then edit, `railway config plan`, `railway config apply`) before that
 date, or the API and worker lose their start commands.
-
-**The scanner holds long-lived credentials for every customer (§151).** It
-runs Prowler and several hundred dependencies with Cleave's multi-tenant Entra
-secret and its AWS identity in memory, and learns tenant ids and role ARNs from
-the broker and the database. One compromised dependency is every customer's
-cloud. The fix is for the API to mint what one step needs -- an STS session for
-that account's role, ARM and Graph tokens for that tenant -- bound to the step
-and attempt, and for the scanner to hold no secret of its own; Prowler's AWS
-provider takes session credentials, its Azure provider would need a static
-token credential. Until then, an egress allowlist on the scanner service and
-the hash-locked install in §150 are the mitigations.
 
 **Data residency is not built (§113).** An organization setting for allowed
 regions, a rule over `CloudResource.region` per provider (never one rule that

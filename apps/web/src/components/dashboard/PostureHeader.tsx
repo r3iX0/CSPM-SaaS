@@ -5,6 +5,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { useScanWizard } from "@/components/scans/ScanWizardProvider";
 import { useIsDemo } from "@/lib/useDemo";
 import { formatDateTime } from "@/lib/format";
+import { PAGE_TITLE_CLASS } from "@/components/common/states";
 
 /** Past this, a reading describes an environment that has since moved on. */
 const STALE_AFTER_HOURS = 24;
@@ -34,12 +35,9 @@ export function PostureHeader({
   return (
     <header className="flex flex-wrap items-start justify-between gap-4">
       <div className="min-w-0">
-        <h1 className="text-[22px] font-semibold tracking-[-0.02em]">Overview</h1>
-        {/* "Cloud", not a provider: a sentence stays neutral even where an
-            identifier keeps Azure's name (DECISIONS.md §78). */}
-        <p className="mt-1.5 max-w-[70ch] text-[13px] text-muted-foreground">
-          Your cloud posture, and what Cleave could see while forming it.
-        </p>
+        {/* The title alone: the freshness beside it says what the page is a
+            reading of, and the panels say the rest (DECISIONS.md §178). */}
+        <h1 className={PAGE_TITLE_CLASS}>Overview</h1>
       </div>
 
       <div className="flex flex-wrap items-center gap-2.5">
@@ -89,7 +87,7 @@ function FreshnessPill({
   // and in the caution tone once it describes an environment that has moved on.
   if (stale) {
     return (
-      <span className="flex items-center gap-1.5 rounded-full border border-medium-border bg-medium-bg px-2 py-px text-[11.5px] font-medium text-medium">
+      <span className="flex items-center gap-1.5 rounded-full border border-medium-border bg-medium-bg px-2 py-px text-caption font-medium text-medium">
         <TriangleAlertIcon className="size-3" aria-hidden />
         Evidence {Math.round(staleHours ?? 0)} hours old
       </span>

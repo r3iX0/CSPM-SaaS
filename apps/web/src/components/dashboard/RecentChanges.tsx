@@ -38,7 +38,7 @@ export function RecentChanges({
       className="flex flex-col overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10"
     >
       <header className="flex items-start justify-between gap-4 px-5 py-4">
-        <h2 id="recent-changes" className="text-[13.5px] font-semibold">
+        <h2 id="recent-changes" className="text-body font-semibold">
           What moved this week
         </h2>
         <Link
@@ -59,10 +59,8 @@ export function RecentChanges({
         )}
 
         {!loading && rows.length === 0 && (
-          <p className="px-5 py-5 text-[13px] leading-relaxed text-muted-foreground">
-            {t.changes.empty}. A scan that finds nothing different writes
-            nothing here, so this is a quiet week rather than a gap in the
-            record.
+          <p className="px-5 py-5 text-body leading-relaxed text-muted-foreground">
+            {t.changes.empty}. A quiet week, not a gap in the record.
           </p>
         )}
 
@@ -108,7 +106,7 @@ function ChangeLine({ event, index }: { event: ChangeEvent; index: number }) {
       className="flex items-center gap-3 px-5 py-3 [animation:cg-rise_260ms_ease-out_both]"
       style={stagger(index)}
     >
-      <p className="min-w-0 flex-1 truncate text-[13px]">
+      <p className="min-w-0 flex-1 truncate text-body">
         <Link to={`/assets/${event.asset.id}`} className="font-medium hover:underline">
           {event.asset.name}
         </Link>
@@ -123,12 +121,12 @@ function ChangeLine({ event, index }: { event: ChangeEvent; index: number }) {
           )}
         </span>
       </p>
-      <span className="shrink-0 text-[11.5px] text-muted-foreground tabular-nums">
+      <span className="shrink-0 text-caption text-muted-foreground tabular-nums">
         {formatDate(event.observed_at)}
       </span>
       <span
         className={cn(
-          "inline-flex shrink-0 rounded-full border px-2 py-px text-[11px] font-medium",
+          "inline-flex shrink-0 rounded-full border px-2 py-px text-caption font-medium",
           tone,
         )}
       >

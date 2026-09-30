@@ -112,8 +112,8 @@ export function StepDeploy({
           value only they and CloudGuard know. Somebody who cannot see it cannot
           check that the stack they ran actually asks for it. */}
       {externalId && (
-        <div className="rounded-[10px] bg-muted p-4">
-          <p className="text-[12.5px] font-medium text-foreground">{t.setup.aws.externalIdTitle}</p>
+        <div className="rounded-lg bg-muted p-4">
+          <p className="text-meta font-medium text-foreground">{t.setup.aws.externalIdTitle}</p>
           <div className="mt-2.5 flex items-center gap-2">
             <code className="min-w-0 flex-1 truncate rounded-lg border border-border bg-background px-3 py-2 font-mono text-xs text-foreground">
               {externalId}
@@ -127,10 +127,10 @@ export function StepDeploy({
       )}
 
       <div>
-        <p className="text-[12.5px] font-medium text-foreground">{copy.deployHowTitle}</p>
+        <p className="text-meta font-medium text-foreground">{copy.deployHowTitle}</p>
         <ol className="mt-2 flex flex-col gap-1.5">
           {how.map((item, index) => (
-            <li key={item.title} className="flex gap-2.5 text-[12.5px] leading-relaxed">
+            <li key={item.title} className="flex gap-2.5 text-meta leading-relaxed">
               <span className="w-3 shrink-0 tabular-nums text-muted-foreground">{index + 1}</span>
               <span className="min-w-0">
                 <span className="font-medium text-foreground">{item.title}</span>
@@ -157,11 +157,11 @@ export function StepDeploy({
       </div>
 
       {connection.deploy_stalled ? (
-        <div className="overflow-hidden rounded-[10px] border border-high-border">
+        <div className="overflow-hidden rounded-lg border border-high-border">
           <div className="flex items-start gap-3 bg-high-bg px-4 py-3.5">
             <Stalled className="mt-0.5 size-4 shrink-0 text-high" aria-hidden />
             <div className="min-w-0">
-              <p className="text-[13px] font-medium text-high">{t.setup.stalledTitle}</p>
+              <p className="text-body font-medium text-high">{t.setup.stalledTitle}</p>
               <p className="mt-0.5 text-xs leading-relaxed text-foreground">
                 {connection.status_detail ?? t.setup.stalledBody}
               </p>
@@ -171,7 +171,7 @@ export function StepDeploy({
             {[t.setup.stalledPropagation, wrongScope, t.setup.stalledOwner].map(
               (cause, index) => (
                 <li key={index} className="flex gap-3 px-4 py-3">
-                  <span className="flex size-5 shrink-0 items-center justify-center rounded-full border border-border text-[10px] font-semibold tabular-nums text-muted-foreground">
+                  <span className="flex size-5 shrink-0 items-center justify-center rounded-full border border-border text-micro font-semibold tabular-nums text-muted-foreground">
                     {index + 1}
                   </span>
                   <span className="text-xs leading-relaxed text-foreground">{cause}</span>
@@ -202,7 +202,7 @@ export function StepDeploy({
           {confirmingDiscard && (
             <div className="border-t border-border bg-muted px-4 py-3">
               <p className="text-xs font-medium text-foreground">{t.connection.discardTitle}</p>
-              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+              <p className="mt-1 text-caption leading-relaxed text-muted-foreground">
                 {t.connection.discardDetail}
               </p>
               <div className="mt-2 flex flex-wrap gap-2">

@@ -33,7 +33,7 @@ export function StatusPill({
     <span
       className={cn(
         "inline-flex items-center rounded-full border font-medium whitespace-nowrap",
-        size === "sm" ? "px-1.5 py-0 text-[10.5px] leading-4" : "px-2 py-px text-[11px]",
+        size === "sm" ? "px-1.5 py-0 text-micro leading-4" : "px-2 py-px text-caption",
         tone,
         className,
       )}

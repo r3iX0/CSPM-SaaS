@@ -35,9 +35,18 @@ const OWN_NAME: Record<string, string[]> = {
   postgresql_server: ["server"],
   key_vault: ["vault"],
   app_service: ["app"],
+  kubernetes_cluster: ["cluster"],
+  container_registry: ["registry"],
+  document_database: ["account"],
+  mysql_server: ["server"],
+  analytics_workspace: ["workspace"],
+  search_service: ["service"],
   virtual_machine: ["vm"],
   network_security_group: ["nsg"],
   virtual_network: ["vnet"],
+  disk: ["disk"],
+  backup_vault: ["vault"],
+  scale_set: ["scale-set"],
 };
 
 /** `/subscriptions/{id}/resourceGroups/{rg}/...`, read case-insensitively as ARM does. */

@@ -633,7 +633,7 @@ function AssetNode({ id, data }: NodeProps<AssetFlowNode>) {
           <span className="block truncate text-xs font-medium text-foreground">
             {data.name}
           </span>
-          <span className="block truncate text-[11px] text-muted-foreground">
+          <span className="block truncate text-caption text-muted-foreground">
             {resourceTypeLabel(data.resource_type)}
           </span>
         </span>
@@ -660,7 +660,7 @@ function AssetNode({ id, data }: NodeProps<AssetFlowNode>) {
             <span
               title={`${data.findings.open} open finding${data.findings.open === 1 ? "" : "s"}`}
               className={cn(
-                "rounded border px-1 text-[10px] leading-4 font-medium tabular-nums",
+                "rounded border px-1 text-micro leading-4 font-medium tabular-nums",
                 levelStyle(data.findings.worst ?? "UNKNOWN"),
               )}
             >

@@ -115,6 +115,10 @@ ACTION_KEYS: dict[str, tuple[AwsEvidence, ...]] = {
     "logs:DescribeMetricFilters": (AwsEvidence.LOG_METRIC_FILTERS,),
     "cloudwatch:DescribeAlarms": (AwsEvidence.CLOUDWATCH_ALARMS,),
     "iam:ListEntitiesForPolicy": (AwsEvidence.IAM_SUPPORT_ACCESS,),
+    "cognito-idp:ListUserPools": (AwsEvidence.COGNITO_USER_POOLS,),
+    "cognito-idp:DescribeUserPool": (AwsEvidence.COGNITO_USER_POOLS,),
+    "cognito-idp:DescribeRiskConfiguration": (AwsEvidence.COGNITO_RISK_CONFIGURATIONS,),
+    "wafv2:GetWebACLForResource": (AwsEvidence.COGNITO_WEB_ACLS,),
 }
 
 
@@ -505,7 +509,132 @@ class AwsPlanBuilder:
         tasks.append(self._ebs_default_task(region))
         tasks.append(self._kms_task(region))
         tasks.append(self._guardduty_task(region))
+        tasks += self._cognito_tasks(region)
         return tasks
+
+    def _cognito_tasks(self, region: str) -> list[CollectionTask]:
+        """Cognito user pools in one region, then two readings beneath each
+        (DECISIONS.md section 177).
+
+        ``ListUserPools`` answers ids and names only, so each pool is described
+        for its configuration. The risk configuration and the web ACL are
+        dependent tasks with keys of their own, reading this region's pools out
+        of the collected payload; a pool whose read failed is recorded against
+        its id with ``"error"`` so it costs that pool's verdict alone.
+        """
+
+        async def pools(collected: dict[str, Any]) -> TaskData:
+            async with self.client("cognito-idp", region) as cognito:
+                listed = await cognito.paginate(
+                    "list_user_pools", "UserPools", MaxResults=60
+                )
+
+                async def describe(entry: dict[str, Any]) -> dict[str, Any] | None:
+                    found = await cognito.optional(
+                        "describe_user_pool", UserPoolId=str(entry.get("Id"))
+                    )
+                    return dict(found.get("UserPool") or {}) if found else None
+
+                described = await _fan_out(listed, describe)
+                return TaskData(
+                    {AwsEvidence.COGNITO_USER_POOLS.value: [p for p in described if p]},
+                    partial_reason=(
+                        "list_user_pools stopped at the page cap"
+                        if cognito.truncated
+                        else None
+                    ),
+                )
+
+        def region_pools(collected: dict[str, Any]) -> list[dict[str, Any]]:
+            return [
+                pool
+                for block in collected.get(AwsEvidence.COGNITO_USER_POOLS.value) or []
+                if isinstance(block, dict) and block.get("region") == region
+                for pool in block.get("items") or []
+                if isinstance(pool, dict) and pool.get("Id")
+            ]
+
+        async def risk(collected: dict[str, Any]) -> TaskData:
+            failures = 0
+            async with self.client("cognito-idp", region) as cognito:
+
+                async def read(pool: dict[str, Any]) -> dict[str, Any]:
+                    nonlocal failures
+                    try:
+                        found = await cognito.call(
+                            "describe_risk_configuration", UserPoolId=str(pool["Id"])
+                        )
+                    except AwsApiError as error:
+                        failures += 1
+                        return {"UserPoolId": pool["Id"], "error": str(error)}
+                    return {
+                        "UserPoolId": pool["Id"],
+                        "RiskConfiguration": found.get("RiskConfiguration") or {},
+                    }
+
+                rows = await _fan_out(region_pools(collected), read)
+            return TaskData(
+                {AwsEvidence.COGNITO_RISK_CONFIGURATIONS.value: rows},
+                partial_reason=(
+                    f"the risk configuration of {failures} user pool(s) could not be read"
+                    if failures
+                    else None
+                ),
+            )
+
+        async def web_acls(collected: dict[str, Any]) -> TaskData:
+            failures = 0
+            async with self.client("wafv2", region) as waf:
+
+                async def read(pool: dict[str, Any]) -> dict[str, Any]:
+                    nonlocal failures
+                    arn = str(pool.get("Arn") or "")
+                    try:
+                        found = await waf.optional("get_web_acl_for_resource", ResourceArn=arn)
+                    except AwsApiError as error:
+                        failures += 1
+                        return {"ResourceArn": arn, "error": str(error)}
+                    acl = (found or {}).get("WebACL")
+                    return {"ResourceArn": arn, "WebACLArn": (acl or {}).get("ARN")}
+
+                rows = await _fan_out(region_pools(collected), read)
+            return TaskData(
+                {AwsEvidence.COGNITO_WEB_ACLS.value: rows},
+                partial_reason=(
+                    f"the web ACL of {failures} user pool(s) could not be read"
+                    if failures
+                    else None
+                ),
+            )
+
+        return [
+            CollectionTask(
+                key=AwsEvidence.COGNITO_USER_POOLS,
+                run=pools,
+                region=region,
+                actions=("cognito-idp:ListUserPools", "cognito-idp:DescribeUserPool"),
+                endpoints=(
+                    endpoint("cognito-idp", "ListUserPools", "2016-04-18"),
+                    endpoint("cognito-idp", "DescribeUserPool", "2016-04-18"),
+                ),
+            ),
+            CollectionTask(
+                key=AwsEvidence.COGNITO_RISK_CONFIGURATIONS,
+                run=risk,
+                region=region,
+                depends_on=(AwsEvidence.COGNITO_USER_POOLS,),
+                actions=("cognito-idp:DescribeRiskConfiguration",),
+                endpoints=(endpoint("cognito-idp", "DescribeRiskConfiguration", "2016-04-18"),),
+            ),
+            CollectionTask(
+                key=AwsEvidence.COGNITO_WEB_ACLS,
+                run=web_acls,
+                region=region,
+                depends_on=(AwsEvidence.COGNITO_USER_POOLS,),
+                actions=("wafv2:GetWebACLForResource",),
+                endpoints=(endpoint("wafv2", "GetWebACLForResource", "2019-07-29"),),
+            ),
+        ]
 
     def _listing_task(
         self,
@@ -1115,4 +1244,7 @@ _REGIONAL_TASK_KEYS: tuple[AwsEvidence, ...] = (
     AwsEvidence.EBS_ENCRYPTION_DEFAULT,
     AwsEvidence.KMS_KEYS,
     AwsEvidence.GUARDDUTY_DETECTORS,
+    AwsEvidence.COGNITO_USER_POOLS,
+    AwsEvidence.COGNITO_RISK_CONFIGURATIONS,
+    AwsEvidence.COGNITO_WEB_ACLS,
 )

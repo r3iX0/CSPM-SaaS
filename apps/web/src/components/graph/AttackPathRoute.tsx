@@ -37,7 +37,7 @@ export function AttackPathRoute({
             <div className="flex flex-col items-center">
               <span
                 className={cn(
-                  "flex size-6 shrink-0 items-center justify-center rounded-full border text-[10px] font-medium",
+                  "flex size-6 shrink-0 items-center justify-center rounded-full border text-micro font-medium",
                   isCut
                     ? "border-ok-border bg-ok-bg text-ok"
                     : "border-border bg-background text-muted-foreground",

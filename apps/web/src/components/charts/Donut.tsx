@@ -102,7 +102,7 @@ export function Donut({
         <span className={cn("text-xl leading-none font-semibold tabular-nums", valueClassName)}>
           {centerValue}
         </span>
-        <span className="mt-0.5 text-[10px] leading-tight text-muted-foreground">
+        <span className="mt-0.5 text-micro leading-tight text-muted-foreground">
           {centerLabel}
         </span>
       </div>

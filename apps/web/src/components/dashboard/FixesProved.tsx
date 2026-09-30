@@ -28,15 +28,14 @@ export function FixesProved({
       className="flex flex-col overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10"
     >
       <header className="px-5 py-4">
-        <h2 id="fixes-proved" className="text-[13.5px] font-semibold">
+        <h2 id="fixes-proved" className="text-body font-semibold">
           Fixes proved
         </h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          A finding closes when a later scan observes the fix. Nobody can close
-          one by hand.
+          Closed only when a later scan observes the fix. Nobody can close one by hand.
         </p>
       </header>
-      <dl className="grid flex-1 grid-cols-1 gap-px border-t bg-border sm:grid-cols-3">
+      <dl className="flex flex-1 flex-col divide-y border-t">
         <Cell
           icon={VERDICT_ICONS.pass}
           label="Verified closed · 30 days"
@@ -63,15 +62,15 @@ function Cell({
 }) {
   const shown = Math.round(useCountUp(value));
   return (
-    <div className="flex flex-col gap-2 bg-card px-5 py-4">
+    <div className="flex items-center gap-3 px-5 py-3">
       <span
-        className="inline-flex size-[22px] items-center justify-center rounded-md bg-muted text-muted-foreground"
+        className="inline-flex size-[22px] shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"
         aria-hidden
       >
         <Icon className="size-3" strokeWidth={1.5} />
       </span>
-      <dt className="text-[11.5px] text-muted-foreground">{label}</dt>
-      <dd className={cn("text-[22px] leading-none font-semibold tabular-nums", className)}>
+      <dt className="min-w-0 flex-1 text-body text-muted-foreground">{label}</dt>
+      <dd className={cn("text-heading leading-none font-semibold tabular-nums", className)}>
         {shown}
       </dd>
     </div>

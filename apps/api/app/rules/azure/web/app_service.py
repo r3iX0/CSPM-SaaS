@@ -19,6 +19,7 @@ from app.connectors.azure.evidence import AzureEvidence
 from app.core.enums import ResourceType, Severity
 from app.domain.resource import CloudResource
 from app.remediation import ExpectedState, RemediationSpec
+from app.rules.azure.containers.kubernetes import _NO_POLICY
 from app.rules.base import RuleContext, RuleResult, SecurityRule
 
 _UNREAD_CONFIG = (
@@ -461,4 +462,92 @@ class AzureAppServiceIdentityRule(SecurityRule):
         return RuleResult.failed(
             evidence=evidence,
             message=f"{resource.name} has no managed identity to authenticate as",
+        )
+
+
+class AzureFunctionAppPublicRule(SecurityRule):
+    rule_id = "AZ-WEB-006"
+    name = "Function app answers the whole internet"
+    description = (
+        "A function app accepts requests from any network: public access is on and "
+        "its access restrictions admit every address. Each HTTP trigger is then "
+        "protected by its function key at most."
+    )
+    category = "web"
+    severity = Severity.MEDIUM
+    # A function key is a shared secret embedded in whatever calls the function,
+    # and an anonymous trigger needs none at all.
+    exploitability = 3
+    applies_to: ClassVar[list[ResourceType]] = [ResourceType.APP_SERVICE]
+    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (
+        AzureEvidence.APP_SERVICES,
+        AzureEvidence.APP_SERVICE_CONFIGS,
+    )
+    estimated_effort_minutes = 60
+    rationale = (
+        "Function apps are glue: they are called by other services far more often "
+        "than by the public, and they run as identities that reach storage, queues "
+        "and databases. A web app is usually meant to be public; a function app "
+        "usually is not, and nothing but a key stands in front of it."
+    )
+    remediation = (
+        "Restrict the app to the networks and services that call it -- access "
+        "restrictions naming their addresses, virtual networks or service tags -- or "
+        "disable public access and reach it through a private endpoint. Leave it "
+        "open only where the function is genuinely a public API.\n\n"
+        "Azure CLI:\n"
+        "  az functionapp config access-restriction add --name <app> \\\n"
+        "    --resource-group <rg> --rule-name <name> --action Allow \\\n"
+        "    --ip-address <cidr> --priority 100"
+    )
+    remediation_spec: ClassVar[RemediationSpec | None] = RemediationSpec(
+        expected=(
+            ExpectedState(
+                field="access_restricted",
+                equals=True,
+                describes="Access restrictions admit only named networks",
+            ),
+        ),
+        cli=(
+            "az functionapp config access-restriction add --name <app> --resource-group <rg> "
+            "--rule-name <name> --action Allow --ip-address <cidr> --priority 100",
+        ),
+        applies_when={"kind": "functionapp"},
+        notes=_NO_POLICY,
+    )
+    compliance_mappings: ClassVar[dict[str, list[str]]] = {
+        "ISO_27001": ["A.8.20", "A.8.22"],
+        "NIST_CSF": ["PR.AC-3", "PR.AC-5"],
+        "GDPR": ["32(1)(b)"],
+        "NIST_800_53": ["SC-7", "AC-3"],
+        "SOC2": ["CC6.1", "CC6.6"],
+        "PCI_DSS_4": ["1.3.1"],
+    }
+
+    def evaluate(
+        self, resource: CloudResource | None, context: RuleContext
+    ) -> RuleResult | list[RuleResult]:
+        if resource is None:
+            return RuleResult.not_applicable("Rule is per-resource")
+        # Web apps are usually meant to be public; this is about function apps.
+        if "functionapp" not in str(resource.get("kind") or "").lower():
+            return RuleResult.not_applicable("Not a function app")
+        failure = context.has_collection_error(*self.requires_evidence)
+        if failure:
+            return RuleResult.unknown(f"Function app configuration unavailable: {failure}")
+
+        evidence = {
+            **_site_evidence(resource),
+            "access_restricted": resource.get("access_restricted"),
+        }
+        if str(resource.get("public_network_access") or "").lower() == "disabled":
+            return RuleResult.passed(evidence)
+        restricted = resource.get("access_restricted")
+        if restricted is None:
+            return RuleResult.unknown(_UNREAD_CONFIG)
+        if restricted is True:
+            return RuleResult.passed(evidence)
+        return RuleResult.failed(
+            evidence=evidence,
+            message=f"{resource.name} accepts requests from any network",
         )

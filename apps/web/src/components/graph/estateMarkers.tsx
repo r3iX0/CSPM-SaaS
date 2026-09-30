@@ -35,7 +35,7 @@ export function Markers({ box, className }: { box: EstateBox; className?: string
   return (
     <span
       className={cn(
-        "flex shrink-0 items-center gap-1.5 text-[10px] text-muted-foreground",
+        "flex shrink-0 items-center gap-1.5 text-micro text-muted-foreground",
         className,
       )}
     >

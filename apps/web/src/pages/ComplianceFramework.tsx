@@ -21,7 +21,7 @@ import {
   ControlStatusPill,
   EvidenceNotice,
 } from "@/components/compliance";
-import { Breadcrumbs, DetailSkeleton, ErrorState } from "@/components/common/states";
+import { Breadcrumbs, DetailSkeleton, ErrorState, PAGE_TITLE_CLASS } from "@/components/common/states";
 import {
   Accordion,
   AccordionContent,
@@ -104,7 +104,7 @@ export function ComplianceFrameworkPage() {
         />
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-xl font-semibold tracking-tight">{data.name}</h1>
+            <h1 className={PAGE_TITLE_CLASS}>{data.name}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               {data.version} · {data.authority}
             </p>
@@ -140,7 +140,7 @@ export function ComplianceFrameworkPage() {
               <p className="text-3xl font-semibold tabular-nums tracking-tight text-foreground">
                 {formatPercent(data.coverage_ratio)}
               </p>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-caption text-muted-foreground">
                 {t.compliance.coverage}
               </p>
             </div>
@@ -183,7 +183,7 @@ export function ComplianceFrameworkPage() {
           opening this page usually wants the failing ones, and scrolling a
           catalogue of ninety controls to collect nine is the job a filter
           exists to do. */}
-      <p className="text-[13px] text-muted-foreground">
+      <p className="text-body text-muted-foreground">
         Each verdict carries the readings it rests on — for the controls that
         passed as much as the ones that failed.
       </p>
@@ -204,7 +204,7 @@ export function ComplianceFrameworkPage() {
 
       {groups.map(([group, controls]) => (
         <section key={`${verdict}-${group}`}>
-          <h2 className="mb-2 flex items-baseline gap-2 text-[13.5px] font-semibold text-foreground">
+          <h2 className="mb-2 flex items-baseline gap-2 text-body font-semibold text-foreground">
             {group}
             <span className="text-xs font-normal text-muted-foreground tabular-nums">
               {controls.length}
@@ -293,7 +293,7 @@ function ControlRow({ control }: { control: ComplianceControl }) {
           <AccordionContent>
         {control.rules.length > 0 ? (
           <div className="mt-3 border-t pt-3">
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-caption text-muted-foreground">
               {t.compliance.evidenceFrom}
             </p>
             <ul className="mt-2 flex flex-col gap-1.5">
@@ -339,7 +339,7 @@ function ControlRow({ control }: { control: ComplianceControl }) {
                       {rule.unknown_reasons.map((reason) => (
                         <li
                           key={reason}
-                          className="border-l-2 border-unknown-border pl-2 text-[11px] leading-relaxed text-muted-foreground"
+                          className="border-l-2 border-unknown-border pl-2 text-caption leading-relaxed text-muted-foreground"
                         >
                           {reason}
                         </li>
@@ -415,7 +415,7 @@ function ExportControls({ frameworkId }: { frameworkId: string }) {
           {t.compliance.exportJson}
         </Button>
       </div>
-      <p className="max-w-xs text-right text-[11px] leading-relaxed text-muted-foreground">
+      <p className="max-w-xs text-right text-caption leading-relaxed text-muted-foreground">
         {failure ?? t.compliance.exportHelp}
       </p>
     </div>
@@ -441,14 +441,14 @@ function ControlReadings({ readings }: { readings: ControlReading[] }) {
 
   return (
     <div className="mt-3 border-t pt-3">
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-caption text-muted-foreground">
         {t.compliance.readFrom}
       </p>
       <ul className="mt-2 flex flex-col gap-1">
         {readings.map((reading) => (
           <li
             key={reading.evidence_key}
-            className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[11px] leading-relaxed"
+            className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-caption leading-relaxed"
           >
             <code className="text-foreground">{reading.evidence_key}</code>
             {reading.outcome === null ? (
