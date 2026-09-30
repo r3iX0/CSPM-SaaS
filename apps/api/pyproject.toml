@@ -20,7 +20,7 @@ dependencies = [
   # (reports, graph work) are created at import, outside any running loop,
   # which only a 4.x release allows (DECISIONS.md sections 158, 161).
   "anyio==4.15.1",
-  "pyjwt==2.14.0",
+  "pyjwt==2.15.0",
   "msal==1.31.1",
   # AWS. The connector stores the provider's own response verbatim, exactly as
   # the Azure one does -- what this handles is the layer beneath that, which
