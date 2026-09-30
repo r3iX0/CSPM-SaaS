@@ -11,6 +11,7 @@ from app.connectors.azure.evidence import AzureEvidence
 from app.core.enums import ResourceType, Severity
 from app.domain.resource import CloudResource
 from app.remediation import Comparison, ExpectedState, RemediationSpec
+from app.rules.azure.containers.kubernetes import _NO_POLICY
 from app.rules.base import RuleContext, RuleResult, SecurityRule
 
 
@@ -298,4 +299,140 @@ class AzurePostgresTlsRule(SecurityRule):
         return RuleResult.failed(
             evidence=evidence,
             message=f"{resource.name} accepts PostgreSQL connections without TLS",
+        )
+
+
+class _MySqlRule(SecurityRule):
+    category = "database"
+    applies_to: ClassVar[list[ResourceType]] = [ResourceType.MYSQL_SERVER]
+    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (
+        AzureEvidence.MYSQL_SERVERS,
+        AzureEvidence.MYSQL_CONFIGURATIONS,
+    )
+    compliance_mappings: ClassVar[dict[str, list[str]]] = {
+        "ISO_27001": ["A.8.24"],
+        "NIST_CSF": ["PR.DS-2"],
+        "GDPR": ["32(1)(a)"],
+        "NIST_800_53": ["SC-8"],
+        "SOC2": ["CC6.7"],
+        "PCI_DSS_4": ["4.2.1"],
+    }
+
+    def _unreadable(
+        self, resource: CloudResource | None, context: RuleContext
+    ) -> RuleResult | None:
+        if resource is None:
+            return RuleResult.not_applicable("Rule is per-resource")
+        failure = context.has_collection_error(*self.requires_evidence)
+        if failure:
+            return RuleResult.unknown(f"MySQL server parameters unavailable: {failure}")
+        return None
+
+
+class AzureMySqlSecureTransportRule(_MySqlRule):
+    rule_id = "AZ-MYS-001"
+    name = "MySQL server accepts unencrypted connections"
+    description = (
+        "The MySQL flexible server's `require_secure_transport` parameter is off, so "
+        "clients may connect without TLS and send credentials and data in the clear."
+    )
+    severity = Severity.HIGH
+    exploitability = 3
+    estimated_effort_minutes = 30
+    rationale = (
+        "One misconfigured client connection string is enough to put a database "
+        "password on the network in plain text. Requiring TLS on the server makes that "
+        "connection fail instead."
+    )
+    remediation = (
+        "Turn `require_secure_transport` on after confirming every client connects "
+        "with TLS.\n\n"
+        "Azure CLI:\n"
+        "  az mysql flexible-server parameter set --resource-group <rg> \\\n"
+        "    --server-name <server> --name require_secure_transport --value ON"
+    )
+    remediation_spec: ClassVar[RemediationSpec | None] = RemediationSpec(
+        expected=(
+            ExpectedState(
+                field="require_secure_transport",
+                equals="on",
+                describes="The server refuses connections that do not use TLS",
+            ),
+        ),
+        cli=(
+            "az mysql flexible-server parameter set --resource-group <rg> "
+            "--server-name <server> --name require_secure_transport --value ON",
+        ),
+        notes=_NO_POLICY,
+    )
+
+    def evaluate(
+        self, resource: CloudResource | None, context: RuleContext
+    ) -> RuleResult | list[RuleResult]:
+        blocked = self._unreadable(resource, context)
+        if blocked or resource is None:
+            return blocked or RuleResult.not_applicable("Rule is per-resource")
+        value = resource.get("require_secure_transport")
+        if value is None:
+            return RuleResult.unknown("The server's TLS requirement was not read")
+        evidence = {"require_secure_transport": value}
+        if str(value).lower() == "on":
+            return RuleResult.passed(evidence)
+        return RuleResult.failed(
+            evidence=evidence,
+            message=f"{resource.name} accepts connections without TLS",
+        )
+
+
+class AzureMySqlTlsVersionRule(_MySqlRule):
+    rule_id = "AZ-MYS-002"
+    name = "MySQL server accepts TLS below 1.2"
+    description = (
+        "The MySQL flexible server's `tls_version` parameter still lists TLS 1.0 or 1.1, "
+        "so clients may negotiate protocol versions with known weaknesses."
+    )
+    severity = Severity.MEDIUM
+    exploitability = 2
+    estimated_effort_minutes = 30
+    rationale = (
+        "TLS 1.0 and 1.1 are deprecated. Offering them lets a downgraded or outdated "
+        "client carry database traffic over a channel that no longer protects it."
+    )
+    remediation = (
+        "Set `tls_version` to TLS 1.2 (and 1.3 where the server version supports it).\n\n"
+        "Azure CLI:\n"
+        "  az mysql flexible-server parameter set --resource-group <rg> \\\n"
+        "    --server-name <server> --name tls_version --value TLSv1.2"
+    )
+    remediation_spec: ClassVar[RemediationSpec | None] = RemediationSpec(
+        expected=(
+            ExpectedState(
+                field="tls_version",
+                equals="tlsv1.2",
+                describes="The server accepts TLS 1.2 or later only",
+            ),
+        ),
+        cli=(
+            "az mysql flexible-server parameter set --resource-group <rg> "
+            "--server-name <server> --name tls_version --value TLSv1.2",
+        ),
+        notes=_NO_POLICY,
+    )
+
+    def evaluate(
+        self, resource: CloudResource | None, context: RuleContext
+    ) -> RuleResult | list[RuleResult]:
+        blocked = self._unreadable(resource, context)
+        if blocked or resource is None:
+            return blocked or RuleResult.not_applicable("Rule is per-resource")
+        value = resource.get("tls_version")
+        if value is None:
+            return RuleResult.unknown("The server's accepted TLS versions were not read")
+        versions = {v.strip() for v in str(value).lower().split(",") if v.strip()}
+        evidence = {"tls_version": value}
+        if versions and versions <= {"tlsv1.2", "tlsv1.3"}:
+            return RuleResult.passed(evidence)
+        return RuleResult.failed(
+            evidence=evidence,
+            message=f"{resource.name} accepts {value}",
         )

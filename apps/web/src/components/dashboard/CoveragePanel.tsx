@@ -63,7 +63,7 @@ export function CoveragePanel({
     >
       <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-4 px-5 py-4">
         <div className="min-w-0">
-          <h2 id="assessment-coverage" className="text-[13.5px] font-semibold">
+          <h2 id="assessment-coverage" className="text-body font-semibold">
             Assessment coverage
           </h2>
           <p className="mt-1 max-w-xl text-xs leading-relaxed text-muted-foreground">
@@ -105,7 +105,7 @@ export function CoveragePanel({
                 centerLabel=""
                 ariaLabel={`${conclusive} checks reached a verdict, ${unknown} did not`}
                 className="size-16 shrink-0"
-                valueClassName="text-[14.5px]"
+                valueClassName="text-title"
               />
               <span className="text-xs text-muted-foreground">
                 of <span className="tabular-nums">{conclusive + unknown}</span> checks verdicted

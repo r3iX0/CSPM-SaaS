@@ -40,7 +40,7 @@ from typing import Any
 from app.connectors.evidence import EvidenceCategory
 
 # Bump when the action set changes.
-POLICY_VERSION = "v4"
+POLICY_VERSION = "v5"
 
 STACK_NAME = "CloudGuardSecurityScanner"
 ROLE_NAME = "CloudGuardScannerRole"
@@ -135,6 +135,17 @@ INLINE_READ_ACTIONS: tuple[str, ...] = (
     # Who holds AWS's own ``AWSSupportAccess`` policy. This is CIS 1.17's audit
     # procedure verbatim -- one call against one policy ARN. UNVERIFIED.
     "iam:ListEntitiesForPolicy",
+    # --- v5 -------------------------------------------------------------
+    # Cognito user pools: each pool's configuration, its threat protection
+    # risk settings, and the WAF web ACL in front of it (DECISIONS.md section
+    # 177). ``DescribeRiskConfiguration`` returns the actions taken on risky
+    # sign-ins and never a user or an event. SecurityAudit likely carries the
+    # Cognito reads already; stated here in the direction this file prefers.
+    # UNVERIFIED.
+    "cognito-idp:ListUserPools",
+    "cognito-idp:DescribeUserPool",
+    "cognito-idp:DescribeRiskConfiguration",
+    "wafv2:GetWebACLForResource",
 )
 
 # Which action each client call needs. The link between the code and the policy,
@@ -192,6 +203,10 @@ CLIENT_ACTIONS: dict[str, tuple[str, ...]] = {
     "logs:describe_metric_filters": ("logs:DescribeMetricFilters",),
     "cloudwatch:describe_alarms": ("cloudwatch:DescribeAlarms",),
     "iam:list_entities_for_policy": ("iam:ListEntitiesForPolicy",),
+    "cognito-idp:list_user_pools": ("cognito-idp:ListUserPools",),
+    "cognito-idp:describe_user_pool": ("cognito-idp:DescribeUserPool",),
+    "cognito-idp:describe_risk_configuration": ("cognito-idp:DescribeRiskConfiguration",),
+    "wafv2:get_web_acl_for_resource": ("wafv2:GetWebACLForResource",),
 }
 
 # Actions the managed policies supply, listed so the two-way test can tell
@@ -263,10 +278,16 @@ V3_ACTIONS: tuple[str, ...] = (
     "cloudwatch:DescribeAlarms",
 )
 
+V4_ACTIONS: tuple[str, ...] = (
+    *V3_ACTIONS,
+    "iam:ListEntitiesForPolicy",
+)
+
 POLICY_HISTORY: dict[str, tuple[str, ...]] = {
     "v1": V1_ACTIONS,
     "v2": V2_ACTIONS,
     "v3": V3_ACTIONS,
+    "v4": V4_ACTIONS,
     POLICY_VERSION: INLINE_READ_ACTIONS,
 }
 

@@ -97,6 +97,23 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+
+  /* --- Type scale (DECISIONS.md §166) ----------------------------------- */
+  /* Nine steps, replacing eighteen hand-typed pixel sizes that differed by
+     half a pixel and meant nothing by it. In rem, so a reader's browser font
+     size still scales the page. No line-height is paired with a step: the
+     element inherits its leading as it did under `text-[13px]`, and says
+     `leading-*` where it wants its own. ESLint refuses `text-[Npx]` outside
+     the vendored primitives. `lib/utils.ts` lists the names for tailwind-merge. */
+  --text-micro: 0.625rem; /* 10px  counters inside a dot, dense chips */
+  --text-caption: 0.6875rem; /* 11px  badges, column heads, legends */
+  --text-meta: 0.75rem; /* 12px  timestamps, secondary lines */
+  --text-body: 0.8125rem; /* 13px  the reading size */
+  --text-title: 0.9375rem; /* 15px  a panel or row's own name */
+  --text-heading: 1.125rem; /* 18px  a step or section heading */
+  --text-page: 1.375rem; /* 22px  the page's h1 */
+  --text-stat: 1.75rem; /* 28px  a figure a panel is about */
+  --text-display: 2rem; /* 32px  the one number a page leads with */
 }
 
 /*

@@ -121,7 +121,7 @@ export function StepConsent({
                 <Handoff className="size-4" aria-hidden />
               </span>
               <div className="min-w-0">
-                <p className="text-[12.5px] font-medium text-foreground">{t.setup.handoffTitle}</p>
+                <p className="text-meta font-medium text-foreground">{t.setup.handoffTitle}</p>
                 <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
                   {t.setup.handoffBody}
                 </p>
@@ -131,7 +131,7 @@ export function StepConsent({
                 message it will be. A bare URL pasted into a chat window asks a
                 Global Administrator to approve something unexplained, which is
                 the request they are right to refuse. */}
-            <p className="mt-3.5 whitespace-pre-wrap break-words rounded-lg border border-border bg-background px-4 py-3 text-[13px] leading-relaxed text-foreground">
+            <p className="mt-3.5 whitespace-pre-wrap break-words rounded-lg border border-border bg-background px-4 py-3 text-body leading-relaxed text-foreground">
               {`${t.setup.handoffMessage}\n\n`}
               <span className="break-all font-mono text-xs text-muted-foreground">
                 {connection.consent_url}

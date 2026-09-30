@@ -1,7 +1,6 @@
 """Everything downstream of the snapshots, in the order it has to happen.
 
-    read the second engine's runs -> normalize -> persist assets
-              -> evaluate -> merge the second engine's verdicts -> coverage
+    normalize -> persist assets -> evaluate -> coverage
               -> findings and risks -> verify fixes -> correlate routes
               -> record posture
 
@@ -12,9 +11,7 @@ through the context's :class:`ScanWriter` -- so a stage's rows are written in
 bulk and only while the step is still this attempt's.
 """
 
-from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
-from uuid import UUID
 
 from app.connectors.base import NormalizedState
 from app.core.enums import AnalyzePhase, ScanStatus
@@ -22,11 +19,8 @@ from app.core.logging import get_logger
 from app.models.cloud_account import CloudAccount
 from app.models.cloud_connection import CloudConnection
 from app.models.scan import Scan
-from app.prowler import ingest
-from app.prowler.ingest import StoredAssessment
 from app.rules.base import RuleContext
 from app.rules.engine import RuleEngine
-from app.services.scan.assessment import persist_divergences
 from app.services.scan.assets import existing_resource_ids, group_edges, persist_resources
 from app.services.scan.context import AnalyzeContext
 from app.services.scan.correlation import correlate_paths
@@ -53,7 +47,6 @@ async def evaluate(
     directory: tuple[CloudConnection, NormalizedState] | None = None,
     finalize: bool = True,
     on_phase: PhaseReport = _no_phase,
-    assessments: Sequence[StoredAssessment] = (),
 ) -> None:
     """Everything downstream of the snapshots: persist, evaluate, finalize.
 
@@ -70,16 +63,6 @@ async def evaluate(
     # it read rather than how large the customer has grown.
     account_ids = [account.id for account, _ in account_state]
     connection_id = directory[0].id if directory is not None else None
-    # The second engine's runs, read before anything is persisted: an asset
-    # Prowler reported and no collector listed joins its scope's state here,
-    # so it is written with the rest and a finding can point at it
-    # (DECISIONS.md section 150).
-    states: dict[UUID | None, NormalizedState] = {
-        account.id: state for account, state in account_state
-    }
-    if directory is not None:
-        states[None] = directory[1]
-    reading = ingest.read(list(assessments), states, merged) if assessments else None
     # Which subscription each asset came from, taken before the merge --
     # after it, a tenant-wide scan's resources are one list and the
     # subscription that produced each is no longer recoverable from them.
@@ -132,13 +115,9 @@ async def evaluate(
         controls=merged.controls,
     )
     report = engine.evaluate(context)
-    # Prowler's verdicts join the native ones here, and where the two answer
-    # the same question they are compared rather than both reported.
-    divergences = ingest.merge(report, reading) if reading is not None else []
     scan.rule_count = report.rules_run
 
     await persist_coverage(ctx, report, id_map)
-    await persist_divergences(ctx, divergences, id_map)
 
     # --- findings and risks ---------------------------------------------
     await on_phase(AnalyzePhase.SCORE)

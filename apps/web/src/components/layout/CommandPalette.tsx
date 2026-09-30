@@ -68,7 +68,7 @@ export function CommandPalette() {
         }}
         onPointerEnter={() => void loadDialog()}
         onFocus={() => void loadDialog()}
-        className="gap-2 font-normal text-muted-foreground sm:min-w-[220px] sm:justify-start sm:text-[12.5px]"
+        className="gap-2 font-normal text-muted-foreground sm:min-w-[220px] sm:justify-start sm:text-meta"
         aria-label="Search Cleave"
       >
         <SearchIcon data-icon="inline-start" strokeWidth={1.5} />

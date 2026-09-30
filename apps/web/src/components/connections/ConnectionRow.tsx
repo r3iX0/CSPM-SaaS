@@ -121,10 +121,10 @@ export function ConnectionRow({
         <div className="flex min-w-0 items-start gap-3">
           <ProviderMark provider={connection.provider} tile className="mt-0.5" />
           <span className="min-w-0">
-            <span className="block truncate text-[13.5px] font-medium text-foreground">
+            <span className="block truncate text-body font-medium text-foreground">
               {connection.name}
             </span>
-            <span className="block truncate text-[11.5px] text-muted-foreground">
+            <span className="block truncate text-caption text-muted-foreground">
               {scopeSummary(connection)}
             </span>
           </span>

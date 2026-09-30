@@ -34,7 +34,7 @@ export function CollectionPanel({ scanId }: { scanId: string }) {
 
   return (
     <div>
-      <p className="text-[11px] font-medium text-muted-foreground">
+      <p className="text-caption font-medium text-muted-foreground">
         {t.scans.collectionTitle}
       </p>
 
@@ -92,7 +92,7 @@ export function CollectionPanel({ scanId }: { scanId: string }) {
                   key={`${reading.cloud_account_id}-${reading.task}`}
                   className="flex flex-wrap items-start gap-x-3 gap-y-1 px-3 py-2"
                 >
-                  <span className="min-w-0 flex-1 font-mono text-[11px] text-foreground">
+                  <span className="min-w-0 flex-1 font-mono text-caption text-foreground">
                     {reading.task}
                   </span>
                   {reading.outcome === "COMPLETE" && (
@@ -107,7 +107,7 @@ export function CollectionPanel({ scanId }: { scanId: string }) {
                     </p>
                   )}
                   {reading.endpoints.length > 0 && (
-                    <p className="w-full font-mono text-[11px] text-muted-foreground">
+                    <p className="w-full font-mono text-caption text-muted-foreground">
                       {reading.endpoints
                         .map((e) => `${e.path.replace(/^https?:\/\/[^/]+/, "")} ${e.api_version}`)
                         .join(" · ")}

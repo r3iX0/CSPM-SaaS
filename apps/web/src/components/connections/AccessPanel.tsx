@@ -60,21 +60,6 @@ export function AccessPanel({
   // Only a list says something. `null` is a grant nobody has checked yet, which
   // is not evidence of a gap and must not be painted as one.
   const missing = connection.missing_permissions ?? [];
-  // A redeploy can be for two things: a role older than the one Cleave needs,
-  // or a current role deployed before the template assigned Reader beside it
-  // for the extended checks. The version comparison says which, so a current
-  // role never reads "v8, behind (v8)".
-  const readerOnly =
-    connection.extended_checks_blocked &&
-    connection.role_version === connection.role_required_version;
-  const roleBehind = connection.role_upgrade_available && !readerOnly;
-  // Only read with the banner up, as it always was.
-  const affected = connection.role_upgrade_available
-    ? [
-        ...connection.degraded_categories.map(collectionCategoryLabel),
-        ...(connection.extended_checks_blocked ? [t.connection.extendedChecksAffects] : []),
-      ]
-    : [];
 
   return (
     <div className="rounded-xl border border-border bg-muted/30 p-4">
@@ -106,7 +91,7 @@ export function AccessPanel({
         >
           {!connection.rbac_verified_at ? (
             <span className="text-high">{t.connection.notVerified}</span>
-          ) : roleBehind ? (
+          ) : connection.role_upgrade_available ? (
             // Deliberately not green, and deliberately not red either. The role
             // works -- most checks are running on it -- so painting it as a
             // failure would send somebody to fix an outage they do not have.
@@ -114,10 +99,6 @@ export function AccessPanel({
             <span className="text-medium">
               {connection.role_version}, {t.connection.roleBehind} (
               {connection.role_required_version})
-            </span>
-          ) : connection.extended_checks_blocked ? (
-            <span className="text-medium">
-              {connection.role_version}, {t.connection.readerMissing}
             </span>
           ) : (
             <span className="text-ok">
@@ -156,21 +137,18 @@ export function AccessPanel({
         <Alert className="mt-4 border-medium-border bg-medium-bg text-medium">
           <AlertTitle>{t.connection.roleUpgradeTitle}</AlertTitle>
           <AlertDescription className="text-foreground">
-            {roleBehind && <span className="block">{t.connection.roleUpgradeBody}</span>}
-            {connection.extended_checks_blocked && (
-              <span className={roleBehind ? "mt-2 block" : "block"}>
-                {t.connection.extendedChecksBlockedBody}
-              </span>
-            )}
+            {t.connection.roleUpgradeBody}
             {/* Named rather than counted. "Two categories are degraded" is a
                 number; "database and secrets checks" is the sentence that tells
                 somebody whether this is urgent for them. */}
-            {affected.length > 0 && (
+            {connection.degraded_categories.length > 0 && (
               <span className="mt-2 block">
                 <span className="text-muted-foreground">
                   {t.connection.roleUpgradeAffects}:{" "}
                 </span>
-                {affected.join(", ")}
+                {connection.degraded_categories
+                  .map(collectionCategoryLabel)
+                  .join(", ")}
               </span>
             )}
             {/* The same link the setup wizard uses. Redeploying is deploying

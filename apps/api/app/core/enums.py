@@ -141,22 +141,6 @@ class RuleScope(StrEnum):
     AGGREGATE = "aggregate"
 
 
-class RuleEngineKind(StrEnum):
-    """Which engine reached a rule's verdicts (DECISIONS.md section 150).
-
-    ``NATIVE`` rules are evaluated by ``app/rules/engine.py`` over the raw
-    captures Cleave's own collectors stored. ``PROWLER`` rules are Prowler's
-    checks, run by the scanner service against the same scope and read back
-    from the capture it stored. Everything downstream of a verdict -- findings,
-    risks, verification, compliance -- treats the two alike; the difference is
-    where the verdict came from, which is what a customer disputing one needs
-    to know first.
-    """
-
-    NATIVE = "native"
-    PROWLER = "prowler"
-
-
 class TaskOutcome(StrEnum):
     """What became of one unit of collection.
 
@@ -239,12 +223,6 @@ class ScanStepKind(StrEnum):
     # what came back. One step each, so a tenant of fifty subscriptions is
     # fifty retryable units rather than one that has to survive them all.
     COLLECT = "COLLECT"
-    # Run the second engine -- Prowler's checks -- against one scope, and store
-    # what it said. Performed by the scanner service (``apps/scanner``), not by
-    # this codebase's worker: Prowler's dependency pins cannot share a process
-    # with this one's. Parallel to COLLECT, and ANALYZE waits for both to
-    # settle (DECISIONS.md section 150).
-    ASSESS = "ASSESS"
     # Interpret every capture this scan stored: normalize, evaluate, score,
     # verify. Runs once the COLLECT steps have settled, which is not the same
     # as having succeeded -- a subscription CloudGuard could not read is a gap
@@ -597,6 +575,46 @@ class ResourceType(StrEnum):
     # questions differ with it: whether it insists on HTTPS, not which ports
     # its network security group opens.
     APP_SERVICE = "app_service"
+    # A managed Kubernetes control plane and its node pools, as one asset. Its
+    # own type because every question about it is the cluster's -- who may
+    # reach its API server, whether its nodes answer the internet, whether
+    # local accounts bypass the directory -- and the fix is a cluster setting.
+    KUBERNETES_CLUSTER = "kubernetes_cluster"
+    # Where container images are kept and pulled from. Distinct from STORAGE:
+    # what it holds is code that runs, so a registry anyone can pull from or
+    # push to is a supply-chain problem rather than a data leak.
+    CONTAINER_REGISTRY = "container_registry"
+    # A managed document or key-value database -- Cosmos DB. Not SQL_SERVER:
+    # it has no server, no firewall rules of that shape, and its keys are the
+    # account's own.
+    DOCUMENT_DATABASE = "document_database"
+    # A managed MySQL server, beside POSTGRESQL_SERVER for the same reason that
+    # one is not SQL_SERVER: the engine's settings and fixes differ.
+    MYSQL_SERVER = "mysql_server"
+    # A managed analytics platform workspace -- Azure Databricks. It runs
+    # clusters on the customer's behalf, so the questions are network ones:
+    # whether it answers the internet and whether its nodes get public IPs.
+    ANALYTICS_WORKSPACE = "analytics_workspace"
+    # A managed search index service -- Azure AI Search. It holds copies of the
+    # documents it indexes, so it is a data store as much as a query engine.
+    SEARCH_SERVICE = "search_service"
+    # A managed block disk, attached to a machine or not. Its own type because
+    # a disk outlives the machine it was made for: an unattached one still
+    # holds everything that machine wrote, and nothing reads it but whoever can
+    # export it (DECISIONS.md section 176).
+    DISK = "disk"
+    # Where backups are kept: a Recovery Services vault on Azure, an AWS Backup
+    # vault later. Its own type because the questions are its own -- whether it
+    # protects anything, and how long it keeps what it holds (section 177).
+    BACKUP_VAULT = "backup_vault"
+    # A group of identical machines scaled as one: a virtual machine scale set.
+    # Not VIRTUAL_MACHINE, because what is judged is the set -- its capacity and
+    # what fronts it -- rather than any one instance (section 177).
+    SCALE_SET = "scale_set"
+    # A directory of an application's own end users -- a Cognito user pool.
+    # Not the workforce directory the USER type lives in: its sign-in faces the
+    # internet by design, and its defences are the pool's own (section 177).
+    USER_POOL = "user_pool"
     UNKNOWN = "unknown"
 
 

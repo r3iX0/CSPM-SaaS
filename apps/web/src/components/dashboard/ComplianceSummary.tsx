@@ -30,7 +30,7 @@ export function ComplianceSummary({
     >
       <header className="flex items-start justify-between gap-4 px-5 py-4">
         <div>
-          <h2 id="compliance-summary" className="text-[13.5px] font-semibold">
+          <h2 id="compliance-summary" className="text-body font-semibold">
             Compliance coverage
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -54,7 +54,7 @@ export function ComplianceSummary({
       )}
 
       {!loading && rows.length === 0 && (
-        <p className="border-t px-5 py-4 text-[13px] text-muted-foreground">
+        <p className="border-t px-5 py-4 text-body text-muted-foreground">
           No framework has been assessed yet. Coverage appears once a scan has
           run against the rule catalogue.
         </p>
@@ -79,15 +79,15 @@ export function ComplianceSummary({
                   to={`/compliance/${framework.id}`}
                   className="flex h-full flex-col gap-1 px-5 py-4 transition-colors hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring-inset focus-visible:ring-inset"
                 >
-                  <span className="truncate text-[12.5px] font-medium">
+                  <span className="truncate text-meta font-medium">
                     {framework.short_name}
                   </span>
-                  <span className="text-[19px] leading-tight font-semibold tabular-nums">
+                  <span className="text-heading leading-tight font-semibold tabular-nums">
                     {framework.coverage_ratio === null
                       ? "—"
                       : `${Math.round(framework.coverage_ratio * 100)}%`}
                   </span>
-                  <span className="text-[11.5px] text-muted-foreground tabular-nums">
+                  <span className="text-caption text-muted-foreground tabular-nums">
                     {concluded === null
                       ? "Not assessed yet"
                       : `${concluded} of ${framework.control_count} controls reached a conclusion`}

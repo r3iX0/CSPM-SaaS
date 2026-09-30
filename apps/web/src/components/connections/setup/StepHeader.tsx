@@ -17,9 +17,9 @@ export function StepHeader({
 }) {
   return (
     <div className="min-w-0">
-      <h2 className="text-[17px] font-semibold tracking-[-0.015em] text-foreground">{title}</h2>
+      <h2 className="text-heading font-semibold tracking-[-0.015em] text-foreground">{title}</h2>
       {description && (
-        <p className="mt-2 max-w-[70ch] text-[13.5px] leading-[1.65] text-muted-foreground">
+        <p className="mt-2 max-w-[70ch] text-body leading-[1.65] text-muted-foreground">
           {description}
         </p>
       )}

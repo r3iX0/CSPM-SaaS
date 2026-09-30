@@ -13,6 +13,7 @@ import { Wordmark } from "@/components/Brand";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { PAGE_TITLE_CLASS } from "@/components/common/states";
 
 /**
  * Where an invitation link lands: `/invite#<token>`.
@@ -46,7 +47,7 @@ export function InvitePage() {
           <div className="mb-8 flex items-center gap-2.5">
             <Wordmark />
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          <h1 className={PAGE_TITLE_CLASS}>
             {t.invite.title}
           </h1>
           <div className="mt-6 rounded-xl border border-border bg-background p-6 shadow-sm">

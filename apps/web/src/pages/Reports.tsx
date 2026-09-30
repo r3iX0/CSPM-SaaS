@@ -190,7 +190,7 @@ export function ReportsPage() {
       <Card>
         <CardHeader>
           <CardTitle>What to include</CardTitle>
-          <CardDescription className="max-w-[84ch] text-[12.5px] leading-relaxed">
+          <CardDescription className="max-w-[84ch] text-meta leading-relaxed">
             Every report carries the posture, the evidence's age, and what
             couldn't be read — the terms the numbers are read on, so they're not
             optional. Anything unticked is named on the cover as excluded, not
@@ -200,7 +200,7 @@ export function ReportsPage() {
         <CardContent className="flex flex-col gap-5">
           <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
             <div className="flex items-center gap-2">
-              <span className="text-[12.5px] font-medium">Activity window</span>
+              <span className="text-meta font-medium">Activity window</span>
               <SelectField
                 value={String(days)}
                 onValueChange={(value) => setDays(Number(value))}
@@ -234,11 +234,11 @@ export function ReportsPage() {
                 <div>
                   <span
                     id={`section-${section.id}-label`}
-                    className="block text-[13px] text-foreground"
+                    className="block text-body text-foreground"
                   >
                     {section.label}
                   </span>
-                  <span className="block text-[11.5px] leading-snug text-muted-foreground">
+                  <span className="block text-caption leading-snug text-muted-foreground">
                     {section.detail}
                   </span>
                 </div>
@@ -272,8 +272,8 @@ function ReportCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-[15px]">{title}</CardTitle>
-        <CardDescription className="mt-1.5 text-[13px] leading-[1.65]">{detail}</CardDescription>
+        <CardTitle className="text-title">{title}</CardTitle>
+        <CardDescription className="mt-1.5 text-body leading-[1.65]">{detail}</CardDescription>
       </CardHeader>
       <CardContent className="mt-auto flex flex-wrap gap-2">
         <Button disabled={disabled} onClick={onDownload}>

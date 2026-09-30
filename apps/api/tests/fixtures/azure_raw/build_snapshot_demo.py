@@ -242,6 +242,13 @@ def build() -> dict[str, Any]:
         "tags": {"environment": "production", "criticality": "medium"},
         "properties": {
             "hardwareProfile": {"vmSize": "Standard_D4s_v5"},
+            # Keys only, as the ARM record of a Linux machine states it
+            # (AZ-CMP-004, DECISIONS.md section 171).
+            "osProfile": {
+                "computerName": "vm-build-agent",
+                "adminUsername": "azureuser",
+                "linuxConfiguration": {"disablePasswordAuthentication": True},
+            },
             "storageProfile": {
                 "osDisk": {
                     "osType": "Linux",
@@ -375,6 +382,48 @@ def build() -> dict[str, Any]:
         }
     ]
     data["diagnostic_settings"][vault_id] = diagnostics()
+    # What the vault holds, as its management plane describes it: attributes
+    # only, never a value (DECISIONS.md section 176). The signing key expires
+    # and rotates; the payment provider's API key was stored once and never
+    # given an expiry, which is AZ-KV-005's finding.
+    data["key_vault_keys"] = {
+        vault_id: [
+            {
+                "id": f"{vault_id}/keys/ledger-signing",
+                "name": "ledger-signing",
+                "type": "Microsoft.KeyVault/vaults/keys",
+                "properties": {
+                    "attributes": {"enabled": True, "exp": 1830297600},
+                    "kty": "RSA",
+                    "rotationPolicy": {
+                        "attributes": {"expiryTime": "P1Y"},
+                        "lifetimeActions": [
+                            {
+                                "trigger": {"timeBeforeExpiry": "P30D"},
+                                "action": {"type": "rotate"},
+                            }
+                        ],
+                    },
+                },
+            }
+        ]
+    }
+    data["key_vault_secrets"] = {
+        vault_id: [
+            {
+                "id": f"{vault_id}/secrets/ledger-db-connection",
+                "name": "ledger-db-connection",
+                "type": "Microsoft.KeyVault/vaults/secrets",
+                "properties": {"attributes": {"enabled": True, "exp": 1798761600}},
+            },
+            {
+                "id": f"{vault_id}/secrets/payment-provider-api-key",
+                "name": "payment-provider-api-key",
+                "type": "Microsoft.KeyVault/vaults/secrets",
+                "properties": {"attributes": {"enabled": True}},
+            },
+        ]
+    }
 
     # -------------------------------------------------------------- access
     known_roles = {definition["id"] for definition in data["role_definitions"]}
@@ -452,6 +501,8 @@ def build() -> dict[str, Any]:
         ("role_definitions", "authorization"),
         ("role_group_members", "authorization"),
         ("key_vaults", "secrets"),
+        ("key_vault_keys", "secrets"),
+        ("key_vault_secrets", "secrets"),
         ("subscription", "resources"),
     ):
         entry = coverage.setdefault(

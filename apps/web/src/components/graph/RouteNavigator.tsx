@@ -184,7 +184,7 @@ export function RouteNavigator({
 
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
         <div>
-          <p className="text-[11px] font-medium text-muted-foreground">{t.attackPaths.route}</p>
+          <p className="text-caption font-medium text-muted-foreground">{t.attackPaths.route}</p>
           <h3 ref={heading} tabIndex={-1} className="text-sm font-medium outline-none">
             {route.entry.name} <span className="text-muted-foreground">→</span>{" "}
             {route.target.name}
@@ -272,7 +272,7 @@ export function RouteNavigator({
         </div>
       </div>
 
-      <p className="hidden shrink-0 items-center gap-1.5 border-t border-border px-3 py-1.5 text-[11px] text-muted-foreground lg:flex">
+      <p className="hidden shrink-0 items-center gap-1.5 border-t border-border px-3 py-1.5 text-caption text-muted-foreground lg:flex">
         <Kbd>↑</Kbd>
         <Kbd>↓</Kbd>
         {t.attackPaths.keysHops}
@@ -433,7 +433,7 @@ function HopLink({
         />
         <span
           className={cn(
-            "relative mt-1.5 flex size-5 items-center justify-center rounded-full border text-[10px] font-medium",
+            "relative mt-1.5 flex size-5 items-center justify-center rounded-full border text-micro font-medium",
             reading
               ? "border-primary bg-primary text-primary-foreground"
               : cheapest
@@ -461,12 +461,12 @@ function HopLink({
         {(cheapest || leverage !== null) && (
           <div className="mt-1 flex flex-wrap gap-1.5">
             {cheapest && (
-              <span className="rounded-full border border-ok-border bg-ok-bg px-1.5 text-[11px] text-ok">
+              <span className="rounded-full border border-ok-border bg-ok-bg px-1.5 text-caption text-ok">
                 {t.attackPaths.earliestCut}
               </span>
             )}
             {leverage !== null && (
-              <span className="rounded-full border border-border px-1.5 text-[11px] text-foreground">
+              <span className="rounded-full border border-border px-1.5 text-caption text-foreground">
                 {t.attackPaths.closesMost(leverage)}
               </span>
             )}
@@ -479,7 +479,7 @@ function HopLink({
                 {step.facts.map((fact) => (
                   <li
                     key={fact}
-                    className="rounded-md border border-border bg-background px-1.5 py-0.5 text-[11px]"
+                    className="rounded-md border border-border bg-background px-1.5 py-0.5 text-caption"
                   >
                     {fact}
                   </li>

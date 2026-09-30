@@ -75,7 +75,7 @@ export function SetupRail({
             >
               <span
                 className={cn(
-                  "flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] tabular-nums transition-colors",
+                  "flex size-5 shrink-0 items-center justify-center rounded-full text-caption tabular-nums transition-colors",
                   done && "bg-primary text-primary-foreground",
                   active && "border border-primary text-primary",
                   !done && !active && "border border-border text-muted-foreground",
@@ -90,14 +90,14 @@ export function SetupRail({
               <span className="min-w-0">
                 <span
                   className={cn(
-                    "block text-[12.5px] leading-snug",
+                    "block text-meta leading-snug",
                     done || active ? "font-medium text-foreground" : "text-muted-foreground",
                   )}
                 >
                   {copy[step.key]}
                 </span>
                 {note && (
-                  <span className="mt-0.5 block text-[11.5px] leading-relaxed text-muted-foreground">
+                  <span className="mt-0.5 block text-caption leading-relaxed text-muted-foreground">
                     {note}
                   </span>
                 )}

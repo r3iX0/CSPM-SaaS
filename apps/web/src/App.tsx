@@ -84,9 +84,6 @@ const ScansPage = lazy(() =>
 const RulesPage = lazy(() =>
   import("@/pages/Rules").then((m) => ({ default: m.RulesPage })),
 );
-const EngineAuditPage = lazy(() =>
-  import("@/pages/EngineAudit").then((m) => ({ default: m.EngineAuditPage })),
-);
 const CompliancePage = lazy(() =>
   import("@/pages/Compliance").then((m) => ({ default: m.CompliancePage })),
 );
@@ -173,7 +170,6 @@ export function App() {
           <Route path="/remediation" element={<RemediationPage />} />
           <Route path="/scans" element={<ScansPage />} />
           <Route path="/rules" element={<RulesPage />} />
-          <Route path="/engine-audit" element={<EngineAuditPage />} />
           <Route path="/compliance" element={<CompliancePage />} />
           <Route
             path="/compliance/:frameworkId"

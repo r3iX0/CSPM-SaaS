@@ -160,6 +160,14 @@ action is covered without a redeploy, and — more to the point — no string in
 them can be a typo of ours. The inline policy holds only what they do not, which
 keeps the hand-written surface small enough to review by eye.
 
+The policy is at `v5`. It adds four reads for Cognito user pools
+(`DECISIONS.md` §177): `cognito-idp:ListUserPools`, `DescribeUserPool` and
+`DescribeRiskConfiguration`, and `wafv2:GetWebACLForResource` for the web ACL in
+front of each pool. `DescribeRiskConfiguration` returns the actions taken on a
+risky sign-in, never a user or an event. SecurityAudit probably carries the
+Cognito reads already; they are stated anyway, and like every string in the
+policy they are unverified until §1's checklist has run.
+
 ### Per-account roles
 
 An organization-wide connection assumes one role in each member account. The

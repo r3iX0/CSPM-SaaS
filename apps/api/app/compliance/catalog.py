@@ -31,10 +31,16 @@ None of this produces a compliance claim. It produces evidence, mapped to a
 requirement, attributed to a framework -- the chain in ROADMAP.md, no further.
 """
 
+import json
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
 from app.core.enums import Provider
-from app.prowler.catalog import CatalogFramework, prowler_frameworks
+
+# Frameworks kept as data rather than written out below: the current CIS
+# benchmarks, AWS FSBP, NIS2, HIPAA and ATT&CK (DECISIONS.md section 168).
+FRAMEWORKS_PATH = Path(__file__).resolve().parent / "data" / "frameworks.json"
 
 
 @dataclass(frozen=True)
@@ -1337,48 +1343,53 @@ CIS_AWS = Framework(
 )
 
 
-def _from_prowler(framework: CatalogFramework) -> Framework:
-    """A framework whose controls come from Prowler's compliance files.
+def _from_data(raw: dict[str, Any]) -> Framework:
+    """A framework read from ``data/frameworks.json``.
 
-    Built rather than written out, because the catalogue behind it is generated
-    (``tools/prowler/build_catalog.py``) and hand-copying 286 AWS FSBP controls
-    would be a second copy to drift. The titles are the benchmark's own
-    requirement names as Prowler carries them -- the one place this catalogue
-    does not use CloudGuard's own words, recorded in DECISIONS.md section 150.
+    Kept as data because six frameworks and 683 requirements written out as
+    ``Control(...)`` calls would bury the ones above. The titles are the
+    requirement names as the frameworks' own indexes give them -- the one place
+    this catalogue does not use CloudGuard's own words, which needs a licensing
+    decision for the CIS benchmarks before they are offered commercially
+    (DECISIONS.md sections 150 and 168).
 
     Everything the frameworks written by hand promise still holds: controls no
-    check reaches are listed and resolve to NOT_COVERED, and a requirement the
-    benchmark itself marks manual is not technically assessable.
+    rule reaches are listed and resolve to NOT_COVERED, and a requirement the
+    framework itself marks manual is not technically assessable.
     """
-    assessable = sum(1 for control in framework.controls if control.technically_assessable)
+    controls = tuple(
+        Control(
+            str(control["id"]),
+            str(control["title"]),
+            str(control["group"]),
+            technically_assessable=bool(control["technically_assessable"]),
+        )
+        for control in raw["controls"]
+    )
+    assessable = sum(1 for control in controls if control.technically_assessable)
     return Framework(
-        id=framework.id,
-        name=framework.name,
-        short_name=framework.short_name,
-        version=framework.version,
-        authority=framework.authority,
-        url=framework.url,
+        id=str(raw["id"]),
+        name=str(raw["name"]),
+        short_name=str(raw["short_name"]),
+        version=str(raw["version"]),
+        authority=str(raw["authority"]),
+        url=str(raw["url"]),
         summary=(
-            f"{framework.name}, as mapped by the extended checks. "
-            f"{len(framework.controls)} requirements, {assessable} of them technically "
-            "assessable."
+            f"{raw['name']}. {len(controls)} requirements, {assessable} of them "
+            "technically assessable."
         ),
         scope_note=(
-            "Every requirement in the published framework is listed. Evidence comes "
-            "from the extended checks (Prowler) mapped to it; a requirement no check "
-            "reaches is shown as not covered rather than left out."
+            "Every requirement in the published framework is listed. A requirement "
+            "no rule reaches is shown as not covered rather than left out."
         ),
-        controls=tuple(
-            Control(
-                control.id,
-                control.title,
-                control.group,
-                technically_assessable=control.technically_assessable,
-            )
-            for control in framework.controls
-        ),
-        provider=framework.provider,
+        controls=controls,
+        provider=Provider(raw["provider"]) if raw.get("provider") else None,
     )
+
+
+def _data_frameworks() -> tuple[Framework, ...]:
+    raw = json.loads(FRAMEWORKS_PATH.read_text())
+    return tuple(_from_data(entry) for entry in raw["frameworks"])
 
 
 FRAMEWORKS: tuple[Framework, ...] = (
@@ -1390,9 +1401,7 @@ FRAMEWORKS: tuple[Framework, ...] = (
     NIST_800_53,
     SOC2,
     PCI_DSS,
-    # Frameworks the extended checks brought: the current CIS benchmarks, AWS
-    # FSBP, NIS2, HIPAA and ATT&CK (DECISIONS.md section 150).
-    *(_from_prowler(framework) for framework in prowler_frameworks()),
+    *_data_frameworks(),
 )
 
 

@@ -60,7 +60,7 @@ export function ScorePanel({
       <div className="flex flex-col items-center gap-3 bg-card px-5 py-5 text-center">
         <h2
           id="posture-score"
-          className="self-start text-[13.5px] font-semibold"
+          className="self-start text-body font-semibold"
           title="Deducted against each finding's risk band — what it means on the asset it was found on — not the number of alerts raised."
         >
           Security score
@@ -79,31 +79,31 @@ export function ScorePanel({
           aria-valuetext={`${clamped} of 100, ${label.toLowerCase()}`}
         >
           <div className="absolute inset-3 flex flex-col items-center justify-center rounded-full bg-card">
-            <span className={cn("text-[32px] leading-none font-semibold tabular-nums", tone)}>
+            <span className={cn("text-display leading-none font-semibold tabular-nums", tone)}>
               {shown}
             </span>
-            <span className="mt-1 text-[11px] text-muted-foreground">/ 100</span>
+            <span className="mt-1 text-caption text-muted-foreground">/ 100</span>
           </div>
         </div>
 
-        <p className={cn("text-[13px] font-medium", tone)}>{label}</p>
+        <p className={cn("text-body font-medium", tone)}>{label}</p>
         <ScoreDelta delta={delta} />
-        <p className="text-[11.5px] text-muted-foreground">Scored by risk band, not alert count</p>
+        <p className="text-caption text-muted-foreground">Scored by risk band, not alert count</p>
       </div>
 
       <div className="flex min-w-0 flex-col gap-3 bg-card px-5 py-5">
         <div className="flex items-baseline justify-between gap-3">
-          <h3 className="text-[13.5px] font-semibold">What that means today</h3>
+          <h3 className="text-body font-semibold">What that means today</h3>
           {/* The history is the last readings by count, one per scan, not a
               window of days: several scans a day cover hours, weekly ones
               months. So the span is said in scans. */}
           {series.length >= 2 && (
-            <span className="text-[11.5px] tabular-nums text-muted-foreground">
+            <span className="text-caption tabular-nums text-muted-foreground">
               Last {series.length} scans
             </span>
           )}
         </div>
-        {summary && <p className="max-w-[70ch] text-[13.5px] leading-relaxed">{summary}</p>}
+        {summary && <p className="max-w-[70ch] text-body leading-relaxed">{summary}</p>}
 
         <div className="mt-auto">
           {series.length >= 2 ? (

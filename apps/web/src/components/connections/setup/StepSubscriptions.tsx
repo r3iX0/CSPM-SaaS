@@ -63,7 +63,7 @@ export function StepSubscriptions({
               <CheckIcon className="size-4" strokeWidth={3} aria-hidden />
             </m.span>
             <div className="min-w-0">
-              <h2 className="text-[15px] font-semibold tracking-[-0.015em] text-foreground">
+              <h2 className="text-title font-semibold tracking-[-0.015em] text-foreground">
                 {t.setup.doneHeadline.replace("{name}", connection.name)}
               </h2>
               <p className="mt-0.5 text-xs leading-relaxed text-foreground">
@@ -93,7 +93,7 @@ export function StepSubscriptions({
 
       <div>
         {connection.is_ready_to_scan && (
-          <p className="mb-2.5 text-[12.5px] font-medium text-foreground">{t.setup.reviewTitle}</p>
+          <p className="mb-2.5 text-meta font-medium text-foreground">{t.setup.reviewTitle}</p>
         )}
         <SubscriptionScopeList connection={connection} onError={onError} />
       </div>

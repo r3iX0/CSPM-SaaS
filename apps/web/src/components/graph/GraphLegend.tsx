@@ -1,9 +1,8 @@
 import type { ReactNode } from "react";
-import { CircleHelpIcon, MoveRightIcon } from "lucide-react";
+import { MoveRightIcon } from "lucide-react";
 
 import { FACTOR_ICONS, RISK_KIND_ICONS } from "@/lib/icons";
-import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { InfoTip } from "@/components/common/InfoTip";
 
 /** One mark a canvas draws, and the word for it. */
 export interface LegendItem {
@@ -39,18 +38,9 @@ export function GraphLegend({
           {item.label}
         </span>
       ))}
-      <Popover>
-        <PopoverTrigger
-          render={
-            <Button variant="ghost" size="icon-sm" aria-label={label}>
-              <CircleHelpIcon />
-            </Button>
-          }
-        />
-        <PopoverContent align="end" className="w-80 text-xs leading-relaxed" aria-label={label}>
-          {children}
-        </PopoverContent>
-      </Popover>
+      <InfoTip label={label} align="end" size="icon-sm" contentClassName="w-80">
+        {children}
+      </InfoTip>
     </div>
   );
 }

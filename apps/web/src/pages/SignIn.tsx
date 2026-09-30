@@ -11,6 +11,8 @@ import { useAuthToken } from "@/lib/useAuth";
 import { useT } from "@/i18n";
 import { Wordmark } from "@/components/Brand";
 import { ScoreTile } from "@/components/security/ScoreTile";
+import { PAGE_TITLE_CLASS } from "@/components/common/states";
+import { cn } from "@/lib/utils";
 
 /**
  * Sign-in and sign-up, via Supabase.
@@ -137,14 +139,14 @@ export function SignInPage() {
             />
           ) : (
             <>
-              <h1 className="text-2xl font-semibold tracking-[-0.02em] text-foreground">
+              <h1 className={PAGE_TITLE_CLASS}>
                 {mode === "signup"
                   ? t.auth.signUp
                   : mode === "reset"
                     ? t.auth.resetTitle
                     : t.auth.signIn}
               </h1>
-              <p className="mt-2 text-[13px] leading-[1.65] text-muted-foreground">
+              <p className="mt-2 text-body leading-[1.65] text-muted-foreground">
                 {mode === "signup"
                   ? "Start with your work email. You can connect Azure once you're in."
                   : mode === "reset"
@@ -164,7 +166,7 @@ export function SignInPage() {
               )}
 
               <form onSubmit={submit} className={mode === "reset" ? "mt-7" : "mt-[22px]"}>
-                <label htmlFor="email" className="block text-[13px] font-medium text-foreground">
+                <label htmlFor="email" className="block text-body font-medium text-foreground">
                   {t.auth.email}
                 </label>
                 <input
@@ -198,7 +200,7 @@ export function SignInPage() {
                         <button
                           type="button"
                           onClick={() => switchTo("reset")}
-                          className="rounded-sm text-[11.5px] text-muted-foreground underline underline-offset-[3px] transition hover:text-foreground focus-ring"
+                          className="rounded-sm text-caption text-muted-foreground underline underline-offset-[3px] transition hover:text-foreground focus-ring"
                         >
                           {t.auth.forgotPassword}
                         </button>
@@ -219,7 +221,7 @@ export function SignInPage() {
                 <button
                   type="submit"
                   aria-disabled={busy || undefined}
-                  className="mt-[22px] flex h-[42px] w-full items-center justify-center gap-2 rounded-[9px] bg-primary px-4 text-[13.5px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring aria-disabled:cursor-not-allowed aria-disabled:bg-muted aria-disabled:text-muted-foreground"
+                  className="mt-[22px] flex h-[42px] w-full items-center justify-center gap-2 rounded-[9px] bg-primary px-4 text-body font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring aria-disabled:cursor-not-allowed aria-disabled:bg-muted aria-disabled:text-muted-foreground"
                 >
                   {busy && (
                     <span
@@ -237,7 +239,7 @@ export function SignInPage() {
                   none: there is no password typed here yet and no Microsoft
                   button on screen to qualify. */}
               {mode !== "reset" && (
-                <p className="mt-[26px] border-t border-border pt-5 text-[11.5px] leading-[1.7] text-muted-foreground">
+                <p className="mt-[26px] border-t border-border pt-5 text-caption leading-[1.7] text-muted-foreground">
                   {needsPassword ? t.auth.passwordNotice : t.auth.microsoftHint}
                 </p>
               )}
@@ -250,7 +252,7 @@ export function SignInPage() {
 }
 
 const FIELD_CLASS =
-  "mt-2 h-10 w-full rounded-[9px] border border-input bg-background px-[13px] text-[13.5px] text-foreground transition-colors placeholder:text-muted-foreground hover:border-ring focus-visible:border-ring focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
+  "mt-2 h-10 w-full rounded-[9px] border border-input bg-background px-[13px] text-body text-foreground transition-colors placeholder:text-muted-foreground hover:border-ring focus-visible:border-ring focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
 
 function submitLabel(mode: Mode, busy: boolean, t: ReturnType<typeof useT>): string {
   if (busy) {
@@ -300,7 +302,7 @@ function Divider({ label }: { label: string }) {
   return (
     <div className="mt-[22px] flex items-center gap-3" aria-hidden="true">
       <span className="h-px flex-1 bg-border" />
-      <span className="text-[11.5px] text-muted-foreground">{label}</span>
+      <span className="text-caption text-muted-foreground">{label}</span>
       <span className="h-px flex-1 bg-border" />
     </div>
   );
@@ -320,7 +322,7 @@ function MicrosoftButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="mt-7 flex h-[42px] w-full items-center justify-center gap-2.5 rounded-[9px] border border-border bg-card px-4 text-[13.5px] font-medium text-foreground transition-colors hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring disabled:cursor-not-allowed disabled:text-muted-foreground"
+      className="mt-7 flex h-[42px] w-full items-center justify-center gap-2.5 rounded-[9px] border border-border bg-card px-4 text-body font-medium text-foreground transition-colors hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring disabled:cursor-not-allowed disabled:text-muted-foreground"
     >
       <MicrosoftMark />
       {label}
@@ -363,7 +365,7 @@ function PasswordField({
   return (
     <div className="mt-4">
       <div className="flex items-baseline justify-between gap-3">
-        <label htmlFor={id} className="block text-[13px] font-medium text-foreground">
+        <label htmlFor={id} className="block text-body font-medium text-foreground">
           {label}
         </label>
         {trailing}
@@ -416,14 +418,14 @@ function AlternateRoutes({ mode, onSwitch }: { mode: Mode; onSwitch: (mode: Mode
 
   if (mode === "reset") {
     return (
-      <div className="mt-[22px] text-center text-[13px]">
+      <div className="mt-[22px] text-center text-body">
         <TextLink onClick={() => onSwitch("signin")}>{t.auth.backToSignIn}</TextLink>
       </div>
     );
   }
 
   return (
-    <div className="mt-[22px] space-y-3 text-center text-[13px]">
+    <div className="mt-[22px] space-y-3 text-center text-body">
       <p>
         <TextLink onClick={() => onSwitch(mode === "magic" ? "signin" : "magic")}>
           {mode === "magic" ? t.auth.passwordInstead : t.auth.magicLinkInstead}
@@ -456,7 +458,7 @@ function BrandPanel() {
     // A muted wash of the page's own background, in either theme: the panel
     // belongs to the product rather than standing in front of it.
     <aside className="hidden w-[46%] max-w-[660px] shrink-0 flex-col justify-between border-r border-border bg-[color-mix(in_oklab,var(--muted)_45%,var(--background))] p-12 text-foreground lg:flex">
-      <Wordmark className="gap-2.5" markClassName="size-[22px]" labelClassName="text-[17px]" />
+      <Wordmark className="gap-2.5" markClassName="size-[22px]" labelClassName="text-heading" />
 
       <div>
         <h2 className="max-w-[15ch] text-4xl leading-[1.12] font-semibold tracking-[-0.03em]">
@@ -476,7 +478,7 @@ function BrandPanel() {
         </ul>
       </div>
 
-      <p className="text-[11.5px] text-muted-foreground">
+      <p className="text-caption text-muted-foreground">
         Azure-first cloud security posture management
       </p>
     </aside>
@@ -507,10 +509,10 @@ function ProductPreview() {
     >
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-baseline gap-2">
-          <span className="text-[26px] font-semibold tracking-[-0.02em] text-medium tabular-nums">71</span>
-          <span className="text-[11.5px] text-muted-foreground">/ 100 security score</span>
+          <span className="text-stat font-semibold tracking-[-0.02em] text-medium tabular-nums">71</span>
+          <span className="text-caption text-muted-foreground">/ 100 security score</span>
         </div>
-        <span className="rounded-full border border-ok-border bg-ok-bg px-2 py-0.5 text-[11px] font-medium text-ok">
+        <span className="rounded-full border border-ok-border bg-ok-bg px-2 py-0.5 text-caption font-medium text-ok">
           +5 since last scan
         </span>
       </div>
@@ -520,7 +522,7 @@ function ProductPreview() {
             <ScoreTile score={row.score} level={row.level} className="size-8 [&>span]:text-xs" />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-xs font-medium text-foreground">{row.title}</span>
-              <span className="block text-[11px] text-muted-foreground">{row.tag}</span>
+              <span className="block text-caption text-muted-foreground">{row.tag}</span>
             </span>
           </li>
         ))}
@@ -531,7 +533,7 @@ function ProductPreview() {
 
 function Assurance({ children }: { children: React.ReactNode }) {
   return (
-    <li className="flex items-start gap-2.5 text-[13px] leading-[1.6] text-foreground">
+    <li className="flex items-start gap-2.5 text-body leading-[1.6] text-foreground">
       <span className="mt-px flex size-[18px] shrink-0 items-center justify-center rounded-full bg-ok-bg text-ok">
         <svg viewBox="0 0 16 16" className="size-[11px]" aria-hidden="true">
           <path
@@ -577,15 +579,15 @@ function SentNotice({ sent, onUseAnother }: { sent: Sent; onUseAnother: () => vo
         </svg>
       </div>
 
-      <h1 className="mt-5 text-2xl font-semibold tracking-[-0.02em] text-foreground">
+      <h1 className={cn("mt-5", PAGE_TITLE_CLASS)}>
         {t.auth.checkEmail}
       </h1>
-      <p className="mt-2 text-[13px] leading-[1.65] text-muted-foreground">
+      <p className="mt-2 text-body leading-[1.65] text-muted-foreground">
         {lead} <strong className="text-foreground">{sent.email}</strong>.{" "}
         {t.auth.openOnThisDevice}
       </p>
 
-      <p className="mt-6 rounded-[10px] bg-muted px-4 py-3 text-[11.5px] leading-[1.7] text-muted-foreground">
+      <p className="mt-6 rounded-[10px] bg-muted px-4 py-3 text-caption leading-[1.7] text-muted-foreground">
         The link works once and expires after an hour. If nothing arrives, check
         spam — and note that some disposable inboxes open links automatically,
         which uses the link up before you get to it.
@@ -593,7 +595,7 @@ function SentNotice({ sent, onUseAnother }: { sent: Sent; onUseAnother: () => vo
 
       <button
         onClick={onUseAnother}
-        className="mt-6 rounded-sm text-[13px] text-muted-foreground underline underline-offset-[3px] transition-colors hover:text-foreground focus-ring"
+        className="mt-6 rounded-sm text-body text-muted-foreground underline underline-offset-[3px] transition-colors hover:text-foreground focus-ring"
       >
         {t.auth.useAnotherAddress}
       </button>

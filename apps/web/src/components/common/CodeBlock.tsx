@@ -67,7 +67,7 @@ export function CodeBlock({
     // and the line looked corrupted rather than scrollable.
     <div
       className={cn(
-        "flex items-start gap-2 rounded-[10px] border bg-muted p-3 text-[12px] leading-relaxed",
+        "flex items-start gap-2 rounded-[10px] border bg-muted p-3 text-meta leading-relaxed",
         className,
       )}
     >

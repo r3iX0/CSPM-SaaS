@@ -86,6 +86,66 @@ class AzureEvidence(EvidenceKey):
     # The vault's configuration. Never its contents -- reading a secret is a
     # data-plane permission this connector does not hold.
     KEY_VAULTS = "key_vaults"
+    # v9. Six listings, each one type the connector did not model before and
+    # listed only in the inventory as unchecked: managed Kubernetes clusters,
+    # container registries, Cosmos DB accounts, MySQL flexible servers,
+    # Databricks workspaces and AI Search services. One key each, so a
+    # refused listing costs only its own type's verdicts (DECISIONS.md
+    # section 169).
+    KUBERNETES_CLUSTERS = "kubernetes_clusters"
+    CONTAINER_REGISTRIES = "container_registries"
+    COSMOS_ACCOUNTS = "cosmos_accounts"
+    MYSQL_SERVERS = "mysql_servers"
+    DATABRICKS_WORKSPACES = "databricks_workspaces"
+    SEARCH_SERVICES = "search_services"
+    # v10. Two MySQL server parameters, read by name per server beneath the
+    # listing -- whether it requires TLS and which TLS versions it accepts --
+    # the way PostgreSQL's one parameter is (DECISIONS.md section 172).
+    MYSQL_CONFIGURATIONS = "mysql_configurations"
+    # Five PostgreSQL server parameters about what the server logs and how it
+    # meets a connection flood, read by name under the configurations read the
+    # role has held since v7 (DECISIONS.md section 175).
+    POSTGRESQL_LOGGING = "postgresql_logging"
+
+    # v11 (DECISIONS.md section 176). The reads the rest of Tier 2 needed, one
+    # key each so a refusal costs only the checks resting on it.
+    #
+    # Beneath a SQL server: whether Defender for SQL watches it, which key
+    # protects its encryption, and how it is assessed for vulnerabilities.
+    SQL_THREAT_DETECTION = "sql_threat_detection"
+    SQL_ENCRYPTION_PROTECTOR = "sql_encryption_protector"
+    SQL_VULNERABILITY_ASSESSMENT = "sql_vulnerability_assessment"
+    # The file service beneath a storage account: share soft delete and SMB.
+    STORAGE_FILE_SERVICES = "storage_file_services"
+    # The attributes of the keys and secrets in each vault -- when each stops
+    # working, and whether a key rotates. The management-plane reads, which
+    # never return a secret's value or a key's private material.
+    KEY_VAULT_KEYS = "key_vault_keys"
+    KEY_VAULT_SECRETS = "key_vault_secrets"
+    # Whether App Service Authentication stands in front of each site. Read
+    # under the site configuration read held since v7.
+    APP_SERVICE_AUTH = "app_service_auth"
+    # Defender for Cloud's subscription settings: who is emailed about what,
+    # which integrations are on, and the IoT hubs it watches.
+    SECURITY_CONTACTS = "security_contacts"
+    SECURITY_SETTINGS = "security_settings"
+    IOT_SECURITY_SOLUTIONS = "iot_security_solutions"
+    # Which machines are behind just-in-time access, and which are backed up.
+    JIT_POLICIES = "jit_policies"
+    VM_BACKUPS = "vm_backups"
+    DISKS = "disks"
+    # Which activity-log alerts exist, and which policy assignments apply here.
+    ACTIVITY_LOG_ALERTS = "activity_log_alerts"
+    POLICY_ASSIGNMENTS = "policy_assignments"
+    # Networks, the watchers that observe them, their flow logs, and Bastion.
+    VIRTUAL_NETWORKS = "virtual_networks"
+    NETWORK_WATCHERS = "network_watchers"
+    FLOW_LOGS = "flow_logs"
+    BASTION_HOSTS = "bastion_hosts"
+    # v12 (section 177): each Recovery Services vault's backup policies -- how
+    # long it keeps what it holds -- and virtual machine scale sets.
+    BACKUP_POLICIES = "backup_policies"
+    SCALE_SETS = "scale_sets"
 
     # Microsoft Defender for Cloud's own assessments of this subscription.
     #
@@ -134,7 +194,21 @@ class AzureEvidence(EvidenceKey):
     # tenant -- so this costs no customer a second trip to a Global
     # Administrator.
     SECURITY_DEFAULTS = "security_defaults"
+    # The tenant's authorization policy: who may invite guests, what guests can
+    # see, whether users can register applications, create tenants and groups,
+    # and consent to applications themselves. Graph, under ``Policy.Read.All``,
+    # which every connected tenant already consented (section 172).
+    AUTHORIZATION_POLICY = "authorization_policy"
+    # Which sign-in methods the tenant allows and whether it campaigns for
+    # registration (``Policy.Read.All``), and the tenant's directory settings,
+    # read for who may create Microsoft 365 groups (``Directory.Read.All``).
+    # Both already consented (DECISIONS.md section 173).
+    AUTHENTICATION_METHODS_POLICY = "authentication_methods_policy"
+    GROUP_SETTINGS = "group_settings"
     CONDITIONAL_ACCESS_POLICIES = "conditional_access_policies"
+    # The tenant's named locations, for whether any network is marked trusted
+    # (``Policy.Read.All``, already consented; section 176).
+    NAMED_LOCATIONS = "named_locations"
 
     # The credentials on this tenant's own application registrations: client
     # secrets and certificates, with the dates they stop working.
@@ -197,6 +271,36 @@ _CATEGORIES: dict[AzureEvidence, EvidenceCategory] = {
     AzureEvidence.SQL_ADMINISTRATORS: EvidenceCategory.DATABASE,
     AzureEvidence.POSTGRESQL_CONFIGURATIONS: EvidenceCategory.DATABASE,
     AzureEvidence.KEY_VAULTS: EvidenceCategory.SECRETS,
+    AzureEvidence.KUBERNETES_CLUSTERS: EvidenceCategory.COMPUTE,
+    AzureEvidence.CONTAINER_REGISTRIES: EvidenceCategory.COMPUTE,
+    AzureEvidence.DATABRICKS_WORKSPACES: EvidenceCategory.COMPUTE,
+    AzureEvidence.COSMOS_ACCOUNTS: EvidenceCategory.DATABASE,
+    AzureEvidence.MYSQL_SERVERS: EvidenceCategory.DATABASE,
+    AzureEvidence.SEARCH_SERVICES: EvidenceCategory.DATABASE,
+    AzureEvidence.MYSQL_CONFIGURATIONS: EvidenceCategory.DATABASE,
+    AzureEvidence.POSTGRESQL_LOGGING: EvidenceCategory.DATABASE,
+    AzureEvidence.SQL_THREAT_DETECTION: EvidenceCategory.DATABASE,
+    AzureEvidence.SQL_ENCRYPTION_PROTECTOR: EvidenceCategory.DATABASE,
+    AzureEvidence.SQL_VULNERABILITY_ASSESSMENT: EvidenceCategory.DATABASE,
+    AzureEvidence.STORAGE_FILE_SERVICES: EvidenceCategory.STORAGE,
+    AzureEvidence.KEY_VAULT_KEYS: EvidenceCategory.SECRETS,
+    AzureEvidence.KEY_VAULT_SECRETS: EvidenceCategory.SECRETS,
+    AzureEvidence.APP_SERVICE_AUTH: EvidenceCategory.COMPUTE,
+    AzureEvidence.SECURITY_CONTACTS: EvidenceCategory.POSTURE,
+    AzureEvidence.SECURITY_SETTINGS: EvidenceCategory.POSTURE,
+    AzureEvidence.IOT_SECURITY_SOLUTIONS: EvidenceCategory.POSTURE,
+    AzureEvidence.JIT_POLICIES: EvidenceCategory.POSTURE,
+    AzureEvidence.POLICY_ASSIGNMENTS: EvidenceCategory.POSTURE,
+    AzureEvidence.VM_BACKUPS: EvidenceCategory.COMPUTE,
+    AzureEvidence.DISKS: EvidenceCategory.COMPUTE,
+    AzureEvidence.ACTIVITY_LOG_ALERTS: EvidenceCategory.LOGGING,
+    AzureEvidence.VIRTUAL_NETWORKS: EvidenceCategory.NETWORK,
+    AzureEvidence.NETWORK_WATCHERS: EvidenceCategory.NETWORK,
+    AzureEvidence.FLOW_LOGS: EvidenceCategory.NETWORK,
+    AzureEvidence.BASTION_HOSTS: EvidenceCategory.NETWORK,
+    AzureEvidence.NAMED_LOCATIONS: EvidenceCategory.IDENTITY,
+    AzureEvidence.BACKUP_POLICIES: EvidenceCategory.COMPUTE,
+    AzureEvidence.SCALE_SETS: EvidenceCategory.COMPUTE,
     AzureEvidence.SECURITY_ASSESSMENTS: EvidenceCategory.POSTURE,
     AzureEvidence.DEFENDER_PLANS: EvidenceCategory.POSTURE,
     AzureEvidence.POSTGRESQL_SERVERS: EvidenceCategory.DATABASE,
@@ -209,6 +313,9 @@ _CATEGORIES: dict[AzureEvidence, EvidenceCategory] = {
     AzureEvidence.DIRECTORY_ROLES: EvidenceCategory.IDENTITY,
     AzureEvidence.USER_ROLE_MAP: EvidenceCategory.IDENTITY,
     AzureEvidence.SECURITY_DEFAULTS: EvidenceCategory.IDENTITY,
+    AzureEvidence.AUTHORIZATION_POLICY: EvidenceCategory.IDENTITY,
+    AzureEvidence.AUTHENTICATION_METHODS_POLICY: EvidenceCategory.IDENTITY,
+    AzureEvidence.GROUP_SETTINGS: EvidenceCategory.IDENTITY,
     AzureEvidence.CONDITIONAL_ACCESS_POLICIES: EvidenceCategory.IDENTITY,
     AzureEvidence.APPLICATION_CREDENTIALS: EvidenceCategory.IDENTITY,
     AzureEvidence.APPLICATION_OWNERS: EvidenceCategory.IDENTITY,
@@ -252,6 +359,11 @@ if _missing:  # pragma: no cover - import-time guard
 # resources CloudGuard does not check". Until something says that, this is a
 # query per subscription per scan and a stored blob for a capability that does
 # not exist, and the honest options are to build it or to stop asking.
+#
+# Since section 176 one rule does name it: AZ-DEF-009 learns from the inventory
+# which IoT hubs exist, a type the connector does not model. It stays baseline
+# evidence all the same, because the unchecked-inventory view needs it whether
+# or not a subscription has a hub.
 #
 # Declared here rather than inferred, because "no rule needs it" and "nothing
 # needs it" are different statements and only the second is a reason to stop

@@ -283,14 +283,6 @@ export const en = {
       + "rather than passing \u2014 Cleave will not tell you something is "
       + "fine when it could not look.",
     roleUpgradeAffects: "Affected checks",
-    readerMissing: "Reader missing",
-    extendedChecksBlockedBody:
-      "The extended checks read through the built-in Reader role, which the "
-      + "deployment now assigns beside the scanner role. This connection was "
-      + "deployed before it did, so they report “not known” for "
-      + "every resource type the scanner role does not cover. Reader grants "
-      + "reads only — no writes, no keys, no data.",
-    extendedChecksAffects: "Extended checks",
     consentIncomplete: "Granted, incomplete",
     permissionsMissingTitle: "Identity checks cannot run until consent is complete",
     permissionsMissingBody:

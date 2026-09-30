@@ -89,7 +89,7 @@ export function ConnectPage() {
               narrow screens, where each row stacks and carries its own. */}
           <div
             aria-hidden
-            className="hidden px-5 py-2.5 text-[11.5px] text-muted-foreground md:grid md:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_auto] md:gap-4"
+            className="hidden px-5 py-2.5 text-caption text-muted-foreground md:grid md:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_auto] md:gap-4"
           >
             <span>{t.connection.columnConnection}</span>
             <span>{t.connection.columnStatus}</span>
@@ -148,7 +148,7 @@ function ComingSoon() {
 
   return (
     <section aria-labelledby="coming-soon">
-      <h2 id="coming-soon" className="mb-2.5 text-[12.5px] font-medium text-muted-foreground">
+      <h2 id="coming-soon" className="mb-2.5 text-meta font-medium text-muted-foreground">
         {t.connection.comingSoon}
       </h2>
       <ul className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-2.5">
@@ -158,7 +158,7 @@ function ComingSoon() {
             className="flex items-center gap-2.5 rounded-[10px] border border-border bg-card px-3.5 py-2.5 opacity-60"
           >
             <ProviderMark provider={id} tile className="text-muted-foreground" />
-            <span className="text-[12.5px] font-medium text-muted-foreground">
+            <span className="text-meta font-medium text-muted-foreground">
               {PLANNED_NAMES[id]}
             </span>
           </li>

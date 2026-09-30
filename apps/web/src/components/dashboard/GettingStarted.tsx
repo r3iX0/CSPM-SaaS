@@ -277,7 +277,7 @@ export function GettingStarted({
               )}
               <span
                 className={cn(
-                  "flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold tabular-nums",
+                  "flex size-6 shrink-0 items-center justify-center rounded-full text-caption font-semibold tabular-nums",
                   step.done && "bg-ok text-background",
                   current && "bg-foreground text-background",
                   !step.done && !current && "border border-border text-muted-foreground",

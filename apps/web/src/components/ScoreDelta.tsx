@@ -35,8 +35,8 @@ export function ScoreDelta({ delta }: { delta: number | null }) {
     <p
       className={
         improved
-          ? "inline-flex items-center gap-1 rounded-full border border-ok-border bg-ok-bg px-2 py-px text-[11.5px] font-medium tabular-nums text-ok"
-          : "inline-flex items-center gap-1 rounded-full border border-critical-border bg-critical-bg px-2 py-px text-[11.5px] font-medium tabular-nums text-critical"
+          ? "inline-flex items-center gap-1 rounded-full border border-ok-border bg-ok-bg px-2 py-px text-caption font-medium tabular-nums text-ok"
+          : "inline-flex items-center gap-1 rounded-full border border-critical-border bg-critical-bg px-2 py-px text-caption font-medium tabular-nums text-critical"
       }
     >
       <span aria-hidden="true">{improved ? "\u2191" : "\u2193"}</span>{" "}

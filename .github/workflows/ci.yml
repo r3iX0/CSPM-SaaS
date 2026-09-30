@@ -167,48 +167,6 @@ jobs:
         working-directory: apps/web
         run: npm run build
 
-  scanner:
-    name: Scanner — catalogue, lint, types, tests
-    runs-on: ubuntu-latest
-    # Its own job and its own interpreter environment: Prowler pins botocore and
-    # pydantic to versions the API's dependencies cannot share, which is why the
-    # scanner is a separate service at all (DECISIONS.md §150).
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-
-      - name: Install
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e "apps/scanner[dev]"
-
-      - name: Refuse a stale posture catalogue
-        # The catalogue is the contract between the two engines: the API reads
-        # it to interpret a result, the scanner to choose what to run. Built from
-        # the Prowler this job just installed, so a curation edit that was not
-        # regenerated -- or a Prowler bump that was not rebuilt -- fails here.
-        run: |
-          python tools/prowler/build_catalog.py --check || {
-            echo "::error file=apps/api/app/prowler/data/catalog.json::Out of date. Run python tools/prowler/build_catalog.py with the pinned Prowler installed."
-            exit 1
-          }
-
-      - name: Lint
-        working-directory: apps/scanner
-        run: ruff check .
-
-      - name: Type check
-        working-directory: apps/scanner
-        run: mypy cloudguard_scanner
-
-      - name: Test
-        working-directory: apps/scanner
-        run: pytest -q
-
   audit:
     name: Dependencies — known advisories
     runs-on: ubuntu-latest

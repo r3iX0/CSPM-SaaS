@@ -126,16 +126,16 @@ function FrameworkCard({ framework }: { framework: ComplianceFramework }) {
                 centerLabel=""
                 ariaLabel={`${formatPercent(framework.coverage_ratio)} of ${framework.control_count} controls reached a conclusion`}
                 className="size-16"
-                valueClassName="text-[14.5px]"
+                valueClassName="text-title"
               />
-              <span className="text-[11px] text-muted-foreground">assessable</span>
+              <span className="text-caption text-muted-foreground">assessable</span>
             </div>
             <div className="min-w-0">
               <CardTitle>{framework.short_name}</CardTitle>
               <CardDescription className="mt-1">
                 {framework.authority} · {framework.version}
               </CardDescription>
-              <p className="mt-2 line-clamp-2 text-[13px] leading-relaxed text-muted-foreground">
+              <p className="mt-2 line-clamp-2 text-body leading-relaxed text-muted-foreground">
                 {framework.summary}
               </p>
             </div>
@@ -158,7 +158,7 @@ function FrameworkCard({ framework }: { framework: ComplianceFramework }) {
           </ul>
         </CardContent>
 
-        <div className="flex items-center gap-1 border-t px-5 py-3 text-[13px] font-medium text-foreground">
+        <div className="flex items-center gap-1 border-t px-5 py-3 text-body font-medium text-foreground">
           {t.compliance.viewFramework}
           <ArrowRightIcon
             className="size-3.5 transition-transform group-hover:translate-x-0.5"
@@ -203,7 +203,7 @@ function DomainCoverage({ frameworks }: { frameworks: ComplianceFramework[] }) {
       className="rounded-xl bg-card ring-1 ring-foreground/10"
     >
       <header className="px-5 py-4">
-        <h2 id="domain-coverage" className="text-[13.5px] font-semibold">
+        <h2 id="domain-coverage" className="text-body font-semibold">
           Coverage by domain
         </h2>
         <p className="mt-1 text-xs text-muted-foreground">

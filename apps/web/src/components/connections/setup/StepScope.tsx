@@ -224,7 +224,7 @@ export function StepScope({
                 >
                   <ProviderMark provider={option.id} tile />
                   <span className="min-w-0 flex-1">
-                    <span className="flex flex-wrap items-center gap-2 text-[13.5px] font-medium text-foreground">
+                    <span className="flex flex-wrap items-center gap-2 text-body font-medium text-foreground">
                       {option.name}
                       {!option.available && (
                         <Badge variant="outline" className="font-normal text-muted-foreground">
@@ -295,7 +295,7 @@ export function StepScope({
                       </Badge>
                     )}
                   </span>
-                  <span className="mt-3 block text-[13.5px] font-medium text-foreground">
+                  <span className="mt-3 block text-body font-medium text-foreground">
                     {scope.label}
                   </span>
                   <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
@@ -335,7 +335,7 @@ export function StepScope({
                 value={scopeId}
                 onChange={(e) => setScopeId(e.target.value)}
                 placeholder={scopeIdPlaceholder()}
-                className="h-10 max-w-md font-mono text-[13px]"
+                className="h-10 max-w-md font-mono text-body"
               />
             </Field>
           )}
@@ -349,7 +349,7 @@ export function StepScope({
                   <Icon className="size-4" aria-hidden />
                 </span>
                 <span className="min-w-0">
-                  <span className="block text-[13px] font-medium text-foreground">{title}</span>
+                  <span className="block text-body font-medium text-foreground">{title}</span>
                   <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
                     {detail}
                   </span>

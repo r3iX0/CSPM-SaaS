@@ -552,7 +552,7 @@ export function AssetsPage() {
                         <TableRow className="hover:bg-transparent">
                           <TableCell
                             colSpan={7}
-                            className="bg-muted/60 py-1.5 font-mono text-[11.5px] font-medium text-muted-foreground"
+                            className="bg-muted/60 py-1.5 font-mono text-caption font-medium text-muted-foreground"
                           >
                             {groupName}
                             <span className="ml-2 tabular-nums opacity-70">{rows.length}</span>
@@ -578,7 +578,7 @@ export function AssetsPage() {
                               <Link
                                 to={`/assets/${asset.id}`}
                                 state={returnTo}
-                                className="block truncate text-[13.5px] font-medium text-foreground after:absolute after:inset-0 hover:underline"
+                                className="block truncate text-body font-medium text-foreground after:absolute after:inset-0 hover:underline"
                               >
                                 {asset.name}
                               </Link>
@@ -592,7 +592,7 @@ export function AssetsPage() {
                           <TableCell className="text-muted-foreground">
                             {/* An unmodelled resource is named by the provider's own
                                 type, so the reader sees what is unchecked. */}
-                            <span className="text-[12.5px]">
+                            <span className="text-meta">
                               {asset.azure_type ?? resourceTypeLabel(asset.resource_type)}
                             </span>
                           </TableCell>
@@ -673,7 +673,7 @@ function OnRouteMark() {
   return (
     <span
       title="On an attack path"
-      className="inline-flex shrink-0 items-center gap-1 rounded-md border border-primary-border bg-primary-soft px-1 py-px text-[10.5px] font-medium text-foreground"
+      className="inline-flex shrink-0 items-center gap-1 rounded-md border border-primary-border bg-primary-soft px-1 py-px text-micro font-medium text-foreground"
     >
       <Route className="size-3" aria-hidden />
       <span className="sr-only">On an attack path</span>

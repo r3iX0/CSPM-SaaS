@@ -145,7 +145,7 @@ export function FixVerification({
                 critical tint is under 4.5:1. */}
             <p
               className={cn(
-                "mt-0.5 text-[13px] leading-relaxed",
+                "mt-0.5 text-body leading-relaxed",
                 finished ? "text-foreground" : "text-muted-foreground",
               )}
             >
@@ -187,7 +187,7 @@ export function FixVerification({
               </span>
               <span
                 className={cn(
-                  "text-[11px]",
+                  "text-caption",
                   active || done ? "text-foreground" : "text-muted-foreground",
                 )}
               >
@@ -199,7 +199,7 @@ export function FixVerification({
       </ol>
 
       {proof && (
-        <p className="mt-4 font-mono text-[11.5px] break-all text-foreground/80">
+        <p className="mt-4 font-mono text-caption break-all text-foreground/80">
           evidence sha256 {proof.content_hash?.slice(0, 12)}… · {proof.evidence_key} · read{" "}
           {proof.collected_at}
         </p>

@@ -39,18 +39,9 @@ from app.connectors.evidence import EvidenceCategory
 from app.core.enums import ConnectionScope
 
 # Bump when the action list changes.
-ROLE_VERSION = "v8"
+ROLE_VERSION = "v12"
 
 ROLE_NAME = "CloudGuard Security Scanner"
-
-# The built-in Reader role, which the deployment template also assigns for the
-# extended checks (DECISIONS.md section 150). A well-known id Microsoft
-# publishes and never changes, not a string recalled from memory: see
-# https://learn.microsoft.com/azure/role-based-access-control/built-in-roles#reader.
-READER_ROLE_DEFINITION_ID = "acdd72a7-3385-48ef-bd42-f606fba81ae7"
-# Seeds the assignment's name, so a redeployment is a no-op rather than a
-# second assignment.
-EXTENDED_CHECKS_ASSIGNMENT = "cloudguard-extended-checks-reader"
 
 # ARM read actions required for MVP scanning. Organized by resource category.
 # Every action here is ``*/read`` -- no writes, no data actions.
@@ -157,6 +148,88 @@ ARM_READ_ACTIONS: tuple[str, ...] = (
     # on 2026-09-22 against the published operations reference: "Gets the role
     # eligibility schedule instances at given scope."
     "Microsoft.Authorization/roleEligibilityScheduleInstances/read",
+    # v9. Six configuration reads, one per type the connector now models:
+    # managed Kubernetes clusters, container registries, Cosmos DB accounts,
+    # MySQL flexible servers, Databricks workspaces and AI Search services.
+    # Each verified on 2026-09-29 against the published operations reference
+    # (the provider pages of Azure permissions, and the Search provider's own
+    # operations listing), which is what this file's rule about unverified
+    # strings asks for. Every one is the ``/read`` of the resource itself:
+    # the credentials of each -- a cluster's kubeconfig, a registry's login,
+    # an account's keys, a search service's admin keys -- are ``/action``
+    # reads, and none is requested (DECISIONS.md section 169).
+    "Microsoft.ContainerService/managedClusters/read",
+    "Microsoft.ContainerRegistry/registries/read",
+    "Microsoft.DocumentDB/databaseAccounts/read",
+    "Microsoft.DBforMySQL/flexibleServers/read",
+    "Microsoft.Databricks/workspaces/read",
+    "Microsoft.Search/searchServices/read",
+    # v10. Two MySQL server parameters -- whether TLS is required and which
+    # versions are accepted -- read by name, as PostgreSQL's one is. Verified on
+    # 2026-09-29 against the published operations reference ("Returns the list
+    # of MySQL server configurations or gets the configurations for the
+    # specified server") (DECISIONS.md section 172).
+    "Microsoft.DBforMySQL/flexibleServers/configurations/read",
+    # v11. Twenty-one reads, the rest of the backlog's Tier 2 (DECISIONS.md
+    # section 176). Each string was checked on 2026-09-30 against the published
+    # operations reference -- the Azure permissions pages for the Security,
+    # Databases, Storage, Compute, Monitor, Networking and Management and
+    # governance categories -- and quoted with the casing printed there, which
+    # is why two of them capitalize their resource type. ARM compares actions
+    # case-blind, and a string copied exactly is the one least likely to be
+    # a near miss.
+    #
+    # Beneath each SQL server: Defender for SQL's own switch, which key
+    # protects encryption, and both forms of vulnerability assessment. The
+    # classic assessment's storage key and SAS token are write-only in the
+    # contract and never returned.
+    "Microsoft.Sql/servers/securityAlertPolicies/read",
+    "Microsoft.Sql/servers/encryptionProtector/read",
+    "Microsoft.Sql/servers/vulnerabilityAssessments/read",
+    "Microsoft.Sql/servers/sqlVulnerabilityAssessments/read",
+    # The file service beneath a storage account -- share soft delete and the
+    # SMB settings. Service properties, not files.
+    "Microsoft.Storage/storageAccounts/fileServices/read",
+    # The keys and secrets in a vault, through the management plane. The
+    # reference describes the second as "View the properties of a secret, but
+    # not its value", and ARM's contract says a secret's value "will never be
+    # returned". Reading a value is ``secrets/getSecret/action`` and using a
+    # key is a data action too; neither is requested, and a test holds the
+    # role to that.
+    "Microsoft.KeyVault/vaults/keys/read",
+    "Microsoft.KeyVault/vaults/secrets/read",
+    # Defender for Cloud's subscription settings: its email contacts, its
+    # integrations, the IoT hubs it watches, and just-in-time access. Both
+    # just-in-time reads, because the subscription-wide listing returns
+    # policies that live under a location and the reference does not say
+    # which of the two ARM checks for it -- the Resource Graph trade above,
+    # made the same way.
+    "Microsoft.Security/securityContacts/read",
+    "Microsoft.Security/settings/read",
+    "Microsoft.Security/iotSecuritySolutions/read",
+    "Microsoft.Security/jitNetworkAccessPolicies/read",
+    "Microsoft.Security/locations/jitNetworkAccessPolicies/read",
+    # Which machines Azure Backup protects: the vaults, and the items in each.
+    "Microsoft.RecoveryServices/Vaults/read",
+    "Microsoft.RecoveryServices/Vaults/backupProtectedItems/read",
+    # Managed disks, attached or not -- state and encryption, never contents.
+    # Exporting a disk is ``beginGetAccess/action`` and is not requested.
+    "Microsoft.Compute/disks/read",
+    # Activity-log alerts, and the policy assignments in force here.
+    "Microsoft.Insights/activityLogAlerts/read",
+    "Microsoft.Authorization/policyAssignments/read",
+    # Virtual networks, the watchers that observe each region, their flow
+    # logs, and Bastion hosts.
+    "Microsoft.Network/virtualNetworks/read",
+    "Microsoft.Network/networkWatchers/read",
+    "Microsoft.Network/networkWatchers/flowLogs/read",
+    "Microsoft.Network/bastionHosts/read",
+    # v12. Two reads for Tier 3 (DECISIONS.md section 177), checked on
+    # 2026-09-30 against the published operations reference: how long each
+    # Recovery Services vault keeps its recovery points ("Returns all
+    # Protection Policies"), and virtual machine scale sets.
+    "Microsoft.RecoveryServices/Vaults/backupPolicies/read",
+    "Microsoft.Compute/virtualMachineScaleSets/read",
 )
 
 # Which ARM action each collector call needs. This is the link between the code
@@ -208,6 +281,53 @@ CLIENT_ACTIONS: dict[str, tuple[str, ...]] = {
     ),
     "list_app_services": ("Microsoft.Web/sites/read",),
     "get_app_service_config": ("Microsoft.Web/sites/config/read",),
+    "list_kubernetes_clusters": ("Microsoft.ContainerService/managedClusters/read",),
+    "list_container_registries": ("Microsoft.ContainerRegistry/registries/read",),
+    "list_cosmos_accounts": ("Microsoft.DocumentDB/databaseAccounts/read",),
+    "list_mysql_servers": ("Microsoft.DBforMySQL/flexibleServers/read",),
+    "list_databricks_workspaces": ("Microsoft.Databricks/workspaces/read",),
+    "list_search_services": ("Microsoft.Search/searchServices/read",),
+    "get_mysql_secure_transport": ("Microsoft.DBforMySQL/flexibleServers/configurations/read",),
+    "get_mysql_tls_version": ("Microsoft.DBforMySQL/flexibleServers/configurations/read",),
+    "get_mysql_parameter": ("Microsoft.DBforMySQL/flexibleServers/configurations/read",),
+    "get_postgresql_parameter": (
+        "Microsoft.DBforPostgreSQL/flexibleServers/configurations/read",
+    ),
+    # v11 (DECISIONS.md section 176).
+    "get_sql_threat_detection": ("Microsoft.Sql/servers/securityAlertPolicies/read",),
+    "get_sql_encryption_protector": ("Microsoft.Sql/servers/encryptionProtector/read",),
+    "get_sql_vulnerability_assessment": (
+        "Microsoft.Sql/servers/vulnerabilityAssessments/read",
+    ),
+    "get_sql_express_assessment": (
+        "Microsoft.Sql/servers/sqlVulnerabilityAssessments/read",
+    ),
+    "get_file_service": ("Microsoft.Storage/storageAccounts/fileServices/read",),
+    "list_vault_keys": ("Microsoft.KeyVault/vaults/keys/read",),
+    "list_vault_secrets": ("Microsoft.KeyVault/vaults/secrets/read",),
+    # A GET beneath the site's configuration, under the read held since v7.
+    "get_app_service_auth": ("Microsoft.Web/sites/config/read",),
+    "list_security_contacts": ("Microsoft.Security/securityContacts/read",),
+    "list_security_settings": ("Microsoft.Security/settings/read",),
+    "list_iot_security_solutions": ("Microsoft.Security/iotSecuritySolutions/read",),
+    "list_jit_policies": (
+        "Microsoft.Security/jitNetworkAccessPolicies/read",
+        "Microsoft.Security/locations/jitNetworkAccessPolicies/read",
+    ),
+    "list_recovery_vaults": ("Microsoft.RecoveryServices/Vaults/read",),
+    "list_backup_protected_items": (
+        "Microsoft.RecoveryServices/Vaults/backupProtectedItems/read",
+    ),
+    "list_disks": ("Microsoft.Compute/disks/read",),
+    "list_activity_log_alerts": ("Microsoft.Insights/activityLogAlerts/read",),
+    "list_policy_assignments": ("Microsoft.Authorization/policyAssignments/read",),
+    "list_virtual_networks": ("Microsoft.Network/virtualNetworks/read",),
+    "list_network_watchers": ("Microsoft.Network/networkWatchers/read",),
+    "list_flow_logs": ("Microsoft.Network/networkWatchers/flowLogs/read",),
+    "list_bastion_hosts": ("Microsoft.Network/bastionHosts/read",),
+    # v12 (DECISIONS.md section 177).
+    "list_backup_policies": ("Microsoft.RecoveryServices/Vaults/backupPolicies/read",),
+    "list_scale_sets": ("Microsoft.Compute/virtualMachineScaleSets/read",),
 }
 
 # Which collection category each ARM action serves, for the categories the
@@ -232,15 +352,28 @@ COLLECTION_ACTIONS: dict[EvidenceCategory, tuple[str, ...]] = {
         "Microsoft.Network/networkSecurityGroups/read",
         "Microsoft.Network/networkInterfaces/read",
         "Microsoft.Network/publicIPAddresses/read",
+        "Microsoft.Network/virtualNetworks/read",
+        "Microsoft.Network/networkWatchers/read",
+        "Microsoft.Network/networkWatchers/flowLogs/read",
+        "Microsoft.Network/bastionHosts/read",
     ),
     EvidenceCategory.COMPUTE: (
         "Microsoft.Compute/virtualMachines/read",
         "Microsoft.Web/sites/read",
         "Microsoft.Web/sites/config/read",
+        "Microsoft.ContainerService/managedClusters/read",
+        "Microsoft.ContainerRegistry/registries/read",
+        "Microsoft.Databricks/workspaces/read",
+        "Microsoft.RecoveryServices/Vaults/read",
+        "Microsoft.RecoveryServices/Vaults/backupProtectedItems/read",
+        "Microsoft.Compute/disks/read",
+        "Microsoft.RecoveryServices/Vaults/backupPolicies/read",
+        "Microsoft.Compute/virtualMachineScaleSets/read",
     ),
     EvidenceCategory.STORAGE: (
         "Microsoft.Storage/storageAccounts/read",
         "Microsoft.Storage/storageAccounts/blobServices/read",
+        "Microsoft.Storage/storageAccounts/fileServices/read",
     ),
     EvidenceCategory.DATABASE: (
         "Microsoft.Sql/servers/read",
@@ -251,17 +384,38 @@ COLLECTION_ACTIONS: dict[EvidenceCategory, tuple[str, ...]] = {
         "Microsoft.Sql/servers/administrators/read",
         "Microsoft.DBforPostgreSQL/flexibleServers/read",
         "Microsoft.DBforPostgreSQL/flexibleServers/configurations/read",
+        "Microsoft.DocumentDB/databaseAccounts/read",
+        "Microsoft.DBforMySQL/flexibleServers/read",
+        "Microsoft.Search/searchServices/read",
+        "Microsoft.DBforMySQL/flexibleServers/configurations/read",
+        "Microsoft.Sql/servers/securityAlertPolicies/read",
+        "Microsoft.Sql/servers/encryptionProtector/read",
+        "Microsoft.Sql/servers/vulnerabilityAssessments/read",
+        "Microsoft.Sql/servers/sqlVulnerabilityAssessments/read",
     ),
-    EvidenceCategory.LOGGING: ("Microsoft.Insights/diagnosticSettings/read",),
+    EvidenceCategory.LOGGING: (
+        "Microsoft.Insights/diagnosticSettings/read",
+        "Microsoft.Insights/activityLogAlerts/read",
+    ),
     EvidenceCategory.AUTHORIZATION: (
         "Microsoft.Authorization/roleAssignments/read",
         "Microsoft.Authorization/roleDefinitions/read",
         "Microsoft.Authorization/roleEligibilityScheduleInstances/read",
     ),
-    EvidenceCategory.SECRETS: ("Microsoft.KeyVault/vaults/read",),
+    EvidenceCategory.SECRETS: (
+        "Microsoft.KeyVault/vaults/read",
+        "Microsoft.KeyVault/vaults/keys/read",
+        "Microsoft.KeyVault/vaults/secrets/read",
+    ),
     EvidenceCategory.POSTURE: (
         "Microsoft.Security/assessments/read",
         "Microsoft.Security/pricings/read",
+        "Microsoft.Security/securityContacts/read",
+        "Microsoft.Security/settings/read",
+        "Microsoft.Security/iotSecuritySolutions/read",
+        "Microsoft.Security/jitNetworkAccessPolicies/read",
+        "Microsoft.Security/locations/jitNetworkAccessPolicies/read",
+        "Microsoft.Authorization/policyAssignments/read",
     ),
 }
 
@@ -484,6 +638,202 @@ ROLE_HISTORY: dict[str, tuple[str, ...]] = {
         "Microsoft.Web/sites/config/read",
         "Microsoft.Authorization/roleEligibilityScheduleInstances/read",
     ),
+    # v9 adds six configuration reads, one per type the connector now models
+    # (DECISIONS.md section 169). A v8 role keeps every verdict it had; the six
+    # types stay listed as unchecked inventory until the redeploy, and their
+    # checks report UNKNOWN rather than PASS.
+    "v9": (
+        "Microsoft.Resources/subscriptions/read",
+        "Microsoft.Resources/subscriptions/resources/read",
+        "Microsoft.ResourceGraph/resources/read",
+        "Microsoft.Network/networkSecurityGroups/read",
+        "Microsoft.Network/networkInterfaces/read",
+        "Microsoft.Network/publicIPAddresses/read",
+        "Microsoft.Compute/virtualMachines/read",
+        "Microsoft.Storage/storageAccounts/read",
+        "Microsoft.Sql/servers/read",
+        "Microsoft.Sql/servers/firewallRules/read",
+        "Microsoft.Sql/servers/auditingSettings/read",
+        "Microsoft.DBforPostgreSQL/flexibleServers/read",
+        "Microsoft.Insights/diagnosticSettings/read",
+        "Microsoft.Authorization/roleAssignments/read",
+        "Microsoft.Authorization/roleDefinitions/read",
+        "Microsoft.KeyVault/vaults/read",
+        "Microsoft.Sql/servers/databases/read",
+        "Microsoft.Sql/servers/databases/transparentDataEncryption/read",
+        "Microsoft.Security/assessments/read",
+        "Microsoft.Security/pricings/read",
+        "Microsoft.Storage/storageAccounts/blobServices/read",
+        "Microsoft.Sql/servers/administrators/read",
+        "Microsoft.DBforPostgreSQL/flexibleServers/configurations/read",
+        "Microsoft.Web/sites/read",
+        "Microsoft.Web/sites/config/read",
+        "Microsoft.Authorization/roleEligibilityScheduleInstances/read",
+        "Microsoft.ContainerService/managedClusters/read",
+        "Microsoft.ContainerRegistry/registries/read",
+        "Microsoft.DocumentDB/databaseAccounts/read",
+        "Microsoft.DBforMySQL/flexibleServers/read",
+        "Microsoft.Databricks/workspaces/read",
+        "Microsoft.Search/searchServices/read",
+    ),
+    # v10 adds one read: two MySQL server parameters (section 172). A v9 role
+    # keeps every verdict it had; the MySQL TLS checks report UNKNOWN until the
+    # redeploy.
+    "v10": (
+        "Microsoft.Resources/subscriptions/read",
+        "Microsoft.Resources/subscriptions/resources/read",
+        "Microsoft.ResourceGraph/resources/read",
+        "Microsoft.Network/networkSecurityGroups/read",
+        "Microsoft.Network/networkInterfaces/read",
+        "Microsoft.Network/publicIPAddresses/read",
+        "Microsoft.Compute/virtualMachines/read",
+        "Microsoft.Storage/storageAccounts/read",
+        "Microsoft.Sql/servers/read",
+        "Microsoft.Sql/servers/firewallRules/read",
+        "Microsoft.Sql/servers/auditingSettings/read",
+        "Microsoft.DBforPostgreSQL/flexibleServers/read",
+        "Microsoft.Insights/diagnosticSettings/read",
+        "Microsoft.Authorization/roleAssignments/read",
+        "Microsoft.Authorization/roleDefinitions/read",
+        "Microsoft.KeyVault/vaults/read",
+        "Microsoft.Sql/servers/databases/read",
+        "Microsoft.Sql/servers/databases/transparentDataEncryption/read",
+        "Microsoft.Security/assessments/read",
+        "Microsoft.Security/pricings/read",
+        "Microsoft.Storage/storageAccounts/blobServices/read",
+        "Microsoft.Sql/servers/administrators/read",
+        "Microsoft.DBforPostgreSQL/flexibleServers/configurations/read",
+        "Microsoft.Web/sites/read",
+        "Microsoft.Web/sites/config/read",
+        "Microsoft.Authorization/roleEligibilityScheduleInstances/read",
+        "Microsoft.ContainerService/managedClusters/read",
+        "Microsoft.ContainerRegistry/registries/read",
+        "Microsoft.DocumentDB/databaseAccounts/read",
+        "Microsoft.DBforMySQL/flexibleServers/read",
+        "Microsoft.Databricks/workspaces/read",
+        "Microsoft.Search/searchServices/read",
+        "Microsoft.DBforMySQL/flexibleServers/configurations/read",
+    ),
+    # v11 adds twenty-one reads for the rest of Tier 2 (DECISIONS.md section
+    # 176). A v10 role keeps every verdict it had; the checks resting on the
+    # new reads report UNKNOWN until the redeploy.
+    "v11": (
+        "Microsoft.Resources/subscriptions/read",
+        "Microsoft.Resources/subscriptions/resources/read",
+        "Microsoft.ResourceGraph/resources/read",
+        "Microsoft.Network/networkSecurityGroups/read",
+        "Microsoft.Network/networkInterfaces/read",
+        "Microsoft.Network/publicIPAddresses/read",
+        "Microsoft.Compute/virtualMachines/read",
+        "Microsoft.Storage/storageAccounts/read",
+        "Microsoft.Sql/servers/read",
+        "Microsoft.Sql/servers/firewallRules/read",
+        "Microsoft.Sql/servers/auditingSettings/read",
+        "Microsoft.DBforPostgreSQL/flexibleServers/read",
+        "Microsoft.Insights/diagnosticSettings/read",
+        "Microsoft.Authorization/roleAssignments/read",
+        "Microsoft.Authorization/roleDefinitions/read",
+        "Microsoft.KeyVault/vaults/read",
+        "Microsoft.Sql/servers/databases/read",
+        "Microsoft.Sql/servers/databases/transparentDataEncryption/read",
+        "Microsoft.Security/assessments/read",
+        "Microsoft.Security/pricings/read",
+        "Microsoft.Storage/storageAccounts/blobServices/read",
+        "Microsoft.Sql/servers/administrators/read",
+        "Microsoft.DBforPostgreSQL/flexibleServers/configurations/read",
+        "Microsoft.Web/sites/read",
+        "Microsoft.Web/sites/config/read",
+        "Microsoft.Authorization/roleEligibilityScheduleInstances/read",
+        "Microsoft.ContainerService/managedClusters/read",
+        "Microsoft.ContainerRegistry/registries/read",
+        "Microsoft.DocumentDB/databaseAccounts/read",
+        "Microsoft.DBforMySQL/flexibleServers/read",
+        "Microsoft.Databricks/workspaces/read",
+        "Microsoft.Search/searchServices/read",
+        "Microsoft.DBforMySQL/flexibleServers/configurations/read",
+        "Microsoft.Sql/servers/securityAlertPolicies/read",
+        "Microsoft.Sql/servers/encryptionProtector/read",
+        "Microsoft.Sql/servers/vulnerabilityAssessments/read",
+        "Microsoft.Sql/servers/sqlVulnerabilityAssessments/read",
+        "Microsoft.Storage/storageAccounts/fileServices/read",
+        "Microsoft.KeyVault/vaults/keys/read",
+        "Microsoft.KeyVault/vaults/secrets/read",
+        "Microsoft.Security/securityContacts/read",
+        "Microsoft.Security/settings/read",
+        "Microsoft.Security/iotSecuritySolutions/read",
+        "Microsoft.Security/jitNetworkAccessPolicies/read",
+        "Microsoft.Security/locations/jitNetworkAccessPolicies/read",
+        "Microsoft.RecoveryServices/Vaults/read",
+        "Microsoft.RecoveryServices/Vaults/backupProtectedItems/read",
+        "Microsoft.Compute/disks/read",
+        "Microsoft.Insights/activityLogAlerts/read",
+        "Microsoft.Authorization/policyAssignments/read",
+        "Microsoft.Network/virtualNetworks/read",
+        "Microsoft.Network/networkWatchers/read",
+        "Microsoft.Network/networkWatchers/flowLogs/read",
+        "Microsoft.Network/bastionHosts/read",
+    ),
+    # v12 adds two reads for Tier 3 (DECISIONS.md section 177): backup
+    # policies and scale sets. A v11 role keeps every verdict it had.
+    "v12": (
+        "Microsoft.Resources/subscriptions/read",
+        "Microsoft.Resources/subscriptions/resources/read",
+        "Microsoft.ResourceGraph/resources/read",
+        "Microsoft.Network/networkSecurityGroups/read",
+        "Microsoft.Network/networkInterfaces/read",
+        "Microsoft.Network/publicIPAddresses/read",
+        "Microsoft.Compute/virtualMachines/read",
+        "Microsoft.Storage/storageAccounts/read",
+        "Microsoft.Sql/servers/read",
+        "Microsoft.Sql/servers/firewallRules/read",
+        "Microsoft.Sql/servers/auditingSettings/read",
+        "Microsoft.DBforPostgreSQL/flexibleServers/read",
+        "Microsoft.Insights/diagnosticSettings/read",
+        "Microsoft.Authorization/roleAssignments/read",
+        "Microsoft.Authorization/roleDefinitions/read",
+        "Microsoft.KeyVault/vaults/read",
+        "Microsoft.Sql/servers/databases/read",
+        "Microsoft.Sql/servers/databases/transparentDataEncryption/read",
+        "Microsoft.Security/assessments/read",
+        "Microsoft.Security/pricings/read",
+        "Microsoft.Storage/storageAccounts/blobServices/read",
+        "Microsoft.Sql/servers/administrators/read",
+        "Microsoft.DBforPostgreSQL/flexibleServers/configurations/read",
+        "Microsoft.Web/sites/read",
+        "Microsoft.Web/sites/config/read",
+        "Microsoft.Authorization/roleEligibilityScheduleInstances/read",
+        "Microsoft.ContainerService/managedClusters/read",
+        "Microsoft.ContainerRegistry/registries/read",
+        "Microsoft.DocumentDB/databaseAccounts/read",
+        "Microsoft.DBforMySQL/flexibleServers/read",
+        "Microsoft.Databricks/workspaces/read",
+        "Microsoft.Search/searchServices/read",
+        "Microsoft.DBforMySQL/flexibleServers/configurations/read",
+        "Microsoft.Sql/servers/securityAlertPolicies/read",
+        "Microsoft.Sql/servers/encryptionProtector/read",
+        "Microsoft.Sql/servers/vulnerabilityAssessments/read",
+        "Microsoft.Sql/servers/sqlVulnerabilityAssessments/read",
+        "Microsoft.Storage/storageAccounts/fileServices/read",
+        "Microsoft.KeyVault/vaults/keys/read",
+        "Microsoft.KeyVault/vaults/secrets/read",
+        "Microsoft.Security/securityContacts/read",
+        "Microsoft.Security/settings/read",
+        "Microsoft.Security/iotSecuritySolutions/read",
+        "Microsoft.Security/jitNetworkAccessPolicies/read",
+        "Microsoft.Security/locations/jitNetworkAccessPolicies/read",
+        "Microsoft.RecoveryServices/Vaults/read",
+        "Microsoft.RecoveryServices/Vaults/backupProtectedItems/read",
+        "Microsoft.Compute/disks/read",
+        "Microsoft.Insights/activityLogAlerts/read",
+        "Microsoft.Authorization/policyAssignments/read",
+        "Microsoft.Network/virtualNetworks/read",
+        "Microsoft.Network/networkWatchers/read",
+        "Microsoft.Network/networkWatchers/flowLogs/read",
+        "Microsoft.Network/bastionHosts/read",
+
+        "Microsoft.RecoveryServices/Vaults/backupPolicies/read",
+        "Microsoft.Compute/virtualMachineScaleSets/read",
+    ),
 }
 
 
@@ -562,29 +912,6 @@ def actions_granted_by(permissions: Iterable[Mapping[str, Any]]) -> frozenset[st
             if _permits(action, allowed) and not _permits(action, denied)
         )
     return frozenset(granted)
-
-
-# A read no collector makes and no role names specifically, so only a pattern
-# covering every read allows it: ``*/read`` on the built-in Reader, ``*`` on
-# Contributor or Owner. The extended checks read several hundred resource types
-# the custom role never names, and the deployment template assigns Reader for
-# them (DECISIONS.md section 150); this is how a deployed grant is asked whether
-# it carries that breadth, by what it allows rather than by a role's name or id.
-# Evaluated locally and never sent to Azure.
-EVERY_READ_PROBE = "Microsoft.CleaveProbe/anything/read"
-
-
-def grants_every_read(permissions: Iterable[Mapping[str, Any]]) -> bool:
-    """Whether any of these ARM permission blocks allows every read.
-
-    Per block, as ``actions_granted_by`` does: a ``notActions`` entry narrows
-    only the role it is written in, and ARM grants the union of the rest.
-    """
-    return any(
-        _permits(EVERY_READ_PROBE, tuple(block.get("actions") or ()))
-        and not _permits(EVERY_READ_PROBE, tuple(block.get("notActions") or ()))
-        for block in permissions
-    )
 
 
 def version_of_granted(granted: Collection[str]) -> str | None:
@@ -731,27 +1058,6 @@ def arm_template(context: TemplateContext) -> str:
                     f"guid({target}.id, 'cloudguard-scanner', '{context.role_version}'))]",
                     "principalId": "[variables('principalId')]",
                     "principalType": "ServicePrincipal",
-                },
-            },
-            # The extended checks (DECISIONS.md section 150). Prowler reads
-            # several hundred resource types -- AKS, Cosmos DB, Databricks,
-            # API Management -- that no collector call of Cleave's own reaches,
-            # so the custom role above, trimmed to exactly those calls, cannot
-            # serve it. The built-in Reader can: every ``*/read`` and nothing
-            # else, so the claim at the top of this module still holds -- no
-            # write, no ``listKeys``, no data plane.
-            {
-                "type": "Microsoft.Authorization/roleAssignments",
-                "apiVersion": "2022-04-01",
-                "name": f"[guid({target}.id, variables('principalId'), "
-                f"'{EXTENDED_CHECKS_ASSIGNMENT}')]",
-                "properties": {
-                    "roleDefinitionId": "[tenantResourceId("
-                    "'Microsoft.Authorization/roleDefinitions', "
-                    f"'{READER_ROLE_DEFINITION_ID}')]",
-                    "principalId": "[variables('principalId')]",
-                    "principalType": "ServicePrincipal",
-                    "description": "Cleave extended checks: read-only, no data plane.",
                 },
             },
         ],

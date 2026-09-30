@@ -79,7 +79,7 @@ function Tile({
           have something in them. */}
       <span
         className={cn(
-          "text-[28px] leading-none font-semibold tabular-nums",
+          "text-stat leading-none font-semibold tabular-nums",
           value === 0 && "text-muted-foreground/60",
         )}
       >

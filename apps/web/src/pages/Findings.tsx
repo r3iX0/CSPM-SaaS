@@ -248,7 +248,7 @@ export function FindingsPage() {
               placeholder="Search findings, rules or assets"
               aria-label="Search findings"
               data-page-search
-              className="h-8 pl-8 text-[12.5px]"
+              className="h-8 pl-8 text-meta"
             />
           </div>
           {/* A select, like every other filter in the product: the trigger
@@ -423,7 +423,7 @@ export function FindingsPage() {
                             render={
                               <Link
                                 to={`/findings/${finding.id}`}
-                                className="block truncate text-[13.5px] font-medium text-foreground after:absolute after:inset-0 hover:underline"
+                                className="block truncate text-body font-medium text-foreground after:absolute after:inset-0 hover:underline"
                               />
                             }
                           >
@@ -440,12 +440,12 @@ export function FindingsPage() {
                             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                               {finding.description}
                             </p>
-                            <p className="mt-2 text-[11px] text-muted-foreground">
+                            <p className="mt-2 text-caption text-muted-foreground">
                               {finding.rule_id} · v{finding.rule_version}
                             </p>
                           </HoverCardContent>
                         </HoverCard>
-                        <p className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground">
+                        <p className="mt-0.5 truncate font-mono text-caption text-muted-foreground">
                           {finding.rule_id}
                         </p>
                       </TableCell>
@@ -457,20 +457,20 @@ export function FindingsPage() {
                           <span className="flex min-w-0 items-center gap-2">
                             <ResourceIcon type={finding.resource.resource_type} />
                             <span className="min-w-0">
-                              <span className="block max-w-[14rem] truncate text-[12.5px] text-foreground">
+                              <span className="block max-w-[14rem] truncate text-meta text-foreground">
                                 {finding.resource.name}
                               </span>
-                              <span className="block max-w-[14rem] truncate text-[11px]">
+                              <span className="block max-w-[14rem] truncate text-caption">
                                 {resourceTypeLabel(finding.resource.resource_type)}
                               </span>
                             </span>
                           </span>
                         ) : (
-                          <span className="text-[12.5px]">Tenant-wide</span>
+                          <span className="text-meta">Tenant-wide</span>
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <RiskScore score={finding.risk_score} className="text-[13px] text-foreground" />
+                        <RiskScore score={finding.risk_score} className="text-body text-foreground" />
                       </TableCell>
                       <TableCell>
                         <StatusPill status={finding.status} />

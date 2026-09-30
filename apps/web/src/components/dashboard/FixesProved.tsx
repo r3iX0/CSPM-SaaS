@@ -28,7 +28,7 @@ export function FixesProved({
       className="flex flex-col overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10"
     >
       <header className="px-5 py-4">
-        <h2 id="fixes-proved" className="text-[13.5px] font-semibold">
+        <h2 id="fixes-proved" className="text-body font-semibold">
           Fixes proved
         </h2>
         <p className="mt-1 text-xs text-muted-foreground">
@@ -70,8 +70,8 @@ function Cell({
       >
         <Icon className="size-3" strokeWidth={1.5} />
       </span>
-      <dt className="text-[11.5px] text-muted-foreground">{label}</dt>
-      <dd className={cn("text-[22px] leading-none font-semibold tabular-nums", className)}>
+      <dt className="text-caption text-muted-foreground">{label}</dt>
+      <dd className={cn("text-page leading-none font-semibold tabular-nums", className)}>
         {shown}
       </dd>
     </div>

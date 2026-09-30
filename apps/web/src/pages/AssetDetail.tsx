@@ -12,7 +12,7 @@ import { cn, formatDate, formatDateTime, formatRelative } from "@/lib/format";
 import { ASSET_TAB_ICONS, FACT_ICONS, FACTOR_ICONS, resourceTypeIcon } from "@/lib/icons";
 import { portalUrl } from "@/lib/portal";
 import { IconLabel, ResourceTypeLabel } from "@/components/security/IconLabel";
-import { Breadcrumbs, DetailSkeleton, ErrorState } from "@/components/common/states";
+import { Breadcrumbs, DetailSkeleton, ErrorState, PAGE_TITLE_CLASS } from "@/components/common/states";
 import { CodeBlock } from "@/components/common/CodeBlock";
 import { CopyButton } from "@/components/common/CopyButton";
 import { SegmentedFilter } from "@/components/common/SegmentedFilter";
@@ -303,7 +303,7 @@ function Header({ asset }: { asset: AssetDetail }) {
           })}
         </span>
         <div className="min-w-0">
-          <h1 className="truncate text-2xl font-semibold tracking-tight">{asset.name}</h1>
+          <h1 className={cn("truncate", PAGE_TITLE_CLASS)}>{asset.name}</h1>
           <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
             <ResourceTypeLabel type={asset.resource_type} />
             {asset.region && <IconLabel icon={FACT_ICONS.region}>{asset.region}</IconLabel>}
@@ -499,7 +499,7 @@ function FindingsPanel({ asset }: { asset: AssetDetail }) {
                     <span className="block truncate text-sm font-medium text-foreground">
                       {finding.title}
                     </span>
-                    <span className="block font-mono text-[11px] text-muted-foreground">
+                    <span className="block font-mono text-caption text-muted-foreground">
                       {finding.rule_id}
                     </span>
                   </span>

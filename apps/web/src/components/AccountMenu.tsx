@@ -214,7 +214,7 @@ export function AccountMenu({
                       <span className="flex items-center gap-1.5 text-sm text-foreground">
                         <span className="truncate">{organization.name}</span>
                         {organization.is_demo && (
-                          <span className="shrink-0 rounded-full border border-medium-border bg-medium-bg px-1.5 py-px text-[10px] font-medium text-medium">
+                          <span className="shrink-0 rounded-full border border-medium-border bg-medium-bg px-1.5 py-px text-micro font-medium text-medium">
                             {t.demo.badge}
                           </span>
                         )}
@@ -266,7 +266,7 @@ export function AccountMenu({
 function Section({ label: text, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="border-b border-border py-2 last:border-b-0">
-      <p className="px-3 pb-1.5 text-[11px] font-medium text-muted-foreground">
+      <p className="px-3 pb-1.5 text-caption font-medium text-muted-foreground">
         {text}
       </p>
       {children}
@@ -279,7 +279,7 @@ function Avatar({ name }: { name: string }) {
   return (
     <span
       aria-hidden="true"
-      className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-[11.5px] font-medium text-foreground"
+      className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-caption font-medium text-foreground"
     >
       {name.trim().charAt(0).toUpperCase() || "?"}
     </span>

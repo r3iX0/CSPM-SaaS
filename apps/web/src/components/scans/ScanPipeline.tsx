@@ -16,16 +16,12 @@ import {
 } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 
-type Phase = Exclude<ScanStage["stage"], "ASSESS">;
+type Phase = ScanStage["stage"];
 type PhaseState = "pending" | "active" | "done" | "partial" | "failed" | "skipped";
 
 const PHASES: { id: Phase; label: string; blurb: string }[] = [
   { id: "PLAN", label: "Plan", blurb: "Work out what this scan covers" },
-  {
-    id: "COLLECT",
-    label: "Collect",
-    blurb: "Read each scope and store what came back, with the extended checks beside it",
-  },
+  { id: "COLLECT", label: "Collect", blurb: "Read each scope and store what came back" },
   { id: "ANALYZE", label: "Analyze", blurb: "Normalize, evaluate every rule, score" },
 ];
 
@@ -37,25 +33,6 @@ const LANE_ORDER: Record<ScanStage["status"], number> = {
   SUCCEEDED: 3,
   SKIPPED: 4,
 };
-
-/** What a failed step is called in the alert that reports it. */
-const STAGE_NAME: Record<ScanStage["stage"], string> = {
-  PLAN: "Plan",
-  COLLECT: "Collect",
-  ASSESS: "Extended checks",
-  ANALYZE: "Analyze",
-};
-
-/**
- * The steps a phase of the track stands for. Collection and the extended
- * checks read the same scopes in parallel and ANALYZE waits for both, so on
- * the track they are one phase; below it, each has its own lanes.
- */
-function stepsOf(stages: ScanStage[], phase: Phase): ScanStage[] {
-  return stages.filter((s) =>
-    phase === "COLLECT" ? s.stage === "COLLECT" || s.stage === "ASSESS" : s.stage === phase,
-  );
-}
 
 const SEVERITY_ORDER = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN"];
 
@@ -94,20 +71,12 @@ export function ScanPipeline({ scan }: { scan: ScanDetail }) {
       )}
 
       <CollectLanes stages={stages.filter((s) => s.stage === "COLLECT")} />
-      <CollectLanes
-        stages={stages.filter((s) => s.stage === "ASSESS")}
-        heading="Extended checks"
-        verb="assessed"
-      />
 
       {stages
-        .filter(
-          (s) =>
-            s.stage !== "COLLECT" && s.stage !== "ASSESS" && s.status === "FAILED" && s.error,
-        )
+        .filter((s) => s.stage !== "COLLECT" && s.status === "FAILED" && s.error)
         .map((s) => (
           <Alert key={s.stage} variant="destructive">
-            <AlertTitle>{STAGE_NAME[s.stage]} failed</AlertTitle>
+            <AlertTitle>{PHASES.find((p) => p.id === s.stage)?.label} failed</AlertTitle>
             <AlertDescription>{s.error}</AlertDescription>
           </Alert>
         ))}
@@ -216,7 +185,10 @@ function phaseState(steps: ScanStage[], scanRunning: boolean): PhaseState {
 function PhaseTrack({ stages, status }: { stages: ScanStage[]; status: string }) {
   const scanRunning = IN_FLIGHT.includes(status);
   const states = PHASES.map((phase) =>
-    phaseState(stepsOf(stages, phase.id), scanRunning),
+    phaseState(
+      stages.filter((s) => s.stage === phase.id),
+      scanRunning,
+    ),
   );
 
   return (
@@ -241,7 +213,7 @@ function PhaseTrack({ stages, status }: { stages: ScanStage[]; status: string })
             </div>
             <div className="pr-3">
               <p className="text-xs font-medium">{phase.label}</p>
-              <p className="text-[11px] leading-snug text-muted-foreground">{phase.blurb}</p>
+              <p className="text-caption leading-snug text-muted-foreground">{phase.blurb}</p>
               <p className="sr-only">{state}</p>
             </div>
           </li>
@@ -293,16 +265,7 @@ function PhaseNode({ state }: { state: PhaseState }) {
  * glide to their new place, which keeps a running or failed scope in view on
  * a tenant with forty subscriptions.
  */
-function CollectLanes({
-  stages,
-  heading,
-  verb = "read",
-}: {
-  stages: ScanStage[];
-  /** Names a second set of lanes: the extended checks run beside collection. */
-  heading?: string;
-  verb?: string;
-}) {
+function CollectLanes({ stages }: { stages: ScanStage[] }) {
   if (stages.length === 0) return null;
 
   const done = stages.filter((s) => s.status === "SUCCEEDED").length;
@@ -313,8 +276,7 @@ function CollectLanes({
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1.5">
         <p className="text-xs tabular-nums text-muted-foreground">
-          {heading && <span className="font-medium text-foreground">{heading} · </span>}
-          {done} of {stages.length} scopes {verb}
+          {done} of {stages.length} scopes read
           {failed > 0 && <span className="text-critical"> · {failed} failed</span>}
         </p>
         <div className="flex h-1.5 gap-0.5" aria-hidden>

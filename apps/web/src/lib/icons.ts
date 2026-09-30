@@ -1,27 +1,32 @@
 import {
   AppWindowIcon,
+  ArchiveRestoreIcon,
   BotIcon,
   BoxIcon,
   BracesIcon,
   BrickWallIcon,
   BriefcaseBusinessIcon,
   BugIcon,
+  ChartColumnIcon,
   Building2Icon,
   CalendarPlusIcon,
   CircleCheckIcon,
   CircleDashedIcon,
   CircleHelpIcon,
   CircleXIcon,
+  ContainerIcon,
   ClockIcon,
   CrownIcon,
   CylinderIcon,
   DatabaseIcon,
+  DatabaseZapIcon,
   EthernetPortIcon,
   ExternalLinkIcon,
   FolderIcon,
   FlaskConicalIcon,
   FolderTreeIcon,
   GlobeIcon,
+  HardDriveIcon,
   KeyRoundIcon,
   UserRoundKeyIcon,
   LayersIcon,
@@ -32,18 +37,21 @@ import {
   PanelsTopLeftIcon,
   PlusIcon,
   RouteIcon,
-  ScaleIcon,
   ScrollTextIcon,
   SendIcon,
+  ServerIcon,
   ShieldAlertIcon,
   ShieldCheckIcon,
+  ShipWheelIcon,
   Share2Icon,
   TableIcon,
   TagIcon,
+  TextSearchIcon,
   TrendingUpIcon,
   TriangleAlertIcon,
   UserCogIcon,
   UserIcon,
+  UserRoundCheckIcon,
   UsersIcon,
   UsersRoundIcon,
   WaypointsIcon,
@@ -97,6 +105,22 @@ const RESOURCE_TYPE_ICONS: Record<string, LucideIcon> = {
   key_vault: KeyRoundIcon,
   // A hosted web app. Not AppWindowIcon, which is already an Entra application.
   app_service: PanelsTopLeftIcon,
+  // Role v9's types (DECISIONS.md §169).
+  kubernetes_cluster: ShipWheelIcon,
+  container_registry: ContainerIcon,
+  // A document store rather than a relational server.
+  document_database: DatabaseZapIcon,
+  mysql_server: DatabaseIcon,
+  analytics_workspace: ChartColumnIcon,
+  // Not SearchIcon, which is the search box everywhere in the app.
+  search_service: TextSearchIcon,
+  // A managed disk, modelled since role v11 (DECISIONS.md §176).
+  disk: HardDriveIcon,
+  // Role v12 and AWS policy v5 (DECISIONS.md §177). A user pool is a
+  // customer-facing sign-in, not the workforce directory UsersIcon draws.
+  backup_vault: ArchiveRestoreIcon,
+  scale_set: ServerIcon,
+  user_pool: UserRoundCheckIcon,
   unknown: BoxIcon,
 };
 
@@ -179,6 +203,12 @@ export const SETUP_ICONS = {
   duration: ClockIcon,
 } as const;
 
+/**
+ * What opens an explanation kept out of the page's running text: an
+ * `InfoTip`, a graph legend's "how to read" (DECISIONS.md §136, §166).
+ */
+export const EXPLAIN_ICON = CircleHelpIcon;
+
 /** The graph around an asset: drawing it, and opening it from a route (§101). */
 export const GRAPH_ICON = WorkflowIcon;
 
@@ -191,12 +221,6 @@ export const DIRECTORY_ICON = UsersIcon;
 
 /** The shared demo organization, wherever it is named (DECISIONS.md §99). */
 export const DEMO_ICON = FlaskConicalIcon;
-
-/**
- * The two engines weighed against each other: the engine audit, and a native
- * rule's note that Prowler cross-checks it (DECISIONS.md §150).
- */
-export const ENGINE_AUDIT_ICON = ScaleIcon;
 
 /** The kinds of thing the risks page ranks. */
 export const RISK_KIND_ICONS: Record<string, LucideIcon> = {

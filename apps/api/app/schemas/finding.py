@@ -12,14 +12,13 @@ from app.core.enums import (
     RemediationStatus,
     RiskKind,
     RiskStatus,
-    RuleEngineKind,
     RuleState,
     Severity,
     TaskOutcome,
     VerificationStatus,
 )
 from app.schemas.attack_path import AttackPathOut
-from app.schemas.rule import ProwlerDetailOut, RemediationSpecOut
+from app.schemas.rule import RemediationSpecOut
 
 
 class ResourceSummary(BaseModel):
@@ -315,9 +314,6 @@ class FindingDetail(FindingOut):
     #: What must become true, and the CLI, Terraform and policy generated from
     #: it -- the object the rules routes publish.
     remediation_spec: RemediationSpecOut | None = None
-    engine: RuleEngineKind | None = None
-    #: Prowler's side of the rule.
-    prowler: ProwlerDetailOut | None = None
     compliance_mappings: dict[str, list[str]] = Field(default_factory=dict)
 
 

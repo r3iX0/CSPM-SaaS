@@ -17,7 +17,7 @@ from sqlalchemy import text
 
 from app.core.config import settings
 from app.main import app
-from app.rules.registry import RULE_REGISTRY, catalogue_rules
+from app.rules.registry import RULE_REGISTRY
 
 pytestmark = pytest.mark.integration
 
@@ -483,17 +483,8 @@ class TestRuleCatalogue:
         # Counted from the registry rather than written out. The mirror's job is
         # to hold whatever the registry holds, and a literal here says nothing
         # about that while going stale every time a rule is added.
-        #
-        # The whole catalogue, from both engines: the native rules and the
-        # Prowler checks registered beside them (DECISIONS.md section 150).
-        assert len(rules) == len(catalogue_rules())
-        engines = {r["rule_id"]: r["engine"] for r in body["data"]}
-        assert {engines[rule.rule_id] for rule in RULE_REGISTRY} == {"native"}
-        prowler = [r for r in body["data"] if r["engine"] == "prowler"]
-        assert prowler and all(r["rule_id"].startswith("PRW-") for r in prowler)
-        # A Prowler check is live only where the scanner service runs; this
-        # deployment has not switched it on, so none is listed as running.
-        assert not any(r["enabled"] for r in prowler)
+        assert len(rules) == len(RULE_REGISTRY)
+        assert all(rule.rule_id in rules for rule in RULE_REGISTRY)
         # Data-driven mappings, not hardcoded logic (requirement 15).
         assert "CIS_AZURE_2.0" in rules["AZ-NET-001"]["compliance_mappings"]
         assert rules["AZ-ID-002"]["scope"] == "aggregate"

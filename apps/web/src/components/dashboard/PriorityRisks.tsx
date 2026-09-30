@@ -47,7 +47,7 @@ export function PriorityRisks({ risks }: { risks: Risk[] }) {
       className="gap-0 py-0 [--card-spacing:--spacing(5)]"
     >
       <CardHeader className="py-4">
-        <CardTitle id="priority-risks" className="text-[13.5px] font-semibold">
+        <CardTitle id="priority-risks" className="text-body font-semibold">
           Priority risks
         </CardTitle>
         <CardDescription className="mt-1 text-xs">
@@ -88,7 +88,7 @@ export function PriorityRisks({ risks }: { risks: Risk[] }) {
                 <ScoreTile score={Number(risk.risk_score)} level={risk.risk_level} />
 
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[13.5px] font-medium">{risk.title}</p>
+                  <p className="truncate text-body font-medium">{risk.title}</p>
                   <RiskContext risk={risk} />
                 </div>
 
@@ -162,7 +162,7 @@ function RiskContext({ risk }: { risk: Risk }) {
 
   if (risk.kind === "ATTACK_PATH" && facts.length === 0) {
     return (
-      <p className="mt-0.5 truncate text-[11.5px] text-muted-foreground">
+      <p className="mt-0.5 truncate text-caption text-muted-foreground">
         Scenario — findings already counted individually below
       </p>
     );
@@ -174,7 +174,7 @@ function RiskContext({ risk }: { risk: Risk }) {
   return (
     // The separator is drawn, not written: it is punctuation for the eye, and
     // a screen reader already hears the items as a list.
-    <ul className="mt-0.5 flex min-w-0 flex-wrap items-center text-[11.5px] text-muted-foreground [&>li+li]:before:mx-1 [&>li+li]:before:content-['·']">
+    <ul className="mt-0.5 flex min-w-0 flex-wrap items-center text-caption text-muted-foreground [&>li+li]:before:mx-1 [&>li+li]:before:content-['·']">
       {parts.map((part) => (
         <li key={part} className="whitespace-nowrap">
           {part}

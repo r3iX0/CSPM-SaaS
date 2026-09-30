@@ -15,6 +15,7 @@ import {
   DetailSkeleton,
   EmptyState,
   ErrorState,
+  PAGE_TITLE_CLASS,
 } from "@/components/common/states";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -142,10 +143,10 @@ export function RiskDetailPage() {
         </div>
         <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="text-2xl font-semibold tracking-[-0.02em] text-foreground">
+            <h1 className={PAGE_TITLE_CLASS}>
               {data.title}
             </h1>
-            <p className="mt-1.5 max-w-[78ch] text-[13.5px] leading-relaxed text-muted-foreground">
+            <p className="mt-1.5 max-w-[78ch] text-body leading-relaxed text-muted-foreground">
               {data.description}
             </p>
             {/* The one place a risk -- and so a finding -- is decided about
@@ -162,7 +163,7 @@ export function RiskDetailPage() {
           <div className="flex shrink-0 flex-col items-end gap-1">
             <span
               className={cn(
-                "text-[36px] leading-none font-semibold tabular-nums",
+                "text-display leading-none font-semibold tabular-nums",
                 LEVEL_TEXT[data.risk_level] ?? "text-unknown",
               )}
               aria-label={
@@ -173,7 +174,7 @@ export function RiskDetailPage() {
             >
               {data.risk_level === "UNKNOWN" ? "?" : Math.round(Number(data.risk_score))}
             </span>
-            <span className="text-[11.5px] text-muted-foreground" aria-hidden>
+            <span className="text-caption text-muted-foreground" aria-hidden>
               risk score
             </span>
           </div>
@@ -251,13 +252,13 @@ export function RiskDetailPage() {
                       <div className="flex flex-wrap items-center gap-2">
                         <SeverityBadge level={finding.severity} size="sm" />
                         <StatusPill status={finding.status} />
-                        <code className="font-mono text-[11px] text-muted-foreground">
+                        <code className="font-mono text-caption text-muted-foreground">
                           {finding.rule_id}
                         </code>
                       </div>
                       <Link
                         to={`/findings/${finding.id}`}
-                        className="mt-1 block text-[13.5px] font-medium text-foreground underline-offset-4 hover:underline"
+                        className="mt-1 block text-body font-medium text-foreground underline-offset-4 hover:underline"
                       >
                         {finding.title}
                       </Link>
@@ -372,7 +373,7 @@ export function RiskDetailPage() {
               <CardTitle>Nothing resolves without proof</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-[13px] leading-relaxed text-muted-foreground">
+              <p className="text-body leading-relaxed text-muted-foreground">
                 Accepting a risk records a decision and a date. It does not
                 close the findings underneath it, and a route stays drawn until
                 a scan stops tracing it.

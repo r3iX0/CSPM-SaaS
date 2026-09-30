@@ -62,6 +62,11 @@ DATA_HOLDING_TYPES = {
     # inside it and does not need to: the floor is a fact about what a vault
     # is for.
     ResourceType.KEY_VAULT,
+    # Databases by another engine, and a search index, which holds copies of
+    # the documents it was fed (DECISIONS.md section 169).
+    ResourceType.DOCUMENT_DATABASE,
+    ResourceType.MYSQL_SERVER,
+    ResourceType.SEARCH_SERVICE,
 }
 
 class ContextFields(TypedDict):

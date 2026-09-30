@@ -98,7 +98,7 @@ export function SubscriptionScopeList({
               <span className="block truncate text-sm text-foreground">
                 {sub.display_name}
               </span>
-              <code className="text-[11px] text-muted-foreground">
+              <code className="text-caption text-muted-foreground">
                 {sub.subscription_id}
               </code>
             </span>

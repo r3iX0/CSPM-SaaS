@@ -128,7 +128,7 @@ export function ConnectEmpty({ provider = "azure" }: { provider?: Provider }) {
                       {permissions.data.graph_application_permissions.map((name) => (
                         <code
                           key={name}
-                          className="rounded border border-border bg-background px-1.5 py-0.5 text-[11px] text-muted-foreground"
+                          className="rounded border border-border bg-background px-1.5 py-0.5 text-caption text-muted-foreground"
                         >
                           {name}
                         </code>
@@ -177,7 +177,7 @@ export function ConnectEmpty({ provider = "azure" }: { provider?: Provider }) {
                   )}
                   <span
                     className={cn(
-                      "relative flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold tabular-nums",
+                      "relative flex size-6 shrink-0 items-center justify-center rounded-full text-caption font-semibold tabular-nums",
                       payoff
                         ? "bg-ok text-background"
                         : "border border-border bg-card text-muted-foreground",

@@ -23,7 +23,7 @@ import { PriorityRisks } from "@/components/dashboard/PriorityRisks";
 import { CutPanel } from "@/components/dashboard/CutPanel";
 import { FixesProved } from "@/components/dashboard/FixesProved";
 import { RecentChanges } from "@/components/dashboard/RecentChanges";
-import { DashboardSkeleton, ErrorState } from "@/components/common/states";
+import { DashboardSkeleton, ErrorState, PageHeader } from "@/components/common/states";
 import { Button } from "@/components/ui/button";
 import { listContainer, listItem } from "@/lib/motion";
 import { useRiskCount } from "@/lib/useRiskCount";
@@ -112,14 +112,10 @@ export function DashboardPage() {
   if (!data.last_scan) {
     return (
       <div className="flex flex-col gap-4">
-        <div>
-          <h1 className="text-[22px] font-semibold tracking-[-0.02em]">
-            {t.dashboard.title}
-          </h1>
-          <p className="mt-1.5 max-w-[70ch] text-[13px] text-muted-foreground">
-            Your cloud posture, and what Cleave could see while forming it.
-          </p>
-        </div>
+        <PageHeader
+          title={t.dashboard.title}
+          description="Your cloud posture, and what Cleave could see while forming it."
+        />
         {/* No score is rendered before a scan exists. A number over no evidence
             is a number about nothing, and a reassuring one is worse. What the
             page offers instead is the way to one: the checklist, which is the

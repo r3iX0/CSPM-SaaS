@@ -64,42 +64,6 @@ class RemediationSpecOut(BaseModel):
     notes: str
 
 
-# -- The second engine ---------------------------------------------------------
-
-
-class ProwlerRemediationOut(BaseModel):
-    """Prowler's own remediation code, kept apart from the prose on findings."""
-
-    cli: str
-    terraform: str
-    native_iac: str
-    other: str
-    url: str
-
-
-class ProwlerCheckOut(BaseModel):
-    """A Prowler rule: which check, which release."""
-
-    check_id: str
-    service: str
-    prowler_version: str
-    resource_type: str
-    categories: list[str]
-    remediation: ProwlerRemediationOut
-    additional_urls: list[str]
-
-
-class ProwlerCrossCheckOut(BaseModel):
-    """A native rule some Prowler checks answer too, and why they may disagree."""
-
-    cross_checked_by: list[str]
-    divergence_note: str | None
-
-
-#: No field says which: the two share no key, and each has keys the other lacks.
-ProwlerDetailOut = ProwlerCheckOut | ProwlerCrossCheckOut
-
-
 # -- The rule ------------------------------------------------------------------
 
 
@@ -130,6 +94,3 @@ class RuleOut(BaseModel):
     # row: a policy stored in the database could outlive the rule that
     # generated it. ``None`` for a rule with no declaration yet.
     remediation_spec: RemediationSpecOut | None
-    engine: str
-    engine_version: str | None
-    prowler: ProwlerDetailOut | None

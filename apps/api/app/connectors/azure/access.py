@@ -74,6 +74,14 @@ _POSTGRES_FLEXIBLE = "Microsoft.DBforPostgreSQL/flexibleServers"
 _POSTGRES_SINGLE = "Microsoft.DBforPostgreSQL/servers"
 _VM = "Microsoft.Compute/virtualMachines"
 _SITE = "Microsoft.Web/sites"
+# v9's types (DECISIONS.md section 169). Every string below was checked against
+# the published operations reference on 2026-09-29.
+_CLUSTER = "Microsoft.ContainerService/managedClusters"
+_REGISTRY = "Microsoft.ContainerRegistry/registries"
+_COSMOS = "Microsoft.DocumentDB/databaseAccounts"
+_MYSQL = "Microsoft.DBforMySQL/flexibleServers"
+_DATABRICKS = "Microsoft.Databricks/workspaces"
+_SEARCH = "Microsoft.Search/searchServices"
 
 REQUIREMENTS: Mapping[ResourceType, Mapping[AccessKind, Requirement]] = {
     ResourceType.STORAGE_ACCOUNT: {
@@ -150,6 +158,63 @@ REQUIREMENTS: Mapping[ResourceType, Mapping[AccessKind, Requirement]] = {
                 f"{_SITE}/publishxml/action",
                 f"{_SITE}/config/list/action",
             )
+        ),
+    },
+    ResourceType.KUBERNETES_CLUSTER: {
+        **_config(_CLUSTER),
+        # The cluster-admin kubeconfig, or a command run on the cluster: either
+        # is running workloads there. Writing the cluster turns local accounts
+        # back on, which gets the first.
+        AccessKind.EXECUTE: Requirement(
+            control=(
+                f"{_CLUSTER}/listClusterAdminCredential/action",
+                f"{_CLUSTER}/runCommand/action",
+                f"{_CLUSTER}/write",
+            )
+        ),
+    },
+    ResourceType.CONTAINER_REGISTRY: {
+        **_config(_REGISTRY),
+        # The admin login: every image, and a push besides. Pulling is not
+        # claimed although it reads images too: ``pull/read`` sits inside
+        # ``*/read``, so claiming it would turn every Reader assignment into
+        # reach and undo what section 125 established -- Reader over a
+        # subscription reaches nothing in it (DECISIONS.md section 169).
+        AccessKind.READ_DATA: Requirement(control=(f"{_REGISTRY}/listCredentials/action",)),
+    },
+    ResourceType.DOCUMENT_DATABASE: {
+        **_config(_COSMOS),
+        # The account keys open every database and container in it, as the
+        # storage account keys do. Data-plane roles are not claimed: they are
+        # Cosmos DB's own role system, not Azure RBAC's.
+        AccessKind.READ_DATA: Requirement(
+            control=(
+                f"{_COSMOS}/listKeys/action",
+                f"{_COSMOS}/readonlykeys/action",
+                f"{_COSMOS}/listConnectionStrings/action",
+            )
+        ),
+    },
+    ResourceType.MYSQL_SERVER: {
+        **_config(_MYSQL),
+        # As for PostgreSQL: the administrator password is part of the server's
+        # own resource, and writing its Entra administrator makes the holder one.
+        AccessKind.READ_DATA: Requirement(
+            control=(f"{_MYSQL}/write", f"{_MYSQL}/administrators/write")
+        ),
+    },
+    ResourceType.ANALYTICS_WORKSPACE: {
+        **_config(_DATABRICKS),
+        # Contributor and Owner over a Databricks workspace are made its admins
+        # by Databricks itself, and an admin runs code on its clusters. Matched
+        # on the write they both carry.
+        AccessKind.EXECUTE: Requirement(control=(f"{_DATABRICKS}/write",)),
+    },
+    ResourceType.SEARCH_SERVICE: {
+        **_config(_SEARCH),
+        # An admin key reads and writes every index; a query key reads them.
+        AccessKind.READ_DATA: Requirement(
+            control=(f"{_SEARCH}/listAdminKeys/action", f"{_SEARCH}/listQueryKeys/action")
         ),
     },
     ResourceType.NETWORK_SECURITY_GROUP: _config("Microsoft.Network/networkSecurityGroups"),

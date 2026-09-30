@@ -395,7 +395,7 @@ function AssetNode({ id, data }: NodeProps<AssetFlowNode>) {
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-xs font-medium text-foreground">{data.name}</span>
-        <span className="block truncate text-[11px] text-muted-foreground">
+        <span className="block truncate text-caption text-muted-foreground">
           {resourceTypeLabel(data.resource_type)}
         </span>
       </span>
@@ -530,7 +530,7 @@ function Markers({ node }: { node: AssetFlowNode["data"] }) {
         <span
           title={`${open} open finding${open === 1 ? "" : "s"}, worst ${worst?.toLowerCase()}`}
           className={cn(
-            "rounded border px-1 text-[10px] leading-4 font-medium tabular-nums",
+            "rounded border px-1 text-micro leading-4 font-medium tabular-nums",
             levelStyle(worst ?? "UNKNOWN"),
           )}
         >
@@ -560,7 +560,7 @@ function GroupNode({ id, data }: NodeProps<GroupFlowNode>) {
         <span className="block text-xs font-medium text-foreground tabular-nums">
           {data.count} more <span className="font-normal text-muted-foreground">· not drawn</span>
         </span>
-        <span className="block truncate text-[11px] text-muted-foreground">
+        <span className="block truncate text-caption text-muted-foreground">
           {kinds.map(([type, count]) => `${resourceTypeLabel(type)} · ${count}`).join(", ")}
           {Object.keys(data.by_type).length > kinds.length && ", …"}
         </span>

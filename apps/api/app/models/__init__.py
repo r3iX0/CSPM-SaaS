@@ -1,6 +1,5 @@
 """SQLAlchemy models. Importing this package registers every table on Base."""
 
-from app.models.assessment import AssessmentCapture, EngineDivergence
 from app.models.base import Base
 from app.models.cloud_account import CloudAccount
 from app.models.cloud_connection import CloudConnection
@@ -25,7 +24,6 @@ from app.models.verification import RemediationVerification
 from app.models.webhook import WebhookDelivery, WebhookEndpoint
 
 __all__ = [
-    "AssessmentCapture",
     "AssetChangeEvent",
     "AuditLog",
     "Base",
@@ -33,7 +31,6 @@ __all__ = [
     "CloudConnection",
     "CloudSnapshot",
     "ContextDeclarationRecord",
-    "EngineDivergence",
     "Evidence",
     "EvidenceBlob",
     "Finding",

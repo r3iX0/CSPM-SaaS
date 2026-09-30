@@ -14,7 +14,7 @@ import type {
 import { useT } from "@/i18n";
 import { StatusPill } from "@/components/security/StatusPill";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
-import { Breadcrumbs, DetailSkeleton, ErrorState } from "@/components/common/states";
+import { Breadcrumbs, DetailSkeleton, ErrorState, PAGE_TITLE_CLASS } from "@/components/common/states";
 import { CodeBlock } from "@/components/common/CodeBlock";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -35,7 +35,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { AttackPathRoute } from "@/components/graph/AttackPathRoute";
 import { RemediationPanel } from "@/components/security/RemediationPanel";
-import { EngineBadge, ProwlerPanel } from "@/components/security/EnginePanel";
 import { TrackFix } from "@/components/security/TrackFix";
 import { FixVerification } from "@/components/security/FixVerification";
 import { placeholderValues } from "@/lib/remediationFill";
@@ -193,12 +192,11 @@ export function FindingDetailPage() {
             <span className="font-mono text-xs text-muted-foreground">
               {data.rule_id} · v{data.rule_version}
             </span>
-            <EngineBadge engine={data.engine} version={data.rule_version} />
           </div>
-          <h1 className="mt-3 text-2xl font-semibold tracking-[-0.02em] text-foreground">
+          <h1 className={cn("mt-3", PAGE_TITLE_CLASS)}>
             {data.title}
           </h1>
-          <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted-foreground">
+          <p className="mt-1.5 text-body leading-relaxed text-muted-foreground">
             {data.description}
           </p>
         </div>
@@ -294,9 +292,6 @@ export function FindingDetailPage() {
             }
             footer={
               <div className="flex flex-col gap-4">
-                {/* Prowler's own fix for a Prowler finding; for a Cleave rule
-                    Prowler cross-checks, which check and why they may differ. */}
-                <ProwlerPanel detail={data.prowler} />
                 <TrackFix
                   findingId={data.id}
                   status={data.status}
@@ -360,7 +355,7 @@ export function FindingDetailPage() {
               </CardHeader>
               <CardContent>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-[36px] leading-none font-semibold tabular-nums text-foreground">
+                  <span className="text-display leading-none font-semibold tabular-nums text-foreground">
                     {Number(data.risk.risk_score).toFixed(0)}
                   </span>
                   <SeverityBadge level={data.risk.risk_level} />
@@ -801,7 +796,7 @@ function Citation({ citation }: { citation: EvidenceCitation }) {
           {citation.endpoints.map((endpoint) => (
             <li
               key={`${endpoint.path}-${endpoint.api_version}`}
-              className="font-mono text-[11px] text-muted-foreground"
+              className="font-mono text-caption text-muted-foreground"
               title={endpoint.path}
             >
               {endpoint.path.replace(/^https?:\/\/[^/]+/, "")}
@@ -819,7 +814,7 @@ function Citation({ citation }: { citation: EvidenceCitation }) {
         // at all because it is what makes the reading identifiable: two scans
         // citing the same hash read byte-identical bytes.
         <p
-          className="mt-1 font-mono text-[11px] text-muted-foreground"
+          className="mt-1 font-mono text-caption text-muted-foreground"
           title={citation.content_hash}
         >
           sha256 {citation.content_hash.slice(0, 12)}…

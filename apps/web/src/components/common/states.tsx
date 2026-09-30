@@ -23,6 +23,14 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/format";
+import { InfoTip } from "@/components/common/InfoTip";
+
+/**
+ * The page's h1, on every page that draws its own header block rather than
+ * `PageHeader` -- a detail page's name beside its badges, a sign-in card. One
+ * size and one tracking, so a title is the same size wherever the reader lands.
+ */
+export const PAGE_TITLE_CLASS = "text-page font-semibold tracking-[-0.02em] text-foreground";
 
 /**
  * The page's own title block.
@@ -31,15 +39,25 @@ import { cn } from "@/lib/format";
  * rhythms, and a description that was sometimes above the actions and sometimes
  * beside them. One component means a reader's eye lands in the same place on
  * every screen.
+ *
+ * The description is one line -- what the page is -- and the copy budget holds
+ * it there. Anything longer (how it is measured, what it does not claim) is
+ * `explain`, a question mark beside the title (DECISIONS.md §166).
  */
 export function PageHeader({
   title,
   description,
+  explain,
+  explainLabel,
   actions,
   className,
 }: {
   title: ReactNode;
   description?: ReactNode;
+  /** The longer explanation, opened from a question mark beside the title. */
+  explain?: ReactNode;
+  /** The question mark's accessible name; required with `explain`. */
+  explainLabel?: string;
   actions?: ReactNode;
   className?: string;
 }) {
@@ -48,9 +66,14 @@ export function PageHeader({
   return (
     <div className={cn("flex flex-wrap items-start justify-between gap-4", className)}>
       <div className="min-w-0">
-        <h1 className="text-[22px] font-semibold tracking-[-0.02em] text-foreground">{title}</h1>
+        <div className="flex items-center gap-1">
+          <h1 className={PAGE_TITLE_CLASS}>{title}</h1>
+          {explain && (
+            <InfoTip label={explainLabel ?? "About this page"}>{explain}</InfoTip>
+          )}
+        </div>
         {description && (
-          <p className="mt-1.5 max-w-[78ch] text-[13px] text-muted-foreground">{description}</p>
+          <p className="mt-1 max-w-[78ch] text-body text-muted-foreground">{description}</p>
         )}
       </div>
       {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}

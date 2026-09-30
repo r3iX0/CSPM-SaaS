@@ -1,8 +1,7 @@
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
 import type { CollectionOutcome, ControlStatus, Level } from "./types";
 
-export const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
+// One merge configuration, so both import paths know the type scale.
+export { cn } from "./utils";
 
 /**
  * Severity colours, defined once.
@@ -199,6 +198,7 @@ const TYPE_ACRONYMS: Record<string, string> = {
   aks: "AKS",
   dns: "DNS",
   ip: "IP",
+  mysql: "MySQL",
   nsg: "NSG",
   sql: "SQL",
   vm: "VM",
@@ -228,7 +228,8 @@ const COLLECTION_CATEGORY_LABELS: Record<string, string> = {
   resources: "Inventory",
   authorization: "Role assignments",
   network: "Network",
-  // Virtual machines and, since role v7, App Service.
+  // Virtual machines; App Service since role v7; Kubernetes clusters,
+  // container registries and Databricks workspaces since v9.
   compute: "Compute",
   storage: "Storage",
   database: "Databases",

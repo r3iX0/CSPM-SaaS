@@ -128,10 +128,14 @@ def test_the_bulk_comes_from_policies_aws_maintains() -> None:
 
     IAM will not tell anyone that an action does not exist; it just grants
     nothing. The smaller the hand-written surface, the fewer ways that happens.
+
+    Thirty until v5 stated the four Cognito and WAF reads (DECISIONS.md section
+    177) rather than trusting SecurityAudit to carry the risk configuration
+    read, which nobody here has confirmed it does.
     """
     attached = role_properties()["ManagedPolicyArns"]
     assert "arn:aws:iam::aws:policy/SecurityAudit" in attached
-    assert len(INLINE_READ_ACTIONS) < 30
+    assert len(INLINE_READ_ACTIONS) < 35
 
 
 # ------------------------------------------------------------ versioning

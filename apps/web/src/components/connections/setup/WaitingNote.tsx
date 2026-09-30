@@ -25,7 +25,7 @@ export function WaitingNote({ text, detail }: { text: string; detail?: string })
         <span className="relative inline-flex size-2 rounded-full bg-primary" />
       </span>
       <span className="min-w-0">
-        <span className="block text-[13px] font-medium text-foreground">{text}</span>
+        <span className="block text-body font-medium text-foreground">{text}</span>
         {detail && (
           <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
             {detail}

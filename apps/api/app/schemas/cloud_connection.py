@@ -88,11 +88,6 @@ class CloudConnectionOut(BaseModel):
     role_upgrade_available: bool = False
     # The grant version a redeploy would bring this connection to.
     role_required_version: str | None = None
-    # True when the role is current but the grant lacks the every-read breadth
-    # the extended checks need -- a connection deployed before the template
-    # assigned Reader for them. Also raises ``role_upgrade_available``, since a
-    # redeploy is the fix (DECISIONS.md section 153).
-    extended_checks_blocked: bool = False
     # Categories whose checks report UNKNOWN until the grant is redeployed.
     degraded_categories: list[str] = Field(default_factory=list)
     # Verified *and* holding at least one subscription that can be scanned.

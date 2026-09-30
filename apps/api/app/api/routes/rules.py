@@ -4,7 +4,6 @@ from sqlalchemy import select
 from app.core.deps import DbSession, Tenant
 from app.core.errors import NotFound
 from app.models.rule import Rule
-from app.prowler.rules import prowler_detail
 from app.schemas.common import ERROR_RESPONSES, Envelope, NoMeta
 from app.schemas.rule import RuleOut
 from app.services import findings as findings_service
@@ -38,12 +37,6 @@ def _serialize(rule: Rule) -> RuleOut:
         # a row: a policy stored in the database could outlive the rule that
         # generated it.
         remediation_spec=findings_service.remediation_detail(rule.rule_id),
-        # Which engine reaches this rule's verdicts, and -- for a Prowler
-        # check -- which check and release, with its own remediation code
-        # (DECISIONS.md section 150).
-        engine=rule.engine,
-        engine_version=rule.engine_version,
-        prowler=prowler_detail(rule.rule_id),
     )
 
 

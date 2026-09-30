@@ -363,29 +363,46 @@ def test_a_framework_about_an_organization_applies_to_every_cloud() -> None:
         assert framework_id in shown
 
 
-def test_an_organization_with_no_connections_sees_everything(monkeypatch) -> None:
+def test_an_organization_with_no_connections_sees_everything() -> None:
     """There is nothing to scope by, and answering "what does this product
     check?" with silence would be worse than showing a benchmark they may not
     end up needing."""
     from app.compliance.catalog import FRAMEWORKS
-    from app.core.config import settings
     from app.services.compliance import frameworks_for
 
-    monkeypatch.setattr(settings, "assess_enabled", True)
     assert len(frameworks_for(set())) == len(FRAMEWORKS)
 
 
-def test_the_extended_frameworks_wait_for_the_scanner_service(monkeypatch) -> None:
-    """A framework measured only by Prowler's checks shows every control as
-    never assessed until the scanner service runs, so it is not listed before
-    then (DECISIONS.md section 150)."""
-    from app.core.config import settings
-    from app.services.compliance import PROWLER_FRAMEWORK_IDS, frameworks_for
+def test_the_kept_frameworks_are_offered_and_every_crosswalk_control_exists() -> None:
+    """The six frameworks kept as data are listed like the rest, and the
+    crosswalk names only controls they define -- a mapping onto a control no
+    framework lists would count toward a coverage number whose denominator
+    never included it (DECISIONS.md section 168)."""
+    import json
 
-    monkeypatch.setattr(settings, "assess_enabled", False)
-    shown = {f.id for f in frameworks_for(set())}
-    assert PROWLER_FRAMEWORK_IDS and not shown & PROWLER_FRAMEWORK_IDS
-    assert "CIS_AZURE_2.0" in shown
+    from app.compliance.catalog import FRAMEWORKS, FRAMEWORKS_PATH
+    from app.compliance.crosswalk import crosswalk
+    from app.rules.registry import RULE_REGISTRY
+    from app.services.compliance import frameworks_for
 
-    monkeypatch.setattr(settings, "assess_enabled", True)
-    assert {f.id for f in frameworks_for(set())} >= PROWLER_FRAMEWORK_IDS
+    kept = {entry["id"] for entry in json.loads(FRAMEWORKS_PATH.read_text())["frameworks"]}
+    assert kept == {"CIS_AZURE_6.0", "CIS_AWS_7.0", "AWS_FSBP", "NIS2", "HIPAA", "MITRE_ATTACK"}
+    assert {f.id for f in frameworks_for(set())} >= kept
+
+    controls = {f.id: {c.id for c in f.controls} for f in FRAMEWORKS}
+    rule_ids = {rule.rule_id for rule in RULE_REGISTRY}
+    for rule_id, mappings in crosswalk().items():
+        assert rule_id in rule_ids, f"{rule_id} is in the crosswalk and not the registry"
+        for framework_id, ids in mappings.items():
+            assert set(ids) <= controls[framework_id], (rule_id, framework_id)
+
+
+def test_a_rules_own_mapping_wins_over_the_crosswalk() -> None:
+    from app.compliance.crosswalk import compliance_mappings_for, crosswalk
+
+    rule_id, derived = next(iter(crosswalk().items()))
+    framework_id = next(iter(derived))
+
+    merged = compliance_mappings_for(rule_id, {framework_id: ["mine"]})
+    assert merged[framework_id] == ["mine"]
+    assert compliance_mappings_for(rule_id, {})[framework_id] == derived[framework_id]

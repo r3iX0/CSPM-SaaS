@@ -455,7 +455,7 @@ function BoxNode({ id, data }: NodeProps<BoxFlowNode>) {
         >
           {title}
         </span>
-        <span className="block truncate text-[11px] text-muted-foreground">{detail}</span>
+        <span className="block truncate text-caption text-muted-foreground">{detail}</span>
       </span>
       <Markers box={data} />
     </>

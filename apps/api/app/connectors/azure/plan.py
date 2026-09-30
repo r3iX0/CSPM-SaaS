@@ -48,6 +48,63 @@ from app.core.logging import get_logger
 
 log = get_logger(__name__)
 
+
+async def _mysql_parameters(arm: ArmClient, server_id: str) -> dict[str, Any]:
+    """Both TLS parameters of one MySQL server, read by name.
+
+    Together rather than as two tasks: one rule reads each, both are the same
+    permission, and a role that refuses one refuses the other.
+    """
+    return {
+        "require_secure_transport": await arm.get_mysql_secure_transport(server_id),
+        "tls_version": await arm.get_mysql_tls_version(server_id),
+        # Section 175: whether the server keeps an audit log, and of what.
+        "audit_log_enabled": await arm.get_mysql_parameter(server_id, "audit_log_enabled"),
+        "audit_log_events": await arm.get_mysql_parameter(server_id, "audit_log_events"),
+    }
+
+
+POSTGRES_LOGGING_PARAMETERS = (
+    "log_checkpoints",
+    "log_connections",
+    "log_disconnections",
+    "connection_throttle.enable",
+    "logfiles.retention_days",
+)
+
+
+async def _postgres_logging(arm: ArmClient, server_id: str) -> dict[str, Any]:
+    """Five PostgreSQL parameters by name (DECISIONS.md section 175). A name the
+    server does not have fails that server's read, which is UNKNOWN downstream."""
+    return {
+        name: await arm.get_postgresql_parameter(server_id, name)
+        for name in POSTGRES_LOGGING_PARAMETERS
+    }
+
+async def _sql_assessments(arm: ArmClient, server_id: str) -> dict[str, Any]:
+    """Both forms of a SQL server's vulnerability assessment (section 176).
+
+    Read together because either one answers "is this server assessed": the
+    express configuration keeps its own results and needs no storage account,
+    and the classic one needs a container to write to. A server may carry
+    both, and a rule that read only one would fail servers the other covers.
+    """
+    return {
+        "classic": await arm.get_sql_vulnerability_assessment(server_id),
+        "express": await arm.get_sql_express_assessment(server_id),
+    }
+
+
+# Storage account kinds with no file service. Asking one for its file service
+# is an error rather than an answer, and the checks on shares do not apply to
+# it, so it is not asked (section 176).
+_NO_FILE_SERVICE = frozenset({"blobstorage", "blockblobstorage"})
+
+
+def _has_file_service(account: dict[str, Any]) -> bool:
+    return str(account.get("kind") or "").lower() not in _NO_FILE_SERVICE
+
+
 # How many per-resource detail calls one task runs at once. Enough to keep a
 # scan brisk, low enough not to trip Azure's throttling on its own -- and now
 # per task rather than global, since the executor already limits how many tasks
@@ -129,6 +186,52 @@ POSTGRES_ENDPOINT = ProviderEndpoint(
     "/flexibleServers",
     "2023-03-01-preview",
 )
+# v9. Six listings of types the connector models from here on, each under the
+# provider's generally available api-version as the published REST reference
+# gave it on 2026-09-29 (DECISIONS.md section 169).
+AKS_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.ContainerService"
+    "/managedClusters",
+    "2024-02-01",
+)
+ACR_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.ContainerRegistry"
+    "/registries",
+    "2023-07-01",
+)
+COSMOS_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.DocumentDB"
+    "/databaseAccounts",
+    "2024-11-15",
+)
+MYSQL_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.DBforMySQL"
+    "/flexibleServers",
+    "2023-12-30",
+)
+DATABRICKS_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Databricks/workspaces",
+    "2024-05-01",
+)
+SEARCH_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Search/searchServices",
+    "2023-11-01",
+)
+# v10. Two MySQL server parameters, each read by name beneath the listing
+# (DECISIONS.md section 172).
+MYSQL_SECURE_TRANSPORT_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/{{serverId}}/configurations/require_secure_transport", "2023-12-30"
+)
+MYSQL_TLS_VERSION_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/{{serverId}}/configurations/tls_version", "2023-12-30"
+)
+# Section 175. Further parameters by name under reads the role already holds.
+MYSQL_PARAMETER_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/{{serverId}}/configurations/{{name}}", "2023-12-30"
+)
+POSTGRES_PARAMETER_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/{{serverId}}/configurations/{{name}}", "2023-03-01-preview"
+)
 # v7. Four fan-outs beneath listings the plan already takes, and two new
 # listings.
 SQL_ADMINISTRATORS_ENDPOINT = ProviderEndpoint(
@@ -174,6 +277,91 @@ DIAGNOSTICS_ENDPOINT = ProviderEndpoint(
     f"{ARM}/{{resourceId}}/providers/Microsoft.Insights/diagnosticSettings",
     "2021-05-01-preview",
 )
+# v11 (DECISIONS.md section 176). Each api-version is the one whose contract
+# the fields read were checked against, in the provider's REST specification,
+# on 2026-09-30.
+SQL_THREAT_DETECTION_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/{{serverId}}/securityAlertPolicies/Default", "2021-11-01"
+)
+SQL_ENCRYPTION_PROTECTOR_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/{{serverId}}/encryptionProtector/current", "2021-11-01"
+)
+SQL_VULNERABILITY_ASSESSMENT_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/{{serverId}}/vulnerabilityAssessments/default", "2021-11-01"
+)
+SQL_EXPRESS_ASSESSMENT_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/{{serverId}}/sqlVulnerabilityAssessments/default", "2023-08-01"
+)
+FILE_SERVICE_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/{{accountId}}/fileServices/default", "2023-01-01"
+)
+VAULT_KEYS_ENDPOINT = ProviderEndpoint(f"{ARM}/{{vaultId}}/keys", "2023-07-01")
+VAULT_SECRETS_ENDPOINT = ProviderEndpoint(f"{ARM}/{{vaultId}}/secrets", "2023-07-01")
+APP_SERVICE_AUTH_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/{{siteId}}/config/authsettingsV2", "2022-09-01"
+)
+SECURITY_CONTACTS_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Security"
+    "/securityContacts",
+    "2023-12-01-preview",
+)
+SECURITY_SETTINGS_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Security/settings",
+    "2022-05-01",
+)
+IOT_SECURITY_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Security"
+    "/iotSecuritySolutions",
+    "2019-08-01",
+)
+JIT_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Security"
+    "/jitNetworkAccessPolicies",
+    "2020-01-01",
+)
+RECOVERY_VAULTS_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.RecoveryServices/vaults",
+    "2023-04-01",
+)
+BACKUP_ITEMS_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/{{vaultId}}/backupProtectedItems", "2023-04-01"
+)
+# v12 (DECISIONS.md section 177).
+BACKUP_POLICIES_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/{{vaultId}}/backupPolicies", "2023-04-01"
+)
+SCALE_SETS_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Compute"
+    "/virtualMachineScaleSets",
+    "2023-09-01",
+)
+DISKS_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Compute/disks",
+    "2023-04-02",
+)
+ACTIVITY_LOG_ALERTS_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Insights"
+    "/activityLogAlerts",
+    "2020-10-01",
+)
+POLICY_ASSIGNMENTS_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Authorization"
+    "/policyAssignments",
+    "2022-06-01",
+)
+VIRTUAL_NETWORKS_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Network/virtualNetworks",
+    "2023-09-01",
+)
+NETWORK_WATCHERS_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Network/networkWatchers",
+    "2023-09-01",
+)
+FLOW_LOGS_ENDPOINT = ProviderEndpoint(f"{ARM}/{{watcherId}}/flowLogs", "2023-09-01")
+BASTION_HOSTS_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Network/bastionHosts",
+    "2023-09-01",
+)
 RESOURCE_GRAPH_ENDPOINT = ProviderEndpoint(
     f"{ARM}/providers/Microsoft.ResourceGraph/resources", "2022-10-01"
 )
@@ -193,6 +381,16 @@ ROLE_MEMBERS_ENDPOINT = ProviderEndpoint(
 )
 AUTH_METHODS_ENDPOINT = ProviderEndpoint(
     f"{GRAPH}/users/{{userId}}/authentication/methods", GRAPH_VERSION
+)
+AUTHORIZATION_POLICY_ENDPOINT = ProviderEndpoint(
+    f"{GRAPH}/policies/authorizationPolicy", GRAPH_VERSION
+)
+AUTH_METHODS_POLICY_ENDPOINT = ProviderEndpoint(
+    f"{GRAPH}/policies/authenticationMethodsPolicy", GRAPH_VERSION
+)
+GROUP_SETTINGS_ENDPOINT = ProviderEndpoint(f"{GRAPH}/groupSettings", GRAPH_VERSION)
+NAMED_LOCATIONS_ENDPOINT = ProviderEndpoint(
+    f"{GRAPH}/identity/conditionalAccess/namedLocations", GRAPH_VERSION
 )
 SECURITY_DEFAULTS_ENDPOINT = ProviderEndpoint(
     f"{GRAPH}/policies/identitySecurityDefaultsEnforcementPolicy", GRAPH_VERSION
@@ -385,8 +583,60 @@ class AzurePlanBuilder:
         async def postgres(arm: ArmClient) -> dict[str, Any]:
             return {"postgresql_servers": await arm.list_postgresql_servers(sub)}
 
+        async def kubernetes_clusters(arm: ArmClient) -> dict[str, Any]:
+            return {"kubernetes_clusters": await arm.list_kubernetes_clusters(sub)}
+
+        async def container_registries(arm: ArmClient) -> dict[str, Any]:
+            return {"container_registries": await arm.list_container_registries(sub)}
+
+        async def cosmos_accounts(arm: ArmClient) -> dict[str, Any]:
+            return {"cosmos_accounts": await arm.list_cosmos_accounts(sub)}
+
+        async def mysql_servers(arm: ArmClient) -> dict[str, Any]:
+            return {"mysql_servers": await arm.list_mysql_servers(sub)}
+
+        async def databricks_workspaces(arm: ArmClient) -> dict[str, Any]:
+            return {"databricks_workspaces": await arm.list_databricks_workspaces(sub)}
+
+        async def search_services(arm: ArmClient) -> dict[str, Any]:
+            return {"search_services": await arm.list_search_services(sub)}
+
         async def app_services(arm: ArmClient) -> dict[str, Any]:
             return {"app_services": await arm.list_app_services(sub)}
+
+        # v11 (section 176). Subscription-wide listings, one key each.
+        async def security_contacts(arm: ArmClient) -> dict[str, Any]:
+            return {"security_contacts": await arm.list_security_contacts(sub)}
+
+        async def security_settings(arm: ArmClient) -> dict[str, Any]:
+            return {"security_settings": await arm.list_security_settings(sub)}
+
+        async def iot_security(arm: ArmClient) -> dict[str, Any]:
+            return {"iot_security_solutions": await arm.list_iot_security_solutions(sub)}
+
+        async def jit_policies(arm: ArmClient) -> dict[str, Any]:
+            return {"jit_policies": await arm.list_jit_policies(sub)}
+
+        async def disks(arm: ArmClient) -> dict[str, Any]:
+            return {"disks": await arm.list_disks(sub)}
+
+        async def activity_log_alerts(arm: ArmClient) -> dict[str, Any]:
+            return {"activity_log_alerts": await arm.list_activity_log_alerts(sub)}
+
+        async def policy_assignments(arm: ArmClient) -> dict[str, Any]:
+            return {"policy_assignments": await arm.list_policy_assignments(sub)}
+
+        async def virtual_networks(arm: ArmClient) -> dict[str, Any]:
+            return {"virtual_networks": await arm.list_virtual_networks(sub)}
+
+        async def network_watchers(arm: ArmClient) -> dict[str, Any]:
+            return {"network_watchers": await arm.list_network_watchers(sub)}
+
+        async def bastion_hosts(arm: ArmClient) -> dict[str, Any]:
+            return {"bastion_hosts": await arm.list_bastion_hosts(sub)}
+
+        async def scale_sets(arm: ArmClient) -> dict[str, Any]:
+            return {"scale_sets": await arm.list_scale_sets(sub)}
 
         async def subscription(arm: ArmClient) -> dict[str, Any]:
             return {"subscription": await arm.get_subscription(sub)}
@@ -527,6 +777,42 @@ class AzurePlanBuilder:
                 endpoints=(APP_SERVICES_ENDPOINT,),
             ),
             self._arm_task(
+                AzureEvidence.KUBERNETES_CLUSTERS,
+                ("Microsoft.ContainerService/managedClusters/read",),
+                kubernetes_clusters,
+                endpoints=(AKS_ENDPOINT,),
+            ),
+            self._arm_task(
+                AzureEvidence.CONTAINER_REGISTRIES,
+                ("Microsoft.ContainerRegistry/registries/read",),
+                container_registries,
+                endpoints=(ACR_ENDPOINT,),
+            ),
+            self._arm_task(
+                AzureEvidence.COSMOS_ACCOUNTS,
+                ("Microsoft.DocumentDB/databaseAccounts/read",),
+                cosmos_accounts,
+                endpoints=(COSMOS_ENDPOINT,),
+            ),
+            self._arm_task(
+                AzureEvidence.MYSQL_SERVERS,
+                ("Microsoft.DBforMySQL/flexibleServers/read",),
+                mysql_servers,
+                endpoints=(MYSQL_ENDPOINT,),
+            ),
+            self._arm_task(
+                AzureEvidence.DATABRICKS_WORKSPACES,
+                ("Microsoft.Databricks/workspaces/read",),
+                databricks_workspaces,
+                endpoints=(DATABRICKS_ENDPOINT,),
+            ),
+            self._arm_task(
+                AzureEvidence.SEARCH_SERVICES,
+                ("Microsoft.Search/searchServices/read",),
+                search_services,
+                endpoints=(SEARCH_ENDPOINT,),
+            ),
+            self._arm_task(
                 AzureEvidence.SUBSCRIPTION,
                 ("Microsoft.Resources/subscriptions/read",),
                 subscription,
@@ -579,6 +865,25 @@ class AzurePlanBuilder:
                 of="PostgreSQL servers",
             ),
             self._per_resource_task(
+                AzureEvidence.MYSQL_CONFIGURATIONS,
+                source=AzureEvidence.MYSQL_SERVERS,
+                action="Microsoft.DBforMySQL/flexibleServers/configurations/read",
+                endpoint=MYSQL_SECURE_TRANSPORT_ENDPOINT,
+                also=(MYSQL_TLS_VERSION_ENDPOINT, MYSQL_PARAMETER_ENDPOINT),
+                read=_mysql_parameters,
+                noun="the TLS parameters",
+                of="MySQL servers",
+            ),
+            self._per_resource_task(
+                AzureEvidence.POSTGRESQL_LOGGING,
+                source=AzureEvidence.POSTGRESQL_SERVERS,
+                action="Microsoft.DBforPostgreSQL/flexibleServers/configurations/read",
+                endpoint=POSTGRES_PARAMETER_ENDPOINT,
+                read=_postgres_logging,
+                noun="the logging parameters",
+                of="PostgreSQL servers",
+            ),
+            self._per_resource_task(
                 AzureEvidence.STORAGE_BLOB_SERVICES,
                 source=AzureEvidence.STORAGE_ACCOUNTS,
                 action="Microsoft.Storage/storageAccounts/blobServices/read",
@@ -596,6 +901,153 @@ class AzurePlanBuilder:
                 noun="configuration",
                 of="apps",
             ),
+            # v11 (section 176).
+            self._arm_task(
+                AzureEvidence.SECURITY_CONTACTS,
+                ("Microsoft.Security/securityContacts/read",),
+                security_contacts,
+                endpoints=(SECURITY_CONTACTS_ENDPOINT,),
+            ),
+            self._arm_task(
+                AzureEvidence.SECURITY_SETTINGS,
+                ("Microsoft.Security/settings/read",),
+                security_settings,
+                endpoints=(SECURITY_SETTINGS_ENDPOINT,),
+            ),
+            self._arm_task(
+                AzureEvidence.IOT_SECURITY_SOLUTIONS,
+                ("Microsoft.Security/iotSecuritySolutions/read",),
+                iot_security,
+                endpoints=(IOT_SECURITY_ENDPOINT,),
+            ),
+            self._arm_task(
+                AzureEvidence.JIT_POLICIES,
+                (
+                    "Microsoft.Security/jitNetworkAccessPolicies/read",
+                    "Microsoft.Security/locations/jitNetworkAccessPolicies/read",
+                ),
+                jit_policies,
+                endpoints=(JIT_ENDPOINT,),
+            ),
+            self._arm_task(
+                AzureEvidence.DISKS,
+                ("Microsoft.Compute/disks/read",),
+                disks,
+                endpoints=(DISKS_ENDPOINT,),
+            ),
+            self._arm_task(
+                AzureEvidence.ACTIVITY_LOG_ALERTS,
+                ("Microsoft.Insights/activityLogAlerts/read",),
+                activity_log_alerts,
+                endpoints=(ACTIVITY_LOG_ALERTS_ENDPOINT,),
+            ),
+            self._arm_task(
+                AzureEvidence.POLICY_ASSIGNMENTS,
+                ("Microsoft.Authorization/policyAssignments/read",),
+                policy_assignments,
+                endpoints=(POLICY_ASSIGNMENTS_ENDPOINT,),
+            ),
+            self._arm_task(
+                AzureEvidence.VIRTUAL_NETWORKS,
+                ("Microsoft.Network/virtualNetworks/read",),
+                virtual_networks,
+                endpoints=(VIRTUAL_NETWORKS_ENDPOINT,),
+            ),
+            self._arm_task(
+                AzureEvidence.NETWORK_WATCHERS,
+                ("Microsoft.Network/networkWatchers/read",),
+                network_watchers,
+                endpoints=(NETWORK_WATCHERS_ENDPOINT,),
+            ),
+            self._arm_task(
+                AzureEvidence.BASTION_HOSTS,
+                ("Microsoft.Network/bastionHosts/read",),
+                bastion_hosts,
+                endpoints=(BASTION_HOSTS_ENDPOINT,),
+            ),
+            self._per_resource_task(
+                AzureEvidence.FLOW_LOGS,
+                source=AzureEvidence.NETWORK_WATCHERS,
+                action="Microsoft.Network/networkWatchers/flowLogs/read",
+                endpoint=FLOW_LOGS_ENDPOINT,
+                read=lambda arm, watcher_id: arm.list_flow_logs(watcher_id),
+                noun="flow logs",
+                of="network watchers",
+            ),
+            self._per_resource_task(
+                AzureEvidence.SQL_THREAT_DETECTION,
+                source=AzureEvidence.SQL_SERVERS,
+                action="Microsoft.Sql/servers/securityAlertPolicies/read",
+                endpoint=SQL_THREAT_DETECTION_ENDPOINT,
+                read=lambda arm, server_id: arm.get_sql_threat_detection(server_id),
+                noun="Defender for SQL settings",
+                of="servers",
+            ),
+            self._per_resource_task(
+                AzureEvidence.SQL_ENCRYPTION_PROTECTOR,
+                source=AzureEvidence.SQL_SERVERS,
+                action="Microsoft.Sql/servers/encryptionProtector/read",
+                endpoint=SQL_ENCRYPTION_PROTECTOR_ENDPOINT,
+                read=lambda arm, server_id: arm.get_sql_encryption_protector(server_id),
+                noun="the encryption protector",
+                of="servers",
+            ),
+            self._per_resource_task(
+                AzureEvidence.SQL_VULNERABILITY_ASSESSMENT,
+                source=AzureEvidence.SQL_SERVERS,
+                action="Microsoft.Sql/servers/vulnerabilityAssessments/read",
+                also_actions=("Microsoft.Sql/servers/sqlVulnerabilityAssessments/read",),
+                endpoint=SQL_VULNERABILITY_ASSESSMENT_ENDPOINT,
+                also=(SQL_EXPRESS_ASSESSMENT_ENDPOINT,),
+                read=_sql_assessments,
+                noun="vulnerability assessment settings",
+                of="servers",
+            ),
+            self._per_resource_task(
+                AzureEvidence.STORAGE_FILE_SERVICES,
+                source=AzureEvidence.STORAGE_ACCOUNTS,
+                action="Microsoft.Storage/storageAccounts/fileServices/read",
+                endpoint=FILE_SERVICE_ENDPOINT,
+                read=lambda arm, account_id: arm.get_file_service(account_id),
+                noun="file share settings",
+                of="storage accounts",
+                where=_has_file_service,
+            ),
+            self._per_resource_task(
+                AzureEvidence.KEY_VAULT_KEYS,
+                source=AzureEvidence.KEY_VAULTS,
+                action="Microsoft.KeyVault/vaults/keys/read",
+                endpoint=VAULT_KEYS_ENDPOINT,
+                read=lambda arm, vault_id: arm.list_vault_keys(vault_id),
+                noun="key attributes",
+                of="vaults",
+            ),
+            self._per_resource_task(
+                AzureEvidence.KEY_VAULT_SECRETS,
+                source=AzureEvidence.KEY_VAULTS,
+                action="Microsoft.KeyVault/vaults/secrets/read",
+                endpoint=VAULT_SECRETS_ENDPOINT,
+                read=lambda arm, vault_id: arm.list_vault_secrets(vault_id),
+                noun="secret attributes",
+                of="vaults",
+            ),
+            self._per_resource_task(
+                AzureEvidence.APP_SERVICE_AUTH,
+                source=AzureEvidence.APP_SERVICES,
+                action="Microsoft.Web/sites/config/read",
+                endpoint=APP_SERVICE_AUTH_ENDPOINT,
+                read=lambda arm, site_id: arm.get_app_service_auth(site_id),
+                noun="authentication settings",
+                of="apps",
+            ),
+            self._vm_backups_task(),
+            self._backup_policies_task(),
+            self._arm_task(
+                AzureEvidence.SCALE_SETS,
+                ("Microsoft.Compute/virtualMachineScaleSets/read",),
+                scale_sets,
+                endpoints=(SCALE_SETS_ENDPOINT,),
+            ),
             self._diagnostics_task(),
         ]
         return tasks
@@ -610,6 +1062,9 @@ class AzurePlanBuilder:
         read: Callable[[ArmClient, str], Awaitable[Any]],
         noun: str,
         of: str,
+        also: tuple[ProviderEndpoint, ...] = (),
+        also_actions: tuple[str, ...] = (),
+        where: Callable[[dict[str, Any]], bool] | None = None,
     ) -> CollectionTask:
         """One read per resource another listing produced, keyed by its id.
 
@@ -628,7 +1083,11 @@ class AzurePlanBuilder:
 
         async def run(collected: dict[str, Any]) -> TaskData:
             arm = ArmClient(self.tokens, self._http, limiter=self._limiter)
-            ids = [item["id"] for item in collected.get(source, []) if item.get("id")]
+            ids = [
+                item["id"]
+                for item in collected.get(source, [])
+                if item.get("id") and (where is None or where(item))
+            ]
 
             failures = 0
 
@@ -643,6 +1102,15 @@ class AzurePlanBuilder:
             pairs = await self._gather_limited([for_resource(i) for i in ids])
             data = {key.value: dict(pairs)}
 
+            # A per-resource listing -- a vault's keys, a watcher's flow logs --
+            # can be longer than one scan reads, and a short list is not a
+            # clean one (section 176).
+            if arm.truncated:
+                return TaskData(
+                    data,
+                    partial_reason=f"the {noun} of one of these {of} ran longer than one "
+                    "scan reads, so these results cannot support a pass",
+                )
             if failures:
                 return TaskData(
                     data,
@@ -658,8 +1126,113 @@ class AzurePlanBuilder:
             key=key,
             run=run,
             depends_on=(source,),
-            actions=(action,),
-            endpoints=(endpoint,),
+            actions=(action, *also_actions),
+            endpoints=(endpoint, *also),
+        )
+
+    def _vm_backups_task(self) -> CollectionTask:
+        """Which virtual machines Azure Backup protects (section 176).
+
+        Two readings: the subscription's Recovery Services vaults, then the
+        machines each one backs up. Kept as the list of protected items rather
+        than a verdict per machine, because a vault can protect a machine in
+        another subscription and a machine can be protected from one: the
+        normalizer joins them on the machine's id.
+
+        A vault whose items could not be read is named, and the task is
+        partial, so a machine it might protect is UNKNOWN rather than
+        unprotected.
+        """
+        sub = self.subscription_id
+        if not sub:
+            raise ValueError("The backup task reads one subscription")
+
+        async def run(collected: dict[str, Any]) -> TaskData:
+            arm = ArmClient(self.tokens, self._http, limiter=self._limiter)
+            # The vault records themselves, not only their ids: since section
+            # 177 each vault is an asset of its own.
+            vaults = [v for v in await arm.list_recovery_vaults(sub) if v.get("id")]
+            unread: list[str] = []
+
+            async def items_of(vault_id: str) -> list[dict[str, Any]]:
+                try:
+                    return await arm.list_backup_protected_items(vault_id)
+                except Exception as exc:
+                    log.warning("azure.backup_items_failed", error=str(exc))
+                    unread.append(vault_id)
+                    return []
+
+            found = await self._gather_limited([items_of(v["id"]) for v in vaults])
+            data = {
+                "vm_backups": {
+                    "vaults": vaults,
+                    "unread_vaults": unread,
+                    "items": [item for items in found for item in items],
+                }
+            }
+            reasons = []
+            if unread:
+                reasons.append(
+                    f"protected items could not be read for {len(unread)} of "
+                    f"{len(vaults)} Recovery Services vaults"
+                )
+            if arm.truncated:
+                reasons.append("a vault protects more items than one scan reads")
+            return TaskData(data, partial_reason="; ".join(reasons) if reasons else None)
+
+        return CollectionTask(
+            key=AzureEvidence.VM_BACKUPS,
+            run=run,
+            actions=(
+                "Microsoft.RecoveryServices/Vaults/read",
+                "Microsoft.RecoveryServices/Vaults/backupProtectedItems/read",
+            ),
+            endpoints=(RECOVERY_VAULTS_ENDPOINT, BACKUP_ITEMS_ENDPOINT),
+        )
+
+    def _backup_policies_task(self) -> CollectionTask:
+        """How long each Recovery Services vault keeps its recovery points
+        (section 177). Keyed by vault, with a failed read recorded against the
+        vault as ``"error: ..."`` so it costs that vault's verdicts alone."""
+
+        async def run(collected: dict[str, Any]) -> TaskData:
+            arm = ArmClient(self.tokens, self._http, limiter=self._limiter)
+            backups = collected.get(AzureEvidence.VM_BACKUPS.value) or {}
+            ids = [
+                str(v["id"])
+                for v in backups.get("vaults") or []
+                if isinstance(v, dict) and v.get("id")
+            ]
+            failures = 0
+
+            async def for_vault(vault_id: str) -> tuple[str, Any]:
+                nonlocal failures
+                try:
+                    return vault_id, await arm.list_backup_policies(vault_id)
+                except Exception as exc:
+                    failures += 1
+                    return vault_id, f"error: {exc}"
+
+            pairs = await self._gather_limited([for_vault(v) for v in ids])
+            data = {AzureEvidence.BACKUP_POLICIES.value: dict(pairs)}
+            if failures or arm.truncated:
+                return TaskData(
+                    data,
+                    partial_reason=(
+                        f"backup policies could not be read for {failures} of {len(ids)} "
+                        "vaults"
+                        if failures
+                        else "a vault holds more backup policies than one scan reads"
+                    ),
+                )
+            return TaskData(data)
+
+        return CollectionTask(
+            key=AzureEvidence.BACKUP_POLICIES,
+            run=run,
+            depends_on=(AzureEvidence.VM_BACKUPS,),
+            actions=("Microsoft.RecoveryServices/Vaults/backupPolicies/read",),
+            endpoints=(BACKUP_POLICIES_ENDPOINT,),
         )
 
     def _sql_auditing_task(self) -> CollectionTask:
@@ -975,6 +1548,9 @@ class AzurePlanBuilder:
             AzureEvidence.STORAGE_ACCOUNTS,
             AzureEvidence.SQL_SERVERS,
             AzureEvidence.NETWORK_SECURITY_GROUPS,
+            # Section 176: where each web app sends its HTTP logs. Same action,
+            # same endpoint -- a site is a scope like any other.
+            AzureEvidence.APP_SERVICES,
         )
 
         async def run(collected: dict[str, Any]) -> TaskData:
@@ -1108,6 +1684,26 @@ class AzurePlanBuilder:
             found = await self._graph_call(graph.list_directory_roles())
             return TaskData({"directory_roles": found})
 
+        async def authorization_policy(collected: dict[str, Any]) -> TaskData:
+            graph = GraphClient(self.tokens, self._http, limiter=self._limiter)
+            policy = await self._graph_call(graph.get_authorization_policy())
+            return TaskData({"authorization_policy": policy})
+
+        async def authentication_methods_policy(collected: dict[str, Any]) -> TaskData:
+            graph = GraphClient(self.tokens, self._http, limiter=self._limiter)
+            policy = await self._graph_call(graph.get_authentication_methods_policy())
+            return TaskData({"authentication_methods_policy": policy})
+
+        async def group_settings(collected: dict[str, Any]) -> TaskData:
+            graph = GraphClient(self.tokens, self._http, limiter=self._limiter)
+            settings = await self._graph_call(graph.list_group_settings())
+            return TaskData({"group_settings": settings})
+
+        async def named_locations(collected: dict[str, Any]) -> TaskData:
+            graph = GraphClient(self.tokens, self._http, limiter=self._limiter)
+            found = await self._graph_call(graph.list_named_locations())
+            return TaskData({"named_locations": found})
+
         async def security_defaults(collected: dict[str, Any]) -> TaskData:
             graph = GraphClient(self.tokens, self._http, limiter=self._limiter)
             policy = await self._graph_call(graph.get_security_defaults())
@@ -1237,6 +1833,27 @@ class AzurePlanBuilder:
                 key=AzureEvidence.SECURITY_DEFAULTS,
                 run=security_defaults,
                 endpoints=(SECURITY_DEFAULTS_ENDPOINT,),
+            ),
+            CollectionTask(
+                key=AzureEvidence.AUTHORIZATION_POLICY,
+                run=authorization_policy,
+                endpoints=(AUTHORIZATION_POLICY_ENDPOINT,),
+            ),
+            CollectionTask(
+                key=AzureEvidence.AUTHENTICATION_METHODS_POLICY,
+                run=authentication_methods_policy,
+                endpoints=(AUTH_METHODS_POLICY_ENDPOINT,),
+            ),
+            CollectionTask(
+                key=AzureEvidence.GROUP_SETTINGS,
+                run=group_settings,
+                endpoints=(GROUP_SETTINGS_ENDPOINT,),
+            ),
+            # Section 176. ``Policy.Read.All`` again, already consented.
+            CollectionTask(
+                key=AzureEvidence.NAMED_LOCATIONS,
+                run=named_locations,
+                endpoints=(NAMED_LOCATIONS_ENDPOINT,),
             ),
             CollectionTask(
                 key=AzureEvidence.CONDITIONAL_ACCESS_POLICIES,

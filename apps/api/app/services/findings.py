@@ -6,6 +6,7 @@ from uuid import UUID
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.compliance.crosswalk import compliance_mappings_for
 from app.core.db import commit_unless_externally_managed
 from app.core.deps import TenantContext
 from app.core.enums import (
@@ -23,7 +24,6 @@ from app.models.risk import Risk, RiskFinding
 from app.models.rule import Rule
 from app.models.scan import Evidence, EvidenceBlob
 from app.models.verification import RemediationVerification
-from app.prowler.rules import compliance_mappings_for, prowler_detail
 from app.remediation import Comparison, ExpectedState, azure_policy, terraform_hints
 from app.risk.scorer import default_scorer
 from app.risk.triage import acceptance_expiry, finding_risk_status
@@ -370,14 +370,11 @@ def rule_metadata(rule_id: str) -> dict:
         # that is no longer the one being checked would be worse than not being
         # told at all.
         "remediation_spec": remediation_detail(rule_id),
-        # Which engine raised it (DECISIONS.md section 150): the first thing to
-        # know about a disputed finding is whose verdict it is. For a Prowler
-        # check, which check and release, and its own remediation code.
-        "engine": rule.engine.value,
-        "prowler": prowler_detail(rule_id),
-        # Every control this rule is evidence toward, including those a native
-        # rule inherits from the Prowler checks it covers.
-        "compliance_mappings": compliance_mappings_for(rule),
+        # Every control this rule is evidence toward, including those the
+        # crosswalk adds (DECISIONS.md section 168).
+        "compliance_mappings": compliance_mappings_for(
+            rule.rule_id, rule.compliance_mappings
+        ),
     }
 
 

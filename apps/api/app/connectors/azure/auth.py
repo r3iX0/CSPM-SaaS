@@ -58,7 +58,12 @@ REQUIRED_GRAPH_PERMISSIONS = [
 # A permission with no call is not forbidden -- it is reserved below, with a
 # reason. What is forbidden is one that is neither.
 GRAPH_PERMISSION_USE: dict[str, tuple[str, ...]] = {
-    "Directory.Read.All": ("list_users", "list_directory_roles", "list_role_members"),
+    "Directory.Read.All": (
+        "list_users",
+        "list_directory_roles",
+        "list_role_members",
+        "list_group_settings",
+    ),
     "User.Read.All": ("list_users", "list_sign_in_activity"),
     "RoleManagement.Read.Directory": (
         "list_directory_roles",
@@ -66,7 +71,12 @@ GRAPH_PERMISSION_USE: dict[str, tuple[str, ...]] = {
         "list_directory_role_eligibilities",
     ),
     "UserAuthenticationMethod.Read.All": ("list_authentication_methods",),
-    "Policy.Read.All": ("get_security_defaults", "list_conditional_access_policies"),
+    "Policy.Read.All": (
+        "get_security_defaults",
+        "list_conditional_access_policies",
+        "get_authorization_policy",
+        "get_authentication_methods_policy",
+    ),
     "Application.Read.All": (
         "list_applications",
         "find_service_principal",

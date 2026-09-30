@@ -10,7 +10,6 @@ import {
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import {
-  CircleHelpIcon,
   RouteIcon,
   ScissorsIcon,
   SearchIcon,
@@ -34,6 +33,7 @@ import type {
 import { useT } from "@/i18n";
 import { StatStrip } from "@/components/common/StatStrip";
 import { LiveStatus } from "@/components/common/LiveStatus";
+import { InfoTip } from "@/components/common/InfoTip";
 import { SelectField } from "@/components/common/SelectField";
 import { ResourceTypeLabel } from "@/components/security/IconLabel";
 import { GraphLegend, MARKS } from "@/components/graph/GraphLegend";
@@ -65,7 +65,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -663,7 +662,7 @@ function RouteMapFrame({
   return (
     <section aria-labelledby="route-map-title" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="route-map-title" className="text-[13.5px] font-semibold">
+        <h2 id="route-map-title" className="text-body font-semibold">
           {t.attackPaths.mapTitle}
         </h2>
         <GraphLegend
@@ -913,27 +912,9 @@ function RouteList({
               <span className="text-xs text-muted-foreground tabular-nums">
                 · {t.attackPaths.patternsCount(listing.patterns.length)}
               </span>
-              <Popover>
-                <PopoverTrigger
-                  render={
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      aria-label={t.attackPaths.patternsHelpLabel}
-                      className="ml-auto text-muted-foreground"
-                    >
-                      <CircleHelpIcon />
-                    </Button>
-                  }
-                />
-                <PopoverContent
-                  align="end"
-                  className="w-72 text-xs leading-relaxed"
-                  aria-label={t.attackPaths.patternsHelpLabel}
-                >
-                  {t.attackPaths.patternsHelp}
-                </PopoverContent>
-              </Popover>
+              <InfoTip label={t.attackPaths.patternsHelpLabel} align="end" className="ml-auto">
+                {t.attackPaths.patternsHelp}
+              </InfoTip>
             </div>
             {listing.patterns.map(({ pattern, members }) => (
               <PatternRow

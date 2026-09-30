@@ -11,7 +11,8 @@ from typing import ClassVar
 from app.connectors.azure.evidence import AzureEvidence
 from app.core.enums import ResourceType, Severity
 from app.domain.resource import CloudResource
-from app.remediation import RemediationSpec
+from app.remediation import ExpectedState, RemediationSpec
+from app.rules.azure.containers.kubernetes import _NO_POLICY
 from app.rules.azure.network.exposure import _find_public_port
 from app.rules.base import RuleContext, RuleResult, SecurityRule
 
@@ -257,4 +258,88 @@ class AzureUnguardedVmRule(SecurityRule):
                     else ""
                 )
             ),
+        )
+
+
+class AzureLinuxPasswordSignInRule(SecurityRule):
+    rule_id = "AZ-CMP-004"
+    name = "Linux virtual machine accepts password sign-in"
+    description = (
+        "A Linux machine was deployed with password authentication allowed for SSH, "
+        "so its accounts can be guessed and sprayed rather than needing a key."
+    )
+    category = "compute"
+    severity = Severity.MEDIUM
+    exploitability = 4
+    applies_to: ClassVar[list[ResourceType]] = [ResourceType.VIRTUAL_MACHINE]
+    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (
+        AzureEvidence.VIRTUAL_MACHINES,
+    )
+    estimated_effort_minutes = 60
+    rationale = (
+        "Password sign-in is what SSH brute forcing needs. With keys only, a "
+        "reachable port is a door with no keyhole a guess can fit."
+    )
+    remediation = (
+        "The setting is fixed when the machine is created. Rebuild it with SSH keys "
+        "only; until then set `PasswordAuthentication no` in the machine's sshd "
+        "configuration, which closes the door but does not change what Azure "
+        "records -- so this finding stays open until the rebuild.\n\n"
+        "Azure CLI, for the interim change:\n"
+        "  az vm run-command invoke --name <vm> --resource-group <rg> \\\n"
+        "    --command-id RunShellScript --scripts \\\n"
+        "    \"sed -i 's/^#\\\\?PasswordAuthentication.*/PasswordAuthentication no/' "
+        "/etc/ssh/sshd_config && systemctl reload sshd\""
+    )
+    remediation_spec: ClassVar[RemediationSpec | None] = RemediationSpec(
+        expected=(
+            ExpectedState(
+                field="password_authentication_disabled",
+                equals=True,
+                describes="SSH accepts keys only; password authentication is disabled",
+                terraform_attribute="disable_password_authentication",
+            ),
+        ),
+        cli=(
+            "az vm create --name <vm> --resource-group <rg> --image <image> "
+            "--authentication-type ssh --generate-ssh-keys",
+        ),
+        applies_when={"os_type": "Linux"},
+        notes=_NO_POLICY,
+    )
+    compliance_mappings: ClassVar[dict[str, list[str]]] = {
+        "ISO_27001": ["A.5.17"],
+        "NIST_CSF": ["PR.AC-1", "PR.AC-7"],
+        "GDPR": ["32(1)(b)"],
+        "NIST_800_53": ["IA-2", "IA-5"],
+        "SOC2": ["CC6.1"],
+        "PCI_DSS_4": ["8.3.1"],
+    }
+
+    def evaluate(
+        self, resource: CloudResource | None, context: RuleContext
+    ) -> RuleResult | list[RuleResult]:
+        if resource is None:
+            return RuleResult.not_applicable("Rule is per-resource")
+        if str(resource.get("os_type") or "").lower() != "linux":
+            return RuleResult.not_applicable("Not a Linux machine")
+        failure = context.has_collection_error(*self.requires_evidence)
+        if failure:
+            return RuleResult.unknown(f"Machine configuration unavailable: {failure}")
+
+        disabled = resource.get("password_authentication_disabled")
+        if disabled is None:
+            return RuleResult.unknown("The machine's record does not state its SSH sign-in")
+        evidence = {
+            "password_authentication_disabled": disabled,
+            "has_public_ip": resource.get("has_public_ip"),
+        }
+        if disabled is True:
+            return RuleResult.passed(evidence)
+        return RuleResult.failed(
+            evidence=evidence,
+            # Guessing needs a way in; a machine with no public address is one
+            # step further from the spraying this is about.
+            exploitability=2 if resource.get("has_public_ip") is False else None,
+            message=f"{resource.name} accepts SSH passwords",
         )

@@ -72,7 +72,7 @@ export function SidebarNav() {
             // even when there is no room to name it.
             <span className="mx-2 mb-1 border-t" aria-hidden />
           ) : (
-            <SidebarGroupLabel className="mb-1 h-auto px-2 text-[11px] tracking-[0.04em] text-muted-foreground uppercase">
+            <SidebarGroupLabel className="mb-1 h-auto px-2 text-caption tracking-[0.04em] text-muted-foreground uppercase">
               {group.label}
             </SidebarGroupLabel>
           )}
@@ -133,7 +133,7 @@ function NavRow({
         render={<NavLink to={item.to} end={exact} onClick={onNavigate} />}
         // The selected row is the brand's one job in the navigation: a soft
         // fill and a ring, the same weight of type as its neighbours.
-        className="h-auto rounded-lg px-2.5 py-[7px] text-[13.5px] data-active:bg-primary-soft data-active:font-normal data-active:text-foreground data-active:ring-1 data-active:ring-primary-border data-active:ring-inset"
+        className="h-auto rounded-lg px-2.5 py-[7px] text-body data-active:bg-primary-soft data-active:font-normal data-active:text-foreground data-active:ring-1 data-active:ring-primary-border data-active:ring-inset"
       >
         <item.icon aria-hidden strokeWidth={1.5} />
         <span className="min-w-0 flex-1 truncate">
@@ -143,7 +143,7 @@ function NavRow({
         {count !== undefined && (
           <span
             aria-hidden
-            className="ml-auto text-[11.5px] text-muted-foreground tabular-nums group-data-[collapsible=icon]:hidden"
+            className="ml-auto text-caption text-muted-foreground tabular-nums group-data-[collapsible=icon]:hidden"
           >
             {count}
           </span>

@@ -100,7 +100,7 @@ export function ScanDetailPanel({ scanId }: { scanId: string }) {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[11px] font-medium text-muted-foreground">
+    <p className="text-caption font-medium text-muted-foreground">
       {children}
     </p>
   );
@@ -110,7 +110,7 @@ function Row({ label: text, value }: { label: string; value: React.ReactNode }) 
   return (
     <div className="flex gap-2">
       <dt className="shrink-0 text-muted-foreground">{text}</dt>
-      <dd className="min-w-0 truncate font-mono text-[11px] text-foreground">
+      <dd className="min-w-0 truncate font-mono text-caption text-foreground">
         {value ?? "—"}
       </dd>
     </div>

@@ -221,20 +221,20 @@ function ChangeRow({ event }: { event: ChangeEvent }) {
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <Link
             to={`/assets/${event.asset.id}`}
-            className="truncate text-[13px] font-medium text-foreground underline-offset-4 hover:underline"
+            className="truncate text-body font-medium text-foreground underline-offset-4 hover:underline"
           >
             {event.asset.name}
           </Link>
           <ResourceTypeLabel
             type={event.asset.resource_type}
-            className="text-[13px] text-muted-foreground"
+            className="text-body text-muted-foreground"
           />
           {event.asset.environment && (
             <Badge variant="outline">{event.asset.environment}</Badge>
           )}
         </div>
 
-        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11.5px] text-muted-foreground">
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-muted-foreground">
           {/* An appearance or a disappearance says it in its own sentence; the
               kind would only repeat it. */}
           {attribute && <span>{t.changes.kind[event.change]}</span>}
@@ -282,7 +282,7 @@ function ChangeRow({ event }: { event: ChangeEvent }) {
       {/* The day is the heading above; the row only needs the hour. */}
       <time
         dateTime={event.observed_at}
-        className="shrink-0 text-[11.5px] tabular-nums text-muted-foreground"
+        className="shrink-0 text-caption tabular-nums text-muted-foreground"
       >
         {formatTime(event.observed_at)}
       </time>

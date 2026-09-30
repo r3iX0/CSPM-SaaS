@@ -83,7 +83,7 @@ export function PatternRow({
         />
         <span className="flex min-w-0 flex-1 flex-col gap-1">
           <span className="text-xs text-foreground">{pattern.description}</span>
-          <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-muted-foreground">
+          <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-caption text-muted-foreground">
             {exemplar && <HopStrip route={exemplar} />}
             <span className="tabular-nums">
               {pattern.hops} {pattern.hops === 1 ? t.attackPaths.oneHop : t.attackPaths.hops}
@@ -186,7 +186,7 @@ export function RouteRow({
           {route.hops} {route.hops === 1 ? t.attackPaths.oneHop : t.attackPaths.hops}
         </span>
       </span>
-      <span className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+      <span className="mt-1 flex items-center gap-1.5 text-caption text-muted-foreground">
         <SeverityBadge level={route.entry.public_exposure} size="sm" />
         <HopStrip route={route} />
         <SeverityBadge level={route.target.data_sensitivity} size="sm" />
@@ -229,13 +229,13 @@ function Marks({ routeKey, marks }: { routeKey: string; marks: RouteMarks }) {
       {marks.closed.has(routeKey) && (
         <span
           style={closeTiming(marks, routeKey)}
-          className="animate-[cg-rise_300ms_ease-out_both] text-[11px] text-ok"
+          className="animate-[cg-rise_300ms_ease-out_both] text-caption text-ok"
         >
           {t.attackPaths.closedByPlan}
         </span>
       )}
       {marks.tracked.has(routeKey) && (
-        <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground">
+        <span className="flex items-center gap-0.5 text-caption text-muted-foreground">
           <RadarIcon className="size-3" aria-hidden />
           {t.attackPaths.trackedBadge}
         </span>

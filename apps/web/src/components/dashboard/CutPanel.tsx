@@ -40,7 +40,7 @@ export function CutPanel({
       className="flex flex-col overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10"
     >
       <header className="px-5 py-4">
-        <h2 id="link-to-cut" className="text-[13.5px] font-semibold">
+        <h2 id="link-to-cut" className="text-body font-semibold">
           The link to cut
         </h2>
         <p className="mt-1 text-xs text-muted-foreground">
@@ -53,7 +53,7 @@ export function CutPanel({
         {loading && <Skeleton className="h-20 w-full" />}
 
         {!loading && failed && (
-          <p className="text-[13px] leading-relaxed text-muted-foreground">
+          <p className="text-body leading-relaxed text-muted-foreground">
             The routes could not be read just now. Nothing about your
             environment has changed — this is a problem displaying it.
           </p>
@@ -64,7 +64,7 @@ export function CutPanel({
           // subscription, so an estate that has classified nothing produces
           // no routes at all -- a gap in what Cleave was told, not a clean
           // environment.
-          <p className="text-[13px] leading-relaxed text-muted-foreground">
+          <p className="text-body leading-relaxed text-muted-foreground">
             No route traced from an internet-facing asset to a sensitive one.
             What counts as sensitive is something you declare, so an estate with
             nothing classified shows none either —{" "}
@@ -78,8 +78,8 @@ export function CutPanel({
         {!loading && !failed && choke && (
           <>
             <div className="rounded-[10px] border border-primary-border bg-primary-soft px-4 py-3">
-              <p className="font-mono text-[12.5px] break-words">{choke.detail}</p>
-              <p className="mt-1.5 text-[13px]">
+              <p className="font-mono text-meta break-words">{choke.detail}</p>
+              <p className="mt-1.5 text-body">
                 Cutting this link closes{" "}
                 <span className="font-semibold tabular-nums">{choke.severs}</span> of{" "}
                 <span className="tabular-nums">{choke.total_routes}</span>{" "}

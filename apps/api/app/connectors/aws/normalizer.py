@@ -92,6 +92,7 @@ class AwsNormalizer:
         state.resources.extend(self._keys(data))
         state.resources.extend(self._users(data, snapshot.collected_at))
         state.resources.extend(self._roles(data))
+        state.resources.extend(self._user_pools(data))
 
         state.relationships.extend(self._relationships(data, account_id))
         state.controls.update(self._controls(data, snapshot.collected_at))
@@ -470,6 +471,88 @@ class AwsNormalizer:
                     provider=Provider.AWS,
                     region=region,
                     metadata=metadata,
+                )
+            )
+        return resources
+
+    # ------------------------------------------------------------- user pools
+
+    def _user_pools(self, data: dict[str, Any]) -> list[CloudResource]:
+        """Cognito user pools, with their threat protection and WAF readings
+        (DECISIONS.md section 177).
+
+        Each reading beneath a pool is None where it was not taken or failed for
+        that pool, so a rule can tell "not read" from "off". A pool's sign-in
+        faces the internet by design, which is why its exposure is HIGH.
+        """
+        risk = {
+            str(row.get("UserPoolId")): row
+            for _, row in regional_items(data, AwsEvidence.COGNITO_RISK_CONFIGURATIONS)
+        }
+        acls = {
+            str(row.get("ResourceArn")): row
+            for _, row in regional_items(data, AwsEvidence.COGNITO_WEB_ACLS)
+        }
+        resources: list[CloudResource] = []
+        for region, pool in regional_items(data, AwsEvidence.COGNITO_USER_POOLS):
+            arn = str(pool.get("Arn") or "")
+            pool_id = str(pool.get("Id") or "")
+            if not arn and not pool_id:
+                continue
+            addons = pool.get("UserPoolAddOns") or {}
+            row = risk.get(pool_id)
+            config = (
+                row.get("RiskConfiguration") or {}
+                if row is not None and "error" not in row
+                else None
+            )
+            takeover = (
+                ((config.get("AccountTakeoverRiskConfiguration") or {}).get("Actions"))
+                if config is not None
+                else None
+            )
+            acl = acls.get(arn)
+            resources.append(
+                CloudResource(
+                    provider_resource_id=arn or pool_id,
+                    resource_type=ResourceType.USER_POOL,
+                    name=str(pool.get("Name") or pool_id),
+                    provider=Provider.AWS,
+                    region=region,
+                    public_exposure=Level.HIGH,
+                    metadata={
+                        "pool_id": pool_id,
+                        "tier": pool.get("UserPoolTier"),
+                        "mfa_configuration": pool.get("MfaConfiguration"),
+                        # Threat protection is off unless the pool says otherwise:
+                        # the add-on block is absent on a pool that never had it.
+                        "threat_protection_mode": addons.get("AdvancedSecurityMode") or "OFF",
+                        "compromised_credentials_action": (
+                            (
+                                (config.get("CompromisedCredentialsRiskConfiguration") or {})
+                                .get("Actions")
+                                or {}
+                            ).get("EventAction")
+                            if config is not None
+                            else None
+                        ),
+                        "account_takeover_actions": (
+                            {
+                                level: (takeover.get(f"{level.title()}Action") or {}).get(
+                                    "EventAction"
+                                )
+                                for level in ("low", "medium", "high")
+                            }
+                            if isinstance(takeover, dict)
+                            else None
+                        ),
+                        "web_acl_attached": (
+                            bool(acl.get("WebACLArn"))
+                            if acl is not None and "error" not in acl
+                            else None
+                        ),
+                        "deletion_protection": pool.get("DeletionProtection"),
+                    },
                 )
             )
         return resources

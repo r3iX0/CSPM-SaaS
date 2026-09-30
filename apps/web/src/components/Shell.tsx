@@ -345,7 +345,7 @@ function ConnectionBadge() {
     return (
       <Link
         to="/connections"
-        className="flex items-center gap-2 rounded-md border border-dashed px-2.5 py-2 text-[11.5px] text-muted-foreground transition-colors hover:border-solid hover:text-foreground"
+        className="flex items-center gap-2 rounded-md border border-dashed px-2.5 py-2 text-caption text-muted-foreground transition-colors hover:border-solid hover:text-foreground"
       >
         <span className={dot} />
         No cloud connected
@@ -354,7 +354,7 @@ function ConnectionBadge() {
   }
 
   return (
-    <div className="flex items-center gap-2 px-1.5 py-1.5 text-[11.5px] text-muted-foreground">
+    <div className="flex items-center gap-2 px-1.5 py-1.5 text-caption text-muted-foreground">
       <span className={dot} />
       {summary}
     </div>

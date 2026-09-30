@@ -33,7 +33,7 @@ export function SettingsSection({
         {title}
       </h2>
       {description && (
-        <p className="mt-1 max-w-[76ch] text-[12.5px] leading-relaxed text-muted-foreground">
+        <p className="mt-1 max-w-[76ch] text-meta leading-relaxed text-muted-foreground">
           {description}
         </p>
       )}

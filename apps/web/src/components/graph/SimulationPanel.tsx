@@ -230,7 +230,7 @@ export function SimulationPanel({
                   {route.entry} → {route.target}
                 </span>
                 {together.has(route.key) && (
-                  <span className="shrink-0 text-[11px] text-ok">only together</span>
+                  <span className="shrink-0 text-caption text-ok">only together</span>
                 )}
               </li>
             ))}
@@ -296,7 +296,7 @@ function Outcome({
           {together === 1 ? "it" : "them"} alone.
         </p>
       )}
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-caption text-muted-foreground">
         A simulation. Nothing in your cloud has changed.
       </p>
     </div>

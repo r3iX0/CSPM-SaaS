@@ -596,10 +596,84 @@ class ArmClient(_BaseClient):
             "/vaults?api-version=2023-07-01"
         )
 
+    # v9. Six listings of types the connector models from here on. Each is the
+    # subscription-wide ARM listing -- one call, paged -- under the provider's
+    # current generally available api-version, every one checked against the
+    # published REST reference on 2026-09-29 (DECISIONS.md section 169).
+    async def list_kubernetes_clusters(self, subscription_id: str) -> list[dict[str, Any]]:
+        """Managed Kubernetes clusters: API server access, node exposure, the
+        identities the cluster and its nodes run as. Never a credential -- the
+        kubeconfig is a separate ``/action`` this role does not hold."""
+        return await self.get_all(
+            f"/subscriptions/{subscription_id}/providers/Microsoft.ContainerService"
+            "/managedClusters?api-version=2024-02-01"
+        )
+
+    async def list_container_registries(self, subscription_id: str) -> list[dict[str, Any]]:
+        """Registry configuration: admin user, network rules, anonymous pull.
+        Not the images, and not the login credentials, which are an
+        ``/action``."""
+        return await self.get_all(
+            f"/subscriptions/{subscription_id}/providers/Microsoft.ContainerRegistry"
+            "/registries?api-version=2023-07-01"
+        )
+
+    async def list_cosmos_accounts(self, subscription_id: str) -> list[dict[str, Any]]:
+        """Cosmos DB account configuration. The keys are ``listKeys``, an
+        ``/action`` this role does not hold; the listing carries only when they
+        were last generated."""
+        return await self.get_all(
+            f"/subscriptions/{subscription_id}/providers/Microsoft.DocumentDB"
+            "/databaseAccounts?api-version=2024-11-15"
+        )
+
+    async def list_mysql_servers(self, subscription_id: str) -> list[dict[str, Any]]:
+        return await self.get_all(
+            f"/subscriptions/{subscription_id}/providers/Microsoft.DBforMySQL"
+            "/flexibleServers?api-version=2023-12-30"
+        )
+
+    async def list_databricks_workspaces(
+        self, subscription_id: str
+    ) -> list[dict[str, Any]]:
+        return await self.get_all(
+            f"/subscriptions/{subscription_id}/providers/Microsoft.Databricks"
+            "/workspaces?api-version=2024-05-01"
+        )
+
+    async def list_search_services(self, subscription_id: str) -> list[dict[str, Any]]:
+        """AI Search service configuration. The admin and query keys are
+        ``/action`` reads this role does not hold."""
+        return await self.get_all(
+            f"/subscriptions/{subscription_id}/providers/Microsoft.Search"
+            "/searchServices?api-version=2023-11-01"
+        )
+
     async def list_postgresql_servers(self, subscription_id: str) -> list[dict[str, Any]]:
         return await self.get_all(
             f"/subscriptions/{subscription_id}/providers/Microsoft.DBforPostgreSQL"
             "/flexibleServers?api-version=2023-03-01-preview"
+        )
+
+    async def get_mysql_secure_transport(self, server_id: str) -> dict[str, Any]:
+        """Whether this MySQL server refuses connections without TLS. One named
+        parameter, as for PostgreSQL (DECISIONS.md section 172)."""
+        return await self.get(
+            f"{server_id}/configurations/require_secure_transport?api-version=2023-12-30"
+        )
+
+    async def get_mysql_tls_version(self, server_id: str) -> dict[str, Any]:
+        """Which TLS versions this MySQL server accepts, as a comma-separated list."""
+        return await self.get(f"{server_id}/configurations/tls_version?api-version=2023-12-30")
+
+    async def get_mysql_parameter(self, server_id: str, name: str) -> dict[str, Any]:
+        """One MySQL server parameter by name (DECISIONS.md section 175)."""
+        return await self.get(f"{server_id}/configurations/{name}?api-version=2023-12-30")
+
+    async def get_postgresql_parameter(self, server_id: str, name: str) -> dict[str, Any]:
+        """One PostgreSQL server parameter by name (DECISIONS.md section 175)."""
+        return await self.get(
+            f"{server_id}/configurations/{name}?api-version=2023-03-01-preview"
         )
 
     async def get_postgresql_secure_transport(self, server_id: str) -> dict[str, Any]:
@@ -655,6 +729,157 @@ class ArmClient(_BaseClient):
         return await self.get_all(
             f"/subscriptions/{subscription_id}/providers/Microsoft.Security"
             "/pricings?api-version=2024-01-01"
+        )
+
+    # v11 (DECISIONS.md section 176). Each shape and api-version checked on
+    # 2026-09-30 against the provider's REST specification.
+    async def get_sql_threat_detection(self, server_id: str) -> dict[str, Any]:
+        """Whether Defender for SQL watches this server, set on the server
+        itself. ``Default`` is the only policy a server holds."""
+        return await self.get(
+            f"{server_id}/securityAlertPolicies/Default?api-version=2021-11-01"
+        )
+
+    async def get_sql_encryption_protector(self, server_id: str) -> dict[str, Any]:
+        """Which key protects the server's transparent data encryption: the
+        service's own, or one in the customer's vault. ``current`` is the only
+        protector a server holds."""
+        return await self.get(
+            f"{server_id}/encryptionProtector/current?api-version=2021-11-01"
+        )
+
+    async def get_sql_vulnerability_assessment(self, server_id: str) -> dict[str, Any]:
+        """The classic, storage-backed vulnerability assessment. The storage
+        key and SAS token it was configured with are write-only and never
+        returned."""
+        return await self.get(
+            f"{server_id}/vulnerabilityAssessments/default?api-version=2021-11-01"
+        )
+
+    async def get_sql_express_assessment(self, server_id: str) -> dict[str, Any]:
+        """The express configuration of vulnerability assessment, which keeps
+        its results itself and scans weekly without a storage account."""
+        return await self.get(
+            f"{server_id}/sqlVulnerabilityAssessments/default?api-version=2023-08-01"
+        )
+
+    async def get_file_service(self, account_id: str) -> dict[str, Any]:
+        """The file service beneath one storage account: share soft delete and
+        the SMB settings. Service properties, never a share's contents."""
+        return await self.get(f"{account_id}/fileServices/default?api-version=2023-01-01")
+
+    async def list_vault_keys(self, vault_id: str) -> list[dict[str, Any]]:
+        """The keys in one vault, through the management plane: their
+        attributes -- enabled, expiry -- and never private key material."""
+        return await self.get_all(f"{vault_id}/keys?api-version=2023-07-01")
+
+    async def list_vault_secrets(self, vault_id: str) -> list[dict[str, Any]]:
+        """The secrets in one vault, through the management plane. Their
+        attributes only: ARM never returns a secret's value, which is the data
+        action ``secrets/getSecret/action`` this role does not hold."""
+        return await self.get_all(f"{vault_id}/secrets?api-version=2023-07-01")
+
+    async def get_app_service_auth(self, site_id: str) -> dict[str, Any]:
+        """Whether App Service Authentication is on for this site. A GET under
+        the configuration read, unlike the v1 settings, which are a ``list``
+        action."""
+        return await self.get(f"{site_id}/config/authsettingsV2?api-version=2022-09-01")
+
+    async def list_security_contacts(self, subscription_id: str) -> list[dict[str, Any]]:
+        """Who Defender for Cloud emails, about what, at which severity."""
+        return await self.get_all(
+            f"/subscriptions/{subscription_id}/providers/Microsoft.Security"
+            "/securityContacts?api-version=2023-12-01-preview"
+        )
+
+    async def list_security_settings(self, subscription_id: str) -> list[dict[str, Any]]:
+        """Defender for Cloud's integrations: Defender for Endpoint (``WDATP``)
+        and Defender for Cloud Apps (``MCAS``)."""
+        return await self.get_all(
+            f"/subscriptions/{subscription_id}/providers/Microsoft.Security"
+            "/settings?api-version=2022-05-01"
+        )
+
+    async def list_iot_security_solutions(
+        self, subscription_id: str
+    ) -> list[dict[str, Any]]:
+        """Defender for IoT solutions and the IoT hubs each one watches."""
+        return await self.get_all(
+            f"/subscriptions/{subscription_id}/providers/Microsoft.Security"
+            "/iotSecuritySolutions?api-version=2019-08-01"
+        )
+
+    async def list_jit_policies(self, subscription_id: str) -> list[dict[str, Any]]:
+        """Just-in-time access policies and the machines each one covers."""
+        return await self.get_all(
+            f"/subscriptions/{subscription_id}/providers/Microsoft.Security"
+            "/jitNetworkAccessPolicies?api-version=2020-01-01"
+        )
+
+    async def list_recovery_vaults(self, subscription_id: str) -> list[dict[str, Any]]:
+        return await self.get_all(
+            f"/subscriptions/{subscription_id}/providers/Microsoft.RecoveryServices"
+            "/vaults?api-version=2023-04-01"
+        )
+
+    async def list_backup_protected_items(self, vault_id: str) -> list[dict[str, Any]]:
+        """Everything one Recovery Services vault backs up: machines, and the
+        file shares and databases beside them, so an empty vault can be told
+        from one protecting something other than a machine (section 177)."""
+        return await self.get_all(f"{vault_id}/backupProtectedItems?api-version=2023-04-01")
+
+    async def list_backup_policies(self, vault_id: str) -> list[dict[str, Any]]:
+        """One vault's backup policies: schedules and how long each keeps its
+        recovery points (section 177)."""
+        return await self.get_all(f"{vault_id}/backupPolicies?api-version=2023-04-01")
+
+    async def list_scale_sets(self, subscription_id: str) -> list[dict[str, Any]]:
+        """Virtual machine scale sets: capacity and what fronts them."""
+        return await self.get_all(
+            f"/subscriptions/{subscription_id}/providers/Microsoft.Compute"
+            "/virtualMachineScaleSets?api-version=2023-09-01"
+        )
+
+    async def list_disks(self, subscription_id: str) -> list[dict[str, Any]]:
+        """Managed disks, attached or not: state and encryption, never data."""
+        return await self.get_all(
+            f"/subscriptions/{subscription_id}/providers/Microsoft.Compute"
+            "/disks?api-version=2023-04-02"
+        )
+
+    async def list_activity_log_alerts(self, subscription_id: str) -> list[dict[str, Any]]:
+        return await self.get_all(
+            f"/subscriptions/{subscription_id}/providers/Microsoft.Insights"
+            "/activityLogAlerts?api-version=2020-10-01"
+        )
+
+    async def list_policy_assignments(self, subscription_id: str) -> list[dict[str, Any]]:
+        """Policy assignments in force at this subscription, including those
+        inherited from a management group above it."""
+        return await self.get_all(
+            f"/subscriptions/{subscription_id}/providers/Microsoft.Authorization"
+            "/policyAssignments?api-version=2022-06-01&$filter=atScope()"
+        )
+
+    async def list_virtual_networks(self, subscription_id: str) -> list[dict[str, Any]]:
+        return await self.get_all(
+            f"/subscriptions/{subscription_id}/providers/Microsoft.Network"
+            "/virtualNetworks?api-version=2023-09-01"
+        )
+
+    async def list_network_watchers(self, subscription_id: str) -> list[dict[str, Any]]:
+        return await self.get_all(
+            f"/subscriptions/{subscription_id}/providers/Microsoft.Network"
+            "/networkWatchers?api-version=2023-09-01"
+        )
+
+    async def list_flow_logs(self, watcher_id: str) -> list[dict[str, Any]]:
+        return await self.get_all(f"{watcher_id}/flowLogs?api-version=2023-09-01")
+
+    async def list_bastion_hosts(self, subscription_id: str) -> list[dict[str, Any]]:
+        return await self.get_all(
+            f"/subscriptions/{subscription_id}/providers/Microsoft.Network"
+            "/bastionHosts?api-version=2023-09-01"
         )
 
     async def list_diagnostic_settings(self, resource_id: str) -> list[dict[str, Any]]:
@@ -899,6 +1124,24 @@ class GraphClient(_BaseClient):
         """
         return await self.get("/policies/identitySecurityDefaultsEnforcementPolicy")
 
+    async def get_authorization_policy(self) -> dict[str, Any]:
+        """The tenant's authorization policy: a singleton that always exists.
+
+        Read under ``Policy.Read.All``, which the tenant already consented for
+        Conditional Access (DECISIONS.md section 172).
+        """
+        return await self.get("/policies/authorizationPolicy")
+
+    async def get_authentication_methods_policy(self) -> dict[str, Any]:
+        """Which authentication methods the tenant allows, and its registration
+        campaign. ``Policy.Read.All`` (DECISIONS.md section 173)."""
+        return await self.get("/policies/authenticationMethodsPolicy")
+
+    async def list_group_settings(self) -> list[dict[str, Any]]:
+        """Tenant-wide directory settings. ``Group.Unified`` exists only once
+        somebody has changed it from the defaults. ``Directory.Read.All``."""
+        return await self.get_all("/groupSettings")
+
     async def list_conditional_access_policies(self) -> list[dict[str, Any]]:
         """Every Conditional Access policy, enforced or not.
 
@@ -909,6 +1152,11 @@ class GraphClient(_BaseClient):
         "a policy nobody turned on".
         """
         return await self.get_all("/identity/conditionalAccess/policies")
+
+    async def list_named_locations(self) -> list[dict[str, Any]]:
+        """The tenant's named locations -- IP ranges and countries -- and which
+        are marked trusted. ``Policy.Read.All`` (DECISIONS.md section 176)."""
+        return await self.get_all("/identity/conditionalAccess/namedLocations")
 
     async def list_group_members(self, group_id: str) -> list[dict[str, Any]]:
         """Who is in one group, by id.
