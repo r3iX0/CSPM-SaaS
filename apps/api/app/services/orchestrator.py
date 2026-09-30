@@ -199,7 +199,7 @@ def runnable(steps: Sequence[ScanStep]) -> list[ScanStep]:
 
 
 class Claim(NamedTuple):
-    """One step won by :func:`claim`, and the attempt it was won at."""
+    """One step won by :func:`claim`, and the kind it is routed on."""
 
     id: UUID
     kind: ScanStepKind
