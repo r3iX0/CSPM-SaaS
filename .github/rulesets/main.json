@@ -1,0 +1,24 @@
+{
+  "name": "main: standards and CI required",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": { "ref_name": { "include": ["~DEFAULT_BRANCH"], "exclude": [] } },
+  "bypass_actors": [],
+  "rules": [
+    { "type": "deletion" },
+    { "type": "non_fast_forward" },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": false,
+        "do_not_enforce_on_create": false,
+        "required_status_checks": [
+          { "context": "Repository — standards (pre-commit)", "integration_id": 15368 },
+          { "context": "API — lint, types, tests", "integration_id": 15368 },
+          { "context": "Web — lint, types and tests", "integration_id": 15368 },
+          { "context": "Dependencies — known advisories", "integration_id": 15368 }
+        ]
+      }
+    }
+  ]
+}
