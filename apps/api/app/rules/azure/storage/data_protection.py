@@ -66,6 +66,7 @@ class AzureStorageCrossTenantReplicationRule(SecurityRule):
         ),
         policy_resource_type="Microsoft.Storage/storageAccounts",
         policy_effect="Deny",
+        terraform_resource_types=("azurerm_storage_account",),
     )
     # No CIS mapping: CIS Azure 2.0 predates a control for this.
     compliance_mappings: ClassVar[dict[str, list[str]]] = {

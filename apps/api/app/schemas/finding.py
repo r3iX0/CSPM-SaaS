@@ -349,3 +349,38 @@ class RescanQueuedOut(BaseModel):
     scan_id: UUID
     finding_id: UUID
     message: str
+
+
+class IacEditOut(BaseModel):
+    attribute: str
+    #: The value as the file had it; ``None`` where the argument was added.
+    before: str | None
+    after: str
+    #: 1-based, in the edited file.
+    line: int
+
+
+class IacDiffOut(BaseModel):
+    """A finding's fix written into the customer's Terraform, or why it was not.
+
+    A decline is an answer, not an error (DECISIONS.md §190): the file was read
+    and the edit would have needed a guess. ``decline_reason`` is for a program
+    to branch on; ``detail`` is the sentence a person reads.
+    """
+
+    filename: str
+    outcome: Literal["patched", "declined"]
+    diff: str | None
+    edits: list[IacEditOut]
+    decline_reason: str | None
+    detail: str | None
+    #: From the lock file, where one was sent. ``None`` means not known -- the
+    #: edit was checked against ``checked_against``, not against the release
+    #: the customer runs.
+    provider_version: str | None
+    checked_against: list[str]
+    #: How the block was found: ``name`` (its literal name is the asset's) or
+    #: ``sole_block`` (the only block of the type in the uploaded file, its
+    #: name an expression -- the reviewer should check it is the right one).
+    #: ``None`` on a decline.
+    matched_by: Literal["name", "sole_block"] | None = None

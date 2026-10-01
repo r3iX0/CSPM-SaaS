@@ -70,6 +70,8 @@ class PropertySpec:
     absent: Literal["unknown", "fail"] = "unknown"
     terraform_attribute: str | None = None
     terraform_value: Any = None
+    # The azurerm resources ``terraform_attribute`` sits on (DECISIONS.md §190).
+    terraform_resource_types: tuple[str, ...] = ()
     effort_minutes: int = 30
     # Metadata a resource must carry for the check to apply, matched as a
     # case-blind substring: ``(("kind", "functionapp"),)`` limits a check to
@@ -126,6 +128,7 @@ def _declaration(spec: PropertySpec) -> RemediationSpec:
         ),
         cli=spec.cli,
         applies_when=dict(spec.applies_when),
+        terraform_resource_types=spec.terraform_resource_types,
         notes=_NO_POLICY[spec.provider],
     )
 

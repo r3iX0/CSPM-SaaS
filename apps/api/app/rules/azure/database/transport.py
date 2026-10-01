@@ -64,6 +64,7 @@ class AzureSqlTlsRule(SecurityRule):
         ),
         policy_resource_type="Microsoft.Sql/servers",
         policy_effect="Audit",
+        terraform_resource_types=("azurerm_mssql_server",),
     )
     # No CIS mapping: CIS Azure 2.0 has no control for SQL's minimum TLS version.
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
