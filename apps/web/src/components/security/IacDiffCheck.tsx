@@ -73,8 +73,8 @@ export function IacDiffCheck({
           }}
         />
         <FieldDescription>
-          The file that defines {resourceName}. Cleave changes the arguments above in it and
-          nothing else, and keeps nothing you upload.
+          The file that defines {resourceName}. Cleave changes the arguments above in it and nothing
+          else, and keeps nothing you upload.
         </FieldDescription>
       </Field>
       <Field>
@@ -113,8 +113,8 @@ export function IacDiffCheck({
             {result.provider_version
               ? `Your lock file holds azurerm ${result.provider_version}.`
               : `No lock file was sent: checked against azurerm ${result.checked_against.join(" and ")}.`}{" "}
-            Run <code>terraform plan</code> before you apply it. The finding closes when a scan
-            sees the change, not when the diff is merged.
+            Run <code>terraform plan</code> before you apply it. The finding closes when a scan sees
+            the change, not when the diff is merged.
           </p>
           <div>
             <Button
@@ -143,9 +143,7 @@ export function IacDiffCheck({
 
       {check.error && (
         <p className="text-xs text-destructive">
-          {check.error instanceof ApiError
-            ? check.error.message
-            : "The file could not be checked."}
+          {check.error instanceof ApiError ? check.error.message : "The file could not be checked."}
         </p>
       )}
 

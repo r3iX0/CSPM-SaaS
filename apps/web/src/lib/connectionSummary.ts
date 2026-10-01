@@ -85,8 +85,7 @@ export function statusSummary(connection: CloudConnection): {
 } {
   const stage = connectionStage(connection);
 
-  if (stage === "paused")
-    return { label: "Paused", detail: "Setup was cancelled", tone: "muted" };
+  if (stage === "paused") return { label: "Paused", detail: "Setup was cancelled", tone: "muted" };
   if (stage === "consent" || stage === "deploy")
     return { label: "Setting up", detail: "Waiting on a grant", tone: "high" };
   if (connection.status === "ERROR")

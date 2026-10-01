@@ -132,7 +132,9 @@ export function FixVerification({
             )}
           >
             {verified && <DrawnCheck draw className="size-4.5" />}
-            {(stillFailing || failedScan) && <XIcon className="size-4.5" strokeWidth={3} aria-hidden />}
+            {(stillFailing || failedScan) && (
+              <XIcon className="size-4.5" strokeWidth={3} aria-hidden />
+            )}
             {!finished && <Spinner />}
           </span>
           <div className="min-w-0">
@@ -179,7 +181,13 @@ export function FixVerification({
                 <m.span
                   className={cn(
                     "block h-full rounded-full",
-                    verified ? "bg-ok" : stillFailing ? "bg-high" : failedScan ? "bg-critical" : "bg-primary",
+                    verified
+                      ? "bg-ok"
+                      : stillFailing
+                        ? "bg-high"
+                        : failedScan
+                          ? "bg-critical"
+                          : "bg-primary",
                   )}
                   initial={false}
                   animate={{ width: done ? "100%" : active ? "50%" : "0%" }}

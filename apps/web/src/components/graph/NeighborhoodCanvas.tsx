@@ -26,23 +26,11 @@ import {
 // the colours here come from the tokens in index.css like everything else.
 import "@xyflow/react/dist/base.css";
 
-import type {
-  AttackPath,
-  Neighborhood,
-  NeighborhoodGroup,
-  NeighborhoodNode,
-} from "@/lib/types";
+import type { AttackPath, Neighborhood, NeighborhoodGroup, NeighborhoodNode } from "@/lib/types";
 import { cn, levelStyle, resourceTypeLabel } from "@/lib/format";
 import { FACTOR_ICONS, resourceTypeIcon } from "@/lib/icons";
 import { DURATION, usePrefersReducedMotion } from "@/lib/motion";
-import {
-  ARROWS,
-  FIT,
-  FLOW_TOKENS,
-  HIDDEN_HANDLE,
-  kept,
-  type GraphSelection,
-} from "./flowChrome";
+import { ARROWS, FIT, FLOW_TOKENS, HIDDEN_HANDLE, kept, type GraphSelection } from "./flowChrome";
 import { ZoomButtons } from "./ZoomButtons";
 import { layoutNeighborhood, stepFrom } from "./neighborhoodLayout";
 import { hopKey } from "./routeKeys";
@@ -147,10 +135,11 @@ function Canvas({
   onOpen,
   takeFocus = false,
 }: CanvasProps) {
-  const { nodes, edges: drawn, at } = useMemo(
-    () => toFlow(neighborhood, traced, cut),
-    [neighborhood, traced, cut],
-  );
+  const {
+    nodes,
+    edges: drawn,
+    at,
+  } = useMemo(() => toFlow(neighborhood, traced, cut), [neighborhood, traced, cut]);
   // With nothing selected, what the pointer or keyboard is on previews the
   // same fading. A traced route draws its own, and wins over both.
   const [previewed, setPreviewed] = useState<GraphSelection | null>(null);
@@ -298,29 +287,25 @@ function toFlow(
   const cut = cutHop ? hopKey(cutHop.source_id, cutHop.relationship, cutHop.target_id) : null;
 
   const nodes: Node[] = [
-    ...neighborhood.nodes.map(
-      (node): AssetFlowNode => ({
-        id: node.id,
-        type: "asset",
-        position: at.get(node.id) ?? origin,
-        data: {
-          ...node,
-          focus: node.id === neighborhood.focus,
-          dimmed: tracedNodes !== null && !tracedNodes.has(node.id),
-        },
-      }),
-    ),
-    ...neighborhood.groups.map(
-      (group): GroupFlowNode => ({
-        id: group.id,
-        type: "group",
-        position: at.get(group.id) ?? origin,
-        // Faded while a route is traced. A route can pass through a folded
-        // member, and the canvas cannot say which; the line drawn under it in
-        // the card is the whole route, and says so when part is off-canvas.
-        data: { ...group, dimmed: tracedNodes !== null },
-      }),
-    ),
+    ...neighborhood.nodes.map((node): AssetFlowNode => ({
+      id: node.id,
+      type: "asset",
+      position: at.get(node.id) ?? origin,
+      data: {
+        ...node,
+        focus: node.id === neighborhood.focus,
+        dimmed: tracedNodes !== null && !tracedNodes.has(node.id),
+      },
+    })),
+    ...neighborhood.groups.map((group): GroupFlowNode => ({
+      id: group.id,
+      type: "group",
+      position: at.get(group.id) ?? origin,
+      // Faded while a route is traced. A route can pass through a folded
+      // member, and the canvas cannot say which; the line drawn under it in
+      // the card is the whole route, and says so when part is off-canvas.
+      data: { ...group, dimmed: tracedNodes !== null },
+    })),
   ];
 
   const edges: Edge[] = neighborhood.edges.map((edge) => {

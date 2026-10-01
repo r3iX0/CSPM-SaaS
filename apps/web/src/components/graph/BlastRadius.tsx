@@ -6,13 +6,7 @@ import { RadarIcon } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/common/states";
 import { ResourceTypeLabel } from "@/components/security/IconLabel";
@@ -69,9 +63,7 @@ export function BlastRadius({
     <Card>
       <CardHeader>
         <CardTitle>Blast radius</CardTitle>
-        <CardDescription>
-          What {name} could act on if an attacker controlled it
-        </CardDescription>
+        <CardDescription>What {name} could act on if an attacker controlled it</CardDescription>
       </CardHeader>
       <CardContent>
         {!asked && (
@@ -88,10 +80,10 @@ export function BlastRadius({
           </div>
         )}
 
-        {asked && error && (error instanceof ApiError && error.status === 404) && (
+        {asked && error && error instanceof ApiError && error.status === 404 && (
           <p className="text-sm text-muted-foreground">
-            This asset is not a vertex in the current graph — it may not have been in the
-            most recent scan.
+            This asset is not a vertex in the current graph — it may not have been in the most
+            recent scan.
           </p>
         )}
         {asked && error && !(error instanceof ApiError && error.status === 404) && (
@@ -105,8 +97,8 @@ export function BlastRadius({
 
         {data && data.length === 0 && (
           <p className="text-sm text-muted-foreground">
-            Nothing. This asset holds no role that controls anything Cleave has seen,
-            and runs as no identity that does.
+            Nothing. This asset holds no role that controls anything Cleave has seen, and runs as no
+            identity that does.
           </p>
         )}
 

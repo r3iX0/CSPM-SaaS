@@ -42,11 +42,7 @@ function mount(tasks: unknown[], status = "OPEN") {
   render(
     <QueryClientProvider client={client}>
       <MemoryRouter>
-        <TrackFix
-          findingId="finding-1"
-          status={status as "OPEN"}
-          effortMinutes={15}
-        />
+        <TrackFix findingId="finding-1" status={status as "OPEN"} effortMinutes={15} />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -67,18 +63,14 @@ describe("tracking a fix", () => {
         ([, init]) => (init as RequestInit | undefined)?.method === "POST",
       );
       expect(post?.[0]).toContain("/api/v1/remediation");
-      expect((post?.[1] as RequestInit).body).toBe(
-        JSON.stringify({ finding_id: "finding-1" }),
-      );
+      expect((post?.[1] as RequestInit).body).toBe(JSON.stringify({ finding_id: "finding-1" }));
     });
   });
 
   it("does not promise the finding closes", async () => {
     mount([]);
 
-    expect(
-      await screen.findByText(/does not close the finding — a scan does/),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/does not close the finding — a scan does/)).toBeInTheDocument();
   });
 
   it("says the work is already tracked rather than offering it twice", async () => {
@@ -86,21 +78,15 @@ describe("tracking a fix", () => {
     // always offered would be a button that sometimes only produced an error.
     mount([TASK]);
 
-    expect(
-      await screen.findByText(/In the remediation queue since/),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /Track this fix/ }),
-    ).not.toBeInTheDocument();
+    expect(await screen.findByText(/In the remediation queue since/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Track this fix/ })).not.toBeInTheDocument();
   });
 
   it("offers nothing on a finding a scan has already closed", async () => {
     mount([], "RESOLVED");
 
     await waitFor(() =>
-      expect(
-        screen.queryByRole("button", { name: /Track this fix/ }),
-      ).not.toBeInTheDocument(),
+      expect(screen.queryByRole("button", { name: /Track this fix/ })).not.toBeInTheDocument(),
     );
   });
 });

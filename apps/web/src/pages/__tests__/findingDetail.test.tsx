@@ -124,10 +124,10 @@ function mount(
       const data = url.endsWith("/compliance")
         ? frameworks
         : url.includes("/provenance")
-        ? provenance
-        : url.includes("/attack-paths")
-          ? paths
-          : finding;
+          ? provenance
+          : url.includes("/attack-paths")
+            ? paths
+            : finding;
       return {
         ok: true,
         status: 200,
@@ -166,9 +166,10 @@ describe("the finding detail page", () => {
       risk: { id: "risk-1", risk_score: 71, risk_level: "HIGH", score_breakdown: {} },
     });
 
-    expect(
-      await screen.findByRole("link", { name: /Decide on its risk/ }),
-    ).toHaveAttribute("href", "/risks/risk-1");
+    expect(await screen.findByRole("link", { name: /Decide on its risk/ })).toHaveAttribute(
+      "href",
+      "/risks/risk-1",
+    );
     expect(screen.queryByRole("button", { name: /Accept/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Mark in progress/ })).not.toBeInTheDocument();
   });
@@ -223,9 +224,7 @@ describe("the finding detail page", () => {
   it("says when the asset is on a route, and where on it", async () => {
     mount([PATH]);
 
-    expect(
-      await screen.findByText(/This asset is the target/),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/This asset is the target/)).toBeInTheDocument();
     // The route itself, not just the fact of one: naming the links is what
     // makes it something somebody can go and cut.
     //
@@ -235,12 +234,8 @@ describe("the finding detail page", () => {
     // in whatever order they settle in. Waiting for the first sentence proves
     // nothing about the second, so a synchronous read of it was a race that the
     // suite lost whenever the machine was busy.
-    expect(
-      await screen.findByText("jump-01 runs as mi-jump"),
-    ).toBeInTheDocument();
-    expect(
-      await screen.findByText(/Cutting this link severs the route/),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("jump-01 runs as mi-jump")).toBeInTheDocument();
+    expect(await screen.findByText(/Cutting this link severs the route/)).toBeInTheDocument();
   });
 
   it("opens on the routes when the asset is on one, and on the evidence when it is not", async () => {
@@ -265,9 +260,7 @@ describe("the finding detail page", () => {
   it("does not report an empty result as an all-clear", async () => {
     mount([]);
 
-    expect(
-      await screen.findByText(/declared per subscription in Settings/),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/declared per subscription in Settings/)).toBeInTheDocument();
   });
 
   it("says what is already standing in the way, without calling it fixed", async () => {
@@ -289,30 +282,24 @@ describe("the finding detail page", () => {
       },
     });
 
-    const panel = (
-      await screen.findByText("What is standing in the way")
-    ).closest("[data-slot='card']")!;
+    const panel = (await screen.findByText("What is standing in the way")).closest(
+      "[data-slot='card']",
+    )!;
 
     // Scoped to the panel: the raw evidence block below it carries the same
     // words, because a control is part of what the pipeline recorded.
     expect(within(panel as HTMLElement).getByText("Security defaults")).toBeInTheDocument();
     expect(
-      within(panel as HTMLElement).getByText(
-        /Every account is challenged for a second factor/,
-      ),
+      within(panel as HTMLElement).getByText(/Every account is challenged for a second factor/),
     ).toBeInTheDocument();
     // Not reassuring. The misconfiguration underneath is untouched.
-    expect(
-      within(panel as HTMLElement).getByText(/without making it right/),
-    ).toBeInTheDocument();
+    expect(within(panel as HTMLElement).getByText(/without making it right/)).toBeInTheDocument();
   });
 
   it("says nothing when nothing stands in the way", async () => {
     mount([]);
 
-    expect(
-      screen.queryByText("What is standing in the way"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("What is standing in the way")).not.toBeInTheDocument();
   });
 });
 
@@ -339,9 +326,7 @@ describe("the provenance panel", () => {
     expect(await screen.findByText("How we know")).toBeInTheDocument();
     expect(screen.getByText("storage_accounts")).toBeInTheDocument();
     expect(screen.getByText("3 hours ago")).toBeInTheDocument();
-    expect(
-      screen.getByText("Microsoft.Storage/storageAccounts/read"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Microsoft.Storage/storageAccounts/read")).toBeInTheDocument();
     expect(screen.getByText("41 items")).toBeInTheDocument();
     // The contract, without which "the field was not there" cannot be told
     // apart from "we asked a shape that does not carry it".
@@ -364,23 +349,15 @@ describe("the provenance panel", () => {
   it("distinguishes a finding with no citation from a rule that reads nothing", async () => {
     mount([], FINDING, { ...PROVENANCE, evidence: null });
 
-    expect(
-      await screen.findByText(/raised before Cleave recorded/i),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByText("This check reads no collected evidence."),
-    ).not.toBeInTheDocument();
+    expect(await screen.findByText(/raised before Cleave recorded/i)).toBeInTheDocument();
+    expect(screen.queryByText("This check reads no collected evidence.")).not.toBeInTheDocument();
   });
 
   it("says so when the rule genuinely reads no collected evidence", async () => {
     mount([], FINDING, { ...PROVENANCE, evidence: [] });
 
-    expect(
-      await screen.findByText("This check reads no collected evidence."),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByText(/raised before Cleave recorded/i),
-    ).not.toBeInTheDocument();
+    expect(await screen.findByText("This check reads no collected evidence.")).toBeInTheDocument();
+    expect(screen.queryByText(/raised before Cleave recorded/i)).not.toBeInTheDocument();
   });
 
   it("renders nothing at all when the request fails", async () => {
@@ -420,12 +397,8 @@ describe("the provenance panel", () => {
 
     // The title appears in the breadcrumb as well as the heading, so the
     // heading role is what says the page itself rendered.
-    expect(
-      await screen.findByRole("heading", { name: FINDING.title }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: FINDING.title })).toBeInTheDocument();
     expect(screen.queryByText("How we know")).not.toBeInTheDocument();
-    expect(
-      screen.queryByText(/raised before Cleave recorded/i),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/raised before Cleave recorded/i)).not.toBeInTheDocument();
   });
 });

@@ -105,7 +105,10 @@ export const formatPercent = (ratio: number | null) =>
 
 export const label = (value: string) =>
   STATUS_LABELS[value] ??
-  value.replace(/_/g, " ").toLowerCase().replace(/^./, (c) => c.toUpperCase());
+  value
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/^./, (c) => c.toUpperCase());
 
 export function formatDate(value: string | null): string {
   if (!value) return "—";

@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  connectionStage,
-  needsScopeId,
-  setupSteps,
-  stepIndex,
-} from "@/lib/connectionStage";
+import { connectionStage, needsScopeId, setupSteps, stepIndex } from "@/lib/connectionStage";
 import type { CloudConnection } from "@/lib/types";
 
 function connection(overrides: Partial<CloudConnection> = {}): CloudConnection {
@@ -98,9 +93,9 @@ describe("which step a connection is on", () => {
   it("reads a cancelled setup as paused rather than as waiting for consent", () => {
     // A cancelled connection is also un-consented. Checking consent first would
     // have it report itself as waiting for an administrator nobody is asking.
-    expect(
-      connectionStage(connection({ status: "DISABLED" } as Partial<CloudConnection>)),
-    ).toBe("paused");
+    expect(connectionStage(connection({ status: "DISABLED" } as Partial<CloudConnection>))).toBe(
+      "paused",
+    );
   });
 
   it("keeps a disabled but verified connection out of the setup flow", () => {
@@ -125,11 +120,7 @@ describe("which step a connection is on", () => {
   it("gives AWS one fewer step, because it has no consent to grant", () => {
     // A rail with a permanently grey "Grant consent" row would read as a flow
     // stuck on something nobody is going to do.
-    expect(setupSteps("aws").map((step) => step.stage)).toEqual([
-      "scope",
-      "deploy",
-      "review",
-    ]);
+    expect(setupSteps("aws").map((step) => step.stage)).toEqual(["scope", "deploy", "review"]);
     expect(setupSteps("azure").map((step) => step.stage)).toContain("consent");
   });
 

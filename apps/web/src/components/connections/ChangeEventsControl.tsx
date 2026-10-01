@@ -46,18 +46,15 @@ export function ChangeEventsControl({
     queryKey: ["change-events", connection.id],
     queryFn: () =>
       api
-        .get<ChangeEventSetup>(
-          `/api/v1/cloud-connections/${connection.id}/change-events`,
-        )
+        .get<ChangeEventSetup>(`/api/v1/cloud-connections/${connection.id}/change-events`)
         .then((r) => r.data),
   });
 
   const save = useMutation({
     mutationFn: (enabled: boolean) =>
-      api.patch<ChangeEventSetup>(
-        `/api/v1/cloud-connections/${connection.id}/change-events`,
-        { enabled },
-      ),
+      api.patch<ChangeEventSetup>(`/api/v1/cloud-connections/${connection.id}/change-events`, {
+        enabled,
+      }),
     onSuccess: (response) => {
       // Written straight into the cache rather than refetched: the PATCH
       // returns the same shape the GET does, and the commands appearing a
@@ -74,10 +71,7 @@ export function ChangeEventsControl({
       });
       queryClient.invalidateQueries({ queryKey: ["cloud-connections"] });
     },
-    onError: (err) =>
-      onError(
-        err instanceof Error ? err.message : "Could not change this setting",
-      ),
+    onError: (err) => onError(err instanceof Error ? err.message : "Could not change this setting"),
   });
 
   if (isLoading) {
@@ -100,9 +94,7 @@ export function ChangeEventsControl({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-1">
-            <p className="text-sm font-medium text-foreground">
-              {t.connection.changeTitle}
-            </p>
+            <p className="text-sm font-medium text-foreground">{t.connection.changeTitle}</p>
             {/* What it reacts to, and how a burst becomes one scan: behind a
                 question mark, with the line under the title saying what it is
                 (DECISIONS.md §181). */}
@@ -156,9 +148,7 @@ export function ChangeEventsControl({
         <>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             {save.isPending && (
-              <span className="text-xs text-muted-foreground">
-                {t.connection.changeSaving}
-              </span>
+              <span className="text-xs text-muted-foreground">{t.connection.changeSaving}</span>
             )}
             <span className="text-xs text-muted-foreground">
               {t.connection.changeLastEvent}:{" "}
@@ -171,9 +161,7 @@ export function ChangeEventsControl({
           </div>
 
           {data.pending_since && (
-            <p className="mt-2 text-xs leading-relaxed text-ok">
-              {t.connection.changePending}
-            </p>
+            <p className="mt-2 text-xs leading-relaxed text-ok">{t.connection.changePending}</p>
           )}
 
           {data.enabled && (
@@ -204,7 +192,6 @@ export function ChangeEventsControl({
               )}
             </>
           )}
-
         </>
       )}
     </div>
@@ -218,13 +205,7 @@ export function ChangeEventsControl({
  * asked to run this against their own tenant, and pasting a command they were
  * never shown is exactly the habit a security product should not be teaching.
  */
-function CommandRow({
-  subscriptionId,
-  command,
-}: {
-  subscriptionId: string;
-  command: string;
-}) {
+function CommandRow({ subscriptionId, command }: { subscriptionId: string; command: string }) {
   const t = useT();
 
   return (

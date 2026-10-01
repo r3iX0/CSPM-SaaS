@@ -41,11 +41,7 @@ export function PostureHeader({
       </div>
 
       <div className="flex flex-wrap items-center gap-2.5">
-        <FreshnessPill
-          scannedAt={scannedAt}
-          staleHours={staleHours}
-          scanning={scanning}
-        />
+        <FreshnessPill scannedAt={scannedAt} staleHours={staleHours} scanning={scanning} />
         <Link to="/reports" className={buttonVariants({ variant: "outline", size: "sm" })}>
           Export evidence
         </Link>

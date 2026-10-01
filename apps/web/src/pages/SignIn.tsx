@@ -160,7 +160,11 @@ export function SignInPage() {
                   most users already have, and the one they will consent with. */}
               {mode !== "reset" && (
                 <>
-                  <MicrosoftButton onClick={microsoft} disabled={busy} label={t.auth.continueWithMicrosoft} />
+                  <MicrosoftButton
+                    onClick={microsoft}
+                    disabled={busy}
+                    label={t.auth.continueWithMicrosoft}
+                  />
                   <Divider label={t.auth.orDivider} />
                 </>
               )}
@@ -403,7 +407,13 @@ function PasswordField({
 function EyeIcon({ crossed }: { crossed: boolean }) {
   return (
     <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
-      <g fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <g
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" />
         <circle cx="12" cy="12" r="2.8" />
         {crossed && <path d="m4 20 16-16" />}
@@ -465,8 +475,8 @@ function BrandPanel() {
           Cut the one link that matters.
         </h2>
         <p className="mt-4 max-w-[46ch] text-sm leading-[1.7] text-muted-foreground">
-          Cleave reads your Azure environment, ranks what it finds by what it
-          would cost this business, and proves the fix worked on the next scan.
+          Cleave reads your Azure environment, ranks what it finds by what it would cost this
+          business, and proves the fix worked on the next scan.
         </p>
 
         <ProductPreview />
@@ -498,8 +508,18 @@ function BrandPanel() {
  */
 function ProductPreview() {
   const rows = [
-    { score: 98, level: "CRITICAL", title: "Internet → vm-jumpbox → storage-prod-01", tag: "Attack path" },
-    { score: 94, level: "CRITICAL", title: "RDP reachable from the internet on prod-vm-01", tag: "Internet-facing" },
+    {
+      score: 98,
+      level: "CRITICAL",
+      title: "Internet → vm-jumpbox → storage-prod-01",
+      tag: "Attack path",
+    },
+    {
+      score: 94,
+      level: "CRITICAL",
+      title: "RDP reachable from the internet on prod-vm-01",
+      tag: "Internet-facing",
+    },
   ];
 
   return (
@@ -509,7 +529,9 @@ function ProductPreview() {
     >
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-baseline gap-2">
-          <span className="text-stat font-semibold tracking-[-0.02em] text-medium tabular-nums">71</span>
+          <span className="text-stat font-semibold tracking-[-0.02em] text-medium tabular-nums">
+            71
+          </span>
           <span className="text-caption text-muted-foreground">/ 100 security score</span>
         </div>
         <span className="rounded-full border border-ok-border bg-ok-bg px-2 py-0.5 text-caption font-medium text-ok">
@@ -521,7 +543,9 @@ function ProductPreview() {
           <li key={row.title} className="flex items-center gap-3 px-4 py-2.5">
             <ScoreTile score={row.score} level={row.level} className="size-8 [&>span]:text-xs" />
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-xs font-medium text-foreground">{row.title}</span>
+              <span className="block truncate text-xs font-medium text-foreground">
+                {row.title}
+              </span>
               <span className="block text-caption text-muted-foreground">{row.tag}</span>
             </span>
           </li>
@@ -579,18 +603,15 @@ function SentNotice({ sent, onUseAnother }: { sent: Sent; onUseAnother: () => vo
         </svg>
       </div>
 
-      <h1 className={cn("mt-5", PAGE_TITLE_CLASS)}>
-        {t.auth.checkEmail}
-      </h1>
+      <h1 className={cn("mt-5", PAGE_TITLE_CLASS)}>{t.auth.checkEmail}</h1>
       <p className="mt-2 text-body leading-[1.65] text-muted-foreground">
-        {lead} <strong className="text-foreground">{sent.email}</strong>.{" "}
-        {t.auth.openOnThisDevice}
+        {lead} <strong className="text-foreground">{sent.email}</strong>. {t.auth.openOnThisDevice}
       </p>
 
       <p className="mt-6 rounded-lg bg-muted px-4 py-3 text-caption leading-[1.7] text-muted-foreground">
-        The link works once and expires after an hour. If nothing arrives, check
-        spam — and note that some disposable inboxes open links automatically,
-        which uses the link up before you get to it.
+        The link works once and expires after an hour. If nothing arrives, check spam — and note
+        that some disposable inboxes open links automatically, which uses the link up before you get
+        to it.
       </p>
 
       <button

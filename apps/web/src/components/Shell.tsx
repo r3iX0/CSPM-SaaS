@@ -29,12 +29,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Toaster } from "@/components/ui/sonner";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn, formatRelative } from "@/lib/format";
 
 /** Where the rail preference lives. Per browser, like the theme. */
@@ -83,8 +78,7 @@ export function Shell() {
 
   const { data: orgs, isLoading } = useQuery({
     queryKey: ["organizations"],
-    queryFn: () =>
-      api.get<Organization[]>("/api/v1/organizations").then((r) => r.data),
+    queryFn: () => api.get<Organization[]>("/api/v1/organizations").then((r) => r.data),
   });
 
   // Both of these used to run during render, which meant navigating and writing
@@ -118,82 +112,82 @@ export function Shell() {
     // own delay, so crossing a row of them makes each one wait again.
     <TooltipProvider delay={200}>
       <ScanWizardProvider>
-      <SidebarProvider open={open} onOpenChange={setOpen}>
-        {/* The first stop on the keyboard, and invisible until it is reached:
+        <SidebarProvider open={open} onOpenChange={setOpen}>
+          {/* The first stop on the keyboard, and invisible until it is reached:
             without it every page begins with the whole navigation, a dozen
             links, before its own content (WCAG 2.4.1). */}
-        <a
-          href="#main-content"
-          // Focus moved by hand rather than by the fragment: following it
-          // would write `#main-content` into a URL the router owns.
-          onClick={(event) => {
-            event.preventDefault();
-            document.getElementById("main-content")?.focus();
-          }}
-          className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:top-3 focus-visible:left-3 focus-visible:z-50 focus-visible:rounded-md focus-visible:bg-background focus-visible:px-3 focus-visible:py-2 focus-visible:text-sm focus-visible:font-medium focus-visible:shadow-md focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring"
-        >
-          Skip to content
-        </a>
-        {/* `collapsible="icon"` is the rail this shell always had: navigation
+          <a
+            href="#main-content"
+            // Focus moved by hand rather than by the fragment: following it
+            // would write `#main-content` into a URL the router owns.
+            onClick={(event) => {
+              event.preventDefault();
+              document.getElementById("main-content")?.focus();
+            }}
+            className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:top-3 focus-visible:left-3 focus-visible:z-50 focus-visible:rounded-md focus-visible:bg-background focus-visible:px-3 focus-visible:py-2 focus-visible:text-sm focus-visible:font-medium focus-visible:shadow-md focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring"
+          >
+            Skip to content
+          </a>
+          {/* `collapsible="icon"` is the rail this shell always had: navigation
             that scrolls away makes a long findings table a one-way trip, so it
             narrows to icons rather than leaving. On mobile the same component
             is the sheet, which is why there is no second copy of the
             navigation here any more. */}
-        <Sidebar collapsible="icon">
-          <SidebarHeader className="h-14 shrink-0 justify-center border-b px-3 group-data-[collapsible=icon]:items-center">
-            <Link
-              to="/"
-              className="flex items-center gap-2.5 rounded-md px-2 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-ring group-data-[collapsible=icon]:px-0"
-            >
-              <Wordmark
-                markClassName="size-5"
-                labelClassName="group-data-[collapsible=icon]:sr-only"
-              />
-            </Link>
-          </SidebarHeader>
-          <SidebarContent className="gap-3.5 p-3 group-data-[collapsible=icon]:px-2 [@media(max-height:760px)]:gap-2">
-            <SidebarNav />
-          </SidebarContent>
-          <SidebarFooter className="flex-row items-center gap-1 border-t group-data-[collapsible=icon]:flex-col">
-            <div className="min-w-0 flex-1 group-data-[collapsible=icon]:flex-none">
-              <ConnectionBadge />
-            </div>
-            {/* The collapse control lives at the foot of the column it
+          <Sidebar collapsible="icon">
+            <SidebarHeader className="h-14 shrink-0 justify-center border-b px-3 group-data-[collapsible=icon]:items-center">
+              <Link
+                to="/"
+                className="flex items-center gap-2.5 rounded-md px-2 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-ring group-data-[collapsible=icon]:px-0"
+              >
+                <Wordmark
+                  markClassName="size-5"
+                  labelClassName="group-data-[collapsible=icon]:sr-only"
+                />
+              </Link>
+            </SidebarHeader>
+            <SidebarContent className="gap-3.5 p-3 group-data-[collapsible=icon]:px-2 [@media(max-height:760px)]:gap-2">
+              <SidebarNav />
+            </SidebarContent>
+            <SidebarFooter className="flex-row items-center gap-1 border-t group-data-[collapsible=icon]:flex-col">
+              <div className="min-w-0 flex-1 group-data-[collapsible=icon]:flex-none">
+                <ConnectionBadge />
+              </div>
+              {/* The collapse control lives at the foot of the column it
                 collapses, beside the rail edge, rather than in the page
                 header — so it does not move when the rail narrows. */}
-            <NavToggle placement="sidebar" />
-          </SidebarFooter>
-          {/* The drag/click edge, a second way to do the same thing. */}
-          <SidebarRail />
-        </Sidebar>
+              <NavToggle placement="sidebar" />
+            </SidebarFooter>
+            {/* The drag/click edge, a second way to do the same thing. */}
+            <SidebarRail />
+          </Sidebar>
 
-        <SidebarInset>
-          <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-background/88 px-4 backdrop-blur-md sm:px-6">
-            <NavToggle placement="header" />
-            <CommandPalette />
+          <SidebarInset>
+            <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-background/88 px-4 backdrop-blur-md sm:px-6">
+              <NavToggle placement="header" />
+              <CommandPalette />
 
-            <div className="ml-auto flex items-center gap-2.5">
-              <LastRead />
-              <KeyboardShortcuts />
-              <ScanIndicator />
-              {/* After the scan indicator and before the settings: what is
+              <div className="ml-auto flex items-center gap-2.5">
+                <LastRead />
+                <KeyboardShortcuts />
+                <ScanIndicator />
+                {/* After the scan indicator and before the settings: what is
                   happening now, then what happened, then how the app looks. */}
-              <NotificationBell />
-              <ThemeToggle />
-              <AccountMenu organizations={orgs ?? []} current={current} />
-            </div>
-          </header>
+                <NotificationBell />
+                <ThemeToggle />
+                <AccountMenu organizations={orgs ?? []} current={current} />
+              </div>
+            </header>
 
-          <DemoBanner />
+            <DemoBanner />
 
-          <main
-            id="main-content"
-            // Focusable from script only, for the skip link and for a new page
-            // with no heading yet (`PageTransition`); never a tab stop.
-            tabIndex={-1}
-            className="mx-auto w-full max-w-[1240px] px-4 pt-6 pb-16 outline-none sm:px-6"
-          >
-            {/* Per-page, inside the chrome. A page that throws is one broken
+            <main
+              id="main-content"
+              // Focusable from script only, for the skip link and for a new page
+              // with no heading yet (`PageTransition`); never a tab stop.
+              tabIndex={-1}
+              className="mx-auto w-full max-w-[1240px] px-4 pt-6 pb-16 outline-none sm:px-6"
+            >
+              {/* Per-page, inside the chrome. A page that throws is one broken
                 screen the reader can navigate away from, rather than a product
                 that vanished -- and the root boundary is still behind this for
                 anything the shell itself does.
@@ -201,14 +195,14 @@ export function Shell() {
                 The boundary is outside the transition, not inside: an error
                 that arrives mid-animation must not be something that animates
                 away. */}
-            <ErrorBoundary variant="page">
-              <PageTransition>
-                <Outlet />
-              </PageTransition>
-            </ErrorBoundary>
-          </main>
-        </SidebarInset>
-      </SidebarProvider>
+              <ErrorBoundary variant="page">
+                <PageTransition>
+                  <Outlet />
+                </PageTransition>
+              </ErrorBoundary>
+            </main>
+          </SidebarInset>
+        </SidebarProvider>
       </ScanWizardProvider>
 
       {/* Mounted once, here, because an action's outcome outlives the panel it
@@ -295,8 +289,7 @@ function ConnectionBadge() {
 
   const { data } = useQuery({
     queryKey: ["cloud-accounts"],
-    queryFn: () =>
-      api.get<CloudAccount[]>("/api/v1/cloud-accounts").then((r) => r.data),
+    queryFn: () => api.get<CloudAccount[]>("/api/v1/cloud-accounts").then((r) => r.data),
     retry: false,
   });
 
@@ -312,11 +305,7 @@ function ConnectionBadge() {
 
   const dot = cn(
     "size-1.5 shrink-0 rounded-full transition-colors",
-    count === 0
-      ? "bg-muted-foreground"
-      : scannable > 0
-        ? "bg-ok"
-        : "bg-medium",
+    count === 0 ? "bg-muted-foreground" : scannable > 0 ? "bg-ok" : "bg-medium",
   );
 
   // On the rail there is room for the state and not for the sentence. The dot

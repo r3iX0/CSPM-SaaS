@@ -15,12 +15,10 @@
     var choice = stored === "light" || stored === "dark" ? stored : "system";
     var dark =
       choice === "dark" ||
-      (choice === "system" &&
-        window.matchMedia("(prefers-color-scheme: dark)").matches);
+      (choice === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
     document.documentElement.classList.toggle("dark", dark);
     document.documentElement.style.colorScheme = dark ? "dark" : "light";
   } catch (e) {
     /* No storage, no preference read: the light default already applies. */
   }
 })();
-

@@ -98,25 +98,26 @@ function mount(
 ) {
   // Answered by URL: the page also asks which organization it is in (the demo
   // takes the actions away) and, once a route is listed, what to cut.
-  vi.spyOn(api, "get").mockImplementation((url: string) =>
-    Promise.resolve(
-      url.includes("/choke-points")
-        ? { data: chokes, meta: {} }
-        : url.includes("risks?limit=1")
-          ? {
-              data: [],
-              meta: {
-                total: url.includes("risk_level=")
-                  ? counts[url.split("risk_level=")[1] as "CRITICAL" | "HIGH"]
-                  : counts.all,
-              },
-            }
-          : url.includes("status=OPEN&limit=1")
-            ? { data: [], meta: { total: untriaged } }
-        : url.includes("/organizations")
-          ? { data: [{ id: "org-1", name: "Contoso", is_demo: demo }], meta: {} }
-          : { data: risks, meta: {} },
-    ) as never,
+  vi.spyOn(api, "get").mockImplementation(
+    (url: string) =>
+      Promise.resolve(
+        url.includes("/choke-points")
+          ? { data: chokes, meta: {} }
+          : url.includes("risks?limit=1")
+            ? {
+                data: [],
+                meta: {
+                  total: url.includes("risk_level=")
+                    ? counts[url.split("risk_level=")[1] as "CRITICAL" | "HIGH"]
+                    : counts.all,
+                },
+              }
+            : url.includes("status=OPEN&limit=1")
+              ? { data: [], meta: { total: untriaged } }
+              : url.includes("/organizations")
+                ? { data: [{ id: "org-1", name: "Contoso", is_demo: demo }], meta: {} }
+                : { data: risks, meta: {} },
+      ) as never,
   );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -144,9 +145,13 @@ describe("RisksPage", () => {
     const triage = await screen.findByText("Needs triage", { selector: "dt" });
     await waitFor(() => expect(triage.nextElementSibling).toHaveTextContent("5"));
     await waitFor(() =>
-      expect(screen.getByText("Live risks", { selector: "dt" }).nextElementSibling).toHaveTextContent("9"),
+      expect(
+        screen.getByText("Live risks", { selector: "dt" }).nextElementSibling,
+      ).toHaveTextContent("9"),
     );
-    expect(screen.getByText("Critical", { selector: "dt" }).nextElementSibling).toHaveTextContent("4");
+    expect(screen.getByText("Critical", { selector: "dt" }).nextElementSibling).toHaveTextContent(
+      "4",
+    );
     expect(screen.getByText("High", { selector: "dt" }).nextElementSibling).toHaveTextContent("3");
     expect(screen.queryByText("No verdict", { selector: "dt" })).not.toBeInTheDocument();
   });
@@ -323,9 +328,7 @@ describe("RisksPage", () => {
   it("shows a scenario's route, hop by hop", async () => {
     mount([scenarioRisk()]);
 
-    await waitFor(() =>
-      expect(screen.getByText("jump-01 runs as mi-jump-01")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText("jump-01 runs as mi-jump-01")).toBeInTheDocument());
     expect(screen.getByText("mi-jump-01 can act over sub-1")).toBeInTheDocument();
   });
 
@@ -341,9 +344,7 @@ describe("RisksPage", () => {
   it("shows the arithmetic that put it above its worst finding", async () => {
     mount([scenarioRisk()]);
 
-    await waitFor(() =>
-      expect(screen.getByText("Worst finding on the route")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText("Worst finding on the route")).toBeInTheDocument());
     expect(screen.getByText("84")).toBeInTheDocument();
     expect(screen.getByText("+12")).toBeInTheDocument();
   });
@@ -415,9 +416,7 @@ describe("RisksPage", () => {
       }),
     ]);
 
-    await waitFor(() =>
-      expect(screen.getByText("Privilege escalation")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText("Privilege escalation")).toBeInTheDocument());
     expect(screen.getByText("jump-01 leads to control of sub-1")).toBeInTheDocument();
     expect(screen.getByText("The route")).toBeInTheDocument();
     expect(screen.queryByText("Attack path")).not.toBeInTheDocument();
@@ -521,9 +520,7 @@ describe("the risk ranking", () => {
     fireEvent.change(screen.getByLabelText("Search risks"), { target: { value: "payroll" } });
     await vi.advanceTimersByTimeAsync(300);
 
-    await waitFor(() =>
-      expect(requested.some((u) => u.includes("search=payroll"))).toBe(true),
-    );
+    await waitFor(() => expect(requested.some((u) => u.includes("search=payroll"))).toBe(true));
   });
 
   it("offers UNKNOWN as a level, because the engine really assigns it", async () => {
@@ -544,12 +541,10 @@ describe("the risk ranking", () => {
     await waitFor(() => expect(trigger).toHaveAttribute("aria-expanded", "true"));
     await user.click(await screen.findByRole("option", { name: "Unknown" }));
 
-    await waitFor(() =>
-      expect(requested.some((u) => u.includes("risk_level=UNKNOWN"))).toBe(true),
+    await waitFor(() => expect(requested.some((u) => u.includes("risk_level=UNKNOWN"))).toBe(true));
+    expect(screen.getByRole("combobox", { name: "Filter by risk level" })).toHaveTextContent(
+      "Unknown",
     );
-    expect(
-      screen.getByRole("combobox", { name: "Filter by risk level" }),
-    ).toHaveTextContent("Unknown");
   });
 
   it("opens on the band a dashboard risk bar linked to", async () => {
@@ -580,9 +575,10 @@ describe("the risk ranking", () => {
     mount([scenarioRisk(), findingRisk()]);
 
     await waitFor(() =>
-      expect(
-        screen.getByRole("link", { name: "jump-01 can reach customerdata" }),
-      ).toHaveAttribute("href", "/risks/r-scenario"),
+      expect(screen.getByRole("link", { name: "jump-01 can reach customerdata" })).toHaveAttribute(
+        "href",
+        "/risks/r-scenario",
+      ),
     );
     expect(
       screen.getByRole("link", { name: "Public blob access on customerdata" }),

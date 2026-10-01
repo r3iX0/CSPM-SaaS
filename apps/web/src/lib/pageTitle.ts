@@ -48,9 +48,9 @@ export function documentTitle(pathname: string, name: string | null): string {
 /** A detail page's name for itself, keyed by the path it was given on. */
 export type PageName = { pathname: string; name: string } | null;
 
-export const PageNameContext = createContext<
-  (pathname: string, name: string | null) => void
->(() => {});
+export const PageNameContext = createContext<(pathname: string, name: string | null) => void>(
+  () => {},
+);
 
 /**
  * Name the page in the title once what it shows has loaded -- the finding's

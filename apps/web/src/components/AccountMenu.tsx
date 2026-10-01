@@ -52,8 +52,7 @@ export function AccountMenu({
   const panelId = useId();
 
   const removeOrg = useMutation({
-    mutationFn: (organization: Organization) =>
-      api.del(`/api/v1/organizations/${organization.id}`),
+    mutationFn: (organization: Organization) => api.del(`/api/v1/organizations/${organization.id}`),
     onSuccess: (_result, organization) => {
       setConfirming(null);
       setOpen(false);
@@ -200,53 +199,53 @@ export function AccountMenu({
               </div>
             </Section>
           ) : (
-          <Section label={t.account.organization}>
-            <ul>
-              {organizations.map((organization) => (
-                <li key={organization.id}>
-                  <button
-                    onClick={() => switchTo(organization)}
-                    aria-current={organization.id === current?.id ? "true" : undefined}
-                    className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition hover:bg-muted/40 focus-ring-inset"
-                  >
-                    <Avatar name={organization.name} />
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-1.5 text-sm text-foreground">
-                        <span className="truncate">{organization.name}</span>
-                        {organization.is_demo && (
-                          <span className="shrink-0 rounded-full border border-medium-border bg-medium-bg px-1.5 py-px text-micro font-medium text-medium">
-                            {t.demo.badge}
+            <Section label={t.account.organization}>
+              <ul>
+                {organizations.map((organization) => (
+                  <li key={organization.id}>
+                    <button
+                      onClick={() => switchTo(organization)}
+                      aria-current={organization.id === current?.id ? "true" : undefined}
+                      className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition hover:bg-muted/40 focus-ring-inset"
+                    >
+                      <Avatar name={organization.name} />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-1.5 text-sm text-foreground">
+                          <span className="truncate">{organization.name}</span>
+                          {organization.is_demo && (
+                            <span className="shrink-0 rounded-full border border-medium-border bg-medium-bg px-1.5 py-px text-micro font-medium text-medium">
+                              {t.demo.badge}
+                            </span>
+                          )}
+                        </span>
+                        {organization.role && (
+                          <span className="block text-xs text-muted-foreground">
+                            {label(organization.role)}
                           </span>
                         )}
                       </span>
-                      {organization.role && (
-                        <span className="block text-xs text-muted-foreground">
-                          {label(organization.role)}
-                        </span>
-                      )}
-                    </span>
-                    {organization.id === current?.id && (
-                      <Check className="shrink-0 text-ok" />
-                    )}
-                  </button>
-                </li>
-              ))}
-            </ul>
+                      {organization.id === current?.id && <Check className="shrink-0 text-ok" />}
+                    </button>
+                  </li>
+                ))}
+              </ul>
 
-            {/* Owner-only, and acting on the *current* organization: deleting
+              {/* Owner-only, and acting on the *current* organization: deleting
                 one you are not looking at is a mistake waiting to happen. */}
-            {current?.role === "OWNER" && (
-              <button
-                onClick={() => setConfirming(current)}
-                className="group mt-1 w-full px-3 py-2 text-left text-sm text-critical transition hover:bg-critical-bg focus-ring-inset"
-              >
-                {t.account.removeOrg}
-                {/* Muted text on the critical tint is 4.36:1, under AA; on
+              {current?.role === "OWNER" && (
+                <button
+                  onClick={() => setConfirming(current)}
+                  className="group mt-1 w-full px-3 py-2 text-left text-sm text-critical transition hover:bg-critical-bg focus-ring-inset"
+                >
+                  {t.account.removeOrg}
+                  {/* Muted text on the critical tint is 4.36:1, under AA; on
                     hover the name takes the foreground instead. */}
-                <span className="ml-1 text-muted-foreground group-hover:text-foreground">· {current.name}</span>
-              </button>
-            )}
-          </Section>
+                  <span className="ml-1 text-muted-foreground group-hover:text-foreground">
+                    · {current.name}
+                  </span>
+                </button>
+              )}
+            </Section>
           )}
 
           <div className="border-t border-border p-1">
@@ -266,9 +265,7 @@ export function AccountMenu({
 function Section({ label: text, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="border-b border-border py-2 last:border-b-0">
-      <p className="px-3 pb-1.5 text-caption font-medium text-muted-foreground">
-        {text}
-      </p>
+      <p className="px-3 pb-1.5 text-caption font-medium text-muted-foreground">{text}</p>
       {children}
     </div>
   );

@@ -120,10 +120,7 @@ function mount(controls: object[]) {
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={["/compliance/CIS_AZURE_2.0"]}>
         <Routes>
-          <Route
-            path="/compliance/:frameworkId"
-            element={<ComplianceFrameworkPage />}
-          />
+          <Route path="/compliance/:frameworkId" element={<ComplianceFrameworkPage />} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -258,11 +255,7 @@ describe("what a control's verdict rests on", () => {
      * not as a screen. */
     mount([control()]);
 
-    expect(
-      await screen.findByRole("button", { name: /spreadsheet \(csv\)/i }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /machine-readable \(json\)/i }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /spreadsheet \(csv\)/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /machine-readable \(json\)/i })).toBeInTheDocument();
   });
 });

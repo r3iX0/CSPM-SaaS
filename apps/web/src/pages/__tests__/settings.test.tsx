@@ -207,9 +207,7 @@ describe("SettingsPage", () => {
     // Asserted on the options rather than on the page text: the trigger now
     // says the chosen label too, which is the point of the control and would
     // otherwise make every one of these match twice.
-    const offered = (await screen.findAllByRole("option")).map(
-      (option) => option.textContent,
-    );
+    const offered = (await screen.findAllByRole("option")).map((option) => option.textContent);
 
     expect(offered).toContain("Not declared");
     expect(offered).toContain("Critical");
@@ -232,9 +230,7 @@ describe("SettingsPage", () => {
       },
     });
 
-    await waitFor(() =>
-      expect(screen.getByLabelText("Environment")).toHaveValue("production"),
-    );
+    await waitFor(() => expect(screen.getByLabelText("Environment")).toHaveValue("production"));
     expect(screen.getByLabelText("Note")).toHaveValue("Holds cardholder data");
   });
 
@@ -250,9 +246,7 @@ describe("SettingsPage", () => {
     mount();
 
     await waitFor(() =>
-      expect(
-        screen.getByText(/not the same as declaring it unknown/),
-      ).toBeInTheDocument(),
+      expect(screen.getByText(/not the same as declaring it unknown/)).toBeInTheDocument(),
     );
   });
 
@@ -287,9 +281,7 @@ describe("SettingsPage", () => {
     await waitFor(() =>
       expect(screen.getByText("Only an owner can delete an organization.")).toBeInTheDocument(),
     );
-    expect(
-      screen.queryByRole("button", { name: "Delete organization" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete organization" })).not.toBeInTheDocument();
   });
 });
 
@@ -302,7 +294,13 @@ describe("Members", () => {
     mount({
       members: [
         member(),
-        member({ id: "m-2", user_id: "u-2", email: "ana@contoso.example", role: "VIEWER", is_you: false }),
+        member({
+          id: "m-2",
+          user_id: "u-2",
+          email: "ana@contoso.example",
+          role: "VIEWER",
+          is_you: false,
+        }),
       ],
     });
     await waitFor(() => expect(screen.getByText("ana@contoso.example")).toBeInTheDocument());
@@ -357,7 +355,13 @@ describe("Members", () => {
     mount({
       members: [
         member(),
-        member({ id: "m-2", user_id: "u-2", email: "ana@contoso.example", role: "VIEWER", is_you: false }),
+        member({
+          id: "m-2",
+          user_id: "u-2",
+          email: "ana@contoso.example",
+          role: "VIEWER",
+          is_you: false,
+        }),
       ],
     });
     await waitFor(() => expect(screen.getByText("The last owner stays")).toBeInTheDocument());
@@ -372,7 +376,13 @@ describe("Members", () => {
     mount({
       members: [
         member(),
-        member({ id: "m-2", user_id: "u-2", email: "ana@contoso.example", role: "OWNER", is_you: false }),
+        member({
+          id: "m-2",
+          user_id: "u-2",
+          email: "ana@contoso.example",
+          role: "OWNER",
+          is_you: false,
+        }),
       ],
     });
     expect(
@@ -386,16 +396,20 @@ describe("Members", () => {
       orgs: [organization({ role: "ADMIN" })],
       members: [
         member({ is_you: false }),
-        member({ id: "m-2", user_id: "u-2", email: "me@contoso.example", role: "ADMIN", is_you: true }),
+        member({
+          id: "m-2",
+          user_id: "u-2",
+          email: "me@contoso.example",
+          role: "ADMIN",
+          is_you: true,
+        }),
       ],
     });
     await waitFor(() => expect(screen.getByText("owner@contoso.example")).toBeInTheDocument());
     expect(
       screen.queryByRole("button", { name: "Remove owner@contoso.example" }),
     ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Remove me@contoso.example" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove me@contoso.example" })).toBeInTheDocument();
   });
 
   it("tells a reader who cannot manage members why", async () => {
@@ -502,4 +516,3 @@ describe("Integrations", () => {
     expect(await screen.findByText("a".repeat(64))).toBeInTheDocument();
   });
 });
-

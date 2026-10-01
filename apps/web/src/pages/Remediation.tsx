@@ -1,9 +1,4 @@
-import {
-  useMutation,
-  useQueries,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { CheckIcon, WrenchIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -13,12 +8,7 @@ import type { Finding, FindingDetail, RemediationTask } from "@/lib/types";
 import { useT } from "@/i18n";
 import { StatusPill } from "@/components/security/StatusPill";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
-import {
-  CardsSkeleton,
-  EmptyState,
-  ErrorState,
-  PageHeader,
-} from "@/components/common/states";
+import { CardsSkeleton, EmptyState, ErrorState, PageHeader } from "@/components/common/states";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatStrip } from "@/components/common/StatStrip";
@@ -42,8 +32,7 @@ export function RemediationPage() {
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["remediation"],
-    queryFn: () =>
-      api.get<RemediationTask[]>("/api/v1/remediation").then((r) => r.data),
+    queryFn: () => api.get<RemediationTask[]>("/api/v1/remediation").then((r) => r.data),
   });
 
   /**
@@ -61,9 +50,7 @@ export function RemediationPage() {
     queries: (data ?? []).map((task) => ({
       queryKey: ["finding", task.finding_id],
       queryFn: () =>
-        api
-          .get<FindingDetail>(`/api/v1/findings/${task.finding_id}`)
-          .then((r) => r.data),
+        api.get<FindingDetail>(`/api/v1/findings/${task.finding_id}`).then((r) => r.data),
       staleTime: 60_000,
       retry: false,
     })),
@@ -71,10 +58,9 @@ export function RemediationPage() {
 
   const update = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
-      api.patch<RemediationTask & { note?: string | null }>(
-        `/api/v1/remediation/${id}`,
-        { status },
-      ),
+      api.patch<RemediationTask & { note?: string | null }>(`/api/v1/remediation/${id}`, {
+        status,
+      }),
     // The API answers a completed task with what happens next -- CloudGuard
     // will look again, and only an observation closes the finding. That
     // sentence used to be discarded, so marking work done gave no feedback at
@@ -90,17 +76,13 @@ export function RemediationPage() {
     },
     onError: (err) =>
       toast.error("Could not update this task", {
-        description:
-          err instanceof Error ? err.message : "The API rejected the change.",
+        description: err instanceof Error ? err.message : "The API rejected the change.",
       }),
   });
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader
-        title={t.remediation.title}
-        description={t.remediation.description}
-      />
+      <PageHeader title={t.remediation.title} description={t.remediation.description} />
 
       {isLoading && <CardsSkeleton />}
 
@@ -120,10 +102,7 @@ export function RemediationPage() {
             title={t.remediation.empty}
             detail="Track a fix from a finding, or start with the worst open ones below."
             action={
-              <Link
-                to="/findings"
-                className={buttonVariants({ variant: "outline" })}
-              >
+              <Link to="/findings" className={buttonVariants({ variant: "outline" })}>
                 Go to findings
               </Link>
             }
@@ -200,7 +179,9 @@ function TaskCard({
               to={`/findings/${task.finding_id}`}
               className={cn(
                 "block truncate text-body font-medium hover:underline",
-                done ? "text-muted-foreground line-through decoration-muted-foreground/50" : "text-foreground",
+                done
+                  ? "text-muted-foreground line-through decoration-muted-foreground/50"
+                  : "text-foreground",
               )}
             >
               {finding.title}
@@ -225,9 +206,7 @@ function TaskCard({
               </span>
             )}
           </p>
-          {task.notes && (
-            <p className="mt-1 text-xs text-muted-foreground">{task.notes}</p>
-          )}
+          {task.notes && <p className="mt-1 text-xs text-muted-foreground">{task.notes}</p>}
         </div>
       </div>
 

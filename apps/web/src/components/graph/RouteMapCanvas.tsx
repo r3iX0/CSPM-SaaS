@@ -29,22 +29,9 @@ import type { MappedRoute, RouteMap, RouteMapEdge, RouteMapNode } from "@/lib/ty
 import { cn, levelStyle, resourceTypeLabel } from "@/lib/format";
 import { FACTOR_ICONS, resourceTypeIcon } from "@/lib/icons";
 import { DURATION, usePrefersReducedMotion } from "@/lib/motion";
-import {
-  ARROWS,
-  FIT,
-  FLOW_TOKENS,
-  HIDDEN_HANDLE,
-  kept,
-  type GraphSelection,
-} from "./flowChrome";
+import { ARROWS, FIT, FLOW_TOKENS, HIDDEN_HANDLE, kept, type GraphSelection } from "./flowChrome";
 import { ZoomButtons } from "./ZoomButtons";
-import {
-  BOX_HEIGHT,
-  BOX_WIDTH,
-  layoutRouteMap,
-  pairSpeakers,
-  placeLabels,
-} from "./routeMapLayout";
+import { BOX_HEIGHT, BOX_WIDTH, layoutRouteMap, pairSpeakers, placeLabels } from "./routeMapLayout";
 import { stepFrom } from "./neighborhoodLayout";
 import { hopKey } from "./routeKeys";
 
@@ -288,9 +275,7 @@ function Canvas({
     }
     const step = hop === null ? undefined : traced.steps[hop];
     if (!step) return;
-    const ends = [at.get(step.source_id), at.get(step.target_id)].filter(
-      (p) => p !== undefined,
-    );
+    const ends = [at.get(step.source_id), at.get(step.target_id)].filter((p) => p !== undefined);
     if (ends.length === 0 || inView(ends)) return;
     const x = ends.reduce((sum, p) => sum + p.x, 0) / ends.length + BOX_WIDTH / 2;
     const y = ends.reduce((sum, p) => sum + p.y, 0) / ends.length + BOX_HEIGHT / 2;
@@ -364,12 +349,7 @@ function Canvas({
           zoomOnScroll={false}
           preventScrolling={false}
         >
-          <Background
-            variant={BackgroundVariant.Dots}
-            gap={20}
-            size={1}
-            color="var(--border)"
-          />
+          <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="var(--border)" />
           <ZoomButtons />
         </ReactFlow>
       </div>
@@ -384,8 +364,7 @@ function Canvas({
  */
 type LabelRank = { rank: number };
 
-const keyOf = (edge: RouteMapEdge) =>
-  hopKey(edge.source, edge.relationship, edge.target);
+const keyOf = (edge: RouteMapEdge) => hopKey(edge.source, edge.relationship, edge.target);
 
 const hopOf = (hop: Hop) => hopKey(hop.source, hop.relationship, hop.target);
 
@@ -404,11 +383,7 @@ function toFlow(
   const origin = { x: 0, y: 0 };
 
   const tracedHops = traced
-    ? new Set(
-        traced.steps.map((step) =>
-          hopKey(step.source_id, step.relationship, step.target_id),
-        ),
-      )
+    ? new Set(traced.steps.map((step) => hopKey(step.source_id, step.relationship, step.target_id)))
     : null;
   const reading = traced && hop !== null ? traced.steps[hop] : undefined;
   const readingKey = reading
@@ -484,8 +459,7 @@ function toFlow(
       closed: closedNodes.has(node.id),
       closeDelay: simulated?.delays?.get(node.id) ?? 0,
       current:
-        reading !== undefined &&
-        (node.id === reading.source_id || node.id === reading.target_id),
+        reading !== undefined && (node.id === reading.source_id || node.id === reading.target_id),
       // Columns arrive left to right, so the first thing read is where an
       // attacker starts. Off entirely for a reader who asked for less motion.
       arrival: reduced ? 0 : node.column,
@@ -580,12 +554,7 @@ function AssetNode({ id, data }: NodeProps<AssetFlowNode>) {
 
   return (
     <>
-      <Handle
-        type="target"
-        position={Position.Left}
-        isConnectable={false}
-        style={HIDDEN_HANDLE}
-      />
+      <Handle type="target" position={Position.Left} isConnectable={false} style={HIDDEN_HANDLE} />
       <button
         type="button"
         data-graph-node={id}
@@ -612,10 +581,8 @@ function AssetNode({ id, data }: NodeProps<AssetFlowNode>) {
             : data.sensitive
               ? "border-high-border"
               : "border-border",
-          (data.dimmed || (actions.lit && !actions.lit.has(id))) &&
-            "opacity-30",
-          actions.picked === id &&
-            "ring-2 ring-foreground/70 ring-offset-2 ring-offset-card",
+          (data.dimmed || (actions.lit && !actions.lit.has(id))) && "opacity-30",
+          actions.picked === id && "ring-2 ring-foreground/70 ring-offset-2 ring-offset-card",
           data.current && "border-primary ring-3 ring-primary/30",
           // Out of reach once the considered link is gone. Desaturated rather
           // than hidden: the asset is still in the estate, it is the route to
@@ -630,9 +597,7 @@ function AssetNode({ id, data }: NodeProps<AssetFlowNode>) {
           })}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-xs font-medium text-foreground">
-            {data.name}
-          </span>
+          <span className="block truncate text-xs font-medium text-foreground">{data.name}</span>
           <span className="block truncate text-caption text-muted-foreground">
             {resourceTypeLabel(data.resource_type)}
           </span>
@@ -640,10 +605,7 @@ function AssetNode({ id, data }: NodeProps<AssetFlowNode>) {
         <span className="flex shrink-0 items-center gap-1">
           {data.entry && (
             <span title={`Internet exposure ${data.public_exposure.toLowerCase()}`}>
-              <Exposure
-                className={cn("size-3.5", LEVEL_TEXT[data.public_exposure])}
-                aria-hidden
-              />
+              <Exposure className={cn("size-3.5", LEVEL_TEXT[data.public_exposure])} aria-hidden />
               <span className="sr-only">, reachable from the internet</span>
             </span>
           )}
@@ -665,10 +627,7 @@ function AssetNode({ id, data }: NodeProps<AssetFlowNode>) {
               )}
             >
               {data.findings.open}
-              <span className="sr-only">
-                {" "}
-                open finding{data.findings.open === 1 ? "" : "s"}
-              </span>
+              <span className="sr-only"> open finding{data.findings.open === 1 ? "" : "s"}</span>
             </span>
           )}
         </span>
@@ -676,12 +635,7 @@ function AssetNode({ id, data }: NodeProps<AssetFlowNode>) {
           . On {data.routes} route{data.routes === 1 ? "" : "s"}. Show them
         </span>
       </button>
-      <Handle
-        type="source"
-        position={Position.Right}
-        isConnectable={false}
-        style={HIDDEN_HANDLE}
-      />
+      <Handle type="source" position={Position.Right} isConnectable={false} style={HIDDEN_HANDLE} />
     </>
   );
 }

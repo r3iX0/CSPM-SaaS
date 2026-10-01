@@ -51,9 +51,7 @@ export function ConnectionRow({
   const detail = useQuery({
     queryKey: ["cloud-connection", initial.id],
     queryFn: () =>
-      api
-        .get<CloudConnection>(`/api/v1/cloud-connections/${initial.id}`)
-        .then((r) => r.data),
+      api.get<CloudConnection>(`/api/v1/cloud-connections/${initial.id}`).then((r) => r.data),
     initialData: initial,
     enabled: expanded,
     // The backend re-probes both grants and runs discovery on each read, so
@@ -93,19 +91,16 @@ export function ConnectionRow({
       queryClient.invalidateQueries({ queryKey: ["cloud-connections"] });
       setError(null);
     },
-    onError: (err) =>
-      setError(err instanceof ApiError ? err.message : "Could not re-check access"),
+    onError: (err) => setError(err instanceof ApiError ? err.message : "Could not re-check access"),
   });
 
   const scanNow = useMutation({
-    mutationFn: () =>
-      api.post<Scan>("/api/v1/scans", { cloud_account_id: scannable?.id }),
+    mutationFn: () => api.post<Scan>("/api/v1/scans", { cloud_account_id: scannable?.id }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["scans"] });
       setError(null);
     },
-    onError: (err) =>
-      setError(err instanceof ApiError ? err.message : "Could not start the scan"),
+    onError: (err) => setError(err instanceof ApiError ? err.message : "Could not start the scan"),
   });
 
   const remove = useMutation({
@@ -149,9 +144,7 @@ export function ConnectionRow({
             />
             {status.label}
           </span>
-          <span className="mt-1 block truncate text-xs text-muted-foreground">
-            {status.detail}
-          </span>
+          <span className="mt-1 block truncate text-xs text-muted-foreground">{status.detail}</span>
         </div>
 
         <div>
@@ -178,10 +171,7 @@ export function ConnectionRow({
           {/* Half-finished connections offer the step they stopped on instead
               of a scan they cannot run. */}
           {inSetup ? (
-            <Link
-              to={setupPath(connection.id)}
-              className={cn(buttonVariants({ size: "sm" }))}
-            >
+            <Link to={setupPath(connection.id)} className={cn(buttonVariants({ size: "sm" }))}>
               {stage === "paused" ? t.connection.resumeSetup : t.setup.continueSetup}
             </Link>
           ) : (
@@ -214,9 +204,7 @@ export function ConnectionRow({
         <div className="grid gap-6 border-t border-border px-5 py-5 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs font-medium text-muted-foreground">
-                {vocabulary.Accounts}
-              </p>
+              <p className="text-xs font-medium text-muted-foreground">{vocabulary.Accounts}</p>
               {connection.is_verified && subscriptions.length > 0 && (
                 <DiscoveryRetry connection={connection} onError={setError} compact />
               )}

@@ -21,13 +21,7 @@
  * tested directly.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
@@ -211,12 +205,13 @@ function mount(
   risks: Partial<Risk>[] = [],
   at = "/attack-paths",
 ) {
-  vi.spyOn(api, "get").mockImplementation((url: string) =>
-    Promise.resolve(
-      url.includes("/risks")
-        ? { data: risks, meta: {} }
-        : { data: map, meta: { drawn: map.routes.length, ...meta } },
-    ) as never,
+  vi.spyOn(api, "get").mockImplementation(
+    (url: string) =>
+      Promise.resolve(
+        url.includes("/risks")
+          ? { data: risks, meta: {} }
+          : { data: map, meta: { drawn: map.routes.length, ...meta } },
+      ) as never,
   );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -228,7 +223,6 @@ function mount(
     </QueryClientProvider>,
   );
 }
-
 
 /**
  * The list of routes beside the drawing. Asset names are looked up inside it:
@@ -258,9 +252,10 @@ describe("AttackPathsPage", () => {
 
     await userEvent.click(await within(await routesPanel()).findByText(/jump-01/));
 
-    expect(
-      await screen.findByRole("link", { name: "Tracked as a risk" }),
-    ).toHaveAttribute("href", "/risks/r-route");
+    expect(await screen.findByRole("link", { name: "Tracked as a risk" })).toHaveAttribute(
+      "href",
+      "/risks/r-route",
+    );
   });
 
   it("says when a route is reach rather than a risk", async () => {
@@ -299,9 +294,7 @@ describe("AttackPathsPage", () => {
   it("distinguishes a clean environment from an unscanned one", async () => {
     mount(emptyMap(), { total: 0, entry_points: 0, sensitive_targets: 0 });
 
-    await waitFor(() =>
-      expect(screen.getByText("No scan has run yet")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText("No scan has run yet")).toBeInTheDocument());
   });
 
   it("does not call an unclassified environment safe", async () => {
@@ -312,9 +305,7 @@ describe("AttackPathsPage", () => {
     mount(emptyMap(), { total: 0, entry_points: 3, sensitive_targets: 0 });
 
     await waitFor(() =>
-      expect(
-        screen.getByText("Nothing has been classified as sensitive"),
-      ).toBeInTheDocument(),
+      expect(screen.getByText("Nothing has been classified as sensitive")).toBeInTheDocument(),
     );
   });
 
@@ -322,9 +313,7 @@ describe("AttackPathsPage", () => {
     mount(emptyMap(), { total: 0, entry_points: 0, sensitive_targets: 4 });
 
     await waitFor(() =>
-      expect(
-        screen.getByText("Nothing is reachable from the internet"),
-      ).toBeInTheDocument(),
+      expect(screen.getByText("Nothing is reachable from the internet")).toBeInTheDocument(),
     );
   });
 
@@ -334,9 +323,7 @@ describe("AttackPathsPage", () => {
     mount(emptyMap(), { total: 0, entry_points: 2, sensitive_targets: 3 });
 
     await waitFor(() =>
-      expect(
-        screen.getByText("Nothing exposed can reach anything sensitive"),
-      ).toBeInTheDocument(),
+      expect(screen.getByText("Nothing exposed can reach anything sensitive")).toBeInTheDocument(),
     );
   });
 
@@ -373,26 +360,15 @@ describe("AttackPathsPage", () => {
       dead_ends_total: 3,
     });
 
-    await waitFor(() =>
-      expect(screen.getByText("Where each way in stops")).toBeInTheDocument(),
-    );
-    expect(screen.getByRole("link", { name: "vm-web" })).toHaveAttribute(
-      "href",
-      "/assets/a-1",
-    );
+    await waitFor(() => expect(screen.getByText("Where each way in stops")).toBeInTheDocument());
+    expect(screen.getByRole("link", { name: "vm-web" })).toHaveAttribute("href", "/assets/a-1");
     expect(
-      screen.getByText(
-        "Runs as no identity, and no other machine on its network lets it in.",
-      ),
+      screen.getByText("Runs as no identity, and no other machine on its network lets it in."),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(
-        "Runs as an identity that holds no role over anything Cleave scanned.",
-      ),
+      screen.getByText("Runs as an identity that holds no role over anything Cleave scanned."),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Only accounts are classified as sensitive/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Only accounts are classified as sensitive/)).toBeInTheDocument();
     expect(screen.getByText("and 1 more")).toBeInTheDocument();
   });
 
@@ -527,9 +503,7 @@ describe("AttackPathsPage", () => {
       { total: 3, entry_points: 3, sensitive_targets: 1 },
     );
 
-    const group = await screen.findByText(
-      "3 virtual machines reach customerdata the same way",
-    );
+    const group = await screen.findByText("3 virtual machines reach customerdata the same way");
     // Scoped to the panel: the same asset is a box on the canvas beside it, and
     // the claim here is about the list.
     const rail = screen.getByRole("complementary", { name: "The routes" });
@@ -618,9 +592,10 @@ describe("AttackPathsPage", () => {
       }),
     ).toBe(navigator);
     const hops = within(navigator).getByRole("list", { name: "Hops" });
-    expect(
-      within(hops).getByRole("button", { name: /^Hop 1 of 4/ }),
-    ).toHaveAttribute("aria-current", "step");
+    expect(within(hops).getByRole("button", { name: /^Hop 1 of 4/ })).toHaveAttribute(
+      "aria-current",
+      "step",
+    );
     // The earliest place to cut is marked, and what cutting it closes is the
     // number on the line, for this route.
     expect(within(navigator).getByText("Earliest place to cut")).toBeInTheDocument();
@@ -629,12 +604,13 @@ describe("AttackPathsPage", () => {
 
     fireEvent.keyDown(navigator, { key: "ArrowDown" });
     expect(screen.getByTestId("where")).toHaveTextContent("hop=1");
-    expect(
-      within(hops).getByRole("button", { name: /^Hop 2 of 4/ }),
-    ).toHaveAttribute("aria-current", "step");
-    expect(
-      within(hops).getByRole("button", { name: /^Hop 2 of 4/ }),
-    ).toHaveTextContent("mi-jump-01 can act over sub-1 (Contributor)");
+    expect(within(hops).getByRole("button", { name: /^Hop 2 of 4/ })).toHaveAttribute(
+      "aria-current",
+      "step",
+    );
+    expect(within(hops).getByRole("button", { name: /^Hop 2 of 4/ })).toHaveTextContent(
+      "mi-jump-01 can act over sub-1 (Contributor)",
+    );
 
     await userEvent.click(within(hops).getByRole("button", { name: /^Hop 4 of 4/ }));
     expect(screen.getByTestId("where")).toHaveTextContent("hop=3");
@@ -663,7 +639,12 @@ describe("AttackPathsPage", () => {
       on_routes: 5,
       alternate: true,
     });
-    mount(map, { total: 1, entry_points: 1, sensitive_targets: 1 }, [], "/attack-paths?trace=vm%7Cstorage&hop=1");
+    mount(
+      map,
+      { total: 1, entry_points: 1, sensitive_targets: 1 },
+      [],
+      "/attack-paths?trace=vm%7Cstorage&hop=1",
+    );
 
     const navigator = await screen.findByRole("group", { name: /attack path from/i });
     expect(
@@ -731,7 +712,9 @@ describe("AttackPathsPage", () => {
     expect(
       await within(navigator).findByText("The simulated plan closes this route"),
     ).toBeInTheDocument();
-    expect(within(navigator).getByRole("button", { name: "Take out of the plan" })).toBeInTheDocument();
+    expect(
+      within(navigator).getByRole("button", { name: "Take out of the plan" }),
+    ).toBeInTheDocument();
   });
 
   it("finds routes by any asset on them, and says when nothing is so named", async () => {
@@ -815,9 +798,7 @@ describe("AttackPathsPage", () => {
       "/attack-paths?trace=gone%7Cstorage",
     );
 
-    expect(
-      await screen.findByText(/not in the latest reading/),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/not in the latest reading/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Clear" }));
     expect(screen.queryByText(/not in the latest reading/)).not.toBeInTheDocument();
     expect(screen.getByTestId("where")).not.toHaveTextContent("trace=");
@@ -836,12 +817,10 @@ describe("AttackPathsPage", () => {
 
     // Said once where the route arrives in a place, not at every stop in it:
     // jump-01 and its identity both sit in Production › prod.
-    expect(
-      await within(panel).findAllByRole("link", { name: "Production › prod" }),
-    ).toHaveLength(1);
-    expect(
-      within(panel).getByRole("link", { name: "Production › prod" }),
-    ).toHaveAttribute(
+    expect(await within(panel).findAllByRole("link", { name: "Production › prod" })).toHaveLength(
+      1,
+    );
+    expect(within(panel).getByRole("link", { name: "Production › prod" })).toHaveAttribute(
       "href",
       "/assets?view=graph&subscription_id=sub-1&resource_group=prod",
     );
@@ -860,9 +839,7 @@ describe("AttackPathsPage", () => {
     expect(panel).toHaveTextContent("Through Production (1)");
     expect(within(panel).getByText(/jump-01/)).toBeInTheDocument();
 
-    await userEvent.click(
-      within(panel).getByRole("button", { name: "Show routes everywhere" }),
-    );
+    await userEvent.click(within(panel).getByRole("button", { name: "Show routes everywhere" }));
     expect(screen.getByTestId("where")).not.toHaveTextContent("scope=");
   });
 
@@ -876,9 +853,7 @@ describe("AttackPathsPage", () => {
     const panel = await screen.findByRole("complementary", {
       name: "The routes",
     });
-    expect(panel).toHaveTextContent(
-      "No route drawn here runs through Production › elsewhere.",
-    );
+    expect(panel).toHaveTextContent("No route drawn here runs through Production › elsewhere.");
   });
 
   it("offers the estate's choke points on an empty simulate tab", async () => {
@@ -950,7 +925,9 @@ describe("AttackPathsPage", () => {
     );
 
     const panel = await screen.findByRole("complementary", { name: "The routes" });
-    expect(await within(panel).findByText("You can leave it out.", { exact: false })).toBeInTheDocument();
+    expect(
+      await within(panel).findByText("You can leave it out.", { exact: false }),
+    ).toBeInTheDocument();
     expect(within(panel).getByText(/2 of 10/)).toBeInTheDocument();
     expect(screen.getByText(/Simulating 2 changes together/)).toBeInTheDocument();
 
@@ -976,9 +953,7 @@ describe("AttackPathsPage", () => {
     );
 
     const panel = await screen.findByRole("complementary", { name: "The routes" });
-    expect(
-      await within(panel).findByText(/Not in the latest reading/),
-    ).toBeInTheDocument();
+    expect(await within(panel).findByText(/Not in the latest reading/)).toBeInTheDocument();
     expect(within(panel).getByText("Still open")).toBeInTheDocument();
   });
 
@@ -998,9 +973,7 @@ describe("AttackPathsPage", () => {
     mount(emptyMap(), { total: 0, entry_points: 3, sensitive_targets: 0 });
 
     await waitFor(() =>
-      expect(
-        screen.getByText("Nothing has been classified as sensitive"),
-      ).toBeInTheDocument(),
+      expect(screen.getByText("Nothing has been classified as sensitive")).toBeInTheDocument(),
     );
     expect(screen.queryByText("The changes that close the most")).not.toBeInTheDocument();
   });

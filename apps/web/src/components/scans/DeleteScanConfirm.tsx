@@ -68,12 +68,8 @@ export function DeleteScanConfirm({
     >
       <AlertDialogContent className="sm:max-w-lg">
         <AlertDialogHeader>
-          <AlertDialogTitle className="text-critical">
-            {t.scans.deleteTitle}
-          </AlertDialogTitle>
-          <AlertDialogDescription>
-            {t.scans.deleteIntro}
-          </AlertDialogDescription>
+          <AlertDialogTitle className="text-critical">{t.scans.deleteTitle}</AlertDialogTitle>
+          <AlertDialogDescription>{t.scans.deleteIntro}</AlertDialogDescription>
         </AlertDialogHeader>
 
         {/* The two acts, each under its own consequence. Neither is

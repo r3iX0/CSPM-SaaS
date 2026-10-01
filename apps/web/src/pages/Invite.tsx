@@ -47,9 +47,7 @@ export function InvitePage() {
           <div className="mb-8 flex items-center gap-2.5">
             <Wordmark />
           </div>
-          <h1 className={PAGE_TITLE_CLASS}>
-            {t.invite.title}
-          </h1>
+          <h1 className={PAGE_TITLE_CLASS}>{t.invite.title}</h1>
           <div className="mt-6 rounded-xl border border-border bg-background p-6 shadow-sm">
             {!token ? (
               <p className="text-sm text-muted-foreground">{t.invite.missing}</p>
@@ -79,9 +77,7 @@ function Offer({ token }: { token: string }) {
   const preview = useQuery({
     queryKey: ["invitation-preview", token],
     queryFn: () =>
-      api
-        .post<InvitationPreview>("/api/v1/invitations/preview", { token })
-        .then((r) => r.data),
+      api.post<InvitationPreview>("/api/v1/invitations/preview", { token }).then((r) => r.data),
     retry: false,
   });
 

@@ -8,13 +8,7 @@ import { DrawnCheck } from "@/components/common/DrawnCheck";
 import { IN_FLIGHT } from "@/components/scans/status";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 
 type Phase = ScanStage["stage"];
@@ -202,7 +196,10 @@ function PhaseTrack({ stages, status }: { stages: ScanStage[]; status: string })
             <div className="flex items-center">
               <PhaseNode state={state} />
               {i < PHASES.length - 1 && (
-                <span className="relative mx-2 h-0.5 flex-1 overflow-hidden rounded-full bg-border" aria-hidden>
+                <span
+                  className="relative mx-2 h-0.5 flex-1 overflow-hidden rounded-full bg-border"
+                  aria-hidden
+                >
                   <m.span
                     className="absolute inset-0 origin-left bg-primary"
                     initial={false}
@@ -366,7 +363,9 @@ function LaneMark({ status }: { status: ScanStage["status"] }) {
   if (status === "FAILED") return <XIcon className="size-3.5 shrink-0 text-critical" aria-hidden />;
   if (status === "SKIPPED")
     return <MinusIcon className="size-3.5 shrink-0 text-unknown" aria-hidden />;
-  return <span className="mx-1 size-1.5 shrink-0 rounded-full bg-muted-foreground/40" aria-hidden />;
+  return (
+    <span className="mx-1 size-1.5 shrink-0 rounded-full bg-muted-foreground/40" aria-hidden />
+  );
 }
 
 const OUTCOME: Record<string, { title: string; tone: string; description: string }> = {
@@ -378,7 +377,8 @@ const OUTCOME: Record<string, { title: string; tone: string; description: string
   PARTIAL: {
     title: "Completed with gaps",
     tone: "border-medium-border",
-    description: "Some scopes or categories could not be read. Checks that depend on them reach no verdict, never a pass.",
+    description:
+      "Some scopes or categories could not be read. Checks that depend on them reach no verdict, never a pass.",
   },
   FAILED: {
     title: "Scan failed",
@@ -403,13 +403,7 @@ const OUTCOME: Record<string, { title: string; tone: string; description: string
  * finished scan of the same connection, and is left out rather than guessed
  * when there is none.
  */
-export function ScanResult({
-  scan,
-  previous,
-}: {
-  scan: ScanDetail;
-  previous: Scan | undefined;
-}) {
+export function ScanResult({ scan, previous }: { scan: ScanDetail; previous: Scan | undefined }) {
   const outcome = OUTCOME[scan.status] ?? {
     title: label(scan.status),
     tone: "border-border",

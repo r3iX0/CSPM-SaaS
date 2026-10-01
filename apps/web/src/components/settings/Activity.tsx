@@ -74,8 +74,7 @@ export function ActivitySection({ organizationId }: { organizationId: string }) 
 
 function Entry({ entry }: { entry: AuditEntry }) {
   const t = useT();
-  const who =
-    entry.actor_email ?? (entry.actor_id ? t.audit.formerMember : t.audit.system);
+  const who = entry.actor_email ?? (entry.actor_id ? t.audit.formerMember : t.audit.system);
   // An action this page has no words for yet still reads as a sentence.
   const what = t.audit.actions[entry.action] ?? entry.action.replace(/[._]/g, " ");
   const subject = typeof entry.details.email === "string" ? entry.details.email : null;

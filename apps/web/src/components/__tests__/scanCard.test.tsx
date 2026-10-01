@@ -44,7 +44,10 @@ function mount(value: Scan) {
 /** Inside the shell's wizard, where a row's button has somewhere to go. */
 function mountInShell(value: Scan) {
   vi.spyOn(api, "get").mockResolvedValue({ data: null, meta: {} });
-  vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 404 }) as Response));
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => ({ ok: false, status: 404 }) as Response),
+  );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
@@ -157,9 +160,7 @@ describe("a scan card", () => {
     fireEvent.click(screen.getByRole("button", { name: "Re-evaluate" }));
 
     await waitFor(() =>
-      expect(
-        screen.getByText("A scan is already running for this connection"),
-      ).toBeInTheDocument(),
+      expect(screen.getByText("A scan is already running for this connection")).toBeInTheDocument(),
     );
   });
 
@@ -175,9 +176,7 @@ describe("a scan card", () => {
     mount(scan({ id: "s2", replay_of_scan_id: "s1", evaluation_only: true }));
 
     expect(screen.getByText("What the rules would have found")).toBeInTheDocument();
-    expect(
-      screen.getByText(/No finding was created, resolved or reopened/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/No finding was created, resolved or reopened/)).toBeInTheDocument();
     // And the counter must not read as findings that exist.
     expect(screen.getByText("Findings (would have)")).toBeInTheDocument();
   });

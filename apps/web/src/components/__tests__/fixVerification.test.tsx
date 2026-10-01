@@ -17,7 +17,12 @@ function mount(
   evidence: EvidenceCitation[] | null = null,
 ) {
   vi.spyOn(api, "get").mockResolvedValue({
-    data: { id: "s1", status: scanStatus, completed_at: "2026-09-18T10:00:00Z", error_message: error },
+    data: {
+      id: "s1",
+      status: scanStatus,
+      completed_at: "2026-09-18T10:00:00Z",
+      error_message: error,
+    },
     meta: {},
   } as never);
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -90,7 +95,9 @@ describe("verifying a fix", () => {
   it("names the reading that proved the fix, with its hash", async () => {
     mount("COMPLETED", "RESOLVED", null, [citation("s1")]);
     expect(
-      await screen.findByText(/evidence sha256 4c1f9ab77e02… · network\.nsg_rules · read 2026-09-18T09:58:00Z/),
+      await screen.findByText(
+        /evidence sha256 4c1f9ab77e02… · network\.nsg_rules · read 2026-09-18T09:58:00Z/,
+      ),
     ).toBeInTheDocument();
   });
 

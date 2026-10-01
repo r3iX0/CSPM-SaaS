@@ -98,9 +98,7 @@ describe("the morph into the graph", () => {
     expect(container.firstElementChild).toBe(page);
 
     await start.mock.results[0].value.finished;
-    await waitFor(() =>
-      expect(document.documentElement).not.toHaveClass("cg-graph-morph"),
-    );
+    await waitFor(() => expect(document.documentElement).not.toHaveClass("cg-graph-morph"));
   });
 
   it("is an ordinary link where the browser has no View Transitions", async () => {
@@ -114,8 +112,7 @@ describe("the morph into the graph", () => {
   it("does not morph for a reader who asked for less motion", async () => {
     const start = lendViewTransitions();
     vi.spyOn(window, "matchMedia").mockImplementation(
-      (query: string) =>
-        ({ matches: query.includes("reduce"), media: query }) as MediaQueryList,
+      (query: string) => ({ matches: query.includes("reduce"), media: query }) as MediaQueryList,
     );
     mount();
     fireEvent.click(screen.getByRole("link", { name: "Open" }));

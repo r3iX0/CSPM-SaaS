@@ -81,9 +81,7 @@ export function PageHeader({
       <div className="min-w-0">
         <div className="flex items-center gap-1">
           <h1 className={PAGE_TITLE_CLASS}>{title}</h1>
-          {explain && (
-            <InfoTip label={explainLabel ?? "About this page"}>{explain}</InfoTip>
-          )}
+          {explain && <InfoTip label={explainLabel ?? "About this page"}>{explain}</InfoTip>}
         </div>
         {description && (
           <p className="mt-1 max-w-[78ch] text-body text-muted-foreground">{description}</p>
@@ -122,9 +120,7 @@ export function Breadcrumbs({
             <Fragment key={`${crumb.label}-${index}`}>
               <BreadcrumbItem className="min-w-0">
                 {crumb.to && !last ? (
-                  <BreadcrumbLink render={<Link to={crumb.to} />}>
-                    {crumb.label}
-                  </BreadcrumbLink>
+                  <BreadcrumbLink render={<Link to={crumb.to} />}>{crumb.label}</BreadcrumbLink>
                 ) : (
                   <BreadcrumbPage className="truncate">{crumb.label}</BreadcrumbPage>
                 )}

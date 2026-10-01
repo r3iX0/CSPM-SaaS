@@ -106,9 +106,7 @@ export function Sparkline({
         )}
       </defs>
       <g clipPath={reduced ? undefined : `url(#${clipId})`}>
-        {fill && (
-          <path d={`${path} L100,24 L0,24 Z`} fill={`url(#${gradientId})`} stroke="none" />
-        )}
+        {fill && <path d={`${path} L100,24 L0,24 Z`} fill={`url(#${gradientId})`} stroke="none" />}
         <path
           d={path}
           fill="none"

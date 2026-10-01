@@ -28,7 +28,12 @@ function dashboard(overrides: Partial<Dashboard> = {}): Dashboard {
     verified_resolved_last_30_days: 3,
     remediation_rate: 0.3,
     top_risks: [],
-    coverage: { ratio: 0.9, unknown: 1, conclusive: 19, context: { unclassified: 0, classified: 0, ratio: 1 } },
+    coverage: {
+      ratio: 0.9,
+      unknown: 1,
+      conclusive: 19,
+      context: { unclassified: 0, classified: 0, ratio: 1 },
+    },
     evidence_freshness: null,
     last_scan: {
       id: "s-1",
@@ -57,11 +62,7 @@ function mount(data: Dashboard, accounts: CloudAccount[] = []) {
     // The panels the page asks for after its own payload. Answered as the
     // lists they really are, so a test about the dashboard is not quietly
     // testing what happens when an endpoint returns the wrong shape.
-    if (
-      path.includes("attack-paths") ||
-      path.includes("changes") ||
-      path.includes("scans")
-    ) {
+    if (path.includes("attack-paths") || path.includes("changes") || path.includes("scans")) {
       return Promise.resolve({ data: [], meta: {} }) as never;
     }
     return Promise.resolve({ data, meta: {} }) as never;
@@ -127,9 +128,10 @@ describe("DashboardPage", () => {
     );
 
     await waitFor(() =>
-      expect(
-        screen.getByRole("link", { name: /Production database reachable/ }),
-      ).toHaveAttribute("href", "/risks/risk-1"),
+      expect(screen.getByRole("link", { name: /Production database reachable/ })).toHaveAttribute(
+        "href",
+        "/risks/risk-1",
+      ),
     );
   });
 
@@ -176,9 +178,7 @@ describe("DashboardPage", () => {
       screen.getByRole("link", { name: "Open in the graph: Storage account allows public blobs" }),
     ).toHaveAttribute("href", "/assets/asset-1?tab=connections");
     // Grouped across assets: no one place to open, so no link to one.
-    expect(
-      screen.queryByRole("link", { name: /: Diagnostic logs off/ }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /: Diagnostic logs off/ })).not.toBeInTheDocument();
     // The row itself still opens the risk.
     const opens = screen
       .getAllByRole("link", { name: /Storage account allows public blobs/ })
@@ -248,7 +248,16 @@ describe("DashboardPage", () => {
     // UNKNOWN is not a fifth severity and is not a pass. It belongs in the same
     // glance as the problem counts, because a reader tallying what is wrong has
     // to see what could not be answered.
-    mount(dashboard({ coverage: { ratio: 0.5, unknown: 7, conclusive: 7, context: { unclassified: 0, classified: 0, ratio: 1 } } }));
+    mount(
+      dashboard({
+        coverage: {
+          ratio: 0.5,
+          unknown: 7,
+          conclusive: 7,
+          context: { unclassified: 0, classified: 0, ratio: 1 },
+        },
+      }),
+    );
 
     const unknown = await screen.findByRole("link", { name: /No verdict/ });
     expect(unknown).toHaveAttribute("href", "/scans");
@@ -283,9 +292,7 @@ describe("DashboardPage", () => {
   it("never scores an environment it has not read", async () => {
     mount(dashboard({ last_scan: null }));
 
-    expect(
-      await screen.findByText("Connect your cloud environment"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Connect your cloud environment")).toBeInTheDocument();
     expect(screen.queryByRole("meter", { name: "Security score" })).not.toBeInTheDocument();
     expect(screen.queryByText("84")).not.toBeInTheDocument();
   });

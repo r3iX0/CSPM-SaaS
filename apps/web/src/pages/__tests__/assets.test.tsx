@@ -123,9 +123,7 @@ describe("the assets page", () => {
     });
     render(
       <QueryClientProvider client={client}>
-        <MemoryRouter
-          initialEntries={["/assets?subscription_id=sub-1&resource_group=prod-rg"]}
-        >
+        <MemoryRouter initialEntries={["/assets?subscription_id=sub-1&resource_group=prod-rg"]}>
           <AssetsPage />
         </MemoryRouter>
       </QueryClientProvider>,
@@ -134,12 +132,8 @@ describe("the assets page", () => {
     // The scope is shown as a filter that can be taken off, rather than as an
     // unexplained short list.
     expect(await screen.findByText("prod-rg")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Clear scope filter" }),
-    ).toBeInTheDocument();
-    expect(
-      requested.some((url) => url.includes("resource_group=prod-rg")),
-    ).toBe(true);
+    expect(screen.getByRole("button", { name: "Clear scope filter" })).toBeInTheDocument();
+    expect(requested.some((url) => url.includes("resource_group=prod-rg"))).toBe(true);
   });
 
   it("names what an unchecked resource actually is", async () => {
@@ -264,9 +258,15 @@ describe("the assets page", () => {
   });
 
   it("marks an asset on an attack path, and only that one", async () => {
-    mount([{ ...ASSET, on_attack_path: true }, { ...UNCHECKED, on_attack_path: false }], {
-      total: 2,
-    });
+    mount(
+      [
+        { ...ASSET, on_attack_path: true },
+        { ...UNCHECKED, on_attack_path: false },
+      ],
+      {
+        total: 2,
+      },
+    );
 
     await screen.findByText("payroll");
     expect(screen.getAllByTitle("On an attack path")).toHaveLength(1);
@@ -315,9 +315,10 @@ describe("the assets page", () => {
 
     const exposed = await screen.findByText("Internet-facing", { selector: "dt" });
     expect(exposed.nextElementSibling).toHaveTextContent("40");
-    expect(screen.getByText("Unmodeled type", { selector: "dt" }).nextElementSibling).toHaveTextContent("3");
+    expect(
+      screen.getByText("Unmodeled type", { selector: "dt" }).nextElementSibling,
+    ).toHaveTextContent("3");
     expect(requested.some((url) => url.includes("limit=1&entry_point=true"))).toBe(true);
     expect(requested.some((url) => url.includes("limit=1&on_attack_path=true"))).toBe(true);
   });
 });
-

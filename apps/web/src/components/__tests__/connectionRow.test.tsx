@@ -8,12 +8,9 @@ import { ConnectionRow } from "@/components/connections/ConnectionRow";
 import { api } from "@/lib/api";
 import type { CloudConnection, DiscoveredSubscription } from "@/lib/types";
 
-const minutesAgo = (minutes: number) =>
-  new Date(Date.now() - minutes * 60_000).toISOString();
+const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
 
-function subscription(
-  overrides: Partial<DiscoveredSubscription> = {},
-): DiscoveredSubscription {
+function subscription(overrides: Partial<DiscoveredSubscription> = {}): DiscoveredSubscription {
   return {
     id: "s1",
     subscription_id: "00000000-0000-0000-0000-000000000001",
@@ -223,26 +220,27 @@ describe("a connection row", () => {
     // cannot run them, and a probe -- and expanded in place it pushed the rest
     // of the connection off screen while somebody decided whether to delete an
     // environment.
-    vi.spyOn(api, "get").mockImplementation((path: string) =>
-      Promise.resolve(
-        path.endsWith("/revocation")
-          ? {
-              data: {
-                principal_id: "sp-1",
-                scope_path: "/subscriptions/x",
-                why_manual: "Cleave holds read-only access.",
-                steps: [
-                  {
-                    title: "Remove the scanner role assignment",
-                    detail: "Ends Cleave's ability to read Azure resources.",
-                    command: "az role assignment delete --assignee sp-1",
-                  },
-                ],
-              },
-              meta: {},
-            }
-          : { data: connection(), meta: {} },
-      ) as never,
+    vi.spyOn(api, "get").mockImplementation(
+      (path: string) =>
+        Promise.resolve(
+          path.endsWith("/revocation")
+            ? {
+                data: {
+                  principal_id: "sp-1",
+                  scope_path: "/subscriptions/x",
+                  why_manual: "Cleave holds read-only access.",
+                  steps: [
+                    {
+                      title: "Remove the scanner role assignment",
+                      detail: "Ends Cleave's ability to read Azure resources.",
+                      command: "az role assignment delete --assignee sp-1",
+                    },
+                  ],
+                },
+                meta: {},
+              }
+            : { data: connection(), meta: {} },
+        ) as never,
     );
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
@@ -258,9 +256,7 @@ describe("a connection row", () => {
     // must not fetch six sets of revocation commands nobody wanted to see.
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
 
-    await userEvent.click(
-      screen.getByRole("button", { name: /remove connection/i }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: /remove connection/i }));
 
     // `alertdialog` rather than `dialog`: this is the one irreversible action
     // in the product, and the role is what tells a screen reader to announce
@@ -289,16 +285,12 @@ describe("a connection row", () => {
     );
 
     await userEvent.click(screen.getByRole("button", { name: /show this connection/i }));
-    await userEvent.click(
-      screen.getByRole("button", { name: /remove connection/i }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: /remove connection/i }));
     await screen.findByRole("alertdialog");
 
     await userEvent.keyboard("{Escape}");
 
-    await waitFor(() =>
-      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
   });
 
   it("scans the connection through one of its scannable subscriptions", async () => {

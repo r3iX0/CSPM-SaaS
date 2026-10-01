@@ -66,9 +66,7 @@ export function layoutNeighborhood(
 
   // The focus, then one hop either way, then two: each column only ever looks
   // at the one inside it, which is always placed first.
-  const order = [...columns.keys()].sort(
-    (a, b) => Math.abs(a) - Math.abs(b) || b - a,
-  );
+  const order = [...columns.keys()].sort((a, b) => Math.abs(a) - Math.abs(b) || b - a);
 
   for (const layer of order) {
     const inner = layer - Math.sign(layer);
@@ -77,9 +75,7 @@ export function layoutNeighborhood(
         .filter((other) => layerOf.get(other) === inner)
         .map((other) => placed.get(other)?.y)
         .filter((y): y is number => y !== undefined);
-      return heights.length === 0
-        ? 0
-        : heights.reduce((sum, y) => sum + y, 0) / heights.length;
+      return heights.length === 0 ? 0 : heights.reduce((sum, y) => sum + y, 0) / heights.length;
     };
 
     const column = [...(columns.get(layer) ?? [])]

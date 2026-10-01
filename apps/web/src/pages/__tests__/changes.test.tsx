@@ -59,7 +59,13 @@ describe("ChangesPage", () => {
         change: "APPEARED",
         previous_value: null,
         current_value: null,
-        asset: { id: `n-${n}`, name: `archive${n}`, resource_type: "storage_account", environment: null, absent_since: null },
+        asset: {
+          id: `n-${n}`,
+          name: `archive${n}`,
+          resource_type: "storage_account",
+          environment: null,
+          absent_since: null,
+        },
       }),
     );
     mount([event(), ...arrivals]);
@@ -73,9 +79,7 @@ describe("ChangesPage", () => {
   });
 
   it("lists a scan's few arrivals one by one", async () => {
-    mount([
-      event({ change: "APPEARED", previous_value: null, current_value: null }),
-    ]);
+    mount([event({ change: "APPEARED", previous_value: null, current_value: null })]);
 
     expect(await screen.findByText("customerdata")).toBeInTheDocument();
     expect(screen.queryByText(/assets first seen/)).not.toBeInTheDocument();
@@ -170,9 +174,7 @@ describe("ChangesPage", () => {
   });
 
   it("asks the API for the window and kind being looked at", async () => {
-    const get = vi
-      .spyOn(api, "get")
-      .mockResolvedValue({ data: [], meta: {} });
+    const get = vi.spyOn(api, "get").mockResolvedValue({ data: [], meta: {} });
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       <QueryClientProvider client={client}>

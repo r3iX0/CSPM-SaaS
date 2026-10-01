@@ -107,8 +107,20 @@ describe("RiskDetailPage", () => {
     mount(
       scenarioRisk({
         findings: [
-          { id: "f-fixed", rule_id: "AZ-DB-001", title: "Database publicly accessible", severity: "CRITICAL", status: "RESOLVED" },
-          { id: "f-open", rule_id: "AZ-ID-001", title: "Admin without MFA", severity: "CRITICAL", status: "OPEN" },
+          {
+            id: "f-fixed",
+            rule_id: "AZ-DB-001",
+            title: "Database publicly accessible",
+            severity: "CRITICAL",
+            status: "RESOLVED",
+          },
+          {
+            id: "f-open",
+            rule_id: "AZ-ID-001",
+            title: "Admin without MFA",
+            severity: "CRITICAL",
+            status: "OPEN",
+          },
         ],
       } as Partial<RiskDetail>),
     );
@@ -124,9 +136,7 @@ describe("RiskDetailPage", () => {
   it("shows a scenario its own arithmetic, not the finding formula", async () => {
     mount(scenarioRisk());
 
-    await waitFor(() =>
-      expect(screen.getByText("Worst finding on the route")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText("Worst finding on the route")).toBeInTheDocument());
     expect(screen.getByText("+12")).toBeInTheDocument();
     expect(screen.queryByText("Exploitability")).not.toBeInTheDocument();
     expect(screen.queryByText("Asset criticality")).not.toBeInTheDocument();
@@ -144,9 +154,7 @@ describe("RiskDetailPage", () => {
   it("draws a scenario's route", async () => {
     mount(scenarioRisk());
 
-    await waitFor(() =>
-      expect(screen.getByText("jump-01 runs as mi-jump-01")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText("jump-01 runs as mi-jump-01")).toBeInTheDocument());
   });
 
   it("explains a score that hit the ceiling", async () => {
@@ -172,9 +180,7 @@ describe("RiskDetailPage", () => {
   });
 
   it("names a deleted risk as deleted rather than as a broken product", async () => {
-    vi.spyOn(api, "get").mockRejectedValue(
-      new ApiError("NOT_FOUND", "Risk not found", 404),
-    );
+    vi.spyOn(api, "get").mockRejectedValue(new ApiError("NOT_FOUND", "Risk not found", 404));
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       <QueryClientProvider client={client}>
@@ -186,9 +192,7 @@ describe("RiskDetailPage", () => {
       </QueryClientProvider>,
     );
 
-    await waitFor(() =>
-      expect(screen.getByText("That risk no longer exists")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText("That risk no longer exists")).toBeInTheDocument());
     // Not a retry: retrying a 404 just fails again.
     expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
   });
@@ -208,9 +212,7 @@ describe("RiskDetailPage", () => {
       }),
     );
 
-    expect(
-      await screen.findByText(/still there 2 hours ago/),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/still there 2 hours ago/)).toBeInTheDocument();
   });
 
   it("says it cannot tell rather than implying the route is current", async () => {
@@ -219,9 +221,7 @@ describe("RiskDetailPage", () => {
     // claim CloudGuard cannot support.
     mount(scenarioRisk({ observed_at: null }));
 
-    expect(
-      await screen.findByText(/no longer stored/),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/no longer stored/)).toBeInTheDocument();
     expect(screen.queryByText(/still there/)).not.toBeInTheDocument();
   });
 
@@ -287,4 +287,3 @@ describe("RiskDetailPage", () => {
     expect(screen.getByText(/does not close the findings underneath it/)).toBeInTheDocument();
   });
 });
-

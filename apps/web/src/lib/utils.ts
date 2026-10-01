@@ -1,5 +1,5 @@
-import { clsx, type ClassValue } from "clsx"
-import { extendTailwindMerge } from "tailwind-merge"
+import { clsx, type ClassValue } from "clsx";
+import { extendTailwindMerge } from "tailwind-merge";
 
 /**
  * The type scale's steps, as `index.css` names them (DECISIONS.md §166).
@@ -19,12 +19,12 @@ export const TYPE_SCALE = [
   "page",
   "stat",
   "display",
-] as const
+] as const;
 
 const twMerge = extendTailwindMerge({
   extend: { classGroups: { "font-size": [{ text: [...TYPE_SCALE] }] } },
-})
+});
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }

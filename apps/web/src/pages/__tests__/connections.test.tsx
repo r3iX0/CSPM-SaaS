@@ -14,7 +14,12 @@ function mount(rows: CloudConnection[], awsAvailable = false) {
       return Promise.resolve({
         data: [
           { id: "azure", name: "Microsoft Azure", available: true, unavailable_reason: null },
-          { id: "aws", name: "Amazon Web Services", available: awsAvailable, unavailable_reason: null },
+          {
+            id: "aws",
+            name: "Amazon Web Services",
+            available: awsAvailable,
+            unavailable_reason: null,
+          },
         ],
         meta: {},
       }) as never;
@@ -95,9 +100,7 @@ describe("the connections page", () => {
     mount([]);
 
     expect(await screen.findByText(/what the 3 minutes look like/i)).toBeInTheDocument();
-    expect(
-      screen.getByText(/a global administrator grants admin consent/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/a global administrator grants admin consent/i)).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /connect environment/i })[0]).toHaveAttribute(
       "href",
       "/connections/new",
@@ -109,9 +112,7 @@ describe("the connections page", () => {
     // the one the consent screen actually shows.
     mount([]);
 
-    await userEvent.click(
-      await screen.findByRole("button", { name: /read what cleave will do/i }),
-    );
+    await userEvent.click(await screen.findByRole("button", { name: /read what cleave will do/i }));
 
     expect(await screen.findByText("Directory.Read.All")).toBeInTheDocument();
     expect(screen.getByText(/Reader \(read-only\)/)).toBeInTheDocument();
@@ -141,4 +142,3 @@ describe("the connections page", () => {
     expect(soon).toHaveTextContent("GCP");
   });
 });
-

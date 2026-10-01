@@ -5,12 +5,7 @@ import { m } from "motion/react";
 import { CheckIcon, XIcon } from "lucide-react";
 
 import { api, auth } from "@/lib/api";
-import type {
-  CloudAccount,
-  CloudConnection,
-  ContextDeclaration,
-  Dashboard,
-} from "@/lib/types";
+import type { CloudAccount, CloudConnection, ContextDeclaration, Dashboard } from "@/lib/types";
 import { useT } from "@/i18n";
 import { setupPath } from "@/lib/connectionStage";
 import { DEMO_ICON } from "@/lib/icons";
@@ -79,8 +74,7 @@ export function GettingStarted({
 
   const connections = useQuery({
     queryKey: ["cloud-connections"],
-    queryFn: () =>
-      api.get<CloudConnection[]>("/api/v1/cloud-connections").then((r) => r.data),
+    queryFn: () => api.get<CloudConnection[]>("/api/v1/cloud-connections").then((r) => r.data),
     retry: false,
   });
 
@@ -138,7 +132,11 @@ export function GettingStarted({
             {copy.scanAction}
           </Button>
         ) : (
-          <button type="button" className={QUIET_ACTION} onClick={() => scanWizard.start(ready?.id)}>
+          <button
+            type="button"
+            className={QUIET_ACTION}
+            onClick={() => scanWizard.start(ready?.id)}
+          >
             {copy.scanAction}
           </button>
         ),
@@ -150,10 +148,7 @@ export function GettingStarted({
       done: fixed,
       requires: "scan",
       action: (primary) => (
-        <Link
-          to={topRisk ? `/risks/${topRisk.id}` : "/findings"}
-          className={actionClass(primary)}
-        >
+        <Link to={topRisk ? `/risks/${topRisk.id}` : "/findings"} className={actionClass(primary)}>
           {topRisk ? copy.fixAction : copy.fixActionFallback}
         </Link>
       ),
@@ -267,11 +262,7 @@ export function GettingStarted({
         {progress}
       </header>
 
-      <ol
-        className={cn(
-          "mt-4 grid divide-y divide-border border-t border-border",
-        )}
-      >
+      <ol className={cn("mt-4 grid divide-y divide-border border-t border-border")}>
         {steps.map((step, index) => {
           const current = index === next;
           const blocked =
@@ -282,17 +273,11 @@ export function GettingStarted({
             <li
               key={step.key}
               aria-current={current ? "step" : undefined}
-              className={cn(
-                "relative flex gap-3 px-5 py-4",
-                current && "bg-muted/30",
-              )}
+              className={cn("relative flex gap-3 px-5 py-4", current && "bg-muted/30")}
             >
               {current && (
                 <span
-                  className={cn(
-                    "absolute bg-foreground",
-                    "inset-y-0 left-0 w-0.5",
-                  )}
+                  className={cn("absolute bg-foreground", "inset-y-0 left-0 w-0.5")}
                   aria-hidden
                 />
               )}
@@ -304,14 +289,20 @@ export function GettingStarted({
                   !step.done && !current && "border border-border text-muted-foreground",
                 )}
               >
-                {step.done ? <CheckIcon className="size-3.5" strokeWidth={3} aria-hidden /> : index + 1}
+                {step.done ? (
+                  <CheckIcon className="size-3.5" strokeWidth={3} aria-hidden />
+                ) : (
+                  index + 1
+                )}
               </span>
               <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <p
                     className={cn(
                       "text-sm font-medium",
-                      step.done ? "text-muted-foreground line-through decoration-muted-foreground/40" : "text-foreground",
+                      step.done
+                        ? "text-muted-foreground line-through decoration-muted-foreground/40"
+                        : "text-foreground",
                     )}
                   >
                     {step.title}

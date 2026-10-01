@@ -79,9 +79,7 @@ export function Donut({
             strokeDasharray={`${drawn ? arc.length : 0} ${CIRCUMFERENCE}`}
             strokeDashoffset={-arc.offset}
             style={
-              reduced
-                ? undefined
-                : { transition: `stroke-dasharray ${DURATION.chart}ms ease-out` }
+              reduced ? undefined : { transition: `stroke-dasharray ${DURATION.chart}ms ease-out` }
             }
           >
             {/* The share, not only the count: a ring's whole claim is "this
@@ -102,9 +100,7 @@ export function Donut({
         <span className={cn("text-xl leading-none font-semibold tabular-nums", valueClassName)}>
           {centerValue}
         </span>
-        <span className="mt-0.5 text-micro leading-tight text-muted-foreground">
-          {centerLabel}
-        </span>
+        <span className="mt-0.5 text-micro leading-tight text-muted-foreground">{centerLabel}</span>
       </div>
     </div>
   );

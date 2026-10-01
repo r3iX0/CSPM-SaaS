@@ -13,10 +13,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  ScanWizardProvider,
-  useScanWizard,
-} from "@/components/scans/ScanWizardProvider";
+import { ScanWizardProvider, useScanWizard } from "@/components/scans/ScanWizardProvider";
 
 const connection = {
   id: "conn-1",
@@ -25,8 +22,26 @@ const connection = {
   is_ready_to_scan: true,
   degraded_categories: [],
   subscriptions: [
-    { id: "acct-1", subscription_id: "s-1", display_name: "Payments", in_scope: true, status: "ACTIVE", discovered_at: null, last_scan_at: null, is_scannable: true },
-    { id: "acct-2", subscription_id: "s-2", display_name: "Data", in_scope: true, status: "ACTIVE", discovered_at: null, last_scan_at: null, is_scannable: true },
+    {
+      id: "acct-1",
+      subscription_id: "s-1",
+      display_name: "Payments",
+      in_scope: true,
+      status: "ACTIVE",
+      discovered_at: null,
+      last_scan_at: null,
+      is_scannable: true,
+    },
+    {
+      id: "acct-2",
+      subscription_id: "s-2",
+      display_name: "Data",
+      in_scope: true,
+      status: "ACTIVE",
+      discovered_at: null,
+      last_scan_at: null,
+      is_scannable: true,
+    },
   ],
 };
 
@@ -48,10 +63,38 @@ function detail(overrides: Record<string, unknown> = {}) {
     purgeable_finding_count: 0,
     scope: {},
     stages: [
-      { stage: "PLAN", scope: null, status: "SUCCEEDED", attempt: 1, duration_seconds: 2, error: null },
-      { stage: "COLLECT", scope: "Payments", status: "RUNNING", attempt: 1, duration_seconds: 14, error: null },
-      { stage: "COLLECT", scope: "Data", status: "FAILED", attempt: 2, duration_seconds: 9, error: "Reader role missing on Data." },
-      { stage: "ANALYZE", scope: null, status: "PENDING", attempt: 1, duration_seconds: null, error: null },
+      {
+        stage: "PLAN",
+        scope: null,
+        status: "SUCCEEDED",
+        attempt: 1,
+        duration_seconds: 2,
+        error: null,
+      },
+      {
+        stage: "COLLECT",
+        scope: "Payments",
+        status: "RUNNING",
+        attempt: 1,
+        duration_seconds: 14,
+        error: null,
+      },
+      {
+        stage: "COLLECT",
+        scope: "Data",
+        status: "FAILED",
+        attempt: 2,
+        duration_seconds: 9,
+        error: "Reader role missing on Data.",
+      },
+      {
+        stage: "ANALYZE",
+        scope: null,
+        status: "PENDING",
+        attempt: 1,
+        duration_seconds: null,
+        error: null,
+      },
     ],
     ...overrides,
   };
@@ -62,7 +105,16 @@ const second = {
   id: "conn-2",
   name: "Staging tenant",
   subscriptions: [
-    { id: "acct-3", subscription_id: "s-3", display_name: "Sandbox", in_scope: true, status: "ACTIVE", discovered_at: null, last_scan_at: null, is_scannable: true },
+    {
+      id: "acct-3",
+      subscription_id: "s-3",
+      display_name: "Sandbox",
+      in_scope: true,
+      status: "ACTIVE",
+      discovered_at: null,
+      last_scan_at: null,
+      is_scannable: true,
+    },
   ],
 };
 
@@ -98,7 +150,10 @@ function stubApi({
       if (path.endsWith("/api/v1/scans") && init?.method === "POST") {
         posted.push(JSON.parse(String(init.body)));
         return postStatus === 409
-          ? reply(409, null, { code: "CONFLICT", message: "A scan is already running for this connection" })
+          ? reply(409, null, {
+              code: "CONFLICT",
+              message: "A scan is already running for this connection",
+            })
           : reply(202, detail({ status: "QUEUED", stages: [] }));
       }
       if (path.endsWith("/api/v1/scans")) return reply(200, scans);
@@ -161,9 +216,7 @@ describe("the scan wizard", () => {
     // resolves the rest.
     await waitFor(() => expect(posted).toEqual([{ cloud_account_id: "acct-1" }]));
     // The scan is now a link.
-    await waitFor(() =>
-      expect(screen.getByTestId("location")).toHaveTextContent("/?scan=scan-1"),
-    );
+    await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/?scan=scan-1"));
 
     // The lanes are the API's steps, failure text included.
     expect(await screen.findByText("Reader role missing on Data.")).toBeInTheDocument();
@@ -180,10 +233,38 @@ describe("the scan wizard", () => {
         finding_count: 6,
         collection_errors: { Data: "Reader role missing on Data." },
         stages: [
-          { stage: "PLAN", scope: null, status: "SUCCEEDED", attempt: 1, duration_seconds: 2, error: null },
-          { stage: "COLLECT", scope: "Payments", status: "SUCCEEDED", attempt: 1, duration_seconds: 30, error: null },
-          { stage: "COLLECT", scope: "Data", status: "FAILED", attempt: 1, duration_seconds: 9, error: "Denied." },
-          { stage: "ANALYZE", scope: null, status: "SUCCEEDED", attempt: 1, duration_seconds: 12, error: null },
+          {
+            stage: "PLAN",
+            scope: null,
+            status: "SUCCEEDED",
+            attempt: 1,
+            duration_seconds: 2,
+            error: null,
+          },
+          {
+            stage: "COLLECT",
+            scope: "Payments",
+            status: "SUCCEEDED",
+            attempt: 1,
+            duration_seconds: 30,
+            error: null,
+          },
+          {
+            stage: "COLLECT",
+            scope: "Data",
+            status: "FAILED",
+            attempt: 1,
+            duration_seconds: 9,
+            error: "Denied.",
+          },
+          {
+            stage: "ANALYZE",
+            scope: null,
+            status: "SUCCEEDED",
+            attempt: 1,
+            duration_seconds: 12,
+            error: null,
+          },
         ],
       }),
     });
@@ -214,9 +295,20 @@ describe("the scan wizard", () => {
     stubApi({
       scanDetail: detail(finished),
       scans: [
-        detail({ ...finished, id: "scan-0", finding_count: 62, created_at: "2026-09-12T10:00:00Z" }),
+        detail({
+          ...finished,
+          id: "scan-0",
+          finding_count: 62,
+          created_at: "2026-09-12T10:00:00Z",
+        }),
         // Another subscription's scan is not the last one of this scope.
-        detail({ ...finished, id: "scan-x", cloud_account_id: "acct-9", finding_count: 3, created_at: "2026-09-13T09:00:00Z" }),
+        detail({
+          ...finished,
+          id: "scan-x",
+          cloud_account_id: "acct-9",
+          finding_count: 3,
+          created_at: "2026-09-13T09:00:00Z",
+        }),
       ],
     });
     mount("scan-1");
@@ -278,9 +370,31 @@ describe("the scan wizard", () => {
         status: "EVALUATING",
         resource_count: 40,
         stages: [
-          { stage: "PLAN", scope: null, status: "SUCCEEDED", attempt: 1, duration_seconds: 2, error: null },
-          { stage: "COLLECT", scope: "Payments", status: "SUCCEEDED", attempt: 1, duration_seconds: 30, error: null },
-          { stage: "ANALYZE", scope: null, status: "RUNNING", attempt: 1, duration_seconds: 5, error: null, phase: "EVALUATE" },
+          {
+            stage: "PLAN",
+            scope: null,
+            status: "SUCCEEDED",
+            attempt: 1,
+            duration_seconds: 2,
+            error: null,
+          },
+          {
+            stage: "COLLECT",
+            scope: "Payments",
+            status: "SUCCEEDED",
+            attempt: 1,
+            duration_seconds: 30,
+            error: null,
+          },
+          {
+            stage: "ANALYZE",
+            scope: null,
+            status: "RUNNING",
+            attempt: 1,
+            duration_seconds: 5,
+            error: null,
+            phase: "EVALUATE",
+          },
         ],
       }),
     });

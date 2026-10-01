@@ -116,7 +116,10 @@ function RailStep({
       // On a phone the rail sits above the panel, where four rows of it would
       // push the step itself below the fold: there it is the current row, and
       // the full list is for wider screens.
-      className={cn("relative items-start gap-2.5 pb-3.5 last:pb-0", active ? "flex" : "hidden lg:flex")}
+      className={cn(
+        "relative items-start gap-2.5 pb-3.5 last:pb-0",
+        active ? "flex" : "hidden lg:flex",
+      )}
     >
       {!last && (
         <span
@@ -162,4 +165,3 @@ function RailStep({
     </li>
   );
 }
-

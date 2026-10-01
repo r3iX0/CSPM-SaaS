@@ -24,7 +24,12 @@ function dashboard(overrides: Partial<Dashboard> = {}): Dashboard {
     verified_resolved_last_30_days: 0,
     remediation_rate: 0,
     top_risks: [{ id: "risk-1", title: "Public storage", risk_score: 90, risk_level: "CRITICAL" }],
-    coverage: { ratio: 1, unknown: 0, conclusive: 10, context: { unclassified: 0, classified: 10, ratio: 1 } },
+    coverage: {
+      ratio: 1,
+      unknown: 0,
+      conclusive: 10,
+      context: { unclassified: 0, classified: 10, ratio: 1 },
+    },
     last_scan: {
       id: "s1",
       status: "COMPLETED",
@@ -59,7 +64,10 @@ function mount(
 ) {
   vi.spyOn(api, "get").mockImplementation((path: string) => {
     if (path.includes("/context")) {
-      return Promise.resolve({ data: declared ? { cloud_account_id: "a-1" } : null, meta: {} }) as never;
+      return Promise.resolve({
+        data: declared ? { cloud_account_id: "a-1" } : null,
+        meta: {},
+      }) as never;
     }
     return Promise.resolve({ data: connections, meta: {} }) as never;
   });

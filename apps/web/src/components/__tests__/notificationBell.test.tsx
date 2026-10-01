@@ -95,9 +95,7 @@ describe("the notification bell", () => {
   it("shows no count when everything has been seen", async () => {
     mount(ROWS, 0);
 
-    expect(
-      await screen.findByRole("button", { name: "Notifications" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Notifications" })).toBeInTheDocument();
   });
 
   it("opens to what happened, newest first, each linking to its subject", async () => {
@@ -156,13 +154,9 @@ describe("the notification bell", () => {
     mount(ROWS, 2);
 
     fireEvent.click(await screen.findByRole("button", { name: /Notifications/ }));
-    fireEvent.click(
-      await screen.findByRole("button", { name: /Dismiss: Storage account/ }),
-    );
+    fireEvent.click(await screen.findByRole("button", { name: /Dismiss: Storage account/ }));
 
-    await waitFor(() =>
-      expect(deleted).toEqual([expect.stringContaining("/notifications/n-1")]),
-    );
+    await waitFor(() => expect(deleted).toEqual([expect.stringContaining("/notifications/n-1")]));
   });
 
   it("clears the whole panel on request", async () => {
@@ -172,9 +166,7 @@ describe("the notification bell", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Clear all" }));
 
     await waitFor(() =>
-      expect(
-        deleted.some((url) => url.endsWith("/api/v1/notifications")),
-      ).toBe(true),
+      expect(deleted.some((url) => url.endsWith("/api/v1/notifications"))).toBe(true),
     );
   });
 

@@ -4,12 +4,7 @@ import { AnimatePresence, m } from "motion/react";
 import { ArrowRightIcon, ChevronRightIcon } from "lucide-react";
 
 import { api, ApiError } from "@/lib/api";
-import type {
-  CloudConnection,
-  ConnectionScope,
-  Provider,
-  ProviderOption,
-} from "@/lib/types";
+import type { CloudConnection, ConnectionScope, Provider, ProviderOption } from "@/lib/types";
 import { useT } from "@/i18n";
 import { needsScopeId, scopesFor } from "@/lib/connectionStage";
 import { SCOPE_ICONS, SETUP_ICONS } from "@/lib/icons";
@@ -23,11 +18,7 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ProviderMark } from "@/components/security/ProviderMark";
 import { cn } from "@/lib/format";
 
@@ -64,9 +55,7 @@ export function StepScope({
   const nameId = useId();
   const scopeIdField = useId();
   const [name, setName] = useState("");
-  const [scopeType, setScopeType] = useState<ConnectionScope>(
-    () => scopesFor(provider)[0],
-  );
+  const [scopeType, setScopeType] = useState<ConnectionScope>(() => scopesFor(provider)[0]);
   const [scopeId, setScopeId] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -77,9 +66,7 @@ export function StepScope({
   const providers = useQuery({
     queryKey: ["cloud-providers"],
     queryFn: () =>
-      api
-        .get<ProviderOption[]>("/api/v1/cloud-connections/providers")
-        .then((r) => r.data),
+      api.get<ProviderOption[]>("/api/v1/cloud-connections/providers").then((r) => r.data),
   });
 
   const options = providers.data ?? [];
@@ -132,9 +119,9 @@ export function StepScope({
       label: "Entire tenant",
       detail: "Every subscription in this directory, including future ones.",
       requires:
-        "Owner at the tenant root management group. Most directories must turn on "
-        + "Entra ID → Properties → Access management for Azure resources first; "
-        + "without it this step fails in Azure Portal.",
+        "Owner at the tenant root management group. Most directories must turn on " +
+        "Entra ID → Properties → Access management for Azure resources first; " +
+        "without it this step fails in Azure Portal.",
     },
     {
       value: "MANAGEMENT_GROUP" as ConnectionScope,
@@ -147,8 +134,8 @@ export function StepScope({
       label: "Single subscription",
       detail: "One subscription only.",
       requires:
-        "Owner or User Access Administrator on that subscription — usually the "
-        + "easiest to complete.",
+        "Owner or User Access Administrator on that subscription — usually the " +
+        "easiest to complete.",
     },
   ];
 
@@ -347,7 +334,10 @@ export function StepScope({
               transition={{ duration: DURATION.quick / 1000, ease: EASE_OUT }}
               className="mt-3 flex items-start gap-3 rounded-lg bg-muted px-4 py-3"
             >
-              <PermissionIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <PermissionIcon
+                className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+                aria-hidden
+              />
               <p className="text-xs leading-relaxed text-muted-foreground">
                 <span className="font-medium text-foreground">{copy.permissionNeeded}: </span>
                 {selectedScope.requires}

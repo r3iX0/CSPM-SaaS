@@ -86,9 +86,7 @@ const PILL = {
 function ChangeLine({ event, index }: { event: ChangeEvent; index: number }) {
   const t = useT();
   const attribute = event.change.endsWith("_CHANGED");
-  const moved = attribute
-    ? changeDirection(event.previous_value, event.current_value)
-    : "neutral";
+  const moved = attribute ? changeDirection(event.previous_value, event.current_value) : "neutral";
 
   const [word, tone] =
     event.change === "APPEARED"

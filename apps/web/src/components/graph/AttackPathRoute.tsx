@@ -31,7 +31,10 @@ export function AttackPathRoute({
         const last = index === steps.length - 1;
 
         return (
-          <li key={`${step.source_id}-${step.relationship}-${step.target_id}`} className="flex gap-3">
+          <li
+            key={`${step.source_id}-${step.relationship}-${step.target_id}`}
+            className="flex gap-3"
+          >
             {/* The spine. The connector below a severed link is dashed, so the
                 break reads as a break rather than as a highlighted row. */}
             <div className="flex flex-col items-center">
@@ -58,13 +61,16 @@ export function AttackPathRoute({
             </div>
 
             <div className={cn("min-w-0 pb-4", last && "pb-0")}>
-              <p className={cn("text-sm", isCut ? "font-medium text-foreground" : "text-muted-foreground")}>
+              <p
+                className={cn(
+                  "text-sm",
+                  isCut ? "font-medium text-foreground" : "text-muted-foreground",
+                )}
+              >
                 {step.description}
               </p>
               {isCut && (
-                <p className="mt-0.5 text-xs text-ok">
-                  Cutting this link severs the route
-                </p>
+                <p className="mt-0.5 text-xs text-ok">Cutting this link severs the route</p>
               )}
             </div>
           </li>

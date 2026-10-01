@@ -48,10 +48,7 @@ export const visits = (route: MappedRoute) => [
 ];
 
 /** Every name a route passes, for the search box: a route is found by any stop on it. */
-const names = (route: MappedRoute) => [
-  route.entry.name,
-  ...route.steps.map((step) => step.target),
-];
+const names = (route: MappedRoute) => [route.entry.name, ...route.steps.map((step) => step.target)];
 
 export interface RouteNarrowing {
   /** A box: the routes through it. */
@@ -88,9 +85,7 @@ function comparing(sort: RouteSort, tracked?: ReadonlySet<string>) {
       case "hops":
         return 0;
       case "sensitive":
-        return (
-          rank(b.target.data_sensitivity) - rank(a.target.data_sensitivity) || a.hops - b.hops
-        );
+        return rank(b.target.data_sensitivity) - rank(a.target.data_sensitivity) || a.hops - b.hops;
       case "exposed":
         return rank(b.entry.public_exposure) - rank(a.entry.public_exposure) || a.hops - b.hops;
       case "tracked":

@@ -57,8 +57,7 @@ export function ScoreDelta({ delta }: { delta: number | null }) {
       >
         {improved ? "\u2191" : "\u2193"}
       </span>{" "}
-      {Math.abs(delta)}{" "}
-      {improved ? t.dashboard.sinceLastScan : t.dashboard.scoreWorse}
+      {Math.abs(delta)} {improved ? t.dashboard.sinceLastScan : t.dashboard.scoreWorse}
     </p>
   );
 }

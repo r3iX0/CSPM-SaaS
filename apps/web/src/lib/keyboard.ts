@@ -35,9 +35,7 @@ export function plainKey(event: KeyboardEvent): boolean {
  * button, and used to be sent to the marked row instead.
  */
 export function isControlTarget(target: EventTarget | null): boolean {
-  return (
-    target instanceof HTMLElement && target !== document.body && target.tabIndex >= 0
-  );
+  return target instanceof HTMLElement && target !== document.body && target.tabIndex >= 0;
 }
 
 /** Where the single-key preference lives. Per browser, like the theme. */
@@ -141,9 +139,7 @@ export function useRowNavigation(hrefs: string[]): number {
 
   useEffect(() => {
     if (active < 0) return;
-    document
-      .querySelector(`[data-row-index="${active}"]`)
-      ?.scrollIntoView({ block: "nearest" });
+    document.querySelector(`[data-row-index="${active}"]`)?.scrollIntoView({ block: "nearest" });
   }, [active]);
 
   return active;

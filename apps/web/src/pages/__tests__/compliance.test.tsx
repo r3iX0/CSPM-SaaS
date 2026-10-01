@@ -67,7 +67,9 @@ describe("the compliance overview", () => {
 
   function mount() {
     render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
         <MemoryRouter>
           <CompliancePage />
         </MemoryRouter>

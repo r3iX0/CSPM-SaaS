@@ -69,9 +69,7 @@ export function ContextRow({
           <TooltipContent>
             {source}
             {!declared && fact.source !== "none" && (
-              <span className="block opacity-80">
-                Declare it on the subscription to be certain
-              </span>
+              <span className="block opacity-80">Declare it on the subscription to be certain</span>
             )}
           </TooltipContent>
         </Tooltip>
@@ -80,13 +78,7 @@ export function ContextRow({
   );
 }
 
-function ConfidenceBar({
-  confidence,
-  declared,
-}: {
-  confidence: number;
-  declared: boolean;
-}) {
+function ConfidenceBar({ confidence, declared }: { confidence: number; declared: boolean }) {
   // Four steps, because the sources are ranked rather than measured and a
   // continuous bar would imply a precision the scale does not have.
   const filled = Math.max(1, Math.round(confidence * 4));

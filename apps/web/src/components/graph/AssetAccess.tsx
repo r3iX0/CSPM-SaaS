@@ -10,13 +10,7 @@ import type {
   AssetAccess,
 } from "@/lib/types";
 import { useT } from "@/i18n";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/common/states";
 import { ResourceTypeLabel } from "@/components/security/IconLabel";
@@ -52,9 +46,7 @@ export function AssetAccessPanel({
     queryKey: ["asset-access", providerResourceId],
     queryFn: () =>
       api
-        .get<AssetAccess>(
-          `/api/v1/attack-paths/access/${encodeURIComponent(providerResourceId)}`,
-        )
+        .get<AssetAccess>(`/api/v1/attack-paths/access/${encodeURIComponent(providerResourceId)}`)
         .then((r) => r.data),
     retry: false,
   });
@@ -181,8 +173,7 @@ function HolderRow({ holder, scope }: { holder: AccessHolder; scope: boolean }) 
         <span className="text-muted-foreground">{holder.role}</span>
         <span className="text-xs text-muted-foreground">
           {t.access.at(holder.at.name)}
-          {holder.inherited_from &&
-            `, ${t.access.inherited(ancestorName(holder.inherited_from))}`}
+          {holder.inherited_from && `, ${t.access.inherited(ancestorName(holder.inherited_from))}`}
         </span>
       </div>
       <Notes
@@ -198,9 +189,7 @@ function HolderRow({ holder, scope }: { holder: AccessHolder; scope: boolean }) 
       {holder.members == null && holder.principal.resource_type === "group" && (
         <p className="text-xs text-muted-foreground">{capitalise(t.access.membersUnread)}</p>
       )}
-      {holder.members != null && holder.members_total != null && (
-        <Members holder={holder} />
-      )}
+      {holder.members != null && holder.members_total != null && <Members holder={holder} />}
       {holder.runs_on.length > 0 && (
         <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
           <span>{t.access.runsOn}</span>

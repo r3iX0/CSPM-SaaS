@@ -57,7 +57,9 @@ describe("CutPanel", () => {
 
   it("never reads no routes as a clean estate", () => {
     wrap(<CutPanel chokes={[]} loading={false} failed={false} />);
-    expect(screen.getByText(/What counts as sensitive is something you declare/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/What counts as sensitive is something you declare/),
+    ).toBeInTheDocument();
   });
 
   it("says a failed read is a display problem, not a change", () => {
@@ -70,8 +72,12 @@ describe("FixesProved", () => {
   it("keeps work in progress apart from what a scan verified", () => {
     wrap(<FixesProved verified={12} inProgress={4} open={28} />);
 
-    expect(screen.getByText("Verified closed · 30 days").nextElementSibling).toHaveTextContent("12");
-    expect(screen.getByText("In progress, not yet proved").nextElementSibling).toHaveTextContent("4");
+    expect(screen.getByText("Verified closed · 30 days").nextElementSibling).toHaveTextContent(
+      "12",
+    );
+    expect(screen.getByText("In progress, not yet proved").nextElementSibling).toHaveTextContent(
+      "4",
+    );
     expect(screen.getByText(/Nobody can close one by hand/)).toBeInTheDocument();
   });
 });
@@ -85,7 +91,13 @@ describe("RecentChanges", () => {
       current_value: current,
       observed_at: "2026-09-20T09:00:00Z",
       scan_id: null,
-      asset: { id: "a", name: "storage-prod-01", resource_type: "storage_account", environment: null, absent_since: null },
+      asset: {
+        id: "a",
+        name: "storage-prod-01",
+        resource_type: "storage_account",
+        environment: null,
+        absent_since: null,
+      },
     }) as ChangeEvent;
 
   it("says in a word which way each change went", () => {

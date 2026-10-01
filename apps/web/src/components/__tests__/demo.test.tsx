@@ -23,7 +23,14 @@ const DEMO: Organization = {
   role: "VIEWER",
   is_demo: true,
 };
-const OWN: Organization = { ...DEMO, id: "own-1", name: "Acme", slug: "acme", role: "OWNER", is_demo: false };
+const OWN: Organization = {
+  ...DEMO,
+  id: "own-1",
+  name: "Acme",
+  slug: "acme",
+  role: "OWNER",
+  is_demo: false,
+};
 
 function Where() {
   return <p data-testid="where">{useLocation().pathname}</p>;

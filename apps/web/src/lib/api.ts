@@ -123,11 +123,7 @@ function handleUnauthorized(): void {
   if (auth.token) auth.signOut();
 }
 
-async function send(
-  url: string,
-  init: RequestInit,
-  timeoutMs: number,
-): Promise<Response> {
+async function send(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
   // A caller's own signal is honoured alongside the timeout -- TanStack passes
   // one when a query is cancelled, and dropping it would leave abandoned
   // requests running.
@@ -236,17 +232,17 @@ async function fetchDocument(path: string): Promise<Blob> {
 }
 
 export const api = {
-  get: <T,>(path: string) => request<T>(path).then((r) => r),
+  get: <T>(path: string) => request<T>(path).then((r) => r),
   /** A PDF or HTML report, fetched with the caller's token. */
   document: (path: string) => fetchDocument(path),
-  post: <T,>(path: string, body?: unknown, opts: { skipAuth?: boolean } = {}) =>
+  post: <T>(path: string, body?: unknown, opts: { skipAuth?: boolean } = {}) =>
     request<T>(path, { method: "POST", body: JSON.stringify(body ?? {}), ...opts }),
-  patch: <T,>(path: string, body: unknown) =>
+  patch: <T>(path: string, body: unknown) =>
     request<T>(path, { method: "PATCH", body: JSON.stringify(body) }),
   /** Files, as multipart. Nothing is stored unless the endpoint says so. */
-  upload: <T,>(path: string, form: FormData) => request<T>(path, { method: "POST", body: form }),
+  upload: <T>(path: string, form: FormData) => request<T>(path, { method: "POST", body: form }),
   /** A full replacement. Used where the API stores a statement, not a profile. */
-  put: <T,>(path: string, body: unknown) =>
+  put: <T>(path: string, body: unknown) =>
     request<T>(path, { method: "PUT", body: JSON.stringify(body) }),
-  del: <T,>(path: string) => request<T>(path, { method: "DELETE" }),
+  del: <T>(path: string) => request<T>(path, { method: "DELETE" }),
 };

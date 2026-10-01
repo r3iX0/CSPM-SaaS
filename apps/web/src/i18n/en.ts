@@ -151,7 +151,8 @@ export const en = {
     connectCloud: "Connect environment",
     comingSoon: "Coming soon",
     noConnections: "No cloud environment connected yet.",
-    noConnectionsHelp: "A few minutes and one deployment you run yourself. No credential is asked for.",
+    noConnectionsHelp:
+      "A few minutes and one deployment you run yourself. No credential is asked for.",
     step: "Step",
     of: "of",
     stepConsent: "Grant admin consent",
@@ -181,7 +182,8 @@ export const en = {
     scheduleSaved: "Saved",
     scheduleOn: "Scanning automatically",
     scheduleOff: "Manual scanning only",
-    scheduleFirstRunNote: "The first automatic scan starts within minutes, then runs on this interval.",
+    scheduleFirstRunNote:
+      "The first automatic scan starts within minutes, then runs on this interval.",
     scheduleFloorNote: "At least this often \u2014 an interval, not a time of day.",
 
     // Change-triggered scanning. Two things have to survive the copy: that
@@ -216,7 +218,8 @@ export const en = {
     // The empty state, which is the first meaningful screen in the product.
     readWhatItDoes: "Read what Cleave will do",
     hideWhatItDoes: "Hide the detail",
-    readOnlyPromise: "Read-only: it cannot change configuration or read data in storage, databases or vaults.",
+    readOnlyPromise:
+      "Read-only: it cannot change configuration or read data in storage, databases or vaults.",
     permissionsTitle: "The exact access Cleave asks for",
     graphPermissions: "Directory permissions",
     rbacRole: "Azure role",
@@ -254,20 +257,20 @@ export const en = {
     roleBehind: "behind",
     roleUpgradeTitle: "Some checks cannot run until the role is redeployed",
     roleUpgradeBody:
-      "Cleave's scanner role gained permissions this connection was not "
-      + "granted. The checks that need them report \u201cnot known\u201d "
-      + "rather than passing \u2014 Cleave will not tell you something is "
-      + "fine when it could not look.",
+      "Cleave's scanner role gained permissions this connection was not " +
+      "granted. The checks that need them report \u201cnot known\u201d " +
+      "rather than passing \u2014 Cleave will not tell you something is " +
+      "fine when it could not look.",
     roleUpgradeAffects: "Affected checks",
     consentIncomplete: "Granted, incomplete",
     permissionsMissingTitle: "Identity checks cannot run until consent is complete",
     permissionsMissingBody:
-      "Admin consent completed, but it did not grant these directory "
-      + "permissions. Subscription scanning is unaffected. Cleave's app "
-      + "registration must declare them as application permissions \u2014 "
-      + "delegated ones never reach a scanner \u2014 and a Global "
-      + "Administrator must then consent again, because consent covers only what "
-      + "the registration declared when it was granted.",
+      "Admin consent completed, but it did not grant these directory " +
+      "permissions. Subscription scanning is unaffected. Cleave's app " +
+      "registration must declare them as application permissions \u2014 " +
+      "delegated ones never reach a scanner \u2014 and a Global " +
+      "Administrator must then consent again, because consent covers only what " +
+      "the registration declared when it was granted.",
     roleUpgradeAction: "Redeploy the role",
     writePermission: "Write permission",
     noneByDesign: "None, by design",
@@ -276,9 +279,9 @@ export const en = {
     newSinceLastRead: "new since last read",
     excludedByYou: "excluded by you",
     moreSubscriptions: "more",
-    discoveryPromise:
-      "Anything created beneath this connection appears here on the next read.",
-    scopeFootnote: "Unticking one stops Cleave reading it. Its findings are kept, marked out of scope.",
+    discoveryPromise: "Anything created beneath this connection appears here on the next read.",
+    scopeFootnote:
+      "Unticking one stops Cleave reading it. Its findings are kept, marked out of scope.",
 
     noSubscriptionsTitle: "Nothing found yet",
     noSubscriptionsBody:
@@ -329,7 +332,8 @@ export const en = {
     remove: "Remove connection",
     removing: "Removing\u2026",
     removeTitle: "Remove this connection?",
-    removeDetail: "Its accounts, assets, scans and findings are deleted with it. This cannot be undone.",
+    removeDetail:
+      "Its accounts, assets, scans and findings are deleted with it. This cannot be undone.",
     revokeTitle: "Revoke access in Azure",
     revokeIntro:
       "Removing the connection here deletes Cleave's copy of the data. It does not take away the access you granted \u2014 run these in Azure to do that.",
@@ -357,7 +361,8 @@ export const en = {
     stepScope: "Choose the scope, and name it",
     stepScopeDetail: "A tenant, a management group or one subscription, under a name you choose.",
     stepConsent: "A Global Administrator grants admin consent",
-    stepConsentDetail: "One Microsoft prompt per tenant. If that is not you, send the link Cleave gives you.",
+    stepConsentDetail:
+      "One Microsoft prompt per tenant. If that is not you, send the link Cleave gives you.",
     stepDeploy: "Deploy the reader role",
     stepDeployDetail: "One ARM template in Azure Portal. Needs Owner at the scope you chose.",
     stepAccounts: "Then Cleave finds the rest",
@@ -388,9 +393,11 @@ export const en = {
     permissionNeeded: "Permission needed",
     beforeYouStart: "Before you start",
     needFirstTitle: "A Global Administrator",
-    needFirstDetail: "Approves admin consent once. A work or school account \u2014 a personal one cannot.",
+    needFirstDetail:
+      "Approves admin consent once. A work or school account \u2014 a personal one cannot.",
     needSecondTitle: "Owner at the scope you choose",
-    needSecondDetail: "Or User Access Administrator, to assign the read-only role. Often someone else.",
+    needSecondDetail:
+      "Or User Access Administrator, to assign the read-only role. Often someone else.",
     noIdsNeeded:
       "No tenant id, subscription id or secret. Entra reports the tenant when consent is granted.",
 
@@ -400,9 +407,9 @@ export const en = {
       "Detected automatically. You can close this page \u2014 setup carries on where it stopped.",
     publishingPrincipal: "Setting Cleave up in your directory\u2026",
     publishingPrincipalDetail: (left: string) =>
-      "Entra can take a few minutes to publish Cleave in a directory that "
-      + "has just consented. Cleave checks every few seconds and moves on by "
-      + `itself; if it is still not there in ${left}, the reason will show here.`,
+      "Entra can take a few minutes to publish Cleave in a directory that " +
+      "has just consented. Cleave checks every few seconds and moves on by " +
+      `itself; if it is still not there in ${left}, the reason will show here.`,
     deployHowTitle: "What happens next",
     deployHow1: "Open the Azure portal",
     deployHow1Detail: "Signed in as an Owner at the scope you chose.",
@@ -413,7 +420,8 @@ export const en = {
 
     // The last step, once something can be scanned.
     doneHeadline: "{name} is connected",
-    doneSummary: "{inScope} of {total} {accounts} in scope \u00b7 nothing is read until the first scan",
+    doneSummary:
+      "{inScope} of {total} {accounts} in scope \u00b7 nothing is read until the first scan",
     runFirstScan: "Run the first scan",
 
     // AWS says the same four things in its own words, and one fewer of them.
@@ -461,15 +469,12 @@ export const en = {
       organizationalUnitId: "Organizational unit id",
       accountId: "Account id",
       scopeOrganization: "Entire organization",
-      scopeOrganizationDetail:
-        "Discover and scan every account in the organization.",
+      scopeOrganizationDetail: "Discover and scan every account in the organization.",
       scopeOrganizationRequires:
         "Needs permission to create the stack in the management account, and a StackSet or one deployment per member account.",
       scopeOrganizationalUnit: "Organizational unit",
-      scopeOrganizationalUnitDetail:
-        "Limit to the accounts under one organizational unit.",
-      scopeOrganizationalUnitRequires:
-        "Needs the same stack in each account beneath the unit.",
+      scopeOrganizationalUnitDetail: "Limit to the accounts under one organizational unit.",
+      scopeOrganizationalUnitRequires: "Needs the same stack in each account beneath the unit.",
       scopeAccount: "Single account",
       scopeAccountDetail: "Scan one account only.",
       scopeAccountRequires:
@@ -495,8 +500,7 @@ export const en = {
     deployBody: "The template is pre-filled. Azure Portal opens on a review screen.",
     deployToAzure: "Deploy to Azure",
     stalledTitle: "This is taking longer than a deployment should",
-    stalledBody:
-      "The 3 things that usually explain it, in the order they are worth checking:",
+    stalledBody: "The 3 things that usually explain it, in the order they are worth checking:",
     stalledPropagation:
       "A role assigned in the last few minutes has not propagated yet. Waiting a little longer is the fix.",
     stalledScopeTenant:
@@ -626,8 +630,7 @@ export const en = {
     rescan: "Rescan to verify",
     rescanQueued: "Rescan queued. Cleave will close this finding automatically if the fix worked.",
     cancel: "Cancel",
-    cannotResolveManually:
-      "Findings are closed by a scan that confirms the fix, never by hand.",
+    cannotResolveManually: "Findings are closed by a scan that confirms the fix, never by hand.",
     scoreBreakdown: "How this score was calculated",
     compliance: "Related controls",
   },
@@ -706,7 +709,8 @@ export const en = {
       type === "user" || type === "service_principal"
         ? "Holds no role over anything Cleave scanned."
         : "Runs as no identity, and no other machine on its network lets it in.",
-    deadEndIdentityWithoutRole: "Runs as an identity that holds no role over anything Cleave scanned.",
+    deadEndIdentityWithoutRole:
+      "Runs as an identity that holds no role over anything Cleave scanned.",
     deadEndRolesWithoutControl:
       "Its identity's roles control nothing: read-only, unreadable, or under a condition.",
     deadEndNothingSensitive: (n: number) =>
@@ -720,8 +724,7 @@ export const en = {
     emptyNoTargetsDetail:
       "No asset is classified as sensitive. Tag data, or set criticality, to give routes an end.",
     emptyNoScan: "No scan has run yet",
-    emptyNoScanDetail:
-      "Built from what a scan found. Run one, and routes appear here.",
+    emptyNoScanDetail: "Built from what a scan found. Run one, and routes appear here.",
     hops: "hops",
     oneHop: "hop",
     from: "From",
@@ -764,13 +767,11 @@ export const en = {
     simulationShow: "Show the plan",
     tabRoutes: "Routes",
     tabSimulate: "Simulate",
-    closesNothing:
-      "Cutting this closes nothing: every route through it has another way round.",
+    closesNothing: "Cutting this closes nothing: every route through it has another way round.",
     clearTrace: "Show every route",
     tracing: "Tracing one route",
     // The route navigator (DECISIONS.md §142): stops always shown, links walked.
-    navigatorLabel: (entry: string, target: string) =>
-      `Attack path from ${entry} to ${target}`,
+    navigatorLabel: (entry: string, target: string) => `Attack path from ${entry} to ${target}`,
     previousRoute: "Previous route",
     nextRoute: "Next route",
     routeOf: (n: number, total: number) => `Route ${n} of ${total}`,
@@ -790,8 +791,7 @@ export const en = {
     earliestCut: "Earliest place to cut",
     closesMost: (n: number) => `Closes the most on this route: ${n} routes`,
     factsLabel: "What the link is",
-    cannotRemove:
-      "Where it lives. Containment cannot be removed, so this is not a place to cut.",
+    cannotRemove: "Where it lives. Containment cannot be removed, so this is not a place to cut.",
     notDrawn:
       "This link is past what the drawing holds, so what cutting it closes is not known here.",
     closesThis: (others: number) =>
@@ -833,7 +833,8 @@ export const en = {
     clearAll: "Clear all",
     // Not "no notifications" alone: that is ambiguous between all quiet and
     // CloudGuard having stopped checking.
-    empty: "Nothing new. Cleave tells you about reachable findings, verified fixes, and readings it could not take.",
+    empty:
+      "Nothing new. Cleave tells you about reachable findings, verified fixes, and readings it could not take.",
   },
   scans: {
     title: "Scans",
@@ -863,8 +864,7 @@ export const en = {
     deleteTitle: "Delete this scan record?",
     // The choice itself, stated once above the two options: which of the two
     // deletions this is has to be decided before either button is read.
-    deleteIntro:
-      "Deleting a run and deleting what it found are different. Choose which you mean.",
+    deleteIntro: "Deleting a run and deleting what it found are different. Choose which you mean.",
     deleteRecordOnly: "Delete record only",
     deleteRecordOnlyDetail:
       "Removes the log. Its findings stay \u2014 they describe your environment, not this run.",
@@ -911,8 +911,7 @@ export const en = {
     outcomePartial: "Incomplete",
     outcomeFailed: "Could not read",
     outcomeSkipped: "Not attempted",
-    partialHint:
-      "An incomplete listing cannot support a pass: checks needing it report unknown.",
+    partialHint: "An incomplete listing cannot support a pass: checks needing it report unknown.",
     // The same invariant for the readings that produced nothing at all. It
     // used to be stated only for PARTIAL, so a scan where storage failed
     // outright showed a badge, a count, and no word about what it cost --

@@ -64,9 +64,7 @@ export function ResetPasswordPage() {
 
         {token ? (
           <>
-            <h1 className={PAGE_TITLE_CLASS}>
-              {t.auth.setPassword}
-            </h1>
+            <h1 className={PAGE_TITLE_CLASS}>{t.auth.setPassword}</h1>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
               Choose something long. {t.auth.passwordTooShort}
             </p>
@@ -130,12 +128,10 @@ export function ResetPasswordPage() {
           </>
         ) : (
           <>
-            <h1 className={PAGE_TITLE_CLASS}>
-              This link has expired
-            </h1>
+            <h1 className={PAGE_TITLE_CLASS}>This link has expired</h1>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Reset links work once and expire after an hour. Ask for a fresh one
-              and open it on this device.
+              Reset links work once and expire after an hour. Ask for a fresh one and open it on
+              this device.
             </p>
             <Link
               to="/sign-in"

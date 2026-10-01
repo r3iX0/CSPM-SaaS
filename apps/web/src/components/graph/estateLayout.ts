@@ -154,9 +154,7 @@ export function layoutEstate(map: EstateMap): EstateLayout {
     const rightwards = sweep % 2 === 0;
     for (let step = 1; step < width; step += 1) {
       const at = rightwards ? step : width - 1 - step;
-      const beside = new Map(
-        layers[rightwards ? at - 1 : at + 1].map((id, index) => [id, index]),
-      );
+      const beside = new Map(layers[rightwards ? at - 1 : at + 1].map((id, index) => [id, index]));
       const joins = rightwards ? leftOf : rightOf;
       layers[at] = layers[at]
         .map((id, index) => {
@@ -198,7 +196,11 @@ export function layoutEstate(map: EstateMap): EstateLayout {
   });
 
   const bends = new Map<string, Point[]>();
-  for (const [id, through] of slots) bends.set(id, through.map((slot) => placed.get(slot)!));
+  for (const [id, through] of slots)
+    bends.set(
+      id,
+      through.map((slot) => placed.get(slot)!),
+    );
   return { at, bends };
 }
 

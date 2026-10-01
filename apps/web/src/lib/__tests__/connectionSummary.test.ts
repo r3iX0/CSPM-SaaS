@@ -9,9 +9,7 @@ import {
 } from "@/lib/connectionSummary";
 import type { CloudConnection, DiscoveredSubscription } from "@/lib/types";
 
-function subscription(
-  overrides: Partial<DiscoveredSubscription> = {},
-): DiscoveredSubscription {
+function subscription(overrides: Partial<DiscoveredSubscription> = {}): DiscoveredSubscription {
   return {
     id: "s1",
     subscription_id: "00000000-0000-0000-0000-000000000001",
@@ -74,9 +72,7 @@ describe("when an environment was last read", () => {
     // excluded yesterday was still looked at last week.
     const value = lastReadAt(
       connection({
-        subscriptions: [
-          subscription({ in_scope: false, last_scan_at: "2026-08-31T09:00:00Z" }),
-        ],
+        subscriptions: [subscription({ in_scope: false, last_scan_at: "2026-08-31T09:00:00Z" })],
       } as Partial<CloudConnection>),
     );
 
@@ -107,9 +103,7 @@ describe("how often it is read", () => {
     // Two mechanisms; a reader shown only one draws the wrong conclusion about
     // the other.
     expect(
-      cadenceSummary(
-        connection({ change_events_enabled: true } as Partial<CloudConnection>),
-      ),
+      cadenceSummary(connection({ change_events_enabled: true } as Partial<CloudConnection>)),
     ).toBe("on change · every day");
     expect(cadenceSummary(connection())).toBe("every day");
   });
@@ -187,9 +181,7 @@ describe("what the status column says", () => {
 
   it("says what is doing the reading when it is live", () => {
     expect(
-      statusSummary(
-        connection({ change_events_enabled: true } as Partial<CloudConnection>),
-      ),
+      statusSummary(connection({ change_events_enabled: true } as Partial<CloudConnection>)),
     ).toMatchObject({ label: "Live", detail: "Listening for changes" });
   });
 

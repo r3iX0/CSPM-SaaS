@@ -30,13 +30,7 @@ const MIN_REASON = 10;
  * One bar for one risk or fifty, because the API takes both the same way and
  * applies a decision to all of them or to none.
  */
-export function RiskTriageBar({
-  selected,
-  onDone,
-}: {
-  selected: Risk[];
-  onDone: () => void;
-}) {
+export function RiskTriageBar({ selected, onDone }: { selected: Risk[]; onDone: () => void }) {
   if (selected.length === 0) return null;
 
   return (
@@ -110,8 +104,7 @@ export function RiskDecisions({
     },
     onError: (err) =>
       toast.error("Nothing was changed", {
-        description:
-          err instanceof ApiError ? err.message : "The API rejected the decision.",
+        description: err instanceof ApiError ? err.message : "The API rejected the decision.",
       }),
   });
 
@@ -193,8 +186,8 @@ export function RiskDecisions({
                 placeholder="Compensating control in place: WAF restricts source addresses"
               />
               <FieldDescription>
-                Recorded in the audit log. Accepted risks stay visible — they are never
-                hidden, and never counted as fixed.
+                Recorded in the audit log. Accepted risks stay visible — they are never hidden, and
+                never counted as fixed.
               </FieldDescription>
             </Field>
             <Field>

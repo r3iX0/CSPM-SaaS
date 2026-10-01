@@ -88,18 +88,15 @@ describe("ScheduleControl", () => {
   });
 
   it("sends the chosen interval in hours", async () => {
-    const patch = vi
-      .spyOn(api, "patch")
-      .mockResolvedValue({ data: connection(), meta: {} });
+    const patch = vi.spyOn(api, "patch").mockResolvedValue({ data: connection(), meta: {} });
 
     mount(connection());
     await choose("Every day");
 
     await waitFor(() =>
-      expect(patch).toHaveBeenCalledWith(
-        "/api/v1/cloud-connections/c1/schedule",
-        { scan_interval_hours: 24 },
-      ),
+      expect(patch).toHaveBeenCalledWith("/api/v1/cloud-connections/c1/schedule", {
+        scan_interval_hours: 24,
+      }),
     );
   });
 
@@ -107,18 +104,15 @@ describe("ScheduleControl", () => {
     // Zero would be rejected by the API's lower bound, and the customer would
     // be told their choice was invalid for choosing the one option that always
     // is.
-    const patch = vi
-      .spyOn(api, "patch")
-      .mockResolvedValue({ data: connection(), meta: {} });
+    const patch = vi.spyOn(api, "patch").mockResolvedValue({ data: connection(), meta: {} });
 
     mount(connection({ scan_interval_hours: 24 }));
     await choose("Only when I ask");
 
     await waitFor(() =>
-      expect(patch).toHaveBeenCalledWith(
-        "/api/v1/cloud-connections/c1/schedule",
-        { scan_interval_hours: null },
-      ),
+      expect(patch).toHaveBeenCalledWith("/api/v1/cloud-connections/c1/schedule", {
+        scan_interval_hours: null,
+      }),
     );
   });
 
