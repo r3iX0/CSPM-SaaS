@@ -309,7 +309,7 @@ log.warning("rules.sync_failed", rule_id=rule.rule_id, error=str(exc))
 | Import style | symbols or modules | modules only | — | symbols | Every existing module does; consistency wins |
 | Throwaway name | — | — | `__` | `_` | Ruff's dummy-variable convention and the codebase |
 | Exception suffix | `Error` | `Error` | — | domain names | `N818` is ignored deliberately (`pyproject.toml`) |
-| Docstring sections | — | `Args/Returns/Raises` | — | prose | The codebase explains *why*, often with a DECISIONS § |
+| Docstring sections | — | `Args/Returns/Raises` | — | prose | The codebase explains _why_, often with a DECISIONS § |
 | Logging | — | `%`-patterns | — | structlog event + fields | Constant event names, queryable fields |
 | `@staticmethod` | — | never | — | discouraged in new code | Existing uses are not churned |
 | `from __future__ import annotations` | — | yes | — | no | 3.12 doesn't need it; runtime annotation readers do |

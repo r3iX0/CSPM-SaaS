@@ -49,6 +49,7 @@ Microsoft's admin consent screen. The customer's Global Administrator signs
 in and approves the Graph permissions.
 
 Microsoft redirects to CloudGuard's consent callback. The callback:
+
 - Verifies the HMAC-signed state token
 - Writes `tenant_id` from Entra (sole authority for tenant binding)
 - Acquires a Graph token and reads back CloudGuard's service principal
@@ -61,6 +62,7 @@ Microsoft redirects to CloudGuard's consent callback. The callback:
 ### Phase 2 — Deploy Scanner Role
 
 The customer's connection card now shows:
+
 1. A success banner: "Consent granted for tenant {name}"
 2. An explanation: "CloudGuard needs read-only access to your Azure
    resources. This deploys a custom role with 30 specific read
@@ -71,7 +73,7 @@ The customer's connection card now shows:
 
 The button links to Azure Portal's ARM template deployment page:
 
-```
+```text
 https://portal.azure.com/#create/Microsoft.Template/uri/{encoded-template-url}
 ```
 
@@ -80,12 +82,14 @@ The template URL points to CloudGuard's `/template` endpoint (signed token,
 reviews it, and clicks "Create."
 
 The ARM template creates two resources in one deployment:
+
 - **Custom role definition** — "CloudGuard Security Scanner" with the 30
   read actions
 - **Role assignment** — assigns that role to CloudGuard's service principal
   at the chosen scope
 
 After the customer returns from Azure Portal, CloudGuard auto-validates:
+
 - Polls every 10 seconds via `GET /cloud-connections/{id}`
 - Backend probes ARM access (`list_subscriptions`, `list_resources`)
 - On success: sets `rbac_verified_at`, status = ACTIVE
@@ -102,7 +106,8 @@ include/exclude toggles.
 ### ARM — Custom Role (30 actions, v1)
 
 > **Superseded 2026-08-28.** The role is now only the actions the collector
-> actually calls -- 13 then, 14 since inventory moved to Resource Graph. One of the 17 declared ahead of use
+> actually calls -- 13 then, 14 since inventory moved to Resource Graph. One of the 17 declared
+> ahead of use
 > (`Microsoft.Security/autoProvisioningSettings/read`) is not a real provider
 > operation, and ARM validates role definitions atomically, so it failed every
 > deployment. See `AZURE_INTEGRATION.md` §"The role is exactly what the scanner
@@ -111,7 +116,7 @@ include/exclude toggles.
 Always a custom role named "CloudGuard Security Scanner." No permission
 mode choice exposed to the customer.
 
-```
+```text
 # Existing (13)
 Microsoft.Resources/subscriptions/read
 Microsoft.Resources/subscriptions/resources/read
@@ -155,7 +160,7 @@ Phase 2 will add ~25 more read actions for full CIS coverage.
 Declared on the CloudGuard app registration. Customers see these on the
 consent screen.
 
-```
+```text
 # Existing (5)
 Directory.Read.All
 User.Read.All
@@ -237,7 +242,7 @@ Pre-launch MVP — no production data exists. Single Alembic migration.
 
 ### Fields kept
 
-```
+```text
 id                          UUID PK
 organization_id             UUID (RLS)
 provider                    VARCHAR(16)
@@ -279,7 +284,7 @@ Unchanged.
 After consent callback records tenant binding, the backend attempts
 validation whenever `GET /cloud-connections/{id}` is polled:
 
-```
+```text
 if consent_status != GRANTED:
     skip
 
@@ -350,6 +355,7 @@ nothing.
 ### New components
 
 **`ConnectionForm`** — creation + consent redirect:
+
 - Name input + scope radio group (conditional ID field for MG/subscription)
 - "Connect with Microsoft" button
 - On submit: `POST /cloud-connections` → redirect to consent URL
@@ -401,6 +407,7 @@ customer will ever be asked to grant.
 ### Verification
 
 After configuring, the consent flow should:
+
 1. Show the customer all 10 permissions on Microsoft's consent screen
 2. Create the enterprise app with those permissions granted
 3. Allow `find_service_principal()` to succeed immediately (it queries

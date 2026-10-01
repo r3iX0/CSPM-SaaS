@@ -1,6 +1,7 @@
 # CloudGuard — Roadmap (Post-MVP)
 
-Architecturally anticipated, **not implemented in the MVP** — extension points only. Nothing in this file should influence what gets built now; see `PRODUCT_SPEC.md` §5 for explicit non-goals.
+Architecturally anticipated, **not implemented in the MVP** — extension points only. Nothing in this
+file should influence what gets built now; see `PRODUCT_SPEC.md` §5 for explicit non-goals.
 
 ---
 
@@ -19,7 +20,7 @@ always apply:
 `/compliance` screens. See `DECISIONS.md` §"Compliance mappings drive a coverage
 view".
 
-```
+```text
 Technical Control → Evidence → Requirement → Framework
 ```
 
@@ -31,14 +32,16 @@ against ISO does not have to read past three others.
 
 ## AI — CloudGuard Copilot
 
-Explains findings, generates summaries, answers questions from CloudGuard's own structured data. Never becomes the security authority:
+Explains findings, generates summaries, answers questions from CloudGuard's own structured data.
+Never becomes the security authority:
 
-```
+```text
 Azure → Rules → Findings → Risk → Evidence → AI       (correct)
 Azure → AI → security decision                         (never)
 ```
 
-AI is not required for the product to function. No hallucinated findings, ever — Copilot only narrates what the deterministic engine already produced.
+AI is not required for the product to function. No hallucinated findings, ever — Copilot only
+narrates what the deterministic engine already produced.
 
 Interface shape for later:
 
@@ -54,9 +57,12 @@ class AIProvider:
 
 ## Advisor Mode
 
-Lets a cybersecurity consultant create clients, connect their Azure, run assessments, generate reports, help remediate, and move into continuous monitoring. A plausible Albania go-to-market channel. `ADVISOR` role already exists in the schema (`ARCHITECTURE.md` §5) so this is cheap to build later.
+Lets a cybersecurity consultant create clients, connect their Azure, run assessments, generate
+reports, help remediate, and move into continuous monitoring. A plausible Albania go-to-market
+channel. `ADVISOR` role already exists in the schema (`ARCHITECTURE.md` §5) so this is cheap to
+build later.
 
-```
+```text
 Advisor → Create Client → Connect Azure → Assessment → Report
         → Help Client Remediate → Continuous Monitoring
 ```
@@ -65,9 +71,10 @@ Advisor → Create Client → Connect Azure → Assessment → Report
 
 ## MSP Mode
 
-Not started. Eventually: multi-client dashboard, delegated administration, white-label reports, billing, alerts.
+Not started. Eventually: multi-client dashboard, delegated administration, white-label reports,
+billing, alerts.
 
-```
+```text
 MSP
 ├── Client A
 ├── Client B
@@ -80,7 +87,9 @@ MSP
 
 ## Multi-Cloud
 
-`CloudResource` / `RawSnapshot` / `NormalizedState` / `SecurityRule` / `Finding` / `Risk` stay cloud-neutral so AWS and GCP connectors can be added under `connectors/` without reshaping the core (`ARCHITECTURE.md` §6).
+`CloudResource` / `RawSnapshot` / `NormalizedState` / `SecurityRule` / `Finding` / `Risk` stay
+cloud-neutral so AWS and GCP connectors can be added under
+`connectors/` without reshaping the core (`ARCHITECTURE.md` §6).
 
 Designed in `MULTI_CLOUD.md`: which seams already hold, the region dimension AWS
 introduces and Azure does not, how trust is established per provider, and why
@@ -100,25 +109,29 @@ vocabulary (§17).
 
 ## Business Model
 
-```
+```text
 FREE SECURITY SNAPSHOT → PAID ASSESSMENT → MONTHLY CSPM → ADVISOR → MSP
 ```
 
-`subscriptions` / `plans` / `usage` kept as a separate schema concern; no pricing hardcoded, no billing built now.
+`subscriptions` / `plans` / `usage` kept as a separate schema concern; no pricing hardcoded, no
+billing built now.
 
 ---
 
 ## North Star Metric
 
-**Verified Risk Reduction** — open risk score before remediation minus open risk score after verified remediation (`RISK_ENGINE.md`). Supporting metrics: risks discovered, risks fixed, critical risks eliminated, time-to-remediation, coverage.
+**Verified Risk Reduction** — open risk score before remediation minus open risk score after
+verified remediation (`RISK_ENGINE.md`). Supporting metrics: risks discovered, risks fixed, critical
+risks eliminated, time-to-remediation, coverage.
 
 ---
 
 ## Long-Term Direction
 
-```
+```text
 Azure CSPM → Continuous Monitoring → Compliance → Multi-cloud (AWS, GCP)
            → AI Copilot → Advisor Platform → MSP Portal → CNAPP
 ```
 
-The MVP proves the Layer 1 (security engine) + core Layer 2 (remediation loop) only — see `PRODUCT_SPEC.md`. Everything in this file is Layer 3 and beyond.
+The MVP proves the Layer 1 (security engine) + core Layer 2 (remediation loop) only — see
+`PRODUCT_SPEC.md`. Everything in this file is Layer 3 and beyond.

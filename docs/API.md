@@ -4,14 +4,15 @@
 >
 > - [Interactive API Playground & Docs](api/index.html)
 > - [OpenAPI 3.1.0 Specification (JSON)](api/openapi.json)
-> - Spec generator script: [`apps/api/scripts/generate_openapi.py`](../apps/api/scripts/generate_openapi.py)
+> - Spec generator script:
+>   [`apps/api/scripts/generate_openapi.py`](../apps/api/scripts/generate_openapi.py)
 
 ## 1. Endpoints
 
 Every path below is prefixed `/api/v1`. This list is generated from the routers
 under `app/api/routes/` — if it disagrees with them, they are right.
 
-```
+```text
 POST   /organizations                      GET    /organizations
 GET    /organizations/{id}                 PATCH  /organizations
 DELETE /organizations/{id}
@@ -107,13 +108,13 @@ instead (DECISIONS.md §158).
 endpoint rather than a status value because it takes a reason and an approver.
 
 `/cloud-connections/{id}/recheck` is a POST because it is a probe rather than a
-read. The GET validates a connection only while it is *unverified* — that is
+read. The GET validates a connection only while it is _unverified_ — that is
 what the setup wizard polls — so on a working connection it re-read the same row
 and repainted the same answer, including a role version that had not been looked
 at since the connection was created. This asks Azure two questions: whether the
 read still works, and which role it works through, resolved from the actions on
 the definitions the scanner's principal is actually assigned. A failed probe
-leaves the recorded state alone; proving access is *gone* is
+leaves the recorded state alone; proving access is _gone_ is
 `/check-revoked`'s job, where the customer has asked that question deliberately.
 
 `/cloud-accounts` is **read-only** except for `/context`: an account is a
@@ -122,7 +123,7 @@ consent to, or validate there. Scoping one in or out is a PATCH on its
 connection, not a delete — a deleted row would return on the next discovery run.
 
 `/context` is the exception, and a principled one: everything else about a cloud
-account records what Azure said, while a declaration records what a *person*
+account records what Azure said, while a declaration records what a _person_
 said. A customer marking a subscription production beats any amount of tag
 inference, and there was previously nowhere to put the answer. The PUT replaces
 the whole declaration rather than patching it — a field left out is one the
@@ -135,7 +136,7 @@ A declaration is applied by the next evaluation of the subscription — the next
 scan, or a replay of its latest capture — and never rescores stored findings on
 the spot. A risk score is what a scan concluded, and rewriting one from an API
 call would leave findings carrying numbers no observation ever produced. It is
-also applied as a *floor*: it can raise an asset's criticality above what the
+also applied as a _floor_: it can raise an asset's criticality above what the
 capture supported but never lower it, so the worst a mistaken declaration can
 do is over-rank something. `GET /assets/{id}` returns a `context` block giving
 each value's source and confidence alongside it.
@@ -154,8 +155,8 @@ compliance claim with no date on it.
 Three endpoints are unauthenticated by necessity, all protected by an
 HMAC-signed token rather than a session: `/cloud-connections/azure/consent/callback`,
 which Entra's redirect reaches from the customer's browser;
-`/cloud-connections/{id}/template`, which Azure Portal fetches *from the
-customer's browser* for the Deploy to Azure button — the reason it is also the
+`/cloud-connections/{id}/template`, which Azure Portal fetches _from the
+customer's browser_ for the Deploy to Azure button — the reason it is also the
 one endpoint answering `Access-Control-Allow-Origin: *`; and
 `/events/azure/{connection_id}`, which Azure Event Grid delivers to when their
 environment changes. All three are `include_in_schema=False`: they are reached
@@ -207,7 +208,7 @@ finding would be a filter rule inside a fortnight.
 
 `meta.unread` and the list come from one read of the same rows, so a badge
 cannot say three above a panel showing two. `POST /notifications/read` moves the
-caller's watermark to *now* rather than to the newest stored row — the sweep
+caller's watermark to _now_ rather than to the newest stored row — the sweep
 runs on a timer, and reading to the newest row would mark something seen before
 it was written.
 
@@ -235,11 +236,11 @@ questions. `coverage` is the share of checks that reached a verdict;
 over the newest reading of each scope and evidence key rather than from the last
 scan's finish time — a scan may carry a reading forward instead of re-taking it,
 and a carried reading keeps the time it was collected. The headline is the
-*oldest* of those readings, because an average would let a hundred fresh
+_oldest_ of those readings, because an average would let a hundred fresh
 listings hide the one subscription nobody has managed to read since Tuesday.
 
 `/assets` returns `provider_resource_id` on every row, not only on the detail.
-It is the one field that says where an asset *sits*: an ARM id spells out its
+It is the one field that says where an asset _sits_: an ARM id spells out its
 own subscription and resource group, so a client can group an inventory by scope
 without a request per row. The row `id` is a CloudGuard identifier and names
 nothing in the customer's cloud — the ARM id is what they can search for in
@@ -396,7 +397,7 @@ those under `none`, because the dashboard's region map links to them
 
 `/attack-paths/choke-points` answers a different question from the list: not
 which routes exist but which single change closes the most of them. `severs` is
-what actually closes, computed for *every* link in one forward pass per entry
+what actually closes, computed for _every_ link in one forward pass per entry
 point rather than by verifying a shortlist (DECISIONS.md §122); `on_routes` is
 the larger count of routes the link merely sits on, carried beside it because
 the gap is the point — a link on twenty routes that closes three is a link with
@@ -444,7 +445,7 @@ this endpoint and on `/attack-paths`: "mi-app can act over sub-prod" names
 nothing anybody can go and change, and "(Contributor)" does.
 
 `/findings/{id}/provenance` answers "how do you know?" — the readings the
-finding rests on, each with the listing it came from, when the *provider* was
+finding rests on, each with the listing it came from, when the _provider_ was
 read, the actions the read was made under, and the hash of the payload. The
 finding's own `evidence` block is an excerpt of what the rule saw; this is the
 citation for it, and the difference is whether a customer has to accept the
@@ -513,7 +514,7 @@ technical report). Omit the parameter for all of them; pass it empty for none,
 which is a posture-only report. An unknown name is refused with 422 rather than
 ignored — a misspelling that silently produced a document without the section
 somebody asked for is the one failure a report cannot afford. Whatever is left
-out is *named on the cover as excluded*, so a reader downstream can tell a
+out is _named on the cover as excluded_, so a reader downstream can tell a
 choice from an absence of evidence. The posture block and the evidence caveats
 are not optional either way.
 
@@ -521,7 +522,7 @@ are not optional either way.
 second request each. `coverage.categories` is the last scan's evidence grouped
 by category with an `incomplete` count — PARTIAL counts with FAILED, because a
 truncated listing cannot support "none of them are public" — so a reader is told
-*which* part of the estate could not be read rather than only how much.
+_which_ part of the estate could not be read rather than only how much.
 `top_risks[]` carries `kind` and the three context levels the score was built
 from (`internet_exposure`, `data_sensitivity`, `asset_criticality`), which are
 already columns on the row and cost no extra query; they let a rank be read as a
@@ -637,9 +638,10 @@ refusal is 429 `RATE_LIMITED` with `Retry-After` (DECISIONS.md §161).
 
 ## 3. Authentication
 
-```
+```text
 React → Supabase Auth → JWT → FastAPI → Validate JWT → Get user ID
       → Get organization membership → Check role → Perform operation
 ```
 
-The frontend may use the Supabase publishable key. **Never** expose the Supabase service-role/secret key in the browser. See `SECURITY.md`.
+The frontend may use the Supabase publishable key. **Never** expose the Supabase service-role/secret
+key in the browser. See `SECURITY.md`.

@@ -75,7 +75,7 @@ Tests run in CI on every push ([`.github/workflows/ci.yml`](.github/workflows/ci
 which provisions PostgreSQL and Redis as service containers. That is the
 supported way to run them.
 
-```
+```text
 backend    1774 tests   pytest, ruff, mypy
 frontend    354 tests   vitest, tsc
 ```
@@ -89,7 +89,7 @@ the test suite and the demo seed.
 
 ## Layout
 
-```
+```text
 apps/api/app/
 ├── core/          config, RLS-scoped sessions, auth, errors, enums
 ├── domain/        cloud-neutral resource model the rules operate on
@@ -160,11 +160,11 @@ settle a step another worker has taken over. See
 **Compliance is evidence, never a verdict.** The `/compliance` view maps rules
 to CIS Azure 2.0, ISO 27001, GDPR and NIST CSF controls — including the controls
 nothing checks, so coverage cannot read 100% by omission. A control whose rules
-returned UNKNOWN is *inconclusive*, not passing, and the headline figure counts
+returned UNKNOWN is _inconclusive_, not passing, and the headline figure counts
 conclusions rather than passes. "78% GDPR compliant" is a sentence this product
 must never produce. Each control also carries the provider readings its verdict
 rests on — which listing, when it was taken, under what permission, whether the
-bytes are still stored — for the controls that *passed* as much as the ones that
+bytes are still stored — for the controls that _passed_ as much as the ones that
 failed, and the whole assessment exports as CSV or JSON.
 
 **CloudGuard's API never handles a password or a customer credential.** Sign-in

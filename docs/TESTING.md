@@ -6,7 +6,7 @@
 
 Every rule, tested against **fixture data**, not a live or mock connector:
 
-```
+```text
 tests/fixtures/
 ├── secure/            # the check passes
 ├── vulnerable/        # the check fails
@@ -15,7 +15,7 @@ tests/fixtures/
                        # end-to-end pipeline test
 ```
 
-```
+```text
 test_public_rdp_detected()       # RDP open      -> FAIL
 test_public_rdp_not_detected()   # RDP restricted -> PASS
 test_public_rdp_unknown()        # not an NSG     -> NOT_APPLICABLE
@@ -36,13 +36,13 @@ Test the risk formula (`RISK_ENGINE.md`) across the range, e.g.:
 
 ## 3. RLS Tests
 
-```
+```text
 User A → Organization A
 ```
 
 must never be able to access:
 
-```
+```text
 Organization B
 ```
 
@@ -52,7 +52,8 @@ This is a required, automated test category — not manual QA. See `SECURITY.md`
 
 ## 4. API Tests
 
-Cover: authentication, authorization, tenant isolation, scan creation, finding retrieval, remediation actions.
+Cover: authentication, authorization, tenant isolation, scan creation, finding retrieval,
+remediation actions.
 
 ---
 
@@ -83,7 +84,7 @@ responses rather than calling a live tenant on every commit.
 
 ## 6. What actually runs
 
-```
+```bash
 apps/api    pytest -q                  # unit; no database needed
             pytest -q -m integration   # needs live PostgreSQL (CI provisions it)
             ruff check . && mypy app

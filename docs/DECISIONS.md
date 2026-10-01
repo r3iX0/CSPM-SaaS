@@ -57,7 +57,7 @@ OWNER/ADMIN. Covered by `test_cannot_add_self_to_another_organization`.
 entry is the reason it changed rather than a live disagreement.
 
 Requirement 9 says every scan stores a snapshot, and the value of that snapshot
-is that it holds the provider's *own* JSON, so a scan can be re-evaluated later
+is that it holds the provider's _own_ JSON, so a scan can be re-evaluated later
 against improved rules. Going through SDK model objects would mean deserializing
 Azure's JSON into Python objects and then serializing it back out again — losing
 fidelity for no gain. The management SDKs are also synchronous, which fits
@@ -71,7 +71,7 @@ calls. `app/connectors/azure/client.py`.
 ## 4. Relationship edges are stored once, indexed both ways
 
 `resource_relationships` stores an edge in its natural direction (an NSG
-*protects* a VM). Both endpoints need to query it, though: AZ-NET-001 asks an
+_protects_ a VM). Both endpoints need to query it, though: AZ-NET-001 asks an
 NSG what it is attached to, AZ-CMP-001 asks a VM what guards it. Rather than
 writing each edge twice, `RuleContext` derives the reverse index at
 construction. `get_related` / `get_related_inverse`.
@@ -133,13 +133,13 @@ and a narrow re-check could report a fix that a wider view would contradict.
 
 Production authentication is Supabase Auth. The browser signs in one of four
 ways — Microsoft (Entra ID), email and password, a magic link, or a password
-reset — and sends the resulting JWT to this API, which only ever *verifies* it
+reset — and sends the resulting JWT to this API, which only ever _verifies_ it
 (`app/core/security.py`). The API cannot tell the routes apart and does not need
 to: it checks the signature and reads the user id.
 
 Microsoft is offered first because this is an Azure-first product; the account
 someone signs in with is usually the same directory account that later grants
-admin consent. That sign-in grants CloudGuard no access to Azure *resources* —
+admin consent. That sign-in grants CloudGuard no access to Azure _resources_ —
 scanning access is the separate consent flow in `AZURE_INTEGRATION.md`.
 
 Passwords are Supabase's to hold. One typed into `SignInPage` is posted directly
@@ -171,17 +171,17 @@ entire environment at import and refuses to start if anything is missing.
 
 Three things follow, and the third is the point:
 
-* **The dev sign-in route is deleted**, not disabled. It minted a valid token
+- **The dev sign-in route is deleted**, not disabled. It minted a valid token
   for any email address with no password. Gating it behind an environment check
   meant one wrong variable turned it back on in a deployment — as nearly
   happened when Railway's "suggested variables" pre-filled `APP_ENV=development`
   from `.env.example`. Code that cannot be reached by accident is code that is
   not there. `app/core/security.py` now only verifies tokens; the test suite
   signs its own.
-* **`APP_ENV` defaults to `production`** and no longer accepts `development`.
+- **`APP_ENV` defaults to `production`** and no longer accepts `development`.
   A forgotten variable fails closed rather than silently relaxing every check.
   `test` is the only exemption and exists for CI.
-* **Database engines are built lazily.** Removing the localhost defaults meant
+- **Database engines are built lazily.** Removing the localhost defaults meant
   `create_async_engine("")` ran at import and broke test collection. Importing a
   module should not open a connection pool anyway, so `get_app_engine()` /
   `get_owner_engine()` construct on first use.
@@ -191,7 +191,6 @@ and the 45 integration tests need the PostgreSQL that CI provisions. The
 tradeoff is that a whole class of "worked locally, insecure in production" bug
 is now unrepresentable — which for a security product is the right side to
 err on.
-
 
 ## 14. Resource Graph reads inventory; ARM reads everything a rule judges
 
@@ -208,18 +207,18 @@ tail of a list nobody saw.
 
 The split is deliberate and narrow:
 
-* **Resource Graph collects inventory only.** Its rows are a projection of
+- **Resource Graph collects inventory only.** Its rows are a projection of
   ARM's own state and can be minutes stale — fine for "what exists here",
   wrong for the configuration a rule passes or fails on. Every listing a rule
   reads stays on ARM, where the snapshot keeps the provider's JSON verbatim
   (§3), so replay is unaffected.
-* **`ResourceGraphClient` is a separate class,** not more methods on
+- **`ResourceGraphClient` is a separate class,** not more methods on
   `ArmClient`. Same host and same retry behaviour; different paging
   (`$skipToken` rather than `nextLink`), different quota (per principal rather
   than per subscription), different error surface. One class would put two
   paging models behind one name and leave a reader unable to tell which one a
   call is subject to.
-* **The projection excludes `properties`.** Inventory answers what exists;
+- **The projection excludes `properties`.** Inventory answers what exists;
   carrying configuration here would hold a second, staler copy of data no rule
   reads in every snapshot.
 
@@ -228,7 +227,7 @@ The split is deliberate and narrow:
 published RBAC operations reference on 2026-08-30 — it is real, and described
 as "Submits a query on resources within specified subscriptions, management
 groups or tenant scope", so the template deploys. Whether Resource Graph
-actually *checks* it is not established: the service documents its requirement
+actually _checks_ it is not established: the service documents its requirement
 as read access to the resources being queried, and its only documented 403 is a
 subscription list the caller cannot read. Granting it is the cheaper side of
 that uncertainty, and the connection probe (§14, validation) will settle it —
@@ -248,7 +247,7 @@ Those two limits multiply, and nothing owned the product. A wave of nine tasks
 with eight detail calls apiece is seventy-odd requests against one
 subscription, and the number moves every time a task joins the plan. Azure
 answers that with 429s, which the retry path turns into wall-clock time and,
-past the retry budget, into recorded gaps: a scan that collects *less* because
+past the retry budget, into recorded gaps: a scan that collects _less_ because
 it asked for more at once.
 
 `RequestLimiter` caps what Azure actually meters. One limiter per scan is
@@ -297,7 +296,7 @@ the storage account as it is now, or the word means nothing.
 So `EvidenceKey.reuse_window` defaults to `None` — read it again — and a window
 is granted per key, by the provider that produces it, only where a stale reading
 cannot change a verdict. Being expensive to collect or slow to change are
-reasons to *want* a window; they are not reasons one is safe. Exactly one Azure
+reasons to _want_ a window; they are not reasons one is safe. Exactly one Azure
 key qualifies today: `role_definitions`, the catalogue of what each role
 permits, several hundred near-static rows per subscription that no rule reads.
 Role assignments are deliberately excluded on the same reasoning inverted —
@@ -306,7 +305,7 @@ fails the build if any key some rule reads is ever given a window.
 
 A carried reading is recorded COMPLETE, because that is what it was: age is not
 incompleteness, and degrading it to PARTIAL would tell every rule reading it to
-return UNKNOWN. Its evidence row keeps the *original* `collected_at`, so the
+return UNKNOWN. Its evidence row keeps the _original_ `collected_at`, so the
 next scan's freshness question is asked about the read rather than about the
 last scan that reused it — otherwise one reading renews itself for ever.
 
@@ -326,13 +325,13 @@ a pure function of a capture, and a declaration is not in the capture.
 
 `app/context/` now holds inference and resolution separately. `infer()` stays
 pure and runs in the normalizer's path; `resolve()` applies declarations in the
-pipeline, where the database is — read at *evaluation* time rather than frozen
+pipeline, where the database is — read at _evaluation_ time rather than frozen
 into the capture, so marking a subscription production changes how its findings
 rank today, including on a replay of an older reading.
 
 **Every value carries its source.** `ContextSource` runs NONE → INFERRED →
 TYPE_FLOOR → PROVIDER_TAG → INHERITED → CUSTOMER, and confidence is a property
-*of* the source rather than a column beside it, so the two cannot drift apart —
+_of_ the source rather than a column beside it, so the two cannot drift apart —
 there is no reading of "a naming guess, confidence 0.95" worth being able to
 express. `GET /assets/{id}` returns the pair, because the value alone cannot be
 argued with: "CRITICAL" invites the question "says who", and the answer used to
@@ -344,7 +343,7 @@ was declared — but an asset carrying its own `criticality=critical` tag is the
 more specific of the two facts, and lowering it to the subscription's level
 would discard the better one. So the higher value wins and the declaration wins
 ties. The consequence is the property that makes this safe to hand a customer:
-nothing declared can make an asset look *safer* than the capture already showed,
+nothing declared can make an asset look _safer_ than the capture already showed,
 so the worst a mistaken declaration does is over-rank something.
 
 Environment is the exception to the floor, because a name has no maximum: a
@@ -377,7 +376,7 @@ Marking a task done recorded a timestamp and told the customer to run a scan.
 If they did, and if that scan happened to produce a PASS on the same rule and
 asset, the finding resolved. Every part of that is a coincidence: nothing
 recorded what CloudGuard was expecting to see, nothing looked again on its own,
-and every way of *not* being verified came out as the same silence — the finding
+and every way of _not_ being verified came out as the same silence — the finding
 stayed open and the customer was told nothing.
 
 `remediation_verifications` holds the expectation, written when the claim is
@@ -409,7 +408,7 @@ seen the check fail is the stronger and truer statement.
 **A scan settles only what it read.** Spending an attempt on a subscription the
 scan never opened would burn the customer's answer on a reading that never
 looked at their fix. A pending verification the scan reached no verdict on
-*does* count as an attempt, recorded as UNKNOWN — the scan covered the scope and
+_does_ count as an attempt, recorded as UNKNOWN — the scan covered the scope and
 said nothing about that asset, usually because the asset is no longer there, and
 without that a verification whose asset vanished would stay pending for ever
 with the scheduler starting scans to settle it.
@@ -431,7 +430,7 @@ it: they are different claims about the same pair of nodes, one saying what a
 principal may do today and the other that the ceiling is whatever it decides to
 give itself.
 
-Whether to draw it is decided by the role *definition*, and that is the entire
+Whether to draw it is decided by the role _definition_, and that is the entire
 difficulty of this feature. **Owner and Contributor both carry
 `actions: ["*"]`.** The only thing separating them is that Contributor excludes
 `Microsoft.Authorization/*/Write` in its `notActions`. A check that matched role
@@ -492,7 +491,7 @@ a week and comes back is one asset with two events rather than two assets.
 answer different questions for different readers: the audit log is "what has
 anybody in this organization done", for a security reviewer; the timeline is
 "what happened to this finding", for whoever is looking at it. Only the second
-can be complete, because only it holds the transitions a *scan* made, which no
+can be complete, because only it holds the transitions a _scan_ made, which no
 person did -- and that distinction is the point, since a scan observing a check
 pass is verification while a person moving a status is a decision.
 
@@ -609,15 +608,15 @@ everything above `CloudConnector` is provider-neutral.
 That claim was false in three places, and each was invisible to every test of
 behaviour because with one provider they all give the right answer:
 
-* the scan pipeline imported Azure's evidence-key enum to ask which keys a
+- the scan pipeline imported Azure's evidence-key enum to ask which keys a
   permission category holds, so a second connector's categories would have
   degraded no rules at all;
-* the permissions endpoint returned Azure's grants for every provider, so the
+- the permissions endpoint returned Azure's grants for every provider, so the
   first AWS customer would have been told CloudGuard wanted Entra admin consent;
-* the change-event service hard-coded ARM operation names and the `az` command.
+- the change-event service hard-coded ARM operation names and the `az` command.
 
 All three now ask the connector or the registry. `get_connector_class` answers
-the questions that are properties of a *provider* rather than of a connection to
+the questions that are properties of a _provider_ rather than of a connection to
 one, so nothing needs credentials to ask what permissions a cloud wants.
 `get_change_feed` does the same for change events, which arrive before any
 connection has been resolved.
@@ -630,7 +629,7 @@ package to get a HMAC.
 
 **One exception is scheduled rather than accidental.**
 `services/cloud_connections.py` still imports Azure's auth, client and RBAC
-modules, and `MULTI_CLOUD.md` §8 step 5 deliberately puts that split *after* a
+modules, and `MULTI_CLOUD.md` §8 step 5 deliberately puts that split _after_ a
 second connector exists: it is a refactor whose right shape is knowable from two
 examples and guessable from one. It is named in the test, so it stays one known
 exception rather than becoming a habit — a new leak appears in the failure
@@ -665,7 +664,7 @@ meaning: `destructive` says "this button deletes something" and `critical` says
 "an attacker can reach your data", and a design system that collapsed the two
 would eventually paint a cancel button and a public storage account the same
 colour. `tailwind.config.js` therefore carries both layers, and
-`SeverityBadge` is deliberately *not* shadcn's `Badge`.
+`SeverityBadge` is deliberately _not_ shadcn's `Badge`.
 
 UNKNOWN keeps its dashed border and gains an icon. Colour alone would hide the
 product's most important distinction — "we could not look" versus "we looked and
@@ -676,7 +675,7 @@ call sites keep passing `title`/`subtitle`/`action` to a card while the
 primitives underneath changed. Every one of them has since moved to the composed
 API, so the file was deleted rather than left as a second way to build the same
 card. `StatusPill` moved out first: it is security vocabulary, not chrome --
-RESOLVED means *a scan observed the fix* -- and it now sits in
+RESOLVED means _a scan observed the fix_ -- and it now sits in
 `components/security/` beside `SeverityBadge`, which is where a reader would
 look for it.
 
@@ -743,7 +742,7 @@ because each one is a limit rather than a feature.
 was built `GET /findings` had no text search; §27 has since added one, and the
 palette could now use it. It still does not, because the rows it would return
 are the same rows the findings page ranks and filters properly -- the palette
-is for jumping to a *thing*, and a finding is reached through its rule
+is for jumping to a _thing_, and a finding is reached through its rule
 (`/findings?rule_id=`) or its asset. What the palette must never do is the
 option that was rejected outright: filtering the loaded page in the browser,
 which would search a hundred findings out of thousands and report "nothing
@@ -778,7 +777,7 @@ then did with those rows: the findings page searched and sorted them **in the
 browser**. Search over one page of an estate answers "no findings match" for
 data that was never in the browser to match against, and a client-side "worst
 first" puts the CRITICAL on page four below the LOW on page one. In a product
-whose entire claim is *we tell you what matters*, both are wrong answers rather
+whose entire claim is _we tell you what matters_, both are wrong answers rather
 than missing features.
 
 So `search` and `sort` moved into the endpoints (`docs/API.md`), the pages
@@ -898,8 +897,8 @@ So these render a real `Link` wearing the button's classes --
 `className={buttonVariants({ variant, size })}`, wrapped in `cn()` when there
 is anything to merge -- which is shadcn's own recipe for this case. `Button` is
 kept for things that act rather than navigate. The rule is worth stating because
-the wrong version reads as more idiomatic: *if it changes the URL it is a
-`Link`, whatever it looks like.*
+the wrong version reads as more idiomatic: _if it changes the URL it is a
+`Link`, whatever it looks like._
 
 ---
 
@@ -913,27 +912,27 @@ activity window: verified fixes, completed work, and how much of the trend line
 is drawn) and `sections` (a comma-separated subset of top risks, attack paths,
 compliance, remediation, findings). Two of those sections are new content
 rather than new switches: the report can now carry the shortest attack paths
-with the link worth cutting, and remediation progress with work *claimed* and
-fixes *proved* side by side and never summed.
+with the link worth cutting, and remediation progress with work _claimed_ and
+fixes _proved_ side by side and never summed.
 
 Three rules hold the shape:
 
-* **The posture block and the evidence caveats are not optional.** Coverage,
+- **The posture block and the evidence caveats are not optional.** Coverage,
   staleness and collection failures are the terms every number in the document
   is read on. A report that could drop "12% of checks reached no verdict" would
   let somebody produce a cleaner-looking PDF by unticking a box, which is the
   same transformation — "we could not look" into "we looked and it was fine" —
   that this product refuses everywhere else.
-* **What was left out is printed on the cover.** Once a PDF has been forwarded
+- **What was left out is printed on the cover.** Once a PDF has been forwarded
   twice, an omission somebody chose looks exactly like an absence of evidence,
   and only one of those is true.
-* **An absent `sections` means all of them; an empty one means none.** The two
+- **An absent `sections` means all of them; an empty one means none.** The two
   are distinguished rather than collapsed, because collapsing them would make
   the emptiest request produce the fullest document. An unknown section name is
   a 422 rather than a silent omission.
 
 **The window does not touch the posture, and that is deliberate.** A score, the
-open findings and the severity split are a reading of *now*. Giving them a date
+open findings and the severity split are a reading of _now_. Giving them a date
 range would invite "our score over the last quarter", which no scan can answer
 and which this product does not measure. What the window legitimately bounds is
 activity — fixes verified, work completed — and the trend, which is cut to the
@@ -961,14 +960,14 @@ internet and customer data is not a medium problem.
 
 `GET /findings/{id}/attack-paths` answers it. Three choices in that shape:
 
-* **Its own endpoint, not a field on the finding.** It costs a graph build, and
+- **Its own endpoint, not a field on the finding.** It costs a graph build, and
   the page that answers "what is wrong" must not wait on one. The panel is
   fetched after the page renders; a finding with no asset never asks at all.
-* **Membership is asked of the whole route.** A misconfiguration on the jump
+- **Membership is asked of the whole route.** A misconfiguration on the jump
   box at the start and one on the storage account at the end are the same
   problem seen from two ends. The response says which by way of `asset_role`
   (`ENTRY`/`STEP`/`TARGET`), because that is what decides the action.
-* **An empty answer is not an all-clear, and does not read as one.** What counts
+- **An empty answer is not an all-clear, and does not read as one.** What counts
   as sensitive is declared per subscription, so an estate that has classified
   nothing yields no routes. The panel says that in as many words rather than
   printing a reassuring dash.
@@ -998,7 +997,7 @@ group, so no level of the tree is ever assembled out of something it only
 partly has.
 
 **The resource group is read, not stored.** An ARM id spells out its own
-subscription and resource group, so the fifth segment *is* the group —
+subscription and resource group, so the fifth segment _is_ the group —
 `split_part(provider_resource_id, '/', 5)`, positional because ARM treats
 `/resourcegroups/` and `/resourceGroups/` as the same path, and guarded by an
 `ILIKE '/subscriptions/%'` so a directory principal's id is never sliced into
@@ -1024,13 +1023,13 @@ The bridge was not enough, and the way it failed is the point: **v3 does not
 error on v4 syntax, it emits nothing.** Four constructs in the vendored
 components compiled to empty:
 
-* `p-(--card-spacing)`, `w-(--anchor-width)`, `origin-(--transform-origin)` —
+- `p-(--card-spacing)`, `w-(--anchor-width)`, `origin-(--transform-origin)` —
   the parenthesis shorthand. Cards lost every scrap of internal padding;
   popovers, selects and tooltips lost their anchor sizing.
-* `[--card-spacing:--spacing(4)]` — emitted the literal `var(--spacing(4))`,
+- `[--card-spacing:--spacing(4)]` — emitted the literal `var(--spacing(4))`,
   which is not a value, so the variable was never set either.
-* `in-data-[...]`, `@container/...` — dropped variants.
-* `ring-foreground/10` — an opacity modifier against an oklch `var()` colour,
+- `in-data-[...]`, `@container/...` — dropped variants.
+- `ring-foreground/10` — an opacity modifier against an oklch `var()` colour,
   which v3 cannot compute. **This is the one that was visible from across the
   room.** The class was dropped while the `ring-1` beside it survived, so every
   card, dropdown and tooltip fell back to Tailwind's default ring colour —
@@ -1077,23 +1076,23 @@ what order they go in, and order is most of what a dashboard is.
 The page now reads top to bottom as one argument, each step the precondition for
 the next: where the posture stands and which way it moves; what that number is
 made of; how much of the estate the opinion was formed from; what to deal with
-and what those faults form *together*; whether any of it is being fixed; what
+and what those faults form _together_; whether any of it is being fixed; what
 moved while you were away.
 
 Four choices in that shape are load-bearing:
 
-* **Coverage is third, not last.** A score computed over half an environment is
+- **Coverage is third, not last.** A score computed over half an environment is
   a different claim from the same number over all of it. Placed after the risk
   list, the caveat arrives once the reader has already acted.
-* **UNKNOWN is in the severity strip**, at the end and labelled "no verdict".
+- **UNKNOWN is in the severity strip**, at the end and labelled "no verdict".
   It is not a fifth severity and never a pass, but a reader tallying what is
   wrong has to see what could not be answered in the same glance rather than
   further down the page.
-* **A ranked risk carries the terms it was ranked by.** The list is the
+- **A ranked risk carries the terms it was ranked by.** The list is the
   product's whole argument and used to ask the reader to take it on trust; the
   three context levels are already columns on the risk row, so a rank now reads
   as a reason.
-* **Inventory counts are not headline figures.** Assets and resource counts are
+- **Inventory counts are not headline figures.** Assets and resource counts are
   true and answer a different question; every pixel one takes is a pixel not
   spent on what is wrong. They remain on the pages that are about them.
 
@@ -1104,7 +1103,7 @@ two panels nobody scrolls to first. Both fail quietly — a dashboard that canno
 draw its last panel is still a dashboard.
 
 **Two small backend additions, both aggregation only.** `coverage.categories`
-(one grouped read of the evidence table) says *which* part of the estate could
+(one grouped read of the evidence table) says _which_ part of the estate could
 not be read, because "identity is unreadable" and "storage is unreadable" call
 for different people to fix them. `top_risks[]` gained `kind` and the three
 context levels, which were already loaded on the row.
@@ -1126,29 +1125,29 @@ start disagreeing about it.
 ## 38. Every chart has to earn its form
 
 **Spec:** none. A request for "prettier, with charts" — which is a request to
-*show* more, and the way that goes wrong is showing it in shapes that flatter
+_show_ more, and the way that goes wrong is showing it in shapes that flatter
 the data.
 
 Five forms, each chosen by the question rather than by variety:
 
-* **Rings only for a whole divided in two or three.** Coverage — reached a
+- **Rings only for a whole divided in two or three.** Coverage — reached a
   verdict versus did not — and finding status. A ring encodes one share well
   and comparison badly, so nothing ranked is ever drawn as one.
-* **Severity is a single stacked bar**, not a five-slice pie: lengths on one
+- **Severity is a single stacked bar**, not a five-slice pie: lengths on one
   line are compared exactly, angles around a circle are not, and it costs 8px
   of height rather than a panel.
-* **Risk bands and framework coverage are bars from a common baseline**, which
+- **Risk bands and framework coverage are bars from a common baseline**, which
   is the form a ranking asks for. Both are plain elements — a list of widths
   does not need a charting runtime, a canvas and a resize observer.
-* **The posture trend is an area on a fixed 0–100 axis**, with the score bands
-  painted behind it at 8% so the height *means* something without the line
+- **The posture trend is an area on a fixed 0–100 axis**, with the score bands
+  painted behind it at 8% so the height _means_ something without the line
   changing colour as the data does. Every reading is dotted, because the points
   are the moments CloudGuard actually looked and a smooth line between them
   invites belief in measurements that were never taken.
-* **The estate treemap is the one place area is the right encoding.** A tree
+- **The estate treemap is the one place area is the right encoding.** A tree
   names the parts and a table ranks them; neither answers "is my problem
   concentrated or spread out", which decides whether a customer sends one team
-  or six. Tint is a *rate* — findings per asset — so a large group is not darker
+  or six. Tint is a _rate_ — findings per asset — so a large group is not darker
   merely for being large.
 
 **Sparklines carry the series the payload already had and nothing rendered.**
@@ -1171,7 +1170,7 @@ figure, which would make an untouched page twitch three times a minute. Charts
 animate once on mount and not on update. Lists stagger by 30ms and cap at eight
 rows, past which it reads as a slow page rather than as arrival.
 `prefers-reduced-motion` is honoured globally in `index.css` and again per
-component, and it degrades to the *finished* state rather than a slower one.
+component, and it degrades to the _finished_ state rather than a slower one.
 
 **One backend addition:** `remediation_activity`, eight weeks of findings
 raised, verified fixed, and reopened, read from the transition log. Reopenings
@@ -1235,7 +1234,7 @@ closes — so `GET /risks` now applies it by default. Asking for a status by nam
 still reaches the rest, which is how a resolved risk is looked up rather than
 lost.
 
-**The rule is *settled*, not *strict*, and the difference matters.** A risk is
+**The rule is _settled_, not _strict_, and the difference matters.** A risk is
 hidden when its findings say it is over, never merely because they fail to say
 it is current: a risk linked to no finding at all stays listed. The link table
 is the only thing that could vouch for such a row, so its absence is not
@@ -1253,7 +1252,7 @@ syntax that is silently inert rather than loudly wrong.
 
 **A select whose value is the empty string had no label.** `SelectField` treated
 empty as "nothing selected" and fell through to the placeholder, but the
-schedule control's "Manual scanning only" *is* the empty value, so that control
+schedule control's "Manual scanning only" _is_ the empty value, so that control
 rendered blank — which reads as broken rather than as switched off. Options are
 consulted first now, empty string included.
 
@@ -1364,7 +1363,7 @@ Four connections as four stacked cards answered "how is this one connection
 doing" four times, and never answered the question the page is actually opened
 for: is every environment being read, and how recently. That is a comparison, so
 the shape is a row — connection, status, subscriptions, last read — with
-everything needed to *act* behind a disclosure rather than in front of it.
+everything needed to _act_ behind a disclosure rather than in front of it.
 
 Column labels sit above the rows, but this is not a `<table>`. Every row opens
 into a two-column panel, which a table cell cannot hold without colspan
@@ -1394,7 +1393,7 @@ Each subscription row carries its own history — first seen, new since last rea
 excluded by you and when. `scope_changed_at` (migration 0021) is stamped only
 when the flag actually flips, so a screen re-sending rows it displayed cannot
 move the date on subscriptions nobody touched. Without it the product could say
-*that* a subscription was excluded and never *when*, which is the difference
+_that_ a subscription was excluded and never _when_, which is the difference
 between a decision somebody made in August and an environment that has been
 silently unscanned for as long as anyone can remember. Long estates collapse
 behind a count rather than pushing the panels beside them off the screen.
@@ -1436,7 +1435,7 @@ means, not a bug in this one.
 
 **A rule may declare that its findings are one risk.** `AZ-ID-001` fails once
 per privileged account without a second factor, and each of those is separately
-fixed and separately verified, so the *findings* stay per resource. As forty
+fixed and separately verified, so the _findings_ stay per resource. As forty
 risks it was forty rows saying one sentence, and forty Critical deductions —
 which pins the org security score at zero over a single Conditional Access
 policy that was never written. The remediation the rule itself prints is one
@@ -1734,7 +1733,7 @@ than the question is asked.
 frequently corresponds to no finding at all — the shared role assignment may be
 perfectly ordinary in isolation. Turning one into a queue item would mean
 minting work with no finding behind it, which is a decision about what the queue
-*is*, not a detail of this analysis.
+_is_, not a detail of this analysis.
 
 ---
 
@@ -1756,7 +1755,7 @@ because a chart lives inside a card.
 there, as it has to be, and white on it is unreadable. The fix is
 `text-background` rather than a new token: it is white in light mode and near
 black in dark, it was already the idiom two lines away in the same component,
-and it cannot drift from the surface because it *is* the surface.
+and it cannot drift from the surface because it _is_ the surface.
 
 **Two statuses were written in Tailwind palette classes.** `bg-stone-50` and
 `bg-white` in `format.ts` do not flip with the theme, so on a dark page the
@@ -1794,7 +1793,7 @@ capture is what lets a scan be re-evaluated against improved rules, a payload is
 what a citation points at — and neither reason survives indefinitely.
 
 **The newest capture of each scope is never pruned, whatever the window says.**
-It is what an *applied* replay reads: replaying the newest snapshots may resolve
+It is what an _applied_ replay reads: replaying the newest snapshots may resolve
 findings, while every older one is `evaluation_only` and may not. Pruning it
 raises nothing — it turns "did the fix work" into an advisory answer, months
 later, on the path the north-star metric runs through. So it is excluded by
@@ -1820,7 +1819,7 @@ reports the payload as unavailable rather than offering a link that fails. That
 was designed in §50's neighbourhood before there was anything to prune; this is
 the entry that makes use of it.
 
-Evidence *rows* are deliberately not pruned. They are one row per key per
+Evidence _rows_ are deliberately not pruned. They are one row per key per
 subscription per scan against a payload that is the listing itself, and deleting
 the record of what was read to save the size of the record of what was read is
 the wrong trade — it is also the trade that makes an old finding unanswerable.
@@ -1849,7 +1848,7 @@ TTL would reintroduce exactly that, on a timer.
 
 The version is four aggregates: the newest `cloud_resources.updated_at`, the
 newest `resource_relationships.created_at`, and a count of each. The counts are
-not redundant. A scan that only *removed* something moves no timestamp — the
+not redundant. A scan that only _removed_ something moves no timestamp — the
 rows that remain were not touched, and the one that went is not there to carry
 a time — so without the asset count the graph would go on serving routes
 through something no longer in the estate, and without the edge count it would
@@ -1882,9 +1881,9 @@ capture every night**, for as long as retention keeps it.
 That is worth fixing by making `cloud_snapshots` a manifest — the keys and
 hashes of its readings — and rebuilding the capture from blobs on replay. It is
 not worth doing on an assumption, which is why `test_evidence_store.py` has
-carried the precondition since evidence was per-key: *replay reads
+carried the precondition since evidence was per-key: _replay reads
 `cloud_snapshots` and must keep doing so until reconstruction holds against real
-scans.*
+scans._
 
 So the gate ships before the change. `TestCaptureReconstruction` asserts, on a
 real pipeline run, that the stored readings rebuild the capture exactly, and
@@ -1909,7 +1908,7 @@ would quietly destroy a capture that is inside its own window.
 
 §53 named the waste and shipped the gate. `TestCaptureReconstruction` passed
 against real scans, so the flip: `cloud_snapshots` stores everything the capture
-recorded *except* the payloads, plus the content hash of each reading. The
+recorded _except_ the payloads, plus the content hash of each reading. The
 payloads live once in `evidence_blobs`, shared by every scan that read identical
 bytes.
 
@@ -1956,7 +1955,7 @@ The fix is 0029 and a changed question. The default goes, and the rows already
 written that way are set back to NULL — guarded on `manifest IS NOT NULL`,
 which names exactly the captures written since 0027 and cannot touch a pre-0027
 capture that genuinely held an empty object. And `_rebuild_capture` now decides
-the form from the *manifest*, because the manifest is the thing that is present
+the form from the _manifest_, because the manifest is the thing that is present
 in one form and absent in the other. A column with a default cannot answer "did
 anybody write this", and the general lesson is that a nullable column is only a
 reliable "unset" signal once its default is gone too.
@@ -1977,12 +1976,12 @@ listing, and neither does a capture rebuilt from a manifest, which is why §54
 surfaced it.
 
 `RuleEngine._run_per_resource` now records one UNKNOWN when a rule matched
-nothing *and* its declared `requires_evidence` names a listing that failed. The
+nothing _and_ its declared `requires_evidence` names a listing that failed. The
 two conditions together are the whole point: no resources plus no error is a
 customer who has none of them, which is NOT_APPLICABLE and correctly excluded
 from the coverage ratio; no resources plus a failed listing is nobody having
 looked. The gap carries no `resource_id`, because there is no asset to
-attribute it to — that absence *is* the finding about the scan.
+attribute it to — that absence _is_ the finding about the scan.
 
 **A request must not commit the transaction it was handed.**
 `rls_session` wraps a whole request in `session.begin()` and declares who is
@@ -1993,8 +1992,8 @@ settings every RLS policy reads. `commit_unless_externally_managed` exists for
 exactly this, and is a no-op under a session that owns its transaction.
 
 `set_change_events` called `session.commit()` directly, the only one of eleven
-writes in that file that did. Turning change detection *off* worked, because
-nothing ran afterwards. Turning it *on* did not: the route goes on to build the
+writes in that file that did. Turning change detection _off_ worked, because
+nothing ran afterwards. Turning it _on_ did not: the route goes on to build the
 Event Grid wiring commands, which reads the connection's subscriptions, and
 that read ran as the bare `cloudguard_app` role with no claims.
 
@@ -2007,7 +2006,7 @@ those too.
 **And the failure was invisible from the browser, which is the worse half.**
 The API registered handlers for `AppError`, `HTTPException` and
 `RequestValidationError`, and nothing else. Anything unanticipated escaped to
-Starlette's `ServerErrorMiddleware`, which sits *outside* `CORSMiddleware`, so
+Starlette's `ServerErrorMiddleware`, which sits _outside_ `CORSMiddleware`, so
 its 500 carried no `Access-Control-Allow-Origin` and the browser refused to
 read it. `fetch` then rejected with `TypeError: Failed to fetch` — what a
 browser says when a request never arrived at all. So a server-side bug was
@@ -2026,7 +2025,7 @@ security product.
 
 ## 56. Rules are bounded by collectors, not by ambition
 
-The catalogue went from 10 rules to 17, and what decided *which* seven is worth
+The catalogue went from 10 rules to 17, and what decided _which_ seven is worth
 recording, because the obvious approach produces a worse product.
 
 A CSPM is expected to check key vault configuration, database auditing, disk
@@ -2039,14 +2038,14 @@ evidence keys that exist, and grows when a collector does.
 
 **The RBAC family needed no new collection, and that is why it went first.**
 Role assignments were already read for the graph. What was missing was smaller
-and stranger: the normalizer recorded a role's *name* only on principals it
+and stranger: the normalizer recorded a role's _name_ only on principals it
 minted, never on directory users, on the stated grounds that a traversal reads
 the edges anyway. True of a traversal, false of a rule — an edge says a
 principal reaches a scope and cannot say as what. "This named person holds Owner
 over your subscription" was therefore a fact CloudGuard collected, drew a line
 for, and could not state. Three rules fell out of fixing that one line.
 
-`AZ-IAM-003` reads the role *definition's permissions* rather than its name,
+`AZ-IAM-003` reads the role _definition's permissions_ rather than its name,
 because Owner and Contributor both carry `actions: ["*"]` and only Contributor
 excludes the assignment write. A name-based check would flag every Contributor
 on nearly every subscription in existence, which is how a whole feature gets
@@ -2060,7 +2059,7 @@ been answered from last week's catalogue — `_REUSE_WINDOWS` is now empty. Ever
 rule must carry a machine-readable remediation, and the RBAC rules legitimately
 have no expected state, so they take the documented empty form that owes a
 reason and a command. And `applies_when` could only express metadata, so
-`AZ-DB-002` — whose expectation is about a database *holding sensitive data* —
+`AZ-DB-002` — whose expectation is about a database _holding sensitive data_ —
 was handed a synthetic asset it declined to judge, and its round-trip test
 passed by never running. It now accepts the classification fields the normalizer
 computes.
@@ -2086,8 +2085,8 @@ public internet, which authorization model it uses. It grants nothing over the
 keys, secrets and certificates inside, which live behind
 `Microsoft.KeyVault/vaults/secrets/read` and a separate permission model that
 CloudGuard does not request and should never request. A product that can tell a
-customer their vault is destroyable *without being able to read a single secret
-in it* is making a stronger claim than one that can do both, and a test asserts
+customer their vault is destroyable _without being able to read a single secret
+in it_ is making a stronger claim than one that can do both, and a test asserts
 the role holds no other `Microsoft.KeyVault/` action so that stays true.
 
 **The role is versioned, so the cost lands as a prompt rather than a 403.**
@@ -2121,8 +2120,8 @@ therefore live for every existing customer with no redeploy, which is worth more
 than the two vault rules that need one.
 
 The two logging rules divide cleanly and must keep doing so. AZ-LOG-001 asks
-whether a resource records what happens *to* it; AZ-LOG-002 asks whether the
-subscription records *who did it*, across every resource including the ones that
+whether a resource records what happens _to_ it; AZ-LOG-002 asks whether the
+subscription records _who did it_, across every resource including the ones that
 no longer exist. A test asserts AZ-LOG-002 applies to subscriptions and nothing
 else — if both claimed the same asset, one problem would be raised twice with
 two different fixes.
@@ -2239,7 +2238,7 @@ shows one by one, and a summary that repeats the thing below it adds a place for
 the two to disagree rather than a fact.
 
 **And making that PARTIAL truthful exposed the next layer of the same
-mistake.** A rule degrades on the evidence *keys* it declares, and the SQL
+mistake.** A rule degrades on the evidence _keys_ it declares, and the SQL
 listing was one key covering three calls -- the servers, their firewall rules,
 and their auditing settings. So the moment a refused auditing read correctly
 made the reading PARTIAL, it also took AZ-DB-001's verdict, over a call that
@@ -2294,7 +2293,7 @@ would be an inventory that miscounts and a graph holding the same thing twice.
 
 **The real Azure type travels with them.** A list row reading "Unknown" would be
 a worse answer than the omission it replaced: the point of showing these is that
-the customer can see *what* is unchecked, not merely how many. `azure_type` is
+the customer can see _what_ is unchecked, not merely how many. `azure_type` is
 null for a modelled asset, whose cloud-neutral label is the better one.
 
 **Exposure stays UNKNOWN rather than LOW.** Resource Graph's projection excludes
@@ -2352,14 +2351,14 @@ nothing about the second and third, and lost the race whenever the machine was
 busy. Every assertion awaits now.
 
 Worth recording how it was nearly missed: the suite had been run as
-`npx vitest run … | tail`, and a pipeline reports the exit code of its *last*
+`npx vitest run … | tail`, and a pipeline reports the exit code of its _last_
 stage, so vitest's failure read as a pass. A verification command that cannot
 fail is not a verification command.
 
 **And a React key warning that had been scrolling past in green runs.** The
 assets table renders each group as a heading row plus its assets, wrapped in a
 `<>` fragment returned from a `.map()`. The rows inside were keyed all along,
-which is what made it look fine — but the *wrapper* is what sits in the list,
+which is what made it look fine — but the _wrapper_ is what sits in the list,
 and the shorthand fragment cannot take a key. React answers a list child it
 cannot identify by reusing the wrong DOM under a changed key: rows appearing
 under the wrong heading after a regrouping, invisible to any test asserting on
@@ -2383,10 +2382,11 @@ it in place, it passes.
 ## 61. Three more frameworks, and no new scanning
 
 NIST SP 800-53 Rev. 5, the SOC 2 Trust Services Criteria and PCI DSS v4.0.1 are
-now catalogued. None of them cost a rule. That is the whole point of the mapping layer: a rule is the
+now catalogued. None of them cost a rule. That is the whole point of the mapping layer: a rule is
+the
 reusable unit, a framework is a set of references to it, and a seventh catalogue
 is a data change rather than a scanning engine. A test asserts every rule maps
-to all three, and that no rule was written *for* any of them — a rule named after a
+to all three, and that no rule was written _for_ any of them — a rule named after a
 standard would be the same technical check duplicated per standard, which is the
 failure the compliance layer exists to prevent.
 
@@ -2398,7 +2398,7 @@ authoritative text.
 
 **SOC 2 is the easiest page in this product to overreach on**, and the catalogue
 is shaped to make that hard. Its criteria are mostly about whether an
-organization *has* a control and operates it — CC1 through CC5 are control
+organization _has_ a control and operates it — CC1 through CC5 are control
 environment, communication, risk assessment, monitoring and control activities,
 and a scanner reads none of them. Nine of twenty-seven criteria are technically
 assessable and the rest are listed unassessable rather than omitted, so the page
@@ -2436,7 +2436,7 @@ PCI's uncovered controls also divide cleanly in a way worth keeping visible.
 `9.1.1`, `11.4.1`, `12.1.1` and `12.10.1` — physical access, penetration
 testing, policy, incident response — are marked unassessable because no scanner
 reaches them. `5.2.1`, `6.3.3` and `11.3.1` — anti-malware, patching,
-vulnerability scanning — stay *assessable* and uncovered, because a scanner
+vulnerability scanning — stay _assessable_ and uncovered, because a scanner
 could report them and this one does not collect the evidence. Backlog and never
 are different answers and the catalogue distinguishes them.
 
@@ -2522,12 +2522,12 @@ three. So every tenant that has ever consented to this application granted them
 at the moment they clicked, and the two gaps are collector work under permissions
 already in hand — no redeploy, no re-consent, nothing to ask a customer for.
 
-* Credential expiry reads `/applications` and `/servicePrincipals` for
+- Credential expiry reads `/applications` and `/servicePrincipals` for
   `passwordCredentials` and `keyCredentials`, which `Application.Read.All`
   covers.
-* Dormancy needs no new object at all: role members are already collected. The
+- Dormancy needs no new object at all: role members are already collected. The
   missing field is `signInActivity` on `/users`, which Graph gates on
-  `AuditLog.Read.All` *and* `User.Read.All` — both granted.
+  `AuditLog.Read.All` _and_ `User.Read.All` — both granted.
 
 A tenant that consented against an older registration would be the exception,
 and needs no campaign to find: `missing_permissions` reads the granted
@@ -2565,7 +2565,7 @@ not obvious from the outside.
 or expires next week — is one CloudGuard should not ship. An expired secret
 grants nobody anything; an application has stopped working, which the customer's
 own alerting is better placed to notice than a security tool is. What an
-attacker actually gets from an expiry date is its *remaining* life: a secret
+attacker actually gets from an expiry date is its _remaining_ life: a secret
 copied out of a pipeline log today keeps working until the day it was issued
 for. So AZ-APP-001 asks how long a stolen credential would keep working, fails
 above a year, and passes an expired one explicitly.
@@ -2579,7 +2579,8 @@ them means listing every service principal in the tenant — several hundred of
 them Microsoft's — for the handful a customer created. That is the trade the
 Conditional Access collector already made when it read back only the groups a
 policy names: a directory dump for a few ids is worse than the narrower answer,
-and what a customer rotates is the registration. AZ-APP-001's finding says so rather than claiming to cover
+and what a customer rotates is the registration. AZ-APP-001's finding says so rather than claiming
+to cover
 every credential in the tenant.
 
 **A licence is not a consent, and must not be reported as one.**
@@ -2631,7 +2632,7 @@ holding zlib-compressed bytes: roughly a tenth of the size on this input.
 **Nothing was given up, because nothing used it.** A payload is read whole, by
 hash, in `_rebuild_capture` and in the evidence planner, or not at all. There is
 no query anywhere that reaches into one with a JSONB operator, and the rules
-read the *normalized* `CloudResource`, never the stored blob. So the JSONB
+read the _normalized_ `CloudResource`, never the stored blob. So the JSONB
 operators being lost were never load-bearing — which is the only thing that
 makes this a size change rather than a capability change.
 
@@ -2691,7 +2692,7 @@ again elsewhere. What it did not handle is the worker coming back. A process
 paused past its lease -- a throttled container, a database stall, a long
 garbage collection -- has not died, and it finished its collection minutes
 later and marked the step SUCCEEDED while another worker was in the middle of
-the same step. ANALYZE waits on collection *settling*, so the scan then
+the same step. ANALYZE waits on collection _settling_, so the scan then
 interpreted a subscription still being written and reported it as a complete
 reading: the same overclaim as a PASS nobody earned, arriving through the
 orchestrator instead of through a rule. Renewals and settles are now
@@ -2716,7 +2717,7 @@ a capture that will be discarded.
 **One target, one lock.** Starting a scan takes a transaction-scoped advisory
 lock and then checks whether one is already in flight. The lock was keyed on
 whichever ids the caller happened to hold, and the callers do not agree: the API
-and the rescan button pass a connection *and* the subscription they resolved it
+and the rescan button pass a connection _and_ the subscription they resolved it
 from, while the scheduler, the change trigger and the verification sweep pass
 the connection alone. Those are two different locks over one connection, so a
 customer pressing "Scan now" at the moment the scheduler started the same
@@ -2831,7 +2832,7 @@ end.
 
 **At the evidence end it could only explain failure.** A finding cites the
 readings behind it (`finding_evidence`), so "how do you know this is wrong" had
-an answer. A *passing* control has no findings, so it had no citations at all:
+an answer. A _passing_ control has no findings, so it had no citations at all:
 CloudGuard painted a green row and offered nothing to check it against, on the
 one screen somebody might put in front of an auditor. The question an auditor
 actually asks first is the other one -- how do you know this control is met --
@@ -2844,16 +2845,16 @@ which listing, when the provider was read, across how many scopes, under which
 permission, and whether the payload is still stored. Three choices inside that
 are load-bearing:
 
-* **The oldest read and the worst outcome, never an average.** A control is
+- **The oldest read and the worst outcome, never an average.** A control is
   only as current and as complete as the least of the things it rests on.
   Averaging would let forty-nine freshly read subscriptions hide the one nobody
   could read, which is the same overclaim as a PASS nobody earned, arriving
   through arithmetic.
-* **A key nothing read is listed, not omitted.** It reports no outcome rather
+- **A key nothing read is listed, not omitted.** It reports no outcome rather
   than a failure -- the provider did not refuse, nothing asked -- and it is the
   case that matters most, because it is precisely how a control ends up green
   on nothing.
-* **Retention is reported, not assumed.** The blob store is asked which hashes
+- **Retention is reported, not assumed.** The blob store is asked which hashes
   still exist rather than inferring it from the hash being present. A citation
   whose bytes have aged out is still a true statement about what was read, and
   saying so beats offering a link that fails.
@@ -2893,7 +2894,7 @@ that were written; it is the twelve that were asked for and are not here, and
 why each is missing.
 
 **Ten of them already ship under a different id.** A public storage account is
-AZ-STO-001, which covers anonymous blob access *and* an unrestricted network
+AZ-STO-001, which covers anonymous blob access _and_ an unrestricted network
 default; a vault that can be purged is AZ-KV-001; an Any/Any inbound rule is
 AZ-NET-003; a person or workload with subscription-wide control is AZ-IAM-001
 and AZ-IAM-002; an identity that can hand out roles is AZ-IAM-003; a database
@@ -2912,17 +2913,17 @@ workload identity rather than only service principals.
 
 **What is genuinely new falls into four groups.**
 
-*The tenant, rather than anything in it.* AZ-ID-005 asks whether anything
+_The tenant, rather than anything in it._ AZ-ID-005 asks whether anything
 enforces multi-factor authentication at all, and AZ-ID-006 whether legacy
 authentication is blocked. Both are aggregate rules reading Conditional Access
-and security defaults -- data CloudGuard already collected to *lower* findings'
+and security defaults -- data CloudGuard already collected to _lower_ findings'
 scores as compensating controls, and had never read in the other direction. The
 second is the one that matters most in practice: IMAP, POP, SMTP AUTH and
 Exchange ActiveSync cannot present a second factor, so they bypass every policy
 demanding one, and a tenant can enforce MFA everywhere and still accept a
 password on those endpoints.
 
-*The accounts nobody calls an administrator.* AZ-ID-004 asks for a second
+_The accounts nobody calls an administrator._ AZ-ID-004 asks for a second
 factor on ordinary accounts, and is careful to decline the privileged ones,
 which AZ-ID-001 already reports at Critical. AZ-ID-011 and AZ-ID-012 are the two
 states a privileged account can be in that a role review does not show: a guest
@@ -2930,7 +2931,7 @@ whose password and second factor belong to another tenant's administrator, and a
 disabled account whose privilege survived being disabled -- offboarding that
 stopped halfway, one checkbox from being an administrator again.
 
-*Privilege the subscription cannot see.* AZ-IAM-008 reports full control granted
+_Privilege the subscription cannot see._ AZ-IAM-008 reports full control granted
 at a management group or the tenant root, which every subscription beneath it
 inherits, including the ones created next year. AZ-IAM-010 reads the tenant's
 own role definitions: a custom role granting ``*``, or the right to write role
@@ -2939,7 +2940,7 @@ assignments, is Owner under a name a privilege review does not recognise -- and
 is not reported as dangerous. AZ-IAM-005 is the count rather than the holders:
 no single Owner is the one too many, so it cannot be asked per identity.
 
-*Exposure and evidence.* AZ-NET-005 and AZ-NET-008 give SQL and SMB rules of
+_Exposure and evidence._ AZ-NET-005 and AZ-NET-008 give SQL and SMB rules of
 their own, and both ports leave AZ-NET-003's catch-all list in the same change,
 following the convention RDP, SSH and WinRM already set -- a port in both places
 would be that double-reporting again. AZ-NET-015 reports a public address on a
@@ -2989,19 +2990,19 @@ about the estate.
 So the two are separated. A **reading** is identified by key and region; a
 **verdict** is reached per key.
 
-* `CollectionTask` and `TaskResult` carry an optional `region`, and a
+- `CollectionTask` and `TaskResult` carry an optional `region`, and a
   `scoped_key` of `security_groups@eu-west-1`. `None` — every Azure task —
   leaves the scoped key equal to the bare one, so nothing about a
   single-region-free provider changed.
-* `CoverageReport` files results and payloads under the scoped key, so
+- `CoverageReport` files results and payloads under the scoped key, so
   seventeen readings are seventeen rows rather than one overwritten sixteen
   times.
-* `key_is_trustworthy` aggregates back: a key is trustworthy only if **every**
+- `key_is_trustworthy` aggregates back: a key is trustworthy only if **every**
   region's reading of it was. Not any. Sixteen good regions and one denied is a
   partial view of the estate, and "nothing is open" is not a conclusion a
   partial view supports — the same position `PARTIAL` already takes on a
   listing truncated at the page cap.
-* `key_problems()` therefore reports one gap per key and names the regions
+- `key_problems()` therefore reports one gap per key and names the regions
   inside the reason. Per region would hand the rule engine a key it has never
   heard of; without the region a customer would be told their security groups
   failed and left to check seventeen of them.
@@ -3098,7 +3099,7 @@ enum. Every cloud has the same shape — a trust boundary, a grouping inside it,
 and the unit a scan reads — so it is one question with three answers per
 provider:
 
-```
+```text
 Azure   TENANT_ROOT     MANAGEMENT_GROUP      SUBSCRIPTION
 AWS     ORGANIZATION    ORGANIZATIONAL_UNIT   ACCOUNT
 ```
@@ -3136,7 +3137,7 @@ and it is a shape rather than a set of operations:
 1. the customer names a scope and a connection is created;
 2. CloudGuard hands them something to deploy, **generated from the declared
    permission set** rather than hand-maintained;
-3. CloudGuard proves the grant by *using* it, never by being told it exists;
+3. CloudGuard proves the grant by _using_ it, never by being told it exists;
 4. the accounts beneath the scope are discovered rather than typed in.
 
 What differs is how many grants there are. Azure has two that fail
@@ -3157,7 +3158,7 @@ The service kept everything that is the same in every cloud and is most of its
 length: creating and listing connections, the polling loop and its patience
 window, writing discovered accounts and disabling the ones that vanished, the
 scan schedule, the change-event debounce, the scope choices, the audit entries.
-`_auto_discover` is the clearest split — the provider answers *what exists*, and
+`_auto_discover` is the clearest split — the provider answers _what exists_, and
 the neutral half decides what that means for rows already held.
 
 ### Two things this changed on purpose
@@ -3233,7 +3234,7 @@ addressed.
 
 ### The plan's shape is a function of a call
 
-This is the part with no Azure precedent. `ec2:DescribeRegions` is read *before*
+This is the part with no Azure precedent. `ec2:DescribeRegions` is read _before_
 the plan exists, because the plan emits one task per (listing × region) and
 cannot be written without the answer.
 
@@ -3246,7 +3247,7 @@ listing; the executor records them SKIPPED, the gap reaches the rules, and every
 regional check reports UNKNOWN. `test_aws_plan.py` pins it, and the reason is
 written there so the tasks are not removed as redundant.
 
-An account reporting *zero* enabled regions is treated the same way: an empty
+An account reporting _zero_ enabled regions is treated the same way: an empty
 region list is a failure to answer, not an answer.
 
 ### One grant, and where it is kept
@@ -3257,7 +3258,7 @@ and every connector now takes `provider_ref` in its constructor — Azure accept
 it and ignores it, which is what lets the pipeline build a connector for any
 provider without branching on which.
 
-Per *account* rather than per connection, because an organization-wide
+Per _account_ rather than per connection, because an organization-wide
 connection assumes one role in each member account. The same stack is deployed
 everywhere, so the ARNs differ only by account id and discovery can write them
 without asking.
@@ -3309,7 +3310,7 @@ until consent had reported the trust boundary, which is right for Azure and
 would have left every AWS connection permanently PENDING. `has_separate_consent`
 is the flag, and the point of it is that the caller does not branch on provider:
 a cloud without a consent step says so, and the loop probes immediately because
-the stack *is* the grant.
+the stack _is_ the grant.
 
 **One probe sets both columns.** A successful `sts:AssumeRole` proves everything
 there is to prove, so it writes `consent_status`, `consented_at` and
@@ -3381,8 +3382,8 @@ The first draft had rules reading AWS's own payload keys —
 `resource.get("PublicAccessBlock.PublicAccessBlockConfiguration")`. That worked
 and was wrong in two ways at once. It is not what the Azure normalizer does
 (rules there read `allow_blob_public_access`, not an ARM sub-document), and it
-made `RemediationSpec` undeclarable: an expected state names *the field the rule
-reads*, and a nested path is not a field a test can set.
+made `RemediationSpec` undeclarable: an expected state names _the field the rule
+reads_, and a nested path is not a field a test can set.
 
 So the normalizer emits flat fields beside the verbatim payload:
 `public_access_blocked`, `policy_is_public`, `default_encryption_enabled`,
@@ -3418,13 +3419,13 @@ generated, because an unverified one would deploy and check nothing.
 
 Four rules declare `expected=()` outright: the root access key, the password
 policy, CloudTrail coverage and EBS defaults. Each is a statement about the
-*account* or about a set of regions rather than about an asset, so there is no
+_account_ or about a set of regions rather than about an asset, so there is no
 resource an expected state could be checked against. That is the existing escape
 hatch and it comes with the existing price — an empty declaration owes a reason
 and something a customer can still run, and a test enforces both.
 
 The stale-key rule joins them for a different reason worth keeping distinct: its
-expectation is a *threshold over a collection* ("no active key unused for ninety
+expectation is a _threshold over a collection_ ("no active key unused for ninety
 days"), which the three comparisons cannot express. Half-declaring it would let
 a customer satisfy what they were shown and still have the finding open.
 
@@ -3436,12 +3437,12 @@ coverage for reasons that have nothing to do with its security posture — the
 same class of misleading number the coverage ledger exists to prevent, pointed
 the other way (`MULTI_CLOUD.md` §7).
 
-Frameworks written about *organizations* — ISO, GDPR, NIST, SOC 2, PCI — carry
+Frameworks written about _organizations_ — ISO, GDPR, NIST, SOC 2, PCI — carry
 no provider and are always shown. An organization with no connections yet sees
 everything: there is nothing to scope by, and answering "what does this product
 check?" with silence would be worse than showing a benchmark they may not need.
 
-Scoped on *any* connection rather than a verified one, so the AWS benchmark
+Scoped on _any_ connection rather than a verified one, so the AWS benchmark
 appears while a customer is still setting AWS up. A framework at 0% because
 nothing has been scanned yet is an honest zero.
 
@@ -3449,7 +3450,7 @@ nothing has been scanned yet is an honest zero.
 
 Two existing tests were checking every rule against Azure's answer.
 `test_every_rule_depends_on_evidence_something_collects` now looks up the
-producing plan per provider, and a new sibling asserts a rule declares its *own*
+producing plan per provider, and a new sibling asserts a rule declares its _own_
 provider's evidence — a key from the wrong cloud degrades on something that
 never runs, and would never appear in that scan's gaps either.
 
@@ -3532,7 +3533,7 @@ account. An SNS topic with an HTTPS subscription is one more command than Azure
 needs and stores nothing of ours. The topic is theirs, in their account, and
 CloudGuard holds no permission over it — the same trade as the Event Grid
 subscription: CloudGuard generates the commands and the customer runs them,
-because creating any of it is a *write*.
+because creating any of it is a _write_.
 
 ### The handshake is an SSRF if you let it be
 
@@ -3544,7 +3545,7 @@ trust. `confirmation_url` returns the URL only when it matches
 `sns.<region>.amazonaws.com` (or `.com.cn`), and `None` for everything else;
 `None` is refused rather than fetched.
 
-The check lives in the *feed*, not in the endpoint, because the cloud that knows
+The check lives in the _feed_, not in the endpoint, because the cloud that knows
 what its own hosts look like is the one that should be saying. `test_aws_change_events.py`
 pins the four ways this gets written wrongly: a suffix test passes
 `…amazonaws.com.evil.test`, a substring test passes `evil.test/sns.…amazonaws.com`,
@@ -3567,7 +3568,7 @@ nothing should be posting to.
 ### What is filtered, and where
 
 Both feeds filter twice, and for the same reason. The endpoint drops what it
-cannot use anyway; a filter the *provider* applies is traffic that never leaves
+cannot use anyway; a filter the _provider_ applies is traffic that never leaves
 the customer's account. AWS's rule pattern names the nine event sources rules
 actually read, and the endpoint additionally drops reads (`Get`, `List`,
 `Describe`…) and failed calls — a scan started because somebody listed their
@@ -3597,7 +3598,7 @@ is not, which is worse than reporting it uncovered.
 
 `BASELINE_EVIDENCE` is the answer, and it is not a loophole. VPCs, subnets,
 network interfaces, elastic IPs, IAM roles, instance profiles and the account
-list are collected because the *product* is built from them — the inventory, the
+list are collected because the _product_ is built from them — the inventory, the
 graph — not because a rule judges them. Everything else that was unjudged now
 has a rule, and `test_aws_evidence.py` holds the line: every key is produced by
 something, and the ones no rule reads are declared.
@@ -3628,20 +3629,20 @@ is the third, and it is the one people miss.
 
 Four cases were worth the tests they carry.
 
-* **A network ACL's default entry is a deny-all on `0.0.0.0/0`.** Read without
+- **A network ACL's default entry is a deny-all on `0.0.0.0/0`.** Read without
   checking `RuleAction`, every correctly-written ACL in AWS reports as open.
   Egress entries are not ingress, either.
-* **A multi-region CloudTrail trail is returned by every region it covers.**
+- **A multi-region CloudTrail trail is returned by every region it covers.**
   That is what makes coverage answerable (AWS-LOG-001) and what would make every
   other trail rule count one trail seventeen times. `_unique_trails` keys by ARN.
-* **IAM accepts `*` and `*:*` and means the same thing.** A check that knew one
+- **IAM accepts `*` and `*:*` and means the same thing.** A check that knew one
   spelling would pass the other. A statement carrying a `Condition` is not the
   unbounded grant this rule is about.
-* **A flow log or an analyzer in a non-ACTIVE state records nothing.** Reading
+- **A flow log or an analyzer in a non-ACTIVE state records nothing.** Reading
   existence rather than status would pass an account logging nothing.
 
 And one where the honest answer is UNKNOWN: the CloudTrail bucket is very often
-in a *different* account — a dedicated log archive is the shape AWS recommends —
+in a _different_ account — a dedicated log archive is the shape AWS recommends —
 and CloudGuard cannot read a bucket it was not granted. "We could not look" is
 not "logging is off".
 
@@ -3666,8 +3667,8 @@ does.
 
 `DECISIONS.md` §70 kept `tenant_id` and `subscription_id` under Azure's names,
 because `RawSnapshot.to_json` writes them into every stored capture and renaming
-them would make each one unreplayable. That decision was about *identifiers*, and
-it quietly became a decision about *sentences* too — which it was never meant to
+them would make each one unreplayable. That decision was about _identifiers_, and
+it quietly became a decision about _sentences_ too — which it was never meant to
 be.
 
 The result was a product that told an AWS customer "this subscription is no
@@ -3793,7 +3794,7 @@ exists to prevent.
 ## 80. CIS section 4, and the chain a setting cannot express
 
 4.1 and 4.3 were left uncovered in §77 with a stated reason: they need a
-collection the connector did not have, *and* a match against CIS's exact filter
+collection the connector did not have, _and_ a match against CIS's exact filter
 patterns, and a check that got the pattern slightly wrong would report a control
 satisfied that is not. Both halves are now addressed, and the second one is
 addressed by not pretending.
@@ -3802,7 +3803,7 @@ addressed by not pretending.
 
 "Is anybody told when this happens" has six hops:
 
-```
+```text
 trail → CloudWatch log group → metric filter → metric → alarm → alarm action
 ```
 
@@ -3813,7 +3814,7 @@ published, and no alarm was ever created on it. A rule that looked only for the
 filter would pass exactly that account, which is worse than not having the rule,
 because it would be a confident wrong answer about whether anyone is watching.
 
-So `MonitoringCheck` carries *where* the chain stops rather than a boolean.
+So `MonitoringCheck` carries _where_ the chain stops rather than a boolean.
 "No filter" and "a filter with no alarm" are the same verdict and different
 afternoons, and the message says which.
 
@@ -3829,7 +3830,7 @@ that does not exist.
 CIS specifies exact filter patterns. Requiring the literal string would fail
 every team that wrote an equivalent one; evaluating CloudWatch's filter-pattern
 language properly means implementing somebody else's expression grammar, and
-implementing it *nearly* right is worse than not implementing it — a pattern that
+implementing it _nearly_ right is worse than not implementing it — a pattern that
 parses differently to how AWS parses it produces a confident wrong answer, which
 is the failure this codebase refuses everywhere.
 
@@ -3881,7 +3882,7 @@ AWS Support" — was organizational and marked `technically_assessable=False`. T
 was an assumption from the control's wording, and it was wrong. **CIS's own audit
 procedure for it is a single API call:**
 
-```
+```bash
 aws iam list-entities-for-policy --policy-arn arn:aws:iam::aws:policy/AWSSupportAccess
 ```
 
@@ -3890,7 +3891,7 @@ this one call rather than a walk over every principal's attachments. AWS-IAM-009
 asks exactly that question, and the flag on the catalogue entry is now gone.
 
 It is the first rule with `exploitability = 0`, and that is precise rather than
-lazy: there is no attack here at all. The cost is paid *during* an incident
+lazy: there is no attack here at all. The cost is paid _during_ an incident
 rather than caused by one — an account under active abuse needs a case opened
 with AWS, and without this policy attached to somebody the only way in is root,
 which is slow, usually held by one person, and exactly the credential an incident
@@ -3901,8 +3902,8 @@ because a product that only reported what scores would never mention it.
 
 Covering 1.17 took CIS AWS to 31 of 31, and
 `test_catalogue_lists_controls_no_rule_covers` failed — correctly. Its reason is
-in its own name: *"a catalogue of only what CloudGuard checks would report full
-coverage forever."*
+in its own name: _"a catalogue of only what CloudGuard checks would report full
+coverage forever."_
 
 The catalogue was not complete; it was **the controls I had written rules for,
 plus the handful I had written down as gaps.** Full coverage of that is not a
@@ -3941,7 +3942,7 @@ else. No new collector, no new evidence key, no new walk.
 
 The check stays what §80 made it: a **necessary condition**. CloudGuard does not
 evaluate CloudWatch's filter-pattern language, because implementing somebody
-else's expression grammar *nearly* right produces a confident wrong answer. The
+else's expression grammar _nearly_ right produces a confident wrong answer. The
 pattern that matched travels in the finding, so a reader judges it rather than
 trusting this product's opinion of it.
 
@@ -3981,7 +3982,7 @@ ends that assumption without changing anything inside the account.
 Console sign-in failures (4.6) are LOW, and stating why is more useful than the
 number: a password policy and enforced MFA are preventive, CloudGuard checks
 both separately, and this is only detective. It is still reported, because a
-spray that eventually succeeds produces a *successful* sign-in nothing else
+spray that eventually succeeds produces a _successful_ sign-in nothing else
 distinguishes from a Monday morning.
 
 All thirteen keep the family's exploitability of 1. None of them is exploitable;
@@ -4021,7 +4022,7 @@ which is the `Card` primitive's job (§24) copied nine times. `PriorityRisks` an
 `role="region"` carrying the labelling the `<section>` used to, and
 `--card-spacing` set to 5 so their padding still lines up with the seven
 neighbours that have not moved yet. Those seven are a follow-on, not a
-different decision: the two panels here changed because their *content* was
+different decision: the two panels here changed because their _content_ was
 being restyled, and converting the rest is a mechanical edit with no visual
 consequence.
 
@@ -4031,7 +4032,7 @@ The rank was rendered as a small grey `1 2 3` in its own column. The list is
 already in rank order, so the column spent a column restating the reading
 direction. It is replaced by a severity-tinted mark that takes its colours from
 `levelStyle` — the same map `SeverityBadge` reads, so a row's tile and its badge
-can never disagree about what CRITICAL looks like — and its *shape* from what
+can never disagree about what CRITICAL looks like — and its _shape_ from what
 the row is: a route mark for a scenario, a shield for everything else.
 
 The badge moved to the trailing cluster beside the score, where the eye lands
@@ -4065,7 +4066,7 @@ declined before and the reasons it declined them have changed.
 `motion` (framer-motion's current package name) is a dependency. The rule it
 breaks is the useful kind of rule — no runtime for something CSS already does —
 and it is broken for the one case CSS genuinely cannot do in a React SPA:
-*exit*. A route that unmounts has no frames left to animate in, so a page swap
+_exit_. A route that unmounts has no frames left to animate in, so a page swap
 either cuts hard or the outgoing tree has to be kept alive by something that
 knows it is leaving. That is `AnimatePresence`, and it is why `PageTransition`
 exists.
@@ -4079,8 +4080,8 @@ a `<div>`, and the rise is the whole effect.
 
 Reduced motion is answered in one place per layer and nowhere else:
 `<MotionConfig reducedMotion="user">` in `main.tsx` for the runtime, the media
-query in `index.css` for everything else. Both degrade to *the end state,
-immediately* — reduced motion means arriving, not crawling. Nothing below either
+query in `index.css` for everything else. Both degrade to _the end state,
+immediately_ — reduced motion means arriving, not crawling. Nothing below either
 of them checks the preference itself.
 
 The timings live in `lib/motion.ts` as `DURATION` and two easings, not as
@@ -4104,13 +4105,13 @@ tooltip that used to be wired by hand.
 
 Two edits to the vendored source were needed and both are deliberate:
 
-* **The cookie is gone.** Upstream writes `sidebar_state` on every toggle. That
+- **The cookie is gone.** Upstream writes `sidebar_state` on every toggle. That
   would be the only cookie CloudGuard sets, and a security product that plants
   one to remember a rail width has to explain it in a privacy notice. The
   provider is controlled from `Shell` instead, and the preference stays in
   `localStorage` under the same `cloudguard.sidebar.collapsed` key it has always
   used — so nobody's remembered rail is lost.
-* **`useIsMobile` reads its media query up front.** Upstream starts at
+- **`useIsMobile` reads its media query up front.** Upstream starts at
   `undefined` and fills the answer in from an effect, which renders one frame of
   "not mobile" on every phone and trips this project's lint rule against setting
   state in an effect.
@@ -4148,40 +4149,40 @@ typecheck; they were the code being deleted anyway.
 
 ### The rest of the pass
 
-* **Destructive confirmations are `AlertDialog`.** `RemoveConfirm` and
+- **Destructive confirmations are `AlertDialog`.** `RemoveConfirm` and
   `DeleteScanConfirm` announce themselves as `alertdialog` and cannot be
   dismissed by a click on the backdrop. A stray click outside an ordinary dialog
   is a harmless miss; on these two it was the same gesture that deletes an
   environment or purges findings. `DeleteScanConfirm` also stopped being a red
   panel wedged under the scan card it was about to delete.
-* **One pager, and it can jump.** Four pages had copied the same
+- **One pager, and it can jump.** Four pages had copied the same
   Previous / "3 / 9" / Next. `common/Pager.tsx` draws real page numbers with
   first, last, and a window either side, so reaching the end of a four-hundred-
   row findings list is one click rather than eight round trips. `StepPager` is
   the variant for the changes feed, which is windowed by date and has no total —
   inventing one would be a claim the API never made.
-* **Severity is a `ToggleGroup`, not a select.** *Superseded by §85: severity
-  is a `SelectField` again.* Four values plus "all", never changing, the filter
+- **Severity is a `ToggleGroup`, not a select.** _Superseded by §85: severity
+  is a `SelectField` again._ Four values plus "all", never changing, the filter
   the findings and risks pages are actually worked through — laid out, the
   current filter is visible without opening anything. Deselecting the active
   item keeps it: an empty severity filter is not a filter anybody wants.
-* **Change detection is a `Switch`.** A pill reading "Listening for changes"
+- **Change detection is a `Switch`.** A pill reading "Listening for changes"
   beside a button reading "Turn on change detection" stated the same fact twice.
-  The switch is labelled with what the setting is *for* rather than what it
+  The switch is labelled with what the setting is _for_ rather than what it
   currently is, because that is the half that does not change when it moves.
-* **Compliance controls collapse, except the ones that matter.** CIS Azure is
+- **Compliance controls collapse, except the ones that matter.** CIS Azure is
   fifty-six controls; rendering every rule and reading of all of them buried the
   dozen that are wrong under the forty that are not. Failing and inconclusive
   controls arrive expanded, passing and not-covered collapsed — and the verdict
   is always in the trigger, never inside the panel. What a control says is not
   something a reader should have to expand to find out.
-* **Finding titles preview on hover.** The column truncates, which is right for
+- **Finding titles preview on hover.** The column truncates, which is right for
   a table and wrong for the reader opening six rows to find the one they meant.
 
 ### One test-suite change, and it is not about this work
 
 `findByText` waits one second by default — a figure that describes how long a
-*component* takes to settle. These tests mount whole pages inside jsdom, in
+_component_ takes to settle. These tests mount whole pages inside jsdom, in
 parallel across every core, and under that load a page rendering in 200ms alone
 takes several seconds. The failure was always the same shape: a `findByText`
 timing out on text the page does render, in a test that passes on its own. It
@@ -4264,22 +4265,22 @@ exception, below.
 
 ### What each mark says
 
-* **Resource types** — `ResourceTypeLabel` puts the type's icon in front of its
+- **Resource types** — `ResourceTypeLabel` puts the type's icon in front of its
   name in the findings and assets tables, the asset tree, the blast radius, the
   command palette, the change feed and the asset and finding detail pages. The
   icon comes from the neutral type even where the label is the provider's own
   (`azure_type`), so an unmodelled resource still reads as a box.
-* **Risk factors** — criticality, data sensitivity, internet exposure,
+- **Risk factors** — criticality, data sensitivity, internet exposure,
   exploitability and business impact have one icon each, used on the risk
   cards, the risk and finding detail pages, the asset page and the dashboard's
   priority risks.
-* **Facts** — environment, region, first seen, last seen and resolved on the
+- **Facts** — environment, region, first seen, last seen and resolved on the
   detail pages.
-* **Change kinds** — the change feed puts the kind's icon beside its name. The
-  round mark at the start of each row is still *direction* (worse, better,
+- **Change kinds** — the change feed puts the kind's icon beside its name. The
+  round mark at the start of each row is still _direction_ (worse, better,
   neutral), because an exposure change can go either way; kind and direction
   are separate facts and get separate marks.
-* **Page headers** — `PageHeader` takes the page's sidebar icon, so a screen and
+- **Page headers** — `PageHeader` takes the page's sidebar icon, so a screen and
   the entry that opened it are visibly the same place.
 
 ### Filters say which of them are filtering
@@ -4335,8 +4336,8 @@ icon there would cost the asset name its room.
 
 ## 87. A scan is started and followed in a wizard that lives in the shell
 
-*The sheet became a dialog, the result became its own step, and the scan cards'
-own progress went — §154.*
+_The sheet became a dialog, the result became its own step, and the scan cards'
+own progress went — §154._
 
 The scans page started a scan with a subscription select and a button, and
 followed it as a row of chips under a card on that page only. Two things were
@@ -4346,7 +4347,7 @@ wrong with that, and neither was how it looked.
 but a scan is scoped to the subscription's whole connection — the worker
 resolves the subscriptions beneath it. Choosing "Payments" from the select
 scanned Payments and every other subscription in its tenant. The wizard's first
-step chooses an *environment* (a connection), and review lists what is in
+step chooses an _environment_ (a connection), and review lists what is in
 scope with a link to change it on the connections page, rather than offering a
 per-subscription choice the backend would not honour.
 
@@ -4363,17 +4364,17 @@ reads as a broken scan.
 The run step polls `GET /scans/{id}/detail` every 2.5 seconds while the scan is
 in flight and stops when it is not.
 
-* **Plan, Collect, Analyze** are drawn as one track. A connector fills when the
+- **Plan, Collect, Analyze** are drawn as one track. A connector fills when the
   phase before it has finished, however it finished — a partial collection
   still hands over to analysis. The current phase breathes.
-* **Collect is one lane per scope**, with a segmented bar above it: one segment
+- **Collect is one lane per scope**, with a segmented bar above it: one segment
   per scope, coloured by that scope's state. Not a single percentage: one red
   segment in twelve is a gap in a report, and a percentage would average it
   away. Lanes re-sort (running, failed, pending, done) and glide to their new
   place, so on a tenant with forty subscriptions the one that matters stays in
   view. A failed lane carries its error inline, and a retried one says which
   attempt it is on.
-* **Nothing moves on a timer.** There is no progress invented from elapsed
+- **Nothing moves on a timer.** There is no progress invented from elapsed
   time, and ANALYZE stays one node although normalise, evaluate and score would
   be nicer to watch: the durable pipeline reports it as one step, and drawing
   sub-phases it does not report would be animating work nobody measured. Those
@@ -4440,13 +4441,13 @@ change to the durable pipeline's shape for the sake of a label.
 
 Three rules keep it truthful.
 
-* **It is fenced.** `orchestrator.set_phase` updates only where the step is
-  RUNNING *at the attempt it was claimed under*, exactly as `renew` does. An
+- **It is fenced.** `orchestrator.set_phase` updates only where the step is
+  RUNNING _at the attempt it was claimed under_, exactly as `renew` does. An
   interrupted analysis still executing on the old worker cannot write
   "scoring" over the attempt that restarted it.
-* **A reclaim clears it.** `claim` sets `phase` to NULL, so a retried analysis
+- **A reclaim clears it.** `claim` sets `phase` to NULL, so a retried analysis
   starts from no phase rather than inheriting where the failed one stopped.
-* **It is written on its own session, and never fails the step.** Two of the
+- **It is written on its own session, and never fails the step.** Two of the
   three seams fall inside the pipeline's open transaction; a progress mark must
   neither wait for that work nor roll back with it. `_PhaseReporter` opens a
   `scan_session` per mark and logs a write that fails. A missing label costs the
@@ -4623,7 +4624,8 @@ carries the old numbers; the next compliance view shows the corrected ones.
 ### The recording carries the new readings
 
 `tests/fixtures/azure_raw/snapshot_mixed.json` -- replayed by the demo (until
-§102 moved it to a superset) and by the integration suite -- gained the six readings, a managed OS disk and a SQL
+§102 moved it to a superset) and by the integration suite -- gained the six readings, a managed OS
+disk and a SQL
 minimum TLS version, so no new rule is blind on it. Four fail there on purpose:
 an SQL server with no Entra administrator, the Servers plan off, an older storage
 account permitting cross-tenant replication, and a web app with no identity.
@@ -4669,7 +4671,7 @@ a period of five minutes.
 setup screen turns that one bit into a spinner or a green tick. Returning
 ok/not-ok is right -- a connection whose role is still being deployed fails on
 every five-second poll, and none of those failures is an incident. Discarding
-Azure's account of *why* was not: a connection that would never verify looked
+Azure's account of _why_ was not: a connection that would never verify looked
 exactly like one deploying normally, for the thirty minutes before the stalled
 panel appears, and finding out what Azure objected to meant opening Azure's
 portal, because nothing in CloudGuard had written it down.
@@ -4693,7 +4695,7 @@ deployed yet", not a refusal; and `resources_unreadable` is a role that grants
 the subscription listing and nothing beneath it.
 
 The detail is now read for its text. Azure answers an authorization failure with
-JSON, and several things *in front of* Azure answer with an HTML page, which is
+JSON, and several things _in front of_ Azure answer with an HTML page, which is
 itself worth knowing: it says the call never reached the service being asked.
 Reading 200 characters of raw body meant `<!DOCTYPE html PUBLIC "-//W3C//DTD
 XHTML 1.0 Transitional//EN"...` -- a body truncated before the first word that
@@ -4717,12 +4719,12 @@ radio cards shrank to their own content -- the field primitive's label is
 single clearest sign of a screen nobody had looked at. The only way forward was
 a small button below all of it.
 
-Nothing the flow *says* was cut; where each sentence sits changed.
+Nothing the flow _says_ was cut; where each sentence sits changed.
 
 - **Choices are cards, requirements are shown once.** Cloud and scope are
   full-width card groups (`ChoiceCard` in `StepScope`): an icon, a name, one
   line of what it covers, and a tag on the widest ("Full coverage") and the
-  narrowest ("Quickest"). The permission a scope takes to *finish* -- the fact
+  narrowest ("Quickest"). The permission a scope takes to _finish_ -- the fact
   that decides whether setup will succeed -- is printed once, for the scope that
   is selected, directly beneath the group. The reasoning in the old comment
   still holds; it is enforced by position now rather than by repetition.
@@ -4929,7 +4931,7 @@ prerequisite is not done says "After the step before" instead of offering an
 action that cannot work -- a scan with no connection, a declaration with no
 discovered subscription.
 
-Before the first scan the checklist *is* the dashboard, in place of the empty
+Before the first scan the checklist _is_ the dashboard, in place of the empty
 state, and cannot be dismissed into a blank page. After it, it sits compact
 above the score until every step is done, when it disappears, or until it is
 put away. The dismissal is the one thing held in the browser, in `localStorage`
@@ -4941,7 +4943,7 @@ fact about the estate; losing it in a private window costs one click.
 **Filters in the URL.** Findings, risks, assets, rules, changes and a
 framework's verdict filter held their filters in component state, so a filtered
 view vanished on reload, the back button lost it, and "look at the critical
-open findings" could not be sent to anybody. It also broke links *into* views:
+open findings" could not be sent to anybody. It also broke links _into_ views:
 the dashboard's risk-band bars link to `/risks?level=CRITICAL` and landed on the
 unfiltered ranking, the same defect §95 fixed for severity on findings.
 `useUrlFilters` (`lib/`) now holds every filter, sort, view and page in the
@@ -5060,7 +5062,8 @@ paths end to end.
 **Every open finding on an asset is a member.** `_correlate_paths` collected
 open findings into a dict keyed by asset, so a host with five failing checks
 kept whichever row the database returned last. The route was scored from an
-arbitrary member and could move between scans with nothing in the environment moving. It is now a list per asset.
+arbitrary member and could move between scans with nothing in the environment moving. It is now a
+list per asset.
 
 **A scan closes only routes it could have seen.** The existing scenario risks
 are read for the whole organization, but the graph is built from this scan's
@@ -5072,7 +5075,7 @@ stored path belongs to a scope this scan did not read (`_asset_scope`, the same
 predicate the rest of the pipeline uses). An asset with no row left at all
 counts as inside, because it is gone and so is every route through it.
 
-What this does not do: a scan of one subscription still cannot *create* a route
+What this does not do: a scan of one subscription still cannot _create_ a route
 that crosses into another (an identity here holding a role over a subscription
 there), because its graph never contains the far end. It no longer closes one
 either; the next scan whose scope covers the whole route decides. Building the
@@ -5252,7 +5255,6 @@ graph traces; its button opens the graph around the entry point untraced.
 The blast-radius list stays on the asset page as the text form of the same
 reach.
 
-
 ## 102. The demo recording grows an estate, and identities and subscriptions are named
 
 **The demo could not show the graph.** It replayed `snapshot_mixed.json`: ten
@@ -5328,16 +5330,16 @@ lived on the finding, `risks.py` had only reads, and `Risk.owner_id` and
 
 **Decisions taken, and the ones rejected.**
 
-- *The unit of the queue is the risk.* It is scored, deduplicated, and ranks a
+- _The unit of the queue is the risk._ It is scored, deduplicated, and ranks a
   route above its parts. A union of findings and routes at the API was rejected
   -- two score scales and a route counted twice, as itself and as its hops. A
   fix-first queue ("cut this link and four routes close") was rejected as the
   row: a fix has no identity and no status, so nothing can be accepted or
   tracked against it. It becomes a view over the queue, from the choke points.
-- *The page keeps the name Risks and the URL `/risks`.* "Risk" is already the
+- _The page keeps the name Risks and the URL `/risks`._ "Risk" is already the
   product's word for exactly this merged object -- the score, the dashboard and
   RISK_ENGINE.md use it -- and "Issues" would have been a third word for it.
-- *Status stays where the fact is.* A finding risk writes a decision through to
+- _Status stays where the fact is._ A finding risk writes a decision through to
   its findings, because the finding is what compliance cites and what an
   exception hangs off; moving the status onto the risk would have broken both
   and needed a migration of every accepted finding. A route or an escalation
@@ -5345,17 +5347,17 @@ lived on the finding, `risks.py` had only reads, and `Risk.owner_id` and
   "this reach is by design", which is a different claim from accepting any
   finding along it. A false positive stays per finding: it says the rule was
   wrong about that asset, which is never true of a group.
-- *Ownership stays on the remediation task,* which already has `assigned_to`
+- _Ownership stays on the remediation task,_ which already has `assigned_to`
   and `due_date` and is keyed on the finding. `Risk.owner_id` and
   `Risk.due_date` are left unwritten and should be dropped.
-- *Remediation stays a page of its own.* Triage (deciding) and remediation
+- _Remediation stays a page of its own._ Triage (deciding) and remediation
   (doing) are different jobs, often different people, and merging them puts
   the engineer back in the undecided queue.
-- *Attack paths stays, as analysis rather than a list to work.* It is the only
+- _Attack paths stays, as analysis rather than a list to work._ It is the only
   place a route with nothing misconfigured on it is visible -- real reach that
   the scanner deliberately mints no risk for, since no rule objected to it --
   along with choke points, what-if and blast radius.
-- *The findings list leaves the navigation and keeps its URL:* compliance links
+- _The findings list leaves the navigation and keeps its URL:_ compliance links
   to `/findings?rule_id=`, and `/findings/{id}` is the evidence page.
 
 **What this change does.** The backend half:
@@ -5371,8 +5373,8 @@ lived on the finding, `risks.py` had only reads, and `Risk.owner_id` and
   deciding about it decides about.
 
 **Two bugs the queue would have made visible.** `Risk.status` did not mean one
-thing. The scanner set a finding risk OPEN whenever its finding was open *or in
-progress*, so a risk somebody had picked up was untriaged again by the next
+thing. The scanner set a finding risk OPEN whenever its finding was open _or in
+progress_, so a risk somebody had picked up was untriaged again by the next
 scan; accepting one finding of a group marked the whole group accepted; and
 every scan that saw a route set it back to OPEN, undoing an acceptance the
 moment the next reading arrived. Both rules now live in `app/risk/triage.py`
@@ -5389,8 +5391,8 @@ selected rows. The accept dialog says how far the decision reaches -- "40 open
 findings, each recorded as an accepted risk", "1 route marked as by design --
 the findings along it stay open" -- because forty accounts is one click here and
 has to be visible before it rather than discovered after. Rows carry "40
-findings" and "On 2 routes". The status filter's OPEN is labelled *Needs
-triage*, which is what it means in a queue. Top fixes -- the three strongest
+findings" and "On 2 routes". The status filter's OPEN is labelled _Needs
+triage_, which is what it means in a queue. Top fixes -- the three strongest
 choke points -- sit above the list on its unfiltered first page, and only once
 a route is listed, since each costs a re-traversal. Findings left the
 navigation; Attack paths stays beside Risks, and each route card says whether
@@ -5398,7 +5400,8 @@ the queue tracks it (matched by entry and target, which name a route on both
 sides) or is reach with nothing misconfigured on it.
 
 **Not done here.** Exception expiry was recorded and never enforced, which is
-why a route refused one; §104 enforces it. Grouping the queue by asset, rule or route, and a side panel for triage
+why a route refused one; §104 enforces it. Grouping the queue by asset, rule or route, and a side
+panel for triage
 without leaving the list, wait until the queue is in use.
 
 **Shipped broken, and why nothing local caught it.** The first deploy returned
@@ -5460,14 +5463,14 @@ is made, and seen on both.
 view of the risks list showed rows like "Identity can grant itself any role —
 User" three times over, each with the same paragraph under it. Two causes:
 
-- *A principal with no name was named by its type.* A role assignment whose
+- _A principal with no name was named by its type._ A role assignment whose
   principal is not in the directory capture, and is not a workload's
   system-assigned identity (§102), became a node called "User" or
   "ServicePrincipal". It is now the type followed by the first eight characters
   of the object id -- "User 3f2a91c0" -- which tells rows apart and is what a
   person searches Entra for. The directory name, when the capture has it, still
   wins.
-- *A finding risk's description was the rule's rationale,* the same sentence on
+- _A finding risk's description was the rule's rationale,_ the same sentence on
   every row one rule raises. It is now the finding's own message ("User 3f2a91c0
   holds User Access Administrator, which permits writing role assignments"),
   which names the asset and what it holds. A grouped risk keeps the rationale,
@@ -5485,8 +5488,8 @@ next scan of each subscription; nothing is rewritten in place.
 
 **Supersedes the navigation half of §103 and the label half of §105.** The
 findings list is a navigation item again, first under Exposure, above Risks, and
-the risks page's kind segment is labelled *Findings* rather than
-*Misconfigurations*. Taking the list out of the navigation left no direct way to
+the risks page's kind segment is labelled _Findings_ rather than
+_Misconfigurations_. Taking the list out of the navigation left no direct way to
 work finding by finding, which is still how the list is used, and the relabel
 only existed to paper over its absence.
 
@@ -5551,7 +5554,7 @@ now patch `collection` and `capture`, the two modules that build a connector.
 
 **The fence covered the step row and nothing the step wrote (§65).** A step is
 fenced on the attempt it was claimed under: its renewals, its phase marks and
-its settle all refuse to land once the row carries a later attempt. Its *work*
+its settle all refuse to land once the row carries a later attempt. Its _work_
 was not fenced at all. `LeaseKeeper` learns a step was taken on a clock, a third
 of a lease at a time, and ANALYZE commits a dozen times on its way through --
 so a worker that lost its step kept committing findings, risks, resolutions and
@@ -5609,7 +5612,7 @@ profile ever says so.
 
 ## Settings: the evidence a person supplies
 
-`PATCH /organizations` takes no id in the path. Deleting a *different*
+`PATCH /organizations` takes no id in the path. Deleting a _different_
 organization from the one on screen is a real thing to want and DELETE keeps
 its id; editing one is not, so the target comes from the tenant context and the
 membership check has already happened.
@@ -5617,7 +5620,7 @@ membership check has already happened.
 Two write shapes sit on this screen and they are deliberately opposite. The
 organization profile is patched — only the fields sent are written, so saving a
 corrected name cannot clear a country nobody touched. A context declaration is
-a *statement*, replaced whole, so a reader always knows what it currently
+a _statement_, replaced whole, so a reader always knows what it currently
 claims without diffing. `UNKNOWN` is refused by the API and absent from the
 menus for the same reason: it is CloudGuard's own answer for "nothing said
 anything", and a customer declaring it would assert an absence that leaving the
@@ -5643,19 +5646,19 @@ customer controls reaches it.
 **The document is laid out like one.** The report had been a styled web page
 printed onto A4. It is now:
 
-* **A cover.** A full-bleed band with the product mark, the report's name and
+- **A cover.** A full-bleed band with the product mark, the report's name and
   the organization, then when it was generated, when the evidence was
   collected and the activity window. The caveats sit on the cover under "Read
   this first", before any number, as §32 and the Phase 9 note require -- the
   staleness warning still precedes the score in the HTML, and a test still
   says so.
-* **A contents list** with page numbers (`target-counter`), built from the same
+- **A contents list** with page numbers (`target-counter`), built from the same
   conditions the body branches on so it can never name a section the document
   leaves out. Sections are numbered by a CSS counter, so the numbers in the
   contents and on the headings cannot disagree.
-* **Running headers and footers** on every page after the cover: report name,
-  organization, "Confidential", page *n* of *m*.
-* **The posture as a picture as well as numbers.** The score is a ring filled to
+- **Running headers and footers** on every page after the cover: report name,
+  organization, "Confidential", page _n_ of _m_.
+- **The posture as a picture as well as numbers.** The score is a ring filled to
   its share of 100 (`score_ring_svg`, beside `score_trend_svg`: inline SVG
   from a bounded integer, no `xmlns`, so the document still contains no URL at
   all). The ring is ink, not a severity colour -- a score is not a finding.
@@ -5665,7 +5668,7 @@ printed onto A4. It is now:
   assessed", because a 0% bar would read as total failure. Attack paths number
   their steps and set the link to cut apart; findings are cards edged in their
   severity, with remediation in its own block.
-* **"How to read this report"** closes both documents: the score, finding
+- **"How to read this report"** closes both documents: the score, finding
   against risk, verified fixed, accepted risk, no verdict, attack path. A PDF
   is read by people who have never opened CloudGuard, and those are the
   distinctions they would otherwise guess at. It states no figure the body
@@ -5727,13 +5730,13 @@ now has a third view, **Graph**, beside the list and the hierarchy. It answers
 that question by drawing containers instead of assets.
 
 **Containers, not assets.** `GET /attack-paths/estate` draws the estate through
-a *lens*:
+a _lens_:
 
-* With nothing opened, each subscription is a box, and so is the directory.
-* With one subscription opened, its resource groups are boxes, and what sits
+- With nothing opened, each subscription is a box, and so is the directory.
+- With one subscription opened, its resource groups are boxes, and what sits
   directly in it is drawn as itself. Above all that is the subscription
   resource, which is what a role over the subscription lands on.
-* With one resource group opened, its assets are boxes.
+- With one resource group opened, its assets are boxes.
 
 Anything outside the lens is drawn only when reach crosses into or out of it.
 It then appears as the coarsest box that names it: another subscription, or
@@ -5755,7 +5758,7 @@ Back retraces it. Narrowing the list still replaces its entry (§98).
 boxes the map draws the identity hops: `HAS_IDENTITY`, `GRANTS_ROLE` and
 `CAN_GRANT_ROLES`. These are counted by relationship and labelled with the verbs
 a route uses, for example "can act over ×3". A link between two assets in the
-same box is inside it and is not drawn. Containment is what the boxes *are*, so
+same box is inside it and is not drawn. Containment is what the boxes _are_, so
 it is drawn only where an attack path runs along it, unlabelled. Otherwise a
 subscription would carry an edge to every group it holds, and the one route
 through them would be lost among forty statements of where things live. A link
@@ -5812,11 +5815,11 @@ neighbourhood.
 
 **Considered and not built.** Three alternatives were weighed:
 
-* A graph tab that is the neighbourhood with a picker. It would only have moved
+- A graph tab that is the neighbourhood with a picker. It would only have moved
   the asset page's view to another page.
-* A from→to explorer. It overlaps the attack-paths page and belongs there if
+- A from→to explorer. It overlaps the attack-paths page and belongs there if
   anywhere.
-* A layer showing reach that appeared since the previous scan. This is the most
+- A layer showing reach that appeared since the previous scan. This is the most
   distinctive of the three, but it needs a graph built from an older snapshot,
   and the graph is computed on read from present state (`services/graph.py`
   says why). It waits for the per-scan `attack_paths` table that module
@@ -5836,14 +5839,14 @@ id sat in grey type in a card footer with nothing to copy it with.
 
 **What the page is now.**
 
-* **The trail returns to where the reader was.** Every link into an asset from
+- **The trail returns to where the reader was.** Every link into an asset from
   the list, the map, or the map's contents list carries the page's own URL in
   router state. The "Assets" crumb goes back to exactly that: filters, page,
   grouping, or the map as it was opened. Arriving any other way, it goes to
   `/assets`. After it come the subscription and the resource group, each
   linking to the map opened at that level. The map is the one view that shows
   a group as a place.
-* **The header gives the facts a person acts on.** Type, region, environment,
+- **The header gives the facts a person acts on.** Type, region, environment,
   first seen and last scanned sit under the name. **Copy ID** copies the whole
   provider id. **Open in Azure** appears for ARM ids only, and its URL names the
   tenant (`portal.azure.com/#@{tenant}/resource{id}`). Without the tenant, the
@@ -5851,18 +5854,18 @@ id sat in grey type in a card footer with nothing to copy it with.
   tenant (every tenant an MSP manages) reads as "not found". Directory objects
   get no link, because they live under a different Entra blade, and AWS gets
   none because AWS is not in the UI.
-* **A summary strip answers "is this in trouble".** It shows open findings with
+- **A summary strip answers "is this in trouble".** It shows open findings with
   counts by severity, then criticality, data sensitivity and exposure. The
   first two keep their "where this came from" tooltip, and a caption says what
   none of these screens said before: these three multiply the risk of every
   finding on the asset. There is no asset-level score. Scores belong to
   findings and risks, and a third kind of score would be one more number for a
   customer to reconcile.
-* **A banner for an asset that is gone.** `absent_since` is now on the detail
+- **A banner for an asset that is gone.** `absent_since` is now on the detail
   response. When it is set, the page says the asset was not found by the last
   scan, that its findings are frozen as of the last scan that saw it, and that
   it is on no attack path.
-* **Tabs, and opening a tab is the request.** The tabs are Findings,
+- **Tabs, and opening a tab is the request.** The tabs are Findings,
   Connections and Configuration, kept in `?tab=`. The graph and blast radius
   sat behind buttons for a reason: blast radius works over the tenant's whole
   graph. A tab keeps that reason, since nothing is asked for until
@@ -5873,7 +5876,7 @@ id sat in grey type in a card footer with nothing to copy it with.
   each carries an icon (`ASSET_TAB_ICONS`), with the open-findings count in a
   neutral chip. They were first a segmented pill, which reads as a filter on
   the panel below rather than as a switch between sections of the page.
-* **Open findings first, and two different empty states.** Closed findings
+- **Open findings first, and two different empty states.** Closed findings
   (resolved, accepted, false positive) are one press away, and the switch
   appears only when there are any. With nothing open, a modelled resource type
   says "No open findings. Last scanned …". A type CloudGuard has no rules for
@@ -5881,7 +5884,7 @@ id sat in grey type in a card footer with nothing to copy it with.
   resource nothing was checked against would present the absence of a check
   as a clean bill of health, which is what the list's "unchecked" count exists
   to prevent.
-* **Blast-radius rows open their asset.** The endpoint now returns each row's
+- **Blast-radius rows open their asset.** The endpoint now returns each row's
   `asset_id`.
 
 **The hierarchy view is the map's contents list.** After §111, Assets had three
@@ -5902,18 +5905,18 @@ the list.
 
 **The map, made readable.**
 
-* The paragraph-long legend under the canvas is now a row of chips (globe,
+- The paragraph-long legend under the canvas is now a row of chips (globe,
   cylinder, route, findings count, darker arrow), with the rest of how to read
   the map in a popover behind a question mark.
-* Each sentence in "Reach across boundaries" is now a toggle. Picking one
+- Each sentence in "Reach across boundaries" is now a toggle. Picking one
   fades every box and arrow except that arrow and its two ends. The arrow is
   still shown in its place in the estate rather than on its own.
-* When the list's search, type, environment, exposure or signal filters are
+- When the list's search, type, environment, exposure or signal filters are
   set, the map says they apply to the list only and offers to clear them. The
   map draws everything in the opened scope. If it silently ignored a filter
   that is visible in the URL, it would read as having applied it.
-* The list's own request no longer runs while the map is open.
-* The markers moved to `estateMarkers.tsx` so the contents list can use them
+- The list's own request no longer runs while the map is open.
+- The markers moved to `estateMarkers.tsx` so the contents list can use them
   without importing `EstateCanvas`, which is the lazy chunk holding React Flow.
 
 **Only a 404 means "nothing is there".** The map, the neighbourhood and blast
@@ -5925,18 +5928,18 @@ standard error state with a retry.
 
 **The list says what the map marks.**
 
-* **Filter.** A new list filter narrows to what the map marks: reachable from
+- **Filter.** A new list filter narrows to what the map marks: reachable from
   the internet, holds sensitive data, or on an attack path. On the API these
   are `entry_point`, `sensitive` and `on_attack_path`. The first two are the
   graph's own predicates (`ENTRY_EXPOSURE`, `SENSITIVE_DATA`) applied as column
   filters. So a box that counts "2 reachable from the internet" and the list
   filtered to entry points agree by construction, not by two definitions
   staying in step.
-* **Row mark.** Every row carries `on_attack_path`, and a row that is on one
+- **Row mark.** Every row carries `on_attack_path`, and a row that is on one
   shows a small route mark. That is the strongest thing an inventory row can
   say. It is a mark rather than a column, so rows that are not on a path stay
   quiet.
-* **Cost.** Membership comes from the tenant's cached graph. The list now asks
+- **Cost.** Membership comes from the tenant's cached graph. The list now asks
   for attack paths on every page, so `AssetGraph` keeps them once per graph
   (`_paths`) and hands out copies. The cached graph is never changed after it
   is built, and `_without` builds a new graph, so its answer cannot go stale
@@ -5963,7 +5966,7 @@ and where.
 
 **What was considered and not built.**
 
-* *A map library* (react-simple-maps, d3-geo, Leaflet/MapLibre). Tile maps
+- _A map library_ (react-simple-maps, d3-geo, Leaflet/MapLibre). Tile maps
   fetch third-party tiles, which a CSP and a no-cookies product do not want.
   A projection library is a second visual kit for the job of placing about
   thirty points. The map is a hand-drawn SVG, like `ScoreRing`: an
@@ -5972,11 +5975,11 @@ and where.
   Earth's public-domain 1:110m land. The script's three packages are not app
   dependencies. The land is drawn as a dot pattern revealed through a mask of
   horizontal runs, a few hundred rectangles rather than 2,700 circles.
-* *Data residency* ("these three resources are outside the regions you
+- _Data residency_ ("these three resources are outside the regions you
   allow"). It is the most CSPM-shaped use of a region, and it needs an
   organization setting, a rule and a compliance mapping, so it is a feature of
   its own and not part of a map. It is listed under open items below.
-* *Coordinates from the API.* A coordinate is a drawing concern. The API
+- _Coordinates from the API._ A coordinate is a drawing concern. The API
   returns what the provider said, the region code, and the web app's
   `lib/geo/regions.ts` holds display names and metro coordinates for Azure's
   and AWS's public regions. The two clouds' codes cannot collide (AWS codes
@@ -5984,24 +5987,24 @@ and where.
 
 **The rules the panel keeps.**
 
-* **One spelling.** ARM returns `westeurope` from a listing and `West Europe`
+- **One spelling.** ARM returns `westeurope` from a listing and `West Europe`
   from some detail calls. `placement.REGION` lower-cases the value and strips
   spaces in SQL, and `region_key` does the same in Python. The map groups with
   the first and the asset list's `?region=` filter uses the second, so a dot
   and the list it opens always contain the same assets.
-* **"Global" is not a place.** The directory, anything ARM calls `global`, and
+- **"Global" is not a place.** The directory, anything ARM calls `global`, and
   findings about the tenant rather than an asset form one bucket with
   `region: null`. It appears as a line under the list and never as a point on
   the map. A link reaches it as `?region=none`.
-* **An unknown code is listed, not guessed.** A region missing from the
+- **An unknown code is listed, not guessed.** A region missing from the
   catalogue is listed by its code and left off the map. A dot in the wrong
   country is worse than no dot.
-* **Unread is not clean.** `readings` and `unread` count only readings that
-  were *of* a region, so every Azure reading is excluded (all are global),
+- **Unread is not clean.** `readings` and `unread` count only readings that
+  were _of_ a region, so every Azure reading is excluded (all are global),
   while each AWS region is read separately. An unread region gets a dashed ring
   and the words "could not be fully read". Nothing open in a region nobody
   could look at is not a clean bill of health (§69).
-* **The list is the content.** The SVG is `aria-hidden` and out of the tab
+- **The list is the content.** The SVG is `aria-hidden` and out of the tab
   order. Every region it draws is a link in the list, which is what a keyboard
   reaches, the same split the estate map makes (§112). Clicking a dot is a
   shortcut for mouse users.
@@ -6021,7 +6024,7 @@ Granted" in green. Every identity category then failed with "Applications
 without a signed-in user are not allowed". The tenant's Cloud Guard
 enterprise app held one grant, delegated `User.Read`, which is the permission
 a new app registration starts with. The nine Graph permissions had never been
-declared on the registration as *application* permissions. Consent to
+declared on the registration as _application_ permissions. Consent to
 `/.default` granted what the registration declared, which was nothing a
 scanner can exercise.
 
@@ -6224,7 +6227,7 @@ is a route through an estate that does not have it:
 - The groups are evaluated with Azure's own defaults beneath them
   (`AllowVnetInBound` and `AllowVnetOutBound` at 65000, deny-all at 65500):
   outbound on every group guarding the source, inbound on every group guarding
-  the target. The question is whether *some* traffic gets through, not whether
+  the target. The question is whether _some_ traffic gets through, not whether
   a given port is open. A deny on port 3389 leaves the rest answering. A deny
   covering every port and protocol closes the hop. Address prefixes are matched
   against the machines' private addresses.
@@ -6297,7 +6300,7 @@ asked to carry. It is the only read the edge stage makes: inserts still answer
 newest asset `updated_at`, the newest edge `created_at`, and the count of
 present assets. A scan whose only write is a delete moves no timestamp and
 changes no asset count, so the first pruning scan would have been invisible to
-the cache — the page answering the one change a customer makes *because of* it
+the cache — the page answering the one change a customer makes _because of_ it
 by serving the severed route back. `graph_version` counts edges too.
 
 ## 121. A hop names its evidence, and the evidence is read off the assets
@@ -6343,7 +6346,7 @@ to say at all.
 
 `graph/severance.py` answers for all of them. From one entry point, walk
 forward layer by layer to the depth bound, carrying with each node the set of
-removable links that appear on *every* walk of that length to it:
+removable links that appear on _every_ walk of that length to it:
 
     necessary(entry, 0) = {}
     necessary(v, d+1)   = intersection over each u with an edge u->v of
@@ -6380,7 +6383,7 @@ Two problems with a ranked list of routes, and they are the same problem.
 
 Forty routes through one identity are forty rows that never say "one identity".
 The list ranks by hops, which is the right order for reading a route and the
-wrong one for seeing an estate: the shape is in what the routes *share*, and a
+wrong one for seeing an estate: the shape is in what the routes _share_, and a
 list can only show it by repeating it.
 
 And twelve machines in a scale set reaching one storage account through one
@@ -6397,7 +6400,7 @@ the same answer the number came from, so the claim and the picture cannot
 disagree. Nothing is sent to Azure.
 
 `graph/patterns.py` collapses the repetition, and only where the routes are
-*identical* apart from one end — many ways in to one target, or one way in to
+_identical_ apart from one end — many ways in to one target, or one way in to
 many targets. Similar is not the same: two routes through different identities
 are two problems, and folding them because they end alike would hide one. A
 route belongs to at most one group, and to the larger one where it could join
@@ -6462,7 +6465,7 @@ descended from the scope through `CONTAINS`, and everything underneath counted
 as reached. So Reader over a subscription was a route to the payments ledger.
 A machine running as Storage Blob Data Reader "reached" every other machine in
 its resource group, and from there every identity those machines run as, and
-from there whatever *those* identities held. The role name was on the hop
+from there whatever _those_ identities held. The role name was on the hop
 (§121), but the traversal never read it. The demo showed a route through
 Contributor to a Key Vault whose secrets Contributor cannot read.
 
@@ -6488,20 +6491,20 @@ would write the same keys.
 
 Choices worth keeping:
 
-* **Control is `read_data` and `execute`, and `edit_policy` only where the
+- **Control is `read_data` and `execute`, and `edit_policy` only where the
   resource says its own policy governs it.** A holder who can change a
   machine's size has not run anything on it, so `manage` alone is not reach. A
   Key Vault on access policies is held by anyone who can write those policies.
   One on Azure RBAC is not. The normalizer states which model a vault uses
   (`governed_by_own_policy`) only when the vault said so: an absent flag claims
   nothing.
-* **Some management operations are data access by another name, and are
+- **Some management operations are data access by another name, and are
   counted as it.** `listKeys` opens a storage account whatever its data-plane
   roles say. Writing a SQL or PostgreSQL server resets its administrator
   password. Writing a web app sets what it runs, and its publishing profile is a
   deployment. `runCommand`, managed run commands and extensions are code on a
   machine.
-* **Every string in `access.py` is matched, never deployed.** Unlike
+- **Every string in `access.py` is matched, never deployed.** Unlike
   `rbac.py`, none of these reaches ARM, so a wrong one cannot fail a customer's
   deployment. It can make CloudGuard claim less than a role allows, so each is
   a documented operation, and the tests hold the built-in roles to what
@@ -6511,7 +6514,7 @@ Choices worth keeping:
 what the principal's roles at that target control (`graph/access.py`, `Lens`).
 Crossing `CAN_GRANT_ROLES` controls everything, because the holder can grant
 itself the rest. The walk still descends through subscriptions and resource
-groups, which is where reach lands. An asset under them is *reached*, and
+groups, which is where reach lands. An asset under them is _reached_, and
 walked on from, only when the lens controls it. An asset the lens does not
 control is passed beneath, so a role over a SQL server still reaches the
 databases on it without reaching the server. A role edge that controls nothing
@@ -6540,16 +6543,16 @@ anybody could cut.
 
 **What cannot be established is not claimed.**
 
-* A role whose definition was not read (`access: None`) controls nothing, and
+- A role whose definition was not read (`access: None`) controls nothing, and
   the access view lists it as unread.
-* An ABAC condition is evaluated against request attributes CloudGuard never
+- An ABAC condition is evaluated against request attributes CloudGuard never
   sees, and applies to data actions and to role-assignment writes. An
   assignment carrying one keeps what its control actions grant. It loses
   whatever it had only through data actions, and is not drawn as
   `CAN_GRANT_ROLES`: a condition is how a delegated administrator is confined
   to handing out Reader, and calling that an escalation would be the false
   alarm `_grants_role_assignment` was written to avoid.
-* An identity whose roles all control nothing is a new dead end,
+- An identity whose roles all control nothing is a new dead end,
   `roles_without_control`. It is distinct from `identity_without_role`: there
   is a role, and it is one change away from mattering.
 
@@ -6580,16 +6583,16 @@ legacy entry, listed as unread while it is still walked.
 
 **Not built, and why.**
 
-* **Group membership.** Built in §126.
-* **PIM eligibility and deny assignments.** Eligibility is built in §130.
+- **Group membership.** Built in §126.
+- **PIM eligibility and deny assignments.** Eligibility is built in §130.
   Deny assignments are deliberately not read (§130), and not subtracting them
   errs towards claiming reach.
-* **Entra escalation.** Built in §128 and §129.
+- **Entra escalation.** Built in §128 and §129.
 
 ## 126. One identity is one node, and a group's role reaches its members
 
 §125 made a role edge honest about what it controls. It could not make it
-honest about *who* holds it, for two reasons, one of them a bug that had been
+honest about _who_ holds it, for two reasons, one of them a bug that had been
 in every production scan.
 
 **The bug: a person was two nodes.** A scan normalizes the directory capture
@@ -6614,17 +6617,17 @@ edge and walked it as legacy, which means as if it controlled everything.
 that is the only place both readings exist together. Captures stay what they
 are: pure, per-scope readings.
 
-* Copies of one node id merge, with their roles combined. The first copy keeps
+- Copies of one node id merge, with their roles combined. The first copy keeps
   its other fields.
-* A node the connector minted to stand in for an identity it did not read
+- A node the connector minted to stand in for an identity it did not read
   itself is marked `stub`. It is folded into the node that carries the same
   `identity_id` and is not a stub, which is the directory's record. Its roles
   move across, and its edges are redrawn from the directory node. The normalizer now
   writes `identity_id` on directory users, on every stand-in, and on groups.
-* The stand-in's id still resolves (`AssetGraph.resolve`). The asset rows keep
+- The stand-in's id still resolves (`AssetGraph.resolve`). The asset rows keep
   their ids, so findings and risks keep their anchors, and a page opened on a
   stand-in row is answered about the person it stood for.
-* Neutral: the join reads `identity_id`, `stub`, `members` and `roles`, and no
+- Neutral: the join reads `identity_id`, `stub`, `members` and `roles`, and no
   provider id. Rows stored before this change carry no `identity_id` and are
   not joined until their next scan, which is the same stance §125 takes on
   stored roles.
@@ -6638,7 +6641,7 @@ with a count, not a hundred.
 **Groups.** A role assigned to a group was a principal named "Group 1a2b3c4d"
 that reached nobody. Now:
 
-* **Collected per subscription, for the groups that hold a role there**
+- **Collected per subscription, for the groups that hold a role there**
   (`role_group_members`). The subscription's role assignments are what say
   which groups matter. Reading every group once per tenant would be a directory
   dump to answer a question about a handful of them. Names come fifteen to a
@@ -6649,11 +6652,11 @@ that reached nobody. Now:
   `ROLE_GROUP_LIMIT` groups per subscription. A group whose members could not
   be read is absent from the payload and the task reports partial. It is never
   an empty list, because "this role reaches nobody" is the one wrong answer.
-* **A new type, `GROUP`.** The node id is unchanged (`/principals/<id>`), so
+- **A new type, `GROUP`.** The node id is unchanged (`/principals/<id>`), so
   the asset rows keep their findings. The role-assignment rules now apply to
   groups too, because a group was a service principal of unknown kind until it
   had a type.
-* **Members are recorded on the group, and the edge is derived.** A member is
+- **Members are recorded on the group, and the edge is derived.** A member is
   usually a directory account read in another capture, so the `MEMBER_OF` edge
   from it can only exist once both are in one graph. It is drawn at build time
   from the group's `members` and never stored, following §121's rule that
@@ -6763,24 +6766,24 @@ records `acts_as`, the principal's object id; `controllers`, its owners; and
 for group membership, because the principal is minted in a subscription
 capture and the owner and the registration are read in the directory's.
 
-* `CAN_ACT_AS` runs from each owner, from the registration itself when it holds
+- `CAN_ACT_AS` runs from each owner, from the registration itself when it holds
   a credential, and from every holder of `act_as_any_application`, to the
   principal. It is drawn only to a principal the graph holds. One holding no
   Azure role never reached a subscription's graph, and signing in as it
   reaches nothing here.
-* `CAN_TAKE_OVER` runs from every holder of `control_all_scopes` to every
+- `CAN_TAKE_OVER` runs from every holder of `control_all_scopes` to every
   subscription. It is walked with a lens that controls everything, as
   `CAN_GRANT_ROLES` is.
-* `CAN_TAKE_OVER` is its own relationship rather than a derived
+- `CAN_TAKE_OVER` is its own relationship rather than a derived
   `CAN_GRANT_ROLES`, because of §127. `removal_key` folds an escalation line into
   the role line beside it, since both are one Azure assignment. A Global
   Administrator who also holds Owner would then have had their directory role
   folded into their Azure assignment, and the what-if would have promised that
   removing Owner closes routes the directory role keeps open. They are two
   fixes, done in two places, and severance now keys them apart.
-* Both are capability edges and both are removable: removing an owner,
+- Both are capability edges and both are removable: removing an owner,
   revoking a directory role, or deleting a credential is a fix.
-* A hop names what somebody removes: the directory role, "owner of its
+- A hop names what somebody removes: the directory role, "owner of its
   application registration", or "its own credentials".
 
 **An escalation over a scope already held is a loop.** A Global Administrator
@@ -6826,11 +6829,11 @@ credentials sit in pipelines and on machines rather than behind MFA.
 
 **Which permissions.** Three, each matched on its own value:
 
-* `RoleManagement.ReadWrite.Directory` writes directory role assignments, so
+- `RoleManagement.ReadWrite.Directory` writes directory role assignments, so
   it can make itself Global Administrator. That is `control_all_scopes`.
-* `AppRoleAssignment.ReadWrite.All` grants app roles, so it can grant itself
+- `AppRoleAssignment.ReadWrite.All` grants app roles, so it can grant itself
   the permission above. Also `control_all_scopes`.
-* `Application.ReadWrite.All` adds credentials to any application. That is
+- `Application.ReadWrite.All` adds credentials to any application. That is
   `act_as_any_application`.
 
 The power's `via` names the permission ("Graph permission
@@ -6839,12 +6842,12 @@ RoleManagement.ReadWrite.Directory"), which is what somebody revokes.
 **Reading them.** One directory task, `graph_permission_grants`, under
 `Application.Read.All`:
 
-* Graph's own catalogue, the `appRoles` on Microsoft Graph's service principal
+- Graph's own catalogue, the `appRoles` on Microsoft Graph's service principal
   in the tenant, turns an app role id into a permission name. No id is written
   down here, for the reason `auth.py` gives about identifiers recalled from
   memory. If Graph's principal is not found, the task reports partial rather
   than an empty tenant.
-* Every grant is read from Graph's side (`appRoleAssignedTo`). One paged
+- Every grant is read from Graph's side (`appRoleAssignedTo`). One paged
   listing covers every service principal and managed identity, instead of a
   call per principal.
 
@@ -6860,12 +6863,12 @@ id is the one a subscription mints for the same principal from its role
 assignments or a workload's identity, so the graph merges the two when it is
 built. The merge now:
 
-* keeps the directory record's fields over a stand-in's, whichever copy arrives
+- keeps the directory record's fields over a stand-in's, whichever copy arrives
   first;
-* combines roles and powers;
-* keeps any key only one copy has;
-* takes a name a reading gave over one made up from an id (`unnamed`);
-* leaves the principal's kind to the stand-in, except for a group. Graph calls
+- combines roles and powers;
+- keeps any key only one copy has;
+- takes a name a reading gave over one made up from an id (`unnamed`);
+- leaves the principal's kind to the stand-in, except for a group. Graph calls
   a managed identity a service principal, and the stand-in knows it is managed.
 
 **What this draws.** A machine running as a managed identity granted
@@ -6890,20 +6893,20 @@ as one that had removed them.
 
 **Collected in both places, and the role goes to v8.**
 
-* Azure eligibility is read per subscription from
+- Azure eligibility is read per subscription from
   `roleEligibilityScheduleInstances` (api-version `2020-10-01`), under one new
   action, `Microsoft.Authorization/roleEligibilityScheduleInstances/read`. It
   was verified on 2026-09-22 against the published operations reference, as
   `rbac.py` requires. Instances, not schedules: an instance is an eligibility
   in force now. Only `Provisioned` instances count.
-* Directory eligibility is read from Graph's
+- Directory eligibility is read from Graph's
   `roleManagement/directory/roleEligibilityScheduleInstances`, with the role
   definition and principal expanded. It runs under `RoleManagement.Read.Directory`,
   already consented. It needs Entra ID P2, so it goes through the licence-aware
   call and has its own evidence key: a tenant without P2 loses only this
   reading. Only eligibilities scoped to the whole directory (`/`) count. One
   scoped to an administrative unit governs that unit, not the tenant.
-* Bumping to v8 prompts every connection for a redeploy. It costs a v7
+- Bumping to v8 prompts every connection for a redeploy. It costs a v7
   connection nothing it had. `degraded_categories` names Authorization, and
   the only key behind it is the new one, so every assignment, route and verdict
   stays. The rules degrade per evidence key, never per category.
@@ -7755,7 +7758,7 @@ webhook URLs customers already hold, so they never change.
 an administrator who may hold no account, so it carries a nonce whose
 counterpart is on the connection row (`consent_nonce`, migration 0041).
 
-- While it is live, polling reissues the *same* link, so the copy already sent
+- While it is live, polling reissues the _same_ link, so the copy already sent
   keeps working; a new one is minted only when none is live.
 - The callback spends the nonce in a commit of its own, before any provider
   call, so a refused rebind or a directory timeout cannot roll the spend back
@@ -7778,7 +7781,7 @@ them.
   and parsed with `request.json()`.
 - **Rate limit**: a fixed window counted in Redis, not in the process, since a
   per-instance counter hands out its allowance per instance. The smaller
-  ceiling is chosen by *path* -- the routes open by design -- never by the
+  ceiling is chosen by _path_ -- the routes open by design -- never by the
   presence of an `Authorization` header, which nothing has verified yet. The
   caller is the `X-Forwarded-For` entry `trusted_proxy_hops` from the right, the
   one the platform wrote. It fails open: an abuse control is not worth an
@@ -7946,7 +7949,7 @@ the check whose id begins the message, and stores that beside the results. The
 API (`app/prowler/ingest.py`) then applies the rule the native engine applies:
 
 - a check that raised, or did not finish, is UNKNOWN for the scope;
-- a check whose service errored is UNKNOWN for the scope *and* for every asset
+- a check whose service errored is UNKNOWN for the scope _and_ for every asset
   of its type Cleave inventoried that it said nothing about -- while whatever it
   did say stands, because a FAIL is an observation whatever failed around it;
 - MANUAL is UNKNOWN;
@@ -8084,7 +8087,7 @@ let one subscription answer for another. Each is fixed here; none changes what
 The API claims an ASSESS step and publishes `[scan_id, step_id]`. The scanner
 read the attempt off the row. So a message that sat on the queue past its lease
 -- reaped, the step returned to PENDING, reclaimed at the next attempt with a
-message of its own -- was later picked up and ran *as the new attempt*, beside
+message of its own -- was later picked up and ran _as the new attempt_, beside
 the scanner running the new attempt's message. Both passed the fence, because
 both named the same attempt. Two Prowler runs against one customer, and two
 capture writes racing on the unique index.
@@ -8423,17 +8426,17 @@ suite about four seconds.
 
 Its first run found what the manual pass had not:
 
-* `ScoreTile` and the provenance confidence bar put `aria-label` on a bare
+- `ScoreTile` and the provenance confidence bar put `aria-label` on a bare
   `span`, which assistive technology ignores; both are `role="img"` now, and
   the bar says "Confidence: 3 of 4" rather than a raw 0.75.
-* Three popovers -- the notification bell's and the two help popovers on the
+- Three popovers -- the notification bell's and the two help popovers on the
   graph pages -- were unnamed dialogs; each is named after what opened it.
-* The first connection step and the access tab jumped from the page's `h1`
+- The first connection step and the access tab jumped from the page's `h1`
   to `h3`s; their section headings are `h2`s.
-* Two `dl`s were invalid: the risk breakdown held its capped note as a `p`
+- Two `dl`s were invalid: the risk breakdown held its capped note as a `p`
   inside the list (it sits after it now), and the permissions summary wrapped
   its pairs in `span`s (they are the `div`s a `dl` allows).
-* The command palette's "nothing matches" sat inside the listbox, which may
+- The command palette's "nothing matches" sat inside the listbox, which may
   hold only options. It is above it now, in an always-mounted `role="status"`,
   so a search that stops matching is said aloud as well as drawn.
 
@@ -8806,7 +8809,8 @@ else, or that it is not valid. Entra's `error_description` is still passed
 through where it matters, on the setup step. That branch runs only for a state
 this API signed within the last half hour. The state names one connection, and
 its setup page opens only for a member of that connection's organization, so a
-stranger's link leads nowhere they could use. A denial whose link has also expired loses Entra's reason,
+stranger's link leads nowhere they could use. A denial whose link has also expired loses Entra's
+reason,
 and the customer is asked for a fresh link. They would be asked for one anyway.
 
 ## 161. Graph work runs off the loop, limits count people, and every request has an id
@@ -8904,19 +8908,19 @@ which also retires `task_track_started`.
 
 **Examined and not built.**
 
-- *A graph version counter in place of the aggregate check.* `graph_version`
+- _A graph version counter in place of the aggregate check._ `graph_version`
   takes `max()` and `count()` over the tenant's assets and edges on every read.
   A counter bumped by ANALYZE would be one indexed lookup. But it is correct
   only if every write path bumps it, and a path that missed would serve routes
   through an estate that has moved, which is the one failure the cache was
   designed never to have. The aggregate catches every writer by construction.
-- *A separate beat service.* Running the scheduler inside the worker would
+- _A separate beat service._ Running the scheduler inside the worker would
   double every sweep if the worker were ever scaled past one replica. Every
   sweep is already idempotent, though: notifications have a unique index,
   scan starts take the per-target advisory lock (section 65), and reaping and
   expiry are conditional updates. Doubling costs queries, not correctness, and
   a new Railway service is an operational change without a failure behind it.
-- *Trigram indexes and cursor paging for findings.* The search is an `OR` across
+- _Trigram indexes and cursor paging for findings._ The search is an `OR` across
   a finding and its joined resource, which a trigram index on each table cannot
   serve as one scan. Nothing measured says the current plan is slow. This waits
   for an `EXPLAIN` on a production-sized estate.
@@ -9972,7 +9976,8 @@ replacement.
 
 **Tier 3: seventeen ported, seven not.** The four checks earlier sections
 declined on purpose stay declined (HTTP 80, client certificates, the lock-admin
-role, container image vulnerabilities as a finding), and three cannot be asked: a function app's host runtime version and its Application
+role, container image vulnerabilities as a finding), and three cannot be asked: a function app's
+host runtime version and its Application
 Insights connection live only in application settings behind `config/list`,
 and the Log Analytics agent is retired.
 
@@ -9986,7 +9991,7 @@ and the Log Analytics agent is retired.
   goes to sixty; it holds fifty-six.
 - **Runtime versions, without breaking determinism.** Tier 3 deferred these
   because a table of current versions changes without a release. The table is
-  of *end-of-support dates* instead (`connectors/azure/settings.py`,
+  of _end-of-support dates_ instead (`connectors/azure/settings.py`,
   `END_OF_SUPPORT`, from the language communities' published timelines, which
   App Service follows), and the normalizer judges a site against it as of the
   snapshot's own collection time. A version passing its date needs no release,
@@ -10251,7 +10256,8 @@ went from 90 to 71.
 
 **Motion.** The simulation's "N of M routes close" counts to its new answer when
 the plan changes, and the bar under it grows by `scaleX` instead of animating
-its width. The route map already closes routes in hop order (`closeDelay` in `RouteMapCanvas`), so that part
+its width. The route map already closes routes in hop order (`closeDelay` in `RouteMapCanvas`), so
+that part
 of the plan needed nothing. In the scan pipeline, a phase that finishes while the
 reader watches, or a subscription's collection that does, replaces its spinner
 with a `DrawnCheck` that draws itself -- keyed on `useValueChange` seeing the
@@ -10575,7 +10581,7 @@ time, and an upload is a person saying which file defines this asset. So where
 no block carries the asset's name, exactly one block of the rule's types exists,
 and its name is an expression, the upload flow takes it -- with `matched_by:
 "sole_block"` in the answer and a line in the UI asking the reviewer to check
-it is the asset. A sole block with a different *literal* name is another
+it is the asset. A sole block with a different _literal_ name is another
 resource and is not taken. Measured again, 55% and 69% of the same blocks get a
 diff; most of the rest are nested blocks the file does not have. It is opt-in
 (`sole_block=True`) and only the upload route opts in: in a repository
@@ -10677,24 +10683,24 @@ region map and `?region=` filter are what it would link into.
 Jinja2 renders the report to HTML and WeasyPrint prints that HTML — the stack
 `ARCHITECTURE.md` §1 already named. Three choices there are worth keeping:
 
-* **No jobs table, no artifact store.** A report is a read of data that is
+- **No jobs table, no artifact store.** A report is a read of data that is
   already computed, and the technical report is bounded at
   `MAX_TECHNICAL_FINDINGS` so it cannot grow into something that needs a queue.
   Storing PDFs would additionally owe the customer an answer about which of
   five stored copies is current; regenerating is cheap and always truthful.
-* **HTML is the artifact, PDF is the wrapper.** `render_html` is what the
+- **HTML is the artifact, PDF is the wrapper.** `render_html` is what the
   templates produce and what the tests assert against; `render_pdf` prints it.
   This is not only for testing: WeasyPrint needs native pango/cairo/harfbuzz
   that a developer machine may lack, so the import is lazy and a server without
   them answers 503 with one clear sentence instead of failing every import that
   transitively reaches the module.
-* **The trend is drawn on a fixed 0–100 scale.** The report is asked whether
+- **The trend is drawn on a fixed 0–100 scale.** The report is asked whether
   posture is improving, and a sparkline fitted to its own observed range makes
   a wobble from 81 to 84 climb as steeply as a recovery from 20 to 84. Inline
   SVG, generated by a pure function, because a PDF has no JavaScript and
   nothing in a report may fetch anything. Fewer than two readings draws
   nothing: a line through one point shows a direction nobody measured.
-* **The caveats are printed, not hovered.** A PDF outlives the screen it was
+- **The caveats are printed, not hovered.** A PDF outlives the screen it was
   taken from and gets forwarded to auditors and boards, so the cover carries
   when the evidence was collected, how many checks reached no verdict, what
   could not be read at all, and that compliance coverage is evidence rather than
@@ -10712,22 +10718,22 @@ a framework name.
 
 Three choices there are worth keeping:
 
-* **Control titles are CloudGuard's own wording.** CIS Benchmarks and ISO/IEC
+- **Control titles are CloudGuard's own wording.** CIS Benchmarks and ISO/IEC
   27001 are copyrighted under licences restricting redistribution of their text.
   The identifiers are reproduced; the prose is not. Every framework carries a
   link to its authoritative source.
-* **The catalogue lists controls no rule covers.** A catalogue of only what
+- **The catalogue lists controls no rule covers.** A catalogue of only what
   CloudGuard checks would report full coverage forever. A test asserts each
   framework has at least one uncovered control, and another asserts every
   control a rule references actually exists — a typo in a mapping would
   otherwise produce evidence that silently goes nowhere.
-* **Coverage counts conclusions, not passes.** `coverage_ratio` is the share of
+- **Coverage counts conclusions, not passes.** `coverage_ratio` is the share of
   controls CloudGuard reached a verdict on. UNKNOWN resolves to INCONCLUSIVE and
   is excluded — the same reason UNKNOWN is never PASS in the rule engine, except
   that here the misreading would end up in front of an auditor.
 
 **A connection is a tenant or management group; subscriptions are discovered.**
-`cloud_accounts` used to *be* the connection — one row per subscription, tenant
+`cloud_accounts` used to _be_ the connection — one row per subscription, tenant
 id typed in by hand. That had two problems.
 
 The first was a blind spot. A subscription created after onboarding was invisible
@@ -10738,7 +10744,7 @@ dropped — and the connection layer quietly violated it.
 
 The second was a tenant-binding hole. `cloud_accounts.tenant_id` came from the
 request body, and validation only checked whether Azure answered. But CloudGuard's
-service principal exists in *every* tenant that has ever consented, so naming one
+service principal exists in _every_ tenant that has ever consented, so naming one
 of those tenants on a fresh connection and clicking verify succeeded — the probe
 passes, because the access is genuinely there — and the caller was reading an
 environment belonging to somebody else. This is the confused-deputy problem AWS
@@ -10776,7 +10782,8 @@ tenant.
 
 **Identity reach beyond direct role assignments (§125, §126, §128, §130).**
 Read PIM activation policies, so an eligible role that activates without MFA or
-approval can be walked like a held one. Read service principal owners beside application owners. Expand the
+approval can be walked like a held one. Read service principal owners beside application owners.
+Expand the
 members of a role-assignable group that holds a directory role but no Azure
 role, whose members are read today only when it also holds an Azure role
 (§126). Delegated permissions (`oauth2PermissionGrants`) act only on a signed-in

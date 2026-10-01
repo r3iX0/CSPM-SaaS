@@ -90,7 +90,7 @@ offset: int = 0,
 `le=500` without `ge=1`, and an `offset` with no constraint at all. SQLAlchemy passes both
 through unchanged — compiled against the PostgreSQL dialect:
 
-```
+```sql
 SELECT f.id FROM f  LIMIT -1 OFFSET -5
 ```
 
@@ -411,7 +411,7 @@ identical to the one already on it.
 
 **Fix.** Derive a weak ETag from the newest `completed_at` among the organization's scans plus
 the query parameters, and answer 304 when it matches. That is a single cheap query replacing
-twenty-five, and it needs no invalidation logic because the timestamp *is* the version.
+twenty-five, and it needs no invalidation logic because the timestamp _is_ the version.
 
 ---
 

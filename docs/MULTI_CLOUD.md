@@ -15,13 +15,13 @@ Everything still marked as design is still design.
 
 These carry no provider knowledge and need no change:
 
-* **`connectors/collection.py`** — the plan, the executor, waves, outcomes,
+- **`connectors/collection.py`** — the plan, the executor, waves, outcomes,
   the coverage report. Written provider-neutral and it held.
-* **`CloudConnector`** — `validate_connection` / `collect` / `normalize` is the
+- **`CloudConnector`** — `validate_connection` / `collect` / `normalize` is the
   right three-verb contract for all three clouds.
-* **The rule engine, risk scorer, findings lifecycle, compliance machinery.**
+- **The rule engine, risk scorer, findings lifecycle, compliance machinery.**
   All speak `CloudResource` and `RuleContext`.
-* **`ScanPipeline`** below the snapshot. Everything after collection is a pure
+- **`ScanPipeline`** below the snapshot. Everything after collection is a pure
   function of stored JSON, and stays so.
 
 The single most valuable thing already built is the pattern in `rbac.py`, not
@@ -48,7 +48,8 @@ belongs. Onboarding sits behind `ProviderOnboarding` (`DECISIONS.md` §71) and
 structural difference, and it was not a naming problem: readings are now scoped
 by region while verdicts stay per evidence key (`DECISIONS.md` §69).
 
-**Rules could judge another cloud's resources.** Fixed ahead of the rest, since it was cheap while still theoretical. See §6.
+**Rules could judge another cloud's resources.** Fixed ahead of the rest, since it was cheap while
+still theoretical. See §6.
 
 ---
 
@@ -126,7 +127,7 @@ less than this section feared, and in a different place. `CollectionTask` gained
 a `region` and the executor absorbed the fan-out without changing shape, as
 predicted. What it did not predict: the region could not go into the
 `EvidenceKey`, because that is what a rule declares and a rule has no business
-knowing which regions a customer enabled — so readings are scoped by key *and*
+knowing which regions a customer enabled — so readings are scoped by key _and_
 region while verdicts stay per key, and a key is trustworthy only if every
 region's reading of it was. The `evidence` unique constraint had to grow the
 column too. And a wave needed a concurrency cap for the first time, since
@@ -235,9 +236,9 @@ against CIS Azure would report near-zero coverage for reasons that have nothing
 to do with its security posture.
 
 Two details the section did not anticipate. Frameworks written about
-*organizations* — ISO, GDPR, NIST, SOC 2, PCI — carry no provider and are always
+_organizations_ — ISO, GDPR, NIST, SOC 2, PCI — carry no provider and are always
 shown, because scoping them by cloud would hide the ones that always apply. And
-the scoping keys off *any* connection rather than a verified one, so the AWS
+the scoping keys off _any_ connection rather than a verified one, so the AWS
 benchmark appears while a customer is still setting AWS up.
 
 ---
@@ -277,10 +278,10 @@ benchmark appears while a customer is still setting AWS up.
    `AWS_INTEGRATION.md` §1's checklist has been run against a real account.
    Without that gate this would be exactly what the paragraph warned about: a
    large body of code claiming to scan a cloud nobody had scanned, with the seam
-   *looking* finished.
+   _looking_ finished.
 3. **The permission-manifest pattern is not generalized, and that is a decision
    rather than a gap.** There are two instances now — `azure/rbac.py` and
-   `aws/iam.py` — and they share a *discipline*, not a mechanism: every call has
+   `aws/iam.py` — and they share a _discipline_, not a mechanism: every call has
    a permission, every permission has a call, a version bump names the checks an
    older grant loses, and the customer's artefact is generated from the
    declaration rather than hand-maintained. What differs is everything a shared
