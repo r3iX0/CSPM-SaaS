@@ -19,6 +19,11 @@ exception.
 | Every file | gitleaks | `.pre-commit-config.yaml` | gitleaks' default rules |
 | Editors | EditorConfig, VS Code | `.editorconfig`, `.vscode/` | |
 
+What the Python checks cannot see (naming that says what a thing is, why a
+comment exists, where an exception may be caught) is in
+[`PYTHON_GUIDELINES.md`](PYTHON_GUIDELINES.md), with each rule tagged by the
+check that holds it or `[review]`.
+
 Markdown, YAML, Jinja2 and workflow checks come next (§191, "Rules tighten by
 ratchet"). Until they land, follow the shape of the files around you.
 
