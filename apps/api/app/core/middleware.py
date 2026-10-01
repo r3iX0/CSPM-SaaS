@@ -267,8 +267,7 @@ def is_open_route(path: str) -> bool:
     if path in OPEN_PATHS or path.startswith(OPEN_PREFIXES):
         return True
     return any(
-        path.startswith(prefix) and path.endswith(suffix)
-        for prefix, suffix in OPEN_SUFFIXES
+        path.startswith(prefix) and path.endswith(suffix) for prefix, suffix in OPEN_SUFFIXES
     )
 
 

@@ -88,6 +88,7 @@ class FakeSession:
         ]
         return [o for o in self.added if isinstance(o, kind)] + bulk
 
+
 def context(
     session: object,
     scan: Scan,
@@ -108,7 +109,6 @@ def context(
         account_ids=account_ids if account_ids is not None else [uuid.uuid4()],
         account_of=account_of or {},
     )
-
 
 
 def resource() -> CloudResource:

@@ -199,9 +199,7 @@ class AzureCosmosTlsRule(_CosmosRule):
                 terraform_attribute="minimal_tls_version",
             ),
         ),
-        cli=(
-            "az resource update --ids <resource-id> --set properties.minimalTlsVersion=Tls12",
-        ),
+        cli=("az resource update --ids <resource-id> --set properties.minimalTlsVersion=Tls12",),
         notes=_NO_POLICY,
         terraform_resource_types=("azurerm_cosmosdb_account",),
     )

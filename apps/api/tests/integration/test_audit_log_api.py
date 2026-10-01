@@ -59,9 +59,7 @@ async def test_nobody_rewrites_the_trail(client, org, statement: str) -> None:
     # As the organization's own owner, the most privileged member there is.
     with pytest.raises(DBAPIError, match="permission denied"):
         async with rls_session(OWNER) as session:
-            await session.execute(
-                text(f"{statement} WHERE organization_id = :org"), {"org": org}
-            )
+            await session.execute(text(f"{statement} WHERE organization_id = :org"), {"org": org})
 
 
 async def test_only_owners_and_admins_read_it(client, org) -> None:
@@ -74,7 +72,5 @@ async def test_only_owners_and_admins_read_it(client, org) -> None:
     viewer = auth_header(INVITEE, "viewer@example.com")
     await client.post("/api/v1/invitations/accept", json={"token": token}, headers=viewer)
 
-    response = await client.get(
-        "/api/v1/audit-log", headers={**viewer, "X-Organization-Id": org}
-    )
+    response = await client.get("/api/v1/audit-log", headers={**viewer, "X-Organization-Id": org})
     assert response.status_code == 403

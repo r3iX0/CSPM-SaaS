@@ -504,7 +504,6 @@ class ConnectionScope(StrEnum):
     ACCOUNT = "ACCOUNT"
 
 
-
 class ConsentStatus(StrEnum):
     PENDING = "PENDING"
     GRANTED = "GRANTED"

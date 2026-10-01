@@ -111,9 +111,7 @@ def test_a_not_action_applies_only_inside_its_own_block() -> None:
         {"actions": ["Microsoft.Compute/virtualMachines/runCommand/action"]},
         {"actions": ["*/read"], "notActions": ["Microsoft.Compute/*"]},
     )
-    assert AccessKind.EXECUTE.value in kinds(
-        access_profile(split), ResourceType.VIRTUAL_MACHINE
-    )
+    assert AccessKind.EXECUTE.value in kinds(access_profile(split), ResourceType.VIRTUAL_MACHINE)
 
 
 def test_a_condition_withholds_only_what_came_through_data_actions() -> None:
@@ -406,9 +404,7 @@ def test_holders_of_an_asset_are_every_role_above_it_controllers_first() -> None
 
 
 def test_an_escalating_holder_controls_whatever_it_can_grant_itself() -> None:
-    graph = estate(
-        [role("User Access Administrator", G_RG, READER, grants_role_assignment=True)]
-    )
+    graph = estate([role("User Access Administrator", G_RG, READER, grants_role_assignment=True)])
     (holder,) = graph.access_to(G_KV)
     assert holder.controls
     assert AccessKind.GRANT_ACCESS in holder.kinds

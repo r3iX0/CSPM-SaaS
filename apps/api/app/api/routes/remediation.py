@@ -193,9 +193,7 @@ async def update_task(
             # left the expectation in the customer's head: nothing recorded what
             # CloudGuard should now see, nothing looked again on its own, and
             # every way of not being verified came out as the same silence.
-            finding = await findings_service.get_finding(
-                session, tenant, task.finding_id
-            )
+            finding = await findings_service.get_finding(session, tenant, task.finding_id)
             await verification_service.open_verification(
                 session,
                 organization_id=tenant.organization_id,

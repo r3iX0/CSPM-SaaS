@@ -263,10 +263,7 @@ class CoverageReport:
                 # answers a stored capture could not previously give: an absent
                 # field is a setting nobody set *or* an api-version too old to
                 # return it, and only the second is CloudGuard's fault.
-                "endpoints": [
-                    {"path": e.path, "api_version": e.api_version}
-                    for e in r.endpoints
-                ],
+                "endpoints": [{"path": e.path, "api_version": e.api_version} for e in r.endpoints],
             }
             # Written only where it applies, so a capture taken entirely by
             # this run looks exactly as it always did. It is provenance for
@@ -365,9 +362,7 @@ class CollectionRun:
         counts = Counter(t.scoped_key for t in self.tasks)
         duplicates = sorted(key for key, n in counts.items() if n > 1)
         if duplicates:
-            raise ValueError(
-                f"Duplicate collection task keys: {', '.join(duplicates)}"
-            )
+            raise ValueError(f"Duplicate collection task keys: {', '.join(duplicates)}")
 
         for task in self.tasks:
             for dependency in task.depends_on:
@@ -397,13 +392,10 @@ class CollectionRun:
         waves: list[list[CollectionTask]] = []
 
         while remaining:
-            ready = [
-                t for t in remaining.values() if all(d in satisfied for d in t.depends_on)
-            ]
+            ready = [t for t in remaining.values() if all(d in satisfied for d in t.depends_on)]
             if not ready:
                 raise ValueError(
-                    "Collection plan has a dependency cycle among: "
-                    + ", ".join(sorted(remaining))
+                    "Collection plan has a dependency cycle among: " + ", ".join(sorted(remaining))
                 )
             waves.append(ready)
             for task in ready:
@@ -433,9 +425,7 @@ class CollectionRun:
             runnable, skipped = self._partition(wave, report)
 
             for task in skipped:
-                blocker = next(
-                    d for d in task.depends_on if not report.key_is_trustworthy(d)
-                )
+                blocker = next(d for d in task.depends_on if not report.key_is_trustworthy(d))
                 report.record(
                     TaskResult(
                         key=task.key,
@@ -501,16 +491,13 @@ class CollectionRun:
         skipped: list[CollectionTask] = []
         for task in wave:
             blocked = any(
-                report.saw(d) and not report.key_is_trustworthy(d)
-                for d in task.depends_on
+                report.saw(d) and not report.key_is_trustworthy(d) for d in task.depends_on
             )
             (skipped if blocked else runnable).append(task)
         return runnable, skipped
 
     @staticmethod
-    def _merge(
-        data: dict[str, Any], task: CollectionTask, produced: dict[str, Any]
-    ) -> None:
+    def _merge(data: dict[str, Any], task: CollectionTask, produced: dict[str, Any]) -> None:
         """Fold one task's output into the capture.
 
         A global listing is the whole answer for its key, and replaces it. A
@@ -547,9 +534,8 @@ class CollectionRun:
         The task comes back out with its result because the caller merges the
         payload and needs to know whether it was a region's worth or all of it.
         """
-        def outcome(
-            result: TaskOutcome, detail: str = "", item_count: int = 0
-        ) -> TaskResult:
+
+        def outcome(result: TaskOutcome, detail: str = "", item_count: int = 0) -> TaskResult:
             return TaskResult(
                 key=task.key,
                 category=task.category,
@@ -566,9 +552,7 @@ class CollectionRun:
                 produced = await task.run(collected)
             except Exception as exc:
                 message = str(exc) or type(exc).__name__
-                log.warning(
-                    "collection.task_failed", task=task.scoped_key, error=message
-                )
+                log.warning("collection.task_failed", task=task.scoped_key, error=message)
                 return task, outcome(TaskOutcome.FAILED, message), {}
 
         if isinstance(produced, TaskData):
@@ -578,9 +562,7 @@ class CollectionRun:
 
         count = sum(len(v) for v in payload.values() if isinstance(v, list | dict))
         if partial_reason:
-            log.warning(
-                "collection.task_partial", task=task.scoped_key, reason=partial_reason
-            )
+            log.warning("collection.task_partial", task=task.scoped_key, reason=partial_reason)
             return task, outcome(TaskOutcome.PARTIAL, partial_reason, count), payload
 
         return task, outcome(TaskOutcome.COMPLETE, item_count=count), payload

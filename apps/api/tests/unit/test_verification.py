@@ -139,9 +139,7 @@ def test_never_being_able_to_look_is_insufficient_evidence() -> None:
 def test_one_definite_failure_outweighs_later_blindness() -> None:
     """Having seen the check fail is a stronger, truer statement than "we could
     not tell", so a run of UNKNOWNs afterwards still settles as still failing."""
-    verification = run(
-        [RuleState.FAIL] + [RuleState.UNKNOWN] * (len(ATTEMPT_SCHEDULE) - 1)
-    )
+    verification = run([RuleState.FAIL] + [RuleState.UNKNOWN] * (len(ATTEMPT_SCHEDULE) - 1))
 
     assert verification.status is VerificationStatus.STILL_FAILING
     assert verification.observed_failure is True

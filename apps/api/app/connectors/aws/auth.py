@@ -131,8 +131,7 @@ class RoleAssumer:
             # require one, which is exactly the misconfiguration this guard
             # exists to keep CloudGuard from participating in.
             raise NotConfigured(
-                "This connection has no external id. Cleave will not assume "
-                "a role without one."
+                "This connection has no external id. Cleave will not assume a role without one."
             )
         self.role_arn = role_arn
         self.external_id = external_id

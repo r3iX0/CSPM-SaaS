@@ -86,9 +86,7 @@ class ResourceRecord(UUIDPrimaryKey, TenantOwned, Timestamps, Base):
         StrEnumType(ContextSource, 24), nullable=False, default=ContextSource.NONE
     )
 
-    resource_metadata: Mapped[dict] = mapped_column(
-        "metadata", JSONB, nullable=False, default=dict
-    )
+    resource_metadata: Mapped[dict] = mapped_column("metadata", JSONB, nullable=False, default=dict)
 
     first_seen_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -117,7 +115,9 @@ class ResourceRelationship(UUIDPrimaryKey, TenantOwned, Base):
     __tablename__ = "resource_relationships"
     __table_args__ = (
         UniqueConstraint(
-            "source_resource_id", "target_resource_id", "relationship_type",
+            "source_resource_id",
+            "target_resource_id",
+            "relationship_type",
             name="uq_resource_relationships_edge",
         ),
     )

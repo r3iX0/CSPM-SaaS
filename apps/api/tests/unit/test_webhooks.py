@@ -271,11 +271,8 @@ def test_every_row_owed_gets_its_own_id_from_the_database() -> None:
     """
     from sqlalchemy.dialects import postgresql
 
-    compiled = str(
-        webhooks.owed(uuid.uuid4(), NOW).compile(dialect=postgresql.dialect())
-    )
+    compiled = str(webhooks.owed(uuid.uuid4(), NOW).compile(dialect=postgresql.dialect()))
     assert "%(id)s" not in compiled
     assert (
-        "INSERT INTO webhook_deliveries (organization_id, endpoint_id, notification_id)"
-        in compiled
+        "INSERT INTO webhook_deliveries (organization_id, endpoint_id, notification_id)" in compiled
     )

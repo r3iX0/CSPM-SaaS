@@ -183,8 +183,7 @@ class AwsEbsDefaultEncryptionRule(SecurityRule):
         return RuleResult.failed(
             evidence=evidence,
             message=(
-                f"{len(off)} region(s) do not encrypt new EBS volumes by default: "
-                f"{', '.join(off)}"
+                f"{len(off)} region(s) do not encrypt new EBS volumes by default: {', '.join(off)}"
             ),
         )
 
@@ -201,9 +200,7 @@ class AwsTrailValidationRule(SecurityRule):
     severity = Severity.MEDIUM
     exploitability = 1
     scope = RuleScope.AGGREGATE
-    requires_evidence: ClassVar[tuple[AwsEvidence, ...]] = (
-        AwsEvidence.CLOUDTRAIL_TRAILS,
-    )
+    requires_evidence: ClassVar[tuple[AwsEvidence, ...]] = (AwsEvidence.CLOUDTRAIL_TRAILS,)
     estimated_effort_minutes = 10
     rationale = (
         "The logs are the record of what happened. Without validation, an "
@@ -219,13 +216,9 @@ class AwsTrailValidationRule(SecurityRule):
         # Aggregate: a statement about the trails an account has rather than
         # about any asset in it.
         expected=(),
-        cli=(
-            "aws cloudtrail update-trail --name <trail> "
-            "--enable-log-file-validation",
-        ),
+        cli=("aws cloudtrail update-trail --name <trail> --enable-log-file-validation",),
         notes=(
-            "Validation applies from the next log file. It does not make "
-            "existing files provable."
+            "Validation applies from the next log file. It does not make existing files provable."
         ),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
@@ -252,9 +245,7 @@ class AwsTrailValidationRule(SecurityRule):
             return RuleResult.not_applicable("This account has no trail")
 
         unvalidated = sorted(
-            name
-            for name, trail in trails.items()
-            if not trail.get("LogFileValidationEnabled")
+            name for name, trail in trails.items() if not trail.get("LogFileValidationEnabled")
         )
         evidence = {"trails": sorted(trails), "without_validation": unvalidated}
         if not unvalidated:
@@ -281,9 +272,7 @@ class AwsTrailEncryptionRule(SecurityRule):
     severity = Severity.MEDIUM
     exploitability = 1
     scope = RuleScope.AGGREGATE
-    requires_evidence: ClassVar[tuple[AwsEvidence, ...]] = (
-        AwsEvidence.CLOUDTRAIL_TRAILS,
-    )
+    requires_evidence: ClassVar[tuple[AwsEvidence, ...]] = (AwsEvidence.CLOUDTRAIL_TRAILS,)
     estimated_effort_minutes = 20
     rationale = (
         "A KMS key puts a second, separately audited authorization in front of "
@@ -324,9 +313,7 @@ class AwsTrailEncryptionRule(SecurityRule):
         if not trails:
             return RuleResult.not_applicable("This account has no trail")
 
-        unencrypted = sorted(
-            name for name, trail in trails.items() if not trail.get("KmsKeyId")
-        )
+        unencrypted = sorted(name for name, trail in trails.items() if not trail.get("KmsKeyId"))
         evidence = {"trails": sorted(trails), "without_kms": unencrypted}
         if not unencrypted:
             return RuleResult.passed(evidence)
@@ -366,8 +353,8 @@ class AwsTrailBucketLoggingRule(SecurityRule):
         "Turn on server access logging for the trail's bucket, writing to a "
         "different bucket:\n\n"
         "  aws s3api put-bucket-logging --bucket <trail-bucket> \\\n"
-        "    --bucket-logging-status '{\"LoggingEnabled\":{"
-        "\"TargetBucket\":\"<log-bucket>\",\"TargetPrefix\":\"trail-access/\"}}'\n\n"
+        '    --bucket-logging-status \'{"LoggingEnabled":{'
+        '"TargetBucket":"<log-bucket>","TargetPrefix":"trail-access/"}}\'\n\n'
         "A different bucket, deliberately: logging a bucket into itself makes "
         "each read produce a write that produces another read."
     )
@@ -401,9 +388,7 @@ class AwsTrailBucketLoggingRule(SecurityRule):
 
         trails = _unique_trails(context)
         wanted = {
-            str(trail.get("S3BucketName"))
-            for trail in trails.values()
-            if trail.get("S3BucketName")
+            str(trail.get("S3BucketName")) for trail in trails.values() if trail.get("S3BucketName")
         }
         if not wanted:
             return RuleResult.not_applicable("No trail names a bucket")
@@ -412,31 +397,21 @@ class AwsTrailBucketLoggingRule(SecurityRule):
         # dedicated log archive is the shape AWS recommends -- and CloudGuard
         # cannot read a bucket it was not granted. Unknown rather than failed:
         # "we could not look" is not "logging is off".
-        buckets = {
-            r.name: r
-            for r in context.get_resources_by_type(ResourceType.STORAGE_ACCOUNT)
-        }
+        buckets = {r.name: r for r in context.get_resources_by_type(ResourceType.STORAGE_ACCOUNT)}
         missing = sorted(name for name in wanted if name not in buckets)
         if missing:
             return RuleResult.unknown(
-                "The trail's bucket is not in this account's inventory: "
-                + ", ".join(missing)
+                "The trail's bucket is not in this account's inventory: " + ", ".join(missing)
             )
 
         unlogged = sorted(
-            name
-            for name in wanted
-            if buckets[name].get("access_logging_enabled") is False
+            name for name in wanted if buckets[name].get("access_logging_enabled") is False
         )
         unknown = sorted(
-            name
-            for name in wanted
-            if buckets[name].get("access_logging_enabled") is None
+            name for name in wanted if buckets[name].get("access_logging_enabled") is None
         )
         if unknown:
-            return RuleResult.unknown(
-                "Access logging could not be read for: " + ", ".join(unknown)
-            )
+            return RuleResult.unknown("Access logging could not be read for: " + ", ".join(unknown))
 
         evidence = {"trail_buckets": sorted(wanted), "without_logging": unlogged}
         if not unlogged:
@@ -444,10 +419,7 @@ class AwsTrailBucketLoggingRule(SecurityRule):
 
         return RuleResult.failed(
             evidence=evidence,
-            message=(
-                "The trail's bucket does not record who reads it: "
-                f"{', '.join(unlogged)}"
-            ),
+            message=(f"The trail's bucket does not record who reads it: {', '.join(unlogged)}"),
         )
 
 
@@ -471,8 +443,8 @@ class AwsConfigRecorderRule(SecurityRule):
     estimated_effort_minutes = 30
     rationale = (
         "CloudTrail says what call was made; Config says what the resource "
-        "looked like before and after. Without it, \"when did this become "
-        "public?\" has no answer."
+        'looked like before and after. Without it, "when did this become '
+        'public?" has no answer.'
     )
     remediation = (
         "Create and start a recorder in each region:\n\n"
@@ -489,8 +461,7 @@ class AwsConfigRecorderRule(SecurityRule):
     remediation_spec: ClassVar[RemediationSpec | None] = RemediationSpec(
         expected=(),
         cli=(
-            "aws configservice start-configuration-recorder "
-            "--configuration-recorder-name default",
+            "aws configservice start-configuration-recorder --configuration-recorder-name default",
         ),
         notes=(
             "A recorder that exists and is stopped records nothing. Creating "
@@ -605,9 +576,7 @@ class AwsFlowLogRule(SecurityRule):
 
         covered = set(context.controls.get("flow_log_resources") or [])
         uncovered = sorted(
-            vpc.provider_resource_id
-            for vpc in vpcs
-            if vpc.provider_resource_id not in covered
+            vpc.provider_resource_id for vpc in vpcs if vpc.provider_resource_id not in covered
         )
         evidence = {
             "vpcs": sorted(v.provider_resource_id for v in vpcs),
@@ -619,8 +588,7 @@ class AwsFlowLogRule(SecurityRule):
         return RuleResult.failed(
             evidence=evidence,
             message=(
-                f"{len(uncovered)} of {len(vpcs)} VPC(s) have no flow logs: "
-                f"{', '.join(uncovered)}"
+                f"{len(uncovered)} of {len(vpcs)} VPC(s) have no flow logs: {', '.join(uncovered)}"
             ),
         )
 
@@ -678,9 +646,8 @@ class MonitoringCheck:
         if not self.matching_filters:
             return "no metric filter on the trail's log group matches this event"
         if self.alarms_without_action:
-            return (
-                "a metric filter exists and its alarm notifies nobody: "
-                + ", ".join(self.alarms_without_action)
+            return "a metric filter exists and its alarm notifies nobody: " + ", ".join(
+                self.alarms_without_action
             )
         return "a metric filter exists and no alarm is raised on its metric"
 
@@ -735,9 +702,7 @@ def _matches(pattern: str, required: tuple[tuple[str, ...], ...]) -> bool:
     )
 
 
-def _monitoring(
-    context: RuleContext, required: tuple[tuple[str, ...], ...]
-) -> MonitoringCheck:
+def _monitoring(context: RuleContext, required: tuple[tuple[str, ...], ...]) -> MonitoringCheck:
     """Walk filter -> metric -> alarm -> action for one kind of event."""
     groups = _trail_log_groups(context)
     if not groups:
@@ -839,8 +804,7 @@ class _MonitoredEventRule(SecurityRule):
             # filter language -- so a reader is shown what was matched rather
             # than asked to trust the match.
             "matching_filter_patterns": [
-                str(entry.get("filterPattern") or "")
-                for entry in check.matching_filters
+                str(entry.get("filterPattern") or "") for entry in check.matching_filters
             ],
             "alarms": list(check.alarms),
             "alarms_without_action": list(check.alarms_without_action),
@@ -890,7 +854,7 @@ class AwsUnauthorizedApiMonitoringRule(_MonitoredEventRule):
         "Then the filter, and the alarm on the metric it publishes:\n\n"
         "  aws logs put-metric-filter --log-group-name <group> \\\n"
         "    --filter-name UnauthorizedAPICalls \\\n"
-        "    --filter-pattern '{ ($.errorCode = \"*UnauthorizedOperation\") || "
+        '    --filter-pattern \'{ ($.errorCode = "*UnauthorizedOperation") || '
         '($.errorCode = "AccessDenied*") }\' \\\n'
         "    --metric-transformations "
         "metricName=UnauthorizedAPICalls,metricNamespace=CISBenchmark,metricValue=1\n\n"
@@ -909,8 +873,8 @@ class AwsUnauthorizedApiMonitoringRule(_MonitoredEventRule):
         cli=(
             "aws logs put-metric-filter --log-group-name <group> "
             "--filter-name UnauthorizedAPICalls "
-            "--filter-pattern '{ ($.errorCode = \"*UnauthorizedOperation\") || "
-            "($.errorCode = \"AccessDenied*\") }' "
+            '--filter-pattern \'{ ($.errorCode = "*UnauthorizedOperation") || '
+            '($.errorCode = "AccessDenied*") }\' '
             "--metric-transformations metricName=UnauthorizedAPICalls,"
             "metricNamespace=CISBenchmark,metricValue=1",
             "aws cloudwatch put-metric-alarm --alarm-name UnauthorizedAPICalls "
@@ -984,7 +948,7 @@ class AwsRootUsageMonitoringRule(_MonitoredEventRule):
             "aws logs put-metric-filter --log-group-name <group> "
             "--filter-name RootAccountUsage "
             '--filter-pattern \'{ $.userIdentity.type = "Root" && '
-            '$.userIdentity.invokedBy NOT EXISTS && '
+            "$.userIdentity.invokedBy NOT EXISTS && "
             '$.eventType != "AwsServiceEvent" }\' '
             "--metric-transformations metricName=RootAccountUsage,"
             "metricNamespace=CISBenchmark,metricValue=1",
@@ -1094,8 +1058,7 @@ _MONITORING_MAPPINGS: dict[str, list[str]] = {
 }
 
 _CONSOLE_MFA_PATTERN = (
-    '{ ($.eventName = "ConsoleLogin") && '
-    '($.additionalEventData.MFAUsed != "Yes") }'
+    '{ ($.eventName = "ConsoleLogin") && ($.additionalEventData.MFAUsed != "Yes") }'
 )
 
 
@@ -1123,9 +1086,7 @@ class AwsConsoleSignInWithoutMfaMonitoringRule(_MonitoredEventRule):
         "answer to what happens between the credential being stolen and the "
         "enforcement being finished."
     )
-    remediation = _monitoring_remediation(
-        "ConsoleSignInWithoutMFA", _CONSOLE_MFA_PATTERN
-    )
+    remediation = _monitoring_remediation("ConsoleSignInWithoutMFA", _CONSOLE_MFA_PATTERN)
     remediation_spec: ClassVar[RemediationSpec | None] = _monitoring_spec(
         "ConsoleSignInWithoutMFA",
         _CONSOLE_MFA_PATTERN,

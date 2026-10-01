@@ -72,16 +72,14 @@ class _DefenderRule(SecurityRule):
     """Shared plumbing: read the assessments, or say why you cannot."""
 
     category = "posture"
-    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (
-        AzureEvidence.SECURITY_ASSESSMENTS,
-    )
+    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (AzureEvidence.SECURITY_ASSESSMENTS,)
     # The fix is in Defender or on the machine, not in a field CloudGuard reads.
     # An expectation naming one would describe a setting that does not exist.
     remediation_spec: ClassVar[RemediationSpec | None] = RemediationSpec(
         expected=(),
         cli=(
             "az security assessment list --query "
-            '"[?properties.status.code==\'Unhealthy\'].{name:properties.displayName,'
+            "\"[?properties.status.code=='Unhealthy'].{name:properties.displayName,"
             'resource:properties.resourceDetails.Id}" --output table',
         ),
         notes=(
@@ -93,9 +91,7 @@ class _DefenderRule(SecurityRule):
         ),
     )
 
-    def _guard(
-        self, resource: CloudResource | None, context: RuleContext
-    ) -> RuleResult | None:
+    def _guard(self, resource: CloudResource | None, context: RuleContext) -> RuleResult | None:
         if resource is None:
             return RuleResult.not_applicable("Rule is per-resource")
         failure = context.has_collection_error(*self.requires_evidence)
@@ -174,8 +170,7 @@ class AzureExposedVulnerableMachineRule(_DefenderRule):
             if str(finding.get("provider_severity") or "").lower() in SERIOUS
             # "No vulnerability assessment solution" matches the word and is not
             # a vulnerability found; AZ-VULN-002 reports it (section 176).
-            and str(finding.get("assessment_id") or "").lower()
-            != VULNERABILITY_ASSESSMENT_MISSING
+            and str(finding.get("assessment_id") or "").lower() != VULNERABILITY_ASSESSMENT_MISSING
         ]
 
         exposed = resource.public_exposure in (Level.HIGH, Level.CRITICAL)
@@ -272,8 +267,7 @@ class AzureMissingEndpointProtectionRule(_DefenderRule):
         return RuleResult.failed(
             evidence=evidence,
             message=(
-                f"Defender for Cloud reports no working endpoint protection on "
-                f"{resource.name}"
+                f"Defender for Cloud reports no working endpoint protection on {resource.name}"
             ),
         )
 

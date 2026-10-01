@@ -23,7 +23,7 @@ def test_each_cloud_gets_its_own_nouns() -> None:
 
 
 def test_the_artefact_and_the_console_are_named_too() -> None:
-    """"Check that the deployment succeeded in Azure Portal" is the wrong pair
+    """ "Check that the deployment succeeded in Azure Portal" is the wrong pair
     of nouns for somebody who ran a CloudFormation stack -- and it is shown at
     the moment they are most likely to be confused about which step they are
     on."""

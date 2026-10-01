@@ -21,9 +21,7 @@ class AzurePublicStorageRule(SecurityRule):
     severity = Severity.HIGH
     exploitability = 5
     applies_to: ClassVar[list[ResourceType]] = [ResourceType.STORAGE_ACCOUNT]
-    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (
-        AzureEvidence.STORAGE_ACCOUNTS,
-    )
+    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (AzureEvidence.STORAGE_ACCOUNTS,)
     estimated_effort_minutes = 20
     rationale = (
         "Publicly readable storage is the single most common source of large cloud data "
@@ -102,8 +100,10 @@ class AzurePublicStorageRule(SecurityRule):
             problems.append("Anonymous blob public access is enabled")
         if network_default is not None and str(network_default).lower() == "allow":
             problems.append("Network access rules default to Allow (open to all networks)")
-        if public_network is not None and str(public_network).lower() == "enabled" and (
-            network_default is not None and str(network_default).lower() == "allow"
+        if (
+            public_network is not None
+            and str(public_network).lower() == "enabled"
+            and (network_default is not None and str(network_default).lower() == "allow")
         ):
             problems.append("Public network access is enabled without network restrictions")
 
@@ -142,9 +142,7 @@ class AzureStorageEncryptionRule(SecurityRule):
     severity = Severity.HIGH
     exploitability = 2
     applies_to: ClassVar[list[ResourceType]] = [ResourceType.STORAGE_ACCOUNT]
-    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (
-        AzureEvidence.STORAGE_ACCOUNTS,
-    )
+    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (AzureEvidence.STORAGE_ACCOUNTS,)
     estimated_effort_minutes = 20
     rationale = (
         "Without enforced HTTPS and a current TLS version, credentials and data can be read "
@@ -262,9 +260,7 @@ class AzureStorageTransportRule(SecurityRule):
     # somebody else controls. Real, and it needs a position first.
     exploitability = 2
     applies_to: ClassVar[list[ResourceType]] = [ResourceType.STORAGE_ACCOUNT]
-    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (
-        AzureEvidence.STORAGE_ACCOUNTS,
-    )
+    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (AzureEvidence.STORAGE_ACCOUNTS,)
     estimated_effort_minutes = 10
     rationale = (
         "The shared key that authenticates a storage request is the whole account: it "
@@ -367,8 +363,5 @@ class AzureStorageTransportRule(SecurityRule):
         return RuleResult.failed(
             evidence={**evidence, "problems": problems},
             exploitability=1 if keyless else None,
-            message=(
-                f"{resource.name} accepts insecure connections: "
-                + "; ".join(problems)
-            ),
+            message=(f"{resource.name} accepts insecure connections: " + "; ".join(problems)),
         )

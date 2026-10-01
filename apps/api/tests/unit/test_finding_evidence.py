@@ -63,9 +63,7 @@ class FakeSession:
         self.statements: list[object] = []
         self._evidence = evidence or []
 
-    async def execute(
-        self, statement: object, params: object = None
-    ) -> EvidenceResult:
+    async def execute(self, statement: object, params: object = None) -> EvidenceResult:
         self.statements.append(statement)
         if isinstance(params, list):
             table = statement.table  # type: ignore[attr-defined]
@@ -118,6 +116,7 @@ class FakeSession:
         ]
         return [o for o in self.added if isinstance(o, kind)] + bulk
 
+
 def context(
     session: object,
     scan: Scan,
@@ -138,7 +137,6 @@ def context(
         account_ids=account_ids if account_ids is not None else [uuid.uuid4()],
         account_of=account_of or {},
     )
-
 
 
 def reading(
@@ -191,9 +189,7 @@ async def link(
     session = FakeSession(evidence)
     chosen = rule or AzurePublicStorageRule()
     report = EvaluationReport(
-        failures=[
-            EvaluatedResult(rule=chosen, result=RuleResult.failed(), resource=resource)
-        ],
+        failures=[EvaluatedResult(rule=chosen, result=RuleResult.failed(), resource=resource)],
         rules_run=1,
     )
     await persist_findings(
@@ -215,10 +211,7 @@ async def test_finding_cites_the_keys_its_rule_declares() -> None:
     scan = a_scan()
     rule = AzurePublicStorageRule()
     asset = storage_account("/subscriptions/a/storage/sa1")
-    rows = [
-        reading(key.value, scan_id=scan.id, account_id=SUB_A)
-        for key in rule.requires_evidence
-    ]
+    rows = [reading(key.value, scan_id=scan.id, account_id=SUB_A) for key in rule.requires_evidence]
     # A reading nothing declared, to prove the citation is the rule's
     # declaration rather than everything the scan happened to collect.
     rows.append(reading("virtual_machines", scan_id=scan.id, account_id=SUB_A))
@@ -273,12 +266,8 @@ async def test_a_finding_does_not_cite_another_subscriptions_reading() -> None:
     asset = storage_account("/subscriptions/a/storage/sa1")
     rows: list[Evidence] = []
     for key in rule.requires_evidence:
-        rows.append(
-            reading(key.value, scan_id=scan.id, account_id=SUB_B, content_hash="b" * 64)
-        )
-        rows.append(
-            reading(key.value, scan_id=scan.id, account_id=SUB_A, content_hash="a" * 64)
-        )
+        rows.append(reading(key.value, scan_id=scan.id, account_id=SUB_B, content_hash="b" * 64))
+        rows.append(reading(key.value, scan_id=scan.id, account_id=SUB_A, content_hash="a" * 64))
 
     session = await link(
         evidence=rows,
@@ -301,14 +290,9 @@ async def test_an_aggregate_finding_cites_the_directory_reading() -> None:
     """
     scan = a_scan()
     rule = AzureMfaRule()
-    rows = [
-        reading(key.value, scan_id=scan.id, account_id=None)
-        for key in rule.requires_evidence
-    ]
+    rows = [reading(key.value, scan_id=scan.id, account_id=None) for key in rule.requires_evidence]
 
-    session = await link(
-        evidence=rows, resource=None, account_of={}, scan=scan, rule=rule
-    )
+    session = await link(evidence=rows, resource=None, account_of={}, scan=scan, rule=rule)
 
     cited = {row.evidence_key for row in session.of_type(FindingEvidence)}
     assert cited == {key.value for key in rule.requires_evidence}
@@ -328,9 +312,7 @@ async def test_a_carried_reading_keeps_its_own_collection_time() -> None:
     asset = storage_account("/subscriptions/a/storage/sa1")
     four_days_ago = NOW - timedelta(days=4)
     rows = [
-        reading(
-            key.value, scan_id=scan.id, account_id=SUB_A, collected_at=four_days_ago
-        )
+        reading(key.value, scan_id=scan.id, account_id=SUB_A, collected_at=four_days_ago)
         for key in rule.requires_evidence
     ]
 
@@ -341,13 +323,11 @@ async def test_a_carried_reading_keeps_its_own_collection_time() -> None:
         scan=scan,
     )
 
-    assert {row.collected_at for row in session.of_type(FindingEvidence)} == {
-        four_days_ago
-    }
+    assert {row.collected_at for row in session.of_type(FindingEvidence)} == {four_days_ago}
 
 
 async def test_a_failed_reading_is_still_cited_with_no_hash() -> None:
-    """"We tried, at this time, under this permission" is provenance too.
+    """ "We tried, at this time, under this permission" is provenance too.
 
     A hash of nothing would claim there was something to point at, so the hash
     is NULL -- but the attempt is the record behind a degraded verdict, and
@@ -396,8 +376,7 @@ async def test_a_replay_cites_the_scan_that_did_the_reading() -> None:
     rule = AzurePublicStorageRule()
     asset = storage_account("/subscriptions/a/storage/sa1")
     rows = [
-        reading(key.value, scan_id=original.id, account_id=SUB_A)
-        for key in rule.requires_evidence
+        reading(key.value, scan_id=original.id, account_id=SUB_A) for key in rule.requires_evidence
     ]
 
     session = await link(
@@ -423,10 +402,7 @@ async def test_links_are_cleared_before_being_rewritten() -> None:
     scan = a_scan()
     rule = AzurePublicStorageRule()
     asset = storage_account("/subscriptions/a/storage/sa1")
-    rows = [
-        reading(key.value, scan_id=scan.id, account_id=SUB_A)
-        for key in rule.requires_evidence
-    ]
+    rows = [reading(key.value, scan_id=scan.id, account_id=SUB_A) for key in rule.requires_evidence]
 
     session = await link(
         evidence=rows,
@@ -437,11 +413,13 @@ async def test_links_are_cleared_before_being_rewritten() -> None:
 
     texts = [str(s).lstrip().upper() for s in session.statements]
     deletes = [
-        i for i, text in enumerate(texts)
+        i
+        for i, text in enumerate(texts)
         if text.startswith("DELETE") and "FINDING_EVIDENCE" in text
     ]
     inserts = [
-        i for i, text in enumerate(texts)
+        i
+        for i, text in enumerate(texts)
         if text.startswith("INSERT") and "FINDING_EVIDENCE" in text
     ]
     assert deletes, "the old citations are cleared"

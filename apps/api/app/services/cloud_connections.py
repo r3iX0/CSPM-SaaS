@@ -489,9 +489,7 @@ async def record_consent(
     return connection
 
 
-async def ensure_principal(
-    session: AsyncSession, connection: CloudConnection
-) -> bool:
+async def ensure_principal(session: AsyncSession, connection: CloudConnection) -> bool:
     """Resolve the identity a grant points at, if this cloud has one.
 
     Entra creates the principal during consent, but it is not always queryable
@@ -657,9 +655,7 @@ def degraded_categories(connection: CloudConnection) -> dict[EvidenceCategory, s
     return flow(connection).degraded_categories(connection)
 
 
-async def refresh_grant_version(
-    session: AsyncSession, connection: CloudConnection
-) -> str | None:
+async def refresh_grant_version(session: AsyncSession, connection: CloudConnection) -> str | None:
     """Record what the deployed grant actually allows. Returns the new version.
 
     Returns None when the version did not change, so a caller can tell
@@ -715,10 +711,7 @@ async def recheck_access(
         session, tenant, connection_id
     )
 
-    if (
-        flow(connection).has_separate_consent
-        and connection.consent_status != ConsentStatus.GRANTED
-    ):
+    if flow(connection).has_separate_consent and connection.consent_status != ConsentStatus.GRANTED:
         return await try_auto_validate(session, connection), subscriptions
 
     onboarding = flow(connection)
@@ -746,9 +739,7 @@ async def recheck_access(
     # page it answers stops polling as soon as it reports itself ready.
     if connection.rbac_verified_at and not connection.last_discovery_at:
         await _auto_discover(session, connection)
-        _, subscriptions = await get_connection_with_subscriptions(
-            session, tenant, connection_id
-        )
+        _, subscriptions = await get_connection_with_subscriptions(session, tenant, connection_id)
 
     return connection, subscriptions
 
@@ -840,9 +831,7 @@ def deploy_stalled_detail(connection: CloudConnection) -> str:
     )
 
 
-async def try_auto_validate(
-    session: AsyncSession, connection: CloudConnection
-) -> CloudConnection:
+async def try_auto_validate(session: AsyncSession, connection: CloudConnection) -> CloudConnection:
     """Attempt validation and discovery during polling.
 
     A failing probe stays quiet while the customer is plausibly still deploying
@@ -907,9 +896,7 @@ async def try_auto_validate(
     return connection
 
 
-async def _auto_discover(
-    session: AsyncSession, connection: CloudConnection
-) -> list[CloudAccount]:
+async def _auto_discover(session: AsyncSession, connection: CloudConnection) -> list[CloudAccount]:
     """Write what the provider says is beneath this connection's scope.
 
     The provider answers *what exists*; everything below decides what that means
@@ -1062,9 +1049,7 @@ async def set_subscription_scope(
                 account.scope_changed_at = datetime.now(UTC)
             account.in_scope = chosen
             account.status = (
-                CloudAccountStatus.ACTIVE
-                if account.in_scope
-                else CloudAccountStatus.DISABLED
+                CloudAccountStatus.ACTIVE if account.in_scope else CloudAccountStatus.DISABLED
             )
 
     if changed:
@@ -1086,8 +1071,7 @@ async def set_subscription_scope(
 
 
 SETUP_CANCELLED_DETAIL = (
-    "Setup cancelled. Nothing was scanned. Resume when you are ready, or "
-    "remove the connection."
+    "Setup cancelled. Nothing was scanned. Resume when you are ready, or remove the connection."
 )
 
 
@@ -1204,10 +1188,7 @@ def event_webhook_url(connection: CloudConnection) -> str | None:
     if not base:
         return None
     token = event_webhook_token(connection)
-    return (
-        f"{base}/api/v1/events/{connection.provider.value}/{connection.id}"
-        f"?token={token}"
-    )
+    return f"{base}/api/v1/events/{connection.provider.value}/{connection.id}?token={token}"
 
 
 async def set_change_events(
@@ -1267,9 +1248,7 @@ async def set_change_events(
     return connection
 
 
-async def change_event_setup(
-    session: AsyncSession, connection: CloudConnection
-) -> dict:
+async def change_event_setup(session: AsyncSession, connection: CloudConnection) -> dict:
     """What the customer needs to wire their subscriptions up, per subscription.
 
     One command per subscription rather than one for the tenant, because that is
@@ -1281,30 +1260,20 @@ async def change_event_setup(
         "enabled": connection.change_events_enabled,
         "webhook_url": url,
         "pending_since": (
-            connection.change_pending_since.isoformat()
-            if connection.change_pending_since
-            else None
+            connection.change_pending_since.isoformat() if connection.change_pending_since else None
         ),
         "last_event_at": (
-            connection.last_change_event_at.isoformat()
-            if connection.last_change_event_at
-            else None
+            connection.last_change_event_at.isoformat() if connection.last_change_event_at else None
         ),
-        "quiet_period_minutes": int(
-            change_events.QUIET_PERIOD.total_seconds() // 60
-        ),
-        "minimum_interval_minutes": int(
-            change_events.MIN_INTERVAL.total_seconds() // 60
-        ),
+        "quiet_period_minutes": int(change_events.QUIET_PERIOD.total_seconds() // 60),
+        "minimum_interval_minutes": int(change_events.MIN_INTERVAL.total_seconds() // 60),
         # Nothing to run until the webhook is open. Handing over a command whose
         # endpoint answers 400 would have the customer debugging CloudGuard's
         # configuration rather than their own.
         "commands": [
             {
                 "subscription_id": account.subscription_id,
-                "command": change_events.event_subscription_command(
-                    account.subscription_id, url
-                ),
+                "command": change_events.event_subscription_command(account.subscription_id, url),
             }
             for account in await _scannable_accounts(session, connection)
             if account.subscription_id

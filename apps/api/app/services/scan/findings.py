@@ -102,8 +102,7 @@ async def persist_findings(
         .where(Finding.organization_id == org_id, scope)
     )
     existing_findings = {
-        (f.rule_id, f.resource_id): f
-        for f in (await session.execute(in_scope)).scalars().all()
+        (f.rule_id, f.resource_id): f for f in (await session.execute(in_scope)).scalars().all()
     }
     risk_by_finding = {
         link.finding_id: link.risk_id
@@ -111,9 +110,7 @@ async def persist_findings(
             await session.execute(
                 select(RiskFinding).where(
                     RiskFinding.organization_id == org_id,
-                    RiskFinding.finding_id.in_(
-                        [f.id for f in existing_findings.values()]
-                    ),
+                    RiskFinding.finding_id.in_([f.id for f in existing_findings.values()]),
                 )
             )
         )
@@ -218,15 +215,11 @@ async def persist_findings(
             observed_at=now,
         )
 
-    linked_ids = [
-        risk_by_finding[f.id] for f, *_ in pending.values() if f.id in risk_by_finding
-    ]
+    linked_ids = [risk_by_finding[f.id] for f, *_ in pending.values() if f.id in risk_by_finding]
     risks = (
         {
             risk.id: risk
-            for risk in (
-                await session.execute(select(Risk).where(Risk.id.in_(linked_ids)))
-            )
+            for risk in (await session.execute(select(Risk).where(Risk.id.in_(linked_ids))))
             .scalars()
             .all()
         }
@@ -253,9 +246,7 @@ async def persist_findings(
                 await session.execute(
                     select(Risk).where(
                         Risk.organization_id == org_id,
-                        Risk.scenario_key.in_(
-                            [group_key(rule_id) for rule_id in grouped]
-                        ),
+                        Risk.scenario_key.in_([group_key(rule_id) for rule_id in grouped]),
                     )
                 )
             )
@@ -332,9 +323,7 @@ async def _link_evidence(
     session, org_id, account_of = ctx.session, ctx.org_id, ctx.account_of
     source_scan_id = ctx.scan.replay_of_scan_id or ctx.scan.id
     wanted = {
-        key.value
-        for _finding, rule, *_rest in pending.values()
-        for key in rule.requires_evidence
+        key.value for _finding, rule, *_rest in pending.values() for key in rule.requires_evidence
     }
     if not wanted:
         # Every rule that failed reads nothing it declared. Nothing to cite,
@@ -372,17 +361,13 @@ async def _link_evidence(
     )
 
     for finding, rule, resource, *_rest in pending.values():
-        account_id = (
-            account_of.get(resource.provider_resource_id) if resource else None
-        )
+        account_id = account_of.get(resource.provider_resource_id) if resource else None
         for key in rule.requires_evidence:
             # The asset's own subscription first, then the directory. Both
             # arms are needed rather than one: an aggregate rule reads only
             # tenant-wide listings, while a per-resource rule may read a
             # directory listing beside its subscription's.
-            row = by_scope.get((account_id, key.value)) or by_scope.get(
-                (None, key.value)
-            )
+            row = by_scope.get((account_id, key.value)) or by_scope.get((None, key.value))
             if row is None:
                 # No reading of this key reached this scope. That is not an
                 # error and not a gap to record here -- the rule degrades to
@@ -420,9 +405,7 @@ def _evidence_with_controls(result: RuleResult) -> dict:
     """
     evidence = dict(result.evidence or {})
     if result.controls:
-        evidence["compensating_controls"] = [
-            control.as_evidence() for control in result.controls
-        ]
+        evidence["compensating_controls"] = [control.as_evidence() for control in result.controls]
     return evidence
 
 

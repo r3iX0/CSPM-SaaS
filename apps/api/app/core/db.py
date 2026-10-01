@@ -80,9 +80,7 @@ def get_worker_engine() -> AsyncEngine:
 
 @lru_cache
 def _worker_session_factory() -> async_sessionmaker[AsyncSession]:
-    return async_sessionmaker(
-        get_worker_engine(), expire_on_commit=False, class_=AsyncSession
-    )
+    return async_sessionmaker(get_worker_engine(), expire_on_commit=False, class_=AsyncSession)
 
 
 @lru_cache
@@ -146,9 +144,7 @@ async def commit_unless_externally_managed(session: AsyncSession) -> None:
 
 
 @asynccontextmanager
-async def rls_session(
-    user_id: UUID | str, email: str | None = None
-) -> AsyncIterator[AsyncSession]:
+async def rls_session(user_id: UUID | str, email: str | None = None) -> AsyncIterator[AsyncSession]:
     """A session that PostgreSQL itself will constrain to ``user_id``'s tenants.
 
     ``SET LOCAL`` is transaction-scoped, so the role and claims are torn down on

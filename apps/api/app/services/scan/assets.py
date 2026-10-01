@@ -43,9 +43,9 @@ async def existing_resource_ids(ctx: AnalyzeContext) -> dict[str, UUID]:
     rows = (
         (
             await ctx.session.execute(
-                select(
-                    ResourceRecord.provider_resource_id, ResourceRecord.id
-                ).where(ResourceRecord.organization_id == ctx.org_id, scope)
+                select(ResourceRecord.provider_resource_id, ResourceRecord.id).where(
+                    ResourceRecord.organization_id == ctx.org_id, scope
+                )
             )
         )
         .tuples()
@@ -90,9 +90,7 @@ async def persist_resources(
     """
     session, org_id, now = ctx.session, ctx.org_id, ctx.observed_at
     account_ids = [account.id for account, _ in account_state]
-    scope = asset_scope(
-        account_ids, directory[0].id if directory is not None else None
-    )
+    scope = asset_scope(account_ids, directory[0].id if directory is not None else None)
     if scope is None:
         return {}
 
@@ -100,9 +98,7 @@ async def persist_resources(
         (row.cloud_account_id, row.provider_resource_id): row
         for row in (
             await session.execute(
-                select(ResourceRecord).where(
-                    ResourceRecord.organization_id == org_id, scope
-                )
+                select(ResourceRecord).where(ResourceRecord.organization_id == org_id, scope)
             )
         )
         .scalars()
@@ -265,11 +261,7 @@ async def _persist_relationships(
     attack-paths page after the customer severed it. A stale edge is not a
     weaker claim than a real one, it is a false one (DECISIONS.md section 52).
     """
-    wanted = {
-        (id_map[s], rel, id_map[t])
-        for s, rel, t in edges
-        if s in id_map and t in id_map
-    }
+    wanted = {(id_map[s], rel, id_map[t]) for s, rel, t in edges if s in id_map and t in id_map}
     for source, rel, target in wanted:
         ctx.writer.add(
             ResourceRelationship,

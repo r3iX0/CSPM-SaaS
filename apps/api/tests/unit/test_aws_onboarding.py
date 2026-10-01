@@ -63,9 +63,7 @@ def test_aws_has_no_consent_step_to_wait_for() -> None:
     PENDING.
     """
     assert AwsOnboarding().has_separate_consent is False
-    assert AwsOnboarding().start_url(
-        connection(), nonce="unused", issued_at=0.0
-    ) == (None, None)
+    assert AwsOnboarding().start_url(connection(), nonce="unused", issued_at=0.0) == (None, None)
 
 
 def test_every_scope_names_an_account_including_the_widest() -> None:
@@ -180,9 +178,7 @@ async def test_an_organization_gives_each_account_its_own_role(
 
     assert [a.account_id for a in found] == ["111111111111", "222222222222"]
     assert [a.display_name for a in found] == ["prod", "dev"]
-    assert {a.provider_ref["external_id"] for a in found} == {
-        link.provider_ref["external_id"]
-    }
+    assert {a.provider_ref["external_id"] for a in found} == {link.provider_ref["external_id"]}
     assert found[0].provider_ref["role_arn"] != found[1].provider_ref["role_arn"]
 
 
@@ -257,9 +253,7 @@ def test_aws_is_refused_without_a_public_api_address(
 
     monkeypatch.setattr("app.core.config.settings.aws_access_key_id", "AKIA")
     monkeypatch.setattr("app.core.config.settings.aws_secret_access_key", "secret")
-    monkeypatch.setattr(
-        "app.core.config.settings.aws_principal_arn", "arn:aws:iam::9:user/cg"
-    )
+    monkeypatch.setattr("app.core.config.settings.aws_principal_arn", "arn:aws:iam::9:user/cg")
     monkeypatch.setattr("app.core.config.settings.aws_enabled", True)
     monkeypatch.setattr("app.core.config.settings.api_url", "")
     monkeypatch.setattr("app.core.config.settings.azure_redirect_uri", "")
@@ -280,9 +274,7 @@ def test_aws_is_offered_once_the_address_is_set(
 
     monkeypatch.setattr("app.core.config.settings.aws_access_key_id", "AKIA")
     monkeypatch.setattr("app.core.config.settings.aws_secret_access_key", "secret")
-    monkeypatch.setattr(
-        "app.core.config.settings.aws_principal_arn", "arn:aws:iam::9:user/cg"
-    )
+    monkeypatch.setattr("app.core.config.settings.aws_principal_arn", "arn:aws:iam::9:user/cg")
     monkeypatch.setattr("app.core.config.settings.aws_enabled", True)
     monkeypatch.setattr("app.core.config.settings.api_url", "https://api.example.com")
 
@@ -303,15 +295,11 @@ def test_the_checklist_gate_is_reported_before_the_address(
 
     monkeypatch.setattr("app.core.config.settings.aws_access_key_id", "AKIA")
     monkeypatch.setattr("app.core.config.settings.aws_secret_access_key", "secret")
-    monkeypatch.setattr(
-        "app.core.config.settings.aws_principal_arn", "arn:aws:iam::9:user/cg"
-    )
+    monkeypatch.setattr("app.core.config.settings.aws_principal_arn", "arn:aws:iam::9:user/cg")
     monkeypatch.setattr("app.core.config.settings.aws_enabled", False)
     monkeypatch.setattr("app.core.config.settings.api_url", "")
 
     aws = next(p for p in available_providers() if p["id"] == "aws")
 
     assert "AWS_INTEGRATION.md" in (aws["operator_detail"] or "")
-    assert aws["unavailable_reason"] == (
-        "Coming soon. Cleave does not connect AWS accounts yet."
-    )
+    assert aws["unavailable_reason"] == ("Coming soon. Cleave does not connect AWS accounts yet.")

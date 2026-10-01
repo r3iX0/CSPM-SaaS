@@ -207,9 +207,7 @@ async def scanned_since(
     if trigger is not None:
         conditions.append(Scan.trigger == trigger)
 
-    found = (
-        await session.execute(select(Scan).where(*conditions).limit(1))
-    ).scalar_one_or_none()
+    found = (await session.execute(select(Scan).where(*conditions).limit(1))).scalar_one_or_none()
     return found is not None
 
 
@@ -293,9 +291,7 @@ async def reap_abandoned_scans(session: AsyncSession) -> list[tuple[UUID, str]]:
 
     closed: list[tuple[UUID, str]] = []
     for scan in stale:
-        message = (
-            NEVER_CLAIMED_MESSAGE if scan.lease_until is None else ABANDONED_MESSAGE
-        )
+        message = NEVER_CLAIMED_MESSAGE if scan.lease_until is None else ABANDONED_MESSAGE
         scan.status = ScanStatus.FAILED
         scan.error_message = message
         scan.completed_at = now
@@ -354,15 +350,12 @@ async def scan_stages(session: AsyncSession, scan: Scan) -> list[dict]:
         # actually wants.
         end = step.finished_at or (datetime.now(UTC) if step.started_at else None)
         seconds = (
-            max(0.0, (end - step.started_at).total_seconds())
-            if step.started_at and end
-            else None
+            max(0.0, (end - step.started_at).total_seconds()) if step.started_at and end else None
         )
         stages.append(
             {
                 "stage": step.kind.value,
-                "scope": account_name
-                or (DIRECTORY_LABEL if step.is_directory else None),
+                "scope": account_name or (DIRECTORY_LABEL if step.is_directory else None),
                 "status": step.status.value,
                 # A step on its second attempt is a step that was interrupted,
                 # which is the first thing to know about a scan that took twice
@@ -428,11 +421,7 @@ async def scan_context(session: AsyncSession, scan: Scan) -> dict:
         # vocabulary because the columns do (DECISIONS.md §70); this is what
         # lets the screen reading them use the right noun.
         "provider": (
-            connection.provider.value
-            if connection
-            else first.provider.value
-            if first
-            else None
+            connection.provider.value if connection else first.provider.value if first else None
         ),
         # Kept for the single-subscription case the detail panel still renders.
         "subscription_id": first.subscription_id if first else None,
@@ -440,9 +429,7 @@ async def scan_context(session: AsyncSession, scan: Scan) -> dict:
         "tenant_id": first.tenant_id if first else None,
         "connection_name": connection.name if connection else None,
         "scope_type": connection.scope_type.value if connection else None,
-        "scope_path": (
-            cloud_connections.scope_path(connection) if connection else None
-        ),
+        "scope_path": (cloud_connections.scope_path(connection) if connection else None),
         # The identity that did the reading, named the way the customer sees it.
         "service_principal_object_id": (
             connection.service_principal_object_id if connection else None
@@ -609,9 +596,7 @@ async def collection_status(session: AsyncSession, scan: Scan) -> dict:
             # a blank or a borrowed subscription name: the customer needs to
             # know a failure there is not a failure in any one subscription.
             "subscription": name or DIRECTORY_LABEL,
-            "cloud_account_id": (
-                str(row.cloud_account_id) if row.cloud_account_id else None
-            ),
+            "cloud_account_id": (str(row.cloud_account_id) if row.cloud_account_id else None),
             # Named "task" for the reader rather than "evidence_key" for the
             # schema. This is the report that answers "what could you not
             # read", and a task is the thing a person pictures failing.

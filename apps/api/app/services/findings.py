@@ -39,9 +39,7 @@ from app.services import audit as audit_service
 from app.services import verification as verification_service
 
 
-async def get_finding(
-    session: AsyncSession, tenant: TenantContext, finding_id: UUID
-) -> Finding:
+async def get_finding(session: AsyncSession, tenant: TenantContext, finding_id: UUID) -> Finding:
     finding = (
         await session.execute(
             select(Finding).where(
@@ -55,14 +53,10 @@ async def get_finding(
     return finding
 
 
-async def load_detail(
-    session: AsyncSession, tenant: TenantContext, finding: Finding
-) -> dict:
+async def load_detail(session: AsyncSession, tenant: TenantContext, finding: Finding) -> dict:
     """Assemble everything the finding detail page asks for."""
     resource = (
-        await session.get(ResourceRecord, finding.resource_id)
-        if finding.resource_id
-        else None
+        await session.get(ResourceRecord, finding.resource_id) if finding.resource_id else None
     )
 
     rule_row = (
@@ -372,9 +366,7 @@ def rule_metadata(rule_id: str) -> dict:
         "remediation_spec": remediation_detail(rule_id),
         # Every control this rule is evidence toward, including those the
         # crosswalk adds (DECISIONS.md section 168).
-        "compliance_mappings": compliance_mappings_for(
-            rule.rule_id, rule.compliance_mappings
-        ),
+        "compliance_mappings": compliance_mappings_for(rule.rule_id, rule.compliance_mappings),
     }
 
 
@@ -531,9 +523,7 @@ async def load_provenance(
                 # another is worse than no figure at all.
                 "age_seconds": max(0, int((now - link.collected_at).total_seconds())),
                 "source_scan_id": link.source_scan_id,
-                "payload_available": bool(
-                    link.content_hash and link.content_hash in stored
-                ),
+                "payload_available": bool(link.content_hash and link.content_hash in stored),
             }
         )
     return out

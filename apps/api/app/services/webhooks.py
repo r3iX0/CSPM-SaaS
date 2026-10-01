@@ -164,9 +164,7 @@ def headers_for(
     }
 
 
-async def send(
-    endpoint: WebhookEndpoint, message: Message, delivery_id: UUID
-) -> outbound.Outcome:
+async def send(endpoint: WebhookEndpoint, message: Message, delivery_id: UUID) -> outbound.Outcome:
     body = render(WebhookFormat(endpoint.format), message)
     return await outbound.post_json(
         endpoint.url, body, headers_for(endpoint, delivery_id, message.kind, body)
@@ -298,9 +296,7 @@ async def update_endpoint(
     return endpoint
 
 
-async def delete_endpoint(
-    session: AsyncSession, tenant: TenantContext, endpoint_id: UUID
-) -> None:
+async def delete_endpoint(session: AsyncSession, tenant: TenantContext, endpoint_id: UUID) -> None:
     _manage(tenant)
     endpoint = await _endpoint(session, tenant, endpoint_id)
     await audit.record(

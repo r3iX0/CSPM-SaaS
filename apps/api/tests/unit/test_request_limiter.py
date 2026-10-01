@@ -75,9 +75,7 @@ async def test_nested_fan_out_cannot_multiply_past_the_cap() -> None:
 
     async def outer(n: int) -> None:
         arm = ArmClient(FakeTokens(), http, limiter=limiter)
-        await asyncio.gather(
-            *(arm.list_sql_firewall_rules(f"/servers/{n}-{i}") for i in range(6))
-        )
+        await asyncio.gather(*(arm.list_sql_firewall_rules(f"/servers/{n}-{i}") for i in range(6)))
 
     await asyncio.gather(*(outer(n) for n in range(4)))
 
@@ -154,10 +152,7 @@ async def test_no_limiter_means_no_gate() -> None:
     http = watcher.client()
 
     await asyncio.gather(
-        *(
-            ArmClient(FakeTokens(), http).list_storage_accounts(f"sub-{n}")
-            for n in range(8)
-        )
+        *(ArmClient(FakeTokens(), http).list_storage_accounts(f"sub-{n}") for n in range(8))
     )
 
     assert watcher.peak > 1

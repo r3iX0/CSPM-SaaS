@@ -170,9 +170,7 @@ async def test_age_is_computed_from_when_the_provider_was_read() -> None:
     evidence_id = uuid.uuid4()
     four_days = NOW - timedelta(days=4)
     session = FakeSession(
-        links=[
-            a_link("storage_accounts", evidence_id=evidence_id, collected_at=four_days)
-        ],
+        links=[a_link("storage_accounts", evidence_id=evidence_id, collected_at=four_days)],
         readings=[a_reading(evidence_id, "storage_accounts")],
         stored_hashes=["a" * 64],
     )

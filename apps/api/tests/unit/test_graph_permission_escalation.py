@@ -72,9 +72,7 @@ def test_a_graph_permission_that_writes_directory_roles_is_a_takeover() -> None:
     assert first.resource_type is ResourceType.SERVICE_PRINCIPAL
     assert first.metadata["identity_id"] == "mi-1"
     assert "stub" not in first.metadata
-    assert first.metadata["directory_powers"] == [
-        {"power": "control_all_scopes", "via": TAKEOVER}
-    ]
+    assert first.metadata["directory_powers"] == [{"power": "control_all_scopes", "via": TAKEOVER}]
     sync_powers = found["/principals/mi-2"].metadata["directory_powers"]
     assert sync_powers[0]["power"] == "control_all_scopes"
     assert found["/principals/mi-3"].metadata["directory_powers"] == [

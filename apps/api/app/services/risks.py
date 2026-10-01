@@ -170,9 +170,7 @@ async def linked_to(
     )
 
 
-async def delete_emptied(
-    session: AsyncSession, organization_id: UUID, risk_ids: set[UUID]
-) -> int:
+async def delete_emptied(session: AsyncSession, organization_id: UUID, risk_ids: set[UUID]) -> int:
     """Delete those of these risks that no finding is a member of any more.
 
     For after a delete that took findings with it -- a connection, or a scan
@@ -205,9 +203,7 @@ async def delete_emptied(
     return len(list(emptied))
 
 
-async def _members(
-    session: AsyncSession, risk_ids: list[UUID]
-) -> dict[UUID, list[Finding]]:
+async def _members(session: AsyncSession, risk_ids: list[UUID]) -> dict[UUID, list[Finding]]:
     """The triageable findings of each finding risk, in one query."""
     if not risk_ids:
         return {}

@@ -52,9 +52,7 @@ async def create_scan(
     payload: ScanCreate, session: DbSession, tenant: Tenant
 ) -> Envelope[ScanOut, NoMeta]:
     tenant.require_write()
-    account = await accounts_service.get_cloud_account(
-        session, tenant, payload.cloud_account_id
-    )
+    account = await accounts_service.get_cloud_account(session, tenant, payload.cloud_account_id)
 
     if not account.is_scannable:
         raise ValidationFailed(
@@ -138,15 +136,12 @@ async def replay_scan_endpoint(
     # collecting scan, because this is the only code that sets the column and
     # it never sets it to another replay.
     if source.replay_of_scan_id is not None:
-        origin = await scans_service.get_scan(
-            session, tenant, source.replay_of_scan_id
-        )
+        origin = await scans_service.get_scan(session, tenant, source.replay_of_scan_id)
         source = origin
 
     if not source.status.is_terminal:
         raise ConflictError(
-            "That scan has not finished yet. Wait for it to complete before "
-            "replaying its snapshot."
+            "That scan has not finished yet. Wait for it to complete before replaying its snapshot."
         )
 
     await scans_service.lock_scan_target(
@@ -172,9 +167,7 @@ async def replay_scan_endpoint(
     )
     await session.commit()
 
-    await scans_service.enqueue_or_fail(
-        replay_scan.delay, scan, tenant.user.id, noun="replay"
-    )
+    await scans_service.enqueue_or_fail(replay_scan.delay, scan, tenant.user.id, noun="replay")
 
     return Envelope(data=ScanOut.model_validate(scan), meta=NoMeta())
 
@@ -236,6 +229,7 @@ async def list_scans(
 # Declared before the parameterised routes below: FastAPI matches in order,
 # so `/{scan_id}` would otherwise swallow this and answer it with a 422 for
 # an id that is not a UUID.
+
 
 @router.get("/worker-status")
 async def worker_status(tenant: Tenant) -> Envelope[WorkerStatusOut, NoMeta]:
@@ -305,9 +299,7 @@ async def _detail_payload(session: AsyncSession, scan: Scan) -> ScanDetailOut:
         for stage in await scans_service.scan_stages(session, scan)
     ]
     data.findings_by_severity = await scans_service.severity_breakdown(session, scan)
-    data.purgeable_finding_count = await scans_service.findings_attributable_to(
-        session, scan
-    )
+    data.purgeable_finding_count = await scans_service.findings_attributable_to(session, scan)
     return data
 
 
@@ -372,9 +364,7 @@ async def scan_events(
 async def get_scan(scan_id: UUID, session: DbSession, tenant: Tenant) -> Envelope[ScanOut, NoMeta]:
     scan = (
         await session.execute(
-            select(Scan).where(
-                Scan.id == scan_id, Scan.organization_id == tenant.organization_id
-            )
+            select(Scan).where(Scan.id == scan_id, Scan.organization_id == tenant.organization_id)
         )
     ).scalar_one_or_none()
     if scan is None:

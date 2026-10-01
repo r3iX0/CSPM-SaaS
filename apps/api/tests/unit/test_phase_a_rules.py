@@ -64,9 +64,7 @@ def nsg_rule(port: str, source: str = "0.0.0.0/0", protocol: str = "Tcp") -> dic
 # --------------------------------------------------------------------- WinRM
 class TestPublicWinRm:
     def test_the_http_listener_open_to_the_internet_fails(self) -> None:
-        nsg = asset(
-            ResourceType.NETWORK_SECURITY_GROUP, security_rules=[nsg_rule("5985")]
-        )
+        nsg = asset(ResourceType.NETWORK_SECURITY_GROUP, security_rules=[nsg_rule("5985")])
 
         result = WINRM.evaluate(nsg, RuleContext(resources=[nsg]))
 
@@ -76,9 +74,7 @@ class TestPublicWinRm:
     def test_the_https_listener_is_the_same_finding(self) -> None:
         """One door, two frames. Reporting 5985 and 5986 separately would ask a
         customer to close the same thing twice."""
-        nsg = asset(
-            ResourceType.NETWORK_SECURITY_GROUP, security_rules=[nsg_rule("5986")]
-        )
+        nsg = asset(ResourceType.NETWORK_SECURITY_GROUP, security_rules=[nsg_rule("5986")])
 
         result = WINRM.evaluate(nsg, RuleContext(resources=[nsg]))
 
@@ -96,9 +92,7 @@ class TestPublicWinRm:
     def test_a_missing_rule_list_is_unknown(self) -> None:
         nsg = asset(ResourceType.NETWORK_SECURITY_GROUP)
 
-        assert (
-            WINRM.evaluate(nsg, RuleContext(resources=[nsg])).state == RuleState.UNKNOWN
-        )
+        assert WINRM.evaluate(nsg, RuleContext(resources=[nsg])).state == RuleState.UNKNOWN
 
     def test_no_resource_is_not_applicable(self) -> None:
         assert WINRM.evaluate(None, RuleContext()).state == RuleState.NOT_APPLICABLE
@@ -115,12 +109,8 @@ class TestUnguardedVm:
         assert result.evidence["guarding_nsgs"] == []
 
     def test_a_guarded_machine_passes(self) -> None:
-        vm = asset(
-            ResourceType.VIRTUAL_MACHINE, resource_id="/vms/web", has_public_ip=False
-        )
-        nsg = asset(
-            ResourceType.NETWORK_SECURITY_GROUP, resource_id="/nsgs/web", name="web-nsg"
-        )
+        vm = asset(ResourceType.VIRTUAL_MACHINE, resource_id="/vms/web", has_public_ip=False)
+        nsg = asset(ResourceType.NETWORK_SECURITY_GROUP, resource_id="/nsgs/web", name="web-nsg")
         context = RuleContext(
             resources=[vm, nsg],
             relationships={("/nsgs/web", "protects"): ["/vms/web"]},
@@ -185,10 +175,7 @@ class TestStorageTransport:
             min_tls_version="TLS1_0",
         )
 
-        assert (
-            TRANSPORT.evaluate(account, RuleContext(resources=[account])).state
-            == RuleState.FAIL
-        )
+        assert TRANSPORT.evaluate(account, RuleContext(resources=[account])).state == RuleState.FAIL
 
     def test_https_only_on_modern_tls_passes(self) -> None:
         account = asset(
@@ -197,20 +184,14 @@ class TestStorageTransport:
             min_tls_version="TLS1_2",
         )
 
-        assert (
-            TRANSPORT.evaluate(account, RuleContext(resources=[account])).state
-            == RuleState.PASS
-        )
+        assert TRANSPORT.evaluate(account, RuleContext(resources=[account])).state == RuleState.PASS
 
     def test_an_absent_tls_version_is_not_read_as_an_old_one(self) -> None:
         """Azure's own default has moved over time. Guessing it would be
         inventing the evidence this rule exists to report."""
         account = asset(ResourceType.STORAGE_ACCOUNT, https_traffic_only=True)
 
-        assert (
-            TRANSPORT.evaluate(account, RuleContext(resources=[account])).state
-            == RuleState.PASS
-        )
+        assert TRANSPORT.evaluate(account, RuleContext(resources=[account])).state == RuleState.PASS
 
     def test_an_account_that_refuses_shared_keys_scores_lower(self) -> None:
         """What travels on the wire is the point. A key is the whole account
@@ -230,8 +211,7 @@ class TestStorageTransport:
         account = asset(ResourceType.STORAGE_ACCOUNT)
 
         assert (
-            TRANSPORT.evaluate(account, RuleContext(resources=[account])).state
-            == RuleState.UNKNOWN
+            TRANSPORT.evaluate(account, RuleContext(resources=[account])).state == RuleState.UNKNOWN
         )
 
     def test_no_resource_is_not_applicable(self) -> None:
@@ -260,10 +240,7 @@ class TestDatabasePrivateConnectivity:
             private_endpoints=["/pe/one"],
         )
 
-        assert (
-            PRIVATE_DB.evaluate(server, RuleContext(resources=[server])).state
-            == RuleState.PASS
-        )
+        assert PRIVATE_DB.evaluate(server, RuleContext(resources=[server])).state == RuleState.PASS
 
     def test_a_disabled_public_endpoint_passes_however_it_was_reached(self) -> None:
         """A server nothing can dial is not waiting on a private endpoint to
@@ -275,10 +252,7 @@ class TestDatabasePrivateConnectivity:
             private_endpoints=[],
         )
 
-        assert (
-            PRIVATE_DB.evaluate(server, RuleContext(resources=[server])).state
-            == RuleState.PASS
-        )
+        assert PRIVATE_DB.evaluate(server, RuleContext(resources=[server])).state == RuleState.PASS
 
     def test_an_ordinary_database_is_not_applicable(self) -> None:
         """Scoped deliberately. Raising this on every development server is how
@@ -299,8 +273,7 @@ class TestDatabasePrivateConnectivity:
         server = asset(ResourceType.SQL_SERVER, sensitivity=Level.HIGH)
 
         assert (
-            PRIVATE_DB.evaluate(server, RuleContext(resources=[server])).state
-            == RuleState.UNKNOWN
+            PRIVATE_DB.evaluate(server, RuleContext(resources=[server])).state == RuleState.UNKNOWN
         )
 
     def test_a_failed_listing_is_unknown(self) -> None:

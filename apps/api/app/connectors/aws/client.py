@@ -179,9 +179,7 @@ class AwsClient:
         response.pop("ResponseMetadata", None)
         return response
 
-    async def paginate(
-        self, operation: str, key: str, **kwargs: Any
-    ) -> list[dict[str, Any]]:
+    async def paginate(self, operation: str, key: str, **kwargs: Any) -> list[dict[str, Any]]:
         """Every page of one listing, or as many as :data:`MAX_PAGES` allows.
 
         Returns the items AWS returned, in AWS's own shape. Stopping at the cap

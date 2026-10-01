@@ -98,13 +98,9 @@ async def list_risks(
         # scenario's asset names live in the description rather than in a
         # column, so both are searched.
         needle = f"%{search}%"
-        stmt = stmt.where(
-            or_(Risk.title.ilike(needle), Risk.description.ilike(needle))
-        )
+        stmt = stmt.where(or_(Risk.title.ilike(needle), Risk.description.ilike(needle)))
 
-    total = (
-        await session.execute(select(func.count()).select_from(stmt.subquery()))
-    ).scalar_one()
+    total = (await session.execute(select(func.count()).select_from(stmt.subquery()))).scalar_one()
 
     rows = (
         (
@@ -139,9 +135,7 @@ def _risk_out(risk: Risk, expiries: dict[UUID, datetime]) -> RiskOut:
     return out
 
 
-async def _member_expiries(
-    session: AsyncSession, risk_ids: list[UUID]
-) -> dict[UUID, datetime]:
+async def _member_expiries(session: AsyncSession, risk_ids: list[UUID]) -> dict[UUID, datetime]:
     """The earliest running acceptance's end date among each risk's accepted findings.
 
     The earliest, because that is when the risk next needs a decision: one
@@ -188,7 +182,9 @@ async def _counts(
                 )
                 .group_by(RiskFinding.risk_id)
             )
-        ).tuples().all()
+        )
+        .tuples()
+        .all()
     )
     # Routes that share a member finding with this risk. Counted for finding
     # risks only: a route sharing findings with another route is overlap, not
@@ -211,7 +207,9 @@ async def _counts(
                 )
                 .group_by(own.risk_id)
             )
-        ).tuples().all()
+        )
+        .tuples()
+        .all()
     )
     return findings, routes
 
@@ -248,9 +246,7 @@ async def set_risk_status(
         reason=payload.reason,
         expires_at=payload.expires_at,
     )
-    return Envelope(
-        data=_risk_out(risk, await _member_expiries(session, [risk.id])), meta=NoMeta()
-    )
+    return Envelope(data=_risk_out(risk, await _member_expiries(session, [risk.id])), meta=NoMeta())
 
 
 @router.get("/{risk_id}")
@@ -259,9 +255,7 @@ async def get_risk(
 ) -> Envelope[RiskDetailOut, NoMeta]:
     risk = (
         await session.execute(
-            select(Risk).where(
-                Risk.id == risk_id, Risk.organization_id == tenant.organization_id
-            )
+            select(Risk).where(Risk.id == risk_id, Risk.organization_id == tenant.organization_id)
         )
     ).scalar_one_or_none()
     if risk is None:

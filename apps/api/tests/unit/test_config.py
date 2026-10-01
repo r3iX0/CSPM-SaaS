@@ -14,13 +14,26 @@ import pytest
 from app.core.config import CONSENT_CALLBACK_PATH, ConfigurationError, Settings
 
 ENV_VARS = [
-    "APP_ENV", "APP_URL", "API_URL", "LOG_LEVEL",
-    "SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY", "SUPABASE_SECRET_KEY",
-    "SUPABASE_JWT_SECRET", "JWT_AUDIENCE",
-    "DATABASE_URL", "DATABASE_OWNER_URL", "DB_ECHO", "REDIS_URL",
-    "AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET", "AZURE_TENANT_ID",
-    "AZURE_REDIRECT_URI", "AZURE_CONSENT_STATE_SECRET",
-    "SENTRY_DSN", "CORS_ORIGINS",
+    "APP_ENV",
+    "APP_URL",
+    "API_URL",
+    "LOG_LEVEL",
+    "SUPABASE_URL",
+    "SUPABASE_PUBLISHABLE_KEY",
+    "SUPABASE_SECRET_KEY",
+    "SUPABASE_JWT_SECRET",
+    "JWT_AUDIENCE",
+    "DATABASE_URL",
+    "DATABASE_OWNER_URL",
+    "DB_ECHO",
+    "REDIS_URL",
+    "AZURE_CLIENT_ID",
+    "AZURE_CLIENT_SECRET",
+    "AZURE_TENANT_ID",
+    "AZURE_REDIRECT_URI",
+    "AZURE_CONSENT_STATE_SECRET",
+    "SENTRY_DSN",
+    "CORS_ORIGINS",
 ]
 
 DEPLOYABLE = {
@@ -69,9 +82,7 @@ class TestRequiredValues:
             ("app_url", "APP_URL"),
         ],
     )
-    def test_each_required_value_is_reported_by_name(
-        self, field: str, expected: str
-    ) -> None:
+    def test_each_required_value_is_reported_by_name(self, field: str, expected: str) -> None:
         problems = settings_with(**{field: ""}).config_problems()
         assert any(expected in p for p in problems), f"{expected} not reported"
 
@@ -272,9 +283,7 @@ class TestAzureConsentReadiness:
         assert "Value column" in problem
 
     def test_a_client_id_that_is_not_a_guid_is_caught(self) -> None:
-        s = self.azure(
-            f"https://api.example.com{CONSENT_CALLBACK_PATH}", client_id="app-id"
-        )
+        s = self.azure(f"https://api.example.com{CONSENT_CALLBACK_PATH}", client_id="app-id")
         assert "not a GUID" in (s.azure_consent_problem or "")
 
     def test_a_real_looking_secret_value_is_accepted(self) -> None:
@@ -300,9 +309,7 @@ class TestAzureConsentReadiness:
     def test_the_pre_connections_callback_path_is_caught(self) -> None:
         """The path moved when connections replaced per-subscription accounts.
         A deployment still on the old value would fail only at consent time."""
-        s = self.azure(
-            "https://api.example.com/api/v1/cloud-accounts/azure/consent/callback"
-        )
+        s = self.azure("https://api.example.com/api/v1/cloud-accounts/azure/consent/callback")
         assert CONSENT_CALLBACK_PATH in (s.azure_consent_problem or "")
 
     def test_a_missing_identity_is_reported_before_the_uri(self) -> None:

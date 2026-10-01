@@ -85,9 +85,7 @@ def render_pdf(report: dict[str, Any]) -> bytes:
             f"(pango, cairo, harfbuzz) are not installed. {exc}"
         ) from exc
     except ImportError as exc:
-        raise NotConfigured(
-            "This server cannot render PDFs: WeasyPrint is not installed."
-        ) from exc
+        raise NotConfigured("This server cannot render PDFs: WeasyPrint is not installed.") from exc
 
     return bytes(HTML(string=html).write_pdf())
 

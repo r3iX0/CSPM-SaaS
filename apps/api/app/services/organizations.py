@@ -184,9 +184,7 @@ async def join_demo(session: AsyncSession, user: AuthenticatedUser) -> Organizat
         ).scalar_one()
     except DBAPIError as exc:
         if "no demo organization" in str(exc.orig):
-            raise OrganizationNotFound(
-                "The demo is not available on this deployment yet."
-            ) from exc
+            raise OrganizationNotFound("The demo is not available on this deployment yet.") from exc
         raise
     await commit_unless_externally_managed(session)
 

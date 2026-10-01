@@ -230,8 +230,7 @@ SPECS = (
             "    --sku Standard_GZRS"
         ),
         cli=(
-            "az storage account update --name <account> --resource-group <rg> "
-            "--sku Standard_GZRS",
+            "az storage account update --name <account> --resource-group <rg> --sku Standard_GZRS",
         ),
         category="storage",
         resource_type=ResourceType.STORAGE_ACCOUNT,
@@ -291,8 +290,7 @@ SPECS = (
             "policy > Modify > Retention of daily backup point > 30 days > Update."
         ),
         cli=(
-            "az backup policy set --resource-group <rg> --vault-name <vault> "
-            "--policy @policy.json",
+            "az backup policy set --resource-group <rg> --vault-name <vault> --policy @policy.json",
         ),
         category="compute",
         resource_type=ResourceType.BACKUP_VAULT,
@@ -300,8 +298,7 @@ SPECS = (
         field="short_retention_policies",
         passes=_none,
         why_no_expected_state=(
-            "The check passes when no policy is short, and the short ones are named in "
-            "the finding."
+            "The check passes when no policy is short, and the short ones are named in the finding."
         ),
         describes="Every backup policy keeps daily recovery points for 30 days or more",
         failure="has backup policies keeping recovery points under 30 days",

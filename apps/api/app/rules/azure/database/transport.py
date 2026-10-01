@@ -59,8 +59,7 @@ class AzureSqlTlsRule(SecurityRule):
             ),
         ),
         cli=(
-            "az sql server update --name <server> --resource-group <rg> "
-            "--minimal-tls-version 1.2",
+            "az sql server update --name <server> --resource-group <rg> --minimal-tls-version 1.2",
         ),
         policy_resource_type="Microsoft.Sql/servers",
         policy_effect="Audit",

@@ -114,9 +114,7 @@ async def list_webhook_deliveries(
                 created_at=delivery.created_at,
                 delivered_at=delivery.delivered_at,
                 next_attempt_at=(
-                    delivery.next_attempt_at
-                    if delivery.status is DeliveryStatus.PENDING
-                    else None
+                    delivery.next_attempt_at if delivery.status is DeliveryStatus.PENDING else None
                 ),
             )
             for delivery, title in rows

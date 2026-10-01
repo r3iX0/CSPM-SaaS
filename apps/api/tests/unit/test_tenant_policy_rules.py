@@ -131,9 +131,7 @@ def test_security_defaults_protect_both_doors() -> None:
 
 
 # --------------------------------------------------------------------- MySQL
-SERVER = (
-    "/subscriptions/s/resourceGroups/rg/providers/Microsoft.DBforMySQL/flexibleServers/shop"
-)
+SERVER = "/subscriptions/s/resourceGroups/rg/providers/Microsoft.DBforMySQL/flexibleServers/shop"
 
 
 def mysql_verdict(rule_id: str, parameters: dict[str, Any] | str | None) -> RuleState:
@@ -217,4 +215,3 @@ def test_group_creation_is_open_until_the_setting_says_otherwise() -> None:
     assert tenant_verdict("AZ-ID-021", group_settings=unified("true")) is RuleState.FAIL
     assert tenant_verdict("AZ-ID-021", group_settings=unified("false")) is RuleState.PASS
     assert tenant_verdict("AZ-ID-021") is RuleState.UNKNOWN
-

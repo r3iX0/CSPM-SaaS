@@ -437,10 +437,7 @@ FILE_SPECS = (
             "  az storage account update --name <account> --resource-group <rg> \\\n"
             "    --key-exp-days 90"
         ),
-        cli=(
-            "az storage account update --name <account> --resource-group <rg> "
-            "--key-exp-days 90",
-        ),
+        cli=("az storage account update --name <account> --resource-group <rg> --key-exp-days 90",),
         severity=Severity.MEDIUM,
         exploitability=1,
         category="storage",

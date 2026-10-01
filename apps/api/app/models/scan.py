@@ -146,6 +146,7 @@ class Scan(UUIDPrimaryKey, TenantOwned, Timestamps, Base):
             return False
         waited = datetime.now(UTC) - self.created_at
         return waited.total_seconds() > self.QUEUE_PATIENCE_SECONDS
+
     # Category-level collection failures, e.g. {"storage": "timeout"}. Drives
     # PARTIAL status and the UNKNOWN degradation path (AZURE_INTEGRATION.md section 5).
     collection_errors: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
@@ -169,9 +170,7 @@ class CloudSnapshot(UUIDPrimaryKey, TenantOwned, Base):
     # account, so this constraint does not bound it; migration 0008's partial
     # unique index on (scan_id) WHERE cloud_account_id IS NULL does.
     __table_args__ = (
-        UniqueConstraint(
-            "scan_id", "cloud_account_id", name="uq_cloud_snapshots_scan_account"
-        ),
+        UniqueConstraint("scan_id", "cloud_account_id", name="uq_cloud_snapshots_scan_account"),
     )
 
     # Exactly one subscription for an account capture, NULL for the scan's
@@ -346,9 +345,7 @@ class Evidence(UUIDPrimaryKey, TenantOwned, Base):
     # answer to "did we see the security groups", and the aggregation that
     # decides whether that answer is trustworthy lives in the coverage report.
     region: Mapped[str | None] = mapped_column(String(32))
-    outcome: Mapped[TaskOutcome] = mapped_column(
-        StrEnumType(TaskOutcome, 16), nullable=False
-    )
+    outcome: Mapped[TaskOutcome] = mapped_column(StrEnumType(TaskOutcome, 16), nullable=False)
     detail: Mapped[str | None] = mapped_column(Text)
     # How much came back. Meaningful next to PARTIAL, where the useful question
     # is "some of what?".
@@ -424,9 +421,7 @@ class EvidenceBlob(Base):
     """
 
     __tablename__ = "evidence_blobs"
-    __table_args__ = (
-        Index("ix_evidence_blobs_last_seen", "organization_id", "last_seen_at"),
-    )
+    __table_args__ = (Index("ix_evidence_blobs_last_seen", "organization_id", "last_seen_at"),)
 
     # Half the primary key rather than a plain tenant column, which is what
     # makes the isolation above structural: there is no way to address a blob
@@ -535,16 +530,12 @@ class ScanStep(UUIDPrimaryKey, TenantOwned, Base):
     """
 
     __tablename__ = "scan_steps"
-    __table_args__ = (
-        Index("ix_scan_steps_scan_status", "scan_id", "status"),
-    )
+    __table_args__ = (Index("ix_scan_steps_scan_status", "scan_id", "status"),)
 
     scan_id: Mapped[uuid.UUID] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("scans.id", ondelete="CASCADE"), nullable=False
     )
-    kind: Mapped[ScanStepKind] = mapped_column(
-        StrEnumType(ScanStepKind, 16), nullable=False
-    )
+    kind: Mapped[ScanStepKind] = mapped_column(StrEnumType(ScanStepKind, 16), nullable=False)
     # Which subscription a COLLECT step reads. NULL on the step that reads the
     # tenant directory, and on PLAN and ANALYZE, which are about the scan rather
     # than about any one scope.
@@ -593,8 +584,4 @@ class ScanStep(UUIDPrimaryKey, TenantOwned, Base):
         if self.kind != ScanStepKind.COLLECT:
             return self.kind.value.lower()
         vocabulary = words(provider)
-        return (
-            f"the {vocabulary.directory}"
-            if self.is_directory
-            else f"one {vocabulary.account}"
-        )
+        return f"the {vocabulary.directory}" if self.is_directory else f"one {vocabulary.account}"

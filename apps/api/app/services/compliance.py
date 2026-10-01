@@ -97,9 +97,7 @@ class _Snapshot:
         reading with no outcome, which is the only honest way to render "this
         control is green and nobody looked".
         """
-        keys = {
-            key for rule in rules for key in (rule.requires_evidence or []) if key
-        }
+        keys = {key for rule in rules for key in (rule.requires_evidence or []) if key}
         if not keys:
             return ()
         return summarize_readings(
@@ -319,9 +317,7 @@ def _serialize_reading(reading: Reading, now: datetime) -> dict:
         "evidence_key": reading.evidence_key,
         "outcome": reading.outcome,
         "scopes": reading.scopes,
-        "collected_at": (
-            reading.collected_at.isoformat() if reading.collected_at else None
-        ),
+        "collected_at": (reading.collected_at.isoformat() if reading.collected_at else None),
         "age_seconds": (
             int((now - _aware(reading.collected_at)).total_seconds())
             if reading.collected_at
@@ -377,9 +373,7 @@ def _resolve(framework: Framework, snapshot: _Snapshot) -> list[tuple[dict, Cont
     return resolved
 
 
-async def connected_providers(
-    session: AsyncSession, organization_id: UUID
-) -> set[Provider]:
+async def connected_providers(session: AsyncSession, organization_id: UUID) -> set[Provider]:
     """Which clouds this organization actually has a connection to.
 
     Every connection, not only the verified ones. A customer part-way through

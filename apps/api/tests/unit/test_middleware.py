@@ -103,9 +103,7 @@ async def test_hsts_is_sent_behind_a_proxy_that_ended_tls(
         response = await proxied.get("/thing", headers={"X-Forwarded-Proto": "https"})
         assert "Strict-Transport-Security" in response.headers
 
-        forged_left = await proxied.get(
-            "/thing", headers={"X-Forwarded-Proto": "https, http"}
-        )
+        forged_left = await proxied.get("/thing", headers={"X-Forwarded-Proto": "https, http"})
         assert "Strict-Transport-Security" not in forged_left.headers
 
     monkeypatch.setattr(mw.settings, "trusted_proxy_hops", 0)

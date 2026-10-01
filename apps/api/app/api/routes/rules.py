@@ -42,17 +42,13 @@ def _serialize(rule: Rule) -> RuleOut:
 
 @router.get("")
 async def list_rules(session: DbSession, tenant: Tenant) -> Envelope[list[RuleOut], NoMeta]:
-    rows = (
-        (await session.execute(select(Rule).order_by(Rule.rule_id))).scalars().all()
-    )
+    rows = (await session.execute(select(Rule).order_by(Rule.rule_id))).scalars().all()
     return Envelope(data=[_serialize(r) for r in rows], meta=NoMeta())
 
 
 @router.get("/{rule_id}")
 async def get_rule(rule_id: str, session: DbSession, tenant: Tenant) -> Envelope[RuleOut, NoMeta]:
-    rule = (
-        await session.execute(select(Rule).where(Rule.rule_id == rule_id))
-    ).scalar_one_or_none()
+    rule = (await session.execute(select(Rule).where(Rule.rule_id == rule_id))).scalar_one_or_none()
     if rule is None:
         raise NotFound("Rule not found")
     return Envelope(data=_serialize(rule), meta=NoMeta())

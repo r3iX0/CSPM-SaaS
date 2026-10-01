@@ -14,9 +14,7 @@ class TestExposedCompute:
         ctx = make_context(
             vm,
             nsg,
-            relationships={
-                (nsg.provider_resource_id, "protects"): [vm.provider_resource_id]
-            },
+            relationships={(nsg.provider_resource_id, "protects"): [vm.provider_resource_id]},
         )
         result = self.rule.evaluate(vm, ctx)
         assert result.state == RuleState.FAIL
@@ -28,9 +26,7 @@ class TestExposedCompute:
         ctx = make_context(
             vm,
             nsg,
-            relationships={
-                (nsg.provider_resource_id, "protects"): [vm.provider_resource_id]
-            },
+            relationships={(nsg.provider_resource_id, "protects"): [vm.provider_resource_id]},
         )
         assert self.rule.evaluate(vm, ctx).state == RuleState.PASS
 

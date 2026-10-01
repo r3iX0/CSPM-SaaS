@@ -129,9 +129,7 @@ def _serialize_subscription(account: CloudAccount) -> DiscoveredSubscription:
 
 
 @router.get("/{connection_id}/template", include_in_schema=False)
-async def arm_template(
-    connection_id: UUID, token: str = Query(default="")
-) -> JSONResponse:
+async def arm_template(connection_id: UUID, token: str = Query(default="")) -> JSONResponse:
     """Serve the ARM template for the Deploy to Azure button.
 
     Unauthenticated, and readable from any origin. Both are requirements rather
@@ -160,9 +158,7 @@ async def arm_template(
             max_age_seconds=service.TEMPLATE_TOKEN_TTL_SECONDS,
         )
     except SignedStateError as exc:
-        return JSONResponse(
-            {"error": str(exc)}, status_code=400, headers=TEMPLATE_CORS_HEADERS
-        )
+        return JSONResponse({"error": str(exc)}, status_code=400, headers=TEMPLATE_CORS_HEADERS)
 
     if str(connection_id) != payload.get("cloud_connection_id"):
         return JSONResponse(
@@ -271,14 +267,10 @@ async def consent_callback(
     setup = f"{frontend}/connections/{connection_id}/setup"
 
     if error:
-        return RedirectResponse(
-            f"{setup}?consent_error={quote(error_description or error)}"
-        )
+        return RedirectResponse(f"{setup}?consent_error={quote(error_description or error)}")
 
     if admin_consent.lower() not in {"true", "1", ""}:
-        return RedirectResponse(
-            f"{setup}?consent_error={quote('Admin consent was not granted')}"
-        )
+        return RedirectResponse(f"{setup}?consent_error={quote('Admin consent was not granted')}")
 
     async with service_session() as session:
         try:
@@ -390,9 +382,7 @@ async def recheck_access(
     version on it had not been looked at since the connection was created.
     """
     tenant.require_write()
-    connection, subscriptions = await service.recheck_access(
-        session, tenant, connection_id
-    )
+    connection, subscriptions = await service.recheck_access(session, tenant, connection_id)
     return Envelope(data=_serialize(connection, len(subscriptions), subscriptions), meta=NoMeta())
 
 
@@ -455,9 +445,7 @@ async def set_change_events(
     one that leaves a subscription delivering to an endpoint now refusing it.
     """
     tenant.require_write()
-    connection = await service.set_change_events(
-        session, tenant, connection_id, payload.enabled
-    )
+    connection = await service.set_change_events(session, tenant, connection_id, payload.enabled)
     setup = await service.change_event_setup(session, connection)
     return Envelope(data=ChangeEventSetupOut.model_validate(setup), meta=NoMeta())
 
@@ -468,9 +456,7 @@ async def cancel_setup(
 ) -> Envelope[CloudConnectionOut, NoMeta]:
     """Stop the setup process without discarding the connection."""
     tenant.require_write()
-    connection = await service.set_setup_cancelled(
-        session, tenant, connection_id, cancelled=True
-    )
+    connection = await service.set_setup_cancelled(session, tenant, connection_id, cancelled=True)
     return Envelope(data=_serialize(connection), meta=NoMeta())
 
 
@@ -480,9 +466,7 @@ async def resume_setup(
 ) -> Envelope[CloudConnectionOut, NoMeta]:
     """Pick setup back up where it was left."""
     tenant.require_write()
-    connection = await service.set_setup_cancelled(
-        session, tenant, connection_id, cancelled=False
-    )
+    connection = await service.set_setup_cancelled(session, tenant, connection_id, cancelled=False)
     return Envelope(data=_serialize(connection), meta=NoMeta())
 
 
@@ -501,9 +485,7 @@ async def revocation(
     return Envelope(data=RevocationOut.model_validate(steps), meta=NoMeta())
 
 
-@router.post(
-    "/{connection_id}/check-revoked", responses=WRITE, dependencies=[Costly]
-)
+@router.post("/{connection_id}/check-revoked", responses=WRITE, dependencies=[Costly])
 async def check_revoked(
     connection_id: UUID, session: DbSession, tenant: Tenant
 ) -> Envelope[RevocationCheckOut, NoMeta]:

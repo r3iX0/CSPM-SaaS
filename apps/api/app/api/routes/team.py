@@ -51,9 +51,7 @@ def _invitation(invitation: OrganizationInvitation) -> InvitationOut:
 
 
 @router.get("/members")
-async def list_members(
-    session: DbSession, tenant: Tenant
-) -> Envelope[list[MemberOut], NoMeta]:
+async def list_members(session: DbSession, tenant: Tenant) -> Envelope[list[MemberOut], NoMeta]:
     """Everyone in this organization. Any member may ask."""
     members = await service.list_members(session, tenant)
     return Envelope(data=[_member(m, tenant.user.id) for m in members], meta=NoMeta())

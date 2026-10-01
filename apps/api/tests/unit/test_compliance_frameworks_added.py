@@ -50,8 +50,7 @@ class TestTheyAreMappingsRatherThanEngines:
                 if framework_id not in (rule.compliance_mappings or {})
             ]
             assert unmapped == [], (
-                f"these rules produce evidence nothing attributes to "
-                f"{framework_id}: {unmapped}"
+                f"these rules produce evidence nothing attributes to {framework_id}: {unmapped}"
             )
 
     def test_no_rule_was_added_for_any_of_them(self) -> None:
@@ -185,9 +184,7 @@ class TestPciSaysWhoseScopeItIsNot:
         """Physical access, penetration testing, policy and incident response.
         An assessor asks about all four and this product answers none of them.
         """
-        unassessable = {
-            c.id for c in framework(PCI).controls if not c.technically_assessable
-        }
+        unassessable = {c.id for c in framework(PCI).controls if not c.technically_assessable}
 
         assert {"9.1.1", "11.4.1", "12.1.1", "12.10.1"} <= unassessable
 
@@ -225,4 +222,3 @@ class TestPciSaysWhoseScopeItIsNot:
         baseline = catalogue.control("2.2.1")
         assert baseline is not None and baseline.technically_assessable
         assert "2.2.1" in uncovered
-

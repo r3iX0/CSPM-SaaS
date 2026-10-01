@@ -188,4 +188,3 @@ class CoverageOut(BaseModel):
     unknown: int
     #: Up to two hundred of the checks that could not tell, and why.
     gaps: list[CoverageGapOut] = Field(default_factory=list)
-

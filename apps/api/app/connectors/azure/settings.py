@@ -282,8 +282,7 @@ def iot_coverage(resources: Any, solutions: Any) -> dict[str, Any]:
             {
                 str(hub).lower()
                 for solution in solutions
-                if str(_first(solution, "properties", "status") or "Enabled").lower()
-                == "enabled"
+                if str(_first(solution, "properties", "status") or "Enabled").lower() == "enabled"
                 for hub in _first(solution, "properties", "iotHubs") or []
             }
         )
@@ -397,9 +396,7 @@ def vault_contents(vault_id: str, keys: Any, secrets: Any) -> dict[str, Any]:
     if isinstance(key_list, list):
         enabled = [k for k in key_list if isinstance(k, dict) and _enabled(k)]
         result["keys_without_expiry"] = sorted(
-            str(k.get("name"))
-            for k in enabled
-            if not _first(k, "properties", "attributes", "exp")
+            str(k.get("name")) for k in enabled if not _first(k, "properties", "attributes", "exp")
         )
         unstated = False
         no_rotation: list[str] = []
@@ -409,9 +406,7 @@ def vault_contents(vault_id: str, keys: Any, secrets: Any) -> dict[str, Any]:
                 unstated = True
                 continue
             actions = _first(props, "rotationPolicy", "lifetimeActions") or []
-            if not any(
-                str(_first(a, "action", "type") or "").lower() == "rotate" for a in actions
-            ):
+            if not any(str(_first(a, "action", "type") or "").lower() == "rotate" for a in actions):
                 no_rotation.append(str(key.get("name")))
         result["keys_without_rotation"] = (
             sorted(no_rotation) if no_rotation or not unstated else None
@@ -440,8 +435,7 @@ def sql_defences(server_id: str, data: dict[str, Any]) -> dict[str, Any]:
             else None
         ),
         "tde_customer_managed_key": (
-            str(_first(protector, "properties", "serverKeyType") or "").lower()
-            == "azurekeyvault"
+            str(_first(protector, "properties", "serverKeyType") or "").lower() == "azurekeyvault"
             if protector is not None
             else None
         ),
@@ -610,15 +604,31 @@ END_OF_SUPPORT: dict[str, dict[tuple[int, ...], date | None]] = {
     },
     # App Service retired Java 7 on 29 July 2022 and supports 8, 11, 17, 21
     # and 25 with no end date published.
-    "java": {(7,): date(2022, 7, 29), (8,): None, (11,): None, (17,): None, (21,): None,
-             (25,): None},
+    "java": {
+        (7,): date(2022, 7, 29),
+        (8,): None,
+        (11,): None,
+        (17,): None,
+        (21,): None,
+        (25,): None,
+    },
     # Tomcat 8.5 and 10.0, which App Service still offers without patches.
-    "tomcat": {(8, 5): date(2024, 3, 31), (9, 0): None, (10, 0): date(2022, 10, 31),
-               (10, 1): None, (11, 0): None},
+    "tomcat": {
+        (8, 5): date(2024, 3, 31),
+        (9, 0): None,
+        (10, 0): date(2022, 10, 31),
+        (10, 1): None,
+        (11, 0): None,
+    },
 }
 
-_LINUX_STACKS = {"python": "python", "php": "php", "java": "java", "tomcat": "tomcat",
-                 "jbosseap": "java"}
+_LINUX_STACKS = {
+    "python": "python",
+    "php": "php",
+    "java": "java",
+    "tomcat": "tomcat",
+    "jbosseap": "java",
+}
 
 
 def _version(text: str) -> tuple[int, ...] | None:
@@ -651,8 +661,11 @@ def _stacks(cfg: dict[str, Any]) -> list[tuple[str, tuple[int, ...]]]:
                 found.append(("java", v))
         elif language and (v := _version(rest)) is not None:
             found.append((language, v))
-    for field, language in (("pythonVersion", "python"), ("phpVersion", "php"),
-                            ("javaVersion", "java")):
+    for field, language in (
+        ("pythonVersion", "python"),
+        ("phpVersion", "php"),
+        ("javaVersion", "java"),
+    ):
         value = str(cfg.get(field) or "")
         if value and value.lower() != "off" and (v := _version(value)) is not None:
             found.append((language, v))
@@ -722,9 +735,7 @@ def backup_vaults(data: dict[str, Any], context: ContextOf) -> list[CloudResourc
             short = sorted(
                 str(p.get("name"))
                 for p in listed
-                if isinstance(p, dict)
-                and (days := retention_days(p)) is not None
-                and days < 30
+                if isinstance(p, dict) and (days := retention_days(p)) is not None and days < 30
             )
         found.append(
             CloudResource(
@@ -747,7 +758,10 @@ def backup_vaults(data: dict[str, Any], context: ContextOf) -> list[CloudResourc
                     ),
                     "short_retention_policies": short,
                     "soft_delete": _first(
-                        vault, "properties", "securitySettings", "softDeleteSettings",
+                        vault,
+                        "properties",
+                        "securitySettings",
+                        "softDeleteSettings",
                         "softDeleteState",
                     ),
                     "tags": vault.get("tags") or {},
@@ -880,9 +894,7 @@ def _flow_log(entry: dict[str, Any]) -> dict[str, Any]:
 def _covers(entry: dict[str, Any], network_id: str, subnet_nsgs: set[str]) -> bool:
     target = str(_first(entry, "properties", "targetResourceId") or "").lower()
     return (
-        target == network_id
-        or target.startswith(f"{network_id}/subnets/")
-        or target in subnet_nsgs
+        target == network_id or target.startswith(f"{network_id}/subnets/") or target in subnet_nsgs
     )
 
 

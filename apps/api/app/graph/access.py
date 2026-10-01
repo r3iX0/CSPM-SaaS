@@ -89,9 +89,7 @@ class Lens:
         kind = resource.resource_type
         if (kind, AccessKind.READ_DATA) in self.grants or (kind, AccessKind.EXECUTE) in self.grants:
             return True
-        return (kind, AccessKind.EDIT_POLICY) in self.grants and _governed_by_own_policy(
-            resource
-        )
+        return (kind, AccessKind.EDIT_POLICY) in self.grants and _governed_by_own_policy(resource)
 
 
 EVERYTHING = Lens(everything=True)
@@ -124,9 +122,7 @@ def role_entries(
     ]
 
 
-def lens_for(
-    principal: CloudResource, relationship: RelationshipType, target: str
-) -> Lens:
+def lens_for(principal: CloudResource, relationship: RelationshipType, target: str) -> Lens:
     """The lens a walk takes across one role edge.
 
     Every role the principal holds at the target contributes, because the edge
@@ -236,9 +232,7 @@ class AccessGrant:
 
 
 def _kinds(access: Any, resource_type: ResourceType) -> tuple[AccessKind, ...]:
-    return tuple(
-        sorted({kind for kind_type, kind in _pairs(access) if kind_type is resource_type})
-    )
+    return tuple(sorted({kind for kind_type, kind in _pairs(access) if kind_type is resource_type}))
 
 
 def _controls(
@@ -318,9 +312,7 @@ def holders(
             for entry in entries:
                 access = entry.get("access")
                 resolved = "access" in entry and access is not None
-                kinds = (
-                    () if focus.resource_type in SCOPES else _kinds(access, focus.resource_type)
-                )
+                kinds = () if focus.resource_type in SCOPES else _kinds(access, focus.resource_type)
                 if entry.get("grants_role_assignment"):
                     kinds = (*kinds, AccessKind.GRANT_ACCESS)
                 found.append(
@@ -367,9 +359,7 @@ def _eligible_holders(
             entries = role_entries(principal, level, ELIGIBLE_ROLES)
             for entry in entries:
                 access = entry.get("access")
-                kinds = (
-                    () if focus.resource_type in SCOPES else _kinds(access, focus.resource_type)
-                )
+                kinds = () if focus.resource_type in SCOPES else _kinds(access, focus.resource_type)
                 if entry.get("grants_role_assignment"):
                     kinds = (*kinds, AccessKind.GRANT_ACCESS)
                 found.append(
@@ -482,14 +472,11 @@ def _members(
         ),
         key=lambda member: member.name.lower(),
     )
-    drawn_ids = {
-        str(member.metadata.get(IDENTITY_ID) or "").lower() for member in drawn
-    }
+    drawn_ids = {str(member.metadata.get(IDENTITY_ID) or "").lower() for member in drawn}
     unlisted = sorted(
         member["name"] or member["id"]
         for member in members_of(principal)
-        if member["id"].lower() not in drawn_ids
-        and member["kind"] != ResourceType.GROUP.value
+        if member["id"].lower() not in drawn_ids and member["kind"] != ResourceType.GROUP.value
     )
     return tuple(drawn), tuple(unlisted)
 
@@ -512,9 +499,7 @@ def grants(
 
     # Its own roles, then every group's it is in -- a role held through a group
     # is held all the same, and removing the person from the group is a fix.
-    sources: list[tuple[CloudResource | None, list[Any]]] = [
-        (None, _held(principal))
-    ]
+    sources: list[tuple[CloudResource | None, list[Any]]] = [(None, _held(principal))]
     for relationship, other in outgoing.get(principal_id, []):
         # Through a group it is in, or an identity it can sign in as: either
         # way the role is held, and the membership or the sign-in is a fix.

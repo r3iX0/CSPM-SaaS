@@ -34,9 +34,7 @@ async def persist_coverage(
         )
 
     for gap in report.gaps:
-        resource_uuid = (
-            id_map.get(gap.resource.provider_resource_id) if gap.resource else None
-        )
+        resource_uuid = id_map.get(gap.resource.provider_resource_id) if gap.resource else None
         ctx.writer.add(
             ScanEvaluationGap,
             scan_id=ctx.scan.id,

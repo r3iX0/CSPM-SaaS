@@ -74,9 +74,7 @@ def score_trend_svg(history: list[dict]) -> str:
     the reader to see a direction that has not been measured.
     """
     scores = [
-        int(entry["security_score"])
-        for entry in history
-        if entry.get("security_score") is not None
+        int(entry["security_score"]) for entry in history if entry.get("security_score") is not None
     ]
     if len(scores) < 2:
         return ""

@@ -114,9 +114,7 @@ class CloudConnection(Base, UUIDPrimaryKey, TenantOwned, Timestamps):
     # had already sent on -- the failure being a Global Administrator following
     # a link that says the request expired, hours after it was sent.
     consent_nonce: Mapped[str | None] = mapped_column(String(64))
-    consent_nonce_issued_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True)
-    )
+    consent_nonce_issued_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # What the consent left out, as the provider's own permission names, read
     # from the grant rather than from the callback. NULL is "not checked", an
     # empty list is "nothing missing": a GRANTED callback is Entra saying the
@@ -150,21 +148,15 @@ class CloudConnection(Base, UUIDPrimaryKey, TenantOwned, Timestamps):
     # *write* in their tenant, and holding no write permission at all is the
     # strongest security claim this product makes. What CloudGuard can do is
     # generate the command, exactly as it does for the scanner role.
-    change_events_enabled: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False
-    )
+    change_events_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # When the current burst of changes started, and when the last one arrived.
     # Two columns rather than one because they answer different halves of the
     # debounce: a deployment emits dozens of events in a minute and must produce
     # one scan, so the trigger waits for quiet -- and without the first column a
     # scan started after the quiet period would have no idea how long the
     # environment had been drifting.
-    change_pending_since: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True)
-    )
-    last_change_event_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True)
-    )
+    change_pending_since: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_change_event_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # What the UI offers, and what the API accepts. Bounded at both ends for
     # different reasons: below an hour a scan would still be running when the

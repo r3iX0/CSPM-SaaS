@@ -107,9 +107,7 @@ class AzureDefenderPlansRule(SecurityRule):
         if plans is None:
             return RuleResult.unknown("Defender plan listing missing from snapshot")
 
-        by_name = {
-            str(plan.get("name")): plan for plan in plans if not plan.get("deprecated")
-        }
+        by_name = {str(plan.get("name")): plan for plan in plans if not plan.get("deprecated")}
         judged = {name: by_name[name] for name in PLANS if name in by_name}
         if not judged:
             # A listing that names none of the plans CIS asks about is not a

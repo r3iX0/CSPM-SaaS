@@ -108,9 +108,7 @@ class AzureKeyVaultDeletionRule(SecurityRule):
         purge_protection = resource.get("purge_protection")
 
         if soft_delete is None and purge_protection is None:
-            return RuleResult.unknown(
-                "Key vault recovery configuration missing from snapshot"
-            )
+            return RuleResult.unknown("Key vault recovery configuration missing from snapshot")
 
         problems = []
         if soft_delete is False:
@@ -194,8 +192,7 @@ class AzureKeyVaultNetworkRule(SecurityRule):
         cli=(
             "az keyvault network-rule add --name <vault> --resource-group <rg> "
             "--vnet-name <vnet> --subnet <subnet>",
-            "az keyvault update --name <vault> --resource-group <rg> "
-            "--default-action Deny",
+            "az keyvault update --name <vault> --resource-group <rg> --default-action Deny",
         ),
         policy_resource_type="Microsoft.KeyVault/vaults",
         # Audit rather than Deny. A vault is often created before the network
@@ -229,17 +226,13 @@ class AzureKeyVaultNetworkRule(SecurityRule):
         public_access = resource.get("public_network_access")
 
         if default_action is None and public_access is None:
-            return RuleResult.unknown(
-                "Key vault network configuration missing from snapshot"
-            )
+            return RuleResult.unknown("Key vault network configuration missing from snapshot")
 
         evidence = {
             "network_default_action": default_action,
             "public_network_access": public_access,
             "ip_rule_count": len(resource.get("ip_rules", []) or []),
-            "virtual_network_rule_count": len(
-                resource.get("virtual_network_rules", []) or []
-            ),
+            "virtual_network_rule_count": len(resource.get("virtual_network_rules", []) or []),
             "rbac_authorization": resource.get("rbac_authorization"),
         }
 

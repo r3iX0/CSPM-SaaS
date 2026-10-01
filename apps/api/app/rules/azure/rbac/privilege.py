@@ -91,9 +91,8 @@ class _RoleAssignmentRule(SecurityRule):
         expected=(),
         cli=(
             "az role assignment list --assignee <object-id> --all "
-            "--query \"[].{role:roleDefinitionName,scope:scope}\" --output table",
-            "az role assignment delete --assignee <object-id> --role <role> "
-            "--scope <scope>",
+            '--query "[].{role:roleDefinitionName,scope:scope}" --output table',
+            "az role assignment delete --assignee <object-id> --role <role> --scope <scope>",
         ),
         notes=(
             "No expected state and no policy. The fix is removing or narrowing a "
@@ -116,9 +115,7 @@ class _RoleAssignmentRule(SecurityRule):
             # The identity is in the graph because something else named it --
             # a managed identity attached to a VM, say -- and no assignment was
             # ever read for it. Silence, not a clean bill of health.
-            return RuleResult.unknown(
-                "No role assignments were recorded for this identity"
-            )
+            return RuleResult.unknown("No role assignments were recorded for this identity")
         return None
 
 
@@ -305,7 +302,7 @@ class AzureRoleGrantingIdentityRule(_RoleAssignmentRule):
         "identity that can write role assignments does not need to be Owner -- it can "
         "become Owner, at any moment, without exploiting anything. This is why the "
         "check reads the role's permissions rather than its name: Owner and Contributor "
-        "both carry `actions: [\"*\"]`, and only Contributor excludes the assignment "
+        'both carry `actions: ["*"]`, and only Contributor excludes the assignment '
         "write, so a name-based check would flag every Contributor in existence."
     )
     remediation = (
@@ -318,7 +315,7 @@ class AzureRoleGrantingIdentityRule(_RoleAssignmentRule):
         "Management rather than permanently active.\n\n"
         "Azure CLI, to see what a custom role actually permits:\n"
         "  az role definition list --name <role> \\\n"
-        "    --query \"[].{actions:permissions[0].actions,notActions:permissions[0].notActions}\""
+        '    --query "[].{actions:permissions[0].actions,notActions:permissions[0].notActions}"'
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.15", "A.5.18", "A.8.2"],
@@ -338,9 +335,7 @@ class AzureRoleGrantingIdentityRule(_RoleAssignmentRule):
         assert resource is not None
 
         escalating = [
-            role
-            for role in _roles(resource) or []
-            if role.get("grants_role_assignment") is True
+            role for role in _roles(resource) or [] if role.get("grants_role_assignment") is True
         ]
         if not escalating:
             return RuleResult.passed({"can_grant_roles": False})
@@ -474,8 +469,7 @@ class AzureExcessiveOwnersRule(SecurityRule):
             "owner_count": len(holders),
             "threshold": self.MAX_OWNERS,
             "owners": sorted(
-                str(identity.get("user_principal_name") or identity.name)
-                for identity in holders
+                str(identity.get("user_principal_name") or identity.name) for identity in holders
             )[:50],
         }
         if len(holders) <= self.MAX_OWNERS:
@@ -631,13 +625,11 @@ class AzureDangerousCustomRoleRule(SecurityRule):
     exploitability = 3
     scope = RuleScope.PER_RESOURCE
     applies_to: ClassVar[list[ResourceType]] = [ResourceType.SUBSCRIPTION]
-    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (
-        AzureEvidence.ROLE_DEFINITIONS,
-    )
+    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (AzureEvidence.ROLE_DEFINITIONS,)
     estimated_effort_minutes = 90
     rationale = (
         "Whoever reviews privilege looks at who holds Owner. A custom role called "
-        "\"Platform Support\" that grants the same actions passes that review, and the "
+        '"Platform Support" that grants the same actions passes that review, and the '
         "right to write role assignments turns whatever its holder has into whatever they "
         "want."
     )
@@ -701,9 +693,7 @@ class AzureDangerousCustomRoleRule(SecurityRule):
             actions = [str(a) for a in (role.get("actions") or [])]
             not_actions = [str(a) for a in (role.get("not_actions") or [])]
             granted = [
-                target
-                for target in _DANGEROUS_ACTIONS
-                if _granted(actions, not_actions, target)
+                target for target in _DANGEROUS_ACTIONS if _granted(actions, not_actions, target)
             ]
             if granted:
                 dangerous.append(
@@ -724,7 +714,6 @@ class AzureDangerousCustomRoleRule(SecurityRule):
             },
             message=(
                 f"{len(dangerous)} custom role(s) grant unrestricted or "
-                "self-granting permissions: "
-                + ", ".join(sorted(str(r["role"]) for r in dangerous))
+                "self-granting permissions: " + ", ".join(sorted(str(r["role"]) for r in dangerous))
             ),
         )

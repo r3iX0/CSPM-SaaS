@@ -54,9 +54,7 @@ async def mark_read(session: DbSession, tenant: Tenant) -> Envelope[ReadThroughO
     No role check: reading is not a privilege, and a VIEWER who cannot dismiss
     what they have already read would be shown the same news for ever.
     """
-    read_through = await service.mark_read(
-        session, tenant.organization_id, tenant.user.id
-    )
+    read_through = await service.mark_read(session, tenant.organization_id, tenant.user.id)
     await session.commit()
     return Envelope(data=ReadThroughOut(read_through=read_through), meta=NoMeta())
 

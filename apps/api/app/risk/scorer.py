@@ -130,9 +130,7 @@ class RiskScorer:
             known_level=self.band(known_score),
         )
 
-    def _known_score(
-        self, inputs: RiskInputs, severity: float, exploitability: float
-    ) -> float:
+    def _known_score(self, inputs: RiskInputs, severity: float, exploitability: float) -> float:
         """The same formula over established context only.
 
         A second pass rather than a scaling of the first: the weights are not
@@ -195,9 +193,7 @@ class RiskScorer:
         # Shortness, then the two things that decide whether the ends are worth
         # joining at all.
         shortness = max(0.0, cfg.max_scenario_amplifier - (hops - 1) * cfg.scenario_hop_penalty)
-        ends = (
-            cfg.level_scores[entry_exposure] + cfg.level_scores[target_sensitivity]
-        ) / 10.0
+        ends = (cfg.level_scores[entry_exposure] + cfg.level_scores[target_sensitivity]) / 10.0
         amplifier = min(cfg.max_scenario_amplifier, shortness * ends)
 
         uncapped = floor + amplifier

@@ -46,9 +46,7 @@ NOTIFICATION_TYPE = "Notification"
 #
 # ``amazonaws.com.cn`` is included because the China partitions use it and a
 # customer there is not a customer to break; every other suffix is refused.
-SNS_HOST = re.compile(
-    r"^sns\.[a-z0-9-]+\.amazonaws\.com(\.cn)?$", re.IGNORECASE
-)
+SNS_HOST = re.compile(r"^sns\.[a-z0-9-]+\.amazonaws\.com(\.cn)?$", re.IGNORECASE)
 
 # EventBridge sources CloudGuard actually judges. An event outside them cannot
 # change any verdict, so it is acknowledged and dropped.
@@ -197,9 +195,7 @@ def subscription_command(scope_id: str, endpoint: str) -> str:
     it cannot use anyway, but a filter AWS applies is traffic that never leaves
     the customer's account.
     """
-    pattern = json.dumps(
-        {"source": sorted(WATCHED_SOURCES), "detail-type": [API_CALL_DETAIL_TYPE]}
-    )
+    pattern = json.dumps({"source": sorted(WATCHED_SOURCES), "detail-type": [API_CALL_DETAIL_TYPE]})
     # The region stays a placeholder and the account does not. CloudGuard knows
     # which account this connection covers; which region the customer wants the
     # topic in is theirs to choose, and guessing would put it somewhere they did

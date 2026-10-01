@@ -50,8 +50,7 @@ def test_every_declared_api_version_appears_in_the_client() -> None:
             # Microsoft Graph versions in the path, so the client carries it in
             # its base URL rather than in a query parameter.
             assert endpoint.api_version in CLIENT, (
-                f"{name} declares Graph {endpoint.api_version}, "
-                "which the client does not use"
+                f"{name} declares Graph {endpoint.api_version}, which the client does not use"
             )
             continue
         assert f"api-version={endpoint.api_version}" in CLIENT, (
@@ -151,8 +150,7 @@ def test_a_task_declaring_several_calls_records_all_of_them() -> None:
         plan_module.SQL_FIREWALL_ENDPOINT,
     )
     assert len({e.api_version for e in sql_endpoints}) == 1, (
-        "both SQL calls go to the same api-version; if that changes the "
-        "declaration has to say so"
+        "both SQL calls go to the same api-version; if that changes the declaration has to say so"
     )
 
 
@@ -210,7 +208,5 @@ def test_a_task_reading_several_things_declares_all_of_them() -> None:
         "servers",
         "firewallRules",
     }
-    assert {e.path.rsplit("/", 1)[-1] for e in by_key["sql_auditing"].endpoints} == {
-        "default"
-    }
+    assert {e.path.rsplit("/", 1)[-1] for e in by_key["sql_auditing"].endpoints} == {"default"}
     assert len(by_key["user_role_map"].endpoints) == 2

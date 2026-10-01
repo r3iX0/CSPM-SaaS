@@ -122,9 +122,7 @@ class ScanPipeline:
                     )
                 ).scalar_one_or_none()
             if organization_id is None:
-                raise ScanVanished(
-                    "This scan no longer exists, so there is nothing to run."
-                )
+                raise ScanVanished("This scan no longer exists, so there is nothing to run.")
             self._organization_id = organization_id
         return self._organization_id
 
@@ -191,22 +189,16 @@ class ScanPipeline:
                     elif kind == ScanStepKind.COLLECT:
                         await self.collect(step_id, _StepHeartbeat(keeper), fence)
                     else:
-                        await self.analyze(
-                            _PhaseReporter(step_id, organization_id, attempt), fence
-                        )
+                        await self.analyze(_PhaseReporter(step_id, organization_id, attempt), fence)
                 except ScanStepError as exc:
                     return await self._settle(
                         step_id, str(exc), retryable=exc.retryable, attempt=attempt
                     )
                 except Exception as exc:
                     log.exception("scan.step_failed")
-                    return await self._settle(
-                        step_id, str(exc), retryable=True, attempt=attempt
-                    )
+                    return await self._settle(step_id, str(exc), retryable=True, attempt=attempt)
 
-                return await self._settle(
-                    step_id, None, retryable=False, attempt=attempt
-                )
+                return await self._settle(step_id, None, retryable=False, attempt=attempt)
 
     def _log_step(self, step: ScanStep, outcome: ScanStepStatus) -> None:
         """One line per stage, carrying what it cost.
@@ -224,11 +216,7 @@ class ScanPipeline:
             scope=step.describe(),
             outcome=outcome.value,
             attempt=step.attempt,
-            seconds=(
-                round((datetime.now(UTC) - started).total_seconds(), 1)
-                if started
-                else None
-            ),
+            seconds=(round((datetime.now(UTC) - started).total_seconds(), 1) if started else None),
         )
 
     async def _settle(
@@ -268,9 +256,7 @@ class ScanPipeline:
                     return self._lost(step)
                 self._log_step(step, ScanStepStatus.FAILED)
                 return ScanStepStatus.FAILED
-            outcome = await orchestrator.fail_or_retry(
-                session, step, error, attempt=attempt
-            )
+            outcome = await orchestrator.fail_or_retry(session, step, error, attempt=attempt)
             if outcome is None:
                 return self._lost(step)
             self._log_step(step, outcome)
@@ -372,9 +358,7 @@ class ScanPipeline:
 
             writer = ScanWriter(session, scan.organization_id, fence=fence)
             observed_at = datetime.now(UTC)
-            connection = await resolve_connection(
-                session, scan, await resolve_scope(session, scan)
-            )
+            connection = await resolve_connection(session, scan, await resolve_scope(session, scan))
             scope_words = words(connection.provider if connection else None)
             await discard_prior_attempt(session, scan, step.cloud_account_id)
 
@@ -398,13 +382,10 @@ class ScanPipeline:
             account = await session.get(CloudAccount, step.cloud_account_id)
             if account is None:
                 raise CollectionUnavailable(
-                    f"This {scope_words.account} is no longer connected to "
-                    "Cleave."
+                    f"This {scope_words.account} is no longer connected to Cleave."
                 )
 
-            await collect_account(
-                writer, scan, account, heartbeat or _no_heartbeat, observed_at
-            )
+            await collect_account(writer, scan, account, heartbeat or _no_heartbeat, observed_at)
             account.last_scan_at = observed_at
             await writer.commit()
 
@@ -474,7 +455,6 @@ class ScanPipeline:
             return None
         return scan
 
-
     async def replay(self) -> None:
         """Re-evaluate an earlier scan's stored snapshots against today's rules.
 
@@ -525,9 +505,7 @@ class ScanPipeline:
                     )
                     return
 
-                state = await reconstruct(
-                    session, scan, stored, check_freshness=True
-                )
+                state = await reconstruct(session, scan, stored, check_freshness=True)
 
                 if not state.account_state and state.directory is None:
                     await self._fail(
@@ -565,7 +543,6 @@ class ScanPipeline:
                 log.exception("scan.replay_failed", scan_id=str(scan.id))
                 await session.rollback()
                 await self._fail(session, scan, str(exc))
-
 
     async def _fail(self, session: AsyncSession, scan: Scan, message: str) -> None:
         scan.status = ScanStatus.FAILED

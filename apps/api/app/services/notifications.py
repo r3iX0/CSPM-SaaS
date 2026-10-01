@@ -127,9 +127,7 @@ def _reading_name(evidence_key: str) -> str:
     return words[:1].upper() + words[1:] if words else evidence_key
 
 
-async def _reachable_findings(
-    session: AsyncSession, organization_id: UUID, since: datetime
-) -> int:
+async def _reachable_findings(session: AsyncSession, organization_id: UUID, since: datetime) -> int:
     """New findings on assets that stand on a route.
 
     Reachability rather than severity, and this is the whole judgement. A
@@ -143,24 +141,19 @@ async def _reachable_findings(
     loud one.
     """
     rows = (
-        (
-            await session.execute(
-                select(FindingEventRecord, Finding, ResourceRecord)
-                .join(Finding, Finding.id == FindingEventRecord.finding_id)
-                .join(ResourceRecord, ResourceRecord.id == Finding.resource_id)
-                .where(
-                    FindingEventRecord.organization_id == organization_id,
-                    FindingEventRecord.observed_at > since,
-                    FindingEventRecord.event.in_(
-                        [FindingEvent.DETECTED, FindingEvent.REOPENED]
-                    ),
-                )
-                .order_by(FindingEventRecord.observed_at)
-                .limit(200)
+        await session.execute(
+            select(FindingEventRecord, Finding, ResourceRecord)
+            .join(Finding, Finding.id == FindingEventRecord.finding_id)
+            .join(ResourceRecord, ResourceRecord.id == Finding.resource_id)
+            .where(
+                FindingEventRecord.organization_id == organization_id,
+                FindingEventRecord.observed_at > since,
+                FindingEventRecord.event.in_([FindingEvent.DETECTED, FindingEvent.REOPENED]),
             )
+            .order_by(FindingEventRecord.observed_at)
+            .limit(200)
         )
-        .all()
-    )
+    ).all()
     if not rows:
         return 0
 
@@ -194,9 +187,7 @@ async def _reachable_findings(
     return written
 
 
-async def _verified_fixes(
-    session: AsyncSession, organization_id: UUID, since: datetime
-) -> int:
+async def _verified_fixes(session: AsyncSession, organization_id: UUID, since: datetime) -> int:
     """Fixes CloudGuard observed working.
 
     The only positive notification, and the one a customer is actually waiting
@@ -210,24 +201,21 @@ async def _verified_fixes(
     than the true one.
     """
     rows = (
-        (
-            await session.execute(
-                select(FindingEventRecord, Finding)
-                .join(Finding, Finding.id == FindingEventRecord.finding_id)
-                .where(
-                    FindingEventRecord.organization_id == organization_id,
-                    FindingEventRecord.observed_at > since,
-                    FindingEventRecord.event == FindingEvent.RESOLVED,
-                    # Verified by a scan, not moved by a person. A status change
-                    # is intent; this notification is about evidence.
-                    FindingEventRecord.scan_id.isnot(None),
-                )
-                .order_by(FindingEventRecord.observed_at)
-                .limit(200)
+        await session.execute(
+            select(FindingEventRecord, Finding)
+            .join(Finding, Finding.id == FindingEventRecord.finding_id)
+            .where(
+                FindingEventRecord.organization_id == organization_id,
+                FindingEventRecord.observed_at > since,
+                FindingEventRecord.event == FindingEvent.RESOLVED,
+                # Verified by a scan, not moved by a person. A status change
+                # is intent; this notification is about evidence.
+                FindingEventRecord.scan_id.isnot(None),
             )
+            .order_by(FindingEventRecord.observed_at)
+            .limit(200)
         )
-        .all()
-    )
+    ).all()
     written = 0
     for event, finding in rows:
         written += await _write(
@@ -243,9 +231,7 @@ async def _verified_fixes(
     return written
 
 
-async def _coverage_drops(
-    session: AsyncSession, organization_id: UUID, since: datetime
-) -> int:
+async def _coverage_drops(session: AsyncSession, organization_id: UUID, since: datetime) -> int:
     """Readings that stopped arriving.
 
     The notification most products do not send, and the one this architecture is
@@ -301,8 +287,7 @@ async def _coverage_drops(
             # is the same as not having read it -- and the sentence says so
             # rather than leaving a reader to infer it from a word.
             detail=(
-                "Part of the listing is missing, so checks that read it have "
-                "no verdict."
+                "Part of the listing is missing, so checks that read it have no verdict."
                 if partial
                 else "Checks that read it have no verdict until it is read again."
             ),
@@ -361,9 +346,7 @@ async def unread_for(
     return rows, sum(1 for row in rows if row.event_at > watermark)
 
 
-async def mark_read(
-    session: AsyncSession, organization_id: UUID, user_id: UUID
-) -> datetime:
+async def mark_read(session: AsyncSession, organization_id: UUID, user_id: UUID) -> datetime:
     """Move this person's watermark to now.
 
     Now rather than the newest notification's ``event_at``: the sweep runs on a
@@ -422,16 +405,12 @@ async def dismiss(
             user_id=user_id,
             notification_id=notification_id,
         )
-        .on_conflict_do_nothing(
-            index_elements=["organization_id", "user_id", "notification_id"]
-        )
+        .on_conflict_do_nothing(index_elements=["organization_id", "user_id", "notification_id"])
     )
     return True
 
 
-async def dismiss_all(
-    session: AsyncSession, organization_id: UUID, user_id: UUID
-) -> int:
+async def dismiss_all(session: AsyncSession, organization_id: UUID, user_id: UUID) -> int:
     """Clear everything this reader currently holds.
 
     One INSERT ... SELECT rather than a read followed by a loop: the set to
@@ -448,8 +427,6 @@ async def dismiss_all(
                 Notification.id,
             ).where(Notification.organization_id == organization_id),
         )
-        .on_conflict_do_nothing(
-            index_elements=["organization_id", "user_id", "notification_id"]
-        )
+        .on_conflict_do_nothing(index_elements=["organization_id", "user_id", "notification_id"])
     )
     return int(result.rowcount or 0)

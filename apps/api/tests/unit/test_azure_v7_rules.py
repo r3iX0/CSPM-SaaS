@@ -553,9 +553,19 @@ class TestTheRecordedEnvironment:
 
     NEW = frozenset(
         {
-            "AZ-NET-009", "AZ-STO-004", "AZ-STO-005", "AZ-DB-007", "AZ-DB-008",
-            "AZ-KV-003", "AZ-CMP-003", "AZ-DEF-001", "AZ-WEB-001", "AZ-WEB-002",
-            "AZ-WEB-003", "AZ-WEB-004", "AZ-WEB-005",
+            "AZ-NET-009",
+            "AZ-STO-004",
+            "AZ-STO-005",
+            "AZ-DB-007",
+            "AZ-DB-008",
+            "AZ-KV-003",
+            "AZ-CMP-003",
+            "AZ-DEF-001",
+            "AZ-WEB-001",
+            "AZ-WEB-002",
+            "AZ-WEB-003",
+            "AZ-WEB-004",
+            "AZ-WEB-005",
         }
     )
 

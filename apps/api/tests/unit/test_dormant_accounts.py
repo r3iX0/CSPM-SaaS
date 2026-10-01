@@ -58,8 +58,7 @@ def user_from(state, user_id: str = "u1"):
     return next(
         r
         for r in state.resources
-        if r.resource_type == ResourceType.USER
-        and r.provider_resource_id == f"/users/{user_id}"
+        if r.resource_type == ResourceType.USER and r.provider_resource_id == f"/users/{user_id}"
     )
 
 
@@ -100,9 +99,7 @@ def test_the_more_recent_of_the_two_sign_in_kinds_wins() -> None:
 def test_an_account_the_read_did_not_cover_carries_nothing() -> None:
     """Absent is not "never signed in". A user missing from the reading must
     stay tellable apart from one Entra holds no activity for."""
-    state = AzureNormalizer().normalize(
-        snapshot([admin()], {}, {"u1": ["Global Administrator"]})
-    )
+    state = AzureNormalizer().normalize(snapshot([admin()], {}, {"u1": ["Global Administrator"]}))
 
     assert user_from(state).get("sign_in_activity_read") is None
     assert user_from(state).get("days_since_sign_in") is None
@@ -119,9 +116,7 @@ def test_an_account_with_no_activity_is_read_and_empty() -> None:
 
 # --------------------------------------------------------------- the verdict
 def test_a_privileged_account_unused_for_months_fails() -> None:
-    assert (
-        verdict([admin()], {"u1": signed_in(200)}) is RuleState.FAIL
-    )
+    assert verdict([admin()], {"u1": signed_in(200)}) is RuleState.FAIL
 
 
 def test_a_privileged_account_in_regular_use_passes() -> None:
@@ -130,8 +125,7 @@ def test_a_privileged_account_in_regular_use_passes() -> None:
 
 def test_an_account_that_has_never_signed_in_fails() -> None:
     assert (
-        verdict([admin(createdDateTime=(CAPTURED - timedelta(days=500)).isoformat())],
-                {"u1": None})
+        verdict([admin(createdDateTime=(CAPTURED - timedelta(days=500)).isoformat())], {"u1": None})
         is RuleState.FAIL
     )
 
@@ -140,8 +134,7 @@ def test_an_account_created_last_week_is_not_yet_dormant() -> None:
     """A new administrator who has not signed in yet is not an abandoned one,
     and reporting them would train a customer to ignore this check."""
     assert (
-        verdict([admin(createdDateTime=(CAPTURED - timedelta(days=6)).isoformat())],
-                {"u1": None})
+        verdict([admin(createdDateTime=(CAPTURED - timedelta(days=6)).isoformat())], {"u1": None})
         is RuleState.PASS
     )
 
@@ -152,8 +145,7 @@ def test_an_ordinary_account_is_out_of_scope() -> None:
 
 def test_a_disabled_account_signs_nobody_in() -> None:
     assert (
-        verdict([admin(accountEnabled=False)], {"u1": signed_in(900)})
-        is RuleState.NOT_APPLICABLE
+        verdict([admin(accountEnabled=False)], {"u1": signed_in(900)}) is RuleState.NOT_APPLICABLE
     )
 
 
@@ -207,11 +199,7 @@ async def _refusal(monkeypatch, message: str) -> str:
     builder = AzurePlanBuilder(
         tokens=FakeTokens(), subscription_id=None, http_client=httpx.AsyncClient()
     )
-    task = next(
-        t
-        for t in builder.build_directory_plan()
-        if t.key.value == "user_sign_in_activity"
-    )
+    task = next(t for t in builder.build_directory_plan() if t.key.value == "user_sign_in_activity")
     with pytest.raises(CloudConnectionError) as raised:
         await task.run({})
     return str(raised.value)
@@ -230,9 +218,7 @@ async def test_an_unlicensed_tenant_is_told_about_a_licence(monkeypatch) -> None
 
 
 async def test_an_ordinary_refusal_keeps_its_own_explanation(monkeypatch) -> None:
-    message = await _refusal(
-        monkeypatch, "Insufficient privileges to complete the operation."
-    )
+    message = await _refusal(monkeypatch, "Insufficient privileges to complete the operation.")
 
     assert "P1 or P2" not in message
     assert "Insufficient privileges" in message

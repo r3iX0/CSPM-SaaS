@@ -17,10 +17,7 @@ from pathlib import Path
 from app.connectors.azure.auth import app_registration_manifest
 
 MANIFEST = (
-    Path(__file__).resolve().parents[4]
-    / "infrastructure"
-    / "azure"
-    / "app-registration.json"
+    Path(__file__).resolve().parents[4] / "infrastructure" / "azure" / "app-registration.json"
 )
 
 

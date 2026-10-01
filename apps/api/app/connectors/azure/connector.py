@@ -128,9 +128,7 @@ class AzureConnector(CloudConnector):
             try:
                 subscriptions = await arm.list_subscriptions()
                 visible = [
-                    str(s["subscriptionId"])
-                    for s in subscriptions
-                    if s.get("subscriptionId")
+                    str(s["subscriptionId"]) for s in subscriptions if s.get("subscriptionId")
                 ]
 
                 if not subscriptions:
@@ -181,16 +179,10 @@ class AzureConnector(CloudConnector):
                         f"({exc})"
                     )
                 else:
-                    check.permissions_verified.append(
-                        "Azure Resource Graph inventory queryable"
-                    )
+                    check.permissions_verified.append("Azure Resource Graph inventory queryable")
 
         check.ok = not check.problems
-        check.detail = (
-            "Read-only access verified"
-            if check.ok
-            else "; ".join(check.problems)
-        )
+        check.detail = "Read-only access verified" if check.ok else "; ".join(check.problems)
         return check
 
     @staticmethod

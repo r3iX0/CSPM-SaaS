@@ -147,15 +147,9 @@ async def list_findings(
             )
         )
 
-    total = (
-        await session.execute(select(func.count()).select_from(stmt.subquery()))
-    ).scalar_one()
+    total = (await session.execute(select(func.count()).select_from(stmt.subquery()))).scalar_one()
 
-    rows = (
-        await session.execute(
-            stmt.order_by(*SORTS[sort]).limit(limit).offset(offset)
-        )
-    ).all()
+    rows = (await session.execute(stmt.order_by(*SORTS[sort]).limit(limit).offset(offset))).all()
 
     payload = []
     for finding, resource in rows:
@@ -247,9 +241,7 @@ async def finding_provenance(
             # mind is a different claim, and the version is what says so.
             rule_version=finding.rule_version,
             evidence=(
-                [EvidenceCitationOut(**row) for row in citations]
-                if citations is not None
-                else None
+                [EvidenceCitationOut(**row) for row in citations] if citations is not None else None
             ),
         ),
         meta=FindingProvenanceMeta(
@@ -340,9 +332,7 @@ async def rescan_finding(
     finding = await service.get_finding(session, tenant, finding_id)
 
     resource = (
-        await session.get(ResourceRecord, finding.resource_id)
-        if finding.resource_id
-        else None
+        await session.get(ResourceRecord, finding.resource_id) if finding.resource_id else None
     )
     if resource is None:
         raise ValidationFailed(

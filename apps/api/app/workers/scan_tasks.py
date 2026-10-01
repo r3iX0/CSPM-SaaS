@@ -111,9 +111,7 @@ def advance_scan(self: object, scan_id: str) -> dict:
         # Collection waits on Azure and wants many in flight; analysis holds a
         # whole tenant in memory and wants few, and one pool sized for either
         # is sized wrongly for the other.
-        run_scan_step.apply_async(
-            args=[scan_id, str(step_id)], queue=queue_for(kind)
-        )
+        run_scan_step.apply_async(args=[scan_id, str(step_id)], queue=queue_for(kind))
     return {"scan_id": scan_id, "claimed": len(claimed)}
 
 
@@ -422,9 +420,7 @@ async def _start_changed() -> list[UUID]:
                     continue
 
                 await scans_service.lock_scan_target(session, org_id, connection_id, None)
-                in_flight = await scans_service.scan_in_flight(
-                    session, org_id, connection_id, None
-                )
+                in_flight = await scans_service.scan_in_flight(session, org_id, connection_id, None)
                 recent = await scans_service.scanned_since(
                     session,
                     org_id,
@@ -488,20 +484,14 @@ async def _start_verification_scans() -> list[UUID]:
                     # subscription under the connection reads the directory
                     # once through it, so the cheapest scan available still
                     # looks at the thing being verified.
-                    account_id = await _any_scannable_account(
-                        session, org_id, connection_id
-                    )
+                    account_id = await _any_scannable_account(session, org_id, connection_id)
                     if account_id is None:
                         continue
                     account = await session.get(CloudAccount, account_id)
                     connection_id = account.connection_id if account else connection_id
 
-                await scans_service.lock_scan_target(
-                    session, org_id, connection_id, account_id
-                )
-                if await scans_service.scan_in_flight(
-                    session, org_id, connection_id, account_id
-                ):
+                await scans_service.lock_scan_target(session, org_id, connection_id, account_id)
+                if await scans_service.scan_in_flight(session, org_id, connection_id, account_id):
                     # Already being read. That scan settles these claims when it
                     # analyzes, so starting another would spend an attempt on a
                     # duplicate reading of the same environment.
@@ -640,9 +630,7 @@ async def _derive_all_notifications() -> int:
     total = 0
     try:
         async with service_session() as session:
-            org_ids = list(
-                (await session.execute(select(Organization.id))).scalars().all()
-            )
+            org_ids = list((await session.execute(select(Organization.id))).scalars().all())
 
         for org_id in org_ids:
             try:
@@ -659,9 +647,7 @@ async def _derive_all_notifications() -> int:
                         log.exception("webhooks.enqueue_failed", organization_id=str(org_id))
                     await session.commit()
             except Exception:  # pragma: no cover - one tenant must not stop the rest
-                log.exception(
-                    "notifications.derive_failed", organization_id=str(org_id)
-                )
+                log.exception("notifications.derive_failed", organization_id=str(org_id))
         return total
     finally:
         await dispose_engines()
@@ -733,9 +719,7 @@ async def _prune_all_evidence() -> dict[str, int]:
     totals = {"snapshots": 0, "blobs": 0}
     try:
         async with service_session() as session:
-            org_ids = list(
-                (await session.execute(select(Organization.id))).scalars().all()
-            )
+            org_ids = list((await session.execute(select(Organization.id))).scalars().all())
 
         for org_id in org_ids:
             try:
@@ -745,9 +729,7 @@ async def _prune_all_evidence() -> dict[str, int]:
                         org_id,
                         snapshot_days=settings.snapshot_retention_days,
                         evidence_days=settings.evidence_retention_days,
-                        snapshot_max_per_scope=(
-                            settings.snapshot_retention_max_per_scope
-                        ),
+                        snapshot_max_per_scope=(settings.snapshot_retention_max_per_scope),
                     )
                     await session.commit()
                 totals["snapshots"] += result["snapshots"]

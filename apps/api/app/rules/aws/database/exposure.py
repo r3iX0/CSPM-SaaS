@@ -27,9 +27,7 @@ class AwsPublicDatabaseRule(SecurityRule):
     severity = Severity.CRITICAL
     exploitability = 4
     applies_to: ClassVar[list[ResourceType]] = RDS_TYPES
-    requires_evidence: ClassVar[tuple[AwsEvidence, ...]] = (
-        AwsEvidence.RDS_INSTANCES,
-    )
+    requires_evidence: ClassVar[tuple[AwsEvidence, ...]] = (AwsEvidence.RDS_INSTANCES,)
     estimated_effort_minutes = 30
     rationale = (
         "A publicly addressable database turns a leaked or weak credential into direct "
@@ -115,9 +113,7 @@ class AwsDatabaseEncryptionRule(SecurityRule):
     severity = Severity.HIGH
     exploitability = 1
     applies_to: ClassVar[list[ResourceType]] = RDS_TYPES
-    requires_evidence: ClassVar[tuple[AwsEvidence, ...]] = (
-        AwsEvidence.RDS_INSTANCES,
-    )
+    requires_evidence: ClassVar[tuple[AwsEvidence, ...]] = (AwsEvidence.RDS_INSTANCES,)
     # Honest rather than optimistic: encryption cannot be switched on in place.
     # Fixing this means a snapshot, an encrypted copy, a restore and a cutover.
     estimated_effort_minutes = 180
@@ -215,9 +211,7 @@ class AwsDatabasePatchingRule(SecurityRule):
     # database ends up years behind.
     exploitability = 2
     applies_to: ClassVar[list[ResourceType]] = RDS_TYPES
-    requires_evidence: ClassVar[tuple[AwsEvidence, ...]] = (
-        AwsEvidence.RDS_INSTANCES,
-    )
+    requires_evidence: ClassVar[tuple[AwsEvidence, ...]] = (AwsEvidence.RDS_INSTANCES,)
     estimated_effort_minutes = 10
     rationale = (
         "Minor versions carry the engine's security fixes and are backwards "

@@ -76,9 +76,7 @@ async def prune_snapshots(
         .all()
     )
     if keep_per_scope is not None:
-        stale |= await _surplus_per_scope(
-            session, organization_id, keep_per_scope=keep_per_scope
-        )
+        stale |= await _surplus_per_scope(session, organization_id, keep_per_scope=keep_per_scope)
 
     doomed = [snapshot_id for snapshot_id in stale if snapshot_id not in keep]
     if not doomed:
@@ -110,9 +108,7 @@ async def _surplus_per_scope(
     directory captures are counted as their own series rather than pooled with
     the subscriptions beneath it.
     """
-    scope = func.coalesce(
-        CloudSnapshot.cloud_account_id, CloudSnapshot.connection_id
-    )
+    scope = func.coalesce(CloudSnapshot.cloud_account_id, CloudSnapshot.connection_id)
     ranked = (
         select(
             CloudSnapshot.id,
@@ -127,20 +123,14 @@ async def _surplus_per_scope(
         .subquery()
     )
     surplus = (
-        (
-            await session.execute(
-                select(ranked.c.id).where(ranked.c.rank > keep_per_scope)
-            )
-        )
+        (await session.execute(select(ranked.c.id).where(ranked.c.rank > keep_per_scope)))
         .scalars()
         .all()
     )
     return set(surplus)
 
 
-async def _newest_per_scope(
-    session: AsyncSession, organization_id: UUID
-) -> list[UUID]:
+async def _newest_per_scope(session: AsyncSession, organization_id: UUID) -> list[UUID]:
     """The capture that must survive for each subscription and each directory.
 
     Two ``DISTINCT ON`` queries rather than one over a coalesced key. The two
@@ -195,9 +185,7 @@ async def _newest_per_scope(
     return [*accounts, *directories]
 
 
-async def prune_blobs(
-    session: AsyncSession, organization_id: UUID, *, keep_days: int
-) -> int:
+async def prune_blobs(session: AsyncSession, organization_id: UUID, *, keep_days: int) -> int:
     """Delete payloads nothing has re-read for a while.
 
     Measured from ``last_seen_at`` rather than ``first_stored_at``, which is the

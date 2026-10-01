@@ -62,15 +62,15 @@ class SignedStateError(ValueError):
 
 def sign_state(payload: dict[str, Any], *, purpose: Purpose) -> str:
     """Sign a claim, stamped with the one thing it may be presented to."""
-    body = base64.urlsafe_b64encode(
-        json.dumps({**payload, _PURPOSE_KEY: purpose.value}).encode()
-    ).decode().rstrip("=")
+    body = (
+        base64.urlsafe_b64encode(json.dumps({**payload, _PURPOSE_KEY: purpose.value}).encode())
+        .decode()
+        .rstrip("=")
+    )
     return f"{body}.{_mac(body)}"
 
 
-def verify_state(
-    state: str, *, purpose: Purpose, max_age_seconds: int = 1800
-) -> dict[str, Any]:
+def verify_state(state: str, *, purpose: Purpose, max_age_seconds: int = 1800) -> dict[str, Any]:
     """Verify a token and return its claim, or raise.
 
     Signature, purpose and age, in that order: a caller learns nothing about a

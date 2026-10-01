@@ -252,9 +252,7 @@ _CATEGORIES: dict[AwsEvidence, EvidenceCategory] = {
 # whose job is to be reliable when everything else is not.
 _missing = set(AwsEvidence) - set(_CATEGORIES)
 if _missing:  # pragma: no cover - import-time guard
-    raise RuntimeError(
-        "AwsEvidence members with no category: " + ", ".join(sorted(_missing))
-    )
+    raise RuntimeError("AwsEvidence members with no category: " + ", ".join(sorted(_missing)))
 
 
 _REGIONAL: frozenset[AwsEvidence] = frozenset(

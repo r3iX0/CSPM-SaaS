@@ -182,9 +182,7 @@ CLIENT_ACTIONS: dict[str, tuple[str, ...]] = {
     "kms:list_keys": ("kms:ListKeys",),
     "kms:describe_key": ("kms:DescribeKey",),
     "cloudtrail:describe_trails": ("cloudtrail:DescribeTrails",),
-    "config:describe_configuration_recorders": (
-        "config:DescribeConfigurationRecorders",
-    ),
+    "config:describe_configuration_recorders": ("config:DescribeConfigurationRecorders",),
     "guardduty:list_detectors": ("guardduty:ListDetectors",),
     "guardduty:get_detector": ("guardduty:GetDetector",),
     "iam:list_policy_versions": ("iam:GetPolicyVersion",),
@@ -434,8 +432,7 @@ def cloudformation_template(context: TemplateContext) -> str:
                 "Properties": {
                     "RoleName": ROLE_NAME,
                     "Description": (
-                        "Assumed by CloudGuard to read this account's security "
-                        "configuration."
+                        "Assumed by CloudGuard to read this account's security configuration."
                     ),
                     "AssumeRolePolicyDocument": trust_policy(context),
                     "ManagedPolicyArns": list(MANAGED_POLICY_ARNS),
@@ -454,9 +451,7 @@ def cloudformation_template(context: TemplateContext) -> str:
         },
         "Outputs": {
             "RoleArn": {
-                "Description": (
-                    "Paste this into CloudGuard if it does not appear on its own."
-                ),
+                "Description": ("Paste this into CloudGuard if it does not appear on its own."),
                 "Value": {"Fn::GetAtt": ["CloudGuardScannerRole", "Arn"]},
             },
             "ExternalId": {

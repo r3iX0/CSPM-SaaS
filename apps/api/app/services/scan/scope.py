@@ -15,9 +15,7 @@ from app.models.resource import ResourceRecord
 from app.models.verification import RemediationVerification
 
 
-def asset_scope(
-    account_ids: list[UUID], connection_id: UUID | None
-) -> ColumnElement[bool] | None:
+def asset_scope(account_ids: list[UUID], connection_id: UUID | None) -> ColumnElement[bool] | None:
     """Which assets this scan is entitled to read and write.
 
     The one predicate every hot-path query in the pipeline shares, and the
@@ -49,9 +47,7 @@ def asset_scope(
     return or_(*scopes)
 
 
-def finding_scope(
-    account_ids: list[UUID], connection_id: UUID | None
-) -> ColumnElement[bool]:
+def finding_scope(account_ids: list[UUID], connection_id: UUID | None) -> ColumnElement[bool]:
     """The same scope, expressed over findings.
 
     Used with an outer join to ``cloud_resources``. The third arm is not
@@ -66,9 +62,7 @@ def finding_scope(
     return aggregate if assets is None else or_(assets, aggregate)
 
 
-def verification_scope(
-    account_ids: list[UUID], connection_id: UUID | None
-) -> ColumnElement[bool]:
+def verification_scope(account_ids: list[UUID], connection_id: UUID | None) -> ColumnElement[bool]:
     """The verifications this scan is entitled to have an opinion about."""
     clauses: list[ColumnElement[bool]] = []
     if account_ids:

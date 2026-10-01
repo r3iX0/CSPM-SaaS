@@ -146,9 +146,7 @@ async def list_assets(
     )
 
     scoped = stmt.subquery()
-    total = (
-        await session.execute(select(func.count()).select_from(scoped))
-    ).scalar_one()
+    total = (await session.execute(select(func.count()).select_from(scoped))).scalar_one()
     # How many of those CloudGuard has no rule for. Counted over the filtered
     # set rather than the page, because the honest sentence is about the estate
     # the customer is looking at: "CloudGuard checks 12 of these 47" is a fact
@@ -193,8 +191,7 @@ async def list_assets(
         resource_type=await facet(ResourceRecord.resource_type, "resource_type"),
         environment=await facet(ResourceRecord.environment, "environment"),
         region={
-            (value if value is not None else NO_REGION): int(n)
-            for value, n in region_rows.all()
+            (value if value is not None else NO_REGION): int(n) for value, n in region_rows.all()
         },
     )
 
@@ -296,9 +293,7 @@ async def asset_hierarchy(
         account.id: account
         for account in (
             await session.execute(
-                select(CloudAccount).where(
-                    CloudAccount.organization_id == tenant.organization_id
-                )
+                select(CloudAccount).where(CloudAccount.organization_id == tenant.organization_id)
             )
         )
         .scalars()
@@ -317,9 +312,7 @@ async def asset_hierarchy(
             {
                 "id": key,
                 "name": (
-                    account.display_name or account.subscription_id
-                    if account
-                    else "Directory"
+                    account.display_name or account.subscription_id if account else "Directory"
                 ),
                 # Named rather than inferred from a null id: a directory asset
                 # is not an asset whose subscription is unknown, it is one that
@@ -418,14 +411,10 @@ async def get_asset(
     # subscription id and resource group the map's lens and the list's scope
     # filter take, read the same way (``services/placement.py``).
     account = (
-        await session.get(CloudAccount, asset.cloud_account_id)
-        if asset.cloud_account_id
-        else None
+        await session.get(CloudAccount, asset.cloud_account_id) if asset.cloud_account_id else None
     )
     connection = (
-        await session.get(CloudConnection, asset.connection_id)
-        if asset.connection_id
-        else None
+        await session.get(CloudConnection, asset.connection_id) if asset.connection_id else None
     )
     group = (
         await session.execute(select(RESOURCE_GROUP).where(ResourceRecord.id == asset.id))

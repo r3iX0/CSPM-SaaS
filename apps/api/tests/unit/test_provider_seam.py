@@ -114,8 +114,7 @@ def test_nothing_neutral_imports_a_provider_package() -> None:
         and (imports := provider_imports(path))
     }
     assert not leaks, (
-        "these modules are meant to be provider-neutral and import a provider "
-        f"package: {leaks}"
+        f"these modules are meant to be provider-neutral and import a provider package: {leaks}"
     )
 
 

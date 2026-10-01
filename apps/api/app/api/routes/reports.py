@@ -60,9 +60,7 @@ def _filename(kind: str, organization: str, extension: str) -> str:
     customer, and a name carrying a quote or a newline would break the
     Content-Disposition header it lands in.
     """
-    slug = "".join(
-        char if char.isalnum() else "-" for char in organization.lower()
-    ).strip("-")
+    slug = "".join(char if char.isalnum() else "-" for char in organization.lower()).strip("-")
     slug = "-".join(part for part in slug.split("-") if part) or "organization"
     return f"cloudguard-{slug}-{kind}.{extension}"
 

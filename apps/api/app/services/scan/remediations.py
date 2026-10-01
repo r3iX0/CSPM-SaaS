@@ -68,9 +68,7 @@ async def verify_remediations(
                 .outerjoin(ResourceRecord, ResourceRecord.id == Finding.resource_id)
                 .where(
                     Finding.organization_id == org_id,
-                    Finding.status.in_(
-                        [FindingStatus.OPEN, FindingStatus.IN_PROGRESS]
-                    ),
+                    Finding.status.in_([FindingStatus.OPEN, FindingStatus.IN_PROGRESS]),
                     finding_scope(ctx.account_ids, ctx.connection_id),
                 )
             )
@@ -80,9 +78,7 @@ async def verify_remediations(
     )
 
     resolved = [
-        finding
-        for finding in open_findings
-        if (finding.rule_id, finding.resource_id) in passed
+        finding for finding in open_findings if (finding.rule_id, finding.resource_id) in passed
     ]
     if not resolved:
         # Nothing to close, but the verifications settled above are still
@@ -107,16 +103,20 @@ async def verify_remediations(
         .scalars()
         .all()
     )
-    risks = {
-        risk.id: risk
-        for risk in (
-            await session.execute(
-                select(Risk).where(Risk.id.in_([link.risk_id for link in links]))
+    risks = (
+        {
+            risk.id: risk
+            for risk in (
+                await session.execute(
+                    select(Risk).where(Risk.id.in_([link.risk_id for link in links]))
+                )
             )
-        )
-        .scalars()
-        .all()
-    } if links else {}
+            .scalars()
+            .all()
+        }
+        if links
+        else {}
+    )
 
     for finding in resolved:
         ctx.writer.add(
@@ -126,10 +126,7 @@ async def verify_remediations(
             event=FindingEvent.RESOLVED,
             previous_status=finding.status,
             current_status=FindingStatus.RESOLVED,
-            detail=(
-                "A scan observed the check passing on the same asset, "
-                "so Cleave closed it."
-            ),
+            detail=("A scan observed the check passing on the same asset, so Cleave closed it."),
             observed_at=now,
         )
         finding.status = FindingStatus.RESOLVED
@@ -162,9 +159,7 @@ async def verify_remediations(
                 .where(
                     RiskFinding.organization_id == org_id,
                     RiskFinding.risk_id.in_(risk_ids),
-                    Finding.status.in_(
-                        [FindingStatus.OPEN, FindingStatus.IN_PROGRESS]
-                    ),
+                    Finding.status.in_([FindingStatus.OPEN, FindingStatus.IN_PROGRESS]),
                     Finding.id.notin_(resolved_ids),
                 )
             )
@@ -232,17 +227,11 @@ async def _settle_verifications(
     for failure in report.failures:
         observed[_verdict_key(failure, id_map)] = RuleState.FAIL
     for rule_id, provider_id in report.passes:
-        observed[(rule_id, id_map.get(provider_id) if provider_id else None)] = (
-            RuleState.PASS
-        )
+        observed[(rule_id, id_map.get(provider_id) if provider_id else None)] = RuleState.PASS
 
     for verification in pending:
-        state = observed.get(
-            (verification.rule_id, verification.resource_id), RuleState.UNKNOWN
-        )
-        outcome = verification_service.observe(
-            verification, state, scan_id=ctx.scan.id, now=now
-        )
+        state = observed.get((verification.rule_id, verification.resource_id), RuleState.UNKNOWN)
+        outcome = verification_service.observe(verification, state, scan_id=ctx.scan.id, now=now)
         log.info(
             "verification.observed",
             verification_id=str(verification.id),
@@ -253,10 +242,6 @@ async def _settle_verifications(
         )
 
 
-def _verdict_key(
-    result: EvaluatedResult, id_map: dict[str, UUID]
-) -> tuple[str, UUID | None]:
-    provider_id = (
-        result.resource.provider_resource_id if result.resource is not None else None
-    )
+def _verdict_key(result: EvaluatedResult, id_map: dict[str, UUID]) -> tuple[str, UUID | None]:
+    provider_id = result.resource.provider_resource_id if result.resource is not None else None
     return result.rule.rule_id, id_map.get(provider_id) if provider_id else None

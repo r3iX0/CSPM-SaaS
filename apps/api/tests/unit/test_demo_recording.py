@@ -181,8 +181,7 @@ def test_no_single_cut_closes_every_route_to_the_customer_records() -> None:
         assert outcome is not None
         closed = {id(path) for path in outcome.closed}
         assert any(
-            path.target == records and id(path) not in closed
-            for path in estate.attack_paths()
+            path.target == records and id(path) not in closed for path in estate.attack_paths()
         )
 
 

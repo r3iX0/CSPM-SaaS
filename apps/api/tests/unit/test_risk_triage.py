@@ -39,8 +39,7 @@ def test_an_in_progress_finding_is_not_put_back_in_the_queue() -> None:
 
 def test_settled_members_have_no_say() -> None:
     assert (
-        finding_risk_status([F.RESOLVED, F.FALSE_POSITIVE, F.ACCEPTED_RISK], R.OPEN)
-        == R.ACCEPTED
+        finding_risk_status([F.RESOLVED, F.FALSE_POSITIVE, F.ACCEPTED_RISK], R.OPEN) == R.ACCEPTED
     )
 
 

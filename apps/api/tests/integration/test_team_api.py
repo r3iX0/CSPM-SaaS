@@ -117,9 +117,7 @@ class TestInvitations:
     async def test_only_owners_and_admins_see_invitations(self, client, org) -> None:
         _, token = await invite(client, org, role="VIEWER")
         await accept(client, token)
-        response = await client.get(
-            "/api/v1/invitations", headers=as_(INVITEE, INVITEE_EMAIL, org)
-        )
+        response = await client.get("/api/v1/invitations", headers=as_(INVITEE, INVITEE_EMAIL, org))
         assert response.status_code == 403
 
 

@@ -78,6 +78,7 @@ class CloudConnectionOut(BaseModel):
         a provider reference means before looking a key up in it.
         """
         return value if isinstance(value, dict) else {}
+
     # True once the deployment has been outstanding long enough that "still in
     # progress" no longer explains it.
     deploy_stalled: bool = False
@@ -133,8 +134,7 @@ class ScheduleUpdate(BaseModel):
         ge=CloudConnection.MIN_INTERVAL_HOURS,
         le=CloudConnection.MAX_INTERVAL_HOURS,
         description=(
-            "Read this environment at least this often. Omit or send null for "
-            "manual scanning only."
+            "Read this environment at least this often. Omit or send null for manual scanning only."
         ),
     )
 

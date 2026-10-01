@@ -154,9 +154,7 @@ def test_the_reaper_nudges_every_scan_with_work_outstanding(
         return [reclaimed], [], [waiting]
 
     monkeypatch.setattr(scan_tasks, "_reap_and_release", fake_reap)
-    monkeypatch.setattr(
-        scan_tasks.advance_scan, "delay", lambda scan_id: nudged.append(scan_id)
-    )
+    monkeypatch.setattr(scan_tasks.advance_scan, "delay", lambda scan_id: nudged.append(scan_id))
 
     result = scan_tasks.reap_abandoned_scans()
 
@@ -177,9 +175,7 @@ def test_a_scan_is_nudged_once_however_many_ways_it_qualifies(
         return [scan_id], [], [scan_id]
 
     monkeypatch.setattr(scan_tasks, "_reap_and_release", fake_reap)
-    monkeypatch.setattr(
-        scan_tasks.advance_scan, "delay", lambda scan_id: nudged.append(scan_id)
-    )
+    monkeypatch.setattr(scan_tasks.advance_scan, "delay", lambda scan_id: nudged.append(scan_id))
 
     scan_tasks.reap_abandoned_scans()
 
@@ -196,9 +192,7 @@ def test_a_scan_just_closed_is_not_nudged(monkeypatch: pytest.MonkeyPatch) -> No
         return [], [closed], []
 
     monkeypatch.setattr(scan_tasks, "_reap_and_release", fake_reap)
-    monkeypatch.setattr(
-        scan_tasks.advance_scan, "delay", lambda scan_id: nudged.append(scan_id)
-    )
+    monkeypatch.setattr(scan_tasks.advance_scan, "delay", lambda scan_id: nudged.append(scan_id))
 
     scan_tasks.reap_abandoned_scans()
 

@@ -176,10 +176,7 @@ async def test_the_category_view_names_the_reading_that_failed() -> None:
         [task(Evidence.SECURITY_GROUPS, "us-east-1", boom="AccessDenied")]
     ).execute({})
 
-    assert (
-        report.category_problems()["network"]
-        == "security_groups@us-east-1: AccessDenied"
-    )
+    assert report.category_problems()["network"] == "security_groups@us-east-1: AccessDenied"
 
 
 # ------------------------------------------------------------------ dependencies
@@ -272,13 +269,9 @@ async def test_a_fan_out_is_capped_at_what_the_provider_will_take() -> None:
             in_flight -= 1
             return TaskData({Evidence.SECURITY_GROUPS.value: [region]})
 
-        return CollectionTask(
-            key=Evidence.SECURITY_GROUPS, run=run, region=region
-        )
+        return CollectionTask(key=Evidence.SECURITY_GROUPS, run=run, region=region)
 
     regions = [f"region-{n}" for n in range(10)]
-    await CollectionRun(
-        [watched(r) for r in regions], max_concurrency=3
-    ).execute({})
+    await CollectionRun([watched(r) for r in regions], max_concurrency=3).execute({})
 
     assert peak <= 3

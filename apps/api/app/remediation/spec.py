@@ -181,8 +181,7 @@ class RemediationSpec:
             self.policy_resource_type
             and self.expected
             and all(
-                state.arm_alias and state.comparison is Comparison.EQUALS
-                for state in self.expected
+                state.arm_alias and state.comparison is Comparison.EQUALS for state in self.expected
             )
         )
 
@@ -255,9 +254,7 @@ def terraform_hints(spec: RemediationSpec) -> list[dict[str, str]]:
         {
             "attribute": state.terraform_attribute,
             "value": _hcl_value(
-                state.equals
-                if state.terraform_value is UNSET
-                else state.terraform_value
+                state.equals if state.terraform_value is UNSET else state.terraform_value
             ),
             "describes": state.describes,
         }
@@ -293,4 +290,3 @@ def _hcl_value(value: Any) -> str:
     if isinstance(value, str):
         return f'"{value}"'
     return str(value)
-

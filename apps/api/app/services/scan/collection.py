@@ -29,9 +29,7 @@ from app.services.scan.writer import ScanWriter
 log = get_logger(__name__)
 
 
-async def discard_prior_attempt(
-    session: AsyncSession, scan: Scan, account_id: UUID | None
-) -> None:
+async def discard_prior_attempt(session: AsyncSession, scan: Scan, account_id: UUID | None) -> None:
     """Clear what an earlier attempt at this scope stored.
 
     A capture is unique on (scan, scope), so a retry that simply wrote again
@@ -106,9 +104,7 @@ async def collect_directory(
         session,
         organization_id=scan.organization_id,
         provider=connection.provider,
-        required=required_evidence(
-            connection.provider, connector.baseline_evidence()
-        ),
+        required=required_evidence(connection.provider, connector.baseline_evidence()),
         scan_id=scan.id,
         connection_id=connection.id,
         now=observed_at,
@@ -179,9 +175,7 @@ async def collect_account(
         session,
         organization_id=scan.organization_id,
         provider=account.provider,
-        required=required_evidence(
-            account.provider, connector.baseline_evidence()
-        ),
+        required=required_evidence(account.provider, connector.baseline_evidence()),
         scan_id=scan.id,
         cloud_account_id=account.id,
         connection_id=account.connection_id,
@@ -263,28 +257,27 @@ async def record_evidence(
     question this has to ask before writing it.
     """
     connection_id = (
-        connection.id if connection is not None else
-        account.connection_id if account is not None else None
+        connection.id
+        if connection is not None
+        else account.connection_id
+        if account is not None
+        else None
     )
     account_id = account.id if account is not None else None
     org_id = writer.organization_id
-    digests = {
-        key: digest(payload) for key, payload in snapshot.payloads.items()
-    }
+    digests = {key: digest(payload) for key, payload in snapshot.payloads.items()}
     # Readings this run did not take, and when they were taken. Read off
     # the plan rather than off the capture: the capture carries the same
     # fact as text for whoever reads a snapshot later, and a datetime that
     # never became a string cannot come back as a different one.
     carried_at = {
-        key.value: reading.collected_at
-        for key, reading in (plan.carried.items() if plan else ())
+        key.value: reading.collected_at for key, reading in (plan.carried.items() if plan else ())
     }
     # And which scan made the call. Without it every row this scan writes
     # claims the reading as its own, and a citation followed back lands on
     # a scan that read nothing for that key.
     carried_from = {
-        key.value: reading.source_scan_id
-        for key, reading in (plan.carried.items() if plan else ())
+        key.value: reading.source_scan_id for key, reading in (plan.carried.items() if plan else ())
     }
 
     await _store_blobs(writer.session, org_id, snapshot.payloads, digests, observed_at)
@@ -404,9 +397,7 @@ async def _store_blobs(
         held.add(content_hash)
 
 
-async def resolve_scope(
-    session: AsyncSession, scan: Scan
-) -> list[CloudAccount]:
+async def resolve_scope(session: AsyncSession, scan: Scan) -> list[CloudAccount]:
     """Which subscriptions this scan covers.
 
     A connection-scoped scan resolves at execution time rather than at

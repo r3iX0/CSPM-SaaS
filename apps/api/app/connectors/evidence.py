@@ -105,9 +105,7 @@ class EvidenceKey(StrEnum):
 
     @property
     def category(self) -> EvidenceCategory:
-        raise NotImplementedError(
-            f"{type(self).__name__} does not map {self.value} to a category"
-        )
+        raise NotImplementedError(f"{type(self).__name__} does not map {self.value} to a category")
 
     @property
     def reuse_window(self) -> timedelta | None:
