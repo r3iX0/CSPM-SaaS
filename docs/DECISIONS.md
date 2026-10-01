@@ -4639,8 +4639,10 @@ calling `dispose_engines()` leaves its child holding connections belonging to a
 loop that no longer exists. The next task that child picks up dies at the first
 pool checkout:
 
-    RuntimeError: got Future attached to a different loop
-    RuntimeError: Event loop is closed
+```text
+RuntimeError: got Future attached to a different loop
+RuntimeError: Event loop is closed
+```
 
 That rule is stated in `scan_tasks.py`'s internals comment and was applied to
 the five scan entrypoints. The two beat sweeps added later -- `_derive_all_notifications` and
@@ -6348,10 +6350,12 @@ to say at all.
 forward layer by layer to the depth bound, carrying with each node the set of
 removable links that appear on _every_ walk of that length to it:
 
-    necessary(entry, 0) = {}
-    necessary(v, d+1)   = intersection over each u with an edge u->v of
-                          necessary(u, d) + {that edge, when removable}
-    necessary(v)        = intersection over every d at which v is reached
+```text
+necessary(entry, 0) = {}
+necessary(v, d+1)   = intersection over each u with an edge u->v of
+                      necessary(u, d) + {that edge, when removable}
+necessary(v)        = intersection over every d at which v is reached
+```
 
 A link is in `necessary(v)` exactly when no walk to `v` within the bound avoids
 it — which is exactly when removing it puts `v` out of reach. The severed set

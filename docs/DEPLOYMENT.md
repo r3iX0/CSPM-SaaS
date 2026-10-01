@@ -167,14 +167,15 @@ Node installed on your machine.
    ```bash
    railway api 'mutation($s:String!,$e:String!){serviceInstanceUpdate(serviceId:$s,environmentId:$e,input:{railwayConfigFile:"/infrastructure/railway/api.json"})}' \
      --raw-var s=<api service id> --raw-var e=<environment id>
-   ``` Then **Networking** → generate a public
-   domain; that's your `API_URL`.
+   ```
+
+   Then **Networking** → generate a public domain; that's your `API_URL`.
 
    <details><summary>Setting it by hand instead</summary>
 
    - **Dockerfile Path**: `infrastructure/docker/api.Dockerfile`
    - **Start Command**:
-     ```
+     ```bash
      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"
      ```
    - **Health Check Path**: `/health`

@@ -10,7 +10,7 @@ matter — and then **verifies the fix itself** on the next scan.
 The specification this is built from lives in [`docs/`](docs/); start with
 [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md).
 
-### AWS is built and is not offered yet
+## AWS is built and is not offered yet
 
 An AWS connector, its permission manifest, its onboarding flow, change-triggered
 scanning and thirty-three AWS rules exist behind the same seam Azure sits behind
