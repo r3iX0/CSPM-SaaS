@@ -10612,6 +10612,54 @@ tokens are never stored. CloudGuard opens a PR on its own branch and never
 pushes to a default branch or merges. A merged PR records a claimed fix; only
 the next scan's PASS resolves the finding.
 
+## 191. Standards are the checks that enforce them, run by one hook file on commit, on push and in CI
+
+A rule the code is held to exists only as a check that fails. A guideline
+written in prose and enforced by nobody drifts, and `npm run lint` pointing at
+a missing config for months (eslint.config.js) is what that looks like here.
+So each standard has exactly one tool and one config file, and
+`docs/STANDARDS.md` says why, never restating the rules the configs hold.
+
+**One tool per concern.** Ruff lints and formats Python (it replaces black,
+isort, flake8 and most of bandit); mypy types it. ESLint lints TypeScript;
+Prettier formats TypeScript, JavaScript, CSS and hand-written JSON, at default
+settings but `printWidth: 100` to match Python. Biome was declined because it
+does not carry the jsx-a11y strict set (§155). A second Python linter or
+formatter needs an entry here first.
+
+**One file, three places.** `.pre-commit-config.yaml` holds every check. It
+runs on commit (fast, changed files only), on push (mypy and tsc, the
+whole-program checks), and in CI's `repo` job on every file. Git cannot install
+hooks from a clone, since that would let a repository run code on `git clone`,
+so `tools/dev/setup.sh` installs them once per clone. The local hooks are
+feedback; the CI job, made a required check on `main`, is the enforcement.
+Anyone who never installs them still cannot merge what they refuse.
+
+**The project's pins are the hooks' pins.** Prettier, ESLint, mypy and tsc
+run through `tools/dev/web.sh` and `tools/dev/api.sh` at the versions in the
+lockfile and `pyproject.toml`. Ruff runs from its own hook repository, so it
+works in a clone with no virtualenv yet, and `tools/dev/check_hook_pins.py`
+refuses a Ruff hook version different from the pyproject pin. Third-party hooks
+and GitHub Actions are pinned to a commit with the tag beside it, because a tag
+can be moved after review.
+
+**CI's token reads and nothing more.** `permissions: contents: read` at the top
+of the workflow. A job that needs more asks for it on its own.
+
+**Formatting landed as one change.** Ruff 0.8.4 became 0.16.9 and formatted
+240 Python files; Prettier formatted 162 web files. The commits that did only
+that are listed in `.git-blame-ignore-revs`, so `git blame` skips them
+(`git config blame.ignoreRevsFile .git-blame-ignore-revs`, which
+`tools/dev/setup.sh` sets; GitHub reads the file on its own). Vendored shadcn
+components, generated files and the design handoff are not formatted.
+
+**Rules tighten by ratchet.** A new lint rule lands as an error. A file it
+cannot yet pass is listed in a per-file ignore or a mypy override with its
+reason, and the list only shrinks, as with `i18n/overBudget.ts` and the
+pip-audit ignores. Ruff's security, async and pytest rules, mypy `strict`,
+type-aware ESLint, markdownlint, yamllint, actionlint, zizmor, djLint and
+CodeQL come next, in that order.
+
 ## Open items carried forward
 
 **Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read

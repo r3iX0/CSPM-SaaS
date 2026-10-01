@@ -11,12 +11,9 @@ Errors never pass through these. They are written by the exception handlers in
 documents them separately.
 """
 
-from typing import Any, Generic, TypeVar
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
-
-DataT = TypeVar("DataT")
-MetaT = TypeVar("MetaT")
 
 
 class ClosedModel(BaseModel):
@@ -50,7 +47,7 @@ class TotalMeta(BaseModel):
     total: int
 
 
-class Envelope(BaseModel, Generic[DataT, MetaT]):
+class Envelope[DataT, MetaT](BaseModel):
     """A success: ``{"data": ..., "error": null, "meta": {...}}``."""
 
     data: DataT

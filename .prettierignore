@@ -1,0 +1,17 @@
+# Prettier owns TypeScript, JavaScript, CSS and hand-written JSON. Everything
+# below is either generated, vendored, or owned by a different tool.
+**/node_modules
+**/dist
+**/coverage
+**/package-lock.json
+
+# Vendored from the shadcn registry in the registry's style; reformatting them
+# would make every later `shadcn add --diff` unreadable (as in eslint.config.js).
+apps/web/src/components/ui/
+
+# Generated, with their own drift checks.
+apps/web/src/lib/geo/worldDots.ts
+docs/api/
+
+# Design handoff, kept as received.
+docs/design_handoff_cleave_redesign/

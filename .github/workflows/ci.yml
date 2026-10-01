@@ -5,7 +5,55 @@ on:
     branches: [main]
   pull_request:
 
+# The token every job gets reads the repository and nothing else. Without this
+# line its scope is the repository's default, which can include write access to
+# contents and packages -- more than a lint or a test run has any use for. A job
+# that ever needs more asks for it on its own.
+#
+# Actions are pinned to a commit with the tag beside it: a tag can be moved to
+# different code after review, a commit cannot. Dependabot bumps both.
+permissions:
+  contents: read
+
 jobs:
+  repo:
+    name: Repository — standards (pre-commit)
+    runs-on: ubuntu-latest
+    # The same .pre-commit-config.yaml every clone runs on commit. Locally a
+    # hook can be skipped or never installed; this job is what makes the
+    # standards hold for every change that reaches main (DECISIONS.md §191).
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install the web app's locked tools (Prettier, ESLint)
+        working-directory: apps/web
+        run: npm ci
+
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+
+      - name: Run every hook on every file
+        # Skipped here because another job already runs them against the full
+        # environment: ESLint, tsc and mypy in `web` and `api`. The branch
+        # guard is skipped because a push to main runs this job on main.
+        env:
+          SKIP: no-commit-to-branch,eslint,mypy,tsc
+        run: |
+          pip install "pre-commit==4.6.2"
+          pre-commit run --all-files --show-diff-on-failure --color=always
+
   api:
     name: API — lint, types, tests
     runs-on: ubuntu-latest
@@ -40,7 +88,7 @@ jobs:
       APP_ENV: test
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Refuse a real credential in the Supabase role template
         # That file is meant to be edited in Supabase's SQL Editor, not saved
@@ -52,7 +100,7 @@ jobs:
             exit 1
           }
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
           cache: pip
@@ -126,8 +174,8 @@ jobs:
     name: Web — lint, types and tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
           cache: npm
@@ -175,14 +223,14 @@ jobs:
     # new advisory reports as "dependencies" rather than as the test suite
     # failing for a reason the tests had nothing to do with.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
           cache: pip
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
           cache: npm

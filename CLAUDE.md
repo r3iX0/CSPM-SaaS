@@ -10,12 +10,22 @@ AWS is implemented behind the same connector seam — connector, IAM manifest, o
 
 ## Commands
 
+### Whole repository
+
+```bash
+tools/dev/setup.sh               # once per clone: dev deps for both apps + git hooks
+pre-commit run --all-files       # every standard, as CI's `repo` job runs it
+```
+
+Standards are the checks in `.pre-commit-config.yaml` (DECISIONS.md §191, `docs/STANDARDS.md`): Ruff and mypy for Python, ESLint and Prettier for the web app, plus hygiene and gitleaks. Never commit with `--no-verify`; CI runs the same hooks.
+
 ### Backend (apps/api)
 
 ```bash
 pip install -e ".[dev]"          # install with dev deps
 uvicorn app.main:app --reload    # dev server
 ruff check .                     # lint
+ruff format .                    # format
 mypy app                         # type check
 pytest -q                        # all tests
 pytest -q -k "test_name"         # single test
@@ -34,6 +44,7 @@ npm run dev                      # vite dev server (port 5173)
 npm run build                    # tsc -b && vite build
 npm run typecheck                # tsc --noEmit
 npm run lint                     # eslint
+npm run format                   # prettier
 npm test                         # vitest run
 ```
 

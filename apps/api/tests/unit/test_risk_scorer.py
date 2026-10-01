@@ -17,7 +17,7 @@ def test_weights_sum_to_one() -> None:
 
 def test_invalid_weights_are_rejected() -> None:
     """A misconfigured weight set must fail loudly, not silently rescale."""
-    with pytest.raises(ValueError, match="must sum to 1.0"):
+    with pytest.raises(ValueError, match=r"must sum to 1\.0"):
         RiskEngineConfig(weights=RiskWeights(severity=0.9))
 
 
@@ -105,8 +105,8 @@ def test_business_impact_is_computed_not_supplied() -> None:
     result = scorer.score(
         RiskInputs(
             severity=Severity.HIGH,
-            asset_criticality=Level.CRITICAL,   # 5.0
-            data_sensitivity=Level.LOW,          # 1.0
+            asset_criticality=Level.CRITICAL,  # 5.0
+            data_sensitivity=Level.LOW,  # 1.0
             internet_exposure=Level.MEDIUM,
             exploitability=3,
         )
@@ -173,8 +173,16 @@ def test_breakdown_contributions_reconstruct_the_total() -> None:
 
 @pytest.mark.parametrize(
     ("score", "expected"),
-    [(0, Level.LOW), (24, Level.LOW), (25, Level.MEDIUM), (49, Level.MEDIUM),
-     (50, Level.HIGH), (74, Level.HIGH), (75, Level.CRITICAL), (100, Level.CRITICAL)],
+    [
+        (0, Level.LOW),
+        (24, Level.LOW),
+        (25, Level.MEDIUM),
+        (49, Level.MEDIUM),
+        (50, Level.HIGH),
+        (74, Level.HIGH),
+        (75, Level.CRITICAL),
+        (100, Level.CRITICAL),
+    ],
 )
 def test_band_boundaries(score: float, expected: Level) -> None:
     assert scorer.band(score) == expected
@@ -314,9 +322,7 @@ class TestSecurityScore:
         scores = [scorer.security_score([Level.CRITICAL] * n) for n in range(0, 16)]
 
         assert scores[0] == 100
-        assert all(
-            later < earlier for earlier, later in pairwise(scores)
-        ), scores
+        assert all(later < earlier for earlier, later in pairwise(scores)), scores
 
     def test_a_badly_broken_estate_still_scores_badly(self) -> None:
         """Not flat is not the same as forgiving. Five open Criticals is a red
@@ -352,9 +358,7 @@ class TestSecurityScore:
         )
 
         assert scaled_up.security_score([Level.CRITICAL, Level.CRITICAL]) == 60
-        assert scaled_up.security_score([Level.HIGH]) == scorer.security_score(
-            [Level.HIGH]
-        )
+        assert scaled_up.security_score([Level.HIGH]) == scorer.security_score([Level.HIGH])
 
     def test_moving_a_band_against_critical_does_change_it(self) -> None:
         """The lever that works: what a High costs *relative to* a Critical."""
@@ -371,9 +375,7 @@ class TestSecurityScore:
         )
 
         assert high_hurts.security_score([Level.CRITICAL, Level.CRITICAL]) == 60
-        assert high_hurts.security_score([Level.HIGH]) < scorer.security_score(
-            [Level.HIGH]
-        )
+        assert high_hurts.security_score([Level.HIGH]) < scorer.security_score([Level.HIGH])
 
     def test_an_anchor_off_the_scale_is_rejected(self) -> None:
         """A curve pinned to 0 or 100 has no solution, and one pinned outside

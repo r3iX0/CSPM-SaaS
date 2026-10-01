@@ -59,6 +59,7 @@ READY_TO_DEPLOY = "Admin consent granted. Deploy the scanner role next."
 # while this is not, and the message must not be replaced by a cheerful one.
 GRANT_INCOMPLETE_PREFIX = "Admin consent did not grant"
 
+
 class AzureOnboarding(ProviderOnboarding):
     provider = Provider.AZURE
     root_scope = ConnectionScope.TENANT_ROOT
@@ -84,11 +85,7 @@ class AzureOnboarding(ProviderOnboarding):
             group = connection.scope_id
         else:
             group = connection.tenant_id
-        return (
-            f"/providers/Microsoft.Management/managementGroups/{group}"
-            if group
-            else None
-        )
+        return f"/providers/Microsoft.Management/managementGroups/{group}" if group else None
 
     def start_url(
         self, connection: CloudConnection, *, nonce: str, issued_at: float
@@ -179,9 +176,7 @@ class AzureOnboarding(ProviderOnboarding):
         if len(absent) == total:
             scale = f"any of the {total} directory permissions Cleave needs"
         else:
-            scale = (
-                f"{len(absent)} of the {total} directory permissions Cleave needs"
-            )
+            scale = f"{len(absent)} of the {total} directory permissions Cleave needs"
         return (
             f"{GRANT_INCOMPLETE_PREFIX} {scale}: {', '.join(absent)}. Subscription "
             "scanning is unaffected; the identity checks cannot run until this is "
@@ -202,13 +197,8 @@ class AzureOnboarding(ProviderOnboarding):
         differently.
         """
         if connection.service_principal_object_id:
-            return PrincipalLookup(
-                ready=True, object_id=connection.service_principal_object_id
-            )
-        if (
-            connection.consent_status != ConsentStatus.GRANTED
-            or not connection.tenant_id
-        ):
+            return PrincipalLookup(ready=True, object_id=connection.service_principal_object_id)
+        if connection.consent_status != ConsentStatus.GRANTED or not connection.tenant_id:
             return PrincipalLookup(ready=False)
 
         try:
@@ -237,9 +227,7 @@ class AzureOnboarding(ProviderOnboarding):
                         "Cleave's side (AZURE_INTEGRATION.md §2.1)."
                     ),
                 )
-            return PrincipalLookup(
-                ready=False, problem=f"Microsoft Graph could not be read: {exc}"
-            )
+            return PrincipalLookup(ready=False, problem=f"Microsoft Graph could not be read: {exc}")
         except Exception as exc:
             log.warning(
                 "azure.service_principal_lookup_failed",
@@ -265,9 +253,7 @@ class AzureOnboarding(ProviderOnboarding):
     # ------------------------------------------------------------- artefacts
 
     def artifact_ready(self, connection: CloudConnection) -> bool:
-        return bool(
-            connection.service_principal_object_id and self.scope_path(connection)
-        )
+        return bool(connection.service_principal_object_id and self.scope_path(connection))
 
     def artifact(self, connection: CloudConnection) -> DeploymentArtifact:
         """The ARM template for this connection.
@@ -377,9 +363,7 @@ class AzureOnboarding(ProviderOnboarding):
             found.append(
                 DiscoveredAccount(
                     account_id=subscription_id,
-                    display_name=str(
-                        subscription.get("displayName") or subscription_id
-                    ),
+                    display_name=str(subscription.get("displayName") or subscription_id),
                 )
             )
         return found
@@ -401,9 +385,7 @@ class AzureOnboarding(ProviderOnboarding):
         """
         return not role_is_current(connection.role_version)
 
-    def degraded_categories(
-        self, connection: CloudConnection
-    ) -> dict[EvidenceCategory, str]:
+    def degraded_categories(self, connection: CloudConnection) -> dict[EvidenceCategory, str]:
         if not self.grant_is_behind(connection):
             return {}
         explanation = (
@@ -412,10 +394,7 @@ class AzureOnboarding(ProviderOnboarding):
             "the permissions these checks need. Redeploy the role from the "
             "connection page to enable them."
         )
-        return {
-            category: explanation
-            for category in categories_behind(connection.role_version)
-        }
+        return dict.fromkeys(categories_behind(connection.role_version), explanation)
 
     async def detect_grant(self, connection: CloudConnection) -> GrantReading | None:
         """Which role version Azure says is actually assigned, read from Azure,
@@ -506,8 +485,7 @@ class AzureOnboarding(ProviderOnboarding):
                     "title": "Remove the scanner role assignment",
                     "detail": "Ends Cleave's ability to read Azure resources.",
                     "command": (
-                        f"az role assignment delete --assignee {principal} "
-                        f"--scope {scope}"
+                        f"az role assignment delete --assignee {principal} --scope {scope}"
                     ),
                 }
             )
@@ -515,9 +493,7 @@ class AzureOnboarding(ProviderOnboarding):
                 {
                     "title": "Delete the custom role definition",
                     "detail": "Optional. Removes the now-unused role from the scope.",
-                    "command": (
-                        f'az role definition delete --name "{role}" --scope {scope}'
-                    ),
+                    "command": (f'az role definition delete --name "{role}" --scope {scope}'),
                 }
             )
         if principal:
@@ -577,8 +553,7 @@ class AzureOnboarding(ProviderOnboarding):
             "lookup_command": (
                 f"APP_ID={settings.azure_client_id}"
                 if settings.azure_client_id
-                else 'APP_ID=$(az ad app list --display-name CloudGuard '
-                '--query "[0].appId" -o tsv)'
+                else 'APP_ID=$(az ad app list --display-name CloudGuard --query "[0].appId" -o tsv)'
             ),
             "apply_command": (
                 'az ad app update --id "$APP_ID" '

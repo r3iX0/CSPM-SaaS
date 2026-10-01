@@ -1,0 +1,14 @@
+# LF everywhere, whatever the committer's platform: a CRLF that slips into a
+# shell script or a Dockerfile fails at runtime, not at review.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff2 binary
+*.pdf binary
+
+# Generated: collapsed in diffs, left out of language statistics.
+docs/api/openapi.json linguist-generated=true
+apps/web/src/lib/geo/worldDots.ts linguist-generated=true
+apps/web/package-lock.json linguist-generated=true -diff

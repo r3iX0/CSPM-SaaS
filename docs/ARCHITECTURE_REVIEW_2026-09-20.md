@@ -173,31 +173,31 @@ graph TD
     subgraph OrchestratorLoop ["Durable State Machine (services/scan/pipeline.py)"]
         Start([User or Schedule Triggers Scan]) --> PlanStep["Step 1: PLAN\n(Discovers Subscriptions & Accounts)"]
         PlanStep --> StepGen["Generate Steps in DB:\n- COLLECT (Tenant Directory)\n- COLLECT (Subscription 1..N)\n- ANALYZE (Single Fenced)"]
-        
+
         StepGen --> DispatchCollect["Dispatch to 'collect' Queue"]
-        
+
         subgraph ParallelCollect ["Parallel Collection (I/O Bound)"]
             CollDir["COLLECT: Tenant Directory\n(Entra Users, Groups, Roles)"]
             CollSub1["COLLECT: Subscription 1\n(ARM Resources, NSGs, Disks)"]
             CollSubN["COLLECT: Subscription N\n(ARM Resources, Storage, SQL)"]
         end
-        
+
         DispatchCollect --> CollDir
         DispatchCollect --> CollSub1
         DispatchCollect --> CollSubN
-        
+
         CollDir --> RawDB[("Store Verbatim JSON in\ncloud_snapshots")]
         CollSub1 --> RawDB
         CollSubN --> RawDB
-        
+
         RawDB --> AllDone{"All Collection\nSteps Settled?"}
         AllDone -- No --> Wait["Worker Heartbeats Lease"]
         AllDone -- Yes --> TriggerAnalyze["Dispatch to 'analyze' Queue"]
-        
+
         subgraph SingleAnalyze ["Single Analyze Stage (CPU/Memory Bound)"]
             AnalyzeStep["ANALYZE Step Execution:\n1. Load RawSnapshots\n2. Normalize to CloudResource\n3. Execute 98 Security Rules\n4. Calculate Risk Scores\n5. Build Attack Path Graph & Choke Points\n6. Verify Existing Remediations"]
         end
-        
+
         TriggerAnalyze --> AnalyzeStep
         AnalyzeStep --> AtomicCommit["Atomic ScanWriter.commit\n(Fenced on Step Attempt)"]
         AtomicCommit --> Completed([Scan Marked COMPLETED])
@@ -326,12 +326,12 @@ gantt
     Fix Consent Nonce Transaction Boundary       :done, 2026-09, 2026-10
     Split Celery Worker Deployments (Collect/Analyze) :active, 2026-10, 2026-11
     Audit & Validate AWS 18-point Checklist     :active, 2026-10, 2026-11
-    
+
     section Phase 2: Scale & Multi-Cloud
     Enable Live AWS Account Scanning             :2026-11, 2026-12
     GCP Connector Architecture Design            :2026-12, 2027-01
     Persistent Graph Projection (Postgres CTE/Graph) :2027-01, 2027-02
-    
+
     section Phase 3: Real-Time Event Driven
     Event Grid & EventBridge Webhook Ingestion   :2027-02, 2027-03
     Targeted Micro-Scans (Delta Execution)       :2027-03, 2027-04
