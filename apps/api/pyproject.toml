@@ -5,18 +5,18 @@ description = "CloudGuard - Azure-first CSPM. Modular monolith API + worker."
 requires-python = ">=3.12"
 
 dependencies = [
-  "fastapi==0.133.0",
+  "fastapi==0.141.1",
   # Pinned directly because FastAPI's range is open: 0.41.x carries seven published advisories,
   # all fixed by 1.3.1, and a resolver left alone could install either (DECISIONS.md §195).
   "starlette==1.7.0",
-  "uvicorn[standard]==0.34.0",
-  "pydantic[email]==2.10.4",
-  "pydantic-settings==2.7.0",
-  "sqlalchemy[asyncio]==2.0.36",
-  "asyncpg==0.30.0",
-  "psycopg[binary]==3.2.3",
-  "alembic==1.14.0",
-  "celery[redis]==5.4.0",
+  "uvicorn[standard]==0.54.0",
+  "pydantic[email]==2.13.5",
+  "pydantic-settings==2.15.0",
+  "sqlalchemy[asyncio]==2.1.1",
+  "asyncpg==0.31.0",
+  "psycopg[binary]==3.3.6",
+  "alembic==1.20.0",
+  "celery[redis]==5.6.3",
   "redis==5.2.1",
   "httpx==0.28.1",
   # Pinned directly rather than left to Starlette's ">=3.4,<5": two limiters
@@ -33,15 +33,15 @@ dependencies = [
   # the Azure one does -- what this handles is the layer beneath that, which
   # Azure does not have: SigV4, and three different wire protocols across the
   # services CloudGuard reads (DECISIONS.md §72).
-  "aiobotocore==3.9.0",
+  "aiobotocore==3.9.1",
   "structlog==26.1.0",
-  "sentry-sdk[fastapi]==2.19.2",
+  "sentry-sdk[fastapi]==2.71.0",
   "jinja2==3.1.6",
   # PDF reports. Needs native pango/cairo/harfbuzz, installed in the API image
   # and in CI; app.reports.render imports it lazily so a machine without them
   # can still render, and test, the HTML the PDF is printed from.
   "weasyprint==70.0",
-  "python-multipart==0.0.31",
+  "python-multipart==0.0.32",
   # Fix-as-Code parses a customer's Terraform for exact byte ranges, so an edit
   # replaces one value and leaves formatting and comments alone. Binary wheels
   # for macOS and manylinux; nothing to compile in the image (DECISIONS.md §190).
@@ -57,7 +57,7 @@ dev = [
   "ruff==0.16.9",
   "mypy==1.14.0",
   "pre-commit==4.6.2",
-  "respx==0.22.0",
+  "respx==0.23.1",
 ]
 
 [build-system]
