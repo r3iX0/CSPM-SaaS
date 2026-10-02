@@ -18,6 +18,7 @@ from app.core.enums import (
     VerificationStatus,
 )
 from app.schemas.attack_path import AttackPathOut
+from app.schemas.common import RequestModel
 from app.schemas.rule import RemediationSpecOut
 
 
@@ -147,12 +148,12 @@ class RiskStatusOut(BaseModel):
     status: RiskStatus
 
 
-class AcceptRiskRequest(BaseModel):
+class AcceptRiskRequest(RequestModel):
     reason: str = Field(min_length=10, max_length=2000)
     expires_at: datetime | None = None
 
 
-class RiskStatusRequest(BaseModel):
+class RiskStatusRequest(RequestModel):
     """A decision about a risk. ``reason`` is required to accept one."""
 
     status: RiskStatus
@@ -169,14 +170,14 @@ class BulkRiskStatusRequest(RiskStatusRequest):
     risk_ids: list[UUID] = Field(min_length=1, max_length=100)
 
 
-class RemediationCreate(BaseModel):
+class RemediationCreate(RequestModel):
     finding_id: UUID
     assigned_to: UUID | None = None
     due_date: date | None = None
     notes: str | None = Field(default=None, max_length=2000)
 
 
-class RemediationUpdate(BaseModel):
+class RemediationUpdate(RequestModel):
     status: RemediationStatus | None = None
     assigned_to: UUID | None = None
     due_date: date | None = None

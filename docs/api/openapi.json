@@ -9970,6 +9970,7 @@
             "title": "Expires At"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "reason"
@@ -11258,6 +11259,7 @@
             "title": "Risk Ids"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "status",
@@ -11343,6 +11345,7 @@
             "title": "Enabled"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "enabled"
@@ -11709,6 +11712,7 @@
             "title": "Scope Id"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "name"
@@ -12248,6 +12252,7 @@
             "title": "Note"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "title": "ContextDeclarationIn",
         "description": "What a customer says about a subscription.\n\nEvery field optional, and omitting one is not the same as clearing it --\na PUT replaces the whole declaration, so a field left out is a field the\ncustomer is no longer claiming. That is the honest reading of \"this is my\nstatement about this subscription\": a statement is replaced entire, not\npatched, or nobody can tell what it currently says without diffing.\n\n``UNKNOWN`` is deliberately not accepted for either level. UNKNOWN is\nCloudGuard's own answer for \"nothing said anything\", and a customer\ndeclaring it would be asserting an absence -- which is what leaving the\nfield out already does, more clearly."
@@ -16293,6 +16298,7 @@
             "default": "VIEWER"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "email"
@@ -16470,6 +16476,7 @@
             "title": "Token"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "token"
@@ -16722,6 +16729,7 @@
             "$ref": "#/components/schemas/Role"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "role"
@@ -16992,6 +17000,7 @@
             "title": "Country"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "name"
@@ -17172,6 +17181,7 @@
             "title": "Country"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "title": "OrganizationUpdate",
         "description": "A correction to how an organization describes itself.\n\nEvery field optional and applied only when present, which is the opposite\nof ``ContextDeclarationIn`` and deliberately so. That one is a *statement*\nabout a subscription, replaced entire so a reader always knows what it\ncurrently claims. This is a profile: a form that saves only the name must\nnot silently clear the country nobody touched.\n\nThe slug is not here. It is an identifier that already appears in stored\nreferences, and quietly changing it when somebody fixes a typo in a display\nname would be renaming a thing rather than relabelling it."
@@ -17696,6 +17706,7 @@
             "title": "Notes"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "finding_id"
@@ -17939,6 +17950,7 @@
             "title": "Notes"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "title": "RemediationUpdate"
       },
@@ -18847,6 +18859,7 @@
             "title": "Expires At"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "status"
@@ -19358,6 +19371,7 @@
             "title": "Cloud Account Id"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "cloud_account_id"
@@ -20000,6 +20014,7 @@
             "description": "Read this environment at least this often. Omit or send null for manual scanning only."
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "title": "ScheduleUpdate",
         "description": "How often this environment should be re-read.\n\n``None`` turns scheduling off and leaves the connection scannable by hand,\nwhich is where every connection starts: turning a customer's cloud into a\nrecurring API cost without being asked would be a surprise on their bill."
@@ -20101,6 +20116,7 @@
             "title": "In Scope"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "in_scope"
@@ -20216,6 +20232,7 @@
             "title": "Target"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "source",
@@ -20350,6 +20367,7 @@
             "title": "Cuts"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "cuts"
@@ -20591,6 +20609,7 @@
             "title": "Kinds"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "name",
@@ -20969,6 +20988,7 @@
             "title": "Enabled"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "title": "WebhookUpdate",
         "description": "Only what is sent changes. The URL and format are fixed: a new one is a new webhook."

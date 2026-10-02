@@ -332,23 +332,36 @@ class TestCloudConnections:
         """The customer supplies a name and a scope. Nothing else is accepted.
 
         The tenant id in particular is not an input -- it is written later, from
-        what Entra reports on the consent callback. Supplying one here must not
-        bind the connection to it.
+        what Entra reports on the consent callback. Supplying one here is refused
+        rather than ignored, so a client that thinks it binds the connection finds
+        out at once, and none of it can bind anything.
         """
         user = uuid.uuid4()
         org = await make_org(client, user, "Connect Ltd")
         cleanup_orgs.append(uuid.UUID(org))
 
-        response = await client.post(
+        refused = await client.post(
             "/api/v1/cloud-connections",
             json={
                 "name": "Production",
                 "scope_type": "TENANT_ROOT",
-                # All deliberately supplied and all deliberately ignored.
                 "tenant_id": "someone-elses-tenant",
                 "client_secret": "hunter2",
                 "organization_id": str(uuid.uuid4()),
             },
+            headers=auth_header(user),
+        )
+        assert refused.status_code == 422
+        errors = refused.json()["meta"]["errors"]
+        assert {e["loc"][-1] for e in errors if e["type"] == "extra_forbidden"} == {
+            "tenant_id",
+            "client_secret",
+            "organization_id",
+        }
+
+        response = await client.post(
+            "/api/v1/cloud-connections",
+            json={"name": "Production", "scope_type": "TENANT_ROOT"},
             headers=auth_header(user),
         )
         assert response.status_code == 201

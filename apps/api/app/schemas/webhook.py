@@ -6,16 +6,17 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from app.core.enums import DeliveryStatus, NotificationKind, WebhookFormat
+from app.schemas.common import RequestModel
 
 
-class WebhookCreate(BaseModel):
+class WebhookCreate(RequestModel):
     name: str = Field(min_length=1, max_length=120)
     url: str = Field(min_length=12, max_length=2048)
     format: WebhookFormat = WebhookFormat.GENERIC
     kinds: list[NotificationKind] = Field(min_length=1)
 
 
-class WebhookUpdate(BaseModel):
+class WebhookUpdate(RequestModel):
     """Only what is sent changes. The URL and format are fixed: a new one is a new webhook."""
 
     name: str | None = Field(default=None, min_length=1, max_length=120)

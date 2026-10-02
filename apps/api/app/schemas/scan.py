@@ -13,10 +13,10 @@ from app.core.enums import (
     ScanTrigger,
     TaskOutcome,
 )
-from app.schemas.common import ClosedModel
+from app.schemas.common import ClosedModel, RequestModel
 
 
-class ScanCreate(BaseModel):
+class ScanCreate(RequestModel):
     cloud_account_id: UUID
 
 

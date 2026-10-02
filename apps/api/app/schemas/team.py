@@ -7,6 +7,7 @@ from uuid import UUID
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.core.enums import Role
+from app.schemas.common import RequestModel
 
 InvitationStatus = Literal["OPEN", "EXPIRED", "ACCEPTED", "REVOKED"]
 
@@ -22,7 +23,7 @@ class MemberOut(BaseModel):
     is_you: bool
 
 
-class MemberUpdate(BaseModel):
+class MemberUpdate(RequestModel):
     role: Role
 
 
@@ -30,7 +31,7 @@ class MemberRemovedOut(BaseModel):
     removed: UUID
 
 
-class InvitationCreate(BaseModel):
+class InvitationCreate(RequestModel):
     email: EmailStr
     role: Role = Role.VIEWER
 
@@ -64,7 +65,7 @@ class InvitationRevokedOut(BaseModel):
     revoked: UUID
 
 
-class InvitationToken(BaseModel):
+class InvitationToken(RequestModel):
     """A token from an invitation link. In a body, so it stays out of URLs and logs."""
 
     token: str = Field(min_length=20, max_length=200)
