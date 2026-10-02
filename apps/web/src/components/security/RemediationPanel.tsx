@@ -30,6 +30,7 @@ export function RemediationPanel({
   effortMinutes,
   footer,
   fill,
+  batch,
   findingId,
 }: {
   remediation: string;
@@ -48,6 +49,12 @@ export function RemediationPanel({
    */
   fill?: { values: Record<string, string>; resourceName: string };
   /**
+   * Every asset one rule's fix is applied to, in place of `fill`: the CLI tab
+   * becomes one script, the commands filled for each asset under its name, so
+   * the work is copied once rather than once per asset (DECISIONS.md §203).
+   */
+  batch?: readonly { values: Record<string, string>; resourceName: string }[];
+  /**
    * The finding this fix is for, which lets the Terraform tab write the fix
    * into an uploaded file. Absent on the rules catalogue: there is no asset,
    * so no block to find.
@@ -61,6 +68,17 @@ export function RemediationPanel({
     fill ? fillPlaceholders(command, fill.values) : { text: command, filled: [] },
   );
   const anyFilled = commands.some((command) => command.filled.length > 0);
+  // One script for the whole batch, each asset's commands under its name.
+  const script = batch
+    ? batch
+        .map((asset) =>
+          [
+            `# ${asset.resourceName}`,
+            ...(spec?.cli ?? []).map((command) => fillPlaceholders(command, asset.values).text),
+          ].join("\n"),
+        )
+        .join("\n\n")
+    : null;
 
   return (
     <Card>
@@ -103,13 +121,17 @@ export function RemediationPanel({
 
           {hasCli && (
             <TabsContent value="cli" className="flex flex-col gap-2">
-              {commands.map((command) => (
-                <CodeBlock key={command.text} code={command.text} />
-              ))}
+              {script !== null ? (
+                <CodeBlock code={script} label="Copy the script" />
+              ) : (
+                commands.map((command) => <CodeBlock key={command.text} code={command.text} />)
+              )}
               <p className="text-xs text-muted-foreground">
-                {anyFilled && fill
-                  ? `Filled in for ${fill.resourceName} from what Cleave observed. Anything still in angle brackets is yours to fill — Cleave never guesses a value into a command.`
-                  : "Placeholders are left in angle brackets on purpose — a command carrying a made-up resource name is a command somebody runs."}
+                {batch
+                  ? `Filled in for each of ${batch.length} assets from what Cleave observed. Anything still in angle brackets is yours to fill — Cleave never guesses a value into a command.`
+                  : anyFilled && fill
+                    ? `Filled in for ${fill.resourceName} from what Cleave observed. Anything still in angle brackets is yours to fill — Cleave never guesses a value into a command.`
+                    : "Placeholders are left in angle brackets on purpose — a command carrying a made-up resource name is a command somebody runs."}
               </p>
             </TabsContent>
           )}

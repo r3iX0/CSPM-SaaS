@@ -1279,6 +1279,37 @@ export const en = {
     onRoutes: (n: number) => `on ${n} attack ${n === 1 ? "path" : "paths"}`,
     waitingOnScan: "Waiting on a scan",
     doneOn: (date: string) => `Done ${date}`,
+    // The fix, read in full in the queue's sheet (DECISIONS.md §202).
+    openFix: "Open fix",
+    openFinding: "Open finding",
+    openFixFor: (title: string) => `Open the fix for ${title}`,
+    fixFailed: "Could not load this fix",
+    tenantWide: "Tenant-wide — no single asset carries this",
+    trackedSince: (date: string) => `In the remediation queue since ${date}`,
+    forms: (list: string) => `Also as ${list}`,
+    // One rule's fix over every asset it is on (DECISIONS.md §203).
+    groupCount: (n: number, open: number) =>
+      `${n} assets, ${open === 0 ? "none" : open === n ? "all" : open} still to do`,
+    groupAssetsHeading: "Assets this fix is applied to",
+    groupLine: (n: number, names: readonly string[]) =>
+      `${n} assets: ${names.slice(0, 3).join(", ")}${n > 3 ? ` and ${n - 3} more` : ""}`,
+    groupOnRoutes: (n: number) => `${n} on an attack path`,
+    markAllDoneShort: "Mark all done",
+    groupShow: (n: number) => `Show the ${n} assets`,
+    groupHide: "Hide the assets",
+    toDo: "To do",
+    ruleEmpty: "Nothing of this rule is in the queue",
+    markAllDone: (n: number) => `Mark all ${n} done`,
+    trackRest: (n: number) => `Track ${n} more`,
+    trackRestNote: (n: number) =>
+      `${n} more open ${n === 1 ? "finding" : "findings"} of this rule ${n === 1 ? "is" : "are"} in no task yet.`,
+    verification: {
+      PENDING: "Fix claimed — Cleave is checking",
+      VERIFIED: "Fix verified by a scan",
+      STILL_FAILING: "Fix claimed — a scan still sees the problem",
+      INSUFFICIENT_EVIDENCE: "Fix claimed — Cleave could not read enough to verify it",
+      ABANDONED: "Fix claimed — Cleave stopped checking",
+    },
     doneNote:
       "Marked done does not close a finding. Cleave reads the environment again on the next scan and closes it then, or leaves it open.",
   },
