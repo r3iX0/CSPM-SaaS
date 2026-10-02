@@ -43,6 +43,7 @@ from app.connectors.azure.client import (
 )
 from app.connectors.azure.evidence import AzureEvidence
 from app.connectors.azure.rbac import first_version_granting
+from app.connectors.azure.settings_v13 import STORAGE_SERVICES, VPN_GATEWAY_TYPE
 from app.connectors.collection import CollectionTask, ReadingUnavailable, TaskData
 from app.connectors.evidence import ProviderEndpoint
 from app.core.logging import get_logger
@@ -105,6 +106,27 @@ _NO_FILE_SERVICE = frozenset({"blobstorage", "blockblobstorage"})
 
 def _has_file_service(account: dict[str, Any]) -> bool:
     return str(account.get("kind") or "").lower() not in _NO_FILE_SERVICE
+
+
+def _is_vpn_gateway(resource: dict[str, Any]) -> bool:
+    return str(resource.get("type") or "").lower() == VPN_GATEWAY_TYPE
+
+
+async def _storage_service_diagnostics(arm: ArmClient, account_id: str) -> dict[str, Any]:
+    """The diagnostic settings of each service beneath one storage account,
+    keyed by the service's own scope (section 204). Every service is asked,
+    because the listing's kind is not passed here; a kind without the service
+    answers with an error that stays on that service alone."""
+    found: dict[str, Any] = {}
+    for service in STORAGE_SERVICES:
+        scope = f"{account_id}/{service}Services/default"
+        try:
+            found[scope] = await arm.list_diagnostic_settings(scope)
+        except AzureApiError as exc:
+            if exc.azure_status_code not in (400, 404):
+                raise
+            found[scope] = None
+    return found
 
 
 # How many per-resource detail calls one task runs at once. Enough to keep a
@@ -328,6 +350,32 @@ BASTION_HOSTS_ENDPOINT = ProviderEndpoint(
     f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Network/bastionHosts",
     "2023-09-01",
 )
+# v13 (DECISIONS.md section 204), each api-version the one whose contract the
+# fields read were checked against on 2026-10-02.
+APPLICATION_GATEWAYS_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Network/applicationGateways",
+    "2023-09-01",
+)
+WAF_POLICIES_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Network"
+    "/ApplicationGatewayWebApplicationFirewallPolicies",
+    "2023-09-01",
+)
+VPN_GATEWAY_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/subscriptions/{{subscriptionId}}/resourceGroups/{{resourceGroupName}}"
+    "/providers/Microsoft.Network/virtualNetworkGateways/{gatewayName}",
+    "2023-09-01",
+)
+LOCKS_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Authorization/locks",
+    "2020-05-01",
+)
+POSTGRES_FIREWALL_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/{{serverId}}/firewallRules", "2023-03-01-preview"
+)
+SUBSCRIPTION_POLICY_ENDPOINT = ProviderEndpoint(
+    f"{ARM}/providers/Microsoft.Subscription/policies/default", "2021-10-01"
+)
 RESOURCE_GRAPH_ENDPOINT = ProviderEndpoint(
     f"{ARM}/providers/Microsoft.ResourceGraph/resources", "2022-10-01"
 )
@@ -375,6 +423,12 @@ GROUP_TRANSITIVE_MEMBERS_ENDPOINT = ProviderEndpoint(
 APPLICATIONS_ENDPOINT = ProviderEndpoint(f"{GRAPH}/applications", GRAPH_VERSION)
 APPLICATION_OWNERS_ENDPOINT = ProviderEndpoint(
     f"{GRAPH}/applications/{{applicationId}}/owners", GRAPH_VERSION
+)
+DEVICE_REGISTRATION_POLICY_ENDPOINT = ProviderEndpoint(
+    f"{GRAPH}/policies/deviceRegistrationPolicy", GRAPH_VERSION
+)
+ACCESS_REVIEWS_ENDPOINT = ProviderEndpoint(
+    f"{GRAPH}/identityGovernance/accessReviews/definitions", GRAPH_VERSION
 )
 SERVICE_PRINCIPALS_ENDPOINT = ProviderEndpoint(f"{GRAPH}/servicePrincipals", GRAPH_VERSION)
 APP_ROLE_ASSIGNED_TO_ENDPOINT = ProviderEndpoint(
@@ -432,6 +486,13 @@ PIM_LICENCE = (
     "listed only for a tenant with a Microsoft Entra ID P2 or Governance licence, "
     "which this one does not have. No role or consent can grant it, so eligible "
     "roles stay unlisted until the tenant is licensed."
+)
+
+
+ACCESS_REVIEW_LICENCE = (
+    "Access reviews are available only to a tenant with a Microsoft Entra ID P2 or "
+    "Governance licence, which this one does not have, so whether guests are "
+    "reviewed cannot be assessed until the tenant is licensed."
 )
 
 
@@ -680,6 +741,16 @@ class AzurePlanBuilder:
 
         async def scale_sets(arm: ArmClient) -> dict[str, Any]:
             return {"scale_sets": await arm.list_scale_sets(sub)}
+
+        # v13 (section 204).
+        async def application_gateways(arm: ArmClient) -> dict[str, Any]:
+            return {"application_gateways": await arm.list_application_gateways(sub)}
+
+        async def waf_policies(arm: ArmClient) -> dict[str, Any]:
+            return {"waf_policies": await arm.list_waf_policies(sub)}
+
+        async def locks(arm: ArmClient) -> dict[str, Any]:
+            return {"resource_locks": await arm.list_locks(sub)}
 
         async def subscription(arm: ArmClient) -> dict[str, Any]:
             return {"subscription": await arm.get_subscription(sub)}
@@ -1099,6 +1170,62 @@ class AzurePlanBuilder:
                 endpoints=(SCALE_SETS_ENDPOINT,),
             ),
             self._diagnostics_task(),
+            # v13 (section 204).
+            self._arm_task(
+                AzureEvidence.APPLICATION_GATEWAYS,
+                ("Microsoft.Network/applicationGateways/read",),
+                application_gateways,
+                endpoints=(APPLICATION_GATEWAYS_ENDPOINT,),
+            ),
+            self._arm_task(
+                AzureEvidence.WAF_POLICIES,
+                ("Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies/read",),
+                waf_policies,
+                endpoints=(WAF_POLICIES_ENDPOINT,),
+            ),
+            self._arm_task(
+                AzureEvidence.RESOURCE_LOCKS,
+                ("Microsoft.Authorization/locks/read",),
+                locks,
+                endpoints=(LOCKS_ENDPOINT,),
+            ),
+            self._per_resource_task(
+                AzureEvidence.VPN_GATEWAYS,
+                source=AzureEvidence.RESOURCES,
+                action="Microsoft.Network/virtualNetworkGateways/read",
+                endpoint=VPN_GATEWAY_ENDPOINT,
+                read=lambda arm, gateway_id: arm.get_virtual_network_gateway(gateway_id),
+                noun="gateway configuration",
+                of="virtual network gateways",
+                where=_is_vpn_gateway,
+            ),
+            self._per_resource_task(
+                AzureEvidence.POSTGRESQL_FIREWALL_RULES,
+                source=AzureEvidence.POSTGRESQL_SERVERS,
+                action="Microsoft.DBforPostgreSQL/flexibleServers/firewallRules/read",
+                endpoint=POSTGRES_FIREWALL_ENDPOINT,
+                read=lambda arm, server_id: arm.list_postgresql_firewall_rules(server_id),
+                noun="firewall rules",
+                of="PostgreSQL servers",
+            ),
+            self._per_resource_task(
+                AzureEvidence.STORAGE_SERVICE_DIAGNOSTICS,
+                source=AzureEvidence.STORAGE_ACCOUNTS,
+                action="Microsoft.Insights/diagnosticSettings/read",
+                endpoint=DIAGNOSTICS_ENDPOINT,
+                read=_storage_service_diagnostics,
+                noun="service diagnostic settings",
+                of="storage accounts",
+            ),
+            self._per_resource_task(
+                AzureEvidence.DATABRICKS_DIAGNOSTICS,
+                source=AzureEvidence.DATABRICKS_WORKSPACES,
+                action="Microsoft.Insights/diagnosticSettings/read",
+                endpoint=DIAGNOSTICS_ENDPOINT,
+                read=lambda arm, workspace_id: arm.list_diagnostic_settings(workspace_id),
+                noun="diagnostic settings",
+                of="Databricks workspaces",
+            ),
         ]
         return tasks
 
@@ -1647,7 +1774,7 @@ class AzurePlanBuilder:
         Empty when the answer cannot be established. Graph answers a missing
         application permission with "Insufficient privileges to complete the
         operation", which names neither the permission nor who can grant it,
-        and the collector's own hint could only ever guess at which of nine it
+        and the collector's own hint could only ever guess at which of eleven it
         was. The token knows: a client-credentials token lists its granted
         permissions in the ``roles`` claim, so the failure can be reported as a
         list an administrator can act on rather than as a category that went
@@ -1659,7 +1786,7 @@ class AzurePlanBuilder:
             absent = missing_permissions(self.tokens.graph_token())
         except Exception:
             # A token that cannot be read or fetched says nothing about the
-            # grant, and inventing nine gaps would send someone to fix a
+            # grant, and inventing eleven gaps would send someone to fix a
             # directory that is configured correctly.
             return ""
         if not absent:
@@ -1732,6 +1859,29 @@ class AzurePlanBuilder:
             graph = GraphClient(self.tokens, self._http, limiter=self._limiter)
             found = await self._graph_call(graph.list_named_locations())
             return TaskData({"named_locations": found})
+
+        # Section 204. Two Graph reads under the permissions that section added
+        # to consent, and one ARM read at the tenant scope that needs no role.
+        async def device_registration(collected: dict[str, Any]) -> TaskData:
+            graph = GraphClient(self.tokens, self._http, limiter=self._limiter)
+            policy = await self._graph_call(graph.get_device_registration_policy())
+            return TaskData({"device_registration_policy": policy})
+
+        async def access_reviews(collected: dict[str, Any]) -> TaskData:
+            graph = GraphClient(self.tokens, self._http, limiter=self._limiter)
+            found = await self._licence_aware_call(
+                graph.list_access_review_definitions(), ACCESS_REVIEW_LICENCE
+            )
+            if graph.truncated:
+                return TaskData(
+                    {"access_reviews": found},
+                    partial_reason="there are more access reviews than one scan reads",
+                )
+            return TaskData({"access_reviews": found})
+
+        async def subscription_policy(collected: dict[str, Any]) -> TaskData:
+            arm = ArmClient(self.tokens, self._http, limiter=self._limiter)
+            return TaskData({"subscription_policy": await arm.get_subscription_policy()})
 
         async def security_defaults(collected: dict[str, Any]) -> TaskData:
             graph = GraphClient(self.tokens, self._http, limiter=self._limiter)
@@ -1888,6 +2038,22 @@ class AzurePlanBuilder:
                 key=AzureEvidence.CONDITIONAL_ACCESS_POLICIES,
                 run=conditional_access,
                 endpoints=(CONDITIONAL_ACCESS_ENDPOINT, GROUP_MEMBERS_ENDPOINT),
+            ),
+            # Section 204.
+            CollectionTask(
+                key=AzureEvidence.DEVICE_REGISTRATION_POLICY,
+                run=device_registration,
+                endpoints=(DEVICE_REGISTRATION_POLICY_ENDPOINT,),
+            ),
+            CollectionTask(
+                key=AzureEvidence.ACCESS_REVIEWS,
+                run=access_reviews,
+                endpoints=(ACCESS_REVIEWS_ENDPOINT,),
+            ),
+            CollectionTask(
+                key=AzureEvidence.SUBSCRIPTION_POLICY,
+                run=subscription_policy,
+                endpoints=(SUBSCRIPTION_POLICY_ENDPOINT,),
             ),
             # Both under permissions admin consent has requested since
             # onboarding existed and nothing has ever called

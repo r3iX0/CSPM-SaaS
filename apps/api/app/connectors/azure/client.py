@@ -859,6 +859,56 @@ class ArmClient(_BaseClient):
             "/bastionHosts?api-version=2023-09-01"
         )
 
+    # v13 (DECISIONS.md section 204).
+    async def list_application_gateways(self, subscription_id: str) -> list[dict[str, Any]]:
+        """Application gateways: their listeners' TLS policy, HTTP/2, and the
+        web application firewall configured on them or attached as a policy."""
+        return await self.get_all(
+            f"/subscriptions/{subscription_id}/providers/Microsoft.Network"
+            "/applicationGateways?api-version=2023-09-01"
+        )
+
+    async def list_waf_policies(self, subscription_id: str) -> list[dict[str, Any]]:
+        """Application Gateway WAF policies: state, mode, request body
+        inspection and the managed rule sets, bot protection among them."""
+        return await self.get_all(
+            f"/subscriptions/{subscription_id}/providers/Microsoft.Network"
+            "/ApplicationGatewayWebApplicationFirewallPolicies?api-version=2023-09-01"
+        )
+
+    async def get_virtual_network_gateway(self, gateway_id: str) -> dict[str, Any]:
+        """One virtual network gateway, by id. ARM lists these only per resource
+        group, so the ids come from the inventory; the path is spelled out from
+        the id's parts so it can only ever name a gateway."""
+        parts = gateway_id.strip("/").split("/")
+        if len(parts) != 8 or parts[6].lower() != "virtualnetworkgateways":
+            raise ValueError(f"Not a virtual network gateway id: {gateway_id!r}")
+        subscription, group, name = parts[1], parts[3], parts[7]
+        return await self.get(
+            f"/subscriptions/{subscription}/resourceGroups/{group}/providers"
+            f"/Microsoft.Network/virtualNetworkGateways/{name}?api-version=2023-09-01"
+        )
+
+    async def list_locks(self, subscription_id: str) -> list[dict[str, Any]]:
+        """Every management lock in the subscription, at whatever scope it was
+        placed: the subscription, a resource group or one resource."""
+        return await self.get_all(
+            f"/subscriptions/{subscription_id}/providers/Microsoft.Authorization"
+            "/locks?api-version=2020-05-01"
+        )
+
+    async def list_postgresql_firewall_rules(self, server_id: str) -> list[dict[str, Any]]:
+        """One PostgreSQL flexible server's firewall rules."""
+        return await self.get_all(f"{server_id}/firewallRules?api-version=2023-03-01-preview")
+
+    async def get_subscription_policy(self) -> dict[str, Any]:
+        """The tenant's subscription policy: whether subscriptions may leave or
+        enter the directory. Tenant-scoped, and readable by every user of the
+        tenant without a role."""
+        return await self.get(
+            "/providers/Microsoft.Subscription/policies/default?api-version=2021-10-01"
+        )
+
     async def list_diagnostic_settings(self, resource_id: str) -> list[dict[str, Any]]:
         return await self.get_all(
             f"{resource_id}/providers/Microsoft.Insights"
@@ -1118,6 +1168,16 @@ class GraphClient(_BaseClient):
         """Tenant-wide directory settings. ``Group.Unified`` exists only once
         somebody has changed it from the defaults. ``Directory.Read.All``."""
         return await self.get_all("/groupSettings")
+
+    async def get_device_registration_policy(self) -> dict[str, Any]:
+        """Whether joining or registering a device asks for a second factor.
+        ``Policy.Read.DeviceConfiguration`` (DECISIONS.md section 204)."""
+        return await self.get("/policies/deviceRegistrationPolicy")
+
+    async def list_access_review_definitions(self) -> list[dict[str, Any]]:
+        """The tenant's access reviews and what each one reviews.
+        ``AccessReview.Read.All`` (DECISIONS.md section 204)."""
+        return await self.get_all("/identityGovernance/accessReviews/definitions")
 
     async def list_conditional_access_policies(self) -> list[dict[str, Any]]:
         """Every Conditional Access policy, enforced or not.

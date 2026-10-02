@@ -106,6 +106,7 @@ from app.rules.azure.database.transport import (
     AzureSqlEntraAdminRule,
     AzureSqlTlsRule,
 )
+from app.rules.azure.hardening import RULES as HARDENING_RULES
 from app.rules.azure.identity.credentials import (
     AzureLongLivedApplicationCredentialRule,
 )
@@ -121,6 +122,7 @@ from app.rules.azure.identity.privileged import (
     AzureGuestPrivilegedUserRule,
     AzurePrivilegedUserRule,
 )
+from app.rules.azure.identity.tenant_hardening import RULES as TENANT_HARDENING_RULES
 from app.rules.azure.identity.tenant_policy import (
     AzureAdminPortalMfaRule,
     AzureGuestDirectoryAccessRule,
@@ -146,6 +148,7 @@ from app.rules.azure.network.exposure import (
     AzurePublicSqlPortRule,
     AzurePublicSshRule,
     AzurePublicUdpRule,
+    AzurePublicWebRule,
     AzurePublicWinRmRule,
     AzureSensitivePublicAddressRule,
 )
@@ -161,8 +164,10 @@ from app.rules.azure.rbac.privilege import (
     AzureBroadScopeAssignmentRule,
     AzureDangerousCustomRoleRule,
     AzureExcessiveOwnersRule,
+    AzureLockAdministratorRoleRule,
     AzurePersonWithSubscriptionControlRule,
     AzureRoleGrantingIdentityRule,
+    AzureSingleOwnerRule,
     AzureWorkloadWithSubscriptionControlRule,
 )
 from app.rules.azure.resilience import RULES as RESILIENCE_RULES
@@ -173,6 +178,7 @@ from app.rules.azure.secrets.key_vault import (
     AzureKeyVaultDeletionRule,
     AzureKeyVaultNetworkRule,
 )
+from app.rules.azure.storage.access_and_logging import RULES as STORAGE_ACCESS_RULES
 from app.rules.azure.storage.data_protection import (
     AzureBlobSoftDeleteRule,
     AzureStorageCrossTenantReplicationRule,
@@ -296,6 +302,13 @@ RULE_REGISTRY: list[SecurityRule] = [
     AzureTrustedLocationRule(),
     # Section 177: the misfiled checks and Tier 3.
     *RESILIENCE_RULES,
+    # Section 204: the compliance controls a rule could answer and none did.
+    *STORAGE_ACCESS_RULES,
+    *HARDENING_RULES,
+    *TENANT_HARDENING_RULES,
+    AzurePublicWebRule(),
+    AzureLockAdministratorRoleRule(),
+    AzureSingleOwnerRule(),
     # AWS. Separate rules over the same neutral resource types, never one rule
     # branching on provider: ``remediation`` is snapshot-copied onto every
     # finding, and ``aws s3api put-public-access-block`` is not a variant of

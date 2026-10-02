@@ -25,14 +25,17 @@ secret to store.
 
 This is **two separate consent steps**, not one:
 
-1. **Entra admin consent** — CloudGuard's multi-tenant app requests nine Microsoft Graph
+1. **Entra admin consent** — CloudGuard's multi-tenant app requests eleven Microsoft Graph
    _application_ permissions, listed in
    `REQUIRED_GRAPH_PERMISSIONS` (`app/connectors/azure/auth.py`):
    `Directory.Read.All`, `User.Read.All`,
    `RoleManagement.Read.Directory`, `UserAuthenticationMethod.Read.All`,
    `Policy.Read.All`, `Application.Read.All`, `Group.Read.All`, `IdentityRiskyUser.Read.All`,
-   `AuditLog.Read.All`. Every one is a read scope. The customer's Entra admin clicks one consent
-   link and grants tenant-wide.
+   `AuditLog.Read.All`, `Policy.Read.DeviceConfiguration` and `AccessReview.Read.All`. Every one
+   is a read scope. The customer's Entra admin clicks one consent link and grants tenant-wide.
+   The last two arrived in `DECISIONS.md` §204, and a tenant that consented before then must
+   consent again before the device registration and guest access review checks can run; until
+   it does, those two checks report UNKNOWN and the connection names the missing permissions.
 2. **Azure RBAC scanner role** — a separate grant not covered by Graph consent. The customer deploys
    CloudGuard's own custom read-only role and its assignment over the scope to scan, from a
    pre-filled ARM template the product generates (the "Deploy to Azure" button); the built-in
@@ -286,7 +289,7 @@ az provider operation show --namespace Microsoft.KeyVault \
   --query "resourceTypes[].operations[].name"
 ```
 
-`ROLE_VERSION` is `v12`, and `ROLE_HISTORY` records what every published version
+`ROLE_VERSION` is `v13`, and `ROLE_HISTORY` records what every published version
 granted. A version exists to flag a deployed role that is _insufficient_ for a
 newer rule; narrowing is backward compatible and does not warrant a bump. `v2`
 added Resource Graph, which inventory needs since it moved off the ARM resource
@@ -352,6 +355,20 @@ keeps its recovery points, and `Microsoft.Compute/virtualMachineScaleSets/read`
 -- fifty-six reads in all. A v11 connection keeps every verdict and route and is
 prompted to redeploy with Compute named; the backup retention and scale set
 checks report UNKNOWN until then.
+`v13` adds five for the compliance controls `DECISIONS.md` §204 closed, each
+checked on 2026-10-02 against the published operations reference:
+`Microsoft.Network/applicationGateways/read` and
+`Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies/read`, an
+application gateway's TLS, HTTP/2 and web application firewall;
+`Microsoft.Network/virtualNetworkGateways/read`, read one gateway at a time from
+the ids the inventory lists, because ARM lists gateways only per resource group;
+`Microsoft.Authorization/locks/read`, which assets a delete lock protects; and
+`Microsoft.DBforPostgreSQL/flexibleServers/firewallRules/read` -- sixty-one reads
+in all. A v12 connection keeps every verdict and route and is prompted to
+redeploy with Network, Databases and Posture named. The tenant's subscription
+policy -- whether subscriptions may leave or enter the directory -- is read from
+ARM at the tenant scope, which Microsoft documents as readable by every user, so
+no role action governs it.
 A connection on an older role keeps every
 other category and loses exactly the checks the missing actions serve, which
 `degraded_categories` names in those terms rather than as a 403 — and those

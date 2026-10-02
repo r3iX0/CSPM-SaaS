@@ -98,7 +98,7 @@
      "id": "5.1.2",
      "title": "Ensure that 'Require Multifactor Authentication to register or join devices with Microsoft Entra' is set to 'Yes'",
      "group": "5 Identity Services",
-     "technically_assessable": false
+     "technically_assessable": true
     },
     {
      "id": "5.1.3",
@@ -164,13 +164,13 @@
      "id": "5.5",
      "title": "Ensure that a Custom Role is Assigned Permissions for Administering Resource Locks",
      "group": "5 Identity Services",
-     "technically_assessable": false
+     "technically_assessable": true
     },
     {
      "id": "5.6",
      "title": "Ensure that 'Subscription leaving Microsoft Entra tenant' and 'Subscription entering Microsoft Entra tenant' is set to 'Permit no one'",
      "group": "5 Identity Services",
-     "technically_assessable": false
+     "technically_assessable": true
     },
     {
      "id": "5.7",
@@ -314,13 +314,13 @@
      "id": "6.1.5",
      "title": "Ensure Basic, Free, and Consumption SKUs are not used on Production artifacts requiring monitoring and SLA",
      "group": "6 Management and Governance Services",
-     "technically_assessable": false
+     "technically_assessable": true
     },
     {
      "id": "6.2",
      "title": "Ensure that Resource Locks are set for Mission-Critical Azure Resources",
      "group": "6 Management and Governance Services",
-     "technically_assessable": false
+     "technically_assessable": true
     },
     {
      "id": "7.1",
@@ -452,13 +452,13 @@
      "id": "8.1.3.4",
      "title": "Ensure that 'Agentless scanning for machines' Component Status is Set to 'On'",
      "group": "8 Security Services",
-     "technically_assessable": false
+     "technically_assessable": true
     },
     {
      "id": "8.1.3.5",
      "title": "Ensure that 'File Integrity Monitoring' Component Status is Set to 'On'",
      "group": "8 Security Services",
-     "technically_assessable": false
+     "technically_assessable": true
     },
     {
      "id": "8.1.4.1",
@@ -758,7 +758,7 @@
      "id": "9.3.9",
      "title": "Ensure Azure Resource Manager Delete Locks are Applied to Azure Storage Accounts",
      "group": "9 Storage Services",
-     "technically_assessable": false
+     "technically_assessable": true
     },
     {
      "id": "9.3.10",
@@ -3401,7 +3401,7 @@
      "id": "11.3.2.b",
      "title": "set up specific accounts to be used for system administration operations exclusively, such as installation, configuration, management or maintenance;",
      "group": "11 ACCESS CONTROL (ARTICLE 21(2), POINTS (I) AND (J), OF DIRECTIVE (EU) 2022/2555)",
-     "technically_assessable": true
+     "technically_assessable": false
     },
     {
      "id": "11.3.2.c",
@@ -3491,25 +3491,25 @@
      "id": "1.1.1.d",
      "title": "include a commitment to continual improvement of the security of network and information systems;",
      "group": "1 POLICY ON THE SECURITY OF NETWORK AND INFORMATION SYSTEMS (ARTICLE 21(2), POINT (A) OF DIRECTIVE (EU) 2022/2555)",
-     "technically_assessable": true
+     "technically_assessable": false
     },
     {
      "id": "1.1.1.h",
      "title": "list the documentation to be kept and the duration of retention of the documentation;",
      "group": "1 POLICY ON THE SECURITY OF NETWORK AND INFORMATION SYSTEMS (ARTICLE 21(2), POINT (A) OF DIRECTIVE (EU) 2022/2555)",
-     "technically_assessable": true
+     "technically_assessable": false
     },
     {
      "id": "1.1.2",
      "title": "The network and information system security policy shall be reviewed and, where appropriate, updated by management bodies at least annually and when significant incidents or significant changes to operations or risks occur. The result of the reviews shall be documented.",
      "group": "1 POLICY ON THE SECURITY OF NETWORK AND INFORMATION SYSTEMS (ARTICLE 21(2), POINT (A) OF DIRECTIVE (EU) 2022/2555)",
-     "technically_assessable": true
+     "technically_assessable": false
     },
     {
      "id": "1.2.3",
      "title": "At least one person shall report directly to the management bodies on matters of network and information system security.",
      "group": "1 POLICY ON THE SECURITY OF NETWORK AND INFORMATION SYSTEMS (ARTICLE 21(2), POINT (A) OF DIRECTIVE (EU) 2022/2555)",
-     "technically_assessable": true
+     "technically_assessable": false
     },
     {
      "id": "2.1.1",
@@ -3527,37 +3527,37 @@
      "id": "2.1.2.d",
      "title": "in line with an all-hazards approach, identify and document the risks posed to the security of network and information systems, in particular in relation to third parties and risks that could lead to disruptions in the availability, integrity, authenticity and confidentiality of the network and info",
      "group": "2 RISK MANAGEMENT POLICY (ARTICLE 21(2), POINT (A) OF DIRECTIVE (EU) 2022/2555)",
-     "technically_assessable": true
+     "technically_assessable": false
     },
     {
      "id": "2.1.2.e",
      "title": "analyse the risks posed to the security of network and information systems, including threat, likelihood, impact, and risk level, taking into account cyber threat intelligence and vulnerabilities;",
      "group": "2 RISK MANAGEMENT POLICY (ARTICLE 21(2), POINT (A) OF DIRECTIVE (EU) 2022/2555)",
-     "technically_assessable": true
+     "technically_assessable": false
     },
     {
      "id": "2.1.2.j",
      "title": "document the chosen risk treatment measures in a risk treatment plan and the reasons justifying the acceptance of residual risks in a comprehensible manner.",
      "group": "2 RISK MANAGEMENT POLICY (ARTICLE 21(2), POINT (A) OF DIRECTIVE (EU) 2022/2555)",
-     "technically_assessable": true
+     "technically_assessable": false
     },
     {
      "id": "2.1.3",
      "title": "When identifying and prioritising appropriate risk treatment options and measures, the relevant entities shall take into account the risk assessment results, the results of the procedure to assess the effectiveness of cybersecurity risk-management measures, the cost of implementation in relation to ",
      "group": "2 RISK MANAGEMENT POLICY (ARTICLE 21(2), POINT (A) OF DIRECTIVE (EU) 2022/2555)",
-     "technically_assessable": true
+     "technically_assessable": false
     },
     {
      "id": "2.1.4",
      "title": "The relevant entities shall review and, where appropriate, update the risk assessment results and the risk treatment plan at planned intervals and at least annually, and when significant changes to operations or risks or significant incidents occur.",
      "group": "2 RISK MANAGEMENT POLICY (ARTICLE 21(2), POINT (A) OF DIRECTIVE (EU) 2022/2555)",
-     "technically_assessable": true
+     "technically_assessable": false
     },
     {
      "id": "3.1.2.a",
      "title": "a categorisation system for incidents that is consistent with the event assessment and classification carried out pursuant to point 3.4.1.;",
      "group": "3 INCIDENT HANDLING (ARTICLE 21(2), POINT (B), OF DIRECTIVE (EU) 2022/2555)",
-     "technically_assessable": true
+     "technically_assessable": false
     },
     {
      "id": "3.4.2.c",
@@ -3575,61 +3575,61 @@
      "id": "3.6.1",
      "title": "Where appropriate, the relevant entities shall carry out post-incident reviews after recovery from incidents. The post-incident reviews shall identify, where possible, the root cause of the incident and result in documented lessons learned to reduce the occurrence and consequences of future incident",
      "group": "3 INCIDENT HANDLING (ARTICLE 21(2), POINT (B), OF DIRECTIVE (EU) 2022/2555)",
-     "technically_assessable": true
+     "technically_assessable": false
     },
     {
      "id": "3.6.3",
      "title": "The relevant entities shall review at planned intervals if incidents led to post-incident reviews.",
      "group": "3 INCIDENT HANDLING (ARTICLE 21(2), POINT (B), OF DIRECTIVE (EU) 2022/2555)",
-     "technically_assessable": true
+     "technically_assessable": false
     },
     {
      "id": "4.1.3",
      "title": "The relevant entities shall carry out a business impact analysis to assess the potential impact of severe disruptions to their business operations and shall, based on the results of the business impact analysis, establish continuity requirements for the network and information systems.",
      "group": "4 BUSINESS CONTINUITY AND CRISIS MANAGEMENT (ARTICLE 21(2), POINT (C), OF DIRECTIVE (EU) 2022/2555)",
-     "technically_assessable": true
+     "technically_assessable": false
     },
     {
      "id": "4.3.1",
      "title": "The relevant entities shall put in place a process for crisis management.",
      "group": "4 BUSINESS CONTINUITY AND CRISIS MANAGEMENT (ARTICLE 21(2), POINT (C), OF DIRECTIVE (EU) 2022/2555)",
-     "technically_assessable": true
+     "technically_assessable": false
     },
     {
      "id": "5.1.7.d",
      "title": "analyse the risks presented by changes related to ICT products and ICT services from suppliers and service providers and, where appropriate, take mitigating measures in a timely manner.",
      "group": "5 SUPPLY CHAIN SECURITY (ARTICLE 21(2), POINT (D), OF DIRECTIVE (EU) 2022/2555)",
-     "technically_assessable": true
+     "technically_assessable": false
     },
     {
      "id": "6.2.2.a",
      "title": "carry out an analysis of security requirements at the specification and design phases of any development or acquisition project undertaken by the relevant entities or on behalf of those entities;",
      "group": "6 SECURITY IN NETWORK AND INFORMATION SYSTEMS ACQUISITION, DEVELOPMENT AND MAINTENANCE (ARTICLE 21(2), POINT (E), OF DIR",
-     "technically_assessable": true
+     "technically_assessable": false
     },
     {
      "id": "6.2.4",
      "title": "The relevant entities shall review and, where necessary, update their secure development rules at planned intervals.",
      "group": "6 SECURITY IN NETWORK AND INFORMATION SYSTEMS ACQUISITION, DEVELOPMENT AND MAINTENANCE (ARTICLE 21(2), POINT (E), OF DIR",
-     "technically_assessable": true
+     "technically_assessable": false
     },
     {
      "id": "7.2.d",
      "title": "who is responsible for monitoring and measuring the effectiveness of the cybersecurity risk-management measures;",
      "group": "7 POLICIES AND PROCEDURES TO ASSESS THE EFFECTIVENESS OF CYBERSECURITY RISK-MANAGEMENT MEASURES (ARTICLE 21(2), POINT (F",
-     "technically_assessable": true
+     "technically_assessable": false
     },
     {
      "id": "7.2.e",
      "title": "when the results from monitoring and measurement are to be analysed and evaluated;",
      "group": "7 POLICIES AND PROCEDURES TO ASSESS THE EFFECTIVENESS OF CYBERSECURITY RISK-MANAGEMENT MEASURES (ARTICLE 21(2), POINT (F",
-     "technically_assessable": true
+     "technically_assessable": false
     },
     {
      "id": "7.2.f",
      "title": "who has to analyse and evaluate these results.",
      "group": "7 POLICIES AND PROCEDURES TO ASSESS THE EFFECTIVENESS OF CYBERSECURITY RISK-MANAGEMENT MEASURES (ARTICLE 21(2), POINT (F",
-     "technically_assessable": true
+     "technically_assessable": false
     },
     {
      "id": "11.2.2.e",
@@ -3641,7 +3641,7 @@
      "id": "11.4.2.a",
      "title": "only use system administration systems for system administration purposes, and not for any other operations;",
      "group": "11 ACCESS CONTROL (ARTICLE 21(2), POINTS (I) AND (J), OF DIRECTIVE (EU) 2022/2555)",
-     "technically_assessable": true
+     "technically_assessable": false
     },
     {
      "id": "11.5.4",
@@ -3939,7 +3939,7 @@
      "id": "T1546",
      "title": "Adversaries may establish persistence and/or elevate privileges using system mechanisms that trigger execution based on specific events. Various operating systems have means to monitor and subscribe to events such as logons or other user activity such as running specific applications/binaries. Cloud",
      "group": "Event Triggered Execution",
-     "technically_assessable": true
+     "technically_assessable": false
     },
     {
      "id": "T1651",
@@ -4041,13 +4041,13 @@
      "id": "T1213",
      "title": "Adversaries may leverage information repositories to mine valuable information. Information repositories are tools that allow for storage of information, typically to facilitate collaboration or information sharing between users, and can store a wide variety of data that may aid adversaries in furth",
      "group": "Data from Information Repositories",
-     "technically_assessable": true
+     "technically_assessable": false
     },
     {
      "id": "T1074",
      "title": "Adversaries may stage collected data in a central location or directory prior to Exfiltration. Data may be kept in separate files or combined into one file through techniques such as Archive Collected Data. Interactive command shells may be used, and common functionality within cmd and bash may be u",
      "group": "Data from Cloud Storage",
-     "technically_assessable": true
+     "technically_assessable": false
     },
     {
      "id": "T1485",
@@ -4143,19 +4143,19 @@
      "id": "T1614",
      "title": "Adversaries may gather information in an attempt to calculate the geographical location of a victim host. Adversaries may use the information from System Location Discovery during automated discovery to shape follow-on behaviors, including whether or not the adversary fully infects the target and/or",
      "group": "System Location Discovery",
-     "technically_assessable": true
+     "technically_assessable": false
     },
     {
      "id": "T1082",
      "title": "An adversary may attempt to get detailed information about the operating system and hardware, including version, patches, hotfixes, service packs, and architecture. Adversaries may use the information from System Information Discovery during automated discovery to shape follow-on behaviors, includin",
      "group": "System Information Discovery",
-     "technically_assessable": true
+     "technically_assessable": false
     },
     {
      "id": "T1518",
      "title": "Adversaries may attempt to get a listing of software and software versions that are installed on a system or in a cloud environment. Adversaries may use the information from Software Discovery during automated discovery to shape follow-on behaviors, including whether or not the adversary fully infec",
      "group": "Software Discovery",
-     "technically_assessable": true
+     "technically_assessable": false
     },
     {
      "id": "T1069",

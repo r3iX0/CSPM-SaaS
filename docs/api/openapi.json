@@ -17221,6 +17221,8 @@
           "backup_vault",
           "scale_set",
           "user_pool",
+          "application_gateway",
+          "vpn_gateway",
           "unknown"
         ],
         "title": "ResourceType",

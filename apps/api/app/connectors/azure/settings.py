@@ -14,7 +14,7 @@ attribute never expires.
 """
 
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from datetime import UTC, date, datetime
 from typing import Any
 
@@ -898,6 +898,29 @@ def _covers(entry: dict[str, Any], network_id: str, subnet_nsgs: set[str]) -> bo
     )
 
 
+# Subnets Azure reserves for a service that refuses a network security group,
+# or manages its own: a gateway, a firewall, a route server.
+SUBNETS_WITHOUT_NSG_SUPPORT = frozenset(
+    {
+        "gatewaysubnet",
+        "azurefirewallsubnet",
+        "azurefirewallmanagementsubnet",
+        "routeserversubnet",
+    }
+)
+
+
+def subnets_without_nsg(subnets: Iterable[dict[str, Any]]) -> list[str]:
+    """The names of subnets no network security group guards, leaving out the
+    reserved subnets a group cannot be attached to (section 204)."""
+    return sorted(
+        str(subnet.get("name"))
+        for subnet in subnets
+        if str(subnet.get("name") or "").lower() not in SUBNETS_WITHOUT_NSG_SUPPORT
+        and not _first(subnet, "properties", "networkSecurityGroup", "id")
+    )
+
+
 def virtual_networks(data: dict[str, Any], context: ContextOf) -> list[CloudResource]:
     """Virtual networks, with the watcher and flow logs that observe each one.
 
@@ -950,6 +973,7 @@ def virtual_networks(data: dict[str, Any], context: ContextOf) -> list[CloudReso
                 metadata={
                     "address_space": _first(props, "addressSpace", "addressPrefixes") or [],
                     "subnets": [str(s.get("id")) for s in subnets if s.get("id")],
+                    "subnets_without_nsg": subnets_without_nsg(subnets),
                     "ddos_protection": props.get("enableDdosProtection"),
                     "ddos_protection_plan": _first(props, "ddosProtectionPlan", "id"),
                     "network_watcher_in_region": in_region,

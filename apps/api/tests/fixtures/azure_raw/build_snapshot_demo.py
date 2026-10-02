@@ -378,6 +378,23 @@ def build() -> dict[str, Any]:
                 "networkAcls": {"defaultAction": "Deny", "ipRules": [], "virtualNetworkRules": []},
                 "enableRbacAuthorization": True,
                 "accessPolicies": [],
+                # Public access is off, so the ledger reaches the vault through
+                # this endpoint (section 204's AZ-KV-008 asks for it).
+                "privateEndpointConnections": [
+                    {
+                        "id": f"{vault_id}/privateEndpointConnections/pe-kv-payments",
+                        "properties": {
+                            "privateEndpoint": {
+                                "id": arm(
+                                    "rg-payments",
+                                    "Microsoft.Network",
+                                    "privateEndpoints/pe-kv-payments",
+                                )
+                            },
+                            "privateLinkServiceConnectionState": {"status": "Approved"},
+                        },
+                    }
+                ],
             },
         }
     ]

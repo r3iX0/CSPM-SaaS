@@ -10,13 +10,13 @@
 
 Deterministic security evaluations against normalized cloud resources.
 
-- **Total Registered Rules**: 219
-- **Azure Rules (Active / Production Verified)**: 169
+- **Total Registered Rules**: 258
+- **Azure Rules (Active / Production Verified)**: 208
 - **AWS Rules (Preview / Unverified on Live Accounts)**: 50
 
 | Provider | Status | Critical | High | Medium | Low | Total |
 |---|---|---|---|---|---|---|
-| **Azure** | 🟢 Active / Live Verified | 8 | 31 | 68 | 62 | 169 |
+| **Azure** | 🟢 Active / Live Verified | 8 | 32 | 79 | 89 | 208 |
 | **AWS** | 🟡 Preview / Offline Tested | 5 | 12 | 30 | 3 | 50 |
 
 > [!IMPORTANT]
@@ -120,6 +120,7 @@ must possess to exploit the worst-case instance:
 | [AZ-CMP-011](#az-cmp-011) | Virtual machine backups are kept under 7 days | Azure | compute | LOW | 0 | `virtual_machine` |
 | [AZ-CMP-012](#az-cmp-012) | Scale set is fronted by no load balancer | Azure | compute | LOW | 0 | `scale_set` |
 | [AZ-CMP-013](#az-cmp-013) | Scale set runs no instances | Azure | compute | LOW | 0 | `scale_set` |
+| [AZ-CMP-014](#az-cmp-014) | Virtual machine is not assessed for missing updates | Azure | compute | LOW | 1 | `virtual_machine` |
 | [AZ-DBW-001](#az-dbw-001) | Databricks workspace answers the whole internet | Azure | compute | MEDIUM | 3 | `analytics_workspace` |
 | [AZ-DBW-002](#az-dbw-002) | Databricks cluster nodes get public IP addresses | Azure | compute | HIGH | 3 | `analytics_workspace` |
 | [AZ-DBW-003](#az-dbw-003) | Databricks workspace is not in a customer-managed network | Azure | compute | MEDIUM | 2 | `analytics_workspace` |
@@ -135,6 +136,7 @@ must possess to exploit the worst-case instance:
 | [AZ-WEB-011](#az-web-011) | Web app runs a Python version past end of support | Azure | compute | MEDIUM | 2 | `app_service` |
 | [AZ-WEB-012](#az-web-012) | Web app runs a PHP version past end of support | Azure | compute | MEDIUM | 2 | `app_service` |
 | [AZ-WEB-013](#az-web-013) | Web app runs a Java version past end of support | Azure | compute | MEDIUM | 2 | `app_service` |
+| [AZ-WEB-014](#az-web-014) | Web app does not require client certificates | Azure | compute | LOW | 1 | `app_service` |
 | [AZ-COS-001](#az-cos-001) | Cosmos DB account answers the whole internet | Azure | database | HIGH | 4 | `document_database` |
 | [AZ-COS-002](#az-cos-002) | Cosmos DB account accepts its account keys | Azure | database | MEDIUM | 3 | `document_database` |
 | [AZ-COS-003](#az-cos-003) | Cosmos DB account accepts TLS below 1.2 | Azure | database | MEDIUM | 2 | `document_database` |
@@ -163,6 +165,7 @@ must possess to exploit the worst-case instance:
 | [AZ-DB-022](#az-db-022) | SQL vulnerability scans do not notify subscription administrators | Azure | database | LOW | 1 | `sql_server` |
 | [AZ-DB-023](#az-db-023) | PostgreSQL server backups are not geo-redundant | Azure | database | LOW | 0 | `postgresql_server` |
 | [AZ-DB-024](#az-db-024) | PostgreSQL server has no high availability | Azure | database | LOW | 0 | `postgresql_server` |
+| [AZ-DB-025](#az-db-025) | PostgreSQL server admits every Azure service | Azure | database | MEDIUM | 3 | `postgresql_server` |
 | [AZ-MYS-001](#az-mys-001) | MySQL server accepts unencrypted connections | Azure | database | HIGH | 3 | `mysql_server` |
 | [AZ-MYS-002](#az-mys-002) | MySQL server accepts TLS below 1.2 | Azure | database | MEDIUM | 2 | `mysql_server` |
 | [AZ-MYS-003](#az-mys-003) | MySQL server keeps no audit log | Azure | database | MEDIUM | 1 | `mysql_server` |
@@ -177,6 +180,8 @@ must possess to exploit the worst-case instance:
 | [AZ-IAM-005](#az-iam-005) | Too many Owners on the subscription | Azure | identity | MEDIUM | 2 | Aggregate (Tenant-wide) |
 | [AZ-IAM-008](#az-iam-008) | Full control granted above the subscription | Azure | identity | HIGH | 3 | `user`, `service_principal`, `group` |
 | [AZ-IAM-010](#az-iam-010) | Custom role grants unrestricted or self-granting permissions | Azure | identity | HIGH | 3 | `subscription` |
+| [AZ-IAM-011](#az-iam-011) | No custom role administers resource locks | Azure | identity | LOW | 0 | `subscription` |
+| [AZ-IAM-012](#az-iam-012) | Subscription has fewer than two Owners | Azure | identity | LOW | 0 | Aggregate (Tenant-wide) |
 | [AZ-ID-001](#az-id-001) | Privileged user without multi-factor authentication | Azure | identity | CRITICAL | 4 | `user` |
 | [AZ-ID-002](#az-id-002) | Excessive number of privileged users | Azure | identity | HIGH | 3 | Aggregate (Tenant-wide) |
 | [AZ-ID-003](#az-id-003) | Privileged account is dormant | Azure | identity | HIGH | 3 | `user` |
@@ -195,6 +200,16 @@ must possess to exploit the worst-case instance:
 | [AZ-ID-020](#az-id-020) | No strong sign-in method is offered, or registration is not campaigned | Azure | identity | MEDIUM | 2 | Aggregate (Tenant-wide) |
 | [AZ-ID-021](#az-id-021) | Any user can create Microsoft 365 groups | Azure | identity | LOW | 1 | Aggregate (Tenant-wide) |
 | [AZ-ID-022](#az-id-022) | No trusted named location is defined | Azure | identity | LOW | 1 | Aggregate (Tenant-wide) |
+| [AZ-ID-023](#az-id-023) | Administrators are not required to use multi-factor authentication | Azure | identity | HIGH | 4 | Aggregate (Tenant-wide) |
+| [AZ-ID-024](#az-id-024) | Risky sign-ins are not challenged | Azure | identity | MEDIUM | 3 | Aggregate (Tenant-wide) |
+| [AZ-ID-025](#az-id-025) | No Conditional Access policy considers where a sign-in comes from | Azure | identity | LOW | 1 | Aggregate (Tenant-wide) |
+| [AZ-ID-026](#az-id-026) | No custom banned-password list is enforced | Azure | identity | LOW | 2 | Aggregate (Tenant-wide) |
+| [AZ-ID-027](#az-id-027) | No Conditional Access policy limits how long a session lasts | Azure | identity | LOW | 1 | Aggregate (Tenant-wide) |
+| [AZ-ID-028](#az-id-028) | Authenticator notifications hide the application or location | Azure | identity | LOW | 2 | Aggregate (Tenant-wide) |
+| [AZ-ID-029](#az-id-029) | Joining a device does not require multi-factor authentication | Azure | identity | MEDIUM | 2 | Aggregate (Tenant-wide) |
+| [AZ-ID-030](#az-id-030) | Subscriptions can be moved into or out of the directory | Azure | identity | MEDIUM | 2 | Aggregate (Tenant-wide) |
+| [AZ-ID-031](#az-id-031) | No access review covers guest accounts | Azure | identity | LOW | 1 | Aggregate (Tenant-wide) |
+| [AZ-DBW-007](#az-dbw-007) | Databricks workspace sends its logs nowhere | Azure | logging | LOW | 0 | `analytics_workspace` |
 | [AZ-LOG-001](#az-log-001) | Diagnostic logging not configured | Azure | logging | MEDIUM | 1 | `storage_account`, `sql_server`, `postgresql_server`, `network_security_group` |
 | [AZ-LOG-002](#az-log-002) | Subscription activity log is not exported | Azure | logging | MEDIUM | 1 | `subscription` |
 | [AZ-LOG-004](#az-log-004) | Critical resource keeps no record of what happens to it | Azure | logging | MEDIUM | 1 | `key_vault`, `virtual_machine` |
@@ -213,6 +228,14 @@ must possess to exploit the worst-case instance:
 | [AZ-LOG-017](#az-log-017) | Activity log storage uses Microsoft's keys | Azure | logging | LOW | 0 | `storage_account` |
 | [AZ-LOG-018](#az-log-018) | Activity log storage allows public blob access | Azure | logging | HIGH | 2 | `storage_account` |
 | [AZ-LOG-019](#az-log-019) | Apps run with no Application Insights resource | Azure | logging | LOW | 0 | `subscription` |
+| [AZ-STO-020](#az-sto-020) | Storage services do not log reads, writes and deletes | Azure | logging | LOW | 0 | `storage_account` |
+| [AZ-AGW-001](#az-agw-001) | Application gateway has no web application firewall | Azure | network | MEDIUM | 3 | `application_gateway` |
+| [AZ-AGW-002](#az-agw-002) | Application gateway accepts TLS below 1.2 | Azure | network | MEDIUM | 2 | `application_gateway` |
+| [AZ-AGW-003](#az-agw-003) | Application gateway does not use HTTP/2 | Azure | network | LOW | 0 | `application_gateway` |
+| [AZ-AGW-004](#az-agw-004) | Web application firewall does not inspect request bodies | Azure | network | MEDIUM | 2 | `application_gateway` |
+| [AZ-AGW-005](#az-agw-005) | Web application firewall has no bot protection | Azure | network | LOW | 1 | `application_gateway` |
+| [AZ-DBW-005](#az-dbw-005) | Databricks workspace has no private endpoint | Azure | network | LOW | 1 | `analytics_workspace` |
+| [AZ-DBW-006](#az-dbw-006) | Databricks subnet has no network security group | Azure | network | MEDIUM | 2 | `analytics_workspace` |
 | [AZ-NET-001](#az-net-001) | RDP exposed to the internet | Azure | network | CRITICAL | 5 | `network_security_group` |
 | [AZ-NET-002](#az-net-002) | SSH exposed to the internet | Azure | network | HIGH | 4 | `network_security_group` |
 | [AZ-NET-003](#az-net-003) | Unrestricted inbound NSG rule | Azure | network | HIGH | 4 | `network_security_group` |
@@ -226,6 +249,10 @@ must possess to exploit the worst-case instance:
 | [AZ-NET-013](#az-net-013) | Virtual network has no DDoS Network Protection | Azure | network | LOW | 1 | `virtual_network` |
 | [AZ-NET-014](#az-net-014) | No Bastion host for administering machines | Azure | network | LOW | 1 | `subscription` |
 | [AZ-NET-015](#az-net-015) | Sensitive machine holds a public IP address | Azure | network | HIGH | 3 | `virtual_machine` |
+| [AZ-NET-016](#az-net-016) | Subnet has no network security group | Azure | network | MEDIUM | 2 | `virtual_network` |
+| [AZ-NET-017](#az-net-017) | HTTP or HTTPS exposed to the internet | Azure | network | LOW | 1 | `network_security_group` |
+| [AZ-NET-018](#az-net-018) | Public IP addresses on the retired Basic SKU | Azure | network | LOW | 1 | `subscription` |
+| [AZ-VPN-001](#az-vpn-001) | VPN gateway accepts point-to-site clients without Entra ID | Azure | network | MEDIUM | 2 | `vpn_gateway` |
 | [AZ-DEF-001](#az-def-001) | Defender for Cloud plans are off | Azure | posture | MEDIUM | 1 | `subscription` |
 | [AZ-DEF-002](#az-def-002) | Defender for Cloud emails no security contact | Azure | posture | LOW | 1 | `subscription` |
 | [AZ-DEF-003](#az-def-003) | Defender for Cloud sends no email about high-severity alerts | Azure | posture | MEDIUM | 1 | `subscription` |
@@ -237,7 +264,13 @@ must possess to exploit the worst-case instance:
 | [AZ-DEF-009](#az-def-009) | IoT hub is not watched by Defender for IoT | Azure | posture | MEDIUM | 1 | `subscription` |
 | [AZ-DEF-010](#az-def-010) | The Microsoft cloud security benchmark is not enforced | Azure | posture | MEDIUM | 1 | `subscription` |
 | [AZ-DEF-011](#az-def-011) | Defender CSPM is off | Azure | posture | LOW | 1 | `subscription` |
+| [AZ-DEF-012](#az-def-012) | Agentless scanning for machines is off | Azure | posture | LOW | 1 | `subscription` |
+| [AZ-DEF-013](#az-def-013) | File integrity monitoring is off | Azure | posture | LOW | 1 | `subscription` |
+| [AZ-DEF-014](#az-def-014) | Defender sensor is not deployed to Kubernetes clusters | Azure | posture | LOW | 1 | `subscription` |
+| [AZ-DEF-015](#az-def-015) | DNS queries are not watched for threats | Azure | posture | LOW | 1 | `subscription` |
+| [AZ-LCK-001](#az-lck-001) | Critical asset has no delete lock | Azure | posture | LOW | 0 | `virtual_machine`, `storage_account`, `sql_server`, `postgresql_server`, `mysql_server`, `document_database`, `key_vault`, `app_service`, `kubernetes_cluster`, `container_registry`, `virtual_network`, `backup_vault`, `application_gateway` |
 | [AZ-MAL-001](#az-mal-001) | Machine has no working endpoint protection | Azure | posture | MEDIUM | 2 | `virtual_machine` |
+| [AZ-POL-001](#az-pol-001) | No policy limits the regions resources are created in | Azure | posture | LOW | 1 | `subscription` |
 | [AZ-VULN-001](#az-vuln-001) | Internet-facing machine has unpatched vulnerabilities | Azure | posture | CRITICAL | 5 | `virtual_machine` |
 | [AZ-VULN-002](#az-vuln-002) | Machine has no vulnerability assessment | Azure | posture | MEDIUM | 1 | `virtual_machine` |
 | [AZ-KV-001](#az-kv-001) | Key vault can be permanently destroyed | Azure | secrets | HIGH | 2 | `key_vault` |
@@ -246,6 +279,9 @@ must possess to exploit the worst-case instance:
 | [AZ-KV-004](#az-kv-004) | Key vault holds keys that never expire | Azure | secrets | MEDIUM | 1 | `key_vault` |
 | [AZ-KV-005](#az-kv-005) | Key vault holds secrets that never expire | Azure | secrets | MEDIUM | 1 | `key_vault` |
 | [AZ-KV-006](#az-kv-006) | Key vault holds keys that never rotate | Azure | secrets | MEDIUM | 1 | `key_vault` |
+| [AZ-KV-007](#az-kv-007) | Key vault public network access is not disabled | Azure | secrets | LOW | 1 | `key_vault` |
+| [AZ-KV-008](#az-kv-008) | Key vault has no private endpoint | Azure | secrets | LOW | 1 | `key_vault` |
+| [AZ-KV-009](#az-kv-009) | Key vault holds certificates valid for more than a year | Azure | secrets | LOW | 1 | `key_vault` |
 | [AZ-STO-001](#az-sto-001) | Storage account allows public access | Azure | storage | HIGH | 5 | `storage_account` |
 | [AZ-STO-002](#az-sto-002) | Storage account transport and encryption settings insufficient | Azure | storage | HIGH | 2 | `storage_account` |
 | [AZ-STO-003](#az-sto-003) | Storage account accepts insecure connections | Azure | storage | MEDIUM | 2 | `storage_account` |
@@ -262,6 +298,9 @@ must possess to exploit the worst-case instance:
 | [AZ-STO-014](#az-sto-014) | File shares accept SMB channel ciphers weaker than AES-256-GCM | Azure | storage | LOW | 1 | `storage_account` |
 | [AZ-STO-015](#az-sto-015) | Storage access keys are not set to expire within 90 days | Azure | storage | MEDIUM | 1 | `storage_account` |
 | [AZ-STO-016](#az-sto-016) | Storage account is not geo-redundant | Azure | storage | LOW | 0 | `storage_account` |
+| [AZ-STO-017](#az-sto-017) | Storage account accepts shared key authorization | Azure | storage | MEDIUM | 2 | `storage_account` |
+| [AZ-STO-018](#az-sto-018) | Storage access key not regenerated in 90 days | Azure | storage | LOW | 1 | `storage_account` |
+| [AZ-STO-019](#az-sto-019) | Storage account has no delete lock | Azure | storage | LOW | 0 | `storage_account` |
 | [AZ-WEB-006](#az-web-006) | Function app answers the whole internet | Azure | web | MEDIUM | 3 | `app_service` |
 | [AZ-WEB-007](#az-web-007) | Function app has no virtual network integration | Azure | web | LOW | 1 | `app_service` |
 
@@ -271,7 +310,7 @@ must possess to exploit the worst-case instance:
 
 ### Azure Rules
 
-#### compute (40 rules)
+#### compute (42 rules)
 
 ##### <a id="az-acr-001"></a>`AZ-ACR-001` — Container registry admin user is enabled
 
@@ -576,7 +615,7 @@ Use NSG flow logs first if you are unsure what currently talks to this machine.
 - **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~120 min`
 - **Scope**: `per_resource`
 - **Applies to**: `virtual_machine`
-- **Compliance Mappings**: `CIS_AZURE_2.0: 7.2` &bull; `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24, A.8.3` &bull; `NIST_800_53: SC-28, AC-3` &bull; `NIST_CSF: PR.DS-1` &bull; `PCI_DSS_4: 3.5.1` &bull; `SOC2: CC6.1`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 7.2, 7.7` &bull; `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24, A.8.3` &bull; `NIST_800_53: SC-28, AC-3` &bull; `NIST_CSF: PR.DS-1` &bull; `PCI_DSS_4: 3.5.1` &bull; `SOC2: CC6.1`
 
 **Description**: A virtual machine has disks stored as VHD blobs in a storage account rather than as managed disks. The machine's data is then as safe as that storage account -- its keys, its network rules and whoever can list its containers.
 
@@ -772,6 +811,29 @@ Scale it out, or delete it if nothing uses it.
 
 Azure CLI:
   az vmss scale --name <scale-set> --resource-group <rg> --new-capacity 2
+```
+
+##### <a id="az-cmp-014"></a>`AZ-CMP-014` — Virtual machine is not assessed for missing updates
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~10 min`
+- **Scope**: `per_resource`
+- **Applies to**: `virtual_machine`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 8.1.10` &bull; `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: RA-5, SI-2` &bull; `NIST_CSF: ID.RA-1` &bull; `PCI_DSS_4: 6.3.3, 11.3.1` &bull; `SOC2: CC7.1`
+
+**Description**: The machine's patch settings leave update assessment at ImageDefault, so Azure checks it for missing updates only when somebody asks rather than every 24 hours.
+
+**Rationale**: A missing patch nobody looks for stays missing. Periodic assessment is what puts the machine into Azure Update Manager's and Defender's view of what needs patching.
+
+**Remediation**:
+```bash
+Set the machine's patch assessment mode to AutomaticByPlatform.
+
+Azure CLI:
+  az vm update --name <vm> --resource-group <rg> \
+    --set osProfile.windowsConfiguration.patchSettings.assessmentMode=\
+    AutomaticByPlatform
+
+Use linuxConfiguration on a Linux machine.
 ```
 
 ##### <a id="az-dbw-001"></a>`AZ-DBW-001` — Databricks workspace answers the whole internet
@@ -1074,7 +1136,27 @@ Azure CLI:
     --linux-fx-version "<STACK>|<version>"
 ```
 
-#### database (35 rules)
+##### <a id="az-web-014"></a>`AZ-WEB-014` — Web app does not require client certificates
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `app_service`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 9.4` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17` &bull; `NIST_800_53: IA-2` &bull; `NIST_CSF: PR.AC-7` &bull; `PCI_DSS_4: 8.4.2` &bull; `SOC2: CC6.1`
+
+**Description**: The web app does not ask callers for a client certificate, so any client that reaches it is served without proving which client it is.
+
+**Rationale**: Mutual TLS is how an application that serves known clients rather than the public refuses everyone else before its own code runs. An app built for the public may dismiss this, which is why it is LOW (DECISIONS.md section 204 reverses section 175's decision not to ask).
+
+**Remediation**:
+```bash
+Require incoming client certificates.
+
+Azure CLI:
+  az webapp update --name <app> --resource-group <rg> \
+    --set clientCertEnabled=true
+```
+
+#### database (36 rules)
 
 ##### <a id="az-cos-001"></a>`AZ-COS-001` — Cosmos DB account answers the whole internet
 
@@ -1644,6 +1726,26 @@ Azure CLI:
     --high-availability ZoneRedundant
 ```
 
+##### <a id="az-db-025"></a>`AZ-DB-025` — PostgreSQL server admits every Azure service
+
+- **Severity**: `MEDIUM` | **Exploitability**: `3/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `postgresql_server`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 4.3.7` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF: PR.AC-5` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
+
+**Description**: The server's firewall holds the 0.0.0.0 rule the portal calls 'Allow public access from any Azure service', which admits any address inside Azure -- other customers' machines included.
+
+**Rationale**: The rule reads as 'my Azure services' and means 'anyone's'. Anybody with an Azure subscription can reach the server's sign-in from inside the allowed range.
+
+**Remediation**:
+```bash
+Delete the AllowAllAzureServicesAndResourcesWithinAzureIps rule and admit the services that need the server by private endpoint or by their own addresses.
+
+Azure CLI:
+  az postgres flexible-server firewall-rule delete --name <server> \
+    --resource-group <rg> --rule-name <rule>
+```
+
 ##### <a id="az-mys-001"></a>`AZ-MYS-001` — MySQL server accepts unencrypted connections
 
 - **Severity**: `HIGH` | **Exploitability**: `3/5` | **Effort**: `~30 min`
@@ -1778,7 +1880,7 @@ Azure CLI:
     --public-network-access disabled
 ```
 
-#### identity (25 rules)
+#### identity (36 rules)
 
 ##### <a id="az-app-001"></a>`AZ-APP-001` — Application credential valid for years
 
@@ -1946,6 +2048,45 @@ Azure CLI:
   az role definition update --role-definition <file.json>
 
 Where the role genuinely needs to manage access, say so explicitly by assigning User Access Administrator to the few identities that need it, rather than folding the right into a role whose name does not mention it.
+```
+
+##### <a id="az-iam-011"></a>`AZ-IAM-011` — No custom role administers resource locks
+
+- **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `subscription`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 1.24` &bull; `CIS_AZURE_6.0: 5.5` &bull; `ISO_27001: A.5.15, A.8.2` &bull; `NIST_800_53: AC-6` &bull; `NIST_CSF: PR.AC-4` &bull; `PCI_DSS_4: 7.2.1` &bull; `SOC2: CC6.3`
+
+**Description**: No role this tenant wrote grants creating and removing resource locks without granting everything, so only Owner and User Access Administrator holders can manage them.
+
+**Rationale**: Locks only protect anything if the people managing them do not also hold the right to do everything else. A narrow role keeps lock administration from being another reason to hand out Owner.
+
+**Remediation**:
+```bash
+Create a custom role granting Microsoft.Authorization/locks/* and the read actions it needs, and assign it to whoever manages locks.
+
+Azure CLI:
+  az role definition create --role-definition @resource-lock-administrator.json
+```
+
+##### <a id="az-iam-012"></a>`AZ-IAM-012` — Subscription has fewer than two Owners
+
+- **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~20 min`
+- **Scope**: `aggregate`
+- **Applies to**: Aggregate (Tenant-wide)
+- **Compliance Mappings**: `CIS_AZURE_6.0: 5.7` &bull; `ISO_27001: A.5.18` &bull; `NIST_800_53: AC-2` &bull; `NIST_CSF: PR.AC-4` &bull; `PCI_DSS_4: 7.2.1` &bull; `SOC2: CC6.2`
+
+**Description**: At most one identity holds Owner over the subscription, so losing that account leaves nobody able to manage access to it.
+
+**Rationale**: Recovering a subscription whose only Owner is gone means a Global Administrator elevating access at the tenant root -- the most privileged act in the tenant, done in a hurry.
+
+**Remediation**:
+```bash
+Assign Owner to a second administrator, preferably as an eligible assignment in Privileged Identity Management, or to the tenant's break-glass account.
+
+Azure CLI:
+  az role assignment create --role Owner --assignee <object-id> \
+    --scope /subscriptions/<id>
 ```
 
 ##### <a id="az-id-001"></a>`AZ-ID-001` — Privileged user without multi-factor authentication
@@ -2290,7 +2431,167 @@ Define the organization's egress ranges as a trusted named location.
 Microsoft Entra admin center: Protection > Conditional Access > Named locations > IP ranges location > add the ranges > Mark as trusted location > Create.
 ```
 
-#### logging (18 rules)
+##### <a id="az-id-023"></a>`AZ-ID-023` — Administrators are not required to use multi-factor authentication
+
+- **Severity**: `HIGH` | **Exploitability**: `4/5` | **Effort**: `~30 min`
+- **Scope**: `aggregate`
+- **Applies to**: Aggregate (Tenant-wide)
+- **Compliance Mappings**: `CIS_AZURE_2.0: 1.2.3` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17` &bull; `NIST_800_53: IA-2` &bull; `NIST_CSF: PR.AC-7` &bull; `PCI_DSS_4: 8.4.2` &bull; `SOC2: CC6.1`
+
+**Description**: No security default and no enabled Conditional Access policy requires a second factor of every user or of the Global Administrator role for every application.
+
+**Rationale**: Administrators are the accounts an attacker sprays first. A policy on the roles themselves covers the next administrator too, before anyone remembers to add them to a group.
+
+**Remediation**:
+```bash
+Create a Conditional Access policy: Users: Directory roles (Global Administrator and the other privileged roles) > Target resources: All cloud apps > Grant: Require multifactor authentication > On. Or use the 'Require multifactor authentication for admins' template.
+```
+
+##### <a id="az-id-024"></a>`AZ-ID-024` — Risky sign-ins are not challenged
+
+- **Severity**: `MEDIUM` | **Exploitability**: `3/5` | **Effort**: `~30 min`
+- **Scope**: `aggregate`
+- **Applies to**: Aggregate (Tenant-wide)
+- **Compliance Mappings**: `CIS_AZURE_2.0: 1.2.5` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17` &bull; `NIST_800_53: IA-2` &bull; `NIST_CSF: PR.AC-7` &bull; `PCI_DSS_4: 8.4.2` &bull; `SOC2: CC6.1`
+
+**Description**: No enabled Conditional Access policy requires a second factor of, or blocks, every user's sign-ins that Entra ID Protection rates medium risk or higher.
+
+**Rationale**: A sign-in from an anonymising network or with a leaked password is rated risky as it happens. Challenging it then stops the attacker at the one moment the tenant knows something is wrong. Needs Entra ID P2.
+
+**Remediation**:
+```bash
+Create a Conditional Access policy: Users: All users (exclude break-glass) > Conditions: Sign-in risk: High and Medium > Grant: Require multifactor authentication > On.
+```
+
+##### <a id="az-id-025"></a>`AZ-ID-025` — No Conditional Access policy considers where a sign-in comes from
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~45 min`
+- **Scope**: `aggregate`
+- **Applies to**: Aggregate (Tenant-wide)
+- **Compliance Mappings**: `CIS_AZURE_2.0: 1.2.2` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.15, A.5.18` &bull; `NIST_800_53: AC-2` &bull; `NIST_CSF: PR.AC-1, PR.AC-4` &bull; `PCI_DSS_4: 7.2.1` &bull; `SOC2: CC6.2`
+
+**Description**: No enabled Conditional Access policy includes a location condition, so a sign-in from a country the organization never works from is treated like any other.
+
+**Rationale**: Most organizations sign in from a handful of countries. Blocking or challenging the rest removes the bulk of credential spraying, which comes from wherever is cheapest to rent.
+
+**Remediation**:
+```bash
+Define named locations for the countries or networks in use and create a Conditional Access policy that blocks or requires MFA for sign-ins from anywhere else.
+```
+
+##### <a id="az-id-026"></a>`AZ-ID-026` — No custom banned-password list is enforced
+
+- **Severity**: `LOW` | **Exploitability**: `2/5` | **Effort**: `~20 min`
+- **Scope**: `aggregate`
+- **Applies to**: Aggregate (Tenant-wide)
+- **Compliance Mappings**: `CIS_AZURE_2.0: 1.7` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17` &bull; `NIST_800_53: IA-5` &bull; `NIST_CSF: PR.AC-1` &bull; `PCI_DSS_4: 8.3.1` &bull; `SOC2: CC6.1`
+
+**Description**: Password protection does not enforce a custom list of banned passwords, so passwords built on the organization's own name, products or city are accepted.
+
+**Rationale**: The global list stops 'Password1'. Only a custom list stops 'Contoso2026!', which is what a spraying attack against Contoso tries first.
+
+**Remediation**:
+```bash
+Entra admin centre > Protection > Authentication methods > Password protection > Enforce custom list: Yes > add the organization's names and terms > Save.
+```
+
+##### <a id="az-id-027"></a>`AZ-ID-027` — No Conditional Access policy limits how long a session lasts
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~20 min`
+- **Scope**: `aggregate`
+- **Applies to**: Aggregate (Tenant-wide)
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.15, A.5.18` &bull; `NIS2: 11.6.2.e` &bull; `NIST_800_53: AC-2` &bull; `NIST_CSF: PR.AC-1, PR.AC-4` &bull; `PCI_DSS_4: 7.2.1` &bull; `SOC2: CC6.2`
+
+**Description**: No enabled Conditional Access policy sets a sign-in frequency, so a session lasts as long as its refresh token keeps being used -- up to 90 days.
+
+**Rationale**: A stolen session cookie is worth as long as the session lasts. A sign-in frequency for administrators and unmanaged devices bounds it.
+
+**Remediation**:
+```bash
+Create a Conditional Access policy for administrators and unmanaged devices > Session: Sign-in frequency: 4 to 12 hours > On.
+```
+
+##### <a id="az-id-028"></a>`AZ-ID-028` — Authenticator notifications hide the application or location
+
+- **Severity**: `LOW` | **Exploitability**: `2/5` | **Effort**: `~15 min`
+- **Scope**: `aggregate`
+- **Applies to**: Aggregate (Tenant-wide)
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17` &bull; `MITRE_ATTACK: T1621` &bull; `NIST_800_53: IA-2` &bull; `NIST_CSF: PR.AC-7` &bull; `PCI_DSS_4: 8.4.2` &bull; `SOC2: CC6.1`
+
+**Description**: Microsoft Authenticator is enabled with its push notifications set not to show which application is asking or where the sign-in is from.
+
+**Rationale**: MFA fatigue works because a prompt looks like every other prompt. Showing the application and the location makes a prompt from another country for an app the user is not opening one they decline.
+
+**Remediation**:
+```bash
+Entra admin centre > Protection > Authentication methods > Microsoft Authenticator > Configure > Show application name and Show geographic location: Microsoft managed or Enabled > Save.
+```
+
+##### <a id="az-id-029"></a>`AZ-ID-029` — Joining a device does not require multi-factor authentication
+
+- **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~20 min`
+- **Scope**: `aggregate`
+- **Applies to**: Aggregate (Tenant-wide)
+- **Compliance Mappings**: `CIS_AZURE_2.0: 1.22` &bull; `CIS_AZURE_6.0: 5.1.2` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17` &bull; `NIST_800_53: IA-2` &bull; `NIST_CSF: PR.AC-7` &bull; `PCI_DSS_4: 8.4.2` &bull; `SOC2: CC6.1`
+
+**Description**: Neither the device registration policy nor a Conditional Access policy on the 'Register or join devices' action requires a second factor to join or register a device.
+
+**Rationale**: A joined device is trusted: policies that require a compliant or joined device accept it. Joining one with a stolen password turns that trust into the attacker's.
+
+**Remediation**:
+```bash
+Create a Conditional Access policy: User actions: Register or join devices > Grant: Require multifactor authentication > On, and set 'Require Multifactor Authentication to register or join devices' to No so the policy decides.
+```
+
+##### <a id="az-id-030"></a>`AZ-ID-030` — Subscriptions can be moved into or out of the directory
+
+- **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~15 min`
+- **Scope**: `aggregate`
+- **Applies to**: Aggregate (Tenant-wide)
+- **Compliance Mappings**: `CIS_AZURE_2.0: 1.25` &bull; `CIS_AZURE_6.0: 5.6` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.15, A.5.18` &bull; `NIST_800_53: AC-2` &bull; `NIST_CSF: PR.AC-1, PR.AC-4` &bull; `PCI_DSS_4: 7.2.1` &bull; `SOC2: CC6.2`
+
+**Description**: The tenant's subscription policy lets users move subscriptions out of the directory, or bring subscriptions in from another one.
+
+**Rationale**: A subscription moved out takes its data beyond every policy, log and person watching it. One moved in arrives with whatever its last tenant left in it. Microsoft made blocking both the default in May 2026.
+
+**Remediation**:
+```bash
+Azure portal > Subscriptions > Manage policies > Subscription leaving Microsoft Entra ID directory: Permit no one, and Subscription entering Microsoft Entra ID directory: Permit no one. Needs a Global Administrator with elevated access.
+```
+
+##### <a id="az-id-031"></a>`AZ-ID-031` — No access review covers guest accounts
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~60 min`
+- **Scope**: `aggregate`
+- **Applies to**: Aggregate (Tenant-wide)
+- **Compliance Mappings**: `CIS_AZURE_2.0: 1.4` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.15, A.5.18` &bull; `NIST_800_53: AC-2` &bull; `NIST_CSF: PR.AC-1, PR.AC-4` &bull; `PCI_DSS_4: 7.2.1` &bull; `SOC2: CC6.2`
+
+**Description**: No active access review has guests in its scope, so a guest keeps whatever access it was given until somebody remembers to remove it.
+
+**Rationale**: Guests outlast the projects they were invited for. A recurring review is the only routine that asks whether each one still needs to be here. Needs Entra ID P2 or Governance.
+
+**Remediation**:
+```bash
+Entra admin centre > Identity governance > Access reviews > New access review > Review type: Teams + Groups or Applications, Guest users only > Recurrence: Quarterly > Auto-apply results.
+```
+
+#### logging (20 rules)
+
+##### <a id="az-dbw-007"></a>`AZ-DBW-007` — Databricks workspace sends its logs nowhere
+
+- **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `analytics_workspace`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 2.1.7` &bull; `GDPR: 30, 32(1)(d)` &bull; `ISO_27001: A.8.15` &bull; `NIST_800_53: AU-2, AU-6` &bull; `NIST_CSF: PR.PT-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
+
+**Description**: No diagnostic setting sends the workspace's audit and cluster logs to a workspace, storage account or event hub.
+
+**Rationale**: Who ran which notebook against which data, and who changed a cluster's permissions, is recorded only if the workspace is told to send it somewhere.
+
+**Remediation**:
+```bash
+Add a diagnostic setting to the workspace sending all log categories to a Log Analytics workspace. Diagnostic logs need the Premium tier.
+```
 
 ##### <a id="az-log-001"></a>`AZ-LOG-001` — Diagnostic logging not configured
 
@@ -2687,7 +2988,170 @@ Azure CLI:
     --resource-group <rg> --workspace <workspace-id>
 ```
 
-#### network (13 rules)
+##### <a id="az-sto-020"></a>`AZ-STO-020` — Storage services do not log reads, writes and deletes
+
+- **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~20 min`
+- **Scope**: `per_resource`
+- **Applies to**: `storage_account`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 3.5, 3.13, 3.14` &bull; `GDPR: 30, 32(1)(d)` &bull; `ISO_27001: A.8.15` &bull; `NIST_800_53: AU-2, AU-6` &bull; `NIST_CSF: PR.PT-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
+
+**Description**: The blob, queue or table service beneath the account has no diagnostic setting sending StorageRead, StorageWrite and StorageDelete logs anywhere.
+
+**Rationale**: Without these logs there is no record of who read, changed or deleted data in the account -- the first question after a key leaks or a container is found public.
+
+**Remediation**:
+```bash
+Add a diagnostic setting to each service sending the three categories to a Log Analytics workspace.
+
+Azure CLI (repeat for queueServices and tableServices):
+  az monitor diagnostic-settings create --name storage-logs \
+    --resource <account-id>/blobServices/default \
+    --workspace <workspace-id> \
+    --logs '[{"categoryGroup":"allLogs","enabled":true}]'
+```
+
+#### network (24 rules)
+
+##### <a id="az-agw-001"></a>`AZ-AGW-001` — Application gateway has no web application firewall
+
+- **Severity**: `MEDIUM` | **Exploitability**: `3/5` | **Effort**: `~120 min`
+- **Scope**: `per_resource`
+- **Applies to**: `application_gateway`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 7.10` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `MITRE_ATTACK: T1190` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF: PR.AC-5` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
+
+**Description**: Neither a WAF policy nor the gateway's own firewall configuration inspects the traffic it forwards.
+
+**Rationale**: The gateway is the front door to the web workloads behind it. A web application firewall there stops the injection and request-smuggling attacks every internet-facing application receives, before they reach code that may not.
+
+**Remediation**:
+```bash
+Move the gateway to the WAF_v2 tier and attach a WAF policy in Prevention mode with the default managed rule set.
+
+Azure CLI:
+  az network application-gateway waf-policy create --name <policy> \
+    --resource-group <rg>
+  az network application-gateway update --name <gateway> \
+    --resource-group <rg> --set firewallPolicy.id=<policy-id>
+```
+
+##### <a id="az-agw-002"></a>`AZ-AGW-002` — Application gateway accepts TLS below 1.2
+
+- **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `application_gateway`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 7.12` &bull; `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-8` &bull; `NIST_CSF: PR.DS-2` &bull; `PCI_DSS_4: 4.2.1` &bull; `SOC2: CC6.7`
+
+**Description**: The gateway's TLS policy lets a client negotiate TLS 1.0 or 1.1. A gateway that states no policy is not judged: its default depends on when it was created.
+
+**Rationale**: TLS 1.0 and 1.1 carry known weaknesses and every current client speaks 1.2. Accepting the old versions helps only an attacker able to force a downgrade.
+
+**Remediation**:
+```bash
+Set a predefined policy with a TLS 1.2 floor.
+
+Azure CLI:
+  az network application-gateway ssl-policy set --gateway-name <gateway> \
+    --resource-group <rg> --policy-type Predefined \
+    --policy-name AppGwSslPolicy20220101
+```
+
+##### <a id="az-agw-003"></a>`AZ-AGW-003` — Application gateway does not use HTTP/2
+
+- **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~10 min`
+- **Scope**: `per_resource`
+- **Applies to**: `application_gateway`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 7.13` &bull; `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-8` &bull; `NIST_CSF: PR.DS-2` &bull; `PCI_DSS_4: 4.2.1` &bull; `SOC2: CC6.7`
+
+**Description**: HTTP/2 is off on the gateway's listeners.
+
+**Rationale**: HTTP/2 multiplexes requests over one connection and carries current protocol fixes. A resilience setting rather than a door, so it is LOW.
+
+**Remediation**:
+```bash
+Turn HTTP/2 on.
+
+Azure CLI:
+  az network application-gateway update --name <gateway> \
+    --resource-group <rg> --http2 Enabled
+```
+
+##### <a id="az-agw-004"></a>`AZ-AGW-004` — Web application firewall does not inspect request bodies
+
+- **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~10 min`
+- **Scope**: `per_resource`
+- **Applies to**: `application_gateway`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 7.14` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF: PR.AC-5` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
+
+**Description**: The gateway's web application firewall has request body inspection switched off, so it never sees what is posted to the application.
+
+**Rationale**: Most injection arrives in a request body. A firewall that reads only the URL and headers misses it.
+
+**Remediation**:
+```bash
+Turn request body inspection on in the WAF policy.
+
+Azure CLI:
+  az network application-gateway waf-policy policy-setting update \
+    --policy-name <policy> --resource-group <rg> \
+    --request-body-check true
+```
+
+##### <a id="az-agw-005"></a>`AZ-AGW-005` — Web application firewall has no bot protection
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~15 min`
+- **Scope**: `per_resource`
+- **Applies to**: `application_gateway`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 7.15` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF: PR.AC-5` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
+
+**Description**: The gateway's WAF policy does not include Microsoft's bot manager rule set, so known malicious bots are not blocked. A firewall configured on the gateway itself, rather than as a policy, cannot carry the rule set.
+
+**Rationale**: Credential stuffing, scraping and vulnerability scanning come from bots Microsoft already tracks; the rule set blocks them before they count as traffic.
+
+**Remediation**:
+```bash
+Add the Microsoft_BotManagerRuleSet managed rule set to the WAF policy.
+
+Azure CLI:
+  az network application-gateway waf-policy managed-rule rule-set add \
+    --policy-name <policy> --resource-group <rg> \
+    --type Microsoft_BotManagerRuleSet --version 1.0
+```
+
+##### <a id="az-dbw-005"></a>`AZ-DBW-005` — Databricks workspace has no private endpoint
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~90 min`
+- **Scope**: `per_resource`
+- **Applies to**: `analytics_workspace`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 2.1.11` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF: PR.AC-5` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
+
+**Description**: No approved private endpoint serves the workspace, so its users and clusters reach the control plane over the public internet.
+
+**Rationale**: Private Link keeps both front-end access and the cluster's connection to the control plane off the internet, and is what lets public access be switched off.
+
+**Remediation**:
+```bash
+Create a private endpoint for the workspace (sub-resource databricks_ui_api). Private Link needs the Premium tier and a workspace in a customer-managed network.
+```
+
+##### <a id="az-dbw-006"></a>`AZ-DBW-006` — Databricks subnet has no network security group
+
+- **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `analytics_workspace`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 2.1.2` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF: PR.AC-5` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
+
+**Description**: One of the two subnets a workspace in a customer-managed network runs its clusters in has no network security group.
+
+**Rationale**: Databricks writes the rules its clusters need into the group on each subnet; without one, nothing filters what reaches or leaves the cluster nodes.
+
+**Remediation**:
+```bash
+Attach a network security group to both workspace subnets. Databricks adds its required rules itself.
+
+Azure CLI:
+  az network vnet subnet update --resource-group <rg> --vnet-name <vnet> \
+    --name <subnet> --network-security-group <nsg>
+```
 
 ##### <a id="az-net-001"></a>`AZ-NET-001` — RDP exposed to the internet
 
@@ -2975,7 +3439,83 @@ Azure CLI:
 Reach it through Azure Bastion for administration, a load balancer or Application Gateway for published services, and a NAT gateway for outbound traffic -- each of which keeps the machine itself unaddressable from the internet.
 ```
 
-#### posture (14 rules)
+##### <a id="az-net-016"></a>`AZ-NET-016` — Subnet has no network security group
+
+- **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `virtual_network`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 7.11` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF: PR.AC-5` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
+
+**Description**: A subnet of the network has no network security group, so nothing filters traffic to the machines and services placed in it. Subnets Azure reserves for gateways, firewalls and route servers are left out.
+
+**Rationale**: A group on the subnet is the boundary that holds for everything placed in it later, including resources whose own interface carries no group.
+
+**Remediation**:
+```bash
+Associate a network security group with the subnet.
+
+Azure CLI:
+  az network vnet subnet update --resource-group <rg> --vnet-name <vnet> \
+    --name <subnet> --network-security-group <nsg>
+```
+
+##### <a id="az-net-017"></a>`AZ-NET-017` — HTTP or HTTPS exposed to the internet
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~15 min`
+- **Scope**: `per_resource`
+- **Applies to**: `network_security_group`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 6.4` &bull; `CIS_AZURE_6.0: 7.4` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF: PR.AC-5` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
+
+**Description**: A network security group permits inbound HTTP (TCP/80) or HTTPS (TCP/443) from any source address. Often intended; worth confirming for anything that is not a public website.
+
+**Rationale**: An internal application published on 80 or 443 by mistake is reachable by every scanner on the internet. A public website is meant to be; this asks which one the rule is for, and a web application firewall or Front Door in front is the better place for the public kind.
+
+**Remediation**:
+```bash
+If the workload is not meant to be public, narrow the rule's source to the networks that use it. If it is, put an Application Gateway with a web application firewall or Azure Front Door in front and admit only that.
+
+Azure CLI:
+  az network nsg rule update --resource-group <rg> --nsg-name <nsg> \
+    --name <rule> --source-address-prefixes <your.ip.range/24>
+```
+
+##### <a id="az-net-018"></a>`AZ-NET-018` — Public IP addresses on the retired Basic SKU
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `subscription`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 5.5` &bull; `CIS_AZURE_6.0: 6.1.5` &bull; `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `MITRE_ATTACK: T1485` &bull; `NIST_800_53: CP-9, CM-6` &bull; `NIST_CSF: PR.IP-4` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
+
+**Description**: The subscription holds public IP addresses on the Basic SKU, which Azure retired on 30 September 2025: no SLA, no availability zones, and open to the internet unless a group says otherwise.
+
+**Rationale**: A retired SKU is one Microsoft no longer supports. Standard addresses are closed by default and covered by the platform's SLA, which is what a workload that needs monitoring and an SLA assumes.
+
+**Remediation**:
+```bash
+Upgrade each Basic public IP address to Standard. Azure CLI:
+  az network public-ip update --name <address> --resource-group <rg> \
+    --sku Standard
+```
+
+##### <a id="az-vpn-001"></a>`AZ-VPN-001` — VPN gateway accepts point-to-site clients without Entra ID
+
+- **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~120 min`
+- **Scope**: `per_resource`
+- **Applies to**: `vpn_gateway`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 7.9` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17` &bull; `NIST_800_53: IA-2` &bull; `NIST_CSF: PR.AC-7` &bull; `PCI_DSS_4: 8.4.2` &bull; `SOC2: CC6.1`
+
+**Description**: The gateway's point-to-site configuration accepts certificate or RADIUS authentication, so a VPN client can connect without signing in to Entra ID and meeting its Conditional Access policies.
+
+**Rationale**: A client certificate copied from a laptop connects from anywhere, with no second factor and no record in the directory's sign-in log. Entra ID authentication makes every connection a sign-in the tenant's policies decide.
+
+**Remediation**:
+```bash
+Configure the point-to-site connection for Microsoft Entra ID authentication and remove the certificate and RADIUS types.
+
+Azure Portal: Virtual network gateway > Point-to-site configuration > Authentication type: Azure Active Directory only > Save.
+```
+
+#### posture (20 rules)
 
 ##### <a id="az-def-001"></a>`AZ-DEF-001` — Defender for Cloud plans are off
 
@@ -3151,7 +3691,7 @@ Azure Portal: select the IoT hub > Defender for IoT > Overview > Secure your IoT
 - **Severity**: `MEDIUM` | **Exploitability**: `1/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `subscription`
-- **Compliance Mappings**: `GDPR: 25` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: CM-6` &bull; `NIST_CSF: ID.GV-1` &bull; `PCI_DSS_4: 12.1.1` &bull; `SOC2: CC5.2`
+- **Compliance Mappings**: `GDPR: 25` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: CM-6` &bull; `NIST_CSF: ID.GV-1` &bull; `PCI_DSS_4: 12.1.1, 2.2.1` &bull; `SOC2: CC5.2`
 
 **Description**: The Microsoft cloud security benchmark -- the policy initiative Defender for Cloud's recommendations come from -- is unassigned here, or assigned with enforcement turned off.
 
@@ -3183,6 +3723,94 @@ Azure CLI:
   az security pricing create --name CloudPosture --tier Standard
 ```
 
+##### <a id="az-def-012"></a>`AZ-DEF-012` — Agentless scanning for machines is off
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~10 min`
+- **Scope**: `per_resource`
+- **Applies to**: `subscription`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 8.1.3.4` &bull; `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: RA-5, SI-2` &bull; `NIST_CSF: ID.RA-1` &bull; `PCI_DSS_4: 6.3.3, 11.3.1` &bull; `SOC2: CC7.1`
+
+**Description**: Defender for Servers is off, or on without agentless scanning, so machines are not scanned from disk snapshots for vulnerabilities, secrets and malware.
+
+**Rationale**: Agentless scanning sees machines no agent was ever installed on, which are exactly the ones nobody is watching.
+
+**Remediation**:
+```bash
+Microsoft Defender for Cloud > Environment settings > the subscription > Defender plans > Servers: On > Settings > Agentless scanning for machines: On > Save.
+```
+
+##### <a id="az-def-013"></a>`AZ-DEF-013` — File integrity monitoring is off
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~15 min`
+- **Scope**: `per_resource`
+- **Applies to**: `subscription`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 8.1.3.5` &bull; `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.16` &bull; `NIST_800_53: SI-4` &bull; `NIST_CSF: DE.CM-1, DE.AE-3` &bull; `PCI_DSS_4: 11.4.1` &bull; `SOC2: CC7.2`
+
+**Description**: Defender for Servers Plan 2 is off, or on without file integrity monitoring, so changes to operating-system files and the registry go unrecorded.
+
+**Rationale**: A modified system binary or a new autostart entry is how most persistence looks from the disk. Nothing notices it unless something is watching those files.
+
+**Remediation**:
+```bash
+Microsoft Defender for Cloud > Environment settings > the subscription > Defender plans > Servers Plan 2 > Settings > File Integrity Monitoring: On > Save.
+```
+
+##### <a id="az-def-014"></a>`AZ-DEF-014` — Defender sensor is not deployed to Kubernetes clusters
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~10 min`
+- **Scope**: `per_resource`
+- **Applies to**: `subscription`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 2.1.17` &bull; `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.16` &bull; `NIST_800_53: SI-4` &bull; `NIST_CSF: DE.CM-1, DE.AE-3` &bull; `PCI_DSS_4: 11.4.1` &bull; `SOC2: CC7.2`
+
+**Description**: Defender for Containers is off, or on without its sensor, so clusters are not watched at runtime and their components are not provisioned automatically.
+
+**Rationale**: The sensor is what sees a container start a shell or reach a metadata endpoint. Without it, Defender for Containers knows images, not what runs.
+
+**Remediation**:
+```bash
+Microsoft Defender for Cloud > Environment settings > the subscription > Defender plans > Containers: On > Settings > Defender sensor: On > Save.
+```
+
+##### <a id="az-def-015"></a>`AZ-DEF-015` — DNS queries are not watched for threats
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~10 min`
+- **Scope**: `per_resource`
+- **Applies to**: `subscription`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 2.1.11` &bull; `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.16` &bull; `NIST_800_53: SI-4` &bull; `NIST_CSF: DE.CM-1, DE.AE-3` &bull; `PCI_DSS_4: 11.4.1` &bull; `SOC2: CC7.2`
+
+**Description**: Neither the retired Defender for DNS plan nor Defender for Servers Plan 2, which absorbed it in 2023, is on, so queries to known malicious domains go unnoticed.
+
+**Rationale**: Command and control and data exfiltration often travel over DNS, the one protocol every network lets out.
+
+**Remediation**:
+```bash
+Turn on Defender for Servers Plan 2.
+
+Azure CLI:
+  az security pricing create --name VirtualMachines --tier Standard \
+    --subplan P2
+```
+
+##### <a id="az-lck-001"></a>`AZ-LCK-001` — Critical asset has no delete lock
+
+- **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~10 min`
+- **Scope**: `per_resource`
+- **Applies to**: `virtual_machine`, `storage_account`, `sql_server`, `postgresql_server`, `mysql_server`, `document_database`, `key_vault`, `app_service`, `kubernetes_cluster`, `container_registry`, `virtual_network`, `backup_vault`, `application_gateway`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 10.1` &bull; `CIS_AZURE_6.0: 6.2` &bull; `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `MITRE_ATTACK: T1485` &bull; `NIST_800_53: CP-9, CM-6` &bull; `NIST_CSF: PR.IP-4` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
+
+**Description**: An asset tagged or inferred as high or critical has no CanNotDelete or ReadOnly lock on itself, its resource group or its subscription.
+
+**Rationale**: What a business cannot run without should take two deliberate steps to delete. A lock is that second step, and it stops a mistaken command or a compromised Contributor as surely as it stops a script.
+
+**Remediation**:
+```bash
+Add a delete lock to the asset or its resource group.
+
+Azure CLI:
+  az lock create --name keep-<asset> --lock-type CanNotDelete \
+    --resource <asset-id>
+```
+
 ##### <a id="az-mal-001"></a>`AZ-MAL-001` — Machine has no working endpoint protection
 
 - **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~60 min`
@@ -3199,6 +3827,28 @@ Azure CLI:
 Install endpoint protection, or fix the agent that is already there.
 
 Azure Portal: Defender for Cloud > Recommendations > 'Endpoint protection should be installed on machines' lists the affected hosts and offers a Fix action for most of them. A machine reporting unhealthy rather than missing usually has an agent that has stopped checking in, which is a different problem with the same consequence.
+```
+
+##### <a id="az-pol-001"></a>`AZ-POL-001` — No policy limits the regions resources are created in
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~20 min`
+- **Scope**: `per_resource`
+- **Applies to**: `subscription`
+- **Compliance Mappings**: `GDPR: 44` &bull; `MITRE_ATTACK: T1535` &bull; `NIST_800_53: CM-7` &bull; `NIST_CSF: ID.GV-1` &bull; `PCI_DSS_4: 2.2.1` &bull; `SOC2: CC5.2`
+
+**Description**: No enforced assignment of the built-in Allowed locations policy applies to the subscription, so resources can be created in any Azure region.
+
+**Rationale**: An attacker with a stolen credential creates machines where nobody looks. Limiting the regions in use makes that a denied request rather than a bill.
+
+**Remediation**:
+```bash
+Assign the built-in 'Allowed locations' policy at the subscription or a management group above it, listing the regions in use.
+
+Azure CLI:
+  az policy assignment create --name allowed-locations \
+    --policy e56962a6-4747-49cd-b67b-bf8b01975c4c \
+    --scope /subscriptions/<id> \
+    --params '{"listOfAllowedLocations":{"value":["westeurope"]}}'
 ```
 
 ##### <a id="az-vuln-001"></a>`AZ-VULN-001` — Internet-facing machine has unpatched vulnerabilities
@@ -3239,7 +3889,7 @@ Turn on vulnerability assessment for the machine.
 Azure Portal: Defender for Cloud > Recommendations > 'Machines should have a vulnerability assessment solution' > select the machine > Fix. With Defender for Servers on, the built-in Defender Vulnerability Management scanner is the default and needs no agent of its own.
 ```
 
-#### secrets (6 rules)
+#### secrets (9 rules)
 
 ##### <a id="az-kv-001"></a>`AZ-KV-001` — Key vault can be permanently destroyed
 
@@ -3372,7 +4022,69 @@ Azure CLI:
     --value @rotation-policy.json
 ```
 
-#### storage (16 rules)
+##### <a id="az-kv-007"></a>`AZ-KV-007` — Key vault public network access is not disabled
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `key_vault`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 8.3.7` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF: PR.AC-5` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
+
+**Description**: The vault's firewall denies by default, but its public endpoint is still on: named networks and addresses reach it over the internet rather than through a private endpoint only.
+
+**Rationale**: A firewall rule is an address list somebody maintains; a disabled public endpoint is an absence nobody can widen by mistake. Not applicable where the vault answers every network, which AZ-KV-002 already reports.
+
+**Remediation**:
+```bash
+Put the vault behind a private endpoint, then disable public network access.
+
+Azure CLI:
+  az keyvault update --name <vault> --resource-group <rg> \
+    --public-network-access Disabled
+```
+
+##### <a id="az-kv-008"></a>`AZ-KV-008` — Key vault has no private endpoint
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~60 min`
+- **Scope**: `per_resource`
+- **Applies to**: `key_vault`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 8.7` &bull; `CIS_AZURE_6.0: 8.3.8` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF: PR.AC-5` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
+
+**Description**: No approved private endpoint serves the vault, so every workload reaching it does so over its public endpoint.
+
+**Rationale**: A private endpoint keeps secret reads on the virtual network and is what lets the public endpoint be switched off at all.
+
+**Remediation**:
+```bash
+Create a private endpoint for the vault in the network its workloads use.
+
+Azure CLI:
+  az network private-endpoint create --name <vault>-pe \
+    --resource-group <rg> --vnet-name <vnet> --subnet <subnet> \
+    --private-connection-resource-id <vault-id> --group-id vault \
+    --connection-name <vault>-pe
+```
+
+##### <a id="az-kv-009"></a>`AZ-KV-009` — Key vault holds certificates valid for more than a year
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `key_vault`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 8.3.11` &bull; `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-12` &bull; `NIST_CSF: PR.DS-2` &bull; `PCI_DSS_4: 3.6.1` &bull; `SOC2: CC6.1`
+
+**Description**: A certificate in the vault is valid for more than twelve months, read from the validity window on the secret that holds its key pair.
+
+**Rationale**: A long-lived certificate is a long-lived key: if it leaks it is trusted until it expires. Browsers stopped trusting public certificates longer than about a year in 2020 for that reason.
+
+**Remediation**:
+```bash
+Set the certificate policy's validity to twelve months or less, with automatic renewal before expiry, and reissue the certificate.
+
+Azure CLI:
+  az keyvault certificate set-attributes --vault-name <vault> \
+    --name <certificate> --policy @policy.json
+```
+
+#### storage (19 rules)
 
 ##### <a id="az-sto-001"></a>`AZ-STO-001` — Storage account allows public access
 
@@ -3711,6 +4423,69 @@ Azure CLI:
 Azure CLI:
   az storage account update --name <account> --resource-group <rg> \
     --sku Standard_GZRS
+```
+
+##### <a id="az-sto-017"></a>`AZ-STO-017` — Storage account accepts shared key authorization
+
+- **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~120 min`
+- **Scope**: `per_resource`
+- **Applies to**: `storage_account`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 9.3.1.3` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17` &bull; `NIST_800_53: IA-5` &bull; `NIST_CSF: PR.AC-1` &bull; `PCI_DSS_4: 8.3.1` &bull; `SOC2: CC6.1`
+
+**Description**: The account accepts requests signed with its access keys, and the shared access signatures made from them, as well as Entra ID. An unset setting accepts them.
+
+**Rationale**: An access key is full control of every byte in the account, never expires on its own and names nobody when used. Accepting only Entra ID means every request is a person or workload with a role that can be revoked.
+
+**Remediation**:
+```bash
+Move every client to Entra ID authorization, then turn shared key access off.
+
+Azure CLI:
+  az storage account update --name <account> --resource-group <rg> \
+    --allow-shared-key-access false
+
+Check the account's StorageRead and StorageWrite logs for requests authenticated with a key or SAS first: those clients stop working.
+```
+
+##### <a id="az-sto-018"></a>`AZ-STO-018` — Storage access key not regenerated in 90 days
+
+- **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~30 min`
+- **Scope**: `per_resource`
+- **Applies to**: `storage_account`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 3.4` &bull; `CIS_AZURE_6.0: 9.3.1.2` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17` &bull; `NIST_800_53: IA-5` &bull; `NIST_CSF: PR.AC-1` &bull; `PCI_DSS_4: 8.3.1` &bull; `SOC2: CC6.1`
+
+**Description**: One of the account's access keys was created or last regenerated more than 90 days before this scan read the account.
+
+**Rationale**: A key that has existed for a year has had a year to be copied into a script, a pipeline variable or a laptop. Regenerating it is the only way to know who still holds a working one.
+
+**Remediation**:
+```bash
+Regenerate the older key once the clients using it have moved to the other.
+
+Azure CLI:
+  az storage account keys renew --account-name <account> \
+    --resource-group <rg> --key primary
+```
+
+##### <a id="az-sto-019"></a>`AZ-STO-019` — Storage account has no delete lock
+
+- **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~10 min`
+- **Scope**: `per_resource`
+- **Applies to**: `storage_account`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 9.3.9` &bull; `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `MITRE_ATTACK: T1485` &bull; `NIST_800_53: CP-9, CM-6` &bull; `NIST_CSF: PR.IP-4` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
+
+**Description**: No CanNotDelete or ReadOnly lock on the account, its resource group or its subscription stops it being deleted.
+
+**Rationale**: Deleting a storage account deletes its data with it, and soft delete does not survive the account. A lock makes deletion a deliberate two-step act rather than one mistaken command or one compromised Contributor.
+
+**Remediation**:
+```bash
+Add a delete lock.
+
+Azure CLI:
+  az lock create --name keep-<account> --lock-type CanNotDelete \
+    --resource-group <rg> --resource <account> \
+    --resource-type Microsoft.Storage/storageAccounts
 ```
 
 #### web (2 rules)

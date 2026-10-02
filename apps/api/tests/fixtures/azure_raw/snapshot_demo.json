@@ -1655,7 +1655,20 @@
             "virtualNetworkRules": []
           },
           "enableRbacAuthorization": true,
-          "accessPolicies": []
+          "accessPolicies": [],
+          "privateEndpointConnections": [
+            {
+              "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-payments/providers/Microsoft.KeyVault/vaults/kv-payments/privateEndpointConnections/pe-kv-payments",
+              "properties": {
+                "privateEndpoint": {
+                  "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-payments/providers/Microsoft.Network/privateEndpoints/pe-kv-payments"
+                },
+                "privateLinkServiceConnectionState": {
+                  "status": "Approved"
+                }
+              }
+            }
+          ]
         }
       }
     ],

@@ -610,6 +610,9 @@ NIST_CSF = Framework(
             "ID.AM-1",
             "Physical devices and systems are inventoried",
             "Identify",
+            # Physical devices are the organization's, and nothing a cloud
+            # configuration holds says whether they are inventoried.
+            technically_assessable=False,
         ),
         Control(
             "ID.RA-1",
