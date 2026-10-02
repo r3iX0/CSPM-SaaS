@@ -3,20 +3,30 @@
 Two routes take ``?token=`` because the caller cannot send a header, and a query string is
 recorded by everything that sees the request. These hold the three places this API controls:
 the redaction itself, the access log, and what Sentry is allowed to send (DECISIONS.md §195).
+A webhook keeps its credential in the path instead, so an outbound URL is written down as its
+host alone, and the HTTP client's own log line is not written at all (§198).
 """
 
 import json
 import logging
 from typing import Any
 
+import httpx
 import pytest
 import sentry_sdk
 
 from app.core.logging import configure_logging
-from app.core.redaction import REDACTED, AccessLogRedactor, redact_query_string, redact_url
+from app.core.redaction import (
+    REDACTED,
+    AccessLogRedactor,
+    origin_only,
+    redact_query_string,
+    redact_url,
+)
 from app.core.sentry import init_sentry, scrub_breadcrumb, scrub_event
 
 SECRET = "eyJhbGciOi.SECRET-VALUE"
+WEBHOOK = f"https://hooks.slack.com/services/T0/B0/{SECRET}"
 
 
 @pytest.mark.parametrize(
@@ -117,6 +127,37 @@ def test_a_breadcrumb_url_is_redacted_in_its_data_and_its_message() -> None:
     assert SECRET not in json.dumps(scrub_breadcrumb(crumb))
 
 
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        (WEBHOOK, f"https://hooks.slack.com/{REDACTED}"),
+        (f"https://203.0.113.9/services/T0/B0/{SECRET}", f"https://203.0.113.9/{REDACTED}"),
+        (f"https://[2001:db8::1]:8443/x?token={SECRET}", f"https://[2001:db8::1]:8443/{REDACTED}"),
+        (f"https://user:{SECRET}@x.example/", "https://x.example"),
+        ("https://management.azure.com", "https://management.azure.com"),
+        (f"/t?token={SECRET}", f"/t?token={REDACTED}"),
+    ],
+)
+def test_an_outbound_url_keeps_only_where_it_went(url: str, expected: str) -> None:
+    assert origin_only(url) == expected
+
+
+def test_a_webhook_breadcrumb_loses_the_path_that_is_its_credential() -> None:
+    crumb = {"type": "http", "category": "httplib", "data": {"url": WEBHOOK, "method": "POST"}}
+
+    scrubbed = scrub_breadcrumb(crumb)
+
+    assert SECRET not in json.dumps(scrubbed)
+    assert scrubbed["data"]["url"] == f"https://hooks.slack.com/{REDACTED}"
+
+
+def test_configure_logging_keeps_the_http_clients_request_lines_out() -> None:
+    configure_logging()
+
+    assert not logging.getLogger("httpx").isEnabledFor(logging.INFO)
+    assert not logging.getLogger("httpcore").isEnabledFor(logging.INFO)
+
+
 @pytest.fixture
 def captured() -> Any:
     """Sentry started against a transport that keeps the event instead of sending it."""
@@ -142,4 +183,16 @@ def test_sentry_sends_the_traceback_but_not_the_local_variables(captured: list[A
     frames = captured[0]["exception"]["values"][0]["stacktrace"]["frames"]
     assert any(frame["function"] == "deliver" for frame in frames)
     assert all("vars" not in frame for frame in frames)
+    assert SECRET not in json.dumps(captured[0])
+
+
+def test_a_webhook_call_before_an_error_does_not_reach_sentry(captured: list[Any]) -> None:
+    """The real client, through Sentry's own HTTP integration, then an unrelated error."""
+    configure_logging()
+    transport = httpx.MockTransport(lambda request: httpx.Response(200))
+    with httpx.Client(transport=transport) as client:
+        client.post(WEBHOOK, json={"text": "scan finished"})
+    sentry_sdk.capture_message("something else went wrong")
+
+    assert captured, "no event was captured"
     assert SECRET not in json.dumps(captured[0])

@@ -10930,55 +10930,182 @@ had a gap, it raised `TypeError` and failed the COLLECT step. It reads the
 class now (`get_connector_class`), as the registry intends for provider-level
 facts. `tests/unit/test_licence_gaps.py` covers all of the above.
 
-## 197. An audit package is a sealed assessment, and an auditor is given a grant to read it
+## 197. The image runs the Python CI tests on, and a newer one is moved to by hand
 
-An external audit asks what the estate looked like on a date, and weeks of console screenshots
-are how that is answered today. CloudGuard already holds the answer -- readings, timestamps,
-permissions and a SHA-256 of every payload -- but not in a form that stays put. The compliance
-assessment reads the latest scan, and retention prunes the payloads a citation points at.
+Dependabot moved the API image from `python:3.12-slim` to `python:3.14-slim` (#26) while CI kept
+testing on 3.12, so nothing exercised the image before Railway built it. The build then failed for
+the API and the worker alike: `psycopg-binary==3.2.3` has no 3.14 wheel (`No matching distribution
+found`).
 
-**A package is stored, and that is a deliberate exception.** Phase 9 chose to generate reports
-on request and never store them, because a stored assessment outlives the evidence behind it and
-leaves a question about which copy is current. An auditor needs the opposite: a fixed record of
-a date that nothing refreshes. So a package is named, dated, immutable and never claims to be
-current, and the exception stops there: reports and `GET /compliance/{id}/export` stay live.
+**The image is back on 3.12, the interpreter CI runs.** A newer Python changes the stack, not one
+package: every pinned dependency needs a wheel for it, CI's `python-version` moves in the same
+commit, and the whole suite runs on it first. Dependabot still proposes the base image's patch
+releases, which carry security fixes, and ignores its minor and major versions
+(`.github/dependabot.yml`).
 
-**Sealed from the latest completed scan.** `audit_packages` keeps every control's verdict and
-the rules behind it, minus what changes with the clock (age, whether a payload is still held).
-`audit_package_items` keeps one row per reading the controls rest on -- listing, time,
-permissions, api-version, and the payload's hash -- for the chosen frameworks only, so a package
-for one framework does not carry the whole estate's configuration. Owners and admins may read
-and insert; nobody is granted UPDATE or DELETE, and the cascade from the organization is the
-only way a package ends.
+## 198. An outbound URL is written down as its host, because a webhook's credential is its path
 
-**One manifest, hashed.** `compliance/package.py` defines the canonical manifest, built from the
-stored rows. Sealing stores its SHA-256 and verifying rebuilds it, so a row edited behind the
-application's back no longer matches. The organization is named by id, since its display name may
-change after an audit.
+§195 kept credentials in a query string out of the access log and Sentry, but a Slack or Teams
+webhook URL is a secret from end to end, and its secret is the path. Two places still wrote it.
+httpx logs `HTTP Request: POST <url>` at INFO, which is the API's level, so every delivery and
+every test send put the URL in the process's stdout; and Sentry's HTTP integration records each
+outbound call as a breadcrumb, so a test send followed by any error in the same request sent the
+URL to Sentry. The delivery is pinned to the checked address (§164), so the host in that URL is an
+IP and nothing in it says the request was a webhook.
 
-**What the hash proves, and what it does not.** It proves the rows are those that were sealed,
-and that a payload is the bytes CloudGuard captured. It does not prove the provider said them:
-that rests on CloudGuard having asked, which is why each reading carries the permissions and
-api-version it was made under. The archive's README says so in as many words, and carries
-`UNKNOWN`, `NOT_READ` and `FAILED` readings and the technically-unassessable controls beside the
-passes, because an export that showed only green would be the one document where that omission
-is expensive.
+**The client's request lines are off, and an HTTP breadcrumb keeps scheme and host only.** The
+`httpx` and `httpcore` loggers are held at WARNING by `configure_logging`; the caller already
+records how a delivery went. `scrub_breadcrumb` reduces a breadcrumb's URL to its origin
+(`origin_only` in `app/core/redaction.py`) for every outbound call, not only webhooks, because the
+pinned address cannot tell them apart and an ARM path carries the customer's subscription ids. A
+test sends a real request through the HTTP integration, then an unrelated error, and fails if the
+path reaches the event. Credentials in a URL the API logs itself are still the caller's to avoid.
 
-**Retention keeps what a package names.** `prune_blobs` keeps every hash an item names, as it
-does for a surviving capture manifest. Without it an auditor could be promised bytes by a hash in
-a document they hold, and find the payload aged out.
+## 199. A per-resource reading blames the role only when ARM refused it with a 403
 
-**Frameworks.** v1 seals the six in the catalogue. SOC 2, ISO 27001 and PCI DSS v4 are not in
-`frameworks.json` and stay a content job: a package must not imply an assessment against a
-framework CloudGuard has no controls for. The declared audit period is informational; the
-evidence is the closing scan's, and a per-scan timeline for a Type II period is not built.
+A scan reported blob recovery settings unread for 5 of 5 storage accounts, file share settings
+for 5 of 5 and vault keys for 2 of 2, each saying "a scanner role deployed before v7 (or v11)
+does not grant the permission". The banner carried no "redeploy the role", because the
+connection's recorded role was current. The two statements could not both be true, and the
+second was not evidence: `_per_resource_task` counted every exception as a refusal and named the
+role for all of them, so a 404, a 400 from an API version, a timeout or a block at Microsoft's
+edge (`EDGE_BLOCK_MESSAGE`) all read as an old role.
 
-**Planned, not built.** An auditor is not an organization member, so a grant is bound to the
-auditor's verified email and read through `SECURITY DEFINER` functions, as invitations are
-(§162), rather than through a new bypass session. The token is stored only as its hash and
-carried in a URL fragment. The archive is a zip whose payload files are the canonical bytes, so
-`sha256sum -c` checks them, and the manifest signature (Ed25519) is a later step. Until those
-land, a package is sealed and verifiable but only an owner or admin can read it.
+**The role is named only when every failure was ARM's own 403.** `_per_resource_reason` checks
+the `AzureApiError` status of each failure and leaves out edge blocks, which are 403s that no
+role can fix. Anything else is reported with the first failure quoted, which is the same error
+the worker logs as `azure.request_failed` with its URL, status and Azure request id. Whether the
+scan in question was a real 403 is not known from here; this makes the next scan say which.
+
+## 200. A subscription Azure has switched off is named once, and its disabled resources stay unknown
+
+With §199 the next scan quoted its real errors: every storage account in the subscription answered
+`AccountIsDisabled` or `The specified account is disabled`, five times over, for blob recovery and
+again for file shares. Nobody disables a storage account by hand; Azure does, when the
+subscription itself is disabled, warned or past due. The scan showed ten symptoms and never the
+one fact behind them.
+
+**The subscription's state is read from what the plan already collects.** `get_subscription`
+returns `state` (`Enabled`, `Warned`, `PastDue`, `Disabled`, `Deleted`), so this costs no
+request. When it is anything but `Enabled`, `explain_subscription_state` (in the Azure collector,
+because the state is Azure's word) puts one sentence in front of every category error and every
+gap, as role drift does: what the state means and that its resources cannot be read until it is
+active. A subscription served from fresh evidence rather than read this scan is left as it was.
+
+**A disabled storage account is named as a state, not a failed read.** `_per_resource_reason`
+recognises both spellings and says Azure has disabled the accounts, rather than quoting the first
+error. Mixed failures still quote the first.
+
+**Considered and not done: skipping the rules of a disabled resource.** It was proposed that a
+disabled account poses no risk and its posture rules should not run. They still run, and report
+UNKNOWN. The data is still there, the settings come back unchanged when the subscription is
+reactivated, and "could not be read" becoming "nothing to report" is the UNKNOWN-as-PASS mistake
+the rule engine exists to refuse. Marking such assets as disabled in the inventory is possible
+later, as a label that hides nothing.
+
+## 201. The Prowler NOTICE file is deleted
+
+The root `NOTICE` was added with the second engine (§150) and kept when it was removed (§168),
+because `frameworks.json`, `crosswalk.json` and `NATIVE_COVERAGE_BACKLOG.md` were first derived
+from Prowler 5.43.0 and Apache 2.0 asks a derived work to keep the original's attribution. It is
+deleted on the owner's decision now that Prowler is neither run nor distributed. That the derived
+data is still in the repository was raised before deleting it. The `$comment` of each JSON file
+still says where its contents first came from.
+
+## 202. A fix is read and worked on the remediation page; the finding says it in brief
+
+The finding page drew the whole fix second, under "Why it matters": the prose, a tab each for the
+CLI, Terraform and Policy, the note on why there is no policy, "Track this fix", and "Applied the
+fix? Verify it now". On a role-assignment finding that was a screen and a half of text, and the
+attack paths -- what decides how urgent a finding is -- sat below it. The remediation queue was the
+reverse: rows naming the work and nothing of how to do it, so somebody working down the queue
+opened each finding, scrolled to its fix, and came back. The page that ranks work by impact against
+effort was a list of links to the place the work was actually done.
+
+The split is now by question. The finding page answers what is wrong and why it matters; the
+remediation page answers how to fix it and whether the fix took. Each fix is drawn in full in one
+place.
+
+**On the finding page** the fix is a short card in the same place: the effort, the first paragraph
+of the steps (every rule's prose opens with what to do), which other forms the full fix comes in
+("Also as CLI, Terraform"), where the work stands -- tracked since a date, done, or what the
+verification concluded -- and **Open fix**, a link to `/remediation?fix=<finding id>`. The
+verification panel moved with the fix; the card names its outcome in one line.
+
+**On the remediation page** a fix opens in a sheet over the queue, held open by `?fix=` in the URL
+as the scan wizard is by `?scan=` (§154). It holds the fix exactly as the finding page drew it
+(`RemediationPanel`, placeholders filled from the asset), the verification and a rescan followed in
+place (`FixVerification`), and at its foot the work: **Track this fix** while nobody has, then
+**Mark done** and what done does not mean. A row's title opens it, as does a row of "Where to
+start"; the finding is a link in the sheet's header. Opening and closing replace the history entry
+rather than pushing one, so Back leaves the page.
+
+The sheet is keyed by **finding**, not by task, and that is what makes the move safe. Keyed by
+task, a fix could be read only after someone committed to doing it, and the demo -- where the API
+refuses every write, so nothing can be tracked -- could read no fix at all. Any finding opens here,
+tracked or not; the demo reads every fix and is offered no button.
+
+§41 and §98 still hold, in their new place. Tracking sits under the fix it commits to (§41), and
+proving a fix sits at the end of the fix (§98), both in the sheet. §187's one verify also holds:
+the finding header's "Rescan to verify" appears only where the fix has no "Verify it now" of its
+own -- a finding on no asset, or one already resolved.
+
+No API changed. The sheet reads the finding under `["finding", id]`, which each queue row has
+already filled (§29), so opening a row's fix costs no request; the asset is read only when there
+is a command to fill. The queue, the sheet's footer and the finding's card share one
+`["remediation"]` query (`lib/remediation.ts`), as does marking work done, which was the queue
+page's own mutation.
+
+The cost accepted: on the finding page the CLI is a click away rather than on screen. The card
+names which forms exist, so a reader knows what the click will show.
+
+Not done: grouping the queue by rule, so one fix applied to many assets is one piece of work with
+its commands filled per asset. It follows from this -- it is the thing a fix on a single finding's
+page could never do -- but it changes what a row in the queue is, and is its own decision (§203).
+
+## 203. The queue draws one rule's tasks as one piece of work, and its fix as one script
+
+Two tasks of one rule are one fix applied twice: the same steps, the same Terraform arguments, the
+same policy, and commands that differ only in the name in them. The queue listed them as separate
+rows, so five service principals holding an assignment-writing role read as five problems, and
+whoever worked the queue opened five fixes, read the same prose five times, and copied five
+commands that each needed the same edit.
+
+**A row per rule.** Where two or more tasks share a rule, the queue draws them as one row: the
+rule's name, how many assets and the first three of their names, how many are on an attack path,
+the effort and the earliest due date of the open ones, and **Mark all done**. The group takes the
+place of its highest-ranked task, so the server's order -- open work first, by impact against
+effort (§127) -- still decides where the work sits; nothing is re-sorted in the browser. A rule
+with one task stays a plain row. A chevron opens the group's own rows beneath it, each still
+opening its own fix and marked done on its own.
+
+Grouping waits until every task's finding has arrived, because the rule is read from the finding
+(the queue endpoint returns only the task, §29). Grouping as each one landed would regroup the list
+under the reader's cursor once per finding; waiting regroups it once.
+
+**One sheet per rule.** The row's title opens `?rule=<rule id>`, a sheet beside §202's `?fix=`
+(never both at once). The steps, Terraform and policy are said once. The CLI is one script: each
+asset's commands under a `# <asset name>` line, filled from that asset as a single fix is, with
+anything unfilled left in angle brackets. The sheet lists the assets, each opening its own fix,
+where its Terraform can be checked against an uploaded file and its rescan followed. At its foot
+are **Mark all N done**, and **Track N more** where the rule has open findings nobody has tracked
+-- read from `GET /findings?rule_id=&status=OPEN`, so a fix applied across the estate can be
+recorded as such.
+
+**No "Verify it now" on a group.** A rescan is narrowed to one subscription and refuses a second
+while one is running (`services/rescan.py`), so pressing it once per asset would start one scan and
+fail the rest. Marking the work done is the verification: each claim opens its own expectation,
+and `verify_due_remediations` scans each subscription once for every claim in it (§18).
+
+**No batch endpoint.** Marking all done and tracking the rest send one request per task, together,
+and a partial failure says how many did not go through. The queue is bounded by work a person
+created, well inside the per-user rate limit, and a batch endpoint would be a second way to write
+the same rows, with its own audit and error shapes to keep in step with the first. That stops being
+the right trade if groups grow into the hundreds.
+
+The effort shown for a group is the sum of its open tasks' estimates. That overstates work done as
+one script, but the estimate is the rule's per asset, and a smaller number the product cannot
+justify would be worse than a larger one it can.
 
 ## Open items carried forward
 

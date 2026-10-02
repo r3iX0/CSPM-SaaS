@@ -17,7 +17,7 @@ import pytest
 
 from app.connectors.azure import plan as plan_module
 from app.connectors.azure.auth import REQUIRED_GRAPH_PERMISSIONS
-from app.connectors.azure.client import AzureApiError
+from app.connectors.azure.client import EDGE_BLOCK_MESSAGE, AzureApiError
 from app.connectors.azure.plan import PIM_LICENCE, SIGN_IN_LICENCE, AzurePlanBuilder
 from app.connectors.azure.rbac import ROLE_VERSION, first_version_granting
 from app.connectors.base import RawSnapshot
@@ -178,6 +178,30 @@ async def test_the_vault_keys_hint_names_v11(monkeypatch) -> None:
 
     assert produced.partial_reason is not None
     assert "deployed before v11" in produced.partial_reason
+
+
+@pytest.mark.parametrize(
+    ("message", "status"),
+    [
+        ("Azure API returned 404: ResourceNotFound", 404),
+        ("Azure API returned 400: InvalidApiVersionParameter", 400),
+        (f"{EDGE_BLOCK_MESSAGE} (reference 0abc)", 403),
+    ],
+)
+async def test_a_failure_the_role_did_not_cause_is_quoted_not_blamed_on_it(
+    monkeypatch, message: str, status: int
+) -> None:
+    """A role that is already current is not what a 404, a 400 or an edge block asks for."""
+    monkeypatch.setattr(plan_module, "ArmClient", lambda *a, **kw: Refusing(message, status))
+    task = next(
+        t for t in _builder("sub-1").build_account_plan() if t.key.value == "storage_blob_services"
+    )
+
+    produced = await task.run({"storage_accounts": [{"id": "/accounts/one"}]})
+
+    assert produced.partial_reason is not None
+    assert "deployed before" not in produced.partial_reason
+    assert message in produced.partial_reason
 
 
 # --------------------------------------------------------------- role drift

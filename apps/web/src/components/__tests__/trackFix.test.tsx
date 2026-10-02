@@ -31,7 +31,12 @@ function mount(tasks: unknown[], status = "OPEN") {
     ok: true,
     status: init?.method === "POST" ? 201 : 200,
     json: async () => ({
-      data: init?.method === "POST" ? TASK : tasks,
+      data:
+        init?.method === "POST"
+          ? TASK
+          : init?.method === "PATCH"
+            ? { ...TASK, status: "DONE" }
+            : tasks,
       error: null,
       meta: {},
     }),
@@ -79,6 +84,32 @@ describe("tracking a fix", () => {
     mount([TASK]);
 
     expect(await screen.findByText(/In the remediation queue since/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Track this fix/ })).not.toBeInTheDocument();
+  });
+
+  it("marks tracked work done where the fix is, and says done is not closed", async () => {
+    // The fix is read in full in the remediation page's sheet, so finishing
+    // the work belongs at its foot too (DECISIONS.md §202).
+    const fetchMock = mount([TASK]);
+    const user = userEvent.setup();
+
+    expect(await screen.findByText(/Marked done does not close a finding/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Mark done/ }));
+
+    await waitFor(() => {
+      const patch = fetchMock.mock.calls.find(
+        ([, init]) => (init as RequestInit | undefined)?.method === "PATCH",
+      );
+      expect(patch?.[0]).toContain("/api/v1/remediation/task-1");
+      expect((patch?.[1] as RequestInit).body).toBe(JSON.stringify({ status: "DONE" }));
+    });
+  });
+
+  it("offers nothing more on work already marked done", async () => {
+    mount([{ ...TASK, status: "DONE", completed_at: "2026-09-21T10:00:00Z" }]);
+
+    expect(await screen.findByText(/^Done /)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Mark done/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Track this fix/ })).not.toBeInTheDocument();
   });
 

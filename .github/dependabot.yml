@@ -41,3 +41,8 @@ updates:
     directory: /infrastructure/docker
     schedule:
       interval: monthly
+    # Patch releases of the base image only. Moving to a newer Python is done by hand,
+    # with CI's python-version, after every pinned wheel exists for it (DECISIONS.md §197).
+    ignore:
+      - dependency-name: python
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]

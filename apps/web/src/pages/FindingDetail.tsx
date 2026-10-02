@@ -33,12 +33,9 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { AttackPathRoute } from "@/components/graph/AttackPathRoute";
-import { RemediationPanel } from "@/components/security/RemediationPanel";
-import { TrackFix } from "@/components/security/TrackFix";
 import { FixVerification } from "@/components/security/FixVerification";
-import { placeholderValues } from "@/lib/remediationFill";
+import { FixSummary } from "@/components/security/FixSummary";
 import { useIsDemo } from "@/lib/useDemo";
-import { VerificationPanel } from "@/components/security/VerificationPanel";
 import { FindingTimeline } from "@/components/security/FindingTimeline";
 import {
   cn,
@@ -114,23 +111,6 @@ export function FindingDetailPage() {
     retry: false,
   });
 
-  /**
-   * The resource's provider id, which states its subscription and resource
-   * group -- what fills the fix command's placeholders. Under the asset page's
-   * own cache key, so opening the asset afterwards costs nothing. Only asked for
-   * when there is a command to fill.
-   */
-  const asset = useQuery({
-    queryKey: ["asset", data?.resource?.id],
-    queryFn: () =>
-      api
-        .get<{ provider_resource_id: string }>(`/api/v1/assets/${data?.resource?.id}`)
-        .then((r) => r.data),
-    enabled: Boolean(data?.resource && (data.remediation_spec?.cli?.length ?? 0) > 0),
-    retry: false,
-    staleTime: 60_000,
-  });
-
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["finding", findingId] });
     queryClient.invalidateQueries({ queryKey: ["findings"] });
@@ -170,7 +150,8 @@ export function FindingDetailPage() {
     );
   if (!data) return null;
 
-  // Where proving the fix is offered: at the end of the fix, on an asset.
+  // Where proving the fix is offered at the end of the fix, in the remediation
+  // page's sheet: on an asset, while it is not yet resolved (DECISIONS.md §202).
   const verifyInFix = data.status !== "RESOLVED" && Boolean(data.resource) && !isDemo;
   const components = data.risk?.score_breakdown?.components ?? {};
   const routeCount = paths.data?.length ?? 0;
@@ -220,10 +201,10 @@ export function FindingDetailPage() {
                   <ArrowRightIcon data-icon="inline-end" aria-hidden />
                 </Link>
               )}
-              {/* Only where the fix below has no "Verify it now" of its own --
-                a finding on no asset, or one already resolved. The same
-                action twice, both filled, left a reader choosing between two
-                primary buttons that did one thing (DECISIONS.md §187). */}
+              {/* Only where the fix has no "Verify it now" of its own -- a
+                finding on no asset, or one already resolved. The same action
+                in two places left a reader choosing between two buttons that
+                did one thing (DECISIONS.md §187, §202). */}
               {!verifyInFix && (
                 <Button onClick={() => rescan.mutate()} disabled={rescan.isPending}>
                   {rescan.isPending ? (
@@ -283,52 +264,10 @@ export function FindingDetailPage() {
             </Card>
           )}
 
-          {/* HOW TO FIX -- second, because it is what a reader came for. */}
-          <RemediationPanel
-            remediation={data.remediation}
-            spec={data.remediation_spec}
-            effortMinutes={data.estimated_effort_minutes}
-            findingId={data.id}
-            fill={
-              data.resource
-                ? {
-                    values: placeholderValues(data.resource, asset.data?.provider_resource_id),
-                    resourceName: data.resource.name,
-                  }
-                : undefined
-            }
-            footer={
-              <div className="flex flex-col gap-4">
-                <TrackFix
-                  findingId={data.id}
-                  status={data.status}
-                  effortMinutes={data.estimated_effort_minutes}
-                />
-                {/* The end of the fix, where the fix is: applying it and
-                    proving it are one motion, not two places on the page. */}
-                {verifyInFix && (
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
-                    <p className="text-sm text-foreground">Applied the fix?</p>
-                    <Button
-                      size="sm"
-                      onClick={() => rescan.mutate()}
-                      disabled={rescan.isPending || verifyScanId !== null}
-                    >
-                      {rescan.isPending ? (
-                        <Spinner data-icon="inline-start" />
-                      ) : (
-                        <RotateCcwIcon data-icon="inline-start" aria-hidden />
-                      )}
-                      Verify it now
-                    </Button>
-                  </div>
-                )}
-              </div>
-            }
-          />
-
-          {/* DID IT WORK — only once somebody has claimed it did. */}
-          {data.verification && <VerificationPanel verification={data.verification} />}
+          {/* HOW TO FIX -- second, because it is what a reader came for. In
+              brief: the fix itself is read and worked in the remediation
+              page's sheet, with its verification (DECISIONS.md §202). */}
+          <FixSummary finding={data} />
 
           {/* WHAT IS ALREADY IN THE WAY */}
           <ControlsPanel controls={data.evidence.compensating_controls} />

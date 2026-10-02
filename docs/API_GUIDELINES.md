@@ -297,7 +297,9 @@ below are where each is answered.
   see (§162). Two routes cannot follow this, because a cloud provider or a portal button cannot
   send a header: the event receivers and the signed template and consent links. Their query
   credentials are redacted from the access log and from Sentry (`app/core/redaction.py`), and
-  a new route that must take one adds its key to `SENSITIVE_QUERY_KEYS`. **In place** (§195).
+  a new route that must take one adds its key to `SENSITIVE_QUERY_KEYS`. An outbound URL is
+  written down as its host alone, since a webhook's credential is its path, and the HTTP
+  client's own request lines are not logged. **In place** (§195, §198).
 - **The tenant comes from the token.** `Tenant` (`app/core/deps.py`) derives the organization
   from the verified user's membership; a body or query field never decides it. **In place**.
 - **Object-level authorization on every lookup** (OWASP API1, BOLA): every query is filtered by
@@ -421,7 +423,8 @@ app/
 - **Unhandled errors go to Sentry**; the client sees only the envelope. Sentry is started by
   `init_sentry` (`app/core/sentry.py`), which sends no request body, no local variables and no
   personal data, and redacts query credentials: a frame's `webhook_url` is a secret that Sentry's
-  key-name scrubbing cannot recognise. **In place** (§195).
+  key-name scrubbing cannot recognise. An HTTP breadcrumb keeps only the scheme and host of the
+  URL it called. **In place** (§195, §198).
 - **Two health endpoints**, both unauthenticated and both saying nothing about the deployment:
   `GET /health` (liveness: the process answers) and `GET /health/ready` (readiness: the database
   and the task broker both answer, or a `503` in the envelope names the one that does not,
