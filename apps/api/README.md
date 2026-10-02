@@ -210,6 +210,10 @@ CI regenerates both and fails on a difference, so a route or a rule changed with
 
 Both scripts take `--check`, which compares without writing. Do not edit either file by hand.
 
+The endpoint list in `docs/API.md` is written by hand, including the routes the OpenAPI document
+leaves out. `tests/unit/test_api_doc_endpoints.py` fails when it disagrees with the routes the app
+serves, so add a line there in the same change as a route.
+
 ## Troubleshooting
 
 - **The API will not start and prints a list of unset variables.** That list is the

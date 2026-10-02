@@ -445,7 +445,9 @@ app/
   `test_request_models` validates each example against its own model; **Adopt** for response
   models.
 - **`docs/API.md` is the human guide**: the endpoints by area, the envelope, authentication. A
-  change to a route updates it in the same pull request.
+  change to a route updates it in the same pull request, and
+  `tests/unit/test_api_doc_endpoints.py` fails when its endpoint list and the routes the app
+  serves disagree, hidden routes included. **In place** (§194).
 
 ## 15. Testing
 
