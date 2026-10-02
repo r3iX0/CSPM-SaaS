@@ -34,9 +34,7 @@ SESSION_CALLS = {
     "merge",
 }
 
-PENDING = {
-    "assets.py",
-}
+PENDING: set[str] = set()
 
 
 def queries_in(path: Path) -> list[str]:

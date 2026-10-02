@@ -4869,6 +4869,7 @@
           "assets"
         ],
         "summary": "List Assets",
+        "description": "The inventory, with the asset carrying the most open findings first.\n\n``entry_point``, ``sensitive`` and ``on_attack_path`` narrow it to what the estate map marks;\n``subscription_id`` (``directory`` for the tenant-scoped assets), ``resource_group`` and\n``region`` (``none`` for unplaced ones) are how the hierarchy and the region map drill in.\n``meta.facets`` counts each filter's options over the whole filtered set.",
         "operationId": "assets_list_assets",
         "security": [
           {
@@ -5124,7 +5125,7 @@
           "assets"
         ],
         "summary": "Asset Hierarchy",
-        "description": "The estate as it is actually organised: subscriptions, then groups.\n\nA flat inventory answers \"what do I have\"; it cannot answer \"which part of\nmy estate is the problem\", and that is the question with an owner attached\n-- a resource group usually has one, and a subscription almost always does.\n\nCounted in the database and returned whole. The list view pages, and a tree\nbuilt from one page of it would be a lie of the worst kind: a resource group\nwhose assets straddled two pages would appear twice, each time with a\nfraction of its findings.",
+        "description": "The estate as it is actually organised: subscriptions, then groups.\n\nA flat inventory answers \"what do I have\"; it cannot answer \"which part of\nmy estate is the problem\", and that is the question with an owner attached\n-- a resource group usually has one, and a subscription almost always does.",
         "operationId": "assets_asset_hierarchy",
         "security": [
           {
@@ -5199,7 +5200,7 @@
           "assets"
         ],
         "summary": "Resolve Asset",
-        "description": "The row id behind a provider id, for opening that asset's page.\n\nRoutes and graphs are statements about provider ids -- the cloud's own\nnames -- and the asset page is addressed by row id. A page holding only a\nprovider id asks here once, when somebody follows it, rather than every\nroute list carrying a surrogate key it rarely needs.\n\nPresent assets only, like the graph: a route through something a later\nscan no longer found should not open a page describing it as current.",
+        "description": "The row id behind a provider id, for opening that asset's page.\n\nRoutes and graphs are statements about provider ids -- the cloud's own\nnames -- and the asset page is addressed by row id. A page holding only a\nprovider id asks here once, when somebody follows it, rather than every\nroute list carrying a surrogate key it rarely needs.",
         "operationId": "assets_resolve_asset",
         "security": [
           {
@@ -5285,6 +5286,7 @@
           "assets"
         ],
         "summary": "Get Asset",
+        "description": "One asset: its context and where each value came from, its place, and its findings.",
         "operationId": "assets_get_asset",
         "security": [
           {
