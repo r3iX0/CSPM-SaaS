@@ -7,7 +7,8 @@
  * person deciding what to do next had to open every card to find out.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -53,13 +54,13 @@ const FINDING = {
   },
 };
 
-function renderPage() {
+function renderPage(entry = "/remediation") {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={["/remediation"]}>
+      <MemoryRouter initialEntries={[entry]}>
         <RemediationPage />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -108,14 +109,44 @@ describe("the remediation queue", () => {
     ).toBeInTheDocument();
   });
 
-  it("names the finding and the asset the work is on", async () => {
+  it("names the finding and the asset the work is on, and opens its fix", async () => {
+    // The title opens the fix, read in full here; the finding is a link
+    // inside it (DECISIONS.md §202).
     renderPage();
+    const user = userEvent.setup();
 
-    const title = await screen.findByRole("link", {
+    const title = await screen.findByRole("button", {
       name: "Storage account allows public blob access",
     });
-    expect(title).toHaveAttribute("href", "/findings/finding-1");
     expect(await screen.findByText(/prodstorage/)).toBeInTheDocument();
+
+    await user.click(title);
+    const sheet = await screen.findByRole("dialog");
+    expect(within(sheet).getByText("Recommended fix")).toBeInTheDocument();
+    expect(within(sheet).getByRole("link", { name: /Open finding/ })).toHaveAttribute(
+      "href",
+      "/findings/finding-1",
+    );
+  });
+
+  it("opens a fix nobody has tracked yet, to read before committing to it", async () => {
+    // A finding's "Open fix" lands here whether or not the work is queued.
+    tasks = [];
+    renderPage("/remediation?fix=finding-1");
+
+    const sheet = await screen.findByRole("dialog");
+    expect(
+      await within(sheet).findByRole("button", { name: /Track this fix/ }),
+    ).toBeInTheDocument();
+    expect(within(sheet).getByRole("button", { name: /Verify it now/ })).toBeInTheDocument();
+  });
+
+  it("finishes tracked work at the foot of its fix", async () => {
+    renderPage("/remediation?fix=finding-1");
+
+    const sheet = await screen.findByRole("dialog");
+    expect(await within(sheet).findByRole("button", { name: /Mark done/ })).toBeInTheDocument();
+    expect(within(sheet).queryByRole("button", { name: /Track this fix/ })).toBeNull();
   });
 
   it("says when the work sits on an attack path, and only then (§127)", async () => {
@@ -141,5 +172,106 @@ describe("the remediation queue", () => {
     expect(screen.queryByText("Verified fixed")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Mark done/ })).not.toBeInTheDocument();
     expect(screen.getByText(/Marked done does not close a finding/)).toBeInTheDocument();
+  });
+});
+
+describe("the queue, grouped by rule (DECISIONS.md §203)", () => {
+  const RULE_FINDING = {
+    ...FINDING,
+    rule_name: "Public blob access",
+    remediation: "Turn off public blob access.",
+    remediation_spec: {
+      expected_state: [],
+      cli: ["az storage account update --name <account> --allow-blob-public-access false"],
+      terraform: [],
+      azure_policy: null,
+      notes: null,
+    },
+  };
+  const BY_ID: Record<string, object> = {
+    "finding-1": RULE_FINDING,
+    "finding-2": {
+      ...RULE_FINDING,
+      id: "finding-2",
+      resource: { ...FINDING.resource, id: "asset-2", name: "devstorage" },
+    },
+  };
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = input instanceof Request ? input.url : input.toString();
+      const id = /\/findings\/([^/?]+)$/.exec(url)?.[1];
+      const body =
+        init?.method === "PATCH"
+          ? { ...TASK, status: "DONE" }
+          : id
+            ? BY_ID[id]
+            : url.includes("/findings?")
+              ? // The rule's open findings: the two tracked, and one nobody has.
+                [
+                  { ...RULE_FINDING, status: "OPEN" },
+                  { ...BY_ID["finding-2"], status: "OPEN" },
+                  { ...RULE_FINDING, id: "finding-3", status: "OPEN" },
+                ]
+              : url.includes("/assets/")
+                ? { provider_resource_id: "/subscriptions/s1/resourceGroups/rg/x" }
+                : [TASK, { ...TASK, id: "task-2", finding_id: "finding-2" }];
+      const response: Pick<Response, "ok" | "status" | "json"> = {
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ data: body, error: null, meta: {} }),
+      };
+      // The page reads only these three members of a response.
+      return Promise.resolve(response as Response);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("draws two tasks of one rule as one row, naming both assets", async () => {
+    renderPage();
+
+    expect(await screen.findByRole("button", { name: "Public blob access" })).toBeInTheDocument();
+    expect(screen.getByText(/2 assets: prodstorage, devstorage/)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Storage account allows public blob access" }),
+    ).toBeNull();
+  });
+
+  it("opens the rule's fix as one script over every asset, with the work done together", async () => {
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "Public blob access" }));
+    const sheet = await screen.findByRole("dialog");
+    expect(within(sheet).getByRole("button", { name: /Mark all 2 done/ })).toBeInTheDocument();
+    expect(await within(sheet).findByRole("button", { name: /Track 1 more/ })).toBeInTheDocument();
+
+    await user.click(within(sheet).getByRole("tab", { name: "CLI" }));
+    const script = within(sheet).getByText(/# prodstorage/);
+    expect(script).toHaveTextContent("# devstorage");
+  });
+
+  it("marks every open task of the rule done from its row", async () => {
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: /Mark all done/ }));
+
+    await vi.waitFor(() => {
+      const patched = fetchMock.mock.calls
+        .filter(([, init]) => (init as RequestInit | undefined)?.method === "PATCH")
+        .map(([url]) => String(url));
+      expect(patched).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining("/remediation/task-1"),
+          expect.stringContaining("/remediation/task-2"),
+        ]),
+      );
+    });
   });
 });

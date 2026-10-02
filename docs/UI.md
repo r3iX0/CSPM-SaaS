@@ -269,21 +269,28 @@ with nothing misconfigured on it, which is never a row.
 
 **Remediation** — the work queue, ordered on the server: open work first, by impact against effort,
 and of two equally urgent fixes the one on an attack path first; a row on a route says how many
-(`DECISIONS.md` §127). Work reaches it from a finding's recommended fix (`DECISIONS.md` §41). Each
-row names the finding and the asset it is on, joined in the browser because the endpoint returns
-only the task (`DECISIONS.md` §29). Marking work done does not close a finding — a scan does — and
-the answer says so where the button is.
+(`DECISIONS.md` §127). Each row names the finding and the asset it is on, joined in the browser
+because the endpoint returns only the task (`DECISIONS.md` §29). A fix is read and worked here: a
+row's title, or a finding's **Open fix**, opens a sheet held open by `?fix=<finding id>` with the
+fix in every form it has, **Track this fix** or **Mark done** at its foot, **Verify it now**, and
+the verification. It opens for any finding, tracked or not, so a fix is read before the work is
+committed to (`DECISIONS.md` §41, §202). Tasks of one rule are one row and one sheet (`?rule=`): the
+steps once, the commands as one script with each asset's under its name, **Mark all done**, and
+**Track N more** for the rule's untracked open findings (`DECISIONS.md` §203). Marking work done
+does not close a finding — a scan does — and the answer says so where the button is.
 
-**Finding detail** — title, severity, asset, why it matters, evidence, risk score, recommended fix,
-estimated effort, owner, and actions: **Assign / Rescan**, and **Decide on its risk**, a link to the
-risk it belongs to. The finding page makes no triage decision itself — marking in progress,
-accepting and reopening happen on the risk, the one place triage happens (DECISIONS.md §107). An
-accepted finding shows its end date beside its status (DECISIONS.md §104). It also says what the
-finding is _part of_: the attack paths its asset sits on, drawn as routes with the link worth
-cutting marked, and labelled by where the asset sits on each — the way in, a link in the middle, or
-the target. No route found is written as a fact about the graph rather than as reassurance, because
-what counts as sensitive is something the customer declares. Evidence is the raw capture, clipped
-past about two screens with the rest one click away and copyable whole.
+**Finding detail** — title, severity, asset, why it matters, evidence, risk score, the recommended
+fix in brief (its effort, first paragraph, the forms it comes in, where the work stands, and **Open
+fix** into the remediation page, `DECISIONS.md` §202), and **Decide on its risk**, a link to the
+risk it belongs to; **Rescan** only where the fix has no verify of its own. The finding page makes
+no triage decision itself — marking in progress, accepting and reopening happen on the risk, the one
+place triage happens (DECISIONS.md §107). An accepted finding shows its end date beside its status
+(DECISIONS.md §104). It also says what the finding is _part of_: the attack paths its asset sits on,
+drawn as routes with the link worth cutting marked, and labelled by where the asset sits on each —
+the way in, a link in the middle, or the target. No route found is written as a fact about the graph
+rather than as reassurance, because what counts as sensitive is something the customer declares.
+Evidence is the raw capture, clipped past about two screens with the rest one click away and
+copyable whole.
 
 **Finding detail — how we know.** Under the evidence excerpt, the readings that
 excerpt came from: which listing, how long ago the _provider_ was read, the

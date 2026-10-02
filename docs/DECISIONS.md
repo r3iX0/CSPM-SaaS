@@ -11012,6 +11012,101 @@ deleted on the owner's decision now that Prowler is neither run nor distributed.
 data is still in the repository was raised before deleting it. The `$comment` of each JSON file
 still says where its contents first came from.
 
+## 202. A fix is read and worked on the remediation page; the finding says it in brief
+
+The finding page drew the whole fix second, under "Why it matters": the prose, a tab each for the
+CLI, Terraform and Policy, the note on why there is no policy, "Track this fix", and "Applied the
+fix? Verify it now". On a role-assignment finding that was a screen and a half of text, and the
+attack paths -- what decides how urgent a finding is -- sat below it. The remediation queue was the
+reverse: rows naming the work and nothing of how to do it, so somebody working down the queue
+opened each finding, scrolled to its fix, and came back. The page that ranks work by impact against
+effort was a list of links to the place the work was actually done.
+
+The split is now by question. The finding page answers what is wrong and why it matters; the
+remediation page answers how to fix it and whether the fix took. Each fix is drawn in full in one
+place.
+
+**On the finding page** the fix is a short card in the same place: the effort, the first paragraph
+of the steps (every rule's prose opens with what to do), which other forms the full fix comes in
+("Also as CLI, Terraform"), where the work stands -- tracked since a date, done, or what the
+verification concluded -- and **Open fix**, a link to `/remediation?fix=<finding id>`. The
+verification panel moved with the fix; the card names its outcome in one line.
+
+**On the remediation page** a fix opens in a sheet over the queue, held open by `?fix=` in the URL
+as the scan wizard is by `?scan=` (§154). It holds the fix exactly as the finding page drew it
+(`RemediationPanel`, placeholders filled from the asset), the verification and a rescan followed in
+place (`FixVerification`), and at its foot the work: **Track this fix** while nobody has, then
+**Mark done** and what done does not mean. A row's title opens it, as does a row of "Where to
+start"; the finding is a link in the sheet's header. Opening and closing replace the history entry
+rather than pushing one, so Back leaves the page.
+
+The sheet is keyed by **finding**, not by task, and that is what makes the move safe. Keyed by
+task, a fix could be read only after someone committed to doing it, and the demo -- where the API
+refuses every write, so nothing can be tracked -- could read no fix at all. Any finding opens here,
+tracked or not; the demo reads every fix and is offered no button.
+
+§41 and §98 still hold, in their new place. Tracking sits under the fix it commits to (§41), and
+proving a fix sits at the end of the fix (§98), both in the sheet. §187's one verify also holds:
+the finding header's "Rescan to verify" appears only where the fix has no "Verify it now" of its
+own -- a finding on no asset, or one already resolved.
+
+No API changed. The sheet reads the finding under `["finding", id]`, which each queue row has
+already filled (§29), so opening a row's fix costs no request; the asset is read only when there
+is a command to fill. The queue, the sheet's footer and the finding's card share one
+`["remediation"]` query (`lib/remediation.ts`), as does marking work done, which was the queue
+page's own mutation.
+
+The cost accepted: on the finding page the CLI is a click away rather than on screen. The card
+names which forms exist, so a reader knows what the click will show.
+
+Not done: grouping the queue by rule, so one fix applied to many assets is one piece of work with
+its commands filled per asset. It follows from this -- it is the thing a fix on a single finding's
+page could never do -- but it changes what a row in the queue is, and is its own decision (§203).
+
+## 203. The queue draws one rule's tasks as one piece of work, and its fix as one script
+
+Two tasks of one rule are one fix applied twice: the same steps, the same Terraform arguments, the
+same policy, and commands that differ only in the name in them. The queue listed them as separate
+rows, so five service principals holding an assignment-writing role read as five problems, and
+whoever worked the queue opened five fixes, read the same prose five times, and copied five
+commands that each needed the same edit.
+
+**A row per rule.** Where two or more tasks share a rule, the queue draws them as one row: the
+rule's name, how many assets and the first three of their names, how many are on an attack path,
+the effort and the earliest due date of the open ones, and **Mark all done**. The group takes the
+place of its highest-ranked task, so the server's order -- open work first, by impact against
+effort (§127) -- still decides where the work sits; nothing is re-sorted in the browser. A rule
+with one task stays a plain row. A chevron opens the group's own rows beneath it, each still
+opening its own fix and marked done on its own.
+
+Grouping waits until every task's finding has arrived, because the rule is read from the finding
+(the queue endpoint returns only the task, §29). Grouping as each one landed would regroup the list
+under the reader's cursor once per finding; waiting regroups it once.
+
+**One sheet per rule.** The row's title opens `?rule=<rule id>`, a sheet beside §202's `?fix=`
+(never both at once). The steps, Terraform and policy are said once. The CLI is one script: each
+asset's commands under a `# <asset name>` line, filled from that asset as a single fix is, with
+anything unfilled left in angle brackets. The sheet lists the assets, each opening its own fix,
+where its Terraform can be checked against an uploaded file and its rescan followed. At its foot
+are **Mark all N done**, and **Track N more** where the rule has open findings nobody has tracked
+-- read from `GET /findings?rule_id=&status=OPEN`, so a fix applied across the estate can be
+recorded as such.
+
+**No "Verify it now" on a group.** A rescan is narrowed to one subscription and refuses a second
+while one is running (`services/rescan.py`), so pressing it once per asset would start one scan and
+fail the rest. Marking the work done is the verification: each claim opens its own expectation,
+and `verify_due_remediations` scans each subscription once for every claim in it (§18).
+
+**No batch endpoint.** Marking all done and tracking the rest send one request per task, together,
+and a partial failure says how many did not go through. The queue is bounded by work a person
+created, well inside the per-user rate limit, and a batch endpoint would be a second way to write
+the same rows, with its own audit and error shapes to keep in step with the first. That stops being
+the right trade if groups grow into the hundreds.
+
+The effort shown for a group is the sum of its open tasks' estimates. That overstates work done as
+one script, but the estimate is the rule's per asset, and a smaller number the product cannot
+justify would be worse than a larger one it can.
+
 ## Open items carried forward
 
 **Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read

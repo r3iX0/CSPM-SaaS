@@ -202,13 +202,43 @@ describe("the finding detail page", () => {
     expect(screen.queryByText("Environment")).not.toBeInTheDocument();
   });
 
-  it("offers proving the fix once, where the fix is", async () => {
+  it("says the fix in brief and sends the reader to the queue to work it", async () => {
+    // The fix is read and worked in the remediation page's sheet; the finding
+    // keeps what it is and the way there (DECISIONS.md §202).
+    mount([], {
+      ...FINDING,
+      remediation: "Disable public access.\n\nAzure CLI, to apply it:\n  az storage account update",
+      remediation_spec: {
+        expected_state: [],
+        cli: ["az storage account update --allow-blob-public-access false"],
+        terraform: [],
+        azure_policy: null,
+        notes: null,
+      },
+    });
+
+    const open = await screen.findByRole("link", { name: /Open fix/ });
+    expect(open).toHaveAttribute("href", "/remediation?fix=finding-1");
+    expect(screen.getByText("Disable public access.")).toBeInTheDocument();
+    expect(screen.getByText(/Also as CLI/)).toBeInTheDocument();
+    expect(screen.queryByText(/az storage account update/)).not.toBeInTheDocument();
+  });
+
+  it("offers proving the fix once, in the fix rather than on the finding", async () => {
     // A filled "Rescan to verify" in the header and a filled "Verify it now"
-    // under the fix did one thing twice (DECISIONS.md §187).
+    // under the fix did one thing twice (DECISIONS.md §187); the fix's own
+    // is in the sheet now (§202).
     mount([]);
 
-    expect(await screen.findByRole("button", { name: /Verify it now/ })).toBeInTheDocument();
+    await screen.findByRole("link", { name: /Open fix/ });
+    expect(screen.queryByRole("button", { name: /Verify it now/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Rescan to verify/ })).not.toBeInTheDocument();
+  });
+
+  it("offers a rescan on a finding whose fix has no verify of its own", async () => {
+    mount([], { ...FINDING, resource: null });
+
+    expect(await screen.findByRole("button", { name: /Rescan to verify/ })).toBeInTheDocument();
   });
 
   it("says when an accepted finding comes back", async () => {
