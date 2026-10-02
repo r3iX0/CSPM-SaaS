@@ -6,3 +6,5 @@
 c9d66b8415ac8ffa9f48c496d3a53c10a0d2985e
 # Prettier 3.9.9 reformat of apps/web
 adcbffeb19d7af50de280fbefa140a5585ab3d89
+# Markdown reformat to markdownlint (DECISIONS §192)
+787dbf6b79c799184d6ab55af72853c2b9897bf1
