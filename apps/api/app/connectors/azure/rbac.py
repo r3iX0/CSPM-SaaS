@@ -852,6 +852,21 @@ def role_is_current(role_version: str) -> bool:
     return not actions_missing_from(role_version)
 
 
+def first_version_granting(*actions: str) -> str:
+    """The oldest published role that grants every one of ``actions``.
+
+    What a collection hint names when a read is refused. Naming
+    ``ROLE_VERSION`` instead told a customer on v11 that a role "deployed
+    before v12" lacked the vault keys read that v11 introduced -- true of
+    nothing they could check. Falls back to the current version for an action
+    no recorded role grants, which only a new action awaiting its bump is.
+    """
+    for version, granted in ROLE_HISTORY.items():
+        if all(action in granted for action in actions):
+            return version
+    return ROLE_VERSION
+
+
 def action_matches(pattern: str, action: str) -> bool:
     """Whether an ARM action pattern covers a specific action.
 

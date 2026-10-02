@@ -46,6 +46,7 @@ function mount(tasks: object[], counts: Record<string, number> = {}) {
           partial: 0,
           failed: 0,
           skipped: 0,
+          unavailable: 0,
           degraded_categories: [],
           ...counts,
         },
@@ -164,6 +165,29 @@ describe("the collection panel", () => {
     await waitFor(() =>
       expect(screen.getByText(/report unknown, never passed/i)).toBeInTheDocument(),
     );
+  });
+
+  it("names a licence gap as one, not as a failure", async () => {
+    /** A tenant without the licence a reading needs has nothing broken, so it
+     * is told its checks are unknown without the line that reads as a fault
+     * (DECISIONS.md section 196). */
+    mount(
+      [
+        {
+          ...READING,
+          task: "role_eligibilities",
+          outcome: "UNAVAILABLE",
+          detail: "Requires a Microsoft Entra ID P2 or Governance licence.",
+          finding_count: 0,
+        },
+      ],
+      { complete: 0, unavailable: 1 },
+    );
+
+    await waitFor(() => expect(screen.getByText("Not licensed")).toBeInTheDocument());
+    expect(screen.getByText(/1 not licensed/)).toBeInTheDocument();
+    expect(screen.getByText(/not in this tenant's licence/i)).toBeInTheDocument();
+    expect(screen.queryByText(/report unknown, never passed/i)).not.toBeInTheDocument();
   });
 
   it("keeps the two sentences apart", async () => {

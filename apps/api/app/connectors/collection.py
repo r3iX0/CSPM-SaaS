@@ -289,6 +289,18 @@ class TaskData:
     partial_reason: str | None = None
 
 
+class ReadingUnavailable(Exception):
+    """The provider will not serve this reading to this tenant at all.
+
+    Raised by a task that has recognised the refusal as a tenant constraint --
+    a licence the tenant lacks -- rather than a grant CloudGuard lacks. The
+    executor records it as ``UNAVAILABLE`` instead of ``FAILED``: the rules
+    still lose their verdict, but nobody is sent to fix a connection that is
+    configured correctly. The message is the whole explanation, remedy
+    included, and is shown as it is.
+    """
+
+
 class CollectionRun:
     """Executes a plan: dependency-ordered, concurrent within each wave."""
 
@@ -550,6 +562,9 @@ class CollectionRun:
         async with self._gate:
             try:
                 produced = await task.run(collected)
+            except ReadingUnavailable as exc:
+                log.info("collection.task_unavailable", task=task.scoped_key)
+                return task, outcome(TaskOutcome.UNAVAILABLE, str(exc)), {}
             except Exception as exc:
                 message = str(exc) or type(exc).__name__
                 log.warning("collection.task_failed", task=task.scoped_key, error=message)

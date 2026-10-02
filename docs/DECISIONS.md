@@ -10881,6 +10881,55 @@ file generated from `pyproject.toml` (`uv lock`, or `pip-compile --generate-hash
 with `--require-hashes` in the image and CI, `pip-audit` against that file as a CI job, and
 Dependabot kept to refresh it.
 
+## 196. A reading a licence rules out is UNAVAILABLE, and a refused read names the role that introduced it
+
+One scan's collection panel showed three gaps, each saying the wrong thing.
+
+**PIM eligibility refused for a licence read as a failure.** A tenant without
+an Entra ID P2 or Governance licence is refused
+`roleEligibilityScheduleInstances` -- by ARM per subscription, and by Graph for
+the directory -- with a 400, `AadPremiumLicenseRequired: The tenant needs to
+have Microsoft Entra ID P2 or Microsoft Entra ID Governance license.` The
+licence check matched only 403s carrying "premium license", so the ARM half
+arrived as a raw error and the Graph half, had it matched, would have been
+reworded as the _sign-in activity_ licence. `_refused_for_licence` now matches
+400 or 403 on `AadPremiumLicenseRequired`, "governance license" or "premium
+license", and each reading names its own licence (`SIGN_IN_LICENCE`,
+`PIM_LICENCE`).
+
+**A licence gap is a fourth outcome, UNAVAILABLE.** A task that recognises a
+licence refusal raises `ReadingUnavailable` (neutral, in
+`connectors/collection.py`), and the executor records `TaskOutcome.UNAVAILABLE`
+with the message as its detail. It is untrustworthy exactly as FAILED is --
+`is_trustworthy` is still COMPLETE alone, so the rules that need it report
+UNKNOWN and never PASS -- but it is not a failure: it is counted apart
+(`unavailable` in `GET /scans/{id}/collection`), drawn in the dashed unknown
+style rather than red, labelled "Not licensed", and explained by its own muted
+line instead of the amber "supports nothing" one. It sends no coverage-drop
+notification, which counts FAILED and PARTIAL only: nothing dropped, and no
+one on the connection page can change it. `explain_role_drift` no longer
+prefixes "redeploy the role" to a gap whose every reading was UNAVAILABLE, nor
+to its category's error when that is all the category's gaps were.
+
+Considered and not done: marking the scan itself partial or unhealthy over a
+licence. The scan read everything the tenant offers; the coverage figures
+already say which checks are unknown and why.
+
+**A refused per-resource read names the version that introduced it.** The
+vault keys, SQL auditing and SQL encryption hints said "a scanner role
+deployed before `ROLE_VERSION`", which told a v11 customer that their role
+lacked the keys read v11 introduced. `rbac.first_version_granting(*actions)`
+names the oldest role in `ROLE_HISTORY` granting them (v11 for vault keys, v4
+for auditing), falling back to the current version for an action not yet
+recorded.
+
+**Role drift could not run.** `explain_role_drift` asked
+`get_connector(provider)` for a category's keys, which builds a connector and
+needs its tenant and subscription ids: for any scan whose role was behind and
+had a gap, it raised `TypeError` and failed the COLLECT step. It reads the
+class now (`get_connector_class`), as the registry intends for provider-level
+facts. `tests/unit/test_licence_gaps.py` covers all of the above.
+
 ## Open items carried forward
 
 **Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read

@@ -424,6 +424,11 @@ fully consented tenant on the free tier is refused it with the same status code
 a missing permission produces. That refusal is recognised from Microsoft's own
 wording and reported as a licence, because sending a Global Administrator to a
 consent screen that cannot grant it wastes the one action they were asked for.
+Privileged Identity Management is gated the same way: ARM's and Graph's
+eligibility listings answer a tenant without an Entra ID P2 or Governance
+licence with a 400, `AadPremiumLicenseRequired`. All three readings are
+recorded UNAVAILABLE rather than FAILED -- their checks still report UNKNOWN,
+and no role-drift explanation is prefixed to them (DECISIONS.md §196).
 Which permissions each collector call actually exercises is declared in
 `GRAPH_PERMISSION_USE`, and a test refuses any requested permission that is
 neither used nor deliberately reserved -- the Graph counterpart of the ARM

@@ -14,6 +14,7 @@ import pytest
 
 from app.connectors.azure.normalizer import AzureNormalizer
 from app.connectors.base import RawSnapshot
+from app.connectors.collection import ReadingUnavailable
 from app.core.enums import Provider, ResourceType, RuleState
 from app.core.errors import CloudConnectionError
 from app.rules.azure.identity.dormant import AzureDormantPrivilegedAccountRule
@@ -200,7 +201,9 @@ async def _refusal(monkeypatch, message: str) -> str:
         tokens=FakeTokens(), subscription_id=None, http_client=httpx.AsyncClient()
     )
     task = next(t for t in builder.build_directory_plan() if t.key.value == "user_sign_in_activity")
-    with pytest.raises(CloudConnectionError) as raised:
+    # A licence refusal is ReadingUnavailable, recorded as UNAVAILABLE; any
+    # other refusal is still a connection error (section 196).
+    with pytest.raises((CloudConnectionError, ReadingUnavailable)) as raised:
         await task.run({})
     return str(raised.value)
 

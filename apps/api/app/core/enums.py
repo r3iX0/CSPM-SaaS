@@ -158,6 +158,12 @@ class TaskOutcome(StrEnum):
     # nothing is known to be wrong with this task, and saying otherwise would
     # send someone looking for a problem that is one hop away.
     SKIPPED = "SKIPPED"
+    # The provider refused because of what the tenant has bought, not what
+    # CloudGuard was granted -- a licence no role or consent can confer.
+    # Distinct from FAILED because nothing is broken and nobody can fix it from
+    # the connection page; untrustworthy all the same, so the rules that needed
+    # it report UNKNOWN and never PASS (DECISIONS.md section 196).
+    UNAVAILABLE = "UNAVAILABLE"
 
     @property
     def is_trustworthy(self) -> bool:

@@ -788,6 +788,9 @@ async def collection_status(session: AsyncSession, scan: Scan) -> dict:
         "partial": counts.get(TaskOutcome.PARTIAL.value, 0),
         "failed": counts.get(TaskOutcome.FAILED.value, 0),
         "skipped": counts.get(TaskOutcome.SKIPPED.value, 0),
+        # Refused for the tenant's licence: counted apart from ``failed``,
+        # because nothing failed and the connection page cannot fix it.
+        "unavailable": counts.get(TaskOutcome.UNAVAILABLE.value, 0),
         # The distinction the flat error map could not make: a category may be
         # unreliable because nothing came back, or because not all of it did.
         # One is an outage; the other is a tenant larger than one scan reads,

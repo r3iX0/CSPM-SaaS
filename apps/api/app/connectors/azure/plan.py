@@ -41,8 +41,8 @@ from app.connectors.azure.client import (
     ResourceGraphClient,
 )
 from app.connectors.azure.evidence import AzureEvidence
-from app.connectors.azure.rbac import ROLE_VERSION
-from app.connectors.collection import CollectionTask, TaskData
+from app.connectors.azure.rbac import first_version_granting
+from app.connectors.collection import CollectionTask, ReadingUnavailable, TaskData
 from app.connectors.evidence import ProviderEndpoint
 from app.core.logging import get_logger
 
@@ -396,13 +396,49 @@ SIGN_IN_ACTIVITY_ENDPOINT = ProviderEndpoint(
     f"{GRAPH}/users?$select=id,signInActivity", GRAPH_VERSION
 )
 
-# What Graph says when the tenant is consented correctly and simply not
-# licensed for sign-in activity: "Neither tenant is B2C or tenant doesn't have
-# premium license". Matched on the durable half of that sentence -- a 403 whose
-# remedy is a licence rather than a consent has to be told apart from one whose
-# remedy is a Global Administrator, or the customer is sent to fix a directory
-# that is already correct.
-_UNLICENSED_MARKERS = ("premium license", "premium licence")
+# The reads behind the two SQL tasks, named once so a refused read's hint
+# and the task's declared actions cannot drift apart.
+SQL_AUDITING_ACTION = "Microsoft.Sql/servers/auditingSettings/read"
+SQL_TDE_ACTIONS = (
+    "Microsoft.Sql/servers/databases/read",
+    "Microsoft.Sql/servers/databases/transparentDataEncryption/read",
+)
+
+# What Azure says when the tenant is consented correctly and simply not
+# licensed for a reading. Graph refuses sign-in activity with a 403, "Neither
+# tenant is B2C or tenant doesn't have premium license"; ARM and Graph both
+# refuse Privileged Identity Management with a 400, "AadPremiumLicenseRequired:
+# The tenant needs to have Microsoft Entra ID P2 or Microsoft Entra ID
+# Governance license". Matched on the durable parts of those -- a refusal whose
+# remedy is a licence has to be told apart from one whose remedy is a Global
+# Administrator or a role redeploy, or the customer is sent to fix a connection
+# that is already correct (section 196).
+_UNLICENSED_MARKERS = (
+    "premium license",
+    "premium licence",
+    "aadpremiumlicenserequired",
+    "governance license",
+)
+_LICENCE_STATUSES = (400, 403)
+
+SIGN_IN_LICENCE = (
+    "Sign-in activity requires a Microsoft Entra ID P1 or P2 licence, which this "
+    "tenant does not have. Admin consent cannot grant it, so dormant accounts "
+    "cannot be assessed until the tenant is licensed."
+)
+PIM_LICENCE = (
+    "Roles that could be activated under Privileged Identity Management are "
+    "listed only for a tenant with a Microsoft Entra ID P2 or Governance licence, "
+    "which this one does not have. No role or consent can grant it, so eligible "
+    "roles stay unlisted until the tenant is licensed."
+)
+
+
+def _refused_for_licence(exc: AzureApiError) -> bool:
+    """Whether Azure attributed this refusal to the tenant's licence."""
+    return exc.azure_status_code in _LICENCE_STATUSES and any(
+        marker in str(exc).lower() for marker in _UNLICENSED_MARKERS
+    )
 
 
 def _encryption_state(payload: dict[str, Any]) -> str | None:
@@ -616,8 +652,19 @@ class AzurePlanBuilder:
             return {"role_assignments": await arm.list_role_assignments(sub)}
 
         async def role_eligibilities(arm: ArmClient) -> dict[str, Any]:
-            """Roles a principal could activate rather than holds (section 130)."""
-            return {"role_eligibilities": await arm.list_role_eligibilities(sub)}
+            """Roles a principal could activate rather than holds (section 130).
+
+            ARM refuses this with a 400 in a tenant without the licence PIM
+            needs, which is a fact about the tenant rather than a failure
+            (section 196).
+            """
+            try:
+                found = await arm.list_role_eligibilities(sub)
+            except AzureApiError as exc:
+                if _refused_for_licence(exc):
+                    raise ReadingUnavailable(PIM_LICENCE) from exc
+                raise
+            return {"role_eligibilities": found}
 
         async def role_definitions(arm: ArmClient) -> dict[str, Any]:
             """What each role actually permits.
@@ -1073,7 +1120,8 @@ class AzurePlanBuilder:
                     data,
                     partial_reason=(
                         f"{noun} could not be read for {failures} of {len(ids)} "
-                        f"{of}. A scanner role deployed before {ROLE_VERSION} does "
+                        f"{of}. A scanner role deployed before "
+                        f"{first_version_granting(action, *also_actions)} does "
                         "not grant the permission this needs."
                     ),
                 )
@@ -1236,7 +1284,8 @@ class AzurePlanBuilder:
                     partial_reason=(
                         f"auditing settings could not be read for {failures} of "
                         f"{len(servers)} servers. A scanner role deployed before "
-                        f"{ROLE_VERSION} does not grant the permission this needs."
+                        f"{first_version_granting(SQL_AUDITING_ACTION)} does not "
+                        "grant the permission this needs."
                     ),
                 )
             return TaskData(data)
@@ -1245,7 +1294,7 @@ class AzurePlanBuilder:
             key=AzureEvidence.SQL_AUDITING,
             run=run,
             depends_on=(AzureEvidence.SQL_SERVERS,),
-            actions=("Microsoft.Sql/servers/auditingSettings/read",),
+            actions=(SQL_AUDITING_ACTION,),
             endpoints=(SQL_AUDITING_ENDPOINT,),
         )
 
@@ -1324,7 +1373,8 @@ class AzurePlanBuilder:
                     partial_reason=(
                         f"encryption state could not be read for {failures} "
                         f"database(s) or server(s). A scanner role deployed "
-                        f"before {ROLE_VERSION} does not grant the permissions "
+                        f"before {first_version_granting(*SQL_TDE_ACTIONS)} does not "
+                        f"grant the permissions "
                         f"this needs."
                     ),
                 )
@@ -1334,10 +1384,7 @@ class AzurePlanBuilder:
             key=AzureEvidence.SQL_TDE,
             run=run,
             depends_on=(AzureEvidence.SQL_SERVERS,),
-            actions=(
-                "Microsoft.Sql/servers/databases/read",
-                "Microsoft.Sql/servers/databases/transparentDataEncryption/read",
-            ),
+            actions=SQL_TDE_ACTIONS,
             endpoints=(SQL_DATABASES_ENDPOINT, SQL_TDE_ENDPOINT),
         )
 
@@ -1589,29 +1636,22 @@ class AzurePlanBuilder:
                 raise
             raise AzureApiError(f"{exc}{named}", status_code=403) from exc
 
-    async def _licence_aware_call(self, call: Awaitable[Any]) -> Any:
-        """Await a Graph call whose 403 may be about a licence, not a grant.
+    async def _licence_aware_call(self, call: Awaitable[Any], requirement: str) -> Any:
+        """Await a Graph call whose refusal may be about a licence, not a grant.
 
         Wraps ``_graph_call`` rather than replacing it: a tenant that never
         consented gets the same list of missing permissions here as everywhere
-        else, and only a refusal Graph itself attributes to the licence is
-        renamed. The two are indistinguishable by status code and lead to
-        entirely different people.
+        else, and only a refusal Graph itself attributes to the licence becomes
+        ``requirement``, recorded as UNAVAILABLE rather than FAILED. The two
+        are indistinguishable by status code and lead to entirely different
+        people.
         """
         try:
             return await self._graph_call(call)
         except AzureApiError as exc:
-            if exc.azure_status_code != 403:
+            if not _refused_for_licence(exc):
                 raise
-            if not any(m in str(exc).lower() for m in _UNLICENSED_MARKERS):
-                raise
-            raise AzureApiError(
-                "Sign-in activity requires a Microsoft Entra ID P1 or P2 licence, "
-                "which this tenant does not have. Admin consent cannot grant it, "
-                "so dormant accounts cannot be assessed until the tenant is "
-                "licensed.",
-                status_code=403,
-            ) from exc
+            raise ReadingUnavailable(requirement) from exc
 
     def _identity_tasks(self) -> list[CollectionTask]:
         """Directory state. Graph, so no ARM action grants any of it."""
@@ -1717,7 +1757,9 @@ class AzurePlanBuilder:
         async def directory_eligibilities(collected: dict[str, Any]) -> TaskData:
             """Directory roles a principal could activate (section 130)."""
             graph = GraphClient(self.tokens, self._http, limiter=self._limiter)
-            found = await self._licence_aware_call(graph.list_directory_role_eligibilities())
+            found = await self._licence_aware_call(
+                graph.list_directory_role_eligibilities(), PIM_LICENCE
+            )
             data = {"directory_role_eligibilities": found}
             if graph.truncated:
                 return TaskData(
@@ -1727,7 +1769,7 @@ class AzurePlanBuilder:
 
         async def sign_in_activity(collected: dict[str, Any]) -> TaskData:
             graph = GraphClient(self.tokens, self._http, limiter=self._limiter)
-            found = await self._licence_aware_call(graph.list_sign_in_activity())
+            found = await self._licence_aware_call(graph.list_sign_in_activity(), SIGN_IN_LICENCE)
 
             # Keyed by user id, because that is how it is read: the normalizer
             # merges each account's activity onto the account itself, and a

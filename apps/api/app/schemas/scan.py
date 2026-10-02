@@ -188,6 +188,8 @@ class CollectionStatusOut(ClosedModel):
     partial: int
     failed: int
     skipped: int
+    #: Refused because the tenant lacks a licence the reading needs.
+    unavailable: int
     degraded_categories: list[str]
 
 

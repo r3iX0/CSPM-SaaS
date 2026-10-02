@@ -905,12 +905,14 @@ export const en = {
     collectionPartial: "partial",
     collectionFailed: "failed",
     collectionSkipped: "skipped",
+    collectionUnavailable: "not licensed",
     collectionAllComplete: "Every listing was read in full.",
     collectionAffects: "Affected checks",
     outcomeComplete: "Read in full",
     outcomePartial: "Incomplete",
     outcomeFailed: "Could not read",
     outcomeSkipped: "Not attempted",
+    outcomeUnavailable: "Not licensed",
     partialHint: "An incomplete listing cannot support a pass: checks needing it report unknown.",
     // The same invariant for the readings that produced nothing at all. It
     // used to be stated only for PARTIAL, so a scan where storage failed
@@ -918,6 +920,8 @@ export const en = {
     // leaving "could not read" to be read as "nothing to report".
     unreadHint:
       "A reading that produced nothing supports nothing: its checks report unknown, never passed.",
+    // A licence gap is neither a failure nor a pass, and says which (section 196).
+    unavailableHint: "Not in this tenant's licence: those checks report unknown, not passed.",
     partial: "Some data could not be collected — affected checks are marked unknown, not passed.",
   },
   rules: {

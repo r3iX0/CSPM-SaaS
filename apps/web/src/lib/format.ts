@@ -31,13 +31,16 @@ export const levelStyle = (level: string) =>
  *
  * PARTIAL is amber rather than green, which is the point of surfacing it at
  * all: data came back, and it still cannot support a pass. SKIPPED borrows the
- * UNKNOWN treatment because that is honestly what it is.
+ * UNKNOWN treatment because that is honestly what it is, and so does
+ * UNAVAILABLE: a reading the tenant's licence does not include is unknown, not
+ * broken, and red would send someone looking for a fault.
  */
 const OUTCOME_STYLES: Record<CollectionOutcome, string> = {
   COMPLETE: "bg-ok-bg text-ok border-ok-border",
   PARTIAL: "bg-medium-bg text-medium border-medium-border",
   FAILED: "bg-critical-bg text-critical border-critical-border",
   SKIPPED: "bg-unknown-bg text-unknown border-unknown-border border-dashed",
+  UNAVAILABLE: "bg-unknown-bg text-unknown border-unknown-border border-dashed",
 };
 
 export const outcomeStyle = (outcome: CollectionOutcome) =>

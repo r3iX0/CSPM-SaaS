@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.connectors.base import NormalizedState, RawSnapshot
 from app.connectors.planning import CollectionPlan
-from app.connectors.registry import get_connector
+from app.connectors.registry import get_connector, get_connector_class
 from app.core.enums import TaskOutcome
 from app.core.logging import get_logger
 from app.core.payloads import digest
@@ -451,9 +451,25 @@ async def explain_role_drift(
     if connection is None:
         return
 
+    # A reading refused for the tenant's licence is not the role's doing, and
+    # prefixing "redeploy the role" to it would send the customer to fix a
+    # role that could never serve it (section 196).
+    outcomes: dict[str, set[str]] = {}
+    for name, entry in snapshot.coverage.items():
+        key = str(entry.get("key") or name)
+        outcomes.setdefault(key, set()).add(str(entry.get("outcome", "")))
+    unavailable = {key for key, seen in outcomes.items() if seen == {TaskOutcome.UNAVAILABLE.value}}
+
     behind = degraded_categories(connection)
     for category, explanation in behind.items():
-        if category.value in snapshot.errors:
+        # The class, not an instance: which keys a category holds is a fact
+        # about the provider, and building a connector needs the tenant and
+        # subscription ids -- without them this raised TypeError for every
+        # scan whose role was behind and had a gap to explain.
+        keys = {k.value for k in get_connector_class(account.provider).evidence_keys_in(category)}
+        gaps_here = {k for k in keys if k in snapshot.gaps}
+        only_licence = bool(gaps_here) and gaps_here <= unavailable
+        if category.value in snapshot.errors and not only_licence:
             snapshot.errors[category.value] = (
                 f"{explanation} (underlying error: {snapshot.errors[category.value]})"
             )
@@ -463,11 +479,8 @@ async def explain_role_drift(
         # sentence on the banner and a bare "Forbidden" against the check
         # that actually lost its verdict -- which is the one they clicked
         # into to find out why.
-        for key in get_connector(account.provider).evidence_keys_in(category):
-            if key.value in snapshot.gaps:
-                snapshot.gaps[key.value] = (
-                    f"{explanation} (underlying error: {snapshot.gaps[key.value]})"
-                )
+        for key_name in sorted(gaps_here - unavailable):
+            snapshot.gaps[key_name] = f"{explanation} (underlying error: {snapshot.gaps[key_name]})"
 
     if behind:
         log.info(

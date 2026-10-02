@@ -190,8 +190,9 @@ ship.
 
 Dormancy carries the one caveat that is not about permissions at all.
 `signInActivity` needs an Entra ID P1 or P2 licence, so a fully consented
-tenant on the free tier is refused exactly that reading and AZ-ID-003 reports
-UNKNOWN naming the licence. A licence is not something a Global Administrator
+tenant on the free tier is refused exactly that reading, the collector records
+it UNAVAILABLE (untrustworthy, like FAILED, but not a fault), and AZ-ID-003
+reports UNKNOWN naming the licence. A licence is not something a Global Administrator
 can consent their way to, and saying "consent is missing" to a tenant whose
 consent is complete would send somebody to fix a directory that is already
 correct.

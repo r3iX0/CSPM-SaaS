@@ -1325,7 +1325,13 @@ export interface WorkerStatus {
  * truncated. An outage and a tenant larger than one scan reads used to arrive
  * as the same sentence.
  */
-export type CollectionOutcome = "COMPLETE" | "PARTIAL" | "FAILED" | "SKIPPED";
+export type CollectionOutcome =
+  | "COMPLETE"
+  | "PARTIAL"
+  | "FAILED"
+  | "SKIPPED"
+  /** Refused for the tenant's licence: nothing failed, and no grant fixes it. */
+  | "UNAVAILABLE";
 
 export interface CollectionReading {
   subscription: string | null;
@@ -1353,6 +1359,7 @@ export interface CollectionStatus {
   partial: number;
   failed: number;
   skipped: number;
+  unavailable: number;
   degraded_categories: string[];
 }
 

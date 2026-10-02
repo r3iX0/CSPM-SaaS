@@ -17,7 +17,12 @@ def test_only_a_complete_reading_is_trustworthy() -> None:
     """The distinction the whole record exists to carry."""
     assert TaskOutcome.COMPLETE.is_trustworthy
 
-    for outcome in (TaskOutcome.PARTIAL, TaskOutcome.FAILED, TaskOutcome.SKIPPED):
+    for outcome in (
+        TaskOutcome.PARTIAL,
+        TaskOutcome.FAILED,
+        TaskOutcome.SKIPPED,
+        TaskOutcome.UNAVAILABLE,
+    ):
         assert not outcome.is_trustworthy, f"{outcome} must not support a pass"
 
 
@@ -36,6 +41,7 @@ def test_the_outcomes_are_stable_strings() -> None:
         "PARTIAL",
         "FAILED",
         "SKIPPED",
+        "UNAVAILABLE",
     }
 
 

@@ -25,7 +25,7 @@ export function CollectionPanel({ scanId }: { scanId: string }) {
   if (status.isLoading) return <Skeleton className="h-16 w-full" />;
   if (!status.data || status.data.total === 0) return null;
 
-  const { tasks, total, complete, partial, failed, skipped } = status.data;
+  const { tasks, total, complete, partial, failed, skipped, unavailable } = status.data;
   const bySubscription = new Map<string, CollectionReading[]>();
   for (const task of tasks) {
     const key = task.subscription ?? task.cloud_account_id;
@@ -59,6 +59,12 @@ export function CollectionPanel({ scanId }: { scanId: string }) {
             · {skipped} {t.scans.collectionSkipped}
           </>
         )}
+        {unavailable > 0 && (
+          <>
+            {" "}
+            · {unavailable} {t.scans.collectionUnavailable}
+          </>
+        )}
       </p>
 
       {partial > 0 && (
@@ -76,6 +82,14 @@ export function CollectionPanel({ scanId }: { scanId: string }) {
           about each. */}
       {failed + skipped > 0 && (
         <p className="mt-1 text-xs leading-relaxed text-medium">{t.scans.unreadHint}</p>
+      )}
+
+      {/* Muted rather than amber: a licence the tenant does not hold is not a
+          fault, and nothing on the connection page will change it. */}
+      {unavailable > 0 && (
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          {t.scans.unavailableHint}
+        </p>
       )}
 
       <div className="mt-2 flex flex-col gap-3">
@@ -177,5 +191,6 @@ function outcomeLabel(t: ReturnType<typeof useT>, outcome: CollectionOutcome): s
     PARTIAL: t.scans.outcomePartial,
     FAILED: t.scans.outcomeFailed,
     SKIPPED: t.scans.outcomeSkipped,
+    UNAVAILABLE: t.scans.outcomeUnavailable,
   }[outcome];
 }
