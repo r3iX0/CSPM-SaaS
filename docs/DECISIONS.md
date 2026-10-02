@@ -10961,6 +10961,22 @@ pinned address cannot tell them apart and an ARM path carries the customer's sub
 test sends a real request through the HTTP integration, then an unrelated error, and fails if the
 path reaches the event. Credentials in a URL the API logs itself are still the caller's to avoid.
 
+## 199. A per-resource reading blames the role only when ARM refused it with a 403
+
+A scan reported blob recovery settings unread for 5 of 5 storage accounts, file share settings
+for 5 of 5 and vault keys for 2 of 2, each saying "a scanner role deployed before v7 (or v11)
+does not grant the permission". The banner carried no "redeploy the role", because the
+connection's recorded role was current. The two statements could not both be true, and the
+second was not evidence: `_per_resource_task` counted every exception as a refusal and named the
+role for all of them, so a 404, a 400 from an API version, a timeout or a block at Microsoft's
+edge (`EDGE_BLOCK_MESSAGE`) all read as an old role.
+
+**The role is named only when every failure was ARM's own 403.** `_per_resource_reason` checks
+the `AzureApiError` status of each failure and leaves out edge blocks, which are 403s that no
+role can fix. Anything else is reported with the first failure quoted, which is the same error
+the worker logs as `azure.request_failed` with its URL, status and Azure request id. Whether the
+scan in question was a real 403 is not known from here; this makes the next scan say which.
+
 ## Open items carried forward
 
 **Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read
