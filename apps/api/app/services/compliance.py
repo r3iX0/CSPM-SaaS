@@ -44,6 +44,7 @@ from app.compliance.coverage import (
 from app.core.enums import FindingStatus, Provider, ScanStatus, TaskOutcome
 from app.models.cloud_connection import CloudConnection
 from app.models.finding import Finding
+from app.models.organization import Organization
 from app.models.rule import Rule
 from app.models.scan import Evidence, EvidenceBlob, Scan, ScanEvaluationGap, ScanRuleResult
 
@@ -480,6 +481,12 @@ def _assessment(snapshot: _Snapshot) -> dict | None:
         # be the one document where that omission is expensive.
         "scan_status": scan.status.value,
     }
+
+
+async def organization_name(session: AsyncSession, organization_id: UUID) -> str:
+    """The organization's display name, for the heading of an export."""
+    organization = await session.get(Organization, organization_id)
+    return organization.name if organization else "organization"
 
 
 async def build_export(

@@ -15,7 +15,6 @@ from fastapi.responses import Response
 from app.compliance.export import export_filename, to_csv
 from app.core.deps import DbSession, Tenant
 from app.core.errors import NotFound
-from app.models.organization import Organization
 from app.schemas.common import ERROR_RESPONSES, Envelope, NoMeta
 from app.schemas.compliance import FrameworkDetailOut, FrameworkSummaryOut
 from app.services import compliance as service
@@ -62,12 +61,11 @@ async def export_framework(
     passed, which is the half a screen tends to leave out and an auditor asks
     about first.
     """
-    organization = await session.get(Organization, tenant.organization_id)
     payload = await service.build_export(
         session,
         tenant.organization_id,
         framework_id,
-        organization_name=organization.name if organization else "organization",
+        organization_name=await service.organization_name(session, tenant.organization_id),
     )
     if payload is None:
         raise NotFound("Framework not found")

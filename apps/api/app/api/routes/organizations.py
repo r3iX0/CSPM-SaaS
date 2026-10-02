@@ -5,7 +5,6 @@ from fastapi import APIRouter, Request, Response, status
 from app.api.links import created
 from app.core.deps import CurrentUser, DbSession, Tenant
 from app.core.enums import Role
-from app.core.errors import OrganizationNotFound
 from app.models.organization import Organization
 from app.schemas.common import Envelope, NoMeta, error_responses
 from app.schemas.organization import (
@@ -75,11 +74,7 @@ def _membership(org: Organization, role: Role) -> OrganizationMembershipOut:
 async def get_organization(
     organization_id: UUID, session: DbSession, tenant: Tenant
 ) -> Envelope[OrganizationOut, NoMeta]:
-    # RLS would hide another tenant's row anyway; this returns the honest 404
-    # rather than letting a NULL propagate.
-    org = await session.get(Organization, organization_id)
-    if org is None:
-        raise OrganizationNotFound()
+    org = await service.get_organization(session, organization_id)
     return Envelope(data=OrganizationOut.model_validate(org), meta=NoMeta())
 
 

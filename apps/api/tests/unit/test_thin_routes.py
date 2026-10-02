@@ -36,14 +36,8 @@ SESSION_CALLS = {
 
 PENDING = {
     "assets.py",
-    "changes.py",
-    "cloud_accounts.py",
-    "cloud_connections.py",
-    "compliance.py",
     "findings.py",
-    "organizations.py",
     "risks.py",
-    "rules.py",
     "scans.py",
 }
 

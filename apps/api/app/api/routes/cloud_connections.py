@@ -168,11 +168,7 @@ async def arm_template(connection_id: UUID, token: str = Query(default="")) -> J
             headers=TEMPLATE_CORS_HEADERS,
         )
 
-    async with service_session() as session:
-        connection = await session.get(CloudConnection, connection_id)
-        if connection is None:
-            raise CloudAccountNotFound("Connection not found")
-        artifact = service.render_artifact(connection)
+    artifact = await service.render_connection_artifact(connection_id)
 
     return JSONResponse(
         content=json.loads(artifact.body),

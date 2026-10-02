@@ -88,6 +88,19 @@ async def is_member(session: AsyncSession, organization_id: UUID, user_id: UUID)
     return found is not None
 
 
+async def get_organization(session: AsyncSession, organization_id: UUID) -> Organization:
+    """An organization the caller belongs to.
+
+    Row-level security hides any other tenant's row, so a missing one reads the same whether it
+    does not exist or is somebody else's: both are the honest ``404`` rather than a ``None``
+    that propagates.
+    """
+    org = await session.get(Organization, organization_id)
+    if org is None:
+        raise OrganizationNotFound()
+    return org
+
+
 async def update_organization(
     session: AsyncSession,
     tenant: TenantContext,

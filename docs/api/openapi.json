@@ -1968,6 +1968,7 @@
           "cloud-accounts"
         ],
         "summary": "List Cloud Accounts",
+        "description": "The subscriptions discovered under this organization's connections.",
         "operationId": "cloud_accounts_list_cloud_accounts",
         "security": [
           {
@@ -8261,6 +8262,7 @@
           "rules"
         ],
         "summary": "List Rules",
+        "description": "Every rule that runs, with what it checks and how to fix a failure.",
         "operationId": "rules_list_rules",
         "security": [
           {
@@ -8335,6 +8337,7 @@
           "rules"
         ],
         "summary": "Get Rule",
+        "description": "One rule by its id, such as ``AZ-STO-001``.",
         "operationId": "rules_get_rule",
         "security": [
           {
