@@ -7,12 +7,18 @@ from typing import Any
 import structlog
 
 from app.core.config import settings
+from app.core.redaction import AccessLogRedactor
 
 
 def configure_logging() -> None:
     logging.basicConfig(
         format="%(message)s", stream=sys.stdout, level=getattr(logging, settings.log_level, 20)
     )
+    # Uvicorn writes the request target, query string included, into its access log, and two
+    # routes carry a credential there (``?token=``). Attached once however often this runs.
+    access = logging.getLogger("uvicorn.access")
+    if not any(isinstance(f, AccessLogRedactor) for f in access.filters):
+        access.addFilter(AccessLogRedactor())
     structlog.configure(
         processors=[
             structlog.contextvars.merge_contextvars,

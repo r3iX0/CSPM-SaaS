@@ -88,6 +88,11 @@ def test_cors_allows_named_methods_and_headers_only() -> None:
     assert {"Authorization", "Content-Type", "X-Organization-Id"} <= set(options["allow_headers"])
 
 
+def test_cors_is_not_credentialed_because_the_api_uses_no_cookies() -> None:
+    """The token travels in ``Authorization``; credentialed mode would add cookies and certs."""
+    assert _cors()["allow_credentials"] is False
+
+
 def test_cors_exposes_what_a_client_reads_from_a_response() -> None:
     exposed = set(_cors()["expose_headers"])
     assert {"X-Request-ID", "X-RateLimit-Remaining", "Retry-After", "Location"} <= exposed
