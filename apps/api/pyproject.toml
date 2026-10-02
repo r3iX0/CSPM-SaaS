@@ -17,7 +17,7 @@ dependencies = [
   "psycopg[binary]==3.2.3",
   "alembic==1.14.0",
   "celery[redis]==5.4.0",
-  "redis==5.2.1",
+  "redis==8.1.0",
   "httpx==0.28.1",
   # Pinned directly rather than left to Starlette's ">=3.4,<5": two limiters
   # (reports, graph work) are created at import, outside any running loop,
