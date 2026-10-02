@@ -10,7 +10,7 @@ place that knows which keys carry one, and the log filter and the error tracker 
 """
 
 import logging
-from urllib.parse import unquote_plus
+from urllib.parse import unquote_plus, urlsplit
 
 REDACTED = "[redacted]"
 
@@ -59,6 +59,23 @@ def redact_url(url: str) -> str:
         return url
     query, hash_sign, fragment = rest.partition("#")
     return f"{path}?{redact_query_string(query)}{hash_sign}{fragment}"
+
+
+def origin_only(url: str) -> str:
+    """The scheme and host of an absolute URL, with anything after them replaced.
+
+    For an outbound call the path can be the credential: a Slack or Teams webhook URL is a
+    secret from end to end, and the call is pinned to an address, so nothing in the host says
+    which kind of receiver it was. The host is enough to see where a request went. A value that
+    is not an absolute URL falls back to query redaction.
+    """
+    parts = urlsplit(url)
+    if not parts.scheme or not parts.hostname:
+        return redact_url(url)
+    host = f"[{parts.hostname}]" if ":" in parts.hostname else parts.hostname
+    port = f":{parts.port}" if parts.port else ""
+    rest = parts.path not in ("", "/") or parts.query or parts.fragment
+    return f"{parts.scheme}://{host}{port}" + (f"/{REDACTED}" if rest else "")
 
 
 class AccessLogRedactor(logging.Filter):

@@ -13,7 +13,13 @@ from typing import Any
 
 import sentry_sdk
 
-from app.core.redaction import REDACTED, SENSITIVE_QUERY_KEYS, redact_query_string, redact_url
+from app.core.redaction import (
+    REDACTED,
+    SENSITIVE_QUERY_KEYS,
+    origin_only,
+    redact_query_string,
+    redact_url,
+)
 
 
 def _scrub_pairs(pairs: list[Any]) -> list[Any]:
@@ -33,14 +39,15 @@ def _scrub_pairs(pairs: list[Any]) -> list[Any]:
 def scrub_breadcrumb(crumb: dict[str, Any], hint: dict[str, Any] | None = None) -> dict[str, Any]:
     """Redact the URL a breadcrumb carries, in its data and in its message.
 
-    The HTTP client logs ``HTTP Request: GET <url>`` and the logging integration turns each line
-    into a breadcrumb, so an outbound URL with a credential in it is recorded whether or not an
-    error follows.
+    The HTTP client integration records every outbound call as a breadcrumb, so an outbound URL
+    with a credential in it is recorded whether or not an error follows. Its URL keeps only the
+    scheme and host, because a webhook's credential is its path (DECISIONS.md §198); a message
+    that holds a query loses the credential values in it.
     """
     data = crumb.get("data")
     if isinstance(data, dict):
         if isinstance(data.get("url"), str):
-            data["url"] = redact_url(data["url"])
+            data["url"] = origin_only(data["url"])
         if isinstance(data.get("http.query"), str):
             data["http.query"] = redact_query_string(data["http.query"])
     message = crumb.get("message")

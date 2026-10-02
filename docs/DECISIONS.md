@@ -10930,6 +10930,37 @@ had a gap, it raised `TypeError` and failed the COLLECT step. It reads the
 class now (`get_connector_class`), as the registry intends for provider-level
 facts. `tests/unit/test_licence_gaps.py` covers all of the above.
 
+## 197. The image runs the Python CI tests on, and a newer one is moved to by hand
+
+Dependabot moved the API image from `python:3.12-slim` to `python:3.14-slim` (#26) while CI kept
+testing on 3.12, so nothing exercised the image before Railway built it. The build then failed for
+the API and the worker alike: `psycopg-binary==3.2.3` has no 3.14 wheel (`No matching distribution
+found`).
+
+**The image is back on 3.12, the interpreter CI runs.** A newer Python changes the stack, not one
+package: every pinned dependency needs a wheel for it, CI's `python-version` moves in the same
+commit, and the whole suite runs on it first. Dependabot still proposes the base image's patch
+releases, which carry security fixes, and ignores its minor and major versions
+(`.github/dependabot.yml`).
+
+## 198. An outbound URL is written down as its host, because a webhook's credential is its path
+
+§195 kept credentials in a query string out of the access log and Sentry, but a Slack or Teams
+webhook URL is a secret from end to end, and its secret is the path. Two places still wrote it.
+httpx logs `HTTP Request: POST <url>` at INFO, which is the API's level, so every delivery and
+every test send put the URL in the process's stdout; and Sentry's HTTP integration records each
+outbound call as a breadcrumb, so a test send followed by any error in the same request sent the
+URL to Sentry. The delivery is pinned to the checked address (§164), so the host in that URL is an
+IP and nothing in it says the request was a webhook.
+
+**The client's request lines are off, and an HTTP breadcrumb keeps scheme and host only.** The
+`httpx` and `httpcore` loggers are held at WARNING by `configure_logging`; the caller already
+records how a delivery went. `scrub_breadcrumb` reduces a breadcrumb's URL to its origin
+(`origin_only` in `app/core/redaction.py`) for every outbound call, not only webhooks, because the
+pinned address cannot tell them apart and an ARM path carries the customer's subscription ids. A
+test sends a real request through the HTTP integration, then an unrelated error, and fails if the
+path reaches the event. Credentials in a URL the API logs itself are still the caller's to avoid.
+
 ## Open items carried forward
 
 **Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read
