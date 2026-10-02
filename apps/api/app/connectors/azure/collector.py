@@ -84,7 +84,7 @@ class AzureCollector:
         """
         if not self.subscription_id:
             raise ValueError("A subscription id is required to collect Azure state")
-        return await self._run(
+        snapshot = await self._run(
             RawSnapshot(
                 provider=Provider.AZURE,
                 tenant_id=self.tenant_id,
@@ -95,6 +95,8 @@ class AzureCollector:
             on_progress,
             plan,
         )
+        explain_subscription_state(snapshot)
+        return snapshot
 
     async def collect_directory(
         self,
@@ -182,3 +184,43 @@ class AzureCollector:
             **limiter.stats(),
         )
         return snapshot
+
+
+# What Azure's subscription states mean for a scan. ``Enabled`` is the only one in which every
+# resource answers; the rest are why a whole subscription's reads fail at once.
+_SUBSCRIPTION_STATES = {
+    "warned": "Azure has warned this subscription, usually over payment, and will disable it "
+    "if that is not resolved",
+    "pastdue": "this subscription's payment is past due, and Azure may already be refusing "
+    "reads of its resources",
+    "disabled": "Azure has disabled this subscription, as it does when a trial or credit ends, "
+    "a spending limit is reached or it is cancelled, and its resources cannot be read until "
+    "it is reactivated",
+    "deleted": "this subscription has been deleted",
+}
+
+
+def explain_subscription_state(snapshot: RawSnapshot) -> None:
+    """Say once that the subscription is not active, ahead of every gap it caused.
+
+    A disabled subscription disables its storage accounts, and each account then fails its own
+    read: the scan showed five "account is disabled" errors and never the one fact behind them.
+    The state is in the subscription the plan already reads, so this costs no request. It
+    rewrites only what failed, as role drift does, and never turns a gap into a verdict: the
+    checks stay unknown (DECISIONS.md section 200). A subscription served from fresh evidence
+    rather than read this scan has nothing here to explain with, and is left alone.
+    """
+    subscription = snapshot.data.get("subscription")
+    state = subscription.get("state") if isinstance(subscription, dict) else None
+    if not isinstance(state, str) or state.lower() == "enabled":
+        return
+    meaning = _SUBSCRIPTION_STATES.get(
+        state.lower(), "Azure reports this subscription as not active"
+    )
+    note = f"Subscription state is {state}: {meaning}."
+    for category, message in snapshot.errors.items():
+        snapshot.errors[category] = f"{note} (underlying error: {message})"
+    for key, message in snapshot.gaps.items():
+        snapshot.gaps[key] = f"{note} (underlying error: {message})"
+    if snapshot.errors or snapshot.gaps:
+        log.info("azure.subscription_not_enabled", state=state, gaps=len(snapshot.gaps))

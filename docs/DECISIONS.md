@@ -10977,6 +10977,41 @@ role can fix. Anything else is reported with the first failure quoted, which is 
 the worker logs as `azure.request_failed` with its URL, status and Azure request id. Whether the
 scan in question was a real 403 is not known from here; this makes the next scan say which.
 
+## 200. A subscription Azure has switched off is named once, and its disabled resources stay unknown
+
+With §199 the next scan quoted its real errors: every storage account in the subscription answered
+`AccountIsDisabled` or `The specified account is disabled`, five times over, for blob recovery and
+again for file shares. Nobody disables a storage account by hand; Azure does, when the
+subscription itself is disabled, warned or past due. The scan showed ten symptoms and never the
+one fact behind them.
+
+**The subscription's state is read from what the plan already collects.** `get_subscription`
+returns `state` (`Enabled`, `Warned`, `PastDue`, `Disabled`, `Deleted`), so this costs no
+request. When it is anything but `Enabled`, `explain_subscription_state` (in the Azure collector,
+because the state is Azure's word) puts one sentence in front of every category error and every
+gap, as role drift does: what the state means and that its resources cannot be read until it is
+active. A subscription served from fresh evidence rather than read this scan is left as it was.
+
+**A disabled storage account is named as a state, not a failed read.** `_per_resource_reason`
+recognises both spellings and says Azure has disabled the accounts, rather than quoting the first
+error. Mixed failures still quote the first.
+
+**Considered and not done: skipping the rules of a disabled resource.** It was proposed that a
+disabled account poses no risk and its posture rules should not run. They still run, and report
+UNKNOWN. The data is still there, the settings come back unchanged when the subscription is
+reactivated, and "could not be read" becoming "nothing to report" is the UNKNOWN-as-PASS mistake
+the rule engine exists to refuse. Marking such assets as disabled in the inventory is possible
+later, as a label that hides nothing.
+
+## 201. The Prowler NOTICE file is deleted
+
+The root `NOTICE` was added with the second engine (§150) and kept when it was removed (§168),
+because `frameworks.json`, `crosswalk.json` and `NATIVE_COVERAGE_BACKLOG.md` were first derived
+from Prowler 5.43.0 and Apache 2.0 asks a derived work to keep the original's attribution. It is
+deleted on the owner's decision now that Prowler is neither run nor distributed. That the derived
+data is still in the repository was raised before deleting it. The `$comment` of each JSON file
+still says where its contents first came from.
+
 ## Open items carried forward
 
 **Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read

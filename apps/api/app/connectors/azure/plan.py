@@ -480,7 +480,27 @@ def _per_resource_reason(
             f"{head} A scanner role deployed before {first_version_granting(*actions)} "
             "does not grant the permission this needs."
         )
+    if all(_is_disabled_account(exc) for exc in failures):
+        # A state of the resource, not a failed read: nobody can read these settings while
+        # the account is off, and they stay unknown rather than passing (section 200).
+        return (
+            f"{head} Azure has disabled these {of}, which it does when their subscription is "
+            "disabled or past due; their settings cannot be read by anyone until the "
+            "subscription is active again."
+        )
     return f"{head} The first failure: {failures[0]}"
+
+
+def _is_disabled_account(exc: Exception) -> bool:
+    """Azure's refusal for a storage account it has switched off.
+
+    Two spellings, one per service: the file service answers ``AccountIsDisabled`` and the
+    blob service ``ContainerOperationFailure: The specified account is disabled``.
+    """
+    text = str(exc)
+    return isinstance(exc, AzureApiError) and (
+        "AccountIsDisabled" in text or "account is disabled" in text.lower()
+    )
 
 
 class AzurePlanBuilder:
