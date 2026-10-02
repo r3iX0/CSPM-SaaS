@@ -37,6 +37,14 @@
       {
         "id": "b0afded3-3588-46d8-8b3d-9842eff778da",
         "type": "Role"
+      },
+      {
+        "id": "bdba4817-6ba1-4a7c-8a01-be9bc7c242dd",
+        "type": "Role"
+      },
+      {
+        "id": "d07a8cc0-3d51-4b77-b3b0-32704d1f69fa",
+        "type": "Role"
       }
     ]
   }

@@ -212,10 +212,11 @@ def test_the_role_is_small_enough_to_read() -> None:
     The ceiling was twenty until v7 needed twenty-five, thirty until v9 added
     six types at one read each (DECISIONS.md section 169), and thirty-five until
     v11 added the twenty-one reads the rest of Tier 2 needed (section 176), and
-    fifty-five until v12 added two for Tier 3 (section 177).
+    fifty-five until v12 added two for Tier 3 (section 177), and sixty until v13
+    added five for the compliance controls section 204 closed.
     Raised rather than removed: each is a service setting a check reads, and a
     ceiling is still what makes the next addition a decision rather than a
     habit."""
     from app.connectors.azure.rbac import ARM_READ_ACTIONS
 
-    assert len(ARM_READ_ACTIONS) <= 60
+    assert len(ARM_READ_ACTIONS) <= 65

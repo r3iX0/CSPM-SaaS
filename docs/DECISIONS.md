@@ -9553,7 +9553,7 @@ alone: its TLS questions are server parameters, which need
 The backlog now holds twenty-two Tier 1 checks, and states why each group is
 left.
 
-## 171. The rest of Tier 1 that needs no new read: five rules, two already answered, one declined
+## 171. The rest of Tier 1 that needs no new read: five rules, two already answered, one declined — **the decline reversed by §204**
 
 §170 closed fifteen Tier 1 checks. Of the twenty-two left, eight needed nothing
 the scanner does not already read. Each was weighed against what the native
@@ -9739,7 +9739,7 @@ The crosswalk carries each counterpart's mappings. The storage checks that need
 the file service (file-share soft delete, SMB) or a key-rotation reading are
 left for a batch that adds those reads.
 
-## 175. The rest of Tier 2 that needs no new permission
+## 175. The rest of Tier 2 that needs no new permission — **two declines reversed by §204**
 
 Fourteen more property specs (section 174), each reading a field the scanner
 already collects or a server parameter under a configuration read the role
@@ -11106,6 +11106,129 @@ the right trade if groups grow into the hundreds.
 The effort shown for a group is the sum of its open tasks' estimates. That overstates work done as
 one script, but the estimate is the rule's per asset, and a smaller number the product cannot
 justify would be worse than a larger one it can.
+
+## 204. Every control a scanner can observe is answered by a rule
+
+The compliance page measured each framework against its whole catalogue, and section 168 kept it that
+way on purpose: a requirement no rule reaches reads not covered. Measured on 2026-10-02, the Azure
+and organization frameworks still had observable controls nothing answered: 34 of CIS Azure 2.0, 18
+of CIS Azure 6.0, 23 of NIS2, 10 of ATT&CK, and one each of NIST CSF and PCI DSS. Some were rules
+nobody had mapped, some were procedural clauses the catalogue called observable, and the rest were
+settings no rule read. This closes all of them that can be closed, and names the twelve that cannot.
+AWS is unchanged: section 168's position stands, and AWS is not ported for breadth while it has
+never run against a live account.
+
+**Mappings that were missing or wrong.** Rules already answered controls nobody had mapped:
+AZ-ID-013 is CIS Azure 2.0 1.2.6, AZ-ID-005 is CIS Azure 6.0 5.1.1 (security defaults, or the
+Conditional Access that replaces them), AZ-IAM-005 is the upper half of 6.0 5.7, AZ-CMP-003 is 2.0
+7.7 (legacy VHDs, fixed by moving to managed disks), AZ-DEF-010 is PCI DSS 2.2.1 (an enforced
+benchmark is a hardened configuration standard in force), six backup and recovery rules are ATT&CK
+T1490, and AZ-IAM-001 and AZ-IAM-002 are T1651 (Owner and Contributor can run commands on any
+machine). One crosswalk entry was wrong: CIS Azure 6.0 9.3.1.1 is key rotation reminders, and it sat
+on the infrastructure encryption rule. It moves to AZ-STO-015, the key expiry policy, which is that
+reminder, and AZ-STO-015's 2.0 mapping moves from 3.4 to 3.3 for the same reason. The crosswalk's
+added entries are hand-written, and its comment now says so.
+
+**Controls no scanner can observe say so.** Twenty-two NIS2 clauses (annual policy review,
+crisis management, who reports to the board, the risk treatment plan) and six ATT&CK techniques
+(system and software discovery, data staging, information repositories, event-triggered execution)
+were marked observable because the catalogue they came from marked everything that way. They are
+not, and NIST CSF ID.AM-1 asks about physical devices. Marking them is not shrinking the denominator
+to flatter the number: section 168's page shows them as beyond a scanner, which is what they are.
+Eight CIS Azure 6.0 controls the benchmark files as manual are read by a rule now, and are marked
+observable.
+
+**Thirty-nine rules, most reading what was already collected.**
+
+- Storage: AZ-STO-017 shared key access allowed (unset allows it, as Azure documents), AZ-STO-018 an
+  access key not regenerated in 90 days -- judged against the capture's own time, as runtime
+  support is (section 177) -- AZ-STO-019 no delete lock, and AZ-STO-020 the blob, queue or table
+  service logging no reads, writes and deletes. That last reads diagnostic settings beneath each
+  service in a task of its own: the shared diagnostics task depends on every listing it draws ids
+  from, so a refused listing would have skipped it and cost every logging rule its verdict.
+- Key vaults: AZ-KV-007 public network access not disabled, not applicable where the vault answers
+  every network, which AZ-KV-002 reports; AZ-KV-008 no private endpoint; AZ-KV-009 a certificate
+  valid for more than twelve months. The management plane does not list certificates, but each one
+  is stored beside a secret holding its key pair, carrying its content type and validity window, so
+  the lifetime is read without a data-plane permission. Whether ARM's secret listing includes those
+  secrets is the first thing a live v13 read will show; until it does, a vault with none listed is
+  not applicable rather than passing.
+- Databricks: AZ-DBW-005 no private endpoint and AZ-DBW-007 logs sent nowhere, both on Premium
+  workspaces only, since neither exists below it; AZ-DBW-006 a workspace subnet without a network
+  security group, joined against the virtual networks read since v11.
+- Networks: AZ-NET-016 a subnet without a network security group, leaving out the four subnets Azure
+  reserves for gateways, firewalls and route servers; AZ-NET-017 HTTP or HTTPS open to the internet;
+  AZ-NET-018 public addresses on the Basic SKU Azure retired in September 2025.
+- Application gateways, a new `ResourceType.APPLICATION_GATEWAY`: AZ-AGW-001 no web application
+  firewall, AZ-AGW-002 TLS below 1.2 (a gateway stating no TLS policy is not judged, since its
+  default depends on the API version it was created under), AZ-AGW-003 no HTTP/2, AZ-AGW-004 request
+  bodies not inspected and AZ-AGW-005 no bot protection, the last two only where a firewall is on.
+- VPN gateways, a new `ResourceType.VPN_GATEWAY`: AZ-VPN-001 point-to-site clients admitted without
+  an Entra ID sign-in.
+- Workloads: AZ-CMP-014 a machine not assessed for missing updates every 24 hours (ImageDefault, the
+  documented default), AZ-WEB-014 a web app not requiring client certificates, AZ-DB-025 a
+  PostgreSQL server admitting every Azure service through the 0.0.0.0 rule.
+- Defender: AZ-DEF-012 agentless scanning for machines off, AZ-DEF-013 file integrity monitoring
+  off, AZ-DEF-014 the Containers sensor off, AZ-DEF-015 DNS not watched. The standalone DNS plan was
+  folded into Servers Plan 2 in 2023, so either one passes. Extension names were checked against the
+  pricing API's reference.
+- Governance: AZ-POL-001 no enforced Allowed locations policy, read from the policy assignments
+  already collected; AZ-LCK-001 an asset marked high or critical with no delete lock; AZ-IAM-011 no
+  custom role for administering locks; AZ-IAM-012 fewer than two Owners, the lower half of CIS 6.0
+  5.7.
+- Tenant: AZ-ID-023 administrators not required to use MFA, AZ-ID-024 risky sign-ins not
+  challenged at medium risk or higher, AZ-ID-025 no policy by location, AZ-ID-026 no custom
+  banned-password list (the `Password Rule Settings` directory setting, read under the consent
+  already held), AZ-ID-027 no sign-in frequency, AZ-ID-028 Authenticator notifications hiding the
+  application or location (only an explicit `disabled` fails, since Microsoft has shown both by
+  default since 2023), AZ-ID-029 joining a device without MFA, AZ-ID-030 subscriptions free to
+  move in or out of the directory, and AZ-ID-031 no access review covering guests.
+
+**Three declines reversed.** Section 171 left HTTP on 80 and 443 unflagged because a finding on
+every web server would bury the ones that matter, and section 175 declined client certificates and
+a lock-administration role as design choices rather than settings. CIS asks all three in both
+editions, and a compliance view that cannot answer a benchmark's own question reads as a gap the
+product chose to hide. So they are asked, at LOW: AZ-NET-017 is its own rule rather than part of
+AZ-NET-003's catch-all, so it buries nothing, and a public website or an app built for anonymous
+callers dismisses the finding with a reason. The reasoning of the earlier sections still holds for
+severity; it no longer holds for silence.
+
+**Role v13: five reads.** `Microsoft.Network/applicationGateways/read`,
+`Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies/read`,
+`Microsoft.Network/virtualNetworkGateways/read`, `Microsoft.Authorization/locks/read` and
+`Microsoft.DBforPostgreSQL/flexibleServers/firewallRules/read`, each checked on 2026-10-02 against
+the published operations reference. ARM lists virtual network gateways only per resource group, so
+each is read by id from the inventory, and the client spells the path out from the id's parts so it
+can only ever name a gateway. The role holds sixty-one actions and the ceiling test moves to
+sixty-five. A v12 connection keeps every verdict and route and is prompted to redeploy with
+Network, Databases and Posture named; the checks on these reads report UNKNOWN until then. The
+tenant's subscription policy is read from ARM at the tenant scope, which Microsoft documents as
+readable by every user, so it costs no role action; an unset field reads as blocked, the default
+Microsoft documents since 1 May 2026.
+
+**Two Graph permissions, the first added since onboarding.** `Policy.Read.DeviceConfiguration`
+(`bdba4817-...`) reads the device registration policy and `AccessReview.Read.All` (`d07a8cc0-...`)
+the access reviews, both ids read from Microsoft Graph's published reference -- a third-party
+catalogue gave the first permission's delegated id, which is exactly the near miss `auth.py`'s rule
+about recalled identifiers exists for. Every connected tenant must consent again before AZ-ID-029
+and AZ-ID-031 can run. Until then they report UNKNOWN and the connection names the missing
+permissions, as section 63 arranged. AZ-ID-029 passes on a Conditional Access policy on the
+"Register or join devices" action whether or not the policy read worked, since either answer is
+enough on its own. Access reviews need Entra ID P2 or Governance, and a tenant without it records
+the reading as UNAVAILABLE (section 196).
+
+**What cannot be answered.** Twelve CIS Azure 2.0 controls stay not covered, listed with their
+reasons in `docs/NATIVE_COVERAGE_BACKLOG.md`: self-service password reset's four settings and the
+legacy "remember MFA" toggle have no Graph or ARM read, four Entra switches exist only in the
+portal, the Log Analytics agent and PostgreSQL single server are retired, and whether key vaults
+hold application secrets needs the application settings behind `config/list`, which also returns
+secrets. `tests/unit/test_compliance_closure.py` holds the invariant both ways: every observable
+control of CIS Azure 6.0, NIS2, ATT&CK, HIPAA, GDPR, NIST CSF and PCI DSS is mapped by a rule, and
+CIS Azure 2.0's gaps are exactly those twelve.
+
+**Nothing here has been read from a live tenant.** The fixtures are shaped after the published
+references. The demo's payments vault gains the private endpoint a vault with public access off
+would have. The first redeployed v13 connection, consented again, is the check.
 
 ## Open items carried forward
 

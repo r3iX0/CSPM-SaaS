@@ -114,6 +114,9 @@ def _violation(value: object) -> object:
     # MySQL's ``tls_version`` parameter, lower-cased by the normalizer.
     if value == "tlsv1.2":
         return "tlsv1"
+    # A machine's patch assessment mode (section 204).
+    if value == "AutomaticByPlatform":
+        return "ImageDefault"
     raise AssertionError(f"no violation defined for {value!r}")
 
 

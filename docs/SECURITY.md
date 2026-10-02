@@ -91,10 +91,10 @@ required test category, not optional coverage (`tests/integration/test_rls.py`, 
 
   | Grant | What it reads |
   |---|---|
-  | Microsoft Graph, application scopes | `Directory.Read.All`, `User.Read.All`, `RoleManagement.Read.Directory`, `UserAuthenticationMethod.Read.All`, `Policy.Read.All`, `Application.Read.All`, `Group.Read.All`, `IdentityRiskyUser.Read.All`, `AuditLog.Read.All` |
+  | Microsoft Graph, application scopes | `Directory.Read.All`, `User.Read.All`, `RoleManagement.Read.Directory`, `UserAuthenticationMethod.Read.All`, `Policy.Read.All`, `Application.Read.All`, `Group.Read.All`, `IdentityRiskyUser.Read.All`, `AuditLog.Read.All`, `Policy.Read.DeviceConfiguration`, `AccessReview.Read.All` |
   | Azure RBAC | `Reader`, per subscription |
 
-  All nine are read scopes and the RBAC role is `Reader`. There is no
+  All eleven are read scopes and the RBAC role is `Reader`. There is no
   code path that writes to a customer tenant, which is why enabling change
   events hands the customer an `az eventgrid` command to run themselves rather
   than creating the subscription for them — CloudGuard could not create it.

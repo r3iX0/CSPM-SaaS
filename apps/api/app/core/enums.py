@@ -620,6 +620,15 @@ class ResourceType(StrEnum):
     # Not the workforce directory the USER type lives in: its sign-in faces the
     # internet by design, and its defences are the pool's own (section 177).
     USER_POOL = "user_pool"
+    # A layer-7 load balancer in front of web workloads: an Azure Application
+    # Gateway. Its own type because what is judged is the front door itself --
+    # whether a web application firewall inspects what passes and which TLS it
+    # accepts (section 204).
+    APPLICATION_GATEWAY = "application_gateway"
+    # A site-to-site or point-to-site VPN endpoint: an Azure virtual network
+    # gateway. What is judged is who it lets in and how they prove it
+    # (section 204).
+    VPN_GATEWAY = "vpn_gateway"
     UNKNOWN = "unknown"
 
 

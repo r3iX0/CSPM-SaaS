@@ -19,6 +19,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from app.connectors.azure import settings as v11
+from app.connectors.azure import settings_v13 as v13
 from app.connectors.azure.access import access_profile
 from app.connectors.azure.network import network_access
 from app.connectors.azure.rbac import action_matches
@@ -528,7 +529,9 @@ class AzureNormalizer:
             if snapshot.subscription_id
             else None
         )
-        state.resources.extend(self._normalize_storage(data, diagnostics, activity_log_accounts))
+        state.resources.extend(
+            self._normalize_storage(data, diagnostics, activity_log_accounts, snapshot.collected_at)
+        )
         state.resources.extend(self._normalize_databases(data, diagnostics))
         state.resources.extend(self._normalize_key_vaults(data, diagnostics))
         state.resources.extend(
@@ -542,6 +545,9 @@ class AzureNormalizer:
         # Section 177: Recovery Services vaults and scale sets.
         state.resources.extend(v11.backup_vaults(data, _context))
         state.resources.extend(v11.scale_sets(data, _context))
+        # Section 204: application gateways and virtual network gateways.
+        state.resources.extend(v13.application_gateways(data, _context))
+        state.resources.extend(v13.vpn_gateways(data, _context))
 
         vms, vm_edges = self._normalize_vms(data, nics, public_ips)
         state.resources.extend(vms)
@@ -568,6 +574,17 @@ class AzureNormalizer:
         # produced in far more detail -- and two rows for one asset would be an
         # inventory that miscounts and a graph with the same thing in it twice.
         state.resources.extend(self._normalize_inventory(data, state.resources))
+
+        # Section 204: whether a lock stops each asset being deleted. A lock
+        # protects its scope and everything beneath it, so this is a pass over
+        # every asset rather than a field of any one listing.
+        if "resource_locks" in data:
+            locked_scopes = v13.lock_scopes(data.get("resource_locks"))
+            for resource in state.resources:
+                if resource.provider_resource_id.lower().startswith("/subscriptions/"):
+                    resource.metadata["delete_locked"] = v13.delete_locked(
+                        resource.provider_resource_id, locked_scopes
+                    )
 
         # --- the graph ------------------------------------------------------
         # Everything above describes assets one at a time. What follows says how
@@ -857,6 +874,9 @@ class AzureNormalizer:
                     **v11.subscription_settings(
                         snapshot.data, subscription_node, diagnostics.get(subscription_node)
                     ),
+                    # Section 204: Defender extensions, the regions policy
+                    # allows, and Basic public addresses.
+                    **v13.subscription_extras(snapshot.data),
                 },
             )
         ]
@@ -1259,6 +1279,7 @@ class AzureNormalizer:
         data: dict[str, Any],
         diagnostics: dict[str, Any],
         activity_log_accounts: set[str] | None = None,
+        collected_at: datetime | None = None,
     ) -> list[CloudResource]:
         resources = []
         for account in data.get("storage_accounts", []):
@@ -1329,6 +1350,14 @@ class AzureNormalizer:
                         "key_expiration_days": _first(
                             props, "keyPolicy", "keyExpirationPeriodInDays"
                         ),
+                        # Section 204: how long since the older access key was
+                        # regenerated, as of this capture, and which services
+                        # beneath the account log nothing of what is done to
+                        # their data.
+                        "key_age_days": v13.key_age_days(props, collected_at or datetime.now(UTC)),
+                        "services_without_logging": v13.services_without_logging(
+                            account, data.get("storage_service_diagnostics")
+                        ),
                         "holds_activity_log": (
                             account["id"].lower() in activity_log_accounts
                             if activity_log_accounts is not None
@@ -1397,6 +1426,10 @@ class AzureNormalizer:
                             else None
                         ),
                         "access_policy_count": len(props.get("accessPolicies") or []),
+                        # Section 204: private endpoints, and certificates
+                        # valid for more than a year.
+                        "private_endpoints": self._private_endpoints(props),
+                        **v13.certificate_lifetimes(vault["id"], data.get("key_vault_secrets")),
                         # Section 176: the attributes of what the vault holds.
                         **v11.vault_contents(
                             vault["id"],
@@ -1515,6 +1548,10 @@ class AzureNormalizer:
                             == "enabled"
                             if _first(props, "authConfig", "activeDirectoryAuth") is not None
                             else None
+                        ),
+                        # Section 204.
+                        "admits_azure_services": v13.admits_azure_services(
+                            server["id"], data.get("postgresql_firewall_rules")
                         ),
                         "diagnostic_settings": self._diagnostics_for(server["id"], diagnostics),
                         "tags": server.get("tags") or {},
@@ -1792,6 +1829,9 @@ class AzureNormalizer:
                             "disablePasswordAuthentication",
                         ),
                         "unmanaged_disks": self._unmanaged_disks(props),
+                        # Section 204: whether Azure checks it for missing
+                        # updates on its own.
+                        "patch_assessment_mode": v13.patch_assessment_mode(props),
                         # Section 176: just-in-time access and Azure Backup.
                         **v11.vm_protection(vm["id"], data),
                         "vm_size": _first(props, "hardwareProfile", "vmSize"),
@@ -1970,6 +2010,15 @@ class AzureNormalizer:
                 exposure, metadata = build(item, props)
                 if resource_type is ResourceType.MYSQL_SERVER:
                     metadata.update(self._mysql_tls(item["id"], mysql_parameters))
+                if resource_type is ResourceType.ANALYTICS_WORKSPACE:
+                    # Section 204: the workspace's subnets, judged against the
+                    # networks read beside it, and where its logs go.
+                    metadata["subnets_without_nsg"] = v13.databricks_subnets_without_nsg(
+                        props.get("parameters") or {}, data.get("virtual_networks")
+                    )
+                    metadata["sends_diagnostic_logs"] = v13.sends_logs(
+                        v11._read(data.get("databricks_diagnostics"), item["id"])
+                    )
                 resources.append(
                     CloudResource(
                         provider_resource_id=item["id"],
@@ -2537,6 +2586,21 @@ class AzureNormalizer:
             # question: legacy protocols bypass Conditional Access, so MFA is
             # not enforced anywhere they are still allowed.
             controls["legacy_authentication_blocked"] = self._blocks_legacy_auth(policies)
+        # Section 204. Only from the directory's reading: a subscription's
+        # snapshot holds none of these, and an all-None dict merged from it
+        # would say nothing anyway -- only the directory's controls merge.
+        if any(
+            key in data
+            for key in (
+                "conditional_access_policies",
+                "group_settings",
+                "authentication_methods_policy",
+                "device_registration_policy",
+                "access_reviews",
+                "subscription_policy",
+            )
+        ):
+            controls.update(v13.tenant_extras(data))
         return controls
 
     @staticmethod

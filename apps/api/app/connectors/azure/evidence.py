@@ -146,6 +146,22 @@ class AzureEvidence(EvidenceKey):
     # long it keeps what it holds -- and virtual machine scale sets.
     BACKUP_POLICIES = "backup_policies"
     SCALE_SETS = "scale_sets"
+    # v13 (section 204): application gateways and the WAF policies attached to
+    # them, virtual network gateways read one by one from the inventory's ids,
+    # the subscription's resource locks, and each PostgreSQL server's firewall
+    # rules. One key each, so a refusal costs only the checks resting on it.
+    APPLICATION_GATEWAYS = "application_gateways"
+    WAF_POLICIES = "waf_policies"
+    VPN_GATEWAYS = "vpn_gateways"
+    RESOURCE_LOCKS = "resource_locks"
+    POSTGRESQL_FIREWALL_RULES = "postgresql_firewall_rules"
+    # Diagnostic settings beneath each storage account's blob, queue and table
+    # services, and on each Databricks workspace. Their own keys rather than
+    # targets of DIAGNOSTIC_SETTINGS: that task depends on every listing it
+    # draws ids from, so a refused Databricks listing would have skipped it and
+    # cost every logging rule its verdict.
+    STORAGE_SERVICE_DIAGNOSTICS = "storage_service_diagnostics"
+    DATABRICKS_DIAGNOSTICS = "databricks_diagnostics"
 
     # Microsoft Defender for Cloud's own assessments of this subscription.
     #
@@ -209,6 +225,14 @@ class AzureEvidence(EvidenceKey):
     # The tenant's named locations, for whether any network is marked trusted
     # (``Policy.Read.All``, already consented; section 176).
     NAMED_LOCATIONS = "named_locations"
+    # Section 204. Whether joining a device asks for a second factor
+    # (``Policy.Read.DeviceConfiguration``) and which access reviews exist
+    # (``AccessReview.Read.All``) -- the two permissions that section added to
+    # consent -- and the tenant's subscription policy, read from ARM at the
+    # tenant scope, which every user may read and no role action governs.
+    DEVICE_REGISTRATION_POLICY = "device_registration_policy"
+    ACCESS_REVIEWS = "access_reviews"
+    SUBSCRIPTION_POLICY = "subscription_policy"
 
     # The credentials on this tenant's own application registrations: client
     # secrets and certificates, with the dates they stop working.
@@ -301,6 +325,16 @@ _CATEGORIES: dict[AzureEvidence, EvidenceCategory] = {
     AzureEvidence.NAMED_LOCATIONS: EvidenceCategory.IDENTITY,
     AzureEvidence.BACKUP_POLICIES: EvidenceCategory.COMPUTE,
     AzureEvidence.SCALE_SETS: EvidenceCategory.COMPUTE,
+    AzureEvidence.APPLICATION_GATEWAYS: EvidenceCategory.NETWORK,
+    AzureEvidence.WAF_POLICIES: EvidenceCategory.NETWORK,
+    AzureEvidence.VPN_GATEWAYS: EvidenceCategory.NETWORK,
+    AzureEvidence.RESOURCE_LOCKS: EvidenceCategory.POSTURE,
+    AzureEvidence.POSTGRESQL_FIREWALL_RULES: EvidenceCategory.DATABASE,
+    AzureEvidence.STORAGE_SERVICE_DIAGNOSTICS: EvidenceCategory.LOGGING,
+    AzureEvidence.DATABRICKS_DIAGNOSTICS: EvidenceCategory.LOGGING,
+    AzureEvidence.DEVICE_REGISTRATION_POLICY: EvidenceCategory.IDENTITY,
+    AzureEvidence.ACCESS_REVIEWS: EvidenceCategory.IDENTITY,
+    AzureEvidence.SUBSCRIPTION_POLICY: EvidenceCategory.IDENTITY,
     AzureEvidence.SECURITY_ASSESSMENTS: EvidenceCategory.POSTURE,
     AzureEvidence.DEFENDER_PLANS: EvidenceCategory.POSTURE,
     AzureEvidence.POSTGRESQL_SERVERS: EvidenceCategory.DATABASE,

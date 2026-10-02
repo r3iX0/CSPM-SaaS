@@ -39,7 +39,7 @@ from app.connectors.evidence import EvidenceCategory
 from app.core.enums import ConnectionScope
 
 # Bump when the action list changes.
-ROLE_VERSION = "v12"
+ROLE_VERSION = "v13"
 
 ROLE_NAME = "CloudGuard Security Scanner"
 
@@ -230,6 +230,18 @@ ARM_READ_ACTIONS: tuple[str, ...] = (
     # Protection Policies"), and virtual machine scale sets.
     "Microsoft.RecoveryServices/Vaults/backupPolicies/read",
     "Microsoft.Compute/virtualMachineScaleSets/read",
+    # v13. Five reads for the compliance controls a rule could answer once the
+    # setting was read (DECISIONS.md section 204), each checked on 2026-10-02
+    # against the published operations reference: application gateways and
+    # their web application firewall policies ("Gets an Application Gateway WAF
+    # policy"), virtual network gateways, read one at a time because ARM lists
+    # them only per resource group, resource locks ("Gets locks at the
+    # specified scope"), and PostgreSQL firewall rules.
+    "Microsoft.Network/applicationGateways/read",
+    "Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies/read",
+    "Microsoft.Network/virtualNetworkGateways/read",
+    "Microsoft.Authorization/locks/read",
+    "Microsoft.DBforPostgreSQL/flexibleServers/firewallRules/read",
 )
 
 # Which ARM action each collector call needs. This is the link between the code
@@ -316,6 +328,20 @@ CLIENT_ACTIONS: dict[str, tuple[str, ...]] = {
     # v12 (DECISIONS.md section 177).
     "list_backup_policies": ("Microsoft.RecoveryServices/Vaults/backupPolicies/read",),
     "list_scale_sets": ("Microsoft.Compute/virtualMachineScaleSets/read",),
+    # v13 (DECISIONS.md section 204).
+    "list_application_gateways": ("Microsoft.Network/applicationGateways/read",),
+    "list_waf_policies": (
+        "Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies/read",
+    ),
+    "get_virtual_network_gateway": ("Microsoft.Network/virtualNetworkGateways/read",),
+    "list_locks": ("Microsoft.Authorization/locks/read",),
+    "list_postgresql_firewall_rules": (
+        "Microsoft.DBforPostgreSQL/flexibleServers/firewallRules/read",
+    ),
+    # The tenant's subscription policy -- whether subscriptions may leave or
+    # enter the directory. No action: Microsoft documents it as readable by
+    # every user of the tenant, and no RBAC operation governs the read.
+    "get_subscription_policy": (),
 }
 
 # Which collection category each ARM action serves, for the categories the
@@ -344,6 +370,9 @@ COLLECTION_ACTIONS: dict[EvidenceCategory, tuple[str, ...]] = {
         "Microsoft.Network/networkWatchers/read",
         "Microsoft.Network/networkWatchers/flowLogs/read",
         "Microsoft.Network/bastionHosts/read",
+        "Microsoft.Network/applicationGateways/read",
+        "Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies/read",
+        "Microsoft.Network/virtualNetworkGateways/read",
     ),
     EvidenceCategory.COMPUTE: (
         "Microsoft.Compute/virtualMachines/read",
@@ -380,6 +409,7 @@ COLLECTION_ACTIONS: dict[EvidenceCategory, tuple[str, ...]] = {
         "Microsoft.Sql/servers/encryptionProtector/read",
         "Microsoft.Sql/servers/vulnerabilityAssessments/read",
         "Microsoft.Sql/servers/sqlVulnerabilityAssessments/read",
+        "Microsoft.DBforPostgreSQL/flexibleServers/firewallRules/read",
     ),
     EvidenceCategory.LOGGING: (
         "Microsoft.Insights/diagnosticSettings/read",
@@ -404,6 +434,7 @@ COLLECTION_ACTIONS: dict[EvidenceCategory, tuple[str, ...]] = {
         "Microsoft.Security/jitNetworkAccessPolicies/read",
         "Microsoft.Security/locations/jitNetworkAccessPolicies/read",
         "Microsoft.Authorization/policyAssignments/read",
+        "Microsoft.Authorization/locks/read",
     ),
 }
 
@@ -820,6 +851,73 @@ ROLE_HISTORY: dict[str, tuple[str, ...]] = {
         "Microsoft.Network/bastionHosts/read",
         "Microsoft.RecoveryServices/Vaults/backupPolicies/read",
         "Microsoft.Compute/virtualMachineScaleSets/read",
+    ),
+    # v13 adds five reads for the compliance controls section 204 closed:
+    # application gateways and their WAF policies, virtual network gateways,
+    # resource locks and PostgreSQL firewall rules. A v12 role keeps every
+    # verdict it had; the checks on these report UNKNOWN until redeployed.
+    "v13": (
+        "Microsoft.Resources/subscriptions/read",
+        "Microsoft.Resources/subscriptions/resources/read",
+        "Microsoft.ResourceGraph/resources/read",
+        "Microsoft.Network/networkSecurityGroups/read",
+        "Microsoft.Network/networkInterfaces/read",
+        "Microsoft.Network/publicIPAddresses/read",
+        "Microsoft.Compute/virtualMachines/read",
+        "Microsoft.Storage/storageAccounts/read",
+        "Microsoft.Sql/servers/read",
+        "Microsoft.Sql/servers/firewallRules/read",
+        "Microsoft.Sql/servers/auditingSettings/read",
+        "Microsoft.DBforPostgreSQL/flexibleServers/read",
+        "Microsoft.Insights/diagnosticSettings/read",
+        "Microsoft.Authorization/roleAssignments/read",
+        "Microsoft.Authorization/roleDefinitions/read",
+        "Microsoft.KeyVault/vaults/read",
+        "Microsoft.Sql/servers/databases/read",
+        "Microsoft.Sql/servers/databases/transparentDataEncryption/read",
+        "Microsoft.Security/assessments/read",
+        "Microsoft.Security/pricings/read",
+        "Microsoft.Storage/storageAccounts/blobServices/read",
+        "Microsoft.Sql/servers/administrators/read",
+        "Microsoft.DBforPostgreSQL/flexibleServers/configurations/read",
+        "Microsoft.Web/sites/read",
+        "Microsoft.Web/sites/config/read",
+        "Microsoft.Authorization/roleEligibilityScheduleInstances/read",
+        "Microsoft.ContainerService/managedClusters/read",
+        "Microsoft.ContainerRegistry/registries/read",
+        "Microsoft.DocumentDB/databaseAccounts/read",
+        "Microsoft.DBforMySQL/flexibleServers/read",
+        "Microsoft.Databricks/workspaces/read",
+        "Microsoft.Search/searchServices/read",
+        "Microsoft.DBforMySQL/flexibleServers/configurations/read",
+        "Microsoft.Sql/servers/securityAlertPolicies/read",
+        "Microsoft.Sql/servers/encryptionProtector/read",
+        "Microsoft.Sql/servers/vulnerabilityAssessments/read",
+        "Microsoft.Sql/servers/sqlVulnerabilityAssessments/read",
+        "Microsoft.Storage/storageAccounts/fileServices/read",
+        "Microsoft.KeyVault/vaults/keys/read",
+        "Microsoft.KeyVault/vaults/secrets/read",
+        "Microsoft.Security/securityContacts/read",
+        "Microsoft.Security/settings/read",
+        "Microsoft.Security/iotSecuritySolutions/read",
+        "Microsoft.Security/jitNetworkAccessPolicies/read",
+        "Microsoft.Security/locations/jitNetworkAccessPolicies/read",
+        "Microsoft.RecoveryServices/Vaults/read",
+        "Microsoft.RecoveryServices/Vaults/backupProtectedItems/read",
+        "Microsoft.Compute/disks/read",
+        "Microsoft.Insights/activityLogAlerts/read",
+        "Microsoft.Authorization/policyAssignments/read",
+        "Microsoft.Network/virtualNetworks/read",
+        "Microsoft.Network/networkWatchers/read",
+        "Microsoft.Network/networkWatchers/flowLogs/read",
+        "Microsoft.Network/bastionHosts/read",
+        "Microsoft.RecoveryServices/Vaults/backupPolicies/read",
+        "Microsoft.Compute/virtualMachineScaleSets/read",
+        "Microsoft.Network/applicationGateways/read",
+        "Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies/read",
+        "Microsoft.Network/virtualNetworkGateways/read",
+        "Microsoft.Authorization/locks/read",
+        "Microsoft.DBforPostgreSQL/flexibleServers/firewallRules/read",
     ),
 }
 

@@ -208,8 +208,10 @@ class TestPciSaysWhoseScopeItIsNot:
     def test_what_remains_uncovered_is_still_uncovered(self) -> None:
         """The guard the test above replaced. A framework whose every control
         is covered reports full coverage for ever, so PCI must still name what
-        CloudGuard cannot reach -- and 2.2.1, a hardened configuration
-        standard, is a real backlog item rather than a never."""
+        CloudGuard cannot reach. 2.2.1, a hardened configuration standard, was
+        the backlog item this test once named; AZ-DEF-010 answers it since
+        section 204, because an enforced Microsoft cloud security benchmark is
+        such a standard in force. What remains is what no scanner reaches."""
         catalogue = framework(PCI)
         covered = {
             control_id
@@ -219,6 +221,9 @@ class TestPciSaysWhoseScopeItIsNot:
         uncovered = [c.id for c in catalogue.controls if c.id not in covered]
 
         assert uncovered
-        baseline = catalogue.control("2.2.1")
-        assert baseline is not None and baseline.technically_assessable
-        assert "2.2.1" in uncovered
+        assert "2.2.1" in covered
+        assert all(
+            not control.technically_assessable
+            for control in catalogue.controls
+            if control.id in uncovered
+        )

@@ -1,5 +1,5 @@
 {
- "$comment": "Controls a native rule answers in frameworks it does not map itself, kept apart from the rule classes because they were derived rather than written: each entry was carried over from the Prowler checks that asked the same question as the rule, and pairs known to ask slightly different questions passed nothing on. A framework a rule maps in its own compliance_mappings never takes an entry from here (DECISIONS.md section 168). Edit by hand.",
+ "$comment": "Controls a native rule answers in frameworks it does not map itself, kept apart from the rule classes because they were derived rather than written: each entry was carried over from the Prowler checks that asked the same question as the rule, and pairs known to ask slightly different questions passed nothing on. A framework a rule maps in its own compliance_mappings never takes an entry from here (DECISIONS.md section 168). Edit by hand. Since section 204 a few entries were added by hand where a rule already answered a control nothing mapped it to; those are listed in DECISIONS.md section 204.",
  "mappings": {
   "AWS-CMP-001": {
    "AWS_FSBP": [
@@ -1023,6 +1023,9 @@
     "164_308_a_7_ii_b",
     "164_308_a_7_ii_c",
     "164_312_a_2_ii"
+   ],
+   "MITRE_ATTACK": [
+    "T1490"
    ]
   },
   "AZ-CMP-010": {
@@ -1102,6 +1105,9 @@
   "AZ-COS-006": {
    "HIPAA": [
     "164_308_a_7_ii_a"
+   ],
+   "MITRE_ATTACK": [
+    "T1490"
    ]
   },
   "AZ-DB-003": {
@@ -1595,7 +1601,15 @@
     "8.1.1.1"
    ]
   },
+  "AZ-IAM-001": {
+   "MITRE_ATTACK": [
+    "T1651"
+   ]
+  },
   "AZ-IAM-002": {
+   "MITRE_ATTACK": [
+    "T1651"
+   ],
    "NIS2": [
     "2.1.2.g",
     "2.1.2.i",
@@ -1626,6 +1640,11 @@
     "6.2.2.b",
     "6.2.2.c",
     "6.7.2.e"
+   ]
+  },
+  "AZ-IAM-005": {
+   "CIS_AZURE_6.0": [
+    "5.7"
    ]
   },
   "AZ-IAM-010": {
@@ -1697,7 +1716,15 @@
     "3.1.3"
    ]
   },
+  "AZ-ID-005": {
+   "CIS_AZURE_6.0": [
+    "5.1.1"
+   ]
+  },
   "AZ-ID-013": {
+   "CIS_AZURE_2.0": [
+    "1.2.6"
+   ],
    "HIPAA": [
     "164_308_a_3_ii_a",
     "164_312_d"
@@ -1895,6 +1922,9 @@
     "164_308_a_7_ii_c",
     "164_312_a_2_ii",
     "164_312_c_1"
+   ],
+   "MITRE_ATTACK": [
+    "T1490"
    ],
    "NIS2": [
     "12.1.2.c",
@@ -2778,7 +2808,8 @@
     "164_312_a_2_ii"
    ],
    "MITRE_ATTACK": [
-    "T1485"
+    "T1485",
+    "T1490"
    ],
    "NIS2": [
     "12.2.2.a",
@@ -2799,14 +2830,14 @@
     "164_312_c_1",
     "164_312_c_2",
     "164_312_e_2_i"
+   ],
+   "MITRE_ATTACK": [
+    "T1490"
    ]
   },
   "AZ-STO-007": {
    "CIS_AZURE_2.0": [
     "3.2"
-   ],
-   "CIS_AZURE_6.0": [
-    "9.3.1.1"
    ],
    "HIPAA": [
     "164_308_a_1_ii_b",
@@ -2900,6 +2931,9 @@
    "HIPAA": [
     "164_308_a_7_i",
     "164_308_a_7_ii_a"
+   ],
+   "MITRE_ATTACK": [
+    "T1490"
    ]
   },
   "AZ-STO-013": {
@@ -2914,10 +2948,10 @@
   },
   "AZ-STO-015": {
    "CIS_AZURE_2.0": [
-    "3.4"
+    "3.3"
    ],
    "CIS_AZURE_6.0": [
-    "9.3.1.2"
+    "9.3.1.1"
    ],
    "HIPAA": [
     "164_308_a_3_ii_c",
