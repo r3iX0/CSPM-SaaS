@@ -34,6 +34,7 @@ import httpx
 
 from app.connectors.azure.auth import GRAPH_RESOURCE_APP_ID, TokenProvider
 from app.connectors.azure.client import (
+    EDGE_BLOCK_MESSAGE,
     ArmClient,
     AzureApiError,
     GraphClient,
@@ -455,6 +456,31 @@ def _encryption_state(payload: dict[str, Any]) -> str | None:
         return None
     state = (entry.get("properties") or {}).get("state")
     return str(state) if state is not None else None
+
+
+def _per_resource_reason(
+    noun: str, of: str, failures: list[Exception], total: int, actions: tuple[str, ...]
+) -> str:
+    """Why a per-resource reading came back short, blaming the role only when the role refused.
+
+    Every failure used to be reported as an out-of-date role, so a 404, a 400 from an API
+    version, a timeout or a block at Microsoft's edge sent the customer to redeploy a role that
+    was already current. Only ARM's own 403 across every failure names the role; anything else
+    quotes the first error, which is what the worker's ``azure.request_failed`` line explains.
+    """
+    head = f"{noun} could not be read for {len(failures)} of {total} {of}."
+    refused_by_role = all(
+        isinstance(exc, AzureApiError)
+        and exc.azure_status_code == 403
+        and EDGE_BLOCK_MESSAGE not in str(exc)
+        for exc in failures
+    )
+    if refused_by_role:
+        return (
+            f"{head} A scanner role deployed before {first_version_granting(*actions)} "
+            "does not grant the permission this needs."
+        )
+    return f"{head} The first failure: {failures[0]}"
 
 
 class AzurePlanBuilder:
@@ -1081,8 +1107,8 @@ class AzurePlanBuilder:
 
         A resource whose read failed is recorded as ``"error: ..."`` against its
         own id, so one refusal costs one resource its verdict and the task says
-        how many -- naming the role, because a 403 across every resource is
-        what a v6 role produces.
+        how many -- naming the role only when every failure was ARM's 403,
+        which is what a v6 role produces (``_per_resource_reason``).
         """
 
         async def run(collected: dict[str, Any]) -> TaskData:
@@ -1093,14 +1119,13 @@ class AzurePlanBuilder:
                 if item.get("id") and (where is None or where(item))
             ]
 
-            failures = 0
+            failures: list[Exception] = []
 
             async def for_resource(resource_id: str) -> tuple[str, Any]:
-                nonlocal failures
                 try:
                     return resource_id, await read(arm, resource_id)
                 except Exception as exc:
-                    failures += 1
+                    failures.append(exc)
                     return resource_id, f"error: {exc}"
 
             pairs = await self._gather_limited([for_resource(i) for i in ids])
@@ -1118,11 +1143,8 @@ class AzurePlanBuilder:
             if failures:
                 return TaskData(
                     data,
-                    partial_reason=(
-                        f"{noun} could not be read for {failures} of {len(ids)} "
-                        f"{of}. A scanner role deployed before "
-                        f"{first_version_granting(action, *also_actions)} does "
-                        "not grant the permission this needs."
+                    partial_reason=_per_resource_reason(
+                        noun, of, failures, len(ids), (action, *also_actions)
                     ),
                 )
             return TaskData(data)
