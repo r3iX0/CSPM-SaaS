@@ -17,11 +17,34 @@ from app.schemas.common import ClosedModel, RequestModel
 
 
 class ScanCreate(RequestModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [{"cloud_account_id": "6b1e0c2a-5d1f-4a52-9a43-2f7f4f7d9c10"}]
+        }
+    )
+
     cloud_account_id: UUID
 
 
 class ScanOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "examples": [
+                {
+                    "id": "0f4c8a52-7d3e-4e0b-8a52-1c9d2b7e6f31",
+                    "cloud_account_id": None,
+                    "connection_id": "6b1e0c2a-5d1f-4a52-9a43-2f7f4f7d9c10",
+                    "status": "QUEUED",
+                    "resource_count": 0,
+                    "rule_count": 0,
+                    "finding_count": 0,
+                    "created_at": "2026-10-01T09:30:00Z",
+                    "trigger": "MANUAL",
+                }
+            ]
+        },
+    )
 
     id: UUID
     # One of these says what the scan covered. ``connection_id`` is the

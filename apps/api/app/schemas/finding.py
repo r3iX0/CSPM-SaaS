@@ -149,6 +149,17 @@ class RiskStatusOut(BaseModel):
 
 
 class AcceptRiskRequest(RequestModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "reason": "The jump box is the documented way in until the migration ends",
+                    "expires_at": "2026-12-31T00:00:00Z",
+                }
+            ]
+        }
+    )
+
     reason: str = Field(min_length=10, max_length=2000)
     expires_at: datetime | None = None
 
@@ -171,6 +182,14 @@ class BulkRiskStatusRequest(RiskStatusRequest):
 
 
 class RemediationCreate(RequestModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {"finding_id": "2d7a9b14-3c68-4f5e-b1a7-90e4c6d8f253", "due_date": "2026-10-15"}
+            ]
+        }
+    )
+
     finding_id: UUID
     assigned_to: UUID | None = None
     due_date: date | None = None

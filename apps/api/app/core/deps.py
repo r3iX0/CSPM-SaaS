@@ -16,7 +16,8 @@ from dataclasses import dataclass
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, Header, Request
+from fastapi import Depends, Header, Request, Security
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,13 +34,24 @@ from app.core.middleware import over_limit
 from app.core.security import AuthenticatedUser, decode_token
 from app.models.organization import Organization, OrganizationMember
 
+# Declared once so the published contract says how to authenticate: OpenAPI gets a ``bearerAuth``
+# scheme and every route that depends on a user carries it. ``auto_error=False`` leaves the
+# refusal to ``get_current_user``, so a missing token is still the envelope's NOT_AUTHENTICATED
+# and not FastAPI's bare ``{"detail": "Not authenticated"}``.
+bearer_scheme = HTTPBearer(
+    scheme_name="bearerAuth",
+    bearerFormat="JWT",
+    description="A Supabase Auth access token, sent as `Authorization: Bearer <token>`.",
+    auto_error=False,
+)
+
 
 async def get_current_user(
-    authorization: Annotated[str | None, Header()] = None,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Security(bearer_scheme)],
 ) -> AuthenticatedUser:
-    if not authorization or not authorization.lower().startswith("bearer "):
+    if credentials is None:
         raise NotAuthenticated("Missing bearer token")
-    user = await decode_token(authorization.split(" ", 1)[1].strip())
+    user = await decode_token(credentials.credentials.strip())
     # Counted per person, now that the token says who that is. The middleware
     # can only count per address, and one office is one address.
     await _within_limit("user", user.id, settings.rate_limit_per_user)

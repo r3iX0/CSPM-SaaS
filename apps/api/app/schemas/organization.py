@@ -8,6 +8,12 @@ from app.schemas.common import RequestModel
 
 
 class OrganizationCreate(RequestModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [{"name": "Contoso Security", "industry": "Finance", "country": "AL"}]
+        }
+    )
+
     name: str = Field(min_length=2, max_length=200)
     industry: str | None = Field(default=None, max_length=120)
     country: str | None = Field(default=None, min_length=2, max_length=2)

@@ -32,6 +32,7 @@ from app.core.middleware import (
     RequestSizeLimitMiddleware,
     SecurityHeadersMiddleware,
 )
+from app.core.openapi import TAGS, operation_id
 from app.schemas.common import Envelope, NoMeta
 from app.schemas.health import HealthOut, ReadyOut
 
@@ -80,7 +81,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(
     title="Cleave API",
     version="0.1.0",
-    description="Azure-first Cloud Security Posture Management.",
+    description=(
+        "Azure-first cloud security posture management. Every response is the envelope "
+        "`{data, error, meta}`; a failure carries a stable `error.code` to branch on. Send a "
+        "Supabase access token as `Authorization: Bearer`. The organization comes from the token, "
+        "never from the path or the body, and a request body refuses a field it does not know."
+    ),
+    openapi_tags=TAGS,
+    generate_unique_id_function=operation_id,
     lifespan=lifespan,
 )
 

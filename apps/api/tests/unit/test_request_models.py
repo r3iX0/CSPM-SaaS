@@ -11,6 +11,7 @@ fails here rather than in a client's hands (API_GUIDELINES.md section 4).
 from typing import Any
 
 from app.main import app
+from app.schemas.common import RequestModel
 
 JSON = "application/json"
 
@@ -50,6 +51,29 @@ def _request_bodies() -> list[tuple[str, dict[str, Any]]]:
             if JSON in content:
                 bodies.append((f"{method.upper()} {path}", content[JSON]["schema"]))
     return bodies
+
+
+def _request_models() -> list[type[RequestModel]]:
+    pending, found = list(RequestModel.__subclasses__()), []
+    while pending:
+        model = pending.pop()
+        found.append(model)
+        pending += model.__subclasses__()
+    return found
+
+
+def test_every_published_example_is_a_request_the_model_accepts() -> None:
+    # An example that fails its own model teaches a client a call that returns 422.
+    checked = 0
+    for model in _request_models():
+        extra = model.model_config.get("json_schema_extra")
+        examples = extra.get("examples") if isinstance(extra, dict) else None
+        if not isinstance(examples, list):
+            continue
+        for example in examples:
+            model.model_validate(example)
+            checked += 1
+    assert checked >= 7, "the examples have gone missing from the request models"
 
 
 def test_every_json_request_body_forbids_unknown_fields() -> None:

@@ -3,13 +3,26 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.enums import DeliveryStatus, NotificationKind, WebhookFormat
 from app.schemas.common import RequestModel
 
 
 class WebhookCreate(RequestModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "name": "Security channel",
+                    "url": "https://hooks.example.com/services/<path>",
+                    "format": "GENERIC",
+                    "kinds": ["VERIFIED_FIX"],
+                }
+            ]
+        }
+    )
+
     name: str = Field(min_length=1, max_length=120)
     url: str = Field(min_length=12, max_length=2048)
     format: WebhookFormat = WebhookFormat.GENERIC

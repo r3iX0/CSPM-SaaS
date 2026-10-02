@@ -23,6 +23,12 @@ class CloudConnectionCreate(RequestModel):
     (AZURE_INTEGRATION.md 2).
     """
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [{"name": "Production", "provider": "azure", "scope_type": "TENANT_ROOT"}]
+        }
+    )
+
     name: str = Field(min_length=1, max_length=200)
     provider: Provider = Provider.AZURE
     scope_type: ConnectionScope = ConnectionScope.TENANT_ROOT

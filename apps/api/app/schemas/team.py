@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from app.core.enums import Role
 from app.schemas.common import RequestModel
@@ -32,6 +32,10 @@ class MemberRemovedOut(BaseModel):
 
 
 class InvitationCreate(RequestModel):
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [{"email": "colleague@example.com", "role": "VIEWER"}]}
+    )
+
     email: EmailStr
     role: Role = Role.VIEWER
 
