@@ -10,7 +10,6 @@ exchange for nothing the MVP needs.
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-import sentry_sdk
 from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -36,6 +35,7 @@ from app.core.middleware import (
     ping_redis,
 )
 from app.core.openapi import TAGS, operation_id
+from app.core.sentry import init_sentry
 from app.schemas.common import Envelope, NoMeta, error_responses
 from app.schemas.health import HealthOut, ReadyOut
 
@@ -60,7 +60,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         log.warning("azure.consent_misconfigured", problem=problem)
 
     if settings.sentry_dsn:
-        sentry_sdk.init(dsn=settings.sentry_dsn, environment=settings.app_env)
+        init_sentry(settings.sentry_dsn, settings.app_env)
 
     # Keep the rules table in step with the Python registry. The registry is the
     # source of truth; the table is a read-mirror for joins and the UI.
@@ -132,7 +132,10 @@ app.add_middleware(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
-    allow_credentials=True,
+    # No cookies and no HTTP auth: the token travels in ``Authorization``, which a page sends
+    # because it chose to. Credentialed mode would also have the browser attach cookies and
+    # client certificates to a cross-origin call this API has no use for them in.
+    allow_credentials=False,
     # Exactly what the web app sends, so a page on an allowed origin still cannot ask for more
     # than it uses. The request headers the browser always allows (Accept, Content-Type for a
     # simple type) need no entry; ``Authorization`` and ``X-Organization-Id`` do.

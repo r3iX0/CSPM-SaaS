@@ -116,14 +116,14 @@ class ValidationFailed(AppError):
     """Request validation failed"""
 
     code = "VALIDATION_FAILED"
-    status_code_default = status.HTTP_422_UNPROCESSABLE_ENTITY
+    status_code_default = status.HTTP_422_UNPROCESSABLE_CONTENT
 
 
 class PayloadTooLarge(AppError):
     """Request body is too large"""
 
     code = "PAYLOAD_TOO_LARGE"
-    status_code_default = status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+    status_code_default = status.HTTP_413_CONTENT_TOO_LARGE
 
 
 class ConflictError(AppError):
@@ -263,7 +263,7 @@ def _describable(errors: Sequence[Any]) -> list[Any]:
 
 async def validation_error_handler(_: Request, exc: RequestValidationError) -> JSONResponse:
     return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         content=error_envelope(
             "VALIDATION_FAILED",
             "Request validation failed",

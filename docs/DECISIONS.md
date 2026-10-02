@@ -10828,6 +10828,59 @@ The lookup raises whenever that subscription has no finding, so the test depends
 on which account sorts second. Nothing in this pass touches what it reads, but
 the evidence does not rule one out; watch it in CI.
 
+## 195. Security review of the API: advisories closed, credentials kept out of logs, reports fetch nothing
+
+A review of the API on 1 October 2026 found no critical or high issue and six smaller ones. Four
+are fixed here; two need a decision and are recorded below.
+
+**The dependency pins moved, and one cap was hiding in a transitive package.** Starlette 0.41.3,
+held by `fastapi==0.115.6`, carried seven advisories, all fixed by 1.3.1. FastAPI 0.133.0 is the
+first release that accepts Starlette 1.x; 0.142.x moves routing to a lazy structure that
+`app.routes` no longer lists, which this code's route-walking tests rely on, so the pin stops at
+0.133.0 and Starlette is pinned directly at 1.7.0. WeasyPrint 63.1 to 70.0 closes its SSRF
+advisory and the one where two `write_pdf` channels ignored the document's fetcher. `msal==1.31.1`
+required `cryptography<46`, so the production image, unlike the local environment, resolved to
+45.0.7 with seven advisories; 1.39.0 lifts the cap and `cryptography` is pinned beside it. None of
+the Starlette advisories was reachable (no `FileResponse`, `StaticFiles`, `Form` or
+`HTTPEndpoint`; the one multipart route is capped at the 1 MiB body limit), so this is hygiene,
+not an incident. Verified by building the image and running the whole suite inside it, the PDF
+path included. `pytest` 8.3.4 still has an advisory and is dev-only.
+
+**Reports are printed with a fetcher that allows no protocol.** The claim that a customer's
+resource name can never cause an outbound request rested on the templates and on Jinja's escaping.
+`render_pdf` now passes `URLFetcher(allowed_protocols=frozenset(), allow_redirects=False)`, so a
+URL that ever reached the document is refused instead of fetched from inside the network.
+
+**A credential in a URL is not written down.** The event receivers take `?token=`, valid for a
+year and reusable, and the signed links take `?token=` and `?state=`, because the caller cannot
+send a header. Uvicorn's access log wrote the whole target. `app/core/redaction.py` replaces the
+value of any credential-carrying key, and a filter on `uvicorn.access` and Sentry's `before_send`
+and `before_breadcrumb` use it. The tokens' lifetime is unchanged: shortening it would invalidate
+every subscription a customer has already wired.
+
+**Sentry sends the traceback and the route, not the data.** Its defaults send the request body and
+the local variables of each frame, which here are webhook URLs (a Slack URL is itself the
+credential), signing secrets and tenant ids, and its key-name scrubbing cannot know a variable
+called `url` is one. `app/core/sentry.py` turns off bodies, locals and personal data.
+
+**CORS is no longer credentialed.** The API uses no cookies, so `allow_credentials=True` only
+asked browsers to attach ones it never reads.
+
+**Not done: webhook credentials are plaintext at rest.** `webhook_endpoints.url` and `.secret` are
+readable by anyone with the database or a backup. The signing secret must be recoverable to sign,
+so it cannot be hashed. The recommended fix is envelope encryption: a key held outside the
+database (Railway variable now, a KMS later), Fernet or AES-GCM over each value with the
+organization id as associated data so a copied ciphertext does not decrypt under another tenant,
+a key id stored beside it so keys can rotate, and a backfill migration that encrypts in place and
+then drops the plaintext. `url_preview` already means the screen never needs the whole URL back.
+
+**Not done: the Python dependency set has no lockfile.** Only direct dependencies are pinned and
+the image runs `pip install -e`, so a transitive package resolves to whatever the cap allows on
+build day, and nothing audits what was actually deployed. The recommended fix is a hash-locked
+file generated from `pyproject.toml` (`uv lock`, or `pip-compile --generate-hashes`), installed
+with `--require-hashes` in the image and CI, `pip-audit` against that file as a CI job, and
+Dependabot kept to refresh it.
+
 ## Open items carried forward
 
 **Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read

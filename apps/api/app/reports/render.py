@@ -71,11 +71,16 @@ def render_pdf(report: dict[str, Any]) -> bytes:
 
     The HTML carries its own stylesheet inline, so nothing here fetches
     anything: a report renders identically on a machine with no network, and a
-    customer's resource name can never cause an outbound request.
+    customer's resource name can never cause an outbound request. That is
+    enforced, not just true of today's templates: the fetcher below allows no
+    protocol at all, so a URL that ever reached the document -- through a
+    template change, or text that escaped Jinja -- is refused rather than
+    loaded from inside Railway's network (DECISIONS.md §195).
     """
     html = render_html(report)
     try:
         from weasyprint import HTML
+        from weasyprint.urls import URLFetcher
     except OSError as exc:
         # WeasyPrint imports fine and then fails to load its native libraries.
         # Worth its own message: "no module named weasyprint" would send an
@@ -87,7 +92,11 @@ def render_pdf(report: dict[str, Any]) -> bytes:
     except ImportError as exc:
         raise NotConfigured("This server cannot render PDFs: WeasyPrint is not installed.") from exc
 
-    return bytes(HTML(string=html).write_pdf())
+    # An empty set allows nothing (``None`` would allow everything), and a redirect is a second
+    # request to somewhere the first did not name. Passed as the document's fetcher, which
+    # WeasyPrint 70 honours for every resource the print loads; 63.1 did not for two of them.
+    refuse_everything = URLFetcher(allowed_protocols=frozenset(), allow_redirects=False)
+    return bytes(HTML(string=html, url_fetcher=refuse_everything).write_pdf())
 
 
 def _stylesheet() -> str:
