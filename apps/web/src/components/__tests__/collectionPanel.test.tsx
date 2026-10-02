@@ -52,7 +52,7 @@ function mount(tasks: object[], counts: Record<string, number> = {}) {
         error: null,
         meta: {},
       }),
-    })) as unknown as typeof fetch,
+    })),
   );
 
   const client = new QueryClient({

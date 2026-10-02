@@ -36,7 +36,8 @@ repos:
       - id: check-executables-have-shebangs
       - id: check-shebang-scripts-are-executable
       - id: end-of-file-fixer
-        exclude: ^docs/api/
+        # ESLint writes its suppressions file without a final newline.
+        exclude: ^(docs/api/|apps/web/eslint-suppressions\.json$)
       - id: trailing-whitespace
         args: ["--markdown-linebreak-ext=md"]
         exclude: ^docs/api/
@@ -93,7 +94,7 @@ repos:
         language: system
         entry: tools/dev/web.sh eslint --no-warn-ignored
         files: ^apps/web/
-        types_or: [ts, tsx]
+        types_or: [ts, tsx, javascript]
 
       # --- Whole-program checks: slower, so on push rather than every commit --
       - id: mypy

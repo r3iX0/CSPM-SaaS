@@ -197,7 +197,7 @@ describe("the notification bell", () => {
         ok: true,
         status: 200,
         json: async () => ({ data: ROWS, error: null, meta: { unread } }),
-      })) as unknown as typeof fetch,
+      })),
     );
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const { container } = render(

@@ -66,7 +66,10 @@ export function connectionStage(connection: CloudConnection | null): SetupStage 
  */
 export type SetupStepKey = "stepScope" | "stepConsent" | "stepDeploy" | "stepAccounts";
 
-type SetupStep = { stage: SetupStage; key: SetupStepKey };
+interface SetupStep {
+  stage: SetupStage;
+  key: SetupStepKey;
+}
 
 /**
  * The things the customer is asked to do, in order.

@@ -11,9 +11,9 @@
 // runs before anything is painted.
 (function () {
   try {
-    var stored = localStorage.getItem("cloudguard-theme");
-    var choice = stored === "light" || stored === "dark" ? stored : "system";
-    var dark =
+    const stored = localStorage.getItem("cloudguard-theme");
+    const choice = stored === "light" || stored === "dark" ? stored : "system";
+    const dark =
       choice === "dark" ||
       (choice === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
     document.documentElement.classList.toggle("dark", dark);

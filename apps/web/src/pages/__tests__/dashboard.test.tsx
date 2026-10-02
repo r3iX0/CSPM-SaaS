@@ -45,27 +45,27 @@ function dashboard(overrides: Partial<Dashboard> = {}): Dashboard {
       collection_errors: {},
     },
     ...overrides,
-  } as Dashboard;
+  };
 }
 
 function mount(data: Dashboard, accounts: CloudAccount[] = []) {
   vi.spyOn(api, "get").mockImplementation((path: string) => {
     if (path.includes("cloud-accounts")) {
-      return Promise.resolve({ data: accounts, meta: {} }) as never;
+      return Promise.resolve({ data: accounts, meta: {} });
     }
     if (path.startsWith("/api/v1/assets/")) {
       return Promise.resolve({
         data: { id: "asset-1", provider_resource_id: "/sub/vm/web" },
         meta: {},
-      }) as never;
+      });
     }
     // The panels the page asks for after its own payload. Answered as the
     // lists they really are, so a test about the dashboard is not quietly
     // testing what happens when an endpoint returns the wrong shape.
     if (path.includes("attack-paths") || path.includes("changes") || path.includes("scans")) {
-      return Promise.resolve({ data: [], meta: {} }) as never;
+      return Promise.resolve({ data: [], meta: {} });
     }
-    return Promise.resolve({ data, meta: {} }) as never;
+    return Promise.resolve({ data, meta: {} });
   });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(

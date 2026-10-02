@@ -104,7 +104,7 @@ export function RouteNavigator({
   useEffect(() => {
     if (focusOnOpen) heading.current?.focus({ preventScroll: true });
     // Only a new route moves the focus to its name.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only a new route moves the focus.
   }, [route.key]);
 
   const edgeOf = (step: AttackPathStep) =>

@@ -22,7 +22,7 @@ function mount(rows: CloudConnection[], awsAvailable = false) {
           },
         ],
         meta: {},
-      }) as never;
+      });
     }
     if (path.startsWith("/api/v1/cloud-accounts/azure/permissions")) {
       return Promise.resolve({
@@ -33,9 +33,9 @@ function mount(rows: CloudConnection[], awsAvailable = false) {
           writes_performed: "none",
         },
         meta: {},
-      }) as never;
+      });
     }
-    return Promise.resolve({ data: rows, meta: {} }) as never;
+    return Promise.resolve({ data: rows, meta: {} });
   });
 
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });

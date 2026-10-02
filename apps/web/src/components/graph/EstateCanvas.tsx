@@ -189,7 +189,7 @@ function Canvas({ map, onOpen, onSelect, takeFocus = false, selected = null }: C
     const frameId = requestAnimationFrame(() => focusBox(first));
     return () => cancelAnimationFrame(frameId);
     // Once per canvas: the map remounts it for every lens.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per canvas; the map remounts it for every lens.
   }, []);
 
   // Whether every one of these boxes is on screen at the current viewport.
@@ -226,7 +226,7 @@ function Canvas({ map, onOpen, onSelect, takeFocus = false, selected = null }: C
     const edge = selected.kind === "edge" ? drawn.find((e) => e.id === selected.id) : undefined;
     centreOn(selected.kind === "box" ? [selected.id] : edge ? [edge.source, edge.target] : []);
     // Only a new selection moves the view.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only a new selection moves the view.
   }, [selected?.kind, selected?.id]);
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {

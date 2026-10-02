@@ -53,7 +53,6 @@ export function DemoBanner() {
           <Button
             size="sm"
             onClick={() => {
-              // eslint-disable-next-line react-hooks/immutability
               auth.organizationId = own.id;
               queryClient.clear();
               navigate("/", { replace: true });

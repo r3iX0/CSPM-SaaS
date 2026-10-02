@@ -178,7 +178,7 @@ export function RiskDecisions({
                 id="risk-accept-reason"
                 required
                 // The dialog's one field, and what it opened to ask for.
-                // eslint-disable-next-line jsx-a11y/no-autofocus
+                // eslint-disable-next-line jsx-a11y/no-autofocus -- the dialog's one field, and what it opened to ask for.
                 autoFocus
                 minLength={MIN_REASON}
                 value={reason}

@@ -24,7 +24,7 @@ function mount(
       error_message: error,
     },
     meta: {},
-  } as never);
+  });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>

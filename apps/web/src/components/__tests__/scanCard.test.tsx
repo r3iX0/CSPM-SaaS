@@ -23,7 +23,7 @@ function scan(overrides: Partial<Scan> = {}): Scan {
     collection_errors: {},
     created_at: "2026-01-01T00:00:00Z",
     ...overrides,
-  } as Scan;
+  };
 }
 
 function Location() {

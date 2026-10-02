@@ -196,7 +196,7 @@ function closingAll(overrides: Partial<Simulation> = {}): Simulation {
 function simulateWith(result: Simulation) {
   return vi
     .spyOn(api, "post")
-    .mockImplementation(() => Promise.resolve({ data: result, meta: {} }) as never);
+    .mockImplementation(() => Promise.resolve({ data: result, meta: {} }));
 }
 
 function mount(
@@ -205,13 +205,12 @@ function mount(
   risks: Partial<Risk>[] = [],
   at = "/attack-paths",
 ) {
-  vi.spyOn(api, "get").mockImplementation(
-    (url: string) =>
-      Promise.resolve(
-        url.includes("/risks")
-          ? { data: risks, meta: {} }
-          : { data: map, meta: { drawn: map.routes.length, ...meta } },
-      ) as never,
+  vi.spyOn(api, "get").mockImplementation((url: string) =>
+    Promise.resolve(
+      url.includes("/risks")
+        ? { data: risks, meta: {} }
+        : { data: map, meta: { drawn: map.routes.length, ...meta } },
+    ),
   );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -760,7 +759,7 @@ describe("AttackPathsPage", () => {
     await within(panel).findByText(/kv-prod/);
     const rows = within(panel)
       .getAllByRole("button")
-      .filter((button) => /→/.test(button.textContent ?? ""));
+      .filter((button) => (button.textContent ?? "").includes("→"));
     expect(rows.map((row) => row.textContent)).toEqual([
       expect.stringContaining("web-02 → kv-prod"),
       expect.stringContaining("jump-01 → customerdata"),

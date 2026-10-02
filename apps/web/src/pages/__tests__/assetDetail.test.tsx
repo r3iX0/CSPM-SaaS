@@ -70,10 +70,9 @@ function mount(
   requested = [];
   vi.spyOn(api, "get").mockImplementation((url: string) => {
     requested.push(url);
-    if (url === "/api/v1/assets/asset-1")
-      return Promise.resolve({ data: detail, meta: {} }) as never;
+    if (url === "/api/v1/assets/asset-1") return Promise.resolve({ data: detail, meta: {} });
     // The graph endpoints: a 404 is enough to prove they were asked.
-    return Promise.reject(new ApiError("NOT_FOUND", "not a vertex", 404)) as never;
+    return Promise.reject(new ApiError("NOT_FOUND", "not a vertex", 404));
   });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -224,11 +223,10 @@ describe("the access tab", () => {
 
   function mountAccess(detail: Record<string, unknown>, access: Record<string, unknown>) {
     vi.spyOn(api, "get").mockImplementation((url: string) => {
-      if (url === "/api/v1/assets/asset-1")
-        return Promise.resolve({ data: detail, meta: {} }) as never;
+      if (url === "/api/v1/assets/asset-1") return Promise.resolve({ data: detail, meta: {} });
       if (url.startsWith("/api/v1/attack-paths/access/"))
-        return Promise.resolve({ data: access, meta: {} }) as never;
-      return Promise.reject(new ApiError("NOT_FOUND", "not a vertex", 404)) as never;
+        return Promise.resolve({ data: access, meta: {} });
+      return Promise.reject(new ApiError("NOT_FOUND", "not a vertex", 404));
     });
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     return render(
@@ -427,8 +425,8 @@ describe("when the graph cannot be read", () => {
     // outage as a fact about the estate.
     vi.spyOn(api, "get").mockImplementation((url: string) =>
       url === "/api/v1/assets/asset-1"
-        ? (Promise.resolve({ data: asset(), meta: {} }) as never)
-        : (Promise.reject(new ApiError("INTERNAL", "boom", 500)) as never),
+        ? Promise.resolve({ data: asset(), meta: {} })
+        : Promise.reject(new ApiError("INTERNAL", "boom", 500)),
     );
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(

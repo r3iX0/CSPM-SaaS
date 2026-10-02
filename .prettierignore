@@ -10,6 +10,8 @@
 apps/web/src/components/ui/
 
 # Generated, with their own drift checks.
+# Written by `eslint --suppress-all` / `--prune-suppressions` in ESLint's own format.
+apps/web/eslint-suppressions.json
 apps/web/src/lib/geo/worldDots.ts
 docs/api/
 

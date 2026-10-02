@@ -224,14 +224,12 @@ function mount(
 ) {
   const get = vi.spyOn(api, "get").mockImplementation((url: string) => {
     const found = answer(url);
-    return (
-      found instanceof Error
-        ? Promise.reject(found)
-        : Promise.resolve({
-            data: found,
-            meta: { routes_total: 1, max_assets: 40, folded_with_reach: 0 },
-          })
-    ) as never;
+    return found instanceof Error
+      ? Promise.reject(found)
+      : Promise.resolve({
+          data: found,
+          meta: { routes_total: 1, max_assets: 40, folded_with_reach: 0 },
+        });
   });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(

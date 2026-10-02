@@ -38,7 +38,11 @@ import { hopKey } from "./routeKeys";
 // `Pick` to a mapped type: React Flow wants node data to be a record, and an
 // interface is never assignable to one, however plain its fields are.
 /** One hop, named by its ends and its relationship. */
-type Hop = { source_id: string; relationship: string; target_id: string };
+interface Hop {
+  source_id: string;
+  relationship: string;
+  target_id: string;
+}
 
 type AssetFlowNode = Node<
   Pick<NeighborhoodNode, keyof NeighborhoodNode> & { focus: boolean; dimmed: boolean },
@@ -189,7 +193,7 @@ function Canvas({
     const frameId = requestAnimationFrame(() => focusBox(neighborhood.focus));
     return () => cancelAnimationFrame(frameId);
     // Once per canvas: the card remounts it for every new focus.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per canvas; the card remounts it for every focus.
   }, []);
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {

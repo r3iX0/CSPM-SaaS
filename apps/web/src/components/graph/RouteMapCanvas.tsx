@@ -280,8 +280,9 @@ function Canvas({
     const x = ends.reduce((sum, p) => sum + p.x, 0) / ends.length + BOX_WIDTH / 2;
     const y = ends.reduce((sum, p) => sum + p.y, 0) / ends.length + BOX_HEIGHT / 2;
     void flow.setCenter(x, y, { zoom: flow.getZoom(), duration });
+    return undefined;
     // The route and the hop are what move the view.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only the route and the hop move the view.
   }, [traced?.key, hop]);
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -362,6 +363,7 @@ function Canvas({
  * Set by `toFlow` from what is being read and simulated; what is picked or
  * previewed is put in front of it on the canvas.
  */
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions -- React Flow's Edge<T> needs T extends Record<string, unknown>, which an interface does not satisfy.
 type LabelRank = { rank: number };
 
 const keyOf = (edge: RouteMapEdge) => hopKey(edge.source, edge.relationship, edge.target);

@@ -115,7 +115,7 @@ export function AccountMenu({
     // pattern effects are meant to leave alone. The rule cannot tell an
     // external store from a stray module variable, so the exemption is stated
     // here rather than switched off for the whole codebase.
-    // eslint-disable-next-line react-hooks/immutability
+    // eslint-disable-next-line react-hooks/immutability -- auth is an external store with its own subscribers.
     auth.organizationId = organization.id;
     queryClient.clear();
     navigate("/", { replace: true });
@@ -186,7 +186,7 @@ export function AccountMenu({
                       keyboard starts on the answer that changes nothing. */}
                   <Button
                     variant="secondary"
-                    // eslint-disable-next-line jsx-a11y/no-autofocus
+                    // eslint-disable-next-line jsx-a11y/no-autofocus -- the button that asked is gone, so focus starts on the answer that changes nothing.
                     autoFocus
                     onClick={() => setConfirming(null)}
                   >

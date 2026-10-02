@@ -91,6 +91,7 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
 
   return (
     <style
+      // eslint-disable-next-line no-restricted-syntax -- shadcn's chart writes its own CSS variables from ChartConfig, never user input.
       dangerouslySetInnerHTML={{
         __html: Object.entries(THEMES)
           .map(

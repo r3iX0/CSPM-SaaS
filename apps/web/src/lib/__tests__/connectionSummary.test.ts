@@ -20,7 +20,7 @@ function subscription(overrides: Partial<DiscoveredSubscription> = {}): Discover
     last_scan_at: "2026-08-30T00:00:00Z",
     is_scannable: true,
     ...overrides,
-  } as DiscoveredSubscription;
+  };
 }
 
 function connection(overrides: Partial<CloudConnection> = {}): CloudConnection {
@@ -61,7 +61,7 @@ describe("when an environment was last read", () => {
           subscription({ last_scan_at: "2026-08-10T00:00:00Z" }),
           subscription({ id: "s2", last_scan_at: "2026-08-31T09:00:00Z" }),
         ],
-      } as Partial<CloudConnection>),
+      }),
     );
 
     expect(value).toBe("2026-08-31T09:00:00Z");
@@ -73,7 +73,7 @@ describe("when an environment was last read", () => {
     const value = lastReadAt(
       connection({
         subscriptions: [subscription({ in_scope: false, last_scan_at: "2026-08-31T09:00:00Z" })],
-      } as Partial<CloudConnection>),
+      }),
     );
 
     expect(value).toBe("2026-08-31T09:00:00Z");
@@ -84,7 +84,7 @@ describe("when an environment was last read", () => {
       lastReadAt(
         connection({
           subscriptions: [subscription({ last_scan_at: null })],
-        } as Partial<CloudConnection>),
+        }),
       ),
     ).toBeNull();
   });
@@ -102,9 +102,9 @@ describe("how often it is read", () => {
   it("names change detection beside the clock, not instead of it", () => {
     // Two mechanisms; a reader shown only one draws the wrong conclusion about
     // the other.
-    expect(
-      cadenceSummary(connection({ change_events_enabled: true } as Partial<CloudConnection>)),
-    ).toBe("on change · every day");
+    expect(cadenceSummary(connection({ change_events_enabled: true }))).toBe(
+      "on change · every day",
+    );
     expect(cadenceSummary(connection())).toBe("every day");
   });
 });
@@ -151,7 +151,7 @@ describe("what the status column says", () => {
         connection({
           is_ready_to_scan: false,
           subscriptions: [subscription({ in_scope: false, is_scannable: false })],
-        } as Partial<CloudConnection>),
+        }),
       ).label,
     ).toBe("Nothing in scope");
   });
@@ -165,7 +165,7 @@ describe("what the status column says", () => {
           is_verified: false,
           is_ready_to_scan: false,
           status: "PENDING",
-        } as Partial<CloudConnection>),
+        }),
       ).label,
     ).toBe("Setting up");
 
@@ -174,15 +174,16 @@ describe("what the status column says", () => {
         connection({
           status: "ERROR",
           status_detail: "The reader role was removed.",
-        } as Partial<CloudConnection>),
+        }),
       ),
     ).toMatchObject({ label: "Needs attention", detail: "The reader role was removed." });
   });
 
   it("says what is doing the reading when it is live", () => {
-    expect(
-      statusSummary(connection({ change_events_enabled: true } as Partial<CloudConnection>)),
-    ).toMatchObject({ label: "Live", detail: "Listening for changes" });
+    expect(statusSummary(connection({ change_events_enabled: true }))).toMatchObject({
+      label: "Live",
+      detail: "Listening for changes",
+    });
   });
 
   it("does not claim a schedule the connection does not have", () => {

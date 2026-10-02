@@ -47,7 +47,7 @@ function findingRisk(overrides: Partial<RiskDetail> = {}): RiskDetail {
       },
     ],
     ...overrides,
-  } as RiskDetail;
+  };
 }
 
 function scenarioRisk(overrides: Partial<RiskDetail> = {}): RiskDetail {
@@ -68,7 +68,7 @@ function scenarioRisk(overrides: Partial<RiskDetail> = {}): RiskDetail {
     score_breakdown: { worst_member: 84, amplifier: 12, hops: 1, uncapped: 96, total: 96 },
     risk_score: 96,
     ...overrides,
-  } as Partial<RiskDetail>);
+  });
 }
 
 function mount(risk: RiskDetail) {

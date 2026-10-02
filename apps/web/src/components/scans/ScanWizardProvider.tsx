@@ -13,12 +13,12 @@ const ScanWizard = lazy(() =>
   import("@/components/scans/ScanWizard").then((module) => ({ default: module.ScanWizard })),
 );
 
-type ScanWizardControls = {
+interface ScanWizardControls {
   /** Open on the first step, or on review when a connection is already chosen. */
   start: (connectionId?: string) => void;
   /** Open on a scan -- running, or finished and read as its result. */
   watch: (scanId: string) => void;
-};
+}
 
 const ScanWizardContext = createContext<ScanWizardControls>({
   start: () => {},

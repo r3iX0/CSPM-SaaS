@@ -149,7 +149,7 @@ describe("the connection wizard", () => {
         template_url: "https://portal.azure.com/#create/template",
         deploy_stalled: true,
         status_detail: "No read access has appeared since the consent was granted.",
-      } as Partial<CloudConnection>),
+      }),
     );
 
     expect(await screen.findByText(/has not propagated yet/i)).toBeInTheDocument();

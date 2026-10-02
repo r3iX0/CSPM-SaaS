@@ -174,16 +174,15 @@ function mount(
   at = "/assets/row-vm",
   whatIf: (url: string) => WhatIf = () => WHAT_IF,
 ) {
-  const get = vi.spyOn(api, "get").mockImplementation(
-    (url: string) =>
-      Promise.resolve(
-        url.includes("/what-if")
-          ? { data: whatIf(url), meta: {} }
-          : {
-              data: typeof neighborhood === "function" ? neighborhood(url) : neighborhood,
-              meta: { depth: 2, truncated: false, max_nodes: 150, fan_out: 12, ...meta },
-            },
-      ) as never,
+  const get = vi.spyOn(api, "get").mockImplementation((url: string) =>
+    Promise.resolve(
+      url.includes("/what-if")
+        ? { data: whatIf(url), meta: {} }
+        : {
+            data: typeof neighborhood === "function" ? neighborhood(url) : neighborhood,
+            meta: { depth: 2, truncated: false, max_nodes: 150, fan_out: 12, ...meta },
+          },
+    ),
   );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
@@ -616,9 +615,7 @@ describe("exploring a route in the graph", () => {
   }
 
   it("opens the entry point's page with the route to trace", async () => {
-    const get = vi
-      .spyOn(api, "get")
-      .mockResolvedValue({ data: { id: "row-7" }, meta: {} } as never);
+    const get = vi.spyOn(api, "get").mockResolvedValue({ data: { id: "row-7" }, meta: {} });
     mountButton();
 
     await userEvent.click(screen.getByRole("button", { name: /explore in graph/i }));

@@ -40,7 +40,7 @@ function dashboard(overrides: Partial<Dashboard> = {}): Dashboard {
       collection_errors: {},
     },
     ...overrides,
-  } as Dashboard;
+  };
 }
 
 const account = { id: "a-1", account_name: "Production" } as CloudAccount;
@@ -67,9 +67,9 @@ function mount(
       return Promise.resolve({
         data: declared ? { cloud_account_id: "a-1" } : null,
         meta: {},
-      }) as never;
+      });
     }
-    return Promise.resolve({ data: connections, meta: {} }) as never;
+    return Promise.resolve({ data: connections, meta: {} });
   });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(

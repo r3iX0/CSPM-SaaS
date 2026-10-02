@@ -21,7 +21,7 @@ function subscription(overrides: Partial<DiscoveredSubscription> = {}): Discover
     last_scan_at: minutesAgo(12),
     is_scannable: true,
     ...overrides,
-  } as DiscoveredSubscription;
+  };
 }
 
 function connection(overrides: Partial<CloudConnection> = {}): CloudConnection {
@@ -90,7 +90,7 @@ describe("a connection row", () => {
       connection({
         is_ready_to_scan: false,
         subscriptions: [subscription({ in_scope: false, is_scannable: false })],
-      } as Partial<CloudConnection>),
+      }),
     );
 
     expect(screen.getByText(/nothing in scope/i)).toBeInTheDocument();
@@ -106,7 +106,7 @@ describe("a connection row", () => {
         status: "PENDING",
         status_detail: "Waiting for an administrator to consent.",
         subscriptions: [],
-      } as Partial<CloudConnection>),
+      }),
     );
 
     expect(screen.getByRole("link", { name: /continue setup/i })).toHaveAttribute(
@@ -142,7 +142,7 @@ describe("a connection row", () => {
             scope_changed_at: "2026-08-20T09:00:00Z",
           }),
         ],
-      } as Partial<CloudConnection>),
+      }),
     );
 
     await userEvent.click(screen.getByRole("button", { name: /show this connection/i }));
@@ -166,7 +166,7 @@ describe("a connection row", () => {
             last_scan_at: null,
           }),
         ],
-      } as Partial<CloudConnection>),
+      }),
     );
 
     await userEvent.click(screen.getByRole("button", { name: /show this connection/i }));
@@ -185,7 +185,7 @@ describe("a connection row", () => {
       role_upgrade_available: true,
       degraded_categories: ["database", "secrets"],
       template_url: "https://portal.azure.com/#create/Microsoft.Template/uri/x",
-    } as Partial<CloudConnection>);
+    });
     const post = vi.spyOn(api, "post").mockResolvedValue({
       data: {
         ...behind,
@@ -194,7 +194,7 @@ describe("a connection row", () => {
         degraded_categories: [],
       },
       meta: {},
-    } as never);
+    });
     mount(behind);
 
     await userEvent.click(screen.getByRole("button", { name: /show this connection/i }));
@@ -220,27 +220,26 @@ describe("a connection row", () => {
     // cannot run them, and a probe -- and expanded in place it pushed the rest
     // of the connection off screen while somebody decided whether to delete an
     // environment.
-    vi.spyOn(api, "get").mockImplementation(
-      (path: string) =>
-        Promise.resolve(
-          path.endsWith("/revocation")
-            ? {
-                data: {
-                  principal_id: "sp-1",
-                  scope_path: "/subscriptions/x",
-                  why_manual: "Cleave holds read-only access.",
-                  steps: [
-                    {
-                      title: "Remove the scanner role assignment",
-                      detail: "Ends Cleave's ability to read Azure resources.",
-                      command: "az role assignment delete --assignee sp-1",
-                    },
-                  ],
-                },
-                meta: {},
-              }
-            : { data: connection(), meta: {} },
-        ) as never,
+    vi.spyOn(api, "get").mockImplementation((path: string) =>
+      Promise.resolve(
+        path.endsWith("/revocation")
+          ? {
+              data: {
+                principal_id: "sp-1",
+                scope_path: "/subscriptions/x",
+                why_manual: "Cleave holds read-only access.",
+                steps: [
+                  {
+                    title: "Remove the scanner role assignment",
+                    detail: "Ends Cleave's ability to read Azure resources.",
+                    command: "az role assignment delete --assignee sp-1",
+                  },
+                ],
+              },
+              meta: {},
+            }
+          : { data: connection(), meta: {} },
+      ),
     );
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
@@ -274,7 +273,7 @@ describe("a connection row", () => {
   it("closes on the safe answer, and never on a stray keypress", async () => {
     // Escape and "Keep it" are the same action, and the destructive button is
     // not the one either of them reaches.
-    vi.spyOn(api, "get").mockResolvedValue({ data: connection(), meta: {} } as never);
+    vi.spyOn(api, "get").mockResolvedValue({ data: connection(), meta: {} });
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       <QueryClientProvider client={client}>
@@ -296,9 +295,7 @@ describe("a connection row", () => {
   it("scans the connection through one of its scannable subscriptions", async () => {
     // A scan is connection-scoped server-side: the worker resolves what sits
     // beneath, so one scannable subscription names the target for all of them.
-    const post = vi
-      .spyOn(api, "post")
-      .mockResolvedValue({ data: { id: "scan-1" }, meta: {} } as never);
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: { id: "scan-1" }, meta: {} });
     mount(connection());
 
     await userEvent.click(screen.getByRole("button", { name: /scan now/i }));

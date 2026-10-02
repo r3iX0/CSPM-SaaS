@@ -36,7 +36,7 @@ function findingRisk(overrides: Partial<Risk> = {}): Risk {
     business_impact: 4.5,
     score_breakdown: { components: {}, total: 84 },
     ...overrides,
-  } as Risk;
+  };
 }
 
 function scenarioRisk(overrides: Partial<Risk> = {}): Risk {
@@ -79,7 +79,7 @@ function scenarioRisk(overrides: Partial<Risk> = {}): Risk {
       total: 96,
     },
     ...overrides,
-  } as Risk;
+  };
 }
 
 function mount(
@@ -98,26 +98,25 @@ function mount(
 ) {
   // Answered by URL: the page also asks which organization it is in (the demo
   // takes the actions away) and, once a route is listed, what to cut.
-  vi.spyOn(api, "get").mockImplementation(
-    (url: string) =>
-      Promise.resolve(
-        url.includes("/choke-points")
-          ? { data: chokes, meta: {} }
-          : url.includes("risks?limit=1")
-            ? {
-                data: [],
-                meta: {
-                  total: url.includes("risk_level=")
-                    ? counts[url.split("risk_level=")[1] as "CRITICAL" | "HIGH"]
-                    : counts.all,
-                },
-              }
-            : url.includes("status=OPEN&limit=1")
-              ? { data: [], meta: { total: untriaged } }
-              : url.includes("/organizations")
-                ? { data: [{ id: "org-1", name: "Contoso", is_demo: demo }], meta: {} }
-                : { data: risks, meta: {} },
-      ) as never,
+  vi.spyOn(api, "get").mockImplementation((url: string) =>
+    Promise.resolve(
+      url.includes("/choke-points")
+        ? { data: chokes, meta: {} }
+        : url.includes("risks?limit=1")
+          ? {
+              data: [],
+              meta: {
+                total: url.includes("risk_level=")
+                  ? counts[url.split("risk_level=")[1] as "CRITICAL" | "HIGH"]
+                  : counts.all,
+              },
+            }
+          : url.includes("status=OPEN&limit=1")
+            ? { data: [], meta: { total: untriaged } }
+            : url.includes("/organizations")
+              ? { data: [{ id: "org-1", name: "Contoso", is_demo: demo }], meta: {} }
+              : { data: risks, meta: {} },
+    ),
   );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -188,7 +187,7 @@ describe("RisksPage", () => {
   });
 
   it("decides about the selected rows in one request", async () => {
-    const post = vi.spyOn(api, "post").mockResolvedValue({ data: [], meta: {} } as never);
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: [], meta: {} });
     mount([scenarioRisk(), findingRisk()]);
 
     await userEvent.click(
@@ -205,7 +204,7 @@ describe("RisksPage", () => {
   });
 
   it("asks for a reason, and says how far an acceptance reaches", async () => {
-    const post = vi.spyOn(api, "post").mockResolvedValue({ data: [], meta: {} } as never);
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: [], meta: {} });
     mount([findingRisk({ finding_count: 40 })]);
 
     await userEvent.click(
@@ -248,7 +247,7 @@ describe("RisksPage", () => {
   });
 
   it("sends an end date as the end of the picked day", async () => {
-    const post = vi.spyOn(api, "post").mockResolvedValue({ data: [], meta: {} } as never);
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: [], meta: {} });
     mount([findingRisk()]);
 
     await userEvent.click(

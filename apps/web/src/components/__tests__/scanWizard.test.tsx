@@ -124,7 +124,7 @@ let cancelled: string[] = [];
 function stubApi({
   connections = [connection] as unknown[],
   scans = [] as unknown[],
-  scanDetail = detail() as unknown,
+  scanDetail = detail(),
   postStatus = 202,
 } = {}) {
   posted = [];

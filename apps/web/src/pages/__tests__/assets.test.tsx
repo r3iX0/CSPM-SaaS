@@ -297,7 +297,7 @@ describe("the assets page", () => {
           error: null,
           meta: {},
         }),
-      })) as unknown as typeof fetch,
+      })),
     );
     render(
       <QueryClientProvider client={client}>

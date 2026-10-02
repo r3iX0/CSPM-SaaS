@@ -90,7 +90,7 @@ export function SubscriptionScopeList({
               onCheckedChange={(value) =>
                 setSelection({
                   ...selection,
-                  [sub.subscription_id ?? ""]: value === true,
+                  [sub.subscription_id ?? ""]: value,
                 })
               }
               aria-label={`${t.connection.inScope}: ${sub.display_name}`}

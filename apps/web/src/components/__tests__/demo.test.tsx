@@ -37,7 +37,7 @@ function Where() {
 }
 
 function mount(ui: React.ReactNode, orgs: Organization[], entry = "/") {
-  vi.spyOn(api, "get").mockResolvedValue({ data: orgs, meta: {} } as never);
+  vi.spyOn(api, "get").mockResolvedValue({ data: orgs, meta: {} });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
@@ -96,7 +96,7 @@ describe("the demo organization", () => {
 
   it("opens from onboarding, before anything is set up", async () => {
     auth.organizationId = null;
-    const post = vi.spyOn(api, "post").mockResolvedValue({ data: DEMO, meta: {} } as never);
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: DEMO, meta: {} });
     mount(<OnboardingPage />, [], "/onboarding");
 
     fireEvent.click(await screen.findByRole("button", { name: /Look around a recorded estate/ }));

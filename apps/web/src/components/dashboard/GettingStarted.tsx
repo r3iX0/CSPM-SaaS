@@ -18,7 +18,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 /** Declarations are read per subscription; past this many, the first answers. */
 const CONTEXT_PROBE_LIMIT = 20;
 
-type Step = {
+interface Step {
   key: string;
   title: string;
   detail: string;
@@ -27,7 +27,7 @@ type Step = {
   requires?: string;
   /** Drawn as a button for the next step and as a quiet link for the rest. */
   action: (primary: boolean) => React.ReactNode;
-};
+}
 
 /** The quiet form of a later step's action: reachable, not competing. */
 const QUIET_ACTION =

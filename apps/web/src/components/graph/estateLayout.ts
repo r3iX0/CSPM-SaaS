@@ -12,7 +12,10 @@ export const QUIET_ROWS = 8;
 /** Sweeps, alternately rightwards and leftwards, that reorder columns to uncross arrows. */
 const SWEEPS = 6;
 
-type Point = { x: number; y: number };
+interface Point {
+  x: number;
+  y: number;
+}
 
 /**
  * Where every box goes, and where an arrow that spans columns bends.

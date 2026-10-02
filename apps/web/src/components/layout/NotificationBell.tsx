@@ -87,7 +87,7 @@ export function NotificationBell() {
     }
     // `markRead` is a stable mutation object; including it would re-run this on
     // every render of a mutation that is itself the effect's only side effect.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- markRead is a stable mutation object.
   }, [open, unread]);
 
   // A failed request is not an absence of news: rendering an empty bell would

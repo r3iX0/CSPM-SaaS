@@ -110,7 +110,7 @@ function mount(controls: object[]) {
         error: null,
         meta: {},
       }),
-    })) as unknown as typeof fetch,
+    })),
   );
 
   const client = new QueryClient({

@@ -4,7 +4,10 @@ import { m } from "motion/react";
 import { layoutSpring } from "@/lib/motion";
 import { cn } from "@/lib/format";
 
-export type Segment = { value: string; label: string };
+export interface Segment {
+  value: string;
+  label: string;
+}
 
 /**
  * A filter whose choices are few enough to show all at once.

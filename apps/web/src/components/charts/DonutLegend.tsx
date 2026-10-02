@@ -1,12 +1,12 @@
 import { cn } from "@/lib/format";
 
-export type Slice = {
+export interface Slice {
   key: string;
   label: string;
   value: number;
   /** A CSS colour, always from the status scale — never a generated hue. */
   tone: string;
-};
+}
 
 /**
  * A ring's key, as words.

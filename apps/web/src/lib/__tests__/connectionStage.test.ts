@@ -93,9 +93,7 @@ describe("which step a connection is on", () => {
   it("reads a cancelled setup as paused rather than as waiting for consent", () => {
     // A cancelled connection is also un-consented. Checking consent first would
     // have it report itself as waiting for an administrator nobody is asking.
-    expect(connectionStage(connection({ status: "DISABLED" } as Partial<CloudConnection>))).toBe(
-      "paused",
-    );
+    expect(connectionStage(connection({ status: "DISABLED" }))).toBe("paused");
   });
 
   it("keeps a disabled but verified connection out of the setup flow", () => {
@@ -129,7 +127,7 @@ describe("which step a connection is on", () => {
       provider: "aws",
       consent_status: "PENDING",
       rbac_verified_at: null,
-    } as Partial<CloudConnection>);
+    });
     expect(connectionStage(link)).toBe("deploy");
   });
 

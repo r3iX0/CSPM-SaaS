@@ -40,7 +40,10 @@ import { cn } from "@/lib/utils";
 type Mode = "signin" | "signup" | "magic" | "reset";
 
 /** A "we emailed you something" confirmation, and which something it was. */
-type Sent = { kind: "magic" | "confirm" | "reset"; email: string };
+interface Sent {
+  kind: "magic" | "confirm" | "reset";
+  email: string;
+}
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -179,7 +182,7 @@ export function SignInPage() {
                   required
                   // The page is this form, outside the shell with nothing before
                   // it to read, and the field is its first.
-                  // eslint-disable-next-line jsx-a11y/no-autofocus
+                  // eslint-disable-next-line jsx-a11y/no-autofocus -- the page is this form, and the field is its first.
                   autoFocus
                   autoComplete="email"
                   value={email}

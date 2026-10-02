@@ -258,7 +258,7 @@ function AddWebhook() {
             <label key={kind} className="flex items-center gap-2 text-sm text-foreground">
               <Checkbox
                 checked={kinds.includes(kind)}
-                onCheckedChange={(on) => toggleKind(kind, on === true)}
+                onCheckedChange={(on) => toggleKind(kind, on)}
               />
               {t.webhooks.kinds[kind]}
             </label>

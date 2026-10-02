@@ -67,7 +67,7 @@ export function placeholderValues(
   if (arm) {
     values["subscription-id"] = arm[1];
     if (arm[2]) values.rg = arm[2];
-    values["resource-id"] = providerResourceId as string;
+    values["resource-id"] = providerResourceId!;
   }
 
   return values;

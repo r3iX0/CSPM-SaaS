@@ -87,24 +87,24 @@ function mount({
 } = {}) {
   vi.spyOn(api, "get").mockImplementation((path: string) => {
     if (path.includes("/context")) {
-      return Promise.resolve({ data: declaration, meta: {} }) as never;
+      return Promise.resolve({ data: declaration, meta: {} });
     }
     if (path.includes("cloud-accounts")) {
-      return Promise.resolve({ data: accounts, meta: {} }) as never;
+      return Promise.resolve({ data: accounts, meta: {} });
     }
     if (path.endsWith("/members")) {
-      return Promise.resolve({ data: members, meta: {} }) as never;
+      return Promise.resolve({ data: members, meta: {} });
     }
     if (path.endsWith("/invitations")) {
-      return Promise.resolve({ data: invitations, meta: {} }) as never;
+      return Promise.resolve({ data: invitations, meta: {} });
     }
     if (path.endsWith("/webhooks")) {
-      return Promise.resolve({ data: webhooks, meta: {} }) as never;
+      return Promise.resolve({ data: webhooks, meta: {} });
     }
     if (path.includes("/audit-log")) {
-      return Promise.resolve({ data: activity, meta: { total: activity.length } }) as never;
+      return Promise.resolve({ data: activity, meta: { total: activity.length } });
     }
-    return Promise.resolve({ data: orgs, meta: {} }) as never;
+    return Promise.resolve({ data: orgs, meta: {} });
   });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -320,7 +320,7 @@ describe("Members", () => {
         link: "https://app.example/invite#a-token-that-is-long-enough",
       },
       meta: {},
-    } as never);
+    });
     mount();
 
     await userEvent.type(await screen.findByLabelText("Email address"), "new@contoso.example");
@@ -498,7 +498,7 @@ describe("Integrations", () => {
         secret: "a".repeat(64),
       },
       meta: {},
-    } as never);
+    });
     mount();
 
     await userEvent.type(await screen.findByLabelText("Integration name"), "SIEM");

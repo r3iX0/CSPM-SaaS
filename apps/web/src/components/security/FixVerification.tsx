@@ -74,7 +74,7 @@ export function FixVerification({
     queryFn: () => api.get<ScanDetail>(`/api/v1/scans/${scanId}/detail`).then((r) => r.data),
     refetchInterval: (query) => {
       if (live) return false;
-      const status = (query.state.data as ScanDetail | undefined)?.status;
+      const status = query.state.data?.status;
       return status && !IN_FLIGHT.includes(status) ? false : 3000;
     },
   });

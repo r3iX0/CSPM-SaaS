@@ -22,13 +22,13 @@ type Kind = "executive" | "technical";
  * let somebody produce a cleaner-looking document by unticking a box. What is
  * optional is detail, never the terms the numbers are read on.
  */
-type Section = {
+interface Section {
   id: string;
   label: string;
   detail: string;
   /** Only meaningful in the technical report, which is the one that lists them. */
   technicalOnly?: boolean;
-};
+}
 
 const SECTIONS: Section[] = [
   {
@@ -232,7 +232,7 @@ export function ReportsPage() {
                   className="mt-0.5"
                   aria-labelledby={`section-${section.id}-label`}
                   checked={chosen.includes(section.id)}
-                  onCheckedChange={(value) => toggle(section.id, value === true)}
+                  onCheckedChange={(value) => toggle(section.id, value)}
                 />
                 <div>
                   <span

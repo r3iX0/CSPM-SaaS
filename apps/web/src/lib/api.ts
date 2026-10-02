@@ -16,11 +16,11 @@ export const API_URL = import.meta.env.VITE_API_URL ?? "";
 const TOKEN_KEY = "cloudguard.token";
 const ORG_KEY = "cloudguard.org";
 
-export type Envelope<T> = {
+export interface Envelope<T> {
   data: T | null;
   error: { code: string; message: string } | null;
   meta: Record<string, unknown>;
-};
+}
 
 export class ApiError extends Error {
   constructor(
