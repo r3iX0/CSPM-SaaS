@@ -1,4 +1,7 @@
-FROM python:3.14-slim
+# The same Python CI tests on (.github/workflows/ci.yml). A newer interpreter is a
+# change to the stack, not a routine bump: 3.14 failed the deploy because the pinned
+# psycopg-binary has no wheel for it (DECISIONS.md §197).
+FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \

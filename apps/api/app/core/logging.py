@@ -19,6 +19,12 @@ def configure_logging() -> None:
     access = logging.getLogger("uvicorn.access")
     if not any(isinstance(f, AccessLogRedactor) for f in access.filters):
         access.addFilter(AccessLogRedactor())
+    # httpx writes ``HTTP Request: POST <url>`` at INFO for every call, and a Slack or Teams
+    # webhook keeps its credential in the URL's path, where no query redaction reaches. The
+    # caller records how a delivery went; the client's own line adds only the URL
+    # (DECISIONS.md §198).
+    for name in ("httpx", "httpcore"):
+        logging.getLogger(name).setLevel(logging.WARNING)
     structlog.configure(
         processors=[
             structlog.contextvars.merge_contextvars,
