@@ -11026,6 +11026,10 @@
             "type": "integer",
             "title": "Skipped"
           },
+          "unavailable": {
+            "type": "integer",
+            "title": "Unavailable"
+          },
           "degraded_categories": {
             "items": {
               "type": "string"
@@ -11043,6 +11047,7 @@
           "partial",
           "failed",
           "skipped",
+          "unavailable",
           "degraded_categories"
         ],
         "title": "CollectionStatusOut",
@@ -19426,7 +19431,8 @@
           "COMPLETE",
           "PARTIAL",
           "FAILED",
-          "SKIPPED"
+          "SKIPPED",
+          "UNAVAILABLE"
         ],
         "title": "TaskOutcome",
         "description": "What became of one unit of collection.\n\n``PARTIAL`` is the one that carries weight. It means data came back and is\nknown to be incomplete -- a truncated listing, a detail call that failed for\nsome resources. Rules must treat it exactly as they treat a failure, because\na list missing an unknown number of entries cannot support \"none of them are\npublic\". It is the UNKNOWN/PASS distinction, one layer below the rules."
