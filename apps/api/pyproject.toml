@@ -34,7 +34,7 @@ dependencies = [
   # Azure does not have: SigV4, and three different wire protocols across the
   # services CloudGuard reads (DECISIONS.md §72).
   "aiobotocore==3.9.0",
-  "structlog==24.4.0",
+  "structlog==26.1.0",
   "sentry-sdk[fastapi]==2.19.2",
   "jinja2==3.1.6",
   # PDF reports. Needs native pango/cairo/harfbuzz, installed in the API image
