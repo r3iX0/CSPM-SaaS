@@ -25,6 +25,10 @@ comment exists, where an exception may be caught) is in
 [`PYTHON_GUIDELINES.md`](PYTHON_GUIDELINES.md), with each rule tagged by the
 check that holds it or `[review]`.
 
+How an endpoint is designed (resources, status codes, the envelope, errors, paging, security) is
+in [`API_GUIDELINES.md`](API_GUIDELINES.md), with each practice marked as in place, to adopt, or
+deliberately not here.
+
 YAML, Jinja2 and workflow checks come next (§191, "Rules tighten by
 ratchet"). Until they land, follow the shape of the files around you.
 

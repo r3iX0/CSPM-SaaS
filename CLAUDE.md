@@ -295,6 +295,8 @@ so the shell's own `<main>` is the page's only one (§155).
 - REST over Azure SDKs: raw JSON stored for re-evaluation
 - Relationship edges indexed both ways at RuleContext construction
 - No mock connector in production code; fixture-based unit tests instead
+- API design (resources, status codes, errors, paging, security, the new-endpoint checklist):
+  `docs/API_GUIDELINES.md`, loaded for API work by `.claude/rules/api.md`
 - API response envelope: `{ "data": ..., "error": null, "meta": {} }`; a route returns
   `Envelope[Data, Meta]` built from models -- or, where a service's dict has other readers,
   validated from it against `ClosedModel`s, which refuse undeclared keys -- and documents

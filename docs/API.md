@@ -6,6 +6,7 @@
 > - [OpenAPI 3.1.0 Specification (JSON)](api/openapi.json)
 > - Spec generator script:
 >   [`apps/api/scripts/generate_openapi.py`](../apps/api/scripts/generate_openapi.py)
+> - How to design a new endpoint: [API guidelines](API_GUIDELINES.md)
 
 ## 1. Endpoints
 
