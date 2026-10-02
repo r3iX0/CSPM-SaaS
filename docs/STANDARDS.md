@@ -12,8 +12,8 @@ exception.
 | Python: lint | Ruff | `apps/api/pyproject.toml` `[tool.ruff]` (`ruff.toml` at the root extends it for `tools/`) | PEP 8, PEP 257, flake8-bugbear, pyupgrade |
 | Python: format | Ruff format | same | Black's style |
 | Python: types | mypy | `apps/api/pyproject.toml` `[tool.mypy]` | typeshed, the pydantic plugin |
-| TypeScript: lint | ESLint | `apps/web/eslint.config.js` | typescript-eslint, react-hooks, jsx-a11y strict |
-| TypeScript: types | tsc | `apps/web/tsconfig.json` | `strict` |
+| TypeScript: lint | ESLint, type-aware | `apps/web/eslint.config.js`, `eslint-suppressions.json` | Google TypeScript guide, typescript-eslint strict, react-hooks, jsx-a11y strict ([`TYPESCRIPT_GUIDELINES.md`](TYPESCRIPT_GUIDELINES.md)) |
+| TypeScript: types | tsc | `apps/web/tsconfig.json` | `strict`, `noImplicitOverride`, `noImplicitReturns`, `verbatimModuleSyntax` |
 | TS, JS, CSS, JSON: format | Prettier | `.prettierrc.json`, `.prettierignore` | Prettier defaults, 100 columns |
 | Markdown | markdownlint-cli2 | `.markdownlint-cli2.jsonc` | Google, Microsoft and IBM Markdown guides ([`MARKDOWN_GUIDELINES.md`](MARKDOWN_GUIDELINES.md)) |
 | Every file | pre-commit-hooks | `.pre-commit-config.yaml` | LF endings, final newline, no merge markers, no private keys, no file over 1 MB |

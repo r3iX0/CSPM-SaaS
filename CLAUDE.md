@@ -163,9 +163,11 @@ so the shell's own `<main>` is the page's only one (§155).
   `disallow_untyped_defs`.
   B008 ignored (FastAPI
   `Depends()`). N818 ignored (domain errors named `NotFound`/`PermissionDenied`).
-- **TypeScript**: Strict mode, path alias `@/` → `./src/`. React 18 SPA on Vite — not Next.js, no
-  SSR, no server components; the build is static and Vercel serves it. React Router for routing,
-  TanStack Query for server state.
+- **TypeScript**: follow `docs/TYPESCRIPT_GUIDELINES.md` (Google's guide condensed, with where
+  this codebase departs; `.claude/rules/typescript.md` loads it for web code). Strict mode, path
+  alias `@/` → `./src/`. React 18 SPA on Vite — not Next.js, no SSR, no server components; the
+  build is static and Vercel serves it. React Router for routing, TanStack Query for server
+  state.
 - **UI**: Tailwind 4 is the styling layer (CSS-first: the theme is `@theme inline` in
   `apps/web/src/index.css`, there is no `tailwind.config.js`), with severity/status color tokens
   defined there — use the tokens, not raw hex. Font sizes are the nine steps of the type scale there

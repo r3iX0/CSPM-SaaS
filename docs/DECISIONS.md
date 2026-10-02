@@ -10709,6 +10709,50 @@ the next step, with lychee in offline mode.
 in play. The `@path` import does not expand inside a rule, so each says to read
 its guideline in full and carries the rules most often missed.
 
+## 193. TypeScript is linted type-aware at typescript-eslint's strict level, ratcheted by ESLint's own suppressions file
+
+The web app was linted with typescript-eslint's `recommended` set and no type
+information, so the rules that catch real faults in this code could not run: a
+promise nobody awaits, an async handler whose rejection vanishes, an `as` that
+hides a missing field, a `!` on a value that can be absent. Measured, the strict
+type-aware set found 61 floating promises, 33 misused promises, 87 object-literal
+assertions and 44 non-null assertions. `docs/TYPESCRIPT_GUIDELINES.md` condenses
+the Google TypeScript style guide and W3Schools' best practices against this
+codebase; `apps/web/eslint.config.js` holds what a tool can see.
+
+**The strict and stylistic sets, tuned for React with reasons.** On top:
+`eqeqeq` (but `== null`), no `console`, no `var`, no `enum`, named exports but
+for modules loaded with `lazy()`, consistent type imports, exhaustive switches,
+no assertion on an object literal, and four of CLAUDE.md's conventions as
+`no-restricted-syntax` (`text-[Npx]`, `Button render={<Link/>}`,
+`dangerouslySetInnerHTML`, enums). Every disable comment names its rule and a
+reason, and an unused one is an error. Turned off with their reason in the
+config: `no-confusing-void-expression` (390 hits on `onClick={() => set(x)}`),
+and `no-unnecessary-condition`, which without `noUncheckedIndexedAccess`
+believes `items[i]` is always defined and would talk people out of real checks.
+Vendored shadcn components keep correctness rules and drop type-aware style.
+
+**The ratchet is ESLint's, not ours.** `eslint --suppress-all` recorded the 315
+violations left after safe autofixes in `eslint-suppressions.json`. A new
+violation fails; a suppression that no longer occurs also fails (exit 2) until
+`npm run lint:prune` removes it, so the file can only shrink. It is not
+hand-edited and Prettier does not format it.
+
+**The compiler gained three flags.** `verbatimModuleSyntax`,
+`noImplicitOverride` and `noImplicitReturns` cost four edits.
+`noUncheckedIndexedAccess` (105 errors) and `exactOptionalPropertyTypes` (42)
+come next; the compiler has no suppressions file, so they land fixed.
+
+**One autofix was wrong and reverted.** `consistent-type-definitions` turned a
+React Flow edge-data `type` into an `interface`, which no longer satisfies
+`Record<string, unknown>`; it stays a `type` with a reasoned disable. Every
+other fix was checked by `tsc`, the 646 tests and the build.
+
+**The config is protected.** A local hook blocks edits to lint configs; the
+config was applied by hand from a reviewed proposal. `no-eval`, `no-new-func`,
+`no-new-wrappers`, `no-object-constructor` and `no-extend-native` are in the
+guidelines as review items until they are added to it.
+
 ## Open items carried forward
 
 **Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read
