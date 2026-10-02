@@ -94,8 +94,8 @@ Each practice is marked with where this API stands:
 - **`GET` never changes state.** Not a counter, not a "last viewed", not a lazy migration. A
   crawler, a prefetch or a retry must be harmless. _(Postman, Microsoft)_
 - **`POST` to a collection creates**, the server assigns the id, and the response is `201` with
-  the created resource in `data`. **Adopt**: also send a `Location` header with its URI
-  (Microsoft, Postman).
+  the created resource in `data` and a `Location` header with its URI (Microsoft, Postman).
+  **In place** (`created` in `app/api/links.py`).
 - **`PATCH` uses merge semantics**: a field absent from the body is left unchanged; a field
   present is set. Clearing a field with `null` is allowed only where the model documents it.
   Model the body with every field optional and apply `model_dump(exclude_unset=True)`.
@@ -158,7 +158,8 @@ Every JSON response has the same three keys (`docs/API.md` §2, §157). **In pla
 - **Timestamps are ISO 8601 in UTC with an offset**: `"2026-10-01T09:30:00Z"`. Never a local
   time, never epoch seconds in one place and strings in another.
 - **Enumerations are upper-case strings** (`"CRITICAL"`, `"RESOLVED"`), declared as `StrEnum`,
-  never integers.
+  never integers. The one exception is `Provider` (`azure`, `aws`, `gcp`), an existing contract
+  that stays; a new enumeration follows the rule.
 - **Ids are UUID strings.** Money, if it ever appears, is an integer of minor units plus a
   currency, never a float.
 - **`null` means "known to be absent"; an omitted field means "not part of this
@@ -168,6 +169,9 @@ Every JSON response has the same three keys (`docs/API.md` §2, §157). **In pla
 - **Separate models per direction.** `FooCreate` (what a client may send), `FooUpdate` (all
   optional, for `PATCH`), `FooOut` (what the server returns). A client can never set `id`,
   `organization_id`, `created_at` or a status the server owns. _(FastLaunchAPI)_
+- **A request body refuses a field it does not know.** Request models derive from
+  `RequestModel` (`extra="forbid"`), so a misspelt field or one the server owns answers `422`
+  naming it instead of being dropped. **In place**, held by `tests/unit/test_request_models.py`.
 - **Validate at the edge with `Field` constraints**: lengths, ranges, patterns, `EmailStr`,
   `HttpUrl`. Business rules that need the database are checked in the service, and fail with a
   domain error. _(Auth0)_
@@ -233,8 +237,9 @@ Errors use the same envelope, with `data: null` and an `error` object. **In plac
 - **Anything that takes longer than a request should not block one.** Accept it, queue it, and
   answer `202 Accepted` with the resource that tracks it. **In place**: `POST /scans` returns the
   scan; the client follows `GET /scans/{id}/detail` or the `GET /scans/{id}/events` stream.
-- **Adopt**: also send `Location` pointing at the status resource, and `Retry-After` with a
-  sensible poll interval, as Microsoft's asynchronous request-reply pattern describes.
+- A `202` also sends `Location` pointing at the status resource and `Retry-After` with the poll
+  interval, as Microsoft's asynchronous request-reply pattern describes. **In place**
+  (`accepted` in `app/api/links.py`).
 - **Durable work goes to Celery**, never FastAPI's `BackgroundTasks`, which die with the process
   and cannot be retried or observed. _(FastLaunchAPI)_ **In place**.
 - **The status resource tells the truth**: real phases from the database, no simulated progress
@@ -255,7 +260,8 @@ Errors use the same envelope, with `data: null` and an `error` object. **In plac
 - **Never repurpose a field.** A changed meaning is a new field.
 - **Deprecate in the open.** Mark the operation `deprecated=True` in OpenAPI, send `Deprecation`
   and `Sunset` headers (RFC 9745, RFC 8594), and write the date and the replacement in
-  `docs/API.md`. **Adopt** when the first route is deprecated.
+  `docs/API.md`. The `deprecation()` dependency in `app/core/openapi.py` sends both headers and a
+  `Link` to the replacement; no route uses it yet. **Adopt** when the first route is deprecated.
 
 ## 9. Idempotency and concurrency
 
@@ -282,7 +288,10 @@ below are where each is answered.
 
 - **Every route requires a verified token** (Supabase JWT, ES256/RS256/HS256, signing keys
   fetched asynchronously and cached), except the few listed as open, such as the health checks
-  and the cloud event receivers. **In place** (`app/core/security.py`).
+  and the cloud event receivers. The scheme is declared once (`bearer_scheme` in
+  `app/core/deps.py`), so the OpenAPI document carries `bearerAuth` and each such route says it
+  needs it; `tests/unit/test_openapi_contract.py` lists the open ones. **In place**
+  (`app/core/security.py`).
 - **Tokens travel only in `Authorization: Bearer`.** Never in a query string, which ends up in
   logs and browser history. A single-use link token goes in the URL fragment, which servers never
   see (§162).
@@ -303,19 +312,22 @@ below are where each is answered.
   build SQL from strings; never pass a client value to a shell, a template or a file path.
 - **Bodies are size-limited** (`RequestSizeLimitMiddleware`, `413`). **In place**.
 - **Rate limits per verified user**, with a smaller allowance on expensive routes marked
-  `dependencies=[Costly]`; over the limit is `429` with `Retry-After` (§161). **In place**.
-  **Adopt**: `X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset` headers, so a
-  client can slow down before it is refused (Postman).
+  `dependencies=[Costly]`; over the limit is `429` with `Retry-After` (§161). Every counted
+  response carries `X-RateLimit-Limit`, `-Remaining` and `-Reset` for the tightest counter that
+  spoke, so a client can slow down before it is refused (Postman). **In place**.
 - **HTTPS only**, with HSTS. **In place** (`SecurityHeadersMiddleware`).
 - **Security headers on every response**, including errors and preflights: CSP,
   `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`. **In place**.
-- **CORS lists origins explicitly**, never `*` with credentials, and exposes only the headers a
-  client needs (`X-Request-ID`). **In place**.
+- **CORS lists origins explicitly**, never `*` with credentials, names the methods and request
+  headers the web app sends rather than `*`, and exposes only the response headers a client
+  reads (`X-Request-ID`, `X-RateLimit-*`, `Retry-After`, `Location`, `Content-Disposition`).
+  **In place**.
 - **Outbound requests to a URL a customer typed** go only through `core/outbound.post_json`:
   HTTPS on 443, public addresses only, the connection pinned to the checked IP, no redirects
   (§164; OWASP API7, server-side request forgery). **In place**.
-- **Tenant data is not cached by intermediaries**: send `Cache-Control: private, no-store` on
-  responses carrying it. **Adopt** where not yet set.
+- **Tenant data is not cached by intermediaries**: every response under `/api/` carries
+  `Cache-Control: private, no-store` unless a route chose its own policy (the event stream, a
+  download). **In place** (`SecurityHeadersMiddleware`).
 
 ### Secrets and audit
 
@@ -342,7 +354,8 @@ app/
 
 - **Routes are thin.** A route parses input, authorizes, calls one service function and returns
   the envelope. Business rules, multi-step writes and anything a worker also needs live in a
-  service. _(Auth0, FastLaunchAPI)_
+  service. _(Auth0, FastLaunchAPI)_ **In place**, held by `tests/unit/test_thin_routes.py`: a route
+  module that builds a statement or calls the session (other than `commit`) fails it.
 - **One router per area**, `APIRouter(prefix="/findings", tags=["findings"])`, included once in
   `app/api/router.py`.
 
@@ -382,8 +395,12 @@ app/
 
 - **Async SQLAlchemy through the request's session** (`DbSession`), under the RLS-constrained
   `cloudguard_app` role; the owner connection is for migrations only. **In place**.
-- **One transaction per request**, committed once at the end by the service. The scan pipeline
-  commits only through `ScanWriter.commit` (CLAUDE.md).
+- **One transaction per request, ended by the route.** `rls_session` keeps the caller's RLS
+  claims in the transaction, so a commit inside a service would tear them down for whatever the
+  route does next. A service flushes and never calls `session.commit()`
+  (`tests/unit/test_request_transaction.py`); the route commits once, after the service returns
+  and before it queues any work. The scan pipeline commits only through `ScanWriter.commit`
+  (CLAUDE.md).
 - **Load what the response needs in one query or a fixed few**: `selectinload`/`joinedload` for
   relationships, never a query per row (N+1). _(FastLaunchAPI)_
 - **Page, filter and sort in SQL** (§6 of this document).
@@ -400,8 +417,8 @@ app/
 - **Unhandled errors go to Sentry**; the client sees only the envelope.
 - **Two health endpoints**, both unauthenticated and both saying nothing about the deployment:
   `GET /health` (liveness: the process answers) and `GET /health/ready` (readiness: the database
-  answers). **In place**. **Adopt**: readiness that also checks the task queue, and answers `503`
-  rather than an error when a dependency is down (FastLaunchAPI).
+  and the task broker both answer, or a `503` in the envelope names the one that does not,
+  without its own error text). **In place** (FastLaunchAPI).
 - **Adopt** when there is a place to send them: request rate, error rate and latency per route,
   and trace context (`traceparent`) carried through to the workers.
 
@@ -413,8 +430,13 @@ app/
   annotation, the errors through `responses=error_responses(...)`, and a docstring that says what
   the endpoint is for and why it is shaped that way. `tests/unit/test_typed_responses.py` walks
   every route (§157). **In place**.
-- **Give examples** on request and response models (`Field(examples=[...])`), so the generated
-  docs show a realistic call. _(Auth0)_ **Adopt** for new models.
+- **The document says how to authenticate and names each operation**: a `bearerAuth` scheme,
+  stable `operationId`s of the form `<tag>_<handler>`, and a description for every tag
+  (`app/core/openapi.py`). **In place**, held by `tests/unit/test_openapi_contract.py`.
+- **Give examples** on request and response models (`json_schema_extra={"examples": [...]}`),
+  so the generated docs show a realistic call. _(Auth0)_ **In place** for request models, where
+  `test_request_models` validates each example against its own model; **Adopt** for response
+  models.
 - **`docs/API.md` is the human guide**: the endpoints by area, the envelope, authentication. A
   change to a route updates it in the same pull request.
 
@@ -452,8 +474,9 @@ Before opening the pull request:
 - [ ] The method and success status match §3 (`201` create, `202` queued, `200` otherwise).
 - [ ] `session: DbSession, tenant: Tenant` are injected; a write calls `tenant.require_write()`.
 - [ ] Every query is scoped to `tenant.organization_id`; another tenant's id is `404`.
-- [ ] Input is a `…Create`/`…Update` model with `Field` constraints; the client cannot set
-      server-owned fields.
+- [ ] Input is a `…Create`/`…Update` model deriving from `RequestModel`, with `Field`
+      constraints and an example; the client cannot set server-owned fields.
+- [ ] A `201` calls `created` and a `202` calls `accepted`, so the answer says where to look.
 - [ ] The return annotation is `Envelope[…Out, …Meta]`; a list is paged with a capped `limit` and
       returns `PageMeta`.
 - [ ] Failures raise `AppError` subclasses, and `responses=error_responses(...)` lists them.

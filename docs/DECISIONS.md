@@ -10753,6 +10753,81 @@ config was applied by hand from a reviewed proposal. `no-eval`, `no-new-func`,
 `no-new-wrappers`, `no-object-constructor` and `no-extend-native` are in the
 guidelines as review items until they are added to it.
 
+## 194. The API review pass: bodies refuse what they do not know, responses say where to look, and routes stop querying
+
+`docs/API_GUIDELINES.md` marked each practice as in place, to adopt, or not
+here. This pass, on 1 October 2026, held the code against it, closed what the
+September review (`docs/API_REVIEW_2026-09-20.md`) had left open (findings 6, 14
+and 15) and adopted every item that needed no new table. What it left is below.
+
+**A request body refuses a field it does not know.** Pydantic drops one by
+default, so a misspelt optional field was a `200` that did something other than
+what was asked, and `organization_id` in a body was ignored instead of refused.
+Every request model derives from `RequestModel` (`extra="forbid"`) and the
+answer is `422` naming the field. `tests/unit/test_request_models.py` reads the
+published schema, so a new endpoint with a plain `BaseModel` fails there. One
+integration test had asserted the opposite on purpose, that a tenant id and a
+client secret in a connection's body are ignored; it now asserts they are
+refused.
+
+**The document says how to authenticate and names its operations.**
+`get_current_user` takes `HTTPBearer(auto_error=False)` credentials, so the
+OpenAPI document declares `bearerAuth` and each route that needs a person
+carries it, while a missing token is still the envelope's `NOT_AUTHENTICATED`.
+Three routes are open and a test lists them. Operation ids are the tag and the
+handler (`findings_list_findings`) rather than FastAPI's path-derived default,
+every tag is described, and request models carry examples that a test validates
+against their own models. A `deprecation()` dependency sends `Deprecation`,
+`Sunset` and a `Link` to the replacement; no route is deprecated yet.
+
+**A response tells the client what to do next.** A `201` and a `202` carry
+`Location`, built from the route's own name so it follows a URL that moves, and
+a `202` carries `Retry-After`. Every counted response carries `X-RateLimit-*`
+for the tightest counter that spoke: the address, the person and the costly
+allowance each report into the request's context, because for a signed-in caller
+the per-person 300 is the limit they hit, not the address's 1,200. Everything
+under `/api/` is `Cache-Control: private, no-store` unless a route chose its own.
+CORS lists the methods and request headers the web app sends and exposes the
+headers a client now reads, instead of `*`.
+
+**Readiness names the dependency that is down.** `/health/ready` checks the task
+broker as well as the database, and answers `503` in the envelope with
+`DATABASE_UNAVAILABLE` or `QUEUE_UNAVAILABLE` and a fixed sentence. The
+dependency's own error went to the log only: it can carry an address or a
+credential, and the endpoint is unauthenticated. Before, a database that did not
+answer was an unhandled `500`.
+
+**Routes stop querying, and the request's transaction stays the route's.**
+Eleven route modules built statements or called the session. Their queries moved
+into `app/services/`, behaviour unchanged, with `services/assets.py`,
+`remediation.py`, `rules.py`, `changes.py` and `rescan.py` new (the rescan has
+its own module because `findings` cannot import `scans` without a cycle through
+`risks`). `tests/unit/test_thin_routes.py` fails when a route module queries,
+through a list of exceptions that only shrinks and is now empty. The guideline
+had said a service commits once at the end; `tests/unit/test_request_transaction.py`
+says the opposite and is right, because `rls_session` keeps the caller's claims
+in the transaction and a commit inside a service tears them down for whatever the
+route does next. Services flush, the route commits, and the guideline now says so.
+
+**Breaking, and why now.** Unknown request fields and the operation ids are
+breaking changes. `apps/web` is the only consumer, and it sends only the fields
+the models declare (read call site by call site) and generates nothing from the
+operation ids.
+
+**Not done.** `Idempotency-Key` and `ETag` with `If-Match`, each needing a table or
+a version column and a migration; cursor paging for the audit log and the event
+feeds; metrics and trace context. Response models carry no examples yet.
+`Provider` serialises lowercase (`azure`) where every other enumeration is upper
+case; it is an existing contract and stays.
+
+**Found, cause not established.** `test_a_claim_in_another_subscription_is_left_alone`
+failed twice in three isolated runs while this pass was being made, with an
+`IndexError` from the test's own lookup of a finding in the second subscription,
+and then passed six runs in a row; four runs on the commit before it all passed.
+The lookup raises whenever that subscription has no finding, so the test depends
+on which account sorts second. Nothing in this pass touches what it reads, but
+the evidence does not rule one out; watch it in CI.
+
 ## Open items carried forward
 
 **Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read
