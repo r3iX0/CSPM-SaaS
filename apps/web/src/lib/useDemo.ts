@@ -52,11 +52,10 @@ export function useJoinDemo() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () =>
-      api.post<Organization>("/api/v1/organizations/demo/join").then((r) => r.data),
+    mutationFn: () => api.post<Organization>("/api/v1/organizations/demo/join").then((r) => r.data),
     onSuccess: (org) => {
       // `auth` is an external store; see the same exemption in AccountMenu.
-      // eslint-disable-next-line react-hooks/immutability
+
       auth.organizationId = org.id;
       queryClient.clear();
       navigate("/", { replace: true });
@@ -73,7 +72,7 @@ export function useLeaveDemo() {
     mutationFn: () => api.post("/api/v1/organizations/demo/leave"),
     onSuccess: () => {
       const own = (Array.isArray(data) ? data : []).find((org) => !org.is_demo);
-      // eslint-disable-next-line react-hooks/immutability
+
       auth.organizationId = own?.id ?? null;
       queryClient.clear();
       navigate(own ? "/" : "/onboarding", { replace: true });

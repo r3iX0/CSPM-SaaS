@@ -4,7 +4,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { API_URL, auth } from "@/lib/api";
 import type { ScanDetail } from "@/lib/types";
 
-export type StreamEvent = { event: string; data: string };
+export interface StreamEvent {
+  event: string;
+  data: string;
+}
 
 /**
  * Split a server-sent event buffer into complete events and the unfinished tail.

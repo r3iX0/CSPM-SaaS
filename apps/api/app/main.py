@@ -10,7 +10,6 @@ exchange for nothing the MVP needs.
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-import sentry_sdk
 from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,6 +19,8 @@ from app.core.config import settings
 from app.core.db import dispose_engines, ping
 from app.core.errors import (
     AppError,
+    DatabaseUnavailable,
+    QueueUnavailable,
     UnhandledErrorMiddleware,
     app_error_handler,
     http_error_handler,
@@ -31,8 +32,11 @@ from app.core.middleware import (
     RequestContextMiddleware,
     RequestSizeLimitMiddleware,
     SecurityHeadersMiddleware,
+    ping_redis,
 )
-from app.schemas.common import Envelope, NoMeta
+from app.core.openapi import TAGS, operation_id
+from app.core.sentry import init_sentry
+from app.schemas.common import Envelope, NoMeta, error_responses
 from app.schemas.health import HealthOut, ReadyOut
 
 log = get_logger(__name__)
@@ -56,7 +60,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         log.warning("azure.consent_misconfigured", problem=problem)
 
     if settings.sentry_dsn:
-        sentry_sdk.init(dsn=settings.sentry_dsn, environment=settings.app_env)
+        init_sentry(settings.sentry_dsn, settings.app_env)
 
     # Keep the rules table in step with the Python registry. The registry is the
     # source of truth; the table is a read-mirror for joins and the UI.
@@ -80,7 +84,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(
     title="Cleave API",
     version="0.1.0",
-    description="Azure-first Cloud Security Posture Management.",
+    description=(
+        "Azure-first cloud security posture management. Every response is the envelope "
+        "`{data, error, meta}`; a failure carries a stable `error.code` to branch on. Send a "
+        "Supabase access token as `Authorization: Bearer`. The organization comes from the token, "
+        "never from the path or the body, and a request body refuses a field it does not know."
+    ),
+    openapi_tags=TAGS,
+    generate_unique_id_function=operation_id,
     lifespan=lifespan,
 )
 
@@ -121,11 +132,26 @@ app.add_middleware(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    # Readable by the frontend, so an error it shows can name the request.
-    expose_headers=["X-Request-ID"],
+    # No cookies and no HTTP auth: the token travels in ``Authorization``, which a page sends
+    # because it chose to. Credentialed mode would also have the browser attach cookies and
+    # client certificates to a cross-origin call this API has no use for them in.
+    allow_credentials=False,
+    # Exactly what the web app sends, so a page on an allowed origin still cannot ask for more
+    # than it uses. The request headers the browser always allows (Accept, Content-Type for a
+    # simple type) need no entry; ``Authorization`` and ``X-Organization-Id`` do.
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allow_headers=["Authorization", "Content-Type", "X-Organization-Id"],
+    # Readable by the frontend: the request id so an error it shows can name the request, the
+    # rate limit so it can slow down, and the headers a created or queued answer points by.
+    expose_headers=[
+        "X-Request-ID",
+        "X-RateLimit-Limit",
+        "X-RateLimit-Remaining",
+        "X-RateLimit-Reset",
+        "Retry-After",
+        "Location",
+        "Content-Disposition",
+    ],
 )
 
 app.add_middleware(SecurityHeadersMiddleware)
@@ -151,7 +177,23 @@ async def health() -> Envelope[HealthOut, NoMeta]:
     return Envelope(data=HealthOut(status="ok"), meta=NoMeta())
 
 
-@app.get("/health/ready", tags=["meta"])
+@app.get("/health/ready", tags=["meta"], responses=error_responses(503))
 async def ready() -> Envelope[ReadyOut, NoMeta]:
-    await ping()
-    return Envelope(data=ReadyOut(status="ready", database="ok"), meta=NoMeta())
+    """Whether this instance can do its work: the database and the task broker both answer.
+
+    Unlike ``/health`` this touches both dependencies, so it is rate limited and is for an
+    operator or a deploy check, not for the platform's probe. A dependency that does not answer
+    is a ``503`` in the envelope, naming which one, and never the dependency's own error: that
+    can carry an address or a credential. The detail goes to the log.
+    """
+    try:
+        await ping()
+    except Exception as exc:
+        log.warning("ready.database_unavailable", error=type(exc).__name__)
+        raise DatabaseUnavailable("The database did not answer.") from exc
+    try:
+        await ping_redis()
+    except Exception as exc:
+        log.warning("ready.queue_unavailable", error=type(exc).__name__)
+        raise QueueUnavailable("The task broker did not answer.") from exc
+    return Envelope(data=ReadyOut(status="ready", database="ok", queue="ok"), meta=NoMeta())

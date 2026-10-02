@@ -22,6 +22,16 @@ from app.models.cloud_account import CloudAccount
 log = get_logger(__name__)
 
 
+async def list_cloud_accounts(session: AsyncSession, tenant: TenantContext) -> list[CloudAccount]:
+    """Every discovered subscription in this organization, oldest first."""
+    rows = await session.execute(
+        select(CloudAccount)
+        .where(CloudAccount.organization_id == tenant.organization_id)
+        .order_by(CloudAccount.created_at)
+    )
+    return list(rows.scalars().all())
+
+
 async def get_cloud_account(
     session: AsyncSession, tenant: TenantContext, account_id: UUID
 ) -> CloudAccount:

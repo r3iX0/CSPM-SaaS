@@ -16,12 +16,13 @@ import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { saveBlob } from "@/lib/download";
 import { formatDateTime, formatPercent, formatRelative } from "@/lib/format";
 import { Button } from "@/components/ui/button";
+import { CoverageBar, ControlStatusPill, EvidenceNotice } from "@/components/compliance";
 import {
-  CoverageBar,
-  ControlStatusPill,
-  EvidenceNotice,
-} from "@/components/compliance";
-import { Breadcrumbs, DetailSkeleton, ErrorState, PAGE_TITLE_CLASS } from "@/components/common/states";
+  Breadcrumbs,
+  DetailSkeleton,
+  ErrorState,
+  PAGE_TITLE_CLASS,
+} from "@/components/common/states";
 import {
   Accordion,
   AccordionContent,
@@ -30,11 +31,7 @@ import {
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { SegmentedFilter } from "@/components/common/SegmentedFilter";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-} from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { usePageTitle } from "@/lib/pageTitle";
 
 /**
@@ -97,10 +94,7 @@ export function ComplianceFrameworkPage() {
       <div>
         <Breadcrumbs
           className="mb-2"
-          trail={[
-            { label: t.compliance.title, to: "/compliance" },
-            { label: data.name },
-          ]}
+          trail={[{ label: t.compliance.title, to: "/compliance" }, { label: data.name }]}
         />
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
@@ -113,8 +107,7 @@ export function ComplianceFrameworkPage() {
                 and the export carries the same line for the same reason. */}
             {data.assessment && (
               <p className="mt-1 text-xs text-muted-foreground">
-                {t.compliance.assessedFrom}{" "}
-                {formatDateTime(data.assessment.completed_at)}
+                {t.compliance.assessedFrom} {formatDateTime(data.assessment.completed_at)}
                 {data.assessment.scan_status === "PARTIAL" && (
                   <span className="text-unknown"> · {t.compliance.assessedPartial}</span>
                 )}
@@ -131,18 +124,13 @@ export function ComplianceFrameworkPage() {
         <CardContent>
           <div className="flex flex-wrap items-start justify-between gap-6">
             <div className="min-w-[16rem] flex-1">
-              <CoverageBar
-                counts={data.status_counts}
-                total={data.control_count}
-              />
+              <CoverageBar counts={data.status_counts} total={data.control_count} />
             </div>
             <div className="text-right">
               <p className="text-3xl font-semibold tabular-nums tracking-tight text-foreground">
                 {formatPercent(data.coverage_ratio)}
               </p>
-              <p className="text-caption text-muted-foreground">
-                {t.compliance.coverage}
-              </p>
+              <p className="text-caption text-muted-foreground">{t.compliance.coverage}</p>
             </div>
           </div>
         </CardContent>
@@ -184,8 +172,8 @@ export function ComplianceFrameworkPage() {
           catalogue of ninety controls to collect nine is the job a filter
           exists to do. */}
       <p className="text-body text-muted-foreground">
-        Each verdict carries the readings it rests on — for the controls that
-        passed as much as the ones that failed.
+        Each verdict carries the readings it rests on — for the controls that passed as much as the
+        ones that failed.
       </p>
 
       <SegmentedFilter
@@ -239,9 +227,7 @@ export function ComplianceFrameworkPage() {
 
 /** Preserves catalogue order rather than sorting group names alphabetically —
  *  frameworks number their sections for a reason. */
-function groupBySection(
-  controls: ComplianceControl[],
-): [string, ComplianceControl[]][] {
+function groupBySection(controls: ComplianceControl[]): [string, ComplianceControl[]][] {
   const groups = new Map<string, ComplianceControl[]>();
   for (const control of controls) {
     const existing = groups.get(control.group);
@@ -259,71 +245,59 @@ function ControlRow({ control }: { control: ComplianceControl }) {
 
   return (
     <div className="px-5 py-3.5">
-        <AccordionItem value={control.id} className="border-b-0">
-          {/* The verdict is in the trigger, never inside the panel: what a
+      <AccordionItem value={control.id} className="border-b-0">
+        {/* The verdict is in the trigger, never inside the panel: what a
               control says is not something a reader should have to expand to
               find out. Only the evidence behind it collapses. */}
-          <AccordionTrigger className="py-0 hover:no-underline">
-            <div className="flex flex-1 flex-wrap items-start justify-between gap-3 pr-3">
-              <div className="flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <code className="font-mono text-xs font-medium text-muted-foreground">
-                    {control.id}
-                  </code>
-                  {/* Not a status: it says CloudGuard cannot speak to this
+        <AccordionTrigger className="py-0 hover:no-underline">
+          <div className="flex flex-1 flex-wrap items-start justify-between gap-3 pr-3">
+            <div className="flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <code className="font-mono text-xs font-medium text-muted-foreground">
+                  {control.id}
+                </code>
+                {/* Not a status: it says CloudGuard cannot speak to this
                       control at all, which is a different thing from having
                       looked and found nothing wrong. */}
-                  {!control.technically_assessable && (
-                    <Badge
-                      variant="secondary"
-                      title={t.compliance.notAssessableHelp}
-                    >
-                      {t.compliance.notAssessable}
-                    </Badge>
-                  )}
-                </div>
-                <p className="mt-1 text-sm font-normal text-foreground">
-                  {control.title}
-                </p>
+                {!control.technically_assessable && (
+                  <Badge variant="secondary" title={t.compliance.notAssessableHelp}>
+                    {t.compliance.notAssessable}
+                  </Badge>
+                )}
               </div>
-              <ControlStatusPill status={control.status} />
+              <p className="mt-1 text-sm font-normal text-foreground">{control.title}</p>
             </div>
-          </AccordionTrigger>
+            <ControlStatusPill status={control.status} />
+          </div>
+        </AccordionTrigger>
 
-          <AccordionContent>
-        {control.rules.length > 0 ? (
-          <div className="mt-3 border-t pt-3">
-            <p className="text-caption text-muted-foreground">
-              {t.compliance.evidenceFrom}
-            </p>
-            <ul className="mt-2 flex flex-col gap-1.5">
-              {control.rules.map((rule) => (
-                <li
-                  key={rule.rule_id}
-                  className="flex flex-wrap items-center gap-2 text-xs"
-                >
-                  <SeverityBadge level={rule.severity} size="sm" />
-                  <code className="text-muted-foreground">{rule.rule_id}</code>
-                  <span className="text-muted-foreground">{rule.name}</span>
-                  {rule.open_finding_count > 0 && (
-                    <Link
-                      to={`/findings?rule_id=${encodeURIComponent(rule.rule_id)}`}
-                      className="font-medium text-critical underline underline-offset-2"
-                    >
-                      {rule.open_finding_count} open
-                    </Link>
-                  )}
-                  {rule.open_finding_count === 0 && rule.unknown_count > 0 && (
-                    <span className="text-unknown">
-                      {rule.unknown_count} could not be evaluated
-                    </span>
-                  )}
-                  {!rule.evaluated && (
-                    <span className="text-muted-foreground">
-                      did not run in the last scan
-                    </span>
-                  )}
-                  {/* And why, which is the half that was missing. This is the
+        <AccordionContent>
+          {control.rules.length > 0 ? (
+            <div className="mt-3 border-t pt-3">
+              <p className="text-caption text-muted-foreground">{t.compliance.evidenceFrom}</p>
+              <ul className="mt-2 flex flex-col gap-1.5">
+                {control.rules.map((rule) => (
+                  <li key={rule.rule_id} className="flex flex-wrap items-center gap-2 text-xs">
+                    <SeverityBadge level={rule.severity} size="sm" />
+                    <code className="text-muted-foreground">{rule.rule_id}</code>
+                    <span className="text-muted-foreground">{rule.name}</span>
+                    {rule.open_finding_count > 0 && (
+                      <Link
+                        to={`/findings?rule_id=${encodeURIComponent(rule.rule_id)}`}
+                        className="font-medium text-critical underline underline-offset-2"
+                      >
+                        {rule.open_finding_count} open
+                      </Link>
+                    )}
+                    {rule.open_finding_count === 0 && rule.unknown_count > 0 && (
+                      <span className="text-unknown">
+                        {rule.unknown_count} could not be evaluated
+                      </span>
+                    )}
+                    {!rule.evaluated && (
+                      <span className="text-muted-foreground">did not run in the last scan</span>
+                    )}
+                    {/* And why, which is the half that was missing. This is the
                       one verdict on the page a reader cannot act on from the
                       verdict alone -- failing points at findings, passing needs
                       nothing, not-covered is a fact about CloudGuard. "Three
@@ -334,37 +308,36 @@ function ControlRow({ control }: { control: ComplianceControl }) {
                       On its own line: these are sentences rather than labels,
                       and wrapping them into the badge row would push the rule
                       name off the end on the narrow column this sits in. */}
-                  {rule.unknown_reasons?.length > 0 && (
-                    <ul className="w-full flex flex-col gap-0.5 pl-1">
-                      {rule.unknown_reasons.map((reason) => (
-                        <li
-                          key={reason}
-                          className="border-l-2 border-unknown-border pl-2 text-caption leading-relaxed text-muted-foreground"
-                        >
-                          {reason}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : (
-          <p className="mt-3 border-t pt-3 text-xs text-muted-foreground">
-            {control.technically_assessable
-              ? t.compliance.noRules
-              : t.compliance.notAssessableHelp}
-          </p>
-        )}
+                    {rule.unknown_reasons?.length > 0 && (
+                      <ul className="w-full flex flex-col gap-0.5 pl-1">
+                        {rule.unknown_reasons.map((reason) => (
+                          <li
+                            key={reason}
+                            className="border-l-2 border-unknown-border pl-2 text-caption leading-relaxed text-muted-foreground"
+                          >
+                            {reason}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p className="mt-3 border-t pt-3 text-xs text-muted-foreground">
+              {control.technically_assessable
+                ? t.compliance.noRules
+                : t.compliance.notAssessableHelp}
+            </p>
+          )}
 
-            <ControlReadings readings={control.readings ?? []} />
-          </AccordionContent>
-        </AccordionItem>
+          <ControlReadings readings={control.readings ?? []} />
+        </AccordionContent>
+      </AccordionItem>
     </div>
   );
 }
-
 
 /**
  * The export, which is where the chain this page draws actually ends.
@@ -390,8 +363,7 @@ function ExportControls({ frameworkId }: { frameworkId: string }) {
       setFailure(null);
       saveBlob(blob, `cloudguard-${frameworkId}.${format}`);
     },
-    onError: (err) =>
-      setFailure(err instanceof Error ? err.message : t.compliance.exportFailed),
+    onError: (err) => setFailure(err instanceof Error ? err.message : t.compliance.exportFailed),
   });
 
   return (
@@ -441,9 +413,7 @@ function ControlReadings({ readings }: { readings: ControlReading[] }) {
 
   return (
     <div className="mt-3 border-t pt-3">
-      <p className="text-caption text-muted-foreground">
-        {t.compliance.readFrom}
-      </p>
+      <p className="text-caption text-muted-foreground">{t.compliance.readFrom}</p>
       <ul className="mt-2 flex flex-col gap-1">
         {readings.map((reading) => (
           <li
@@ -459,9 +429,7 @@ function ControlReadings({ readings }: { readings: ControlReading[] }) {
               <>
                 <span
                   className={
-                    reading.outcome === "COMPLETE"
-                      ? "text-muted-foreground"
-                      : "text-unknown"
+                    reading.outcome === "COMPLETE" ? "text-muted-foreground" : "text-unknown"
                   }
                   title={reading.permissions.join(", ")}
                 >
@@ -480,9 +448,7 @@ function ControlReadings({ readings }: { readings: ControlReading[] }) {
                   // The citation is still true; the bytes behind it have aged
                   // out of retention. Saying which is the difference between
                   // provenance and a dead link.
-                  <span className="text-muted-foreground">
-                    · {t.compliance.readingPruned}
-                  </span>
+                  <span className="text-muted-foreground">· {t.compliance.readingPruned}</span>
                 )}
               </>
             )}

@@ -32,7 +32,7 @@ the read fails several minutes into a scan with `AccessDenied`.
 | 3 | `sts:AssumeRole` succeeds **with** the external id | The whole grant rests on it |
 | 4 | `sts:AssumeRole` **fails** without the external id | If it succeeds, the trust policy's condition is not doing its job |
 | 5 | `ec2:DescribeRegions` returns the enabled set, and a disabled region is never attempted | The fan-out's size is decided from this |
-| 6 | One full scan returns COMPLETE or a *named* denial for every task | A silent gap reads as a clean estate |
+| 6 | One full scan returns COMPLETE or a _named_ denial for every task | A silent gap reads as a clean estate |
 | 7 | `iam:GetCredentialReport` returns content after `GenerateCredentialReport`, within the retry window | The report is generated asynchronously; the window is a guess |
 | 8 | Each per-bucket call is made in the bucket's own region | Otherwise `PermanentRedirect`, which reads as a permission problem |
 | 9 | `organizations:ListAccounts` returns member accounts from the management account | Discovery produces nothing otherwise, and a connection scans one account while claiming an organization |
@@ -59,7 +59,7 @@ Azure has two grants that fail independently — Entra admin consent for Graph,
 and an ARM role. AWS has one. That single structural difference produces every
 other difference in this document.
 
-```
+```text
 CloudGuard's own principal            Customer's account
   (AWS_PRINCIPAL_ARN)                   CloudGuardScannerRole
         |                                       |
@@ -80,7 +80,7 @@ v0.1, kept rather than given up.
 One IAM user (or role) in CloudGuard's account, whose only permission is
 `sts:AssumeRole`. Set on the API:
 
-```
+```dotenv
 AWS_ACCESS_KEY_ID=
 AWS_SECRET_ACCESS_KEY=
 AWS_PRINCIPAL_ARN=arn:aws:iam::<cloudguard-account-id>:user/cloudguard-scanner
@@ -116,7 +116,7 @@ this wrong. `test_aws_iam.py` asserts the trust policy carries the
 `sts:ExternalId` condition, and that assertion is not negotiable.
 
 `RoleAssumer` refuses to assume a role without one, because an assume-role call
-with no external id *succeeds* against a role whose trust policy does not
+with no external id _succeeds_ against a role whose trust policy does not
 require one — which is exactly the misconfiguration CloudGuard must not
 participate in.
 
@@ -128,7 +128,7 @@ Three steps rather than Azure's four, because there is no consent screen.
 
 1. **Name the scope.** An organization, an organizational unit, or a single
    account — and in every case an account id, because there is nothing to
-   assume a role *in* until one is named. Azure's tenant root needs no id
+   assume a role _in_ until one is named. Azure's tenant root needs no id
    because consent reports the tenant; AWS has no equivalent.
 2. **Deploy the stack.** A Launch Stack link opens CloudFormation with the
    template loaded and the external id filled in. StackSets cover the
@@ -173,14 +173,14 @@ policy they are unverified until §1's checklist has run.
 An organization-wide connection assumes one role in each member account. The
 same stack is deployed into each, so the ARNs differ only by account id and
 discovery writes them without asking. The external id is shared across them, and
-correctly: it identifies the *relationship*, not the account.
+correctly: it identifies the _relationship_, not the account.
 
 ### Revocation
 
 `aws cloudformation delete-stack`, run by the customer. CloudGuard cannot delete
 a role in someone else's account and would not want the permission —
 `iam:DeleteRole` there is far more dangerous than the read access it would
-withdraw. Revocation is then *verified by the access failing*, using the same
+withdraw. Revocation is then _verified by the access failing_, using the same
 read-only probe that verified it working.
 
 ---
@@ -229,7 +229,7 @@ credential-age check reports UNKNOWN.
 ## 6. Change-triggered scanning
 
 A schedule promises the environment is re-read at least this often; this
-promises a change is *noticed*. The delivery path is **EventBridge → SNS →
+promises a change is _noticed_. The delivery path is **EventBridge → SNS →
 HTTPS**, because EventBridge cannot post to an arbitrary endpoint on its own and
 an API destination would put a credential of ours in the customer's account.
 
@@ -252,12 +252,12 @@ anyone with the connection's token can reach. Only `sns.<region>.amazonaws.com`
 The same three outcomes the Azure connector uses, because the rule engine
 already speaks them.
 
-* **A denial costs one evidence key**, not the connection. `AccessDenied` on the
+- **A denial costs one evidence key**, not the connection. `AccessDenied` on the
   KMS listing degrades the checks that read keys and nothing else.
-* **A service that is switched off is an answer, not a gap.** A region with no
+- **A service that is switched off is an answer, not a gap.** A region with no
   GuardDuty detector has an answer — there is no detector — and reporting it as
   a failed read would degrade a rule that has all the evidence it needs. The
   same goes for a bucket with no encryption configuration, which AWS reports as
-  an error code and which *is* the finding.
-* **A truncated listing is PARTIAL, never a shorter list.** A list missing an
+  an error code and which _is_ the finding.
+- **A truncated listing is PARTIAL, never a shorter list.** A list missing an
   unknown number of entries cannot support "none of them are public".

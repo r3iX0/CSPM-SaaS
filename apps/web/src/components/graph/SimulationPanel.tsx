@@ -93,9 +93,8 @@ export function SimulationPanel({
           <div className="flex items-center gap-1">
             <h3 className="text-sm font-medium">Try a change before you make it</h3>
             <InfoTip label="How a plan is checked">
-              Add everything you would change together: the plan is checked as a whole,
-              because two changes can close routes neither closes alone. Nothing in your
-              cloud changes.
+              Add everything you would change together: the plan is checked as a whole, because two
+              changes can close routes neither closes alone. Nothing in your cloud changes.
             </InfoTip>
           </div>
           <p className="text-xs leading-relaxed text-muted-foreground">
@@ -195,11 +194,7 @@ export function SimulationPanel({
           </ol>
           {result && result.cuts.length > 0 && (
             <div className="self-start">
-              <CopyButton
-                variant="outline"
-                label="Copy the plan"
-                text={planText(result)}
-              />
+              <CopyButton variant="outline" label="Copy the plan" text={planText(result)} />
             </div>
           )}
         </section>
@@ -276,10 +271,8 @@ function Outcome({
             "Checking the plan…"
           ) : (
             <>
-              <span className="text-lg font-semibold tabular-nums text-foreground">
-                {shown}
-              </span>{" "}
-              of {before} {before === 1 ? "route closes" : "routes close"}
+              <span className="text-lg font-semibold tabular-nums text-foreground">{shown}</span> of{" "}
+              {before} {before === 1 ? "route closes" : "routes close"}
             </>
           )}
         </p>
@@ -300,9 +293,8 @@ function Outcome({
       )}
       {together > 0 && (
         <p className="rounded-md border border-ok-border bg-ok-bg px-2.5 py-1.5 text-xs text-foreground">
-          {together === 1 ? "One route closes" : `${together} routes close`} only because
-          these changes are made together — no one of them closes{" "}
-          {together === 1 ? "it" : "them"} alone.
+          {together === 1 ? "One route closes" : `${together} routes close`} only because these
+          changes are made together — no one of them closes {together === 1 ? "it" : "them"} alone.
         </p>
       )}
       <p className="text-caption text-muted-foreground">
@@ -327,8 +319,7 @@ function CutWeight({
   if (gone) {
     return (
       <p className="mt-1 text-xs text-muted-foreground">
-        Not in the latest reading — it may already have been removed. Left out of the
-        check.
+        Not in the latest reading — it may already have been removed. Left out of the check.
       </p>
     );
   }
@@ -378,9 +369,7 @@ function Suggestions({
     <section className="flex flex-col gap-2">
       <div>
         <h3 className="text-xs font-medium">{title}</h3>
-        {help && (
-          <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{help}</p>
-        )}
+        {help && <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{help}</p>}
       </div>
       <ul className="flex flex-col gap-2">
         {chokes.map((choke) => (
@@ -391,8 +380,8 @@ function Suggestions({
             <div className="min-w-0 flex-1">
               <p className="font-mono text-xs break-words">{choke.detail}</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Closes <span className="tabular-nums text-foreground">{choke.severs}</span>{" "}
-                of {choke.total_routes}
+                Closes <span className="tabular-nums text-foreground">{choke.severs}</span> of{" "}
+                {choke.total_routes}
               </p>
               {/* Where it sits on more than it closes, said: a customer told four
                   close who then sees two remain stops believing the next number. */}
@@ -449,8 +438,7 @@ function RouteList({
   return (
     <section className="flex flex-col gap-1.5">
       <h3 className="text-xs font-medium">
-        {title}{" "}
-        <span className="font-normal tabular-nums text-muted-foreground">{count}</span>
+        {title} <span className="font-normal tabular-nums text-muted-foreground">{count}</span>
       </h3>
       <ul className="flex flex-col gap-1">{children}</ul>
       {count > SHOWN && (
@@ -506,8 +494,7 @@ function planText(result: Simulation): string {
     `${result.closed.length} of ${result.before} attack paths close; ${result.after} remain.`,
     "",
     ...result.cuts.map(
-      (cut) =>
-        `- ${cut.detail} (closes ${cut.alone} alone; ${cut.needed_for} close only with it)`,
+      (cut) => `- ${cut.detail} (closes ${cut.alone} alone; ${cut.needed_for} close only with it)`,
     ),
   ].join("\n");
 }

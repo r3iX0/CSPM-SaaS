@@ -65,9 +65,7 @@ class _Session:
         # How the row was asked for: whether the read locked it.
         self.get_options: dict[str, object] = {}
 
-    async def get(
-        self, _model: object, _pk: object, **options: object
-    ) -> CloudConnection | None:
+    async def get(self, _model: object, _pk: object, **options: object) -> CloudConnection | None:
         self.get_options = options
         return self.row
 
@@ -116,9 +114,7 @@ async def test_the_nonce_has_to_match_the_one_that_was_issued() -> None:
     session = _Session(row)
 
     with pytest.raises(ValidationFailed):
-        await service.record_consent(
-            session, row.id, "attacker-tenant", nonce="guessed"
-        )
+        await service.record_consent(session, row.id, "attacker-tenant", nonce="guessed")
 
     assert row.consent_status is ConsentStatus.PENDING
     assert row.tenant_id is None
@@ -210,9 +206,7 @@ async def test_the_link_is_spent_even_when_the_directory_call_fails() -> None:
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(service, "flow", lambda _connection: _Failing())
         with pytest.raises(CloudConnectionError):
-            await service.record_consent(
-                session, row.id, "tenant-a", nonce="fresh-link"
-            )
+            await service.record_consent(session, row.id, "tenant-a", nonce="fresh-link")
 
     assert session.nonce_was_committed_as_spent
 
@@ -276,9 +270,7 @@ def test_a_live_link_is_reissued_unchanged(monkeypatch: pytest.MonkeyPatch) -> N
 
 
 def test_an_aged_out_link_is_replaced(monkeypatch: pytest.MonkeyPatch) -> None:
-    stale = datetime.now(UTC) - timedelta(
-        seconds=service.CONSENT_LINK_TTL_SECONDS + 60
-    )
+    stale = datetime.now(UTC) - timedelta(seconds=service.CONSENT_LINK_TTL_SECONDS + 60)
     row = connection(consent_nonce="long-gone", consent_nonce_issued_at=stale)
     monkeypatch.setattr(
         service,
@@ -306,9 +298,7 @@ def test_a_provider_with_no_consent_step_costs_no_write(
     monkeypatch.setattr(
         service,
         "flow",
-        lambda _c: type(
-            "F", (), {"start_url": lambda _s, _c, *, nonce, issued_at: (None, None)}
-        )(),
+        lambda _c: type("F", (), {"start_url": lambda _s, _c, *, nonce, issued_at: (None, None)})(),
     )
 
     url, problem = service.issue_consent_url(row)

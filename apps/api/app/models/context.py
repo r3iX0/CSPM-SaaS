@@ -34,9 +34,7 @@ class ContextDeclarationRecord(UUIDPrimaryKey, TenantOwned, Timestamps, Base):
 
     __tablename__ = "context_declarations"
     __table_args__ = (
-        UniqueConstraint(
-            "cloud_account_id", name="uq_context_declarations_cloud_account_id"
-        ),
+        UniqueConstraint("cloud_account_id", name="uq_context_declarations_cloud_account_id"),
     )
 
     cloud_account_id: Mapped[uuid.UUID] = mapped_column(

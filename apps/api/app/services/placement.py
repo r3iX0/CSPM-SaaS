@@ -47,6 +47,7 @@ def region_key(value: str | None) -> str | None:
     key = (value or "").replace(" ", "").lower()
     return None if key in ("", "global") else key
 
+
 # The resource group, read out of the provider's own identifier.
 #
 # An ARM id spells out where the resource sits -- ``/subscriptions/{id}/
@@ -128,9 +129,7 @@ async def load_placements(session: AsyncSession, organization_id: UUID) -> Place
         # drawn on the map and named on a route as its bare id (§185).
         names.setdefault(
             scope,
-            "Directory"
-            if scope == DIRECTORY_SCOPE
-            else display_name or account_name or scope,
+            "Directory" if scope == DIRECTORY_SCOPE else display_name or account_name or scope,
         )
         providers.setdefault(scope, provider.value)
     return Placements(of, row_ids, names, providers)

@@ -44,8 +44,9 @@ export function StepSubscriptions({
     return <DiscoveryRetry connection={connection} onError={onError} />;
   }
 
-  const noun = (subscriptions.length === 1 ? vocabulary.Account : vocabulary.Accounts)
-    .toLowerCase();
+  const noun = (
+    subscriptions.length === 1 ? vocabulary.Account : vocabulary.Accounts
+  ).toLowerCase();
 
   return (
     <>
@@ -75,10 +76,7 @@ export function StepSubscriptions({
             </div>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
-            <Link
-              to="/connections"
-              className={buttonVariants({ variant: "outline" })}
-            >
+            <Link to="/connections" className={buttonVariants({ variant: "outline" })}>
               {t.setup.backToList}
             </Link>
             <Button onClick={() => scanWizard.start(connection.id)}>
@@ -109,14 +107,10 @@ export function StepSubscriptions({
       {!connection.is_ready_to_scan && (
         <Alert className="border-high-border bg-high-bg text-high">
           <AlertTitle>
-            {scoped.length === 0
-              ? t.setup.nothingInScopeTitle
-              : t.connection.noSubscriptionsYet}
+            {scoped.length === 0 ? t.setup.nothingInScopeTitle : t.connection.noSubscriptionsYet}
           </AlertTitle>
           <AlertDescription className="text-foreground">
-            {scoped.length === 0
-              ? t.setup.nothingInScopeBody
-              : t.connection.noSubscriptionsYetHelp}
+            {scoped.length === 0 ? t.setup.nothingInScopeBody : t.connection.noSubscriptionsYetHelp}
           </AlertDescription>
         </Alert>
       )}

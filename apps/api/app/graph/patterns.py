@@ -74,28 +74,20 @@ def route_patterns(paths: Sequence[Path]) -> tuple[list[RoutePattern], list[Path
     the groups and the loose routes partition the list exactly.
     """
     candidates = [
-        (PatternKind.MANY_ENTRIES, members)
-        for members in _group(paths, _tail_key).values()
-    ] + [
-        (PatternKind.MANY_TARGETS, members)
-        for members in _group(paths, _head_key).values()
-    ]
+        (PatternKind.MANY_ENTRIES, members) for members in _group(paths, _tail_key).values()
+    ] + [(PatternKind.MANY_TARGETS, members) for members in _group(paths, _head_key).values()]
 
     claimed: set[int] = set()
     patterns: list[RoutePattern] = []
     # Largest group first, so a route that could join either lands in the one
     # saying the most. Ties settle on the kind, so the answer does not move
     # between two identical readings of one estate.
-    for kind, members in sorted(
-        candidates, key=lambda item: (-len(item[1]), item[0].value)
-    ):
+    for kind, members in sorted(candidates, key=lambda item: (-len(item[1]), item[0].value)):
         free = [path for path in members if id(path) not in claimed]
         if len(free) < 2:
             continue
         claimed.update(id(path) for path in free)
-        ordered = tuple(
-            sorted(free, key=lambda p: (p.hops, p.entry.name, p.target.name))
-        )
+        ordered = tuple(sorted(free, key=lambda p: (p.hops, p.entry.name, p.target.name)))
         patterns.append(RoutePattern(kind=kind, members=ordered, exemplar=ordered[0]))
 
     patterns.sort(key=lambda pattern: (-pattern.size, pattern.describe()))
@@ -116,9 +108,7 @@ def _tail_key(path: Path) -> tuple:
     """
     return (
         path.entry.resource_type,
-        tuple(
-            (step.relationship, step.target.provider_resource_id) for step in path.steps
-        ),
+        tuple((step.relationship, step.target.provider_resource_id) for step in path.steps),
     )
 
 
@@ -127,17 +117,12 @@ def _head_key(path: Path) -> tuple:
     return (
         path.entry.provider_resource_id,
         path.target.resource_type,
-        tuple(
-            (step.relationship, step.target.provider_resource_id)
-            for step in path.steps[:-1]
-        ),
+        tuple((step.relationship, step.target.provider_resource_id) for step in path.steps[:-1]),
         path.steps[-1].relationship if path.steps else None,
     )
 
 
-def _group(
-    paths: Sequence[Path], key: Callable[[Path], tuple]
-) -> dict[tuple, list[Path]]:
+def _group(paths: Sequence[Path], key: Callable[[Path], tuple]) -> dict[tuple, list[Path]]:
     grouped: dict[tuple, list[Path]] = {}
     for path in paths:
         grouped.setdefault(key(path), []).append(path)

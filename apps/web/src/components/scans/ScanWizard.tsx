@@ -26,13 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Field,
-  FieldDescription,
-  FieldLabel,
-  FieldLegend,
-  FieldSet,
-} from "@/components/ui/field";
+import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
@@ -97,9 +91,7 @@ export function ScanWizard({
         // a new scan (DECISIONS.md §187). Setup keeps the default: its first
         // control is the choice the reader came to make.
         initialFocus={
-          scanId
-            ? () => document.querySelector<HTMLElement>('[data-slot="dialog-content"]')
-            : true
+          scanId ? () => document.querySelector<HTMLElement>('[data-slot="dialog-content"]') : true
         }
         className={cn(
           "flex max-h-[calc(100dvh-4rem)] flex-col gap-0 p-0 sm:max-w-2xl",
@@ -253,8 +245,7 @@ function SetupFlow({
 
   const connections = useQuery({
     queryKey: ["cloud-connections"],
-    queryFn: () =>
-      api.get<CloudConnection[]>("/api/v1/cloud-connections").then((r) => r.data),
+    queryFn: () => api.get<CloudConnection[]>("/api/v1/cloud-connections").then((r) => r.data),
   });
 
   const scans = useQuery({
@@ -275,14 +266,11 @@ function SetupFlow({
 
   const inScope = selected?.subscriptions.filter((s) => s.in_scope) ?? [];
   const target =
-    inScope.find((s) => s.is_scannable) ??
-    selected?.subscriptions.find((s) => s.is_scannable);
+    inScope.find((s) => s.is_scannable) ?? selected?.subscriptions.find((s) => s.is_scannable);
 
   const start = useMutation({
     mutationFn: () =>
-      api
-        .post<Scan>("/api/v1/scans", { cloud_account_id: target?.id })
-        .then((r) => r.data),
+      api.post<Scan>("/api/v1/scans", { cloud_account_id: target?.id }).then((r) => r.data),
     onSuccess: (scan) => {
       queryClient.invalidateQueries({ queryKey: ["scans"] });
       if (scan) onStarted(scan.id);
@@ -506,9 +494,7 @@ function ReviewStep({
         </FieldDescription>
         <ul className="flex flex-col divide-y rounded-lg border">
           {inScope.length === 0 && (
-            <li className="px-3 py-2 text-xs text-muted-foreground">
-              Nothing is in scope yet.
-            </li>
+            <li className="px-3 py-2 text-xs text-muted-foreground">Nothing is in scope yet.</li>
           )}
           {inScope.map((subscription) => (
             <li key={subscription.id} className="flex items-center justify-between gap-3 px-3 py-2">
@@ -533,8 +519,8 @@ function ReviewStep({
           <AlertTitle>Some checks will come back inconclusive</AlertTitle>
           <AlertDescription>
             The deployed role cannot fully read:{" "}
-            {connection.degraded_categories.map(collectionCategoryLabel).join(", ")}. Those
-            checks report UNKNOWN, never a pass, until the role is redeployed.
+            {connection.degraded_categories.map(collectionCategoryLabel).join(", ")}. Those checks
+            report UNKNOWN, never a pass, until the role is redeployed.
           </AlertDescription>
         </Alert>
       )}

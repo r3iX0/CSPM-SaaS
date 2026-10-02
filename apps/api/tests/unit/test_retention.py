@@ -84,9 +84,7 @@ class FakeSession:
                 if "organization" in key:
                     continue
                 if isinstance(value, list):
-                    self.doomed.extend(
-                        v for v in value if isinstance(v, uuid.UUID | str)
-                    )
+                    self.doomed.extend(v for v in value if isinstance(v, uuid.UUID | str))
                 elif isinstance(value, uuid.UUID | str):
                     self.doomed.append(value)
             # A DELETE reports how many rows it matched, and the service returns

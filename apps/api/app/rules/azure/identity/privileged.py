@@ -114,9 +114,9 @@ class AzurePrivilegedUserRule(SecurityRule):
             "privileged_ratio": round(ratio, 3),
             "threshold_ratio": self.MAX_PRIVILEGED_RATIO,
             "threshold_floor": self.ABSOLUTE_FLOOR,
-            "privileged_users": sorted(
-                u.get("user_principal_name") or u.name for u in privileged
-            )[:50],
+            "privileged_users": sorted(u.get("user_principal_name") or u.name for u in privileged)[
+                :50
+            ],
         }
 
         if over_floor and over_ratio:

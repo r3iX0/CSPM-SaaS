@@ -121,7 +121,6 @@ class _PublicPortRule(SecurityRule):
     )
     applies_to: ClassVar[list[ResourceType]] = [ResourceType.NETWORK_SECURITY_GROUP]
 
-
     @classmethod
     def _ports(cls) -> tuple[int, ...]:
         return (cls.port, *cls.also_ports)
@@ -163,8 +162,7 @@ class _PublicPortRule(SecurityRule):
             cli=(
                 "az network nsg rule update --resource-group <rg> --nsg-name <nsg> "
                 "--name <rule> --source-address-prefixes <your.ip.range/24>",
-                "az network nsg rule delete --resource-group <rg> --nsg-name <nsg> "
-                "--name <rule>",
+                "az network nsg rule delete --resource-group <rg> --nsg-name <nsg> --name <rule>",
             ),
             notes=(
                 "No policy is generated. Azure Policy can reach into an NSG's "
@@ -785,8 +783,7 @@ class AzurePublicUdpRule(SecurityRule):
         cli=(
             "az network nsg rule update --resource-group <rg> --nsg-name <nsg> "
             "--name <rule> --source-address-prefixes <approved.range/24>",
-            "az network nsg rule delete --resource-group <rg> --nsg-name <nsg> "
-            "--name <rule>",
+            "az network nsg rule delete --resource-group <rg> --nsg-name <nsg> --name <rule>",
         ),
         notes="No policy is generated, for the reason recorded on AZ-NET-001.",
     )

@@ -95,7 +95,10 @@ class FakeGraph:
 
 def a_finding(title: str = "Storage account allows public blob access") -> Finding:
     finding = Finding(
-        organization_id=ORG, rule_id="AZ-STO-001", title=title, status="OPEN"  # type: ignore[arg-type]
+        organization_id=ORG,
+        rule_id="AZ-STO-001",
+        title=title,
+        status="OPEN",  # type: ignore[arg-type]
     )
     finding.id = uuid.uuid4()
     return finding
@@ -119,9 +122,7 @@ def an_event(
 
 
 def an_asset(name: str, resource_id: str) -> ResourceRecord:
-    record = ResourceRecord(
-        organization_id=ORG, name=name, provider_resource_id=resource_id
-    )
+    record = ResourceRecord(organization_id=ORG, name=name, provider_resource_id=resource_id)
     record.id = uuid.uuid4()
     return record
 
@@ -239,9 +240,7 @@ async def test_a_verified_fix_is_reported_wherever_it_happened(reachable) -> Non
     reachable(set())
     finding = a_finding("Public RDP")
     session = FakeSession(
-        resolutions=[
-            (an_event(finding, FindingEvent.RESOLVED, scan_id=uuid.uuid4()), finding)
-        ]
+        resolutions=[(an_event(finding, FindingEvent.RESOLVED, scan_id=uuid.uuid4()), finding)]
     )
 
     written = await service.derive(session, ORG)  # type: ignore[arg-type]
@@ -300,9 +299,7 @@ async def test_a_coverage_drop_says_it_in_cloudguards_own_words(reachable) -> No
         "Microsoft Entra ID > Enterprise applications > CloudGuard > Permissions."
     )
     session = FakeSession(
-        evidence=[
-            a_reading("conditional_access_policies", TaskOutcome.FAILED, provider_words)
-        ]
+        evidence=[a_reading("conditional_access_policies", TaskOutcome.FAILED, provider_words)]
     )
 
     await service.derive(session, ORG)  # type: ignore[arg-type]
@@ -316,9 +313,7 @@ async def test_a_listing_is_named_as_a_person_would_say_it(reachable) -> None:
     """``conditional_access_policies`` is the task's name and a leaked
     identifier in a sentence somebody is handed unprompted."""
     reachable(set())
-    session = FakeSession(
-        evidence=[a_reading("conditional_access_policies", TaskOutcome.FAILED)]
-    )
+    session = FakeSession(evidence=[a_reading("conditional_access_policies", TaskOutcome.FAILED)])
 
     await service.derive(session, ORG)  # type: ignore[arg-type]
 

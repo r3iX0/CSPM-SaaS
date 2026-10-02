@@ -28,10 +28,7 @@ export function useUrlFilters<K extends string>(
   // Keyed on their content, so the updater stays stable for effects that
   // depend on it and changes only if the defaults themselves do.
   const defaultsKey = JSON.stringify(defaults);
-  const stableDefaults = useMemo(
-    () => JSON.parse(defaultsKey) as Record<K, string>,
-    [defaultsKey],
-  );
+  const stableDefaults = useMemo(() => JSON.parse(defaultsKey) as Record<K, string>, [defaultsKey]);
 
   const values = {} as Record<K, string>;
   for (const key of Object.keys(defaults) as K[]) {

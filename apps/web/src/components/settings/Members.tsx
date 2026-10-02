@@ -2,13 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, ApiError } from "@/lib/api";
-import type {
-  Invitation,
-  InvitationCreated,
-  Member,
-  MemberRole,
-  Organization,
-} from "@/lib/types";
+import type { Invitation, InvitationCreated, Member, MemberRole, Organization } from "@/lib/types";
 import { useT } from "@/i18n";
 import { formatDate } from "@/lib/format";
 import { CopyButton } from "@/components/common/CopyButton";
@@ -151,9 +145,7 @@ function MemberRow({
     <>
       <TableRow>
         <TableCell className="pl-5">
-          <span className={member.email ? "text-foreground" : "text-muted-foreground"}>
-            {who}
-          </span>
+          <span className={member.email ? "text-foreground" : "text-muted-foreground"}>{who}</span>
           {member.is_you && (
             <span className="ml-1.5 text-xs text-muted-foreground">({t.team.you})</span>
           )}
@@ -175,9 +167,7 @@ function MemberRow({
         </TableCell>
         <TableCell className="text-muted-foreground">{formatDate(member.joined_at)}</TableCell>
         <TableCell className="pr-5 text-right">
-          {lastOwner && (
-            <span className="text-xs text-muted-foreground">{t.team.lastOwner}</span>
-          )}
+          {lastOwner && <span className="text-xs text-muted-foreground">{t.team.lastOwner}</span>}
           {editable && !confirming && (
             <Button
               variant="ghost"

@@ -65,9 +65,7 @@ def check_role_change(actor: Role, current: Role, wanted: Role | None, owners: i
     if touches_owner and actor is not Role.OWNER:
         raise PermissionDenied("Only an owner can make somebody an owner, or change one")
     if current is Role.OWNER and wanted is not Role.OWNER and owners <= 1:
-        raise ConflictError(
-            "An organization needs an owner. Make somebody else an owner first."
-        )
+        raise ConflictError("An organization needs an owner. Make somebody else an owner first.")
 
 
 async def list_members(session: AsyncSession, tenant: TenantContext) -> list[OrganizationMember]:
@@ -206,17 +204,21 @@ async def invite(
         raise ConflictError(f"{email} is already a member of this organization")
 
     superseded = (
-        await session.execute(
-            select(OrganizationInvitation)
-            .where(
-                OrganizationInvitation.organization_id == tenant.organization_id,
-                OrganizationInvitation.email == email,
-                OrganizationInvitation.accepted_at.is_(None),
-                OrganizationInvitation.revoked_at.is_(None),
+        (
+            await session.execute(
+                select(OrganizationInvitation)
+                .where(
+                    OrganizationInvitation.organization_id == tenant.organization_id,
+                    OrganizationInvitation.email == email,
+                    OrganizationInvitation.accepted_at.is_(None),
+                    OrganizationInvitation.revoked_at.is_(None),
+                )
+                .with_for_update()
             )
-            .with_for_update()
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     for old in superseded:
         old.revoked_at = now
     # Before the insert: the one-open-invitation index would refuse the new
@@ -303,14 +305,16 @@ async def revoke(session: AsyncSession, tenant: TenantContext, invitation_id: UU
     await commit_unless_externally_managed(session)
 
 
-async def preview(
-    session: AsyncSession, user: AuthenticatedUser, token: str
-) -> dict[str, Any]:
+async def preview(session: AsyncSession, user: AuthenticatedUser, token: str) -> dict[str, Any]:
     row = (
-        await session.execute(
-            text("SELECT * FROM app.peek_invitation(:hash)"), {"hash": token_hash(token)}
+        (
+            await session.execute(
+                text("SELECT * FROM app.peek_invitation(:hash)"), {"hash": token_hash(token)}
+            )
         )
-    ).mappings().first()
+        .mappings()
+        .first()
+    )
     if row is None:
         raise NotFound("This invitation link is not valid")
     return {

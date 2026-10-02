@@ -7,12 +7,7 @@ import { api } from "@/lib/api";
 import type { CloudConnection, Rule } from "@/lib/types";
 import { useT } from "@/i18n";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
-import {
-  CardsSkeleton,
-  EmptyState,
-  ErrorState,
-  PageHeader,
-} from "@/components/common/states";
+import { CardsSkeleton, EmptyState, ErrorState, PageHeader } from "@/components/common/states";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,8 +56,7 @@ export function RulesPage() {
   });
   const connections = useQuery({
     queryKey: ["cloud-connections"],
-    queryFn: () =>
-      api.get<CloudConnection[]>("/api/v1/cloud-connections").then((r) => r.data),
+    queryFn: () => api.get<CloudConnection[]>("/api/v1/cloud-connections").then((r) => r.data),
   });
   const connected = useMemo(
     () => new Set<string>((connections.data ?? []).map((connection) => connection.provider)),
@@ -297,12 +291,7 @@ function RuleCard({ rule }: { rule: Rule }) {
           {/* Everything the catalogue held and never showed. Behind a toggle
               rather than always open: a page of rules each carrying its
               rationale and four fix formats is a document, not a list. */}
-          <Button
-            variant="ghost"
-            size="sm"
-            aria-expanded={open}
-            onClick={() => setOpen((v) => !v)}
-          >
+          <Button variant="ghost" size="sm" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
             {open ? t.rules.hideDetail : t.rules.showDetail}
             <ChevronDownIcon
               data-icon="inline-end"

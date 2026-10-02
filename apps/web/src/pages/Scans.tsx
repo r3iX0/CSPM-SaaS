@@ -38,7 +38,7 @@ export function ScansPage() {
     queryFn: () => api.get<Scan[]>("/api/v1/scans").then((r) => r.data),
     // Poll while a scan is in flight so progress is visible live, then stop.
     refetchInterval: (query) => {
-      const rows = query.state.data as Scan[] | undefined;
+      const rows = query.state.data;
       return rows?.some((s) => IN_FLIGHT.includes(s.status)) ? 2000 : false;
     },
   });

@@ -209,8 +209,8 @@ def _apply(data: bytes, splices: list[_Splice]) -> tuple[bytes, list[Edit]]:
         if before is None:
             # An added line: its number is the one it starts on, after any indent.
             after = text.split("=", 1)[1].strip()
-            line = out.count(b"\n") + 1 + text[: text.index(attribute.rsplit(".", 1)[-1])].count(
-                "\n"
+            line = (
+                out.count(b"\n") + 1 + text[: text.index(attribute.rsplit(".", 1)[-1])].count("\n")
             )
         else:
             after = text

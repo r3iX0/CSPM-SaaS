@@ -75,9 +75,7 @@ class LeaseKeeper:
             await asyncio.sleep(self.RENEW_EVERY)
             try:
                 async with scan_session(self.organization_id) as session:
-                    held = await orchestrator.renew(
-                        session, self.step_id, self.attempt
-                    )
+                    held = await orchestrator.renew(session, self.step_id, self.attempt)
             except Exception as exc:  # pragma: no cover - never fatal in itself
                 # A failed renewal is not proof the step was taken; the database
                 # may simply have been unreachable for a moment. Losing enough

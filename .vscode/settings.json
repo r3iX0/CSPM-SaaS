@@ -1,0 +1,23 @@
+{
+  "editor.formatOnSave": true,
+  "files.eol": "\n",
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": "explicit",
+      "source.organizeImports.ruff": "explicit"
+    }
+  },
+  "[typescript][typescriptreact][javascript][json][css]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[markdown]": {
+    "editor.rulers": [100],
+    "editor.formatOnSave": false
+  },
+  "prettier.requireConfig": true,
+  "eslint.workingDirectories": ["apps/web"],
+  "python.defaultInterpreterPath": "apps/api/.venv/bin/python",
+  "mypy-type-checker.cwd": "${workspaceFolder}/apps/api",
+  "typescript.tsdk": "apps/web/node_modules/typescript/lib"
+}

@@ -33,8 +33,7 @@ export function DiscoveryRetry({
       queryClient.invalidateQueries({ queryKey: ["cloud-connection", connection.id] });
       queryClient.invalidateQueries({ queryKey: ["cloud-connections"] });
     },
-    onError: (err) =>
-      onError?.(err instanceof Error ? err.message : "Could not look again"),
+    onError: (err) => onError?.(err instanceof Error ? err.message : "Could not look again"),
   });
 
   const button = (
@@ -53,9 +52,7 @@ export function DiscoveryRetry({
 
   return (
     <div>
-      <p className="text-sm font-medium text-foreground">
-        {t.connection.noSubscriptionsTitle}
-      </p>
+      <p className="text-sm font-medium text-foreground">{t.connection.noSubscriptionsTitle}</p>
       <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
         {t.connection.noSubscriptionsBody}
       </p>

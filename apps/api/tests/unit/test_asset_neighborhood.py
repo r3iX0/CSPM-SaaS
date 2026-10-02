@@ -149,7 +149,7 @@ def test_a_wide_fan_out_is_folded_and_counted_not_dropped() -> None:
 
 
 def test_a_fold_still_draws_what_matters() -> None:
-    """"40 resource groups" would hide the one holding sensitive data."""
+    """ "40 resource groups" would hide the one holding sensitive data."""
     around = wide_subscription(40).neighborhood(ADMIN, depth=2)
 
     assert around is not None
@@ -290,9 +290,9 @@ def test_the_routes_through_the_focus_travel_with_it() -> None:
     around = graph.neighborhood(VM, depth=2)
     assert around is not None
 
-    payload = serialize_neighborhood(
-        graph, around, {}, routes=graph.paths_through(VM)
-    ).model_dump(mode="json")
+    payload = serialize_neighborhood(graph, around, {}, routes=graph.paths_through(VM)).model_dump(
+        mode="json"
+    )
     assert payload["routes"], "the jump box is on the route to the customer data"
     route = payload["routes"][0]
     assert route["entry"]["id"] == VM
@@ -337,9 +337,12 @@ def test_opening_a_fold_that_does_not_exist_changes_nothing() -> None:
     graph = environment()
     expected = graph.neighborhood(VM, depth=2)
 
-    assert graph.neighborhood(
-        VM, depth=2, expand=frozenset({("/nowhere", RelationshipType.CONTAINS, 1)})
-    ) == expected
+    assert (
+        graph.neighborhood(
+            VM, depth=2, expand=frozenset({("/nowhere", RelationshipType.CONTAINS, 1)})
+        )
+        == expected
+    )
 
 
 def test_a_fold_id_names_the_same_fold_on_the_way_back() -> None:

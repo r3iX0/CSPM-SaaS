@@ -66,8 +66,7 @@ function project({ lat, lon }: RegionInfo): { x: number; y: number } {
   };
 }
 
-const href = (region: string | null) =>
-  `/assets?region=${encodeURIComponent(region ?? NO_REGION)}`;
+const href = (region: string | null) => `/assets?region=${encodeURIComponent(region ?? NO_REGION)}`;
 
 type Placed = DashboardRegion & { region: string };
 

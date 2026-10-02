@@ -1,12 +1,12 @@
 import { cn } from "@/lib/format";
 
-export type Slice = {
+export interface Slice {
   key: string;
   label: string;
   value: number;
   /** A CSS colour, always from the status scale — never a generated hue. */
   tone: string;
-};
+}
 
 /**
  * A ring's key, as words.
@@ -20,13 +20,7 @@ export type Slice = {
  * chart readable to somebody who cannot separate the hues, and it is where the
  * counts live so the ring never needs a number printed on every wedge.
  */
-export function DonutLegend({
-  slices,
-  className,
-}: {
-  slices: Slice[];
-  className?: string;
-}) {
+export function DonutLegend({ slices, className }: { slices: Slice[]; className?: string }) {
   return (
     <ul className={cn("flex flex-col gap-1.5", className)}>
       {slices.map((slice) => (

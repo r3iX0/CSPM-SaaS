@@ -42,10 +42,7 @@ export function Markers({ box, className }: { box: EstateBox; className?: string
       {box.entry > 0 && (
         <span className="flex items-center gap-0.5" title="Reachable from the internet">
           <Exposure
-            className={cn(
-              "size-3.5",
-              single ? LEVEL_TEXT[box.public_exposure ?? ""] : "text-high",
-            )}
+            className={cn("size-3.5", single ? LEVEL_TEXT[box.public_exposure ?? ""] : "text-high")}
             aria-hidden
           />
           {!single && <span className="tabular-nums">{box.entry}</span>}

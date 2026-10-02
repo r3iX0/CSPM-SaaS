@@ -1,6 +1,7 @@
 # CloudGuard — Architecture
 
-See `PRODUCT_SPEC.md` for vision/scope. This doc covers the technical shape: stack, repo layout, request flow, multi-tenancy, and roles.
+See `PRODUCT_SPEC.md` for vision/scope. This doc covers the technical shape: stack, repo layout,
+request flow, multi-tenancy, and roles.
 
 ---
 
@@ -73,7 +74,9 @@ graph TB
 
 ### Scan Step Orchestration Sequence
 
-A scan is not one queued task. It is a set of durable steps — `PLAN`, one `COLLECT` per subscription plus one for the tenant directory, then `ANALYZE` — recorded in `scan_steps` and claimed under a lease by whichever worker is free.
+A scan is not one queued task. It is a set of durable steps — `PLAN`, one `COLLECT` per subscription
+plus one for the tenant directory, then `ANALYZE` — recorded in `scan_steps` and claimed under a
+lease by whichever worker is free.
 
 ```mermaid
 sequenceDiagram
@@ -132,7 +135,7 @@ worker is running (`services/orchestrator.py`, `DECISIONS.md` §65).
 
 Monorepo.
 
-```
+```text
 cloudguard/
 |-- apps/
 |   |-- web/                      # React + Vite
@@ -172,10 +175,13 @@ network. `context/` is where criticality and sensitivity are inferred from tags
 and names and then overruled by what a customer declared — the multiplier the
 risk engine applies, kept apart from both the connector that read the tags and
 the scorer that uses the result. `graph/` is the second question asked of one
-scan's normalized state: not "what is wrong" but "what is wrong *together*".
+scan's normalized state: not "what is wrong" but "what is wrong _together_".
 
 There is one rule engine. Prowler ran beside it as a second engine for a while,
-behind `ASSESS_ENABLED`, and is removed (DECISIONS.md §168): the frameworks it brought are kept as data in `compliance/data/`, and
+behind
+`ASSESS_ENABLED`, and is removed (DECISIONS.md §168): the frameworks it brought are kept as data in
+`compliance/data/`,
+and
 what it checked that the native rules do not is the backlog in
 `NATIVE_COVERAGE_BACKLOG.md`.
 
@@ -183,7 +189,11 @@ what it checked that the native rules do not is the backlog in
 
 ## 4. Multi-Tenancy
 
-Every customer is an Organization. Every tenant-owned record carries `organization_id`. The backend derives organization from the authenticated user's membership — **a client-supplied `organization_id` is never trusted.** PostgreSQL RLS independently enforces isolation as a second, database-level boundary, not just an application-layer check. Full schema and RLS policy pattern: `DATABASE.md`.
+Every customer is an Organization. Every tenant-owned record carries
+`organization_id`. The backend derives organization from the authenticated user's membership — **a
+client-supplied `organization_id`
+is never trusted.** PostgreSQL RLS independently enforces isolation as a second, database-level
+boundary, not just an application-layer check. Full schema and RLS policy pattern: `DATABASE.md`.
 
 ```mermaid
 graph LR
@@ -229,7 +239,8 @@ MSP-specific roles are future functionality, not added now.
 
 ## 6. Cloud Connector Abstraction
 
-Generic interface so AWS/GCP can be added later without reshaping the core. Azure-specific implementation detail (auth, collection pipeline) lives in `AZURE_INTEGRATION.md`.
+Generic interface so AWS/GCP can be added later without reshaping the core. Azure-specific
+implementation detail (auth, collection pipeline) lives in `AZURE_INTEGRATION.md`.
 
 ```python
 class CloudConnector(ABC):
@@ -246,7 +257,7 @@ Two collection methods rather than one per service. An earlier draft of this
 doc listed eight `discover_*` calls — one for identity, one for storage, and so
 on — and the shape did not survive contact with evidence tracking: a
 subscription whose PostgreSQL listing timed out has read its SQL servers
-perfectly well, so what a scan needs to record is which *evidence key* failed,
+perfectly well, so what a scan needs to record is which _evidence key_ failed,
 not which method was called. `collect` returns a `RawSnapshot` carrying the
 verbatim JSON plus per-key outcomes, and the rule engine degrades only the rules
 whose own evidence is missing (`RULE_ENGINE.md`).
@@ -263,7 +274,8 @@ lives under `connectors/`.
 
 ## 7. Attack Path Graph & Severance Model
 
-The graph engine (`app/graph/`) models asset relationships, exposure reachability, and identity escalation chains to identify the shortest routes from internet entry points to critical assets.
+The graph engine (`app/graph/`) models asset relationships, exposure reachability, and identity
+escalation chains to identify the shortest routes from internet entry points to critical assets.
 
 ```mermaid
 graph TD
@@ -292,5 +304,8 @@ graph TD
     class NSG,MSI choke;
 ```
 
-- **Severance Analysis (`severance.py`)**: Computes which single relationship cuts (choke points, shown in red above) sever the greatest number of viable attack routes. Remediating a single choke point eliminates entire attack trees.
-- **Evidence-backed hops (`facts.py`)**: A hop's evidence (the role, network rule, or identity type) is read dynamically from the assets rather than stamped statically on edges.
+- **Severance Analysis (`severance.py`)**: Computes which single relationship cuts (choke points,
+  shown in red above) sever the greatest number of viable attack routes. Remediating a single choke
+  point eliminates entire attack trees.
+- **Evidence-backed hops (`facts.py`)**: A hop's evidence (the role, network rule, or identity type)
+  is read dynamically from the assets rather than stamped statically on edges.

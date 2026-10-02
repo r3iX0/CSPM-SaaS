@@ -45,9 +45,7 @@ def test_a_production_looking_name_is_recorded_as_a_guess() -> None:
     The value is the same one the old normalizer produced; what is new is that
     it no longer arrives indistinguishable from something somebody meant.
     """
-    context = infer(
-        tags={}, name="prod-web-01", resource_type=ResourceType.VIRTUAL_MACHINE
-    )
+    context = infer(tags={}, name="prod-web-01", resource_type=ResourceType.VIRTUAL_MACHINE)
 
     assert context.environment == "production"
     assert context.environment_source is ContextSource.INFERRED
@@ -125,9 +123,7 @@ def test_a_declared_environment_replaces_a_guessed_one() -> None:
     -- which is the case the whole declaration feature exists for: "sandbox-eu"
     is where this customer runs production.
     """
-    guessed = infer(
-        tags={}, name="sandbox-eu", resource_type=ResourceType.VIRTUAL_MACHINE
-    )
+    guessed = infer(tags={}, name="sandbox-eu", resource_type=ResourceType.VIRTUAL_MACHINE)
     assert guessed.environment == "development"
 
     resolved = resolve(guessed, ContextDeclaration(environment="production"))
@@ -153,9 +149,9 @@ def test_a_declaration_about_the_asset_outranks_one_about_its_subscription() -> 
 
     inherited = resolve(vm(), ContextDeclaration(criticality=Level.HIGH))
     assert inherited.criticality_source is ContextSource.INHERITED
-    assert (
-        ContextSource.CUSTOMER.confidence > ContextSource.INHERITED.confidence
-    ), "a claim about this asset must outweigh one about its neighbours"
+    assert ContextSource.CUSTOMER.confidence > ContextSource.INHERITED.confidence, (
+        "a claim about this asset must outweigh one about its neighbours"
+    )
 
 
 def test_unknown_is_absence_rather_than_a_low_value() -> None:

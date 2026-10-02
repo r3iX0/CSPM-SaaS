@@ -81,7 +81,7 @@ def test_every_version_grants_something_the_one_before_did_not() -> None:
 
 # --------------------------------------------------------------- what is lost
 def test_an_older_policy_names_the_checks_it_cannot_serve() -> None:
-    """"Two categories are degraded" is a number.
+    """ "Two categories are degraded" is a number.
 
     "Your authorization and logging checks report UNKNOWN" is the sentence a
     customer can decide about.
@@ -115,14 +115,10 @@ def test_the_version_is_read_from_what_is_granted_not_from_a_label() -> None:
     It also gets the answer right for the customer who attached a broader policy
     of their own instead of deploying the stack.
     """
-    granted = iam.actions_granted_by(
-        [{"Effect": "Allow", "Action": list(V1_ACTIONS)}]
-    )
+    granted = iam.actions_granted_by([{"Effect": "Allow", "Action": list(V1_ACTIONS)}])
     assert version_of_granted(granted) == "v1"
 
-    granted_now = iam.actions_granted_by(
-        [{"Effect": "Allow", "Action": list(INLINE_READ_ACTIONS)}]
-    )
+    granted_now = iam.actions_granted_by([{"Effect": "Allow", "Action": list(INLINE_READ_ACTIONS)}])
     assert version_of_granted(granted_now) == POLICY_VERSION
 
 

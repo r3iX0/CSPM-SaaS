@@ -328,21 +328,15 @@ class AssetGraph:
     """
 
     nodes: dict[str, CloudResource] = field(default_factory=dict)
-    _out: dict[str, list[tuple[RelationshipType, str]]] = field(
-        default_factory=dict, repr=False
-    )
+    _out: dict[str, list[tuple[RelationshipType, str]]] = field(default_factory=dict, repr=False)
     # The same edges indexed by target, for asking what reaches a node rather
     # than what it reaches. Only the neighbourhood reads it.
-    _in: dict[str, list[tuple[RelationshipType, str]]] = field(
-        default_factory=dict, repr=False
-    )
+    _in: dict[str, list[tuple[RelationshipType, str]]] = field(default_factory=dict, repr=False)
     # Attack paths by depth, worked out once per graph. A graph is cached per
     # tenant (``services/graph.py``) and never changed after it is built --
     # ``without`` makes a new one -- so the routes are a fixed property of it,
     # and the asset list asks for them on every page it serves.
-    _paths: dict[int, list["Path"]] = field(
-        default_factory=dict, repr=False, compare=False
-    )
+    _paths: dict[int, list["Path"]] = field(default_factory=dict, repr=False, compare=False)
     # And what each link is holding up, worked out once for the same reason:
     # the ranked list, the what-if on one link and the number drawn on a line
     # are three readings of one analysis, and recomputing it per caller is how
@@ -402,15 +396,11 @@ class AssetGraph:
 
     def entry_points(self) -> list[CloudResource]:
         """Assets an attacker could plausibly start from."""
-        return [
-            node for node in self.nodes.values() if node.public_exposure in ENTRY_EXPOSURE
-        ]
+        return [node for node in self.nodes.values() if node.public_exposure in ENTRY_EXPOSURE]
 
     def sensitive_targets(self) -> list[CloudResource]:
         """Assets where reaching them costs the customer something."""
-        return [
-            node for node in self.nodes.values() if node.data_sensitivity in SENSITIVE_DATA
-        ]
+        return [node for node in self.nodes.values() if node.data_sensitivity in SENSITIVE_DATA]
 
     def reachable_from(self, start: str, max_depth: int = MAX_DEPTH) -> dict[str, Path]:
         """Everything reachable from one node, with the route to each.
@@ -526,9 +516,7 @@ class AssetGraph:
             link = self.removal_key(node, relationship, target) if removable(relationship) else None
             yield link, ahead
 
-    def removal_key(
-        self, source: str, relationship: RelationshipType, target: str
-    ) -> EdgeKey:
+    def removal_key(self, source: str, relationship: RelationshipType, target: str) -> EdgeKey:
         """The one thing somebody removes to take this link away.
 
         Itself, for every link but one. An identity that may grant roles over a
@@ -630,13 +618,9 @@ class AssetGraph:
 
     def route_members(self, max_depth: int = MAX_DEPTH) -> frozenset[str]:
         """Every asset on at least one attack path, wherever on it."""
-        return frozenset(
-            node for path in self.attack_paths(max_depth) for node in path.node_ids()
-        )
+        return frozenset(node for path in self.attack_paths(max_depth) for node in path.node_ids())
 
-    def paths_through(
-        self, resource_id: str, max_depth: int = MAX_DEPTH
-    ) -> list[Path]:
+    def paths_through(self, resource_id: str, max_depth: int = MAX_DEPTH) -> list[Path]:
         """The attack paths this asset is part of, wherever on them it sits.
 
         Wherever on them, deliberately. A storage account at the end of a route
@@ -645,11 +629,7 @@ class AssetGraph:
         so membership is asked of the whole route rather than of its endpoints.
         """
         resource_id = self.resolve(resource_id)
-        return [
-            path
-            for path in self.attack_paths(max_depth)
-            if resource_id in path.node_ids()
-        ]
+        return [path for path in self.attack_paths(max_depth) if resource_id in path.node_ids()]
 
     def escalation_chains(self, max_depth: int = MAX_DEPTH) -> list[Path]:
         """Routes from somewhere an attacker could start to an identity that can
@@ -743,9 +723,7 @@ class AssetGraph:
             return self._severance[max_depth]
 
         paths = self.attack_paths(max_depth)
-        by_pair = {
-            (p.entry.provider_resource_id, p.target.provider_resource_id): p for p in paths
-        }
+        by_pair = {(p.entry.provider_resource_id, p.target.provider_resource_id): p for p in paths}
         closes = severed_pairs(
             self._successors,
             self._reached_node,
@@ -758,9 +736,7 @@ class AssetGraph:
             max_depth,
         )
         severance = {
-            link: tuple(
-                by_pair[pair] for pair in sorted(pairs) if pair in by_pair
-            )
+            link: tuple(by_pair[pair] for pair in sorted(pairs) if pair in by_pair)
             for link, pairs in closes.items()
         }
         self._severance[max_depth] = severance
@@ -784,9 +760,7 @@ class AssetGraph:
                 on[link] = on.get(link, 0) + 1
         return on
 
-    def choke_points(
-        self, *, limit: int = 5, max_depth: int = MAX_DEPTH
-    ) -> list["ChokePoint"]:
+    def choke_points(self, *, limit: int = 5, max_depth: int = MAX_DEPTH) -> list["ChokePoint"]:
         """The links worth cutting first, ranked by how much closes with them.
 
         The top of :meth:`link_severance`, and nothing more than that. It used
@@ -807,9 +781,7 @@ class AssetGraph:
         # Keyed as severance keys them, and drawn as the assignment where the
         # escalation line was folded into it: "can act over rg (Owner)" is the
         # thing somebody removes.
-        steps = {
-            step.key(): step for path in self.attack_paths(max_depth) for step in path.steps
-        }
+        steps = {step.key(): step for path in self.attack_paths(max_depth) for step in path.steps}
         found = [
             ChokePoint(
                 step=steps.get(link) or self._step(link),
@@ -947,9 +919,7 @@ class AssetGraph:
 
     def _step(self, link: EdgeKey) -> PathStep:
         source, relationship, target = link
-        return PathStep(
-            self.nodes[source], RelationshipType(relationship), self.nodes[target]
-        )
+        return PathStep(self.nodes[source], RelationshipType(relationship), self.nodes[target])
 
     def neighborhood(
         self,
@@ -1033,9 +1003,7 @@ class AssetGraph:
             # A neighbour folded here may have been drawn anyway, reached by
             # another route; counting it twice would inflate the group.
             members = tuple(
-                self.nodes[other]
-                for other in dict.fromkeys(candidates)
-                if other not in layers
+                self.nodes[other] for other in dict.fromkeys(candidates) if other not in layers
             )
             if members:
                 groups.append(FoldedGroup(parent, relationship, layer, members))
@@ -1056,9 +1024,7 @@ class AssetGraph:
 
     def _is_notable(self, node_id: str) -> bool:
         node = self.nodes[node_id]
-        return (
-            node.public_exposure in ENTRY_EXPOSURE or node.data_sensitivity in SENSITIVE_DATA
-        )
+        return node.public_exposure in ENTRY_EXPOSURE or node.data_sensitivity in SENSITIVE_DATA
 
     def _drawing_order(self, node_id: str) -> tuple[bool, str, str, str]:
         """Notable assets first, then by kind and name, so a fold is stable."""

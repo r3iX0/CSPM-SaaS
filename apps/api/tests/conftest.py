@@ -69,9 +69,7 @@ def make_context(
         relationships=relationships or {},
         controls=controls or {},
         # Keyed by evidence key, as the pipeline keys them.
-        collection_errors={
-            str(key): reason for key, reason in (collection_errors or {}).items()
-        },
+        collection_errors={str(key): reason for key, reason in (collection_errors or {}).items()},
     )
 
 

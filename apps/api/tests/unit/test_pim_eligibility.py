@@ -170,9 +170,7 @@ def test_an_eligible_global_administrator_is_recorded_not_empowered() -> None:
             directory_eligibility(
                 "u-1", "Application Administrator", scope="/administrativeUnits/x"
             ),
-            directory_eligibility(
-                "sp-1", "Privileged Role Administrator", kind="servicePrincipal"
-            ),
+            directory_eligibility("sp-1", "Privileged Role Administrator", kind="servicePrincipal"),
         ],
     )
     by_id = {r.provider_resource_id: r for r in state.resources}

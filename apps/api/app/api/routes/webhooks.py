@@ -2,8 +2,9 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Query, Request, Response, status
 
+from app.api.links import created
 from app.core.deps import Costly, DbSession, Tenant
 from app.core.enums import DeliveryStatus, NotificationKind
 from app.models.webhook import WebhookEndpoint
@@ -47,7 +48,7 @@ async def list_webhooks(session: DbSession, tenant: Tenant) -> Envelope[list[Web
 
 @router.post("", status_code=status.HTTP_201_CREATED, responses=WRITE)
 async def create_webhook(
-    payload: WebhookCreate, session: DbSession, tenant: Tenant
+    payload: WebhookCreate, request: Request, response: Response, session: DbSession, tenant: Tenant
 ) -> Envelope[WebhookCreatedOut, NoMeta]:
     """Add a webhook. A generic one's signing secret is in this answer and no other."""
     endpoint, secret = await service.create_endpoint(
@@ -58,6 +59,7 @@ async def create_webhook(
         fmt=payload.format,
         kinds=payload.kinds,
     )
+    created(request, response, "update_webhook", webhook_id=endpoint.id)
     return Envelope(
         data=WebhookCreatedOut(**_out(endpoint).model_dump(), secret=secret), meta=NoMeta()
     )
@@ -114,9 +116,7 @@ async def list_webhook_deliveries(
                 created_at=delivery.created_at,
                 delivered_at=delivery.delivered_at,
                 next_attempt_at=(
-                    delivery.next_attempt_at
-                    if delivery.status is DeliveryStatus.PENDING
-                    else None
+                    delivery.next_attempt_at if delivery.status is DeliveryStatus.PENDING else None
                 ),
             )
             for delivery, title in rows

@@ -31,9 +31,7 @@ async def record_posture(ctx: AnalyzeContext) -> None:
     session, org_id, scan = ctx.session, ctx.org_id, ctx.scan
     counts = await _posture_counts(session, org_id)
     entry = (
-        await session.execute(
-            select(RiskHistory).where(RiskHistory.scan_id == scan.id)
-        )
+        await session.execute(select(RiskHistory).where(RiskHistory.scan_id == scan.id))
     ).scalar_one_or_none()
 
     if entry is None:
@@ -123,9 +121,7 @@ async def _posture_counts(session: AsyncSession, org_id: UUID) -> dict:
         # query, which was the same number only while every risk had
         # exactly one member.
         "open_finding_count": sum(int(count) for _, count in severity_rows),
-        "findings_by_severity": {
-            str(severity): int(count) for severity, count in severity_rows
-        },
+        "findings_by_severity": {str(severity): int(count) for severity, count in severity_rows},
         "risk_bands": {level.value: count for level, count in bands.items()},
         "attack_path_count": int(paths),
     }

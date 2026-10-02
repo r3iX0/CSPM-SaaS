@@ -1,11 +1,7 @@
 export type Severity = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
 export type Level = Severity | "UNKNOWN";
 export type FindingStatus =
-  | "OPEN"
-  | "IN_PROGRESS"
-  | "RESOLVED"
-  | "ACCEPTED_RISK"
-  | "FALSE_POSITIVE";
+  "OPEN" | "IN_PROGRESS" | "RESOLVED" | "ACCEPTED_RISK" | "FALSE_POSITIVE";
 
 export interface Organization {
   id: string;
@@ -495,12 +491,7 @@ export interface RemediationTask {
 }
 
 /** Compliance coverage. Mirrors app/compliance/coverage.py::ControlStatus. */
-export type ControlStatus =
-  | "FAILING"
-  | "INCONCLUSIVE"
-  | "PASSING"
-  | "NOT_ASSESSED"
-  | "NOT_COVERED";
+export type ControlStatus = "FAILING" | "INCONCLUSIVE" | "PASSING" | "NOT_ASSESSED" | "NOT_COVERED";
 
 export interface ControlRuleEvidence {
   rule_id: string;
@@ -959,13 +950,7 @@ export interface AttackPathMeta {
  * holds. `edit_policy` is control only over a resource its own policy governs.
  */
 export type AccessKind =
-  | "read"
-  | "manage"
-  | "read_data"
-  | "execute"
-  | "edit_policy"
-  | "grant_access"
-  | "act_as";
+  "read" | "manage" | "read_data" | "execute" | "edit_policy" | "grant_access" | "act_as";
 
 /** An asset named on the access view; `asset_id` opens it where it has a row. */
 export interface AccessAssetRef {
@@ -1039,10 +1024,7 @@ export interface DeadEnd {
   resource_type: string;
   public_exposure: string;
   reason:
-    | "reaches_nothing"
-    | "identity_without_role"
-    | "roles_without_control"
-    | "nothing_sensitive";
+    "reaches_nothing" | "identity_without_role" | "roles_without_control" | "nothing_sensitive";
   /** How many assets it does reach. */
   reached: number;
 }
@@ -1382,11 +1364,7 @@ export interface CollectionStatus {
  * matters already surfaces as a finding.
  */
 export type AssetChange =
-  | "APPEARED"
-  | "DISAPPEARED"
-  | "EXPOSURE_CHANGED"
-  | "SENSITIVITY_CHANGED"
-  | "CRITICALITY_CHANGED";
+  "APPEARED" | "DISAPPEARED" | "EXPOSURE_CHANGED" | "SENSITIVITY_CHANGED" | "CRITICALITY_CHANGED";
 
 export interface ChangeEvent {
   id: string;
@@ -1439,10 +1417,7 @@ export interface AzurePermissions {
   writes_performed: string;
 }
 
-export type NotificationKind =
-  | "REACHABLE_FINDING"
-  | "VERIFIED_FIX"
-  | "COVERAGE_DROP";
+export type NotificationKind = "REACHABLE_FINDING" | "VERIFIED_FIX" | "COVERAGE_DROP";
 
 /**
  * One thing worth telling somebody, as it was true when it happened.
@@ -1463,13 +1438,7 @@ export interface AppNotification {
 }
 
 /** A role in an organization (DECISIONS.md §162). */
-export type MemberRole =
-  | "OWNER"
-  | "ADMIN"
-  | "SECURITY_ANALYST"
-  | "IT_ADMIN"
-  | "VIEWER"
-  | "ADVISOR";
+export type MemberRole = "OWNER" | "ADMIN" | "SECURITY_ANALYST" | "IT_ADMIN" | "VIEWER" | "ADVISOR";
 
 export interface Member {
   id: string;

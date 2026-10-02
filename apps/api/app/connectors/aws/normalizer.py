@@ -155,33 +155,25 @@ class AwsNormalizer:
             # read these; the raw payload stays for anyone reading the capture
             # back. ``None`` is load-bearing in all three: it means the setting
             # was never in this capture, which is not the same as "off".
-            metadata["public_access_blocked"] = _blocked(access.get(name)) if (
-                name in access
-            ) else None
-            metadata["policy_is_public"] = _policy_is_public(policy.get(name)) if (
-                name in policy
-            ) else None
-            algorithm = (
-                _encryption_algorithm(encryption.get(name))
-                if name in encryption
-                else None
+            metadata["public_access_blocked"] = (
+                _blocked(access.get(name)) if (name in access) else None
             )
+            metadata["policy_is_public"] = (
+                _policy_is_public(policy.get(name)) if (name in policy) else None
+            )
+            algorithm = _encryption_algorithm(encryption.get(name)) if name in encryption else None
             metadata["default_encryption"] = algorithm
             # The boolean beside the algorithm, because a rule asks "is there
             # one" and a customer asks "which". Absent from the capture stays
             # None in both, so a missing reading cannot read as "no encryption".
-            metadata["default_encryption_enabled"] = (
-                bool(algorithm) if name in encryption else None
-            )
+            metadata["default_encryption_enabled"] = bool(algorithm) if name in encryption else None
             metadata["access_logging_enabled"] = (
                 bool((logging_by_bucket.get(name) or {}).get("LoggingEnabled"))
                 if name in logging_by_bucket
                 else None
             )
             metadata["policy_denies_insecure_transport"] = (
-                _denies_insecure_transport(documents.get(name))
-                if name in documents
-                else None
+                _denies_insecure_transport(documents.get(name)) if name in documents else None
             )
 
             resources.append(
@@ -228,9 +220,7 @@ class AwsNormalizer:
         if "PublicAccessBlock" not in metadata and "PolicyStatus" not in metadata:
             return Level.UNKNOWN
 
-        if isinstance(status, dict) and (status.get("PolicyStatus") or {}).get(
-            "IsPublic"
-        ):
+        if isinstance(status, dict) and (status.get("PolicyStatus") or {}).get("IsPublic"):
             return Level.HIGH
 
         settings = (block or {}).get("PublicAccessBlockConfiguration") or {}
@@ -261,9 +251,7 @@ class AwsNormalizer:
             # any request that can be made *through* the instance -- an SSRF in
             # an application on it -- reads the role's credentials.
             tokens = (instance.get("MetadataOptions") or {}).get("HttpTokens")
-            metadata["imdsv2_required"] = (
-                None if tokens is None else str(tokens) == "required"
-            )
+            metadata["imdsv2_required"] = None if tokens is None else str(tokens) == "required"
             resources.append(
                 CloudResource(
                     provider_resource_id=instance_id,
@@ -271,9 +259,7 @@ class AwsNormalizer:
                     name=self._tag(instance, "Name") or instance_id,
                     provider=Provider.AWS,
                     region=region,
-                    public_exposure=(
-                        Level.HIGH if instance.get("PublicIpAddress") else Level.LOW
-                    ),
+                    public_exposure=(Level.HIGH if instance.get("PublicIpAddress") else Level.LOW),
                     metadata=metadata,
                 )
             )
@@ -299,8 +285,7 @@ class AwsNormalizer:
             # identifier.
             metadata["is_default"] = str(group.get("GroupName")) == "default"
             metadata["has_any_rule"] = bool(
-                (group.get("IpPermissions") or [])
-                or (group.get("IpPermissionsEgress") or [])
+                (group.get("IpPermissions") or []) or (group.get("IpPermissionsEgress") or [])
             )
             resources.append(
                 CloudResource(
@@ -322,8 +307,7 @@ class AwsNormalizer:
                 str(entry.get("CidrIp")) == "0.0.0.0/0"
                 for entry in permission.get("IpRanges") or []
             ) or any(
-                str(entry.get("CidrIpv6")) == "::/0"
-                for entry in permission.get("Ipv6Ranges") or []
+                str(entry.get("CidrIpv6")) == "::/0" for entry in permission.get("Ipv6Ranges") or []
             )
             if not open_to_world:
                 continue
@@ -358,9 +342,7 @@ class AwsNormalizer:
     def _elastic_ips(self, data: dict[str, Any]) -> list[CloudResource]:
         resources: list[CloudResource] = []
         for region, address in regional_items(data, AwsEvidence.ELASTIC_IPS):
-            allocation = str(
-                address.get("AllocationId") or address.get("PublicIp") or ""
-            )
+            allocation = str(address.get("AllocationId") or address.get("PublicIp") or "")
             if not allocation:
                 continue
             resources.append(
@@ -420,9 +402,7 @@ class AwsNormalizer:
             metadata = dict(instance)
             metadata["publicly_accessible"] = instance.get("PubliclyAccessible")
             metadata["storage_encrypted"] = instance.get("StorageEncrypted")
-            metadata["auto_minor_version_upgrade"] = instance.get(
-                "AutoMinorVersionUpgrade"
-            )
+            metadata["auto_minor_version_upgrade"] = instance.get("AutoMinorVersionUpgrade")
             resources.append(
                 CloudResource(
                     provider_resource_id=arn or identifier,
@@ -529,8 +509,9 @@ class AwsNormalizer:
                         "threat_protection_mode": addons.get("AdvancedSecurityMode") or "OFF",
                         "compromised_credentials_action": (
                             (
-                                (config.get("CompromisedCredentialsRiskConfiguration") or {})
-                                .get("Actions")
+                                (config.get("CompromisedCredentialsRiskConfiguration") or {}).get(
+                                    "Actions"
+                                )
                                 or {}
                             ).get("EventAction")
                             if config is not None
@@ -559,9 +540,7 @@ class AwsNormalizer:
 
     # ------------------------------------------------------------- identity
 
-    def _users(
-        self, data: dict[str, Any], collected_at: datetime
-    ) -> list[CloudResource]:
+    def _users(self, data: dict[str, Any], collected_at: datetime) -> list[CloudResource]:
         """IAM users, with their credential-report row folded on.
 
         The report is where the facts a rule actually needs live -- MFA, key
@@ -689,17 +668,13 @@ class AwsNormalizer:
                 # exactly this: inventing the role ARN from the profile's name
                 # would hold most of the time, and be wrong silently.
                 for role_arn in profiles.get(str(profile), ()):
-                    edges.append(
-                        (instance_id, RelationshipType.HAS_IDENTITY, role_arn)
-                    )
+                    edges.append((instance_id, RelationshipType.HAS_IDENTITY, role_arn))
 
         for _, interface in regional_items(data, AwsEvidence.NETWORK_INTERFACES):
             interface_id = str(interface.get("NetworkInterfaceId") or "")
             attachment = (interface.get("Attachment") or {}).get("InstanceId")
             if interface_id and attachment:
-                edges.append(
-                    (interface_id, RelationshipType.ATTACHED_TO, str(attachment))
-                )
+                edges.append((interface_id, RelationshipType.ATTACHED_TO, str(attachment)))
 
         for _, subnet in regional_items(data, AwsEvidence.SUBNETS):
             subnet_id = str(subnet.get("SubnetId") or "")
@@ -724,30 +699,21 @@ class AwsNormalizer:
             if not arn:
                 continue
             mapping[arn] = tuple(
-                str(role.get("Arn"))
-                for role in profile.get("Roles") or []
-                if role.get("Arn")
+                str(role.get("Arn")) for role in profile.get("Roles") or [] if role.get("Arn")
             )
         return mapping
 
     # ------------------------------------------------------------- controls
 
-    def _controls(
-        self, data: dict[str, Any], collected_at: datetime
-    ) -> dict[str, Any]:
+    def _controls(self, data: dict[str, Any], collected_at: datetime) -> dict[str, Any]:
         """Account-level state that is not an asset.
 
         Nobody secures a password policy; it is a defence that lowers what a
         weak credential is worth. Kept out of ``resources`` for exactly the
         reason the Azure controls are: none of these is a thing anybody secures.
         """
-        policies = [
-            row
-            for _, row in regional_items(data, AwsEvidence.ACCOUNT_PASSWORD_POLICY)
-        ]
-        summaries = [
-            row for _, row in regional_items(data, AwsEvidence.ACCOUNT_SUMMARY)
-        ]
+        policies = [row for _, row in regional_items(data, AwsEvidence.ACCOUNT_PASSWORD_POLICY)]
+        summaries = [row for _, row in regional_items(data, AwsEvidence.ACCOUNT_SUMMARY)]
         detectors = regional_items(data, AwsEvidence.GUARDDUTY_DETECTORS)
         trails = regional_items(data, AwsEvidence.CLOUDTRAIL_TRAILS)
 
@@ -772,15 +738,11 @@ class AwsNormalizer:
             # because that is the unit each of them is switched on in, and "no
             # trail in eu-west-1" is the whole finding.
             "cloudtrail_trails": [
-                {"region": region, **trail}
-                for region, trail in trails
-                if region
+                {"region": region, **trail} for region, trail in trails if region
             ],
             "config_recorders": [
                 {"region": region, **recorder}
-                for region, recorder in regional_items(
-                    data, AwsEvidence.CONFIG_RECORDERS
-                )
+                for region, recorder in regional_items(data, AwsEvidence.CONFIG_RECORDERS)
                 if region
             ],
             # The two halves of "somebody is told when this happens", kept
@@ -789,16 +751,12 @@ class AwsNormalizer:
             # is a field on one of these rows.
             "log_metric_filters": [
                 {"region": region, **row}
-                for region, row in regional_items(
-                    data, AwsEvidence.LOG_METRIC_FILTERS
-                )
+                for region, row in regional_items(data, AwsEvidence.LOG_METRIC_FILTERS)
                 if region
             ],
             "cloudwatch_alarms": [
                 {"region": region, **row}
-                for region, row in regional_items(
-                    data, AwsEvidence.CLOUDWATCH_ALARMS
-                )
+                for region, row in regional_items(data, AwsEvidence.CLOUDWATCH_ALARMS)
                 if region
             ],
             "network_acls": [
@@ -820,20 +778,15 @@ class AwsNormalizer:
             "securityhub_regions": sorted(
                 {
                     region
-                    for region, hub in regional_items(
-                        data, AwsEvidence.SECURITYHUB_STATUS
-                    )
+                    for region, hub in regional_items(data, AwsEvidence.SECURITYHUB_STATUS)
                     if region and hub
                 }
             ),
             "access_analyzer_regions": sorted(
                 {
                     region
-                    for region, analyzer in regional_items(
-                        data, AwsEvidence.ACCESS_ANALYZERS
-                    )
-                    if region and str(analyzer.get("status", "ACTIVE")).upper()
-                    == "ACTIVE"
+                    for region, analyzer in regional_items(data, AwsEvidence.ACCESS_ANALYZERS)
+                    if region and str(analyzer.get("status", "ACTIVE")).upper() == "ACTIVE"
                 }
             ),
             # Expiry decided against the capture rather than the clock, the
@@ -844,23 +797,18 @@ class AwsNormalizer:
             # rather than reduced to a count: "which role" is the first thing
             # somebody asks, and the answer is one field away.
             "support_access_holders": [
-                row
-                for _, row in regional_items(data, AwsEvidence.IAM_SUPPORT_ACCESS)
+                row for _, row in regional_items(data, AwsEvidence.IAM_SUPPORT_ACCESS)
             ],
             "server_certificates": [
                 {**row, "Expired": _expired(row.get("Expiration"), collected_at)}
-                for _, row in regional_items(
-                    data, AwsEvidence.IAM_SERVER_CERTIFICATES
-                )
+                for _, row in regional_items(data, AwsEvidence.IAM_SERVER_CERTIFICATES)
             ],
             "iam_policy_documents": [
                 row for _, row in regional_items(data, AwsEvidence.IAM_POLICY_DOCUMENTS)
             ],
             "ebs_encryption_by_default": {
                 region: bool(row.get("EbsEncryptionByDefault"))
-                for region, row in regional_items(
-                    data, AwsEvidence.EBS_ENCRYPTION_DEFAULT
-                )
+                for region, row in regional_items(data, AwsEvidence.EBS_ENCRYPTION_DEFAULT)
                 if region
             },
         }
@@ -936,13 +884,11 @@ def _encryption_algorithm(configuration: Any) -> str | None:
     collector records as a null configuration -- so None here is the finding
     rather than a missing reading.
     """
-    rules = (
-        (configuration or {}).get("ServerSideEncryptionConfiguration") or {}
-    ).get("Rules") or []
+    rules = ((configuration or {}).get("ServerSideEncryptionConfiguration") or {}).get(
+        "Rules"
+    ) or []
     for rule in rules:
-        algorithm = (rule.get("ApplyServerSideEncryptionByDefault") or {}).get(
-            "SSEAlgorithm"
-        )
+        algorithm = (rule.get("ApplyServerSideEncryptionByDefault") or {}).get("SSEAlgorithm")
         if algorithm:
             return str(algorithm)
     return None

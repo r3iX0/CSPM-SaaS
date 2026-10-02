@@ -63,9 +63,7 @@ def test_collection_failures_survive_the_round_trip() -> None:
         data={},
         errors={"storage": "read tcp: i/o timeout"},
     )
-    assert RawSnapshot.from_json(original.to_json()).errors == {
-        "storage": "read tcp: i/o timeout"
-    }
+    assert RawSnapshot.from_json(original.to_json()).errors == {"storage": "read tcp: i/o timeout"}
 
 
 def test_a_snapshot_stored_before_optional_fields_existed_still_loads() -> None:

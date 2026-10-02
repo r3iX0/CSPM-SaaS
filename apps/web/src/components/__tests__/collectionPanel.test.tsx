@@ -52,7 +52,7 @@ function mount(tasks: object[], counts: Record<string, number> = {}) {
         error: null,
         meta: {},
       }),
-    })) as unknown as typeof fetch,
+    })),
   );
 
   const client = new QueryClient({
@@ -79,10 +79,7 @@ describe("the collection panel", () => {
     });
     // The reading, not its key. A key would gather every subscription's copy
     // and the count would stop matching what the click returns.
-    expect(link).toHaveAttribute(
-      "href",
-      "/findings?evidence_id=ev-1&status=all",
-    );
+    expect(link).toHaveAttribute("href", "/findings?evidence_id=ev-1&status=all");
   });
 
   it("carries status=all, so a reading behind a resolved finding still leads somewhere", async () => {
@@ -105,9 +102,7 @@ describe("the collection panel", () => {
       },
     ]);
 
-    expect(
-      await screen.findByText(/no findings rest on this/),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/no findings rest on this/)).toBeInTheDocument();
     // Nothing to go to. A failed reading's rules degraded to UNKNOWN and never
     // became findings, which is the engine working rather than a gap.
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
@@ -154,9 +149,7 @@ describe("the collection panel", () => {
     });
 
     await waitFor(() =>
-      expect(
-        screen.getByText(/report unknown, never passed/i),
-      ).toBeInTheDocument(),
+      expect(screen.getByText(/report unknown, never passed/i)).toBeInTheDocument(),
     );
   });
 
@@ -169,9 +162,7 @@ describe("the collection panel", () => {
     });
 
     await waitFor(() =>
-      expect(
-        screen.getByText(/report unknown, never passed/i),
-      ).toBeInTheDocument(),
+      expect(screen.getByText(/report unknown, never passed/i)).toBeInTheDocument(),
     );
   });
 
@@ -181,12 +172,8 @@ describe("the collection panel", () => {
      * each. */
     mount([{ ...READING, outcome: "PARTIAL" }], { complete: 0, partial: 1 });
 
-    await waitFor(() =>
-      expect(screen.getByText(/cannot support a pass/i)).toBeInTheDocument(),
-    );
-    expect(
-      screen.queryByText(/report unknown, never passed/i),
-    ).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/cannot support a pass/i)).toBeInTheDocument());
+    expect(screen.queryByText(/report unknown, never passed/i)).not.toBeInTheDocument();
   });
 
   it("says neither when everything was read", async () => {
@@ -196,9 +183,6 @@ describe("the collection panel", () => {
 
     await waitFor(() => expect(screen.getByText("Read in full")).toBeInTheDocument());
     expect(screen.queryByText(/cannot support a pass/i)).not.toBeInTheDocument();
-    expect(
-      screen.queryByText(/report unknown, never passed/i),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/report unknown, never passed/i)).not.toBeInTheDocument();
   });
-
 });

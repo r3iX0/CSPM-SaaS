@@ -102,9 +102,7 @@ async def test_a_dependent_task_sees_what_its_dependency_produced() -> None:
     await CollectionRun(
         [
             task(Evidence.SOURCE, data={"source": [1, 2, 3]}),
-            CollectionTask(
-                key=Evidence.READER, run=reader, depends_on=(Evidence.SOURCE,)
-            ),
+            CollectionTask(key=Evidence.READER, run=reader, depends_on=(Evidence.SOURCE,)),
         ]
     ).execute({})
 
@@ -239,8 +237,7 @@ def carried(key, payload, *, age_hours: int = 3) -> CarriedReading:
     return CarriedReading(
         key=key,
         payload=payload,
-        collected_at=datetime(2026, 8, 30, 12, 0, tzinfo=UTC)
-        - timedelta(hours=age_hours),
+        collected_at=datetime(2026, 8, 30, 12, 0, tzinfo=UTC) - timedelta(hours=age_hours),
         item_count=len(payload),
         permissions=("Microsoft.Test/read",),
     )
@@ -335,9 +332,7 @@ async def test_a_carried_reading_satisfies_what_depends_on_it() -> None:
     run = CollectionRun(
         [
             task(Evidence.SOURCE, boom="must not be called"),
-            CollectionTask(
-                key=Evidence.DEPENDENT, run=dependent, depends_on=(Evidence.SOURCE,)
-            ),
+            CollectionTask(key=Evidence.DEPENDENT, run=dependent, depends_on=(Evidence.SOURCE,)),
         ],
         plan=CollectionPlan(
             collect=frozenset({Evidence.SOURCE, Evidence.DEPENDENT}),

@@ -51,9 +51,7 @@ CONTRIBUTOR = role(
     ],
 )
 READER = role("Reader", ["*/read"])
-USER_ACCESS_ADMIN = role(
-    "User Access Administrator", ["*/read", "Microsoft.Authorization/*"]
-)
+USER_ACCESS_ADMIN = role("User Access Administrator", ["*/read", "Microsoft.Authorization/*"])
 
 
 # ------------------------------------------------------------- the definition

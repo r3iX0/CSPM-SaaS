@@ -55,9 +55,7 @@ export function VerificationPanel({ verification }: { verification: Verification
     <Card>
       <CardHeader>
         <CardTitle>Verification</CardTitle>
-        <CardDescription>
-          Claimed fixed {formatDateTime(verification.claimed_at)}
-        </CardDescription>
+        <CardDescription>Claimed fixed {formatDateTime(verification.claimed_at)}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <div className={cn("flex items-start gap-2.5 rounded-lg border px-3 py-2.5", view.tone)}>
@@ -70,17 +68,13 @@ export function VerificationPanel({ verification }: { verification: Verification
           />
           <div className="min-w-0 text-sm">
             <p className="font-medium">{view.heading}</p>
-            {verification.detail && (
-              <p className="mt-0.5 opacity-90">{verification.detail}</p>
-            )}
+            {verification.detail && <p className="mt-0.5 opacity-90">{verification.detail}</p>}
           </div>
         </div>
 
         {verification.expected_state.length > 0 && (
           <div>
-            <p className="text-xs font-medium text-muted-foreground">
-              What Cleave is looking for
-            </p>
+            <p className="text-xs font-medium text-muted-foreground">What Cleave is looking for</p>
             <ul className="mt-1.5 flex flex-col gap-1">
               {verification.expected_state.map((state) => (
                 <li key={state.field} className="flex items-start gap-2 text-sm">

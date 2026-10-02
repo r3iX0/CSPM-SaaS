@@ -14,9 +14,7 @@ from app.main import app
 
 def declared_routes() -> list[tuple[str, set[str]]]:
     return [
-        (route.path, set(route.methods))
-        for route in app.routes
-        if getattr(route, "methods", None)
+        (route.path, set(route.methods)) for route in app.routes if getattr(route, "methods", None)
     ]
 
 
@@ -28,9 +26,7 @@ def shadows(earlier: str, later: str) -> bool:
         return False
 
     pairs = list(zip(earlier_segments, later_segments, strict=True))
-    matches_every_segment = all(
-        early.startswith("{") or early == late for early, late in pairs
-    )
+    matches_every_segment = all(early.startswith("{") or early == late for early, late in pairs)
     is_more_general = any(
         early.startswith("{") and not late.startswith("{") for early, late in pairs
     )

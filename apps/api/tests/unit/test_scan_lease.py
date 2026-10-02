@@ -103,9 +103,7 @@ def test_every_queue_a_step_is_routed_to_is_actually_consumed() -> None:
     ).split(",")
 
     for kind in ScanStepKind:
-        assert queue_for(kind) in consumed, (
-            f"{kind.value} is routed to a queue no worker consumes"
-        )
+        assert queue_for(kind) in consumed, f"{kind.value} is routed to a queue no worker consumes"
 
 
 # --------------------------------------------------------- one lock per target

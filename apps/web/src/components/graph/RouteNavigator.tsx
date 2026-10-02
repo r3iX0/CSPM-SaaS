@@ -104,7 +104,7 @@ export function RouteNavigator({
   useEffect(() => {
     if (focusOnOpen) heading.current?.focus({ preventScroll: true });
     // Only a new route moves the focus to its name.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only a new route moves the focus.
   }, [route.key]);
 
   const edgeOf = (step: AttackPathStep) =>
@@ -186,8 +186,7 @@ export function RouteNavigator({
         <div>
           <p className="text-caption font-medium text-muted-foreground">{t.attackPaths.route}</p>
           <h3 ref={heading} tabIndex={-1} className="text-sm font-medium outline-none">
-            {route.entry.name} <span className="text-muted-foreground">→</span>{" "}
-            {route.target.name}
+            {route.entry.name} <span className="text-muted-foreground">→</span> {route.target.name}
           </h3>
           {pattern && (
             <p className="mt-0.5 text-xs text-muted-foreground">

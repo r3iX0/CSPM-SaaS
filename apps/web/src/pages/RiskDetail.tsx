@@ -26,13 +26,7 @@ import { RiskDecisions } from "@/components/security/RiskTriage";
 import { FACTOR_ICONS } from "@/lib/icons";
 import { IconLabel } from "@/components/security/IconLabel";
 import type { LucideIcon } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { usePageTitle } from "@/lib/pageTitle";
 
 /**
@@ -56,8 +50,7 @@ export function RiskDetailPage() {
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["risk", riskId],
-    queryFn: () =>
-      api.get<RiskDetail>(`/api/v1/risks/${riskId}`).then((r) => r.data),
+    queryFn: () => api.get<RiskDetail>(`/api/v1/risks/${riskId}`).then((r) => r.data),
   });
 
   usePageTitle(data?.title);
@@ -73,11 +66,7 @@ export function RiskDetailPage() {
         <BackLink label={t.risks.backToRisks} />
         <ErrorState
           title={missing ? t.risks.notFound : "Could not load this risk"}
-          detail={
-            missing
-              ? t.risks.notFoundDetail
-              : "Cleave could not reach its own API."
-          }
+          detail={missing ? t.risks.notFoundDetail : "Cleave could not reach its own API."}
           impact={
             missing
               ? undefined
@@ -86,10 +75,7 @@ export function RiskDetailPage() {
           onRetry={missing ? undefined : () => refetch()}
           action={
             missing ? (
-              <Link
-                to="/risks"
-                className={buttonVariants({ variant: "outline" })}
-              >
+              <Link to="/risks" className={buttonVariants({ variant: "outline" })}>
                 {t.risks.backToRisks}
               </Link>
             ) : undefined
@@ -104,7 +90,8 @@ export function RiskDetailPage() {
   const scenario = data.kind !== "FINDING";
   // What a decision here reaches, for the accept dialog to say before the
   // click. The list endpoint counts it; the detail already has the members.
-  const isOpen = (f: { status: string }) => f.status !== "RESOLVED" && f.status !== "FALSE_POSITIVE";
+  const isOpen = (f: { status: string }) =>
+    f.status !== "RESOLVED" && f.status !== "FALSE_POSITIVE";
   const openFindings = data.findings.filter(isOpen).length;
   // Open first, in the order the API gave, then what is already fixed: a
   // route's verified fixes sat between its open findings, and the list read as
@@ -117,12 +104,7 @@ export function RiskDetailPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Breadcrumbs
-        trail={[
-          { label: t.risks.title, to: "/risks" },
-          { label: data.title },
-        ]}
-      />
+      <Breadcrumbs trail={[{ label: t.risks.title, to: "/risks" }, { label: data.title }]} />
 
       <div>
         <div className="flex flex-wrap items-center gap-2">
@@ -140,17 +122,13 @@ export function RiskDetailPage() {
               variant="outline"
               className="rounded-md bg-muted font-normal text-muted-foreground"
             >
-              {data.kind === "ESCALATION"
-                ? t.risks.escalationBadge
-                : t.risks.scenarioBadge}
+              {data.kind === "ESCALATION" ? t.risks.escalationBadge : t.risks.scenarioBadge}
             </Badge>
           )}
         </div>
         <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <h1 className={PAGE_TITLE_CLASS}>
-              {data.title}
-            </h1>
+            <h1 className={PAGE_TITLE_CLASS}>{data.title}</h1>
             <p className="mt-1.5 max-w-[78ch] text-body leading-relaxed text-muted-foreground">
               {data.description}
             </p>
@@ -193,9 +171,7 @@ export function RiskDetailPage() {
               <CardHeader>
                 <CardTitle>{t.risks.routeLabel}</CardTitle>
                 <CardDescription>
-                  {data.kind === "ESCALATION"
-                    ? t.risks.escalationIntro
-                    : t.risks.scenarioIntro}
+                  {data.kind === "ESCALATION" ? t.risks.escalationIntro : t.risks.scenarioIntro}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -221,10 +197,7 @@ export function RiskDetailPage() {
                     and one nothing has re-checked since Tuesday look the same. */}
                 <p className="mt-3 text-xs text-muted-foreground">
                   {data.observed_at
-                    ? t.risks.lastSeen.replace(
-                        "{when}",
-                        formatRelative(data.observed_at),
-                      )
+                    ? t.risks.lastSeen.replace("{when}", formatRelative(data.observed_at))
                     : t.risks.lastSeenUnknown}
                 </p>
               </CardContent>
@@ -252,30 +225,30 @@ export function RiskDetailPage() {
                 />
               ) : (
                 <>
-                {fixed > 0 && (
-                  <p className="mb-2 text-xs text-muted-foreground">
-                    {fixed} of {data.findings.length} already fixed; the rest are open.
-                  </p>
-                )}
-                <ul className="divide-y divide-border rounded-lg border border-border">
-                  {members.map((finding) => (
-                    <li key={finding.id} className="px-4 py-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <SeverityBadge level={finding.severity} size="sm" />
-                        <StatusPill status={finding.status} />
-                        <code className="font-mono text-caption text-muted-foreground">
-                          {finding.rule_id}
-                        </code>
-                      </div>
-                      <Link
-                        to={`/findings/${finding.id}`}
-                        className="mt-1 block text-body font-medium text-foreground underline-offset-4 hover:underline"
-                      >
-                        {finding.title}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
+                  {fixed > 0 && (
+                    <p className="mb-2 text-xs text-muted-foreground">
+                      {fixed} of {data.findings.length} already fixed; the rest are open.
+                    </p>
+                  )}
+                  <ul className="divide-y divide-border rounded-lg border border-border">
+                    {members.map((finding) => (
+                      <li key={finding.id} className="px-4 py-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <SeverityBadge level={finding.severity} size="sm" />
+                          <StatusPill status={finding.status} />
+                          <code className="font-mono text-caption text-muted-foreground">
+                            {finding.rule_id}
+                          </code>
+                        </div>
+                        <Link
+                          to={`/findings/${finding.id}`}
+                          className="mt-1 block text-body font-medium text-foreground underline-offset-4 hover:underline"
+                        >
+                          {finding.title}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
                 </>
               )}
             </CardContent>
@@ -291,53 +264,41 @@ export function RiskDetailPage() {
               <section aria-labelledby="risk-arithmetic">
                 <RailHeading id="risk-arithmetic">{t.risks.theArithmetic}</RailHeading>
                 <div className="mt-2">
-              {scenario ? (
-                /* Floored at the worst member and amplified for being short.
+                  {scenario ? (
+                    /* Floored at the worst member and amplified for being short.
                    The six weighted components do not apply, and showing them
                    would be working that was never done. */
-                <div>
-                  <dl className="flex flex-col gap-2 text-xs">
-                    <Row
-                      label={t.risks.worstMember}
-                      value={breakdown.worst_member ?? "—"}
-                    />
-                    <Row
-                      label={t.risks.amplifier}
-                      value={`+${breakdown.amplifier ?? 0}`}
-                    />
-                    <Row
-                      label="Hops"
-                      value={breakdown.hops ?? data.path.length}
-                    />
-                  </dl>
-                  {/* Beside the list, not in it: a `dl` holds terms and their
+                    <div>
+                      <dl className="flex flex-col gap-2 text-xs">
+                        <Row label={t.risks.worstMember} value={breakdown.worst_member ?? "—"} />
+                        <Row label={t.risks.amplifier} value={`+${breakdown.amplifier ?? 0}`} />
+                        <Row label="Hops" value={breakdown.hops ?? data.path.length} />
+                      </dl>
+                      {/* Beside the list, not in it: a `dl` holds terms and their
                       values, and a note is neither. */}
-                  {capped && (
-                    <p className="mt-3 text-xs text-muted-foreground">
-                      {breakdown.uncapped} before the ceiling. {t.risks.cappedNote}
-                    </p>
+                      {capped && (
+                        <p className="mt-3 text-xs text-muted-foreground">
+                          {breakdown.uncapped} before the ceiling. {t.risks.cappedNote}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <ul className="flex flex-col gap-1.5">
+                      {Object.entries(components).map(([name, component]) => (
+                        <li key={name} className="flex items-center justify-between gap-3 text-xs">
+                          <span className="text-muted-foreground">
+                            {name.replace(/_/g, " ")}
+                            <span className="ml-1">
+                              ({component.value} × {component.weight})
+                            </span>
+                          </span>
+                          <span className="font-medium tabular-nums text-foreground">
+                            {component.contribution.toFixed(1)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
                   )}
-                </div>
-              ) : (
-                <ul className="flex flex-col gap-1.5">
-                  {Object.entries(components).map(([name, component]) => (
-                    <li
-                      key={name}
-                      className="flex items-center justify-between gap-3 text-xs"
-                    >
-                      <span className="text-muted-foreground">
-                        {name.replace(/_/g, " ")}
-                        <span className="ml-1">
-                          ({component.value} × {component.weight})
-                        </span>
-                      </span>
-                      <span className="font-medium tabular-nums text-foreground">
-                        {component.contribution.toFixed(1)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
                 </div>
               </section>
 
@@ -348,33 +309,33 @@ export function RiskDetailPage() {
                 <section aria-labelledby="risk-weighed">
                   <RailHeading id="risk-weighed">What was weighed</RailHeading>
                   <div className="mt-2">
-                  <dl className="flex flex-col gap-2 text-xs">
-                  <Row
-                    icon={FACTOR_ICONS.criticality}
-                    label="Asset criticality"
-                    value={<SeverityBadge level={data.asset_criticality} size="sm" />}
-                  />
-                  <Row
-                    icon={FACTOR_ICONS.dataSensitivity}
-                    label="Data sensitivity"
-                    value={<SeverityBadge level={data.data_sensitivity} size="sm" />}
-                  />
-                  <Row
-                    icon={FACTOR_ICONS.exposure}
-                    label="Internet exposure"
-                    value={<SeverityBadge level={data.internet_exposure} size="sm" />}
-                  />
-                  <Row
-                    icon={FACTOR_ICONS.exploitability}
-                    label="Exploitability"
-                    value={`${data.exploitability}/5`}
-                  />
-                  <Row
-                    icon={FACTOR_ICONS.businessImpact}
-                    label="Business impact"
-                    value={data.business_impact}
-                  />
-                </dl>
+                    <dl className="flex flex-col gap-2 text-xs">
+                      <Row
+                        icon={FACTOR_ICONS.criticality}
+                        label="Asset criticality"
+                        value={<SeverityBadge level={data.asset_criticality} size="sm" />}
+                      />
+                      <Row
+                        icon={FACTOR_ICONS.dataSensitivity}
+                        label="Data sensitivity"
+                        value={<SeverityBadge level={data.data_sensitivity} size="sm" />}
+                      />
+                      <Row
+                        icon={FACTOR_ICONS.exposure}
+                        label="Internet exposure"
+                        value={<SeverityBadge level={data.internet_exposure} size="sm" />}
+                      />
+                      <Row
+                        icon={FACTOR_ICONS.exploitability}
+                        label="Exploitability"
+                        value={`${data.exploitability}/5`}
+                      />
+                      <Row
+                        icon={FACTOR_ICONS.businessImpact}
+                        label="Business impact"
+                        value={data.business_impact}
+                      />
+                    </dl>
                   </div>
                 </section>
               )}
@@ -385,8 +346,8 @@ export function RiskDetailPage() {
               <section aria-labelledby="risk-proof">
                 <RailHeading id="risk-proof">Nothing resolves without proof</RailHeading>
                 <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-                  Accepting records a decision and a date. It does not close the findings
-                  underneath it; only a scan does.
+                  Accepting records a decision and a date. It does not close the findings underneath
+                  it; only a scan does.
                 </p>
               </section>
             </CardContent>
@@ -421,15 +382,7 @@ function BackLink({ label }: { label: string }) {
   );
 }
 
-function Row({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: React.ReactNode;
-  icon?: LucideIcon;
-}) {
+function Row({ label, value, icon }: { label: string; value: React.ReactNode; icon?: LucideIcon }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <dt className="text-muted-foreground">

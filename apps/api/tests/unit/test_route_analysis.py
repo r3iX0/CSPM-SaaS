@@ -66,9 +66,7 @@ def diamond() -> AssetGraph:
             node(HOP_B, ResourceType.VIRTUAL_MACHINE),
             node(IDENTITY, ResourceType.SERVICE_PRINCIPAL),
             node(GROUP, ResourceType.RESOURCE_GROUP),
-            node(
-                RECORDS, ResourceType.STORAGE_ACCOUNT, data_sensitivity=Level.CRITICAL
-            ),
+            node(RECORDS, ResourceType.STORAGE_ACCOUNT, data_sensitivity=Level.CRITICAL),
         ],
         [
             (WEB, RelationshipType.NETWORK_ACCESS, HOP_A),
@@ -181,9 +179,7 @@ def roled() -> AssetGraph:
                 },
             ),
             node(GROUP, ResourceType.RESOURCE_GROUP),
-            node(
-                RECORDS, ResourceType.STORAGE_ACCOUNT, data_sensitivity=Level.CRITICAL
-            ),
+            node(RECORDS, ResourceType.STORAGE_ACCOUNT, data_sensitivity=Level.CRITICAL),
         ],
         [
             (WEB, RelationshipType.NETWORK_ACCESS, HOP_A),
@@ -257,10 +253,7 @@ def fan() -> AssetGraph:
             node(RECORDS, ResourceType.STORAGE_ACCOUNT, data_sensitivity=Level.HIGH),
         ],
         [
-            *(
-                (machine, RelationshipType.HAS_IDENTITY, IDENTITY)
-                for machine in machines
-            ),
+            *((machine, RelationshipType.HAS_IDENTITY, IDENTITY) for machine in machines),
             (IDENTITY, RelationshipType.GRANTS_ROLE, GROUP),
             (GROUP, RelationshipType.CONTAINS, RECORDS),
         ],
@@ -364,14 +357,12 @@ def test_the_drawn_map_counts_a_cut_against_every_route_not_the_drawn_ones() -> 
     every = graph.attack_paths()
     drawn = every[:1]
 
-    payload = serialize_route_map(
-        graph, drawn, {}, {}, total_routes=len(every)
-    ).model_dump(mode="json")
+    payload = serialize_route_map(graph, drawn, {}, {}, total_routes=len(every)).model_dump(
+        mode="json"
+    )
 
     assert len(payload["routes"]) == 1
-    assert all(
-        choke["total_routes"] == len(every) for choke in payload["choke_points"]
-    )
+    assert all(choke["total_routes"] == len(every) for choke in payload["choke_points"])
     # And the severance itself is over every route, not over the drawn one: the
     # role the three machines share closes all three.
     assert payload["choke_points"][0]["severs"] == len(every)

@@ -21,12 +21,8 @@ from typing import Any
 # Ensure test mode for configuration if unset, preventing startup check failures
 os.environ.setdefault("APP_ENV", "test")
 os.environ.setdefault("SUPABASE_JWT_SECRET", "doc-gen-secret")
-os.environ.setdefault(
-    "DATABASE_URL", "postgresql+asyncpg://cloudguard_app:x@localhost:5432/cg"
-)
-os.environ.setdefault(
-    "DATABASE_OWNER_URL", "postgresql+asyncpg://cloudguard:x@localhost:5432/cg"
-)
+os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://cloudguard_app:x@localhost:5432/cg")
+os.environ.setdefault("DATABASE_OWNER_URL", "postgresql+asyncpg://cloudguard:x@localhost:5432/cg")
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_JSON_OUTPUT = REPO_ROOT / "docs" / "api" / "openapi.json"

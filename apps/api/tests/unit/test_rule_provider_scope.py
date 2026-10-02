@@ -129,9 +129,7 @@ def test_narrowing_keeps_the_collection_gaps() -> None:
         resources=[resource(Provider.AZURE, "sa"), resource(Provider.AWS, "bucket")],
         collection_errors={"storage": "timeout"},
     )
-    assert context.for_provider(Provider.AZURE).collection_errors == {
-        "storage": "timeout"
-    }
+    assert context.for_provider(Provider.AZURE).collection_errors == {"storage": "timeout"}
 
 
 # ------------------------------------------------------ clouds never scanned

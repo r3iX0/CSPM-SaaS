@@ -189,9 +189,7 @@ describe("the command palette", () => {
     // A rule on its own is a definition; what the reader wants is what it
     // found in their environment.
     await waitFor(() =>
-      expect(screen.getByTestId("location")).toHaveTextContent(
-        "/findings?rule_id=AZ-STO-001",
-      ),
+      expect(screen.getByTestId("location")).toHaveTextContent("/findings?rule_id=AZ-STO-001"),
     );
   });
 
@@ -221,9 +219,7 @@ describe("the command palette", () => {
     await type("stgpublic");
 
     fireEvent.click(await screen.findByText(FINDINGS[0].title));
-    await waitFor(() =>
-      expect(screen.getByTestId("location")).toHaveTextContent("/findings/f-1"),
-    );
+    await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/findings/f-1"));
   });
 
   it("matches a rule where one of its words starts, not inside a word", async () => {

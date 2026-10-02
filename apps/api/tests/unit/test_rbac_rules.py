@@ -68,9 +68,7 @@ def context(*resources: CloudResource, **kwargs: Any) -> RuleContext:
     return RuleContext(resources=list(resources), **kwargs)
 
 
-BLIND = {
-    "collection_errors": {AzureEvidence.ROLE_ASSIGNMENTS.value: "Azure timed out"}
-}
+BLIND = {"collection_errors": {AzureEvidence.ROLE_ASSIGNMENTS.value: "Azure timed out"}}
 
 
 # ------------------------------------------------- a person with the whole thing
@@ -183,9 +181,7 @@ class TestWorkloadWithSubscriptionControl:
             principal_type="ManagedIdentity",
             resource_id="/principals/p1",
         )
-        vm = identity(
-            ResourceType.VIRTUAL_MACHINE, name="web-01", resource_id="/vms/web-01"
-        )
+        vm = identity(ResourceType.VIRTUAL_MACHINE, name="web-01", resource_id="/vms/web-01")
 
         result = WORKLOAD.evaluate(
             who,
@@ -244,9 +240,7 @@ class TestRoleGrantingIdentity:
     def test_it_judges_people_and_workloads_alike(self) -> None:
         """Escalation is escalation. Who holds it changes the remediation, not
         whether it is a finding."""
-        who = identity(
-            ResourceType.USER, roles=[role("Owner", RESOURCE_GROUP, grants=True)]
-        )
+        who = identity(ResourceType.USER, roles=[role("Owner", RESOURCE_GROUP, grants=True)])
 
         result = GRANTER.evaluate(who, context(who))
 
@@ -303,30 +297,17 @@ class TestPrivilegeAboveTheSubscription:
     def test_the_same_role_on_the_subscription_is_not_this_finding(self) -> None:
         """AZ-IAM-001 reports that one. Failing both would raise two findings
         for one assignment and charge the score twice for removing it."""
-        holder = identity(
-            ResourceType.USER, roles=[{"role": "Owner", "scope": SUBSCRIPTION}]
-        )
-        assert (
-            BROAD.evaluate(holder, RuleContext(resources=[holder])).state
-            is RuleState.PASS
-        )
+        holder = identity(ResourceType.USER, roles=[{"role": "Owner", "scope": SUBSCRIPTION}])
+        assert BROAD.evaluate(holder, RuleContext(resources=[holder])).state is RuleState.PASS
 
     def test_a_narrow_role_above_the_subscription_passes(self) -> None:
         """Reader inherited by every subscription is a design, not a defect."""
-        holder = identity(
-            ResourceType.USER, roles=[{"role": "Reader", "scope": MANAGEMENT_GROUP}]
-        )
-        assert (
-            BROAD.evaluate(holder, RuleContext(resources=[holder])).state
-            is RuleState.PASS
-        )
+        holder = identity(ResourceType.USER, roles=[{"role": "Reader", "scope": MANAGEMENT_GROUP}])
+        assert BROAD.evaluate(holder, RuleContext(resources=[holder])).state is RuleState.PASS
 
     def test_an_identity_with_no_recorded_assignments_is_unknown(self) -> None:
         holder = identity(ResourceType.USER, roles=None)
-        assert (
-            BROAD.evaluate(holder, RuleContext(resources=[holder])).state
-            is RuleState.UNKNOWN
-        )
+        assert BROAD.evaluate(holder, RuleContext(resources=[holder])).state is RuleState.UNKNOWN
 
 
 # ------------------------------------------------------ how many hold Owner
@@ -377,10 +358,7 @@ class TestHowManyHoldOwner:
     def test_a_tenant_whose_assignments_never_arrived_is_unknown(self) -> None:
         """Nobody holding Owner is not a clean tenant if nothing was read."""
         blind = [identity(ResourceType.USER, roles=None)]
-        assert (
-            OWNERS.evaluate(None, RuleContext(resources=blind)).state
-            is RuleState.UNKNOWN
-        )
+        assert OWNERS.evaluate(None, RuleContext(resources=blind)).state is RuleState.UNKNOWN
 
     def test_a_failed_role_listing_is_unknown_not_a_pass(self) -> None:
         context = RuleContext(

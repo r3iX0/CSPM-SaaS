@@ -4,7 +4,7 @@ import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/format";
 import type { Level } from "@/lib/types";
 
-export type Stat = {
+export interface Stat {
   label: string;
   value: ReactNode;
   /** Painted in the critical tone. Only for a number that is a problem. */
@@ -28,7 +28,7 @@ export type Stat = {
   selected?: boolean;
   /** What pressing it does, for a screen reader: "Show only critical findings". */
   selectLabel?: string;
-};
+}
 
 const TONE: Record<Level, string> = {
   CRITICAL: "text-critical",

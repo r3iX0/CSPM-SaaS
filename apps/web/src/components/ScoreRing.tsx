@@ -18,11 +18,7 @@ export function ScoreRing({ score }: { score: number }) {
   return (
     <div className="relative h-[150px] w-[150px]">
       {/* The number beside it is the reading; the arc repeats it for the eye. */}
-      <svg
-        viewBox="0 0 140 140"
-        className="h-full w-full -rotate-[135deg]"
-        aria-hidden="true"
-      >
+      <svg viewBox="0 0 140 140" className="h-full w-full -rotate-[135deg]" aria-hidden="true">
         <circle
           cx="70"
           cy="70"
@@ -52,14 +48,10 @@ export function ScoreRing({ score }: { score: number }) {
       </svg>
 
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span
-          className={`text-4xl font-semibold tabular-nums leading-none ${scoreColor(clamped)}`}
-        >
+        <span className={`text-4xl font-semibold tabular-nums leading-none ${scoreColor(clamped)}`}>
           {Math.round(clamped)}
         </span>
-        <span className="mt-1 text-caption text-muted-foreground">
-          out of 100
-        </span>
+        <span className="mt-1 text-caption text-muted-foreground">out of 100</span>
       </div>
     </div>
   );

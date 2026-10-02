@@ -23,10 +23,7 @@ export const LEVEL_RANK: Record<string, number> = {
 
 export type Direction = "worse" | "better" | "neutral";
 
-export function changeDirection(
-  previous: string | null,
-  current: string | null,
-): Direction {
+export function changeDirection(previous: string | null, current: string | null): Direction {
   const from = LEVEL_RANK[previous ?? ""];
   const to = LEVEL_RANK[current ?? ""];
   if (from === undefined || to === undefined) return "neutral";

@@ -97,8 +97,7 @@ export function AssetsPage() {
   const groupBy = filters.group as GroupKey;
   // `tree` was the hierarchy view, which the map now is (§112): an old link to
   // it opens the map rather than falling back to the list.
-  const view: View =
-    filters.view === "graph" || filters.view === "tree" ? "graph" : "list";
+  const view: View = filters.view === "graph" || filters.view === "tree" ? "graph" : "list";
   const page = Math.max(0, Number.parseInt(filters.page, 10) || 0);
   const subscriptionId = filters.subscription_id;
   const resourceGroup = filters.resource_group;
@@ -148,28 +147,26 @@ export function AssetsPage() {
       page,
     ],
     queryFn: () =>
-      api
-        .get<Asset[]>(`/api/v1/assets?${params.toString()}`)
-        .then((r) => {
-          const meta = r.meta as
-            | {
-                total?: number;
-                unchecked?: number;
-                facets?: {
-                  resource_type?: Record<string, number>;
-                  environment?: Record<string, number>;
-                  region?: Record<string, number>;
-                };
-              }
-            | undefined;
-          return {
-            assets: r.data,
-            total: meta?.total ?? r.data.length,
-            // Counted over the whole filtered set by the API, not this page.
-            unchecked: meta?.unchecked ?? 0,
-            facets: meta?.facets ?? {},
-          };
-        }),
+      api.get<Asset[]>(`/api/v1/assets?${params.toString()}`).then((r) => {
+        const meta = r.meta as
+          | {
+              total?: number;
+              unchecked?: number;
+              facets?: {
+                resource_type?: Record<string, number>;
+                environment?: Record<string, number>;
+                region?: Record<string, number>;
+              };
+            }
+          | undefined;
+        return {
+          assets: r.data,
+          total: meta?.total ?? r.data.length,
+          // Counted over the whole filtered set by the API, not this page.
+          unchecked: meta?.unchecked ?? 0,
+          facets: meta?.facets ?? {},
+        };
+      }),
     // Paging without this blanks the table on every page turn, which reads as
     // the data having gone rather than as a page loading.
     placeholderData: keepPreviousData,
@@ -225,10 +222,7 @@ export function AssetsPage() {
   // Rows in the order they are drawn -- grouped, then within each group -- so
   // `j` moves down the screen rather than through the fetch order.
   const drawn = useMemo(() => groups.flatMap(([, rows]) => rows), [groups]);
-  const rowIndex = useMemo(
-    () => new Map(drawn.map((asset, index) => [asset.id, index])),
-    [drawn],
-  );
+  const rowIndex = useMemo(() => new Map(drawn.map((asset, index) => [asset.id, index])), [drawn]);
   const activeRow = useRowNavigation(
     view === "list" ? drawn.map((asset) => `/assets/${asset.id}`) : [],
   );
@@ -261,9 +255,9 @@ export function AssetsPage() {
     queryKey: ["assets", "counts"],
     queryFn: async () => {
       const read = (query: string) =>
-        api.get<Asset[]>(`/api/v1/assets?limit=1${query}`).then(
-          (r) => r.meta as { total?: number; unchecked?: number } | undefined,
-        );
+        api
+          .get<Asset[]>(`/api/v1/assets?limit=1${query}`)
+          .then((r) => r.meta as { total?: number; unchecked?: number } | undefined);
       const [all, entry, route] = await Promise.all([
         read(""),
         read("&entry_point=true"),
@@ -319,7 +313,11 @@ export function AssetsPage() {
               icon: RISK_KIND_ICONS.ATTACK_PATH,
               alert: counts.data.route > 0,
             },
-            { label: "Unmodeled type", value: counts.data.unchecked, tone: counts.data.unchecked > 0 ? "MEDIUM" : undefined },
+            {
+              label: "Unmodeled type",
+              value: counts.data.unchecked,
+              tone: counts.data.unchecked > 0 ? "MEDIUM" : undefined,
+            },
           ]}
         />
       )}
@@ -351,87 +349,87 @@ export function AssetsPage() {
       {view === "graph" && <EstateGraph scopeId={subscriptionId} group={resourceGroup} />}
 
       {view === "list" && (
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-        <div className="relative flex-1 lg:max-w-xs">
-          <SearchIcon
-            className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
-            value={typed}
-            onChange={(e) => setTyped(e.target.value)}
-            placeholder="Search by name"
-            aria-label="Search assets"
-            data-page-search
-            className="pl-8"
-          />
-        </div>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="relative flex-1 lg:max-w-xs">
+            <SearchIcon
+              className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
+            <Input
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+              placeholder="Search by name"
+              aria-label="Search assets"
+              data-page-search
+              className="pl-8"
+            />
+          </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <SelectField
-            value={type}
-            onValueChange={resetTo("type")}
-            ariaLabel="Filter by type"
-            className="w-[190px]"
-            idleValue="all"
-            options={[
-              { value: "all", label: "All types" },
-              ...types.map((value) => ({
-                value,
-                label: resourceTypeLabel(value),
-                icon: resourceTypeIcon(value),
-              })),
-            ]}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <SelectField
+              value={type}
+              onValueChange={resetTo("type")}
+              ariaLabel="Filter by type"
+              className="w-[190px]"
+              idleValue="all"
+              options={[
+                { value: "all", label: "All types" },
+                ...types.map((value) => ({
+                  value,
+                  label: resourceTypeLabel(value),
+                  icon: resourceTypeIcon(value),
+                })),
+              ]}
+            />
 
-          <SelectField
-            value={exposure}
-            onValueChange={resetTo("exposure")}
-            ariaLabel="Filter by exposure"
-            className="w-[160px]"
-            idleValue="all"
-            options={[
-              { value: "all", label: "All exposure" },
-              { value: "CRITICAL", label: "Critical" },
-              { value: "HIGH", label: "High" },
-              { value: "MEDIUM", label: "Medium" },
-              { value: "LOW", label: "Low" },
-              { value: "UNKNOWN", label: "Unknown" },
-            ]}
-          />
+            <SelectField
+              value={exposure}
+              onValueChange={resetTo("exposure")}
+              ariaLabel="Filter by exposure"
+              className="w-[160px]"
+              idleValue="all"
+              options={[
+                { value: "all", label: "All exposure" },
+                { value: "CRITICAL", label: "Critical" },
+                { value: "HIGH", label: "High" },
+                { value: "MEDIUM", label: "Medium" },
+                { value: "LOW", label: "Low" },
+                { value: "UNKNOWN", label: "Unknown" },
+              ]}
+            />
 
-          {/* The map's three marks, as a filter: what it draws a globe, a
+            {/* The map's three marks, as a filter: what it draws a globe, a
               cylinder or a route on. Counted with the graph's own predicates,
               so a box saying "2 reachable from the internet" and this list
               agree. */}
-          <SelectField
-            value={signal}
-            onValueChange={resetTo("signal")}
-            ariaLabel="Filter by what the map marks"
-            className="w-[190px]"
-            idleValue="all"
-            options={[
-              { value: "all", label: "Any asset" },
-              { value: "entry", label: "Reachable from the internet" },
-              { value: "sensitive", label: "Holds sensitive data" },
-              { value: "route", label: "On an attack path" },
-            ]}
-          />
+            <SelectField
+              value={signal}
+              onValueChange={resetTo("signal")}
+              ariaLabel="Filter by what the map marks"
+              className="w-[190px]"
+              idleValue="all"
+              options={[
+                { value: "all", label: "Any asset" },
+                { value: "entry", label: "Reachable from the internet" },
+                { value: "sensitive", label: "Holds sensitive data" },
+                { value: "route", label: "On an attack path" },
+              ]}
+            />
 
-          <SelectField
-            value={groupBy}
-            onValueChange={(value) => update({ group: value || "none" })}
-            ariaLabel="Group assets"
-            className="w-[180px]"
-            options={[
-              { value: "none", label: "No grouping" },
-              { value: "scope", label: "By resource group" },
-              { value: "resource_type", label: "By type" },
-              { value: "environment", label: "By environment" },
-            ]}
-          />
+            <SelectField
+              value={groupBy}
+              onValueChange={(value) => update({ group: value || "none" })}
+              ariaLabel="Group assets"
+              className="w-[180px]"
+              options={[
+                { value: "none", label: "No grouping" },
+                { value: "scope", label: "By resource group" },
+                { value: "resource_type", label: "By type" },
+                { value: "environment", label: "By environment" },
+              ]}
+            />
+          </div>
         </div>
-      </div>
       )}
 
       {/* Region and environment are no longer dropdowns: they narrow the list
@@ -440,44 +438,42 @@ export function AssetsPage() {
           drills in with `?region=` -- and show here, where they can be removed. */}
       {view === "list" &&
         (subscriptionId || resourceGroup || region !== "all" || environment !== "all") && (
-        <div className="flex flex-wrap items-center gap-2">
-          {(subscriptionId || resourceGroup) && (
-            <FilterChip onClear={clearScope} clearLabel="Clear scope filter">
-              {resourceGroup ? (
-                <>
-                  Resource group <code className="font-medium">{resourceGroup}</code>
-                </>
-              ) : (
-                <>
-                  Subscription <code className="font-medium">{subscriptionId}</code>
-                </>
-              )}
-            </FilterChip>
-          )}
-          {region !== "all" && (
-            <FilterChip onClear={() => resetTo("region")(null)} clearLabel="Clear region filter">
-              Region <span className="font-medium">{regionLabel(region)}</span>
-            </FilterChip>
-          )}
-          {environment !== "all" && (
-            <FilterChip
-              onClear={() => resetTo("environment")(null)}
-              clearLabel="Clear environment filter"
-            >
-              Environment{" "}
-              <span className="font-medium">
-                {environment.charAt(0).toUpperCase() + environment.slice(1)}
-              </span>
-            </FilterChip>
-          )}
-        </div>
-      )}
+          <div className="flex flex-wrap items-center gap-2">
+            {(subscriptionId || resourceGroup) && (
+              <FilterChip onClear={clearScope} clearLabel="Clear scope filter">
+                {resourceGroup ? (
+                  <>
+                    Resource group <code className="font-medium">{resourceGroup}</code>
+                  </>
+                ) : (
+                  <>
+                    Subscription <code className="font-medium">{subscriptionId}</code>
+                  </>
+                )}
+              </FilterChip>
+            )}
+            {region !== "all" && (
+              <FilterChip onClear={() => resetTo("region")(null)} clearLabel="Clear region filter">
+                Region <span className="font-medium">{regionLabel(region)}</span>
+              </FilterChip>
+            )}
+            {environment !== "all" && (
+              <FilterChip
+                onClear={() => resetTo("environment")(null)}
+                clearLabel="Clear environment filter"
+              >
+                Environment{" "}
+                <span className="font-medium">
+                  {environment.charAt(0).toUpperCase() + environment.slice(1)}
+                </span>
+              </FilterChip>
+            )}
+          </div>
+        )}
 
       <LiveStatus
         quietFirst
-        message={
-          view !== "list" || !data ? null : assets.length > 0 ? countLine : emptyTitle
-        }
+        message={view !== "list" || !data ? null : assets.length > 0 ? countLine : emptyTitle}
       />
 
       {view === "list" && isLoading && <TableSkeleton columns={7} />}
@@ -518,10 +514,7 @@ export function AssetsPage() {
                 Clear filters
               </Button>
             ) : (
-              <Link
-                to="/scans"
-                className={buttonVariants({ variant: "outline" })}
-              >
+              <Link to="/scans" className={buttonVariants({ variant: "outline" })}>
                 Run a scan
               </Link>
             )
@@ -562,7 +555,9 @@ export function AssetsPage() {
                             className="bg-muted/60 py-1.5 font-mono text-caption font-medium text-muted-foreground"
                           >
                             {groupName}
-                            <span className="ml-2 tabular-nums text-muted-foreground">{rows.length}</span>
+                            <span className="ml-2 tabular-nums text-muted-foreground">
+                              {rows.length}
+                            </span>
                           </TableCell>
                         </MotionTableRow>
                       )}
@@ -663,12 +658,7 @@ export function AssetsPage() {
                 </>
               )}
             </p>
-            <Pager
-              page={page}
-              pages={pages}
-              onPage={setPage}
-              className="w-auto"
-            />
+            <Pager page={page} pages={pages} onPage={setPage} className="w-auto" />
           </div>
         </>
       )}
@@ -721,13 +711,7 @@ function FilterChip({
  * in the URL for the list and do nothing here. Unsaid, a map that ignored a
  * visible filter would read as a map that had applied it.
  */
-function MapIgnoresFilters({
-  active,
-  onClear,
-}: {
-  active: string[];
-  onClear: () => void;
-}) {
+function MapIgnoresFilters({ active, onClear }: { active: string[]; onClear: () => void }) {
   if (active.length === 0) return null;
   return (
     <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">

@@ -179,8 +179,7 @@ export function RouteRow({
             closed && "text-muted-foreground decoration-muted-foreground",
           )}
         >
-          {route.entry.name} <span className="text-muted-foreground">→</span>{" "}
-          {route.target.name}
+          {route.entry.name} <span className="text-muted-foreground">→</span> {route.target.name}
         </span>
         <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
           {route.hops} {route.hops === 1 ? t.attackPaths.oneHop : t.attackPaths.hops}

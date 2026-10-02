@@ -1,18 +1,23 @@
 # CloudGuard — Architecture Review (September 2026)
 
-**Date:** 20 September 2026  
-**Scope:** Full-stack architecture (`apps/api`, `apps/web`), Data & Security tier (`database/`), Cloud Connectors (`Azure`, `AWS`), Distributed Scan Orchestrator (`Celery`/`Redis`), and Infrastructure (`Railway`, `Supabase`, `Vercel`) at commit `f7de6b0` (`develop-eh`).  
+**Date:** 20 September 2026\
+**Scope:** Full-stack architecture (`apps/api`, `apps/web`), Data & Security tier
+(`database/`), Cloud Connectors (`Azure`, `AWS`), Distributed Scan Orchestrator (`Celery`/`Redis`),
+and Infrastructure (`Railway`, `Supabase`, `Vercel`) at commit `f7de6b0` (`develop-eh`).\
 **Predecessor Review:** [`docs/ARCHITECTURE_REVIEW.md`](ARCHITECTURE_REVIEW.md) (September 3, 2026).
 
 ---
 
 ## 1. Executive Summary
 
-**CloudGuard** is an Azure-first (with AWS built behind a feature flag), cloud-native Cloud Security Posture Management (CSPM) SaaS. Rather than operating as an alert generator that dumps thousands of disconnected misconfigurations on security teams, CloudGuard is designed as a **deterministic, evidence-backed, risk-prioritizing verification platform**.
+**CloudGuard** is an Azure-first (with AWS built behind a feature flag), cloud-native Cloud Security
+Posture Management (CSPM) SaaS. Rather than operating as an alert generator that dumps thousands of
+disconnected misconfigurations on security teams, CloudGuard is designed as a **deterministic,
+evidence-backed, risk-prioritizing verification platform**.
 
 ### The Verified Product Loop
 
-```
+```text
                                     ┌──────────────────────────────────┐
                                     │    THE VERIFIED PRODUCT LOOP     │
                                     └──────────────────────────────────┘
@@ -25,17 +30,30 @@
   with generated least-privilege role.  Risk = Severity x Context x Exposure. next scan via verified evidence.
 ```
 
-1. **Self-Verifying Remediation Loop:** The product omits any manual "Mark as Resolved" button. A finding transitions to `RESOLVED` if and only if a subsequent scan provides deterministic evidence that the condition is fixed.
-2. **Facts vs. Risks Separation:** Technical misconfigurations ("Port 22 open") are facts. Risks ("Internet-exposed jump box with Subscription Contributor rights") are scored contextually using asset criticality, data sensitivity, and network topology.
-3. **Defense-in-Depth Multi-Tenancy:** Isolation is enforced at the application layer via authenticated JWT tenant derivation *and* independently at the PostgreSQL storage layer via Row-Level Security (RLS) executing under non-owner roles (`cloudguard_app` and `cloudguard_worker`).
-4. **Durable, Fenced Distributed Orchestration:** Scans are decomposed into discrete, state-persisted steps (`PLAN`, `COLLECT`, `ANALYZE`) running under time-bound renewable leases with fencing tokens, surviving process crashes and worker redeployments.
-5. **Exact One-Pass Severance Graph Analysis:** Rather than just enumerating individual attack paths, CloudGuard computes strategic choke points—identifying the single permission or network link whose removal collapses the maximum number of attack routes.
+1. **Self-Verifying Remediation Loop:** The product omits any manual "Mark as Resolved" button. A
+   finding transitions to `RESOLVED` if and only if a subsequent scan provides deterministic
+   evidence that the condition is fixed.
+2. **Facts vs. Risks Separation:** Technical misconfigurations ("Port 22 open") are facts. Risks
+   ("Internet-exposed jump box with Subscription Contributor rights") are scored contextually using
+   asset criticality, data sensitivity, and network topology.
+3. **Defense-in-Depth Multi-Tenancy:** Isolation is enforced at the application layer via
+   authenticated JWT tenant derivation _and_ independently at the PostgreSQL storage layer via
+   Row-Level Security (RLS) executing under non-owner roles
+   (`cloudguard_app` and `cloudguard_worker`).
+4. **Durable, Fenced Distributed Orchestration:** Scans are decomposed into discrete,
+   state-persisted steps (`PLAN`, `COLLECT`, `ANALYZE`) running under time-bound renewable leases
+   with fencing tokens, surviving process crashes and worker redeployments.
+5. **Exact One-Pass Severance Graph Analysis:** Rather than just enumerating individual attack
+   paths, CloudGuard computes strategic choke points—identifying the single permission or network
+   link whose removal collapses the maximum number of attack routes.
 
 ---
 
 ## 2. System Architecture & C4 Topologies
 
-CloudGuard is structured as a **modular monolith with distributed asynchronous workers**. Microservices were intentionally avoided to prevent distributed transaction failures, network serialization overhead, and premature boundary coupling.
+CloudGuard is structured as a **modular monolith with distributed asynchronous workers**.
+Microservices were intentionally avoided to prevent distributed transaction failures, network
+serialization overhead, and premature boundary coupling.
 
 ### C4 Level 1: System Context Diagram
 
@@ -133,7 +151,9 @@ graph TB
 
 ### 4.1 Two-Tier Multi-Tenancy & Row-Level Security (RLS)
 
-Tenancy isolation is implemented with defense-in-depth: the application layer derives the tenant context from the cryptographically verified JWT, and PostgreSQL enforces that tenant context natively through Row-Level Security.
+Tenancy isolation is implemented with defense-in-depth: the application layer derives the tenant
+context from the cryptographically verified JWT, and PostgreSQL enforces that tenant context
+natively through Row-Level Security.
 
 ```mermaid
 sequenceDiagram
@@ -157,47 +177,56 @@ sequenceDiagram
 ```
 
 #### The Worker Tenancy Contract (`scan_session`)
-In background Celery workers, there is no HTTP request and no user JWT. If workers used the superuser/owner database connection, a bug in worker code could accidentally read or write across tenant boundaries.
+
+In background Celery workers, there is no HTTP request and no user JWT. If workers used the
+superuser/owner database connection, a bug in worker code could accidentally read or write across
+tenant boundaries.
+
 - **Architectural Solution:** CloudGuard created a dedicated database role: `cloudguard_worker`.
 - Scans run inside `scan_session(organization_id)`.
-- Because `SET LOCAL` is transaction-scoped and dies at every `session.commit()`, CloudGuard implements an SQLAlchemy `after_begin` event listener that automatically re-executes `SET LOCAL app.current_organization_id = :org_id` on every new transaction boundary.
+- Because `SET LOCAL` is transaction-scoped and dies at every
+  `session.commit()`, CloudGuard implements an SQLAlchemy `after_begin` event listener that
+  automatically re-executes `SET LOCAL app.current_organization_id = :org_id` on every new
+  transaction boundary.
 
 ---
 
 ### 4.2 Distributed Scan Pipeline & Fenced Step Orchestration
 
-A scan is not a monolithic Celery task. If a monolithic task dies mid-way through scanning 50 subscriptions, all progress is lost and duplicate API calls are fired. CloudGuard breaks scans into **discrete, leased steps**:
+A scan is not a monolithic Celery task. If a monolithic task dies mid-way through scanning 50
+subscriptions, all progress is lost and duplicate API calls are fired. CloudGuard breaks scans into
+**discrete, leased steps**:
 
 ```mermaid
 graph TD
     subgraph OrchestratorLoop ["Durable State Machine (services/scan/pipeline.py)"]
         Start([User or Schedule Triggers Scan]) --> PlanStep["Step 1: PLAN\n(Discovers Subscriptions & Accounts)"]
         PlanStep --> StepGen["Generate Steps in DB:\n- COLLECT (Tenant Directory)\n- COLLECT (Subscription 1..N)\n- ANALYZE (Single Fenced)"]
-        
+
         StepGen --> DispatchCollect["Dispatch to 'collect' Queue"]
-        
+
         subgraph ParallelCollect ["Parallel Collection (I/O Bound)"]
             CollDir["COLLECT: Tenant Directory\n(Entra Users, Groups, Roles)"]
             CollSub1["COLLECT: Subscription 1\n(ARM Resources, NSGs, Disks)"]
             CollSubN["COLLECT: Subscription N\n(ARM Resources, Storage, SQL)"]
         end
-        
+
         DispatchCollect --> CollDir
         DispatchCollect --> CollSub1
         DispatchCollect --> CollSubN
-        
+
         CollDir --> RawDB[("Store Verbatim JSON in\ncloud_snapshots")]
         CollSub1 --> RawDB
         CollSubN --> RawDB
-        
+
         RawDB --> AllDone{"All Collection\nSteps Settled?"}
         AllDone -- No --> Wait["Worker Heartbeats Lease"]
         AllDone -- Yes --> TriggerAnalyze["Dispatch to 'analyze' Queue"]
-        
+
         subgraph SingleAnalyze ["Single Analyze Stage (CPU/Memory Bound)"]
             AnalyzeStep["ANALYZE Step Execution:\n1. Load RawSnapshots\n2. Normalize to CloudResource\n3. Execute 98 Security Rules\n4. Calculate Risk Scores\n5. Build Attack Path Graph & Choke Points\n6. Verify Existing Remediations"]
         end
-        
+
         TriggerAnalyze --> AnalyzeStep
         AnalyzeStep --> AtomicCommit["Atomic ScanWriter.commit\n(Fenced on Step Attempt)"]
         AtomicCommit --> Completed([Scan Marked COMPLETED])
@@ -205,15 +234,20 @@ graph TD
 ```
 
 #### Lease Fencing & Zombie Prevention
+
 - Each scan step has an `attempt` counter and a `lease_expires_at` timestamp.
 - While running, `LeaseKeeper` sends periodic heartbeats every `LEASE_SECONDS / 3`.
-- When committing results, `StepFence` verifies that the current worker's attempt matches the database record. If a slow worker was reaped and another worker picked up the step, the zombie worker is fenced out, preventing data corruption.
+- When committing results, `StepFence` verifies that the current worker's attempt matches the
+  database record. If a slow worker was reaped and another worker picked up the step, the zombie
+  worker is fenced out, preventing data corruption.
 
 ---
 
 ### 4.3 The Evidence Ledger & Rule Engine Algebra
 
-Most CSPMs use a binary evaluation: `PASS` or `FAIL`. This creates a dangerous security vulnerability: **if a cloud API times out or permissions are missing, missing resources appear as "clean", giving a false sense of security**.
+Most CSPMs use a binary evaluation: `PASS` or `FAIL`. This creates a dangerous security
+vulnerability: **if a cloud API times out or permissions are missing, missing resources appear as
+"clean", giving a false sense of security**.
 
 CloudGuard enforces a **four-state evaluation algebra**:
 
@@ -221,18 +255,22 @@ $$\text{Verdict} \in \{\text{PASS}, \text{FAIL}, \text{UNKNOWN}, \text{ERROR}\}$
 
 - **Invariant:** `UNKNOWN` is **never** converted into a `PASS`.
 - Missing data is logged in `scan_evaluation_gaps` and `scan_collection_results`.
-- Compliance reporting marks controls with missing evidence as `INCONCLUSIVE`, preventing false compliance audit sign-offs.
+- Compliance reporting marks controls with missing evidence as `INCONCLUSIVE`, preventing false
+  compliance audit sign-offs.
 
 ---
 
 ### 4.4 Attack Path Graph & Exact Severance Engine
 
-In `app/graph/severance.py`, CloudGuard solves the problem of finding **choke points** across attack trees.
+In `app/graph/severance.py`, CloudGuard solves the problem of finding **choke points** across attack
+trees.
 
 #### The Graph Architecture
+
 1. **Nodes:** Assets (VMs, Identities, Storage Accounts, Key Vaults, SQL Databases).
 2. **Edges:** Capabilities and reachability (`REACHES`, `HAS_IDENTITY`, `ASSUMES_ROLE`, `CONTROLS`).
-3. **Severance Question:** *"Which single removable link, if severed, destroys the greatest number of viable attack routes from the public Internet to crown-jewel assets?"*
+3. **Severance Question:** _"Which single removable link, if severed, destroys the greatest number
+   of viable attack routes from the public Internet to crown-jewel assets?"_
 
 ```mermaid
 graph LR
@@ -256,13 +294,17 @@ graph LR
 ```
 
 #### The Exact One-Pass Algorithm
+
 CloudGuard implements a **layered forward reachability traversal**:
+
 - Starting at an Internet entry point, it traverses forward layer-by-layer up to `MAX_DEPTH`.
 - It tracks `necessary(v)`: the exact set of removable links present on **every** walk to node $v$:
 
+<!-- markdownlint-disable-next-line MD013 -- a formula cannot wrap -->
 $$\text{necessary}(v, d+1) = \bigcap_{u \in \text{predecessors}(v)} \left( \text{necessary}(u, d) \cup \{ (u \to v) \mid (u \to v) \text{ is removable} \} \right)$$
 
-- If an edge is present in `necessary(v)`, cutting that edge guarantees that target $v$ is completely unreachable from that entry point.
+- If an edge is present in `necessary(v)`, cutting that edge guarantees that target $v$ is
+  completely unreachable from that entry point.
 - **Complexity:** Computes severance for every link in the estate in **a single traversal pass**.
 
 ---
@@ -271,9 +313,11 @@ $$\text{necessary}(v, d+1) = \bigcap_{u \in \text{predecessors}(v)} \left( \text
 
 CloudGuard separates findings (technical observations) from risks (business danger).
 
+<!-- markdownlint-disable-next-line MD013 -- a formula cannot wrap -->
 $$\text{Risk Score} = \left( \sum_{i} \text{Factor}_i \times \text{Weight}_i \right) \times \text{Scale Factor}$$
 
 Where factors comprise:
+
 1. **Technical Severity:** (`CRITICAL: 10`, `HIGH: 7`, `MEDIUM: 4`, `LOW: 1`)
 2. **Asset Criticality:** Inferred from tags (`env=prod`), naming, or declared customer overrides.
 3. **Data Sensitivity:** Inferred from data types stored (PII, secrets, payment data).
@@ -282,14 +326,19 @@ Where factors comprise:
 6. **Business Impact:** Computed harmonic mean of Criticality and Sensitivity.
 
 #### Dual-Score Philosophy
-- `score` (Cautious): Missing context (`UNKNOWN`) is scored near `HIGH` so unclassified assets are prioritized for triage rather than ignored.
-- `known_score` (Grounded): Uses only verified facts. The company's headline security posture score is calculated using `known_score`, ensuring CloudGuard's internal blind spots do not artificially penalize the customer's score.
+
+- `score` (Cautious): Missing context (`UNKNOWN`) is scored near `HIGH` so unclassified assets are
+  prioritized for triage rather than ignored.
+- `known_score` (Grounded): Uses only verified facts. The company's headline security posture score
+  is calculated using `known_score`,
+  ensuring CloudGuard's internal blind spots do not artificially penalize the customer's score.
 
 ---
 
 ## 5. Architectural Decisions (ADR Synthesis)
 
-CloudGuard maintains an exemplary architectural record (`docs/DECISIONS.md`) comprising over 120 recorded decisions. The table below highlights the foundational decisions:
+CloudGuard maintains an exemplary architectural record (`docs/DECISIONS.md`) comprising over 120
+recorded decisions. The table below highlights the foundational decisions:
 
 | ADR Ref | Decision | Trade-Off Accepted | Long-Term Architectural Validation |
 |---|---|---|---|
@@ -326,12 +375,12 @@ gantt
     Fix Consent Nonce Transaction Boundary       :done, 2026-09, 2026-10
     Split Celery Worker Deployments (Collect/Analyze) :active, 2026-10, 2026-11
     Audit & Validate AWS 18-point Checklist     :active, 2026-10, 2026-11
-    
+
     section Phase 2: Scale & Multi-Cloud
     Enable Live AWS Account Scanning             :2026-11, 2026-12
     GCP Connector Architecture Design            :2026-12, 2027-01
     Persistent Graph Projection (Postgres CTE/Graph) :2027-01, 2027-02
-    
+
     section Phase 3: Real-Time Event Driven
     Event Grid & EventBridge Webhook Ingestion   :2027-02, 2027-03
     Targeted Micro-Scans (Delta Execution)       :2027-03, 2027-04

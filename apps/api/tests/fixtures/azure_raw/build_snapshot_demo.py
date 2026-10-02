@@ -330,7 +330,7 @@ def build() -> dict[str, Any]:
                             },
                         },
                     }
-                ]
+                ],
             },
         }
     )

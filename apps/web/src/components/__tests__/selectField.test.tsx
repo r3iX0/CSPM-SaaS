@@ -22,12 +22,7 @@ const WINDOWS = [
 describe("SelectField", () => {
   it("shows the chosen option's label, not its value", () => {
     render(
-      <SelectField
-        value="30"
-        onValueChange={() => {}}
-        options={WINDOWS}
-        ariaLabel="Window"
-      />,
+      <SelectField value="30" onValueChange={() => {}} options={WINDOWS} ariaLabel="Window" />,
     );
 
     expect(screen.getByLabelText("Window")).toHaveTextContent("Last 30 days");
@@ -41,12 +36,7 @@ describe("SelectField", () => {
     const onValueChange = vi.fn();
 
     render(
-      <SelectField
-        value="30"
-        onValueChange={onValueChange}
-        options={WINDOWS}
-        ariaLabel="Window"
-      />,
+      <SelectField value="30" onValueChange={onValueChange} options={WINDOWS} ariaLabel="Window" />,
     );
 
     await user.click(screen.getByLabelText("Window"));
@@ -71,9 +61,7 @@ describe("SelectField", () => {
       />,
     );
 
-    expect(screen.getByLabelText("Schedule")).toHaveTextContent(
-      "Manual scanning only",
-    );
+    expect(screen.getByLabelText("Schedule")).toHaveTextContent("Manual scanning only");
   });
 
   it("falls back to the raw value rather than showing nothing", () => {
@@ -81,12 +69,7 @@ describe("SelectField", () => {
     // build, say. Showing it is worse than showing a label and better than an
     // empty control that looks broken.
     render(
-      <SelectField
-        value="90"
-        onValueChange={() => {}}
-        options={WINDOWS}
-        ariaLabel="Window"
-      />,
+      <SelectField value="90" onValueChange={() => {}} options={WINDOWS} ariaLabel="Window" />,
     );
 
     expect(screen.getByLabelText("Window")).toHaveTextContent("90");

@@ -125,8 +125,7 @@ const RESOURCE_TYPE_ICONS: Record<string, LucideIcon> = {
 };
 
 /** Falls back to a plain box: a type this map has not caught up with is still a resource. */
-export const resourceTypeIcon = (type: string): LucideIcon =>
-  RESOURCE_TYPE_ICONS[type] ?? BoxIcon;
+export const resourceTypeIcon = (type: string): LucideIcon => RESOURCE_TYPE_ICONS[type] ?? BoxIcon;
 
 /**
  * Whether a fix was verified, in the verification panel.

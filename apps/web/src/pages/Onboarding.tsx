@@ -11,12 +11,7 @@ import { DEMO_ICON } from "@/lib/icons";
 import { useJoinDemo } from "@/lib/useDemo";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { PAGE_TITLE_CLASS } from "@/components/common/states";
@@ -59,9 +54,7 @@ export function OnboardingPage() {
       auth.organizationId = data.id;
       navigate("/connections", { replace: true });
     } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : "Could not create organization",
-      );
+      setError(err instanceof ApiError ? err.message : "Could not create organization");
       setBusy(false);
     }
   }
@@ -84,10 +77,7 @@ export function OnboardingPage() {
                 className="flex flex-col gap-2"
               >
                 <span
-                  className={cn(
-                    "h-[3px] rounded-full",
-                    index === 0 ? "bg-primary" : "bg-border",
-                  )}
+                  className={cn("h-[3px] rounded-full", index === 0 ? "bg-primary" : "bg-border")}
                 />
                 <span
                   className={cn(
@@ -101,17 +91,10 @@ export function OnboardingPage() {
             ))}
           </ol>
 
-          <h1 className={cn("mt-7", PAGE_TITLE_CLASS)}>
-            {t.onboarding.createOrg}
-          </h1>
-          <p className="mt-2 text-body leading-[1.7] text-muted-foreground">
-            {t.onboarding.intro}
-          </p>
+          <h1 className={cn("mt-7", PAGE_TITLE_CLASS)}>{t.onboarding.createOrg}</h1>
+          <p className="mt-2 text-body leading-[1.7] text-muted-foreground">{t.onboarding.intro}</p>
 
-          <form
-            onSubmit={submit}
-            className="mt-6 rounded-xl border border-border bg-card p-6"
-          >
+          <form onSubmit={submit} className="mt-6 rounded-xl border border-border bg-card p-6">
             <FieldGroup className="gap-4">
               <Field>
                 <FieldLabel htmlFor="org-name">{t.onboarding.orgName}</FieldLabel>
@@ -120,7 +103,7 @@ export function OnboardingPage() {
                   required
                   // The page is this form, outside the shell with nothing before
                   // it to read, and the field is its first.
-                  // eslint-disable-next-line jsx-a11y/no-autofocus
+                  // eslint-disable-next-line jsx-a11y/no-autofocus -- the page is this form, and the field is its first.
                   autoFocus
                   minLength={2}
                   value={name}
@@ -173,11 +156,7 @@ export function OnboardingPage() {
                 </Alert>
               )}
 
-              <Button
-                type="submit"
-                disabled={busy}
-                className="h-10 w-full rounded-lg text-body"
-              >
+              <Button type="submit" disabled={busy} className="h-10 w-full rounded-lg text-body">
                 {busy && <Spinner data-icon="inline-start" />}
                 {busy ? t.common.loading : t.onboarding.create}
               </Button>
@@ -188,7 +167,10 @@ export function OnboardingPage() {
               Below the form rather than beside it, because creating an
               organization is still the path, and the demo is the detour for
               somebody not ready to take it. */}
-          <div className="mt-6 flex items-center gap-3 text-caption text-muted-foreground" aria-hidden>
+          <div
+            className="mt-6 flex items-center gap-3 text-caption text-muted-foreground"
+            aria-hidden
+          >
             <span className="h-px flex-1 bg-border" />
             {t.auth.orDivider}
             <span className="h-px flex-1 bg-border" />

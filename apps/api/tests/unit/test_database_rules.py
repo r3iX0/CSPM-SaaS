@@ -38,9 +38,7 @@ class TestPublicDatabase:
 
         assert self.rule.effective_exploitability(narrow) == 3
         assert self.rule.effective_exploitability(wide) == self.rule.exploitability
-        assert self.rule.effective_exploitability(narrow) < self.rule.effective_exploitability(
-            wide
-        )
+        assert self.rule.effective_exploitability(narrow) < self.rule.effective_exploitability(wide)
 
     def test_private_server_passes(self) -> None:
         server = resource_from("secure", "sql_server_private")
@@ -102,18 +100,14 @@ class TestDatabaseEncryption:
                 {"database": "reporting", "state": "Enabled"},
             ]
         )
-        assert (
-            self.rule.evaluate(server, make_context(server)).state is RuleState.PASS
-        )
+        assert self.rule.evaluate(server, make_context(server)).state is RuleState.PASS
 
     def test_a_server_whose_databases_could_not_be_listed_is_unknown(self) -> None:
         """A role predating v6 produces exactly this. Reading it as "no
         databases, therefore nothing unencrypted" would be a pass built on a
         call that was refused."""
         server = server_with(None)
-        assert (
-            self.rule.evaluate(server, make_context(server)).state is RuleState.UNKNOWN
-        )
+        assert self.rule.evaluate(server, make_context(server)).state is RuleState.UNKNOWN
 
     def test_one_unreadable_database_is_unknown_not_a_pass(self) -> None:
         server = server_with(
@@ -122,9 +116,7 @@ class TestDatabaseEncryption:
                 {"database": "archive", "state": None},
             ]
         )
-        assert (
-            self.rule.evaluate(server, make_context(server)).state is RuleState.UNKNOWN
-        )
+        assert self.rule.evaluate(server, make_context(server)).state is RuleState.UNKNOWN
 
     def test_an_unreadable_database_travels_with_a_failure(self) -> None:
         """A server with one unencrypted database and one unreadable is worse
@@ -142,7 +134,5 @@ class TestDatabaseEncryption:
 
     def test_a_failed_encryption_reading_is_unknown(self) -> None:
         server = server_with([{"database": "payments", "state": "Enabled"}])
-        context = make_context(
-            server, collection_errors={AzureEvidence.SQL_TDE.value: "403"}
-        )
+        context = make_context(server, collection_errors={AzureEvidence.SQL_TDE.value: "403"})
         assert self.rule.evaluate(server, context).state is RuleState.UNKNOWN

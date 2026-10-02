@@ -110,7 +110,10 @@ describe("writing the fix into a Terraform file", () => {
     const user = await upload();
     await screen.findByText(/min_tls_version = "TLS1_2"/);
 
-    const lock = new File(['provider "registry.terraform.io/hashicorp/azurerm" {}'], ".terraform.lock.hcl");
+    const lock = new File(
+      ['provider "registry.terraform.io/hashicorp/azurerm" {}'],
+      ".terraform.lock.hcl",
+    );
     await user.upload(screen.getByLabelText(/Lock file/), lock);
 
     // The diff was checked against another lock file; showing it would misstate the release.
@@ -124,9 +127,7 @@ describe("writing the fix into a Terraform file", () => {
     expect(
       await screen.findByText(/takes its name from an expression/, { selector: "p:not([role])" }),
     ).toBeInTheDocument();
-    await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent(/Not written/),
-    );
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/Not written/));
     expect(screen.queryByRole("button", { name: /Download the diff/ })).toBeNull();
   });
 });

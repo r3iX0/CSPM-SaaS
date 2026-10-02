@@ -33,9 +33,7 @@ export function ReadCadencePanel({
 
   return (
     <div className="rounded-xl border border-border bg-muted/30 p-4">
-      <p className="text-xs font-medium text-muted-foreground">
-        {t.connection.cadenceTitle}
-      </p>
+      <p className="text-xs font-medium text-muted-foreground">{t.connection.cadenceTitle}</p>
 
       <dl className="mt-3 space-y-2 text-sm">
         <Line label={t.connection.cadenceLastRead}>
@@ -67,17 +65,10 @@ export function ReadCadencePanel({
       </dl>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <Button
-          size="sm"
-          onClick={onScanNow}
-          disabled={scanning || !connection.is_ready_to_scan}
-        >
+        <Button size="sm" onClick={onScanNow} disabled={scanning || !connection.is_ready_to_scan}>
           {scanning ? t.connection.scanStarting : t.connection.scanNow}
         </Button>
-        <Link
-          to="/scans"
-          className={cn(buttonVariants({ variant: "secondary", size: "sm" }))}
-        >
+        <Link to="/scans" className={cn(buttonVariants({ variant: "secondary", size: "sm" }))}>
           {t.connection.changeSchedule}
         </Link>
       </div>

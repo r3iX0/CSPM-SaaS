@@ -175,9 +175,7 @@ class AzureAdminPortalMfaRule(_MfaForAppRule):
 class _AuthorizationRule(_TenantRule):
     """One setting of the tenant's authorization policy."""
 
-    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (
-        AzureEvidence.AUTHORIZATION_POLICY,
-    )
+    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (AzureEvidence.AUTHORIZATION_POLICY,)
 
     def _policy(self, context: RuleContext) -> dict[str, Any] | RuleResult:
         failure = context.has_collection_error(*self.requires_evidence)
@@ -593,7 +591,6 @@ class AzureM365GroupCreationRule(_TenantRule):
         )
 
 
-
 class AzureTrustedLocationRule(_TenantRule):
     """Section 176. A trusted IP range lets Conditional Access tell the office
     network from everywhere else -- for sign-in risk, for MFA registration, for a
@@ -651,6 +648,4 @@ class AzureTrustedLocationRule(_TenantRule):
         evidence = {"trusted_named_locations": trusted}
         if trusted:
             return RuleResult.passed(evidence)
-        return RuleResult.failed(
-            evidence=evidence, message="No named location is marked trusted"
-        )
+        return RuleResult.failed(evidence=evidence, message="No named location is marked trusted")

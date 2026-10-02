@@ -70,9 +70,7 @@ def test_the_same_key_read_in_two_regions_produces_two_resources() -> None:
 
 
 def test_a_global_listing_needs_no_block_and_gets_no_region() -> None:
-    state = normalize(
-        iam_users=[{"UserName": "ana", "Arn": "arn:aws:iam::1:user/ana"}]
-    )
+    state = normalize(iam_users=[{"UserName": "ana", "Arn": "arn:aws:iam::1:user/ana"}])
 
     user = by_type(state, ResourceType.USER)[0]
     assert user.name == "ana"
@@ -120,7 +118,7 @@ def test_a_bucket_carries_the_three_settings_read_separately() -> None:
 
 
 def test_a_bucket_nobody_could_ask_about_is_unknown_not_private() -> None:
-    """"We did not look" and "it is private" are different sentences.
+    """ "We did not look" and "it is private" are different sentences.
 
     The risk engine scores UNKNOWN cautiously rather than optimistically, which
     only works if the normalizer refuses to invent the optimistic answer.
@@ -260,9 +258,7 @@ def test_a_user_carries_the_credential_report_row_it_matches() -> None:
     """The facts a rule needs are in the report, not in ``ListUsers``."""
     state = normalize(
         iam_users=[{"UserName": "ana", "Arn": "arn:aws:iam::1:user/ana"}],
-        iam_credential_report=[
-            {"arn": "arn:aws:iam::1:user/ana", "mfa_active": "false"}
-        ],
+        iam_credential_report=[{"arn": "arn:aws:iam::1:user/ana", "mfa_active": "false"}],
     )
 
     assert by_type(state, ResourceType.USER)[0].get("CredentialReport.mfa_active") == "false"
@@ -301,9 +297,7 @@ def test_an_instance_runs_as_its_role_and_is_protected_by_its_groups() -> None:
                     {
                         "InstanceId": "i-1",
                         "SecurityGroups": [{"GroupId": "sg-1"}],
-                        "IamInstanceProfile": {
-                            "Arn": "arn:aws:iam::1:instance-profile/app"
-                        },
+                        "IamInstanceProfile": {"Arn": "arn:aws:iam::1:instance-profile/app"},
                     }
                 ],
             }
@@ -335,20 +329,14 @@ def test_an_unresolvable_profile_draws_no_edge_rather_than_a_guessed_one() -> No
                 "items": [
                     {
                         "InstanceId": "i-1",
-                        "IamInstanceProfile": {
-                            "Arn": "arn:aws:iam::1:instance-profile/app"
-                        },
+                        "IamInstanceProfile": {"Arn": "arn:aws:iam::1:instance-profile/app"},
                     }
                 ],
             }
         ]
     )
 
-    assert not [
-        edge
-        for edge in state.relationships
-        if edge[1] is RelationshipType.HAS_IDENTITY
-    ]
+    assert not [edge for edge in state.relationships if edge[1] is RelationshipType.HAS_IDENTITY]
 
 
 def test_a_subnet_is_contained_by_its_vpc() -> None:
@@ -382,7 +370,7 @@ def test_account_defences_are_controls_rather_than_assets() -> None:
 
 
 def test_the_account_itself_is_a_resource_findings_can_attach_to() -> None:
-    """"The root user still has access keys" is about the account, not about
+    """ "The root user still has access keys" is about the account, not about
     anything in it."""
     state = normalize()
 

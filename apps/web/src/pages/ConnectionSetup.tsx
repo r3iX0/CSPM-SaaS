@@ -61,9 +61,7 @@ export function ConnectionSetupPage() {
   const detail = useQuery({
     queryKey: ["cloud-connection", connectionId],
     queryFn: () =>
-      api
-        .get<CloudConnection>(`/api/v1/cloud-connections/${connectionId}`)
-        .then((r) => r.data),
+      api.get<CloudConnection>(`/api/v1/cloud-connections/${connectionId}`).then((r) => r.data),
     enabled: Boolean(connectionId),
     refetchInterval: (query) => (query.state.data?.is_ready_to_scan ? false : 5000),
     refetchIntervalInBackground: true,
@@ -82,9 +80,7 @@ export function ConnectionSetupPage() {
 
   const setCancelled = useMutation({
     mutationFn: (value: boolean) =>
-      api.post(
-        `/api/v1/cloud-connections/${connectionId}/${value ? "cancel" : "resume"}`,
-      ),
+      api.post(`/api/v1/cloud-connections/${connectionId}/${value ? "cancel" : "resume"}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cloud-connection", connectionId] });
       queryClient.invalidateQueries({ queryKey: ["cloud-connections"] });

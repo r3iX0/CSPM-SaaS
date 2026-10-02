@@ -133,9 +133,7 @@ async def test_a_token_minted_for_something_else_is_not_a_consent_link(
         # is willing to act on, so there is no step to return to.
         url = urlparse(response.headers["location"])
         assert url.path == "/connections"
-        assert parse_qs(url.query)["consent_error"] == [
-            "This link was issued for something else"
-        ]
+        assert parse_qs(url.query)["consent_error"] == ["This link was issued for something else"]
 
 
 async def test_a_state_without_a_nonce_is_refused(configured: Settings) -> None:
@@ -150,7 +148,10 @@ async def test_a_state_without_a_nonce_is_refused(configured: Settings) -> None:
     )
 
     response = await routes.consent_callback(
-        state=stale, tenant="whatever", admin_consent="True", error="",
+        state=stale,
+        tenant="whatever",
+        admin_consent="True",
+        error="",
         error_description="",
     )
 

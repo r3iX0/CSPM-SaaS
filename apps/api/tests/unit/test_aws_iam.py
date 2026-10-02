@@ -59,9 +59,7 @@ def test_the_trust_policy_requires_the_external_id() -> None:
 
     assert statement["Action"] == "sts:AssumeRole"
     assert statement["Principal"] == {"AWS": PRINCIPAL}
-    assert statement["Condition"] == {
-        "StringEquals": {"sts:ExternalId": EXTERNAL_ID}
-    }
+    assert statement["Condition"] == {"StringEquals": {"sts:ExternalId": EXTERNAL_ID}}
 
 
 def test_the_external_id_reaches_the_customer_as_an_output() -> None:
@@ -156,9 +154,7 @@ def test_the_version_is_read_from_what_a_policy_grants() -> None:
     It also gets the answer right for the customer who attached a broader
     policy of their own instead of deploying the stack.
     """
-    granted = actions_granted_by(
-        [{"Effect": "Allow", "Action": list(INLINE_READ_ACTIONS)}]
-    )
+    granted = actions_granted_by([{"Effect": "Allow", "Action": list(INLINE_READ_ACTIONS)}])
     assert version_of_granted(granted) == POLICY_VERSION
 
 
@@ -171,9 +167,7 @@ def test_a_role_granting_something_unrelated_is_unknown_rather_than_old() -> Non
 
 
 def test_a_deny_statement_grants_nothing() -> None:
-    granted = actions_granted_by(
-        [{"Effect": "Deny", "Action": list(INLINE_READ_ACTIONS)}]
-    )
+    granted = actions_granted_by([{"Effect": "Deny", "Action": list(INLINE_READ_ACTIONS)}])
     assert granted == set()
 
 
@@ -186,9 +180,7 @@ def test_a_deny_statement_grants_nothing() -> None:
         ("s3:GetObject", "s3:GetBucketLocation", False),
     ],
 )
-def test_a_wildcard_is_read_the_way_iam_reads_it(
-    granted: str, wanted: str, covered: bool
-) -> None:
+def test_a_wildcard_is_read_the_way_iam_reads_it(granted: str, wanted: str, covered: bool) -> None:
     assert action_matches(granted, wanted) is covered
 
 

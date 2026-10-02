@@ -21,12 +21,8 @@ from typing import Any
 # Ensure test mode for configuration if unset
 os.environ.setdefault("APP_ENV", "test")
 os.environ.setdefault("SUPABASE_JWT_SECRET", "doc-gen-secret")
-os.environ.setdefault(
-    "DATABASE_URL", "postgresql+asyncpg://cloudguard_app:x@localhost:5432/cg"
-)
-os.environ.setdefault(
-    "DATABASE_OWNER_URL", "postgresql+asyncpg://cloudguard:x@localhost:5432/cg"
-)
+os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://cloudguard_app:x@localhost:5432/cg")
+os.environ.setdefault("DATABASE_OWNER_URL", "postgresql+asyncpg://cloudguard:x@localhost:5432/cg")
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_CATALOG_OUTPUT = REPO_ROOT / "docs" / "RULE_CATALOG.md"
@@ -162,27 +158,33 @@ def build_markdown_catalog(rules: list[Any]) -> str:
         )
         lines.append(row)
 
-    lines.extend([
-        "",
-        "---",
-        "",
-        "## Rule Details by Provider",
-        "",
-    ])
+    lines.extend(
+        [
+            "",
+            "---",
+            "",
+            "## Rule Details by Provider",
+            "",
+        ]
+    )
 
     def render_provider_rules(
         provider_title: str, rule_list: list[Any], is_aws: bool = False
     ) -> None:
-        lines.extend([
-            f"### {provider_title}",
-            "",
-        ])
-        if is_aws:
-            lines.extend([
-                "> ⚠️ **Notice**: These rules are part of the AWS preview connector and have",
-                "> been validated against offline fixtures only.",
+        lines.extend(
+            [
+                f"### {provider_title}",
                 "",
-            ])
+            ]
+        )
+        if is_aws:
+            lines.extend(
+                [
+                    "> ⚠️ **Notice**: These rules are part of the AWS preview connector and have",
+                    "> been validated against offline fixtures only.",
+                    "",
+                ]
+            )
 
         by_category: dict[str, list[Any]] = defaultdict(list)
         for r in rule_list:
@@ -190,22 +192,27 @@ def build_markdown_catalog(rules: list[Any]) -> str:
 
         for cat in sorted(by_category.keys()):
             cat_rules = by_category[cat]
-            lines.extend([
-                f"#### {cat} ({len(cat_rules)} rules)",
-                "",
-            ])
+            lines.extend(
+                [
+                    f"#### {cat} ({len(cat_rules)} rules)",
+                    "",
+                ]
+            )
             for r in cat_rules:
                 sev_val = getattr(r.severity, "value", str(r.severity)).upper()
                 effort = f"~{r.estimated_effort_minutes} min"
                 scope_name = getattr(r.scope, "value", str(r.scope))
-                lines.extend([
-                    f"##### <a id=\"{r.rule_id.lower()}\"></a>`{r.rule_id}` — {r.name}",
-                    "",
-                    f"- **Severity**: `{sev_val}` | **Exploitability**: `{r.exploitability}/5` | "
-                    f"**Effort**: `{effort}`",
-                    f"- **Scope**: `{scope_name}`",
-                    f"- **Applies to**: {format_applies_to(r.applies_to)}",
-                ])
+                lines.extend(
+                    [
+                        f'##### <a id="{r.rule_id.lower()}"></a>`{r.rule_id}` — {r.name}',
+                        "",
+                        f"- **Severity**: `{sev_val}` | "
+                        f"**Exploitability**: `{r.exploitability}/5` | "
+                        f"**Effort**: `{effort}`",
+                        f"- **Scope**: `{scope_name}`",
+                        f"- **Applies to**: {format_applies_to(r.applies_to)}",
+                    ]
+                )
 
                 if r.compliance_mappings:
                     comp_items = [
@@ -220,13 +227,15 @@ def build_markdown_catalog(rules: list[Any]) -> str:
                     lines.extend(["", f"**Rationale**: {r.rationale.strip()}"])
 
                 if r.remediation:
-                    lines.extend([
-                        "",
-                        "**Remediation**:",
-                        "```bash",
-                        r.remediation.strip(),
-                        "```",
-                    ])
+                    lines.extend(
+                        [
+                            "",
+                            "**Remediation**:",
+                            "```bash",
+                            r.remediation.strip(),
+                            "```",
+                        ]
+                    )
                 lines.append("")
 
     render_provider_rules("Azure Rules", azure_rules, is_aws=False)

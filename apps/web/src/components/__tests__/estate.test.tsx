@@ -67,10 +67,7 @@ const ESTATE: EstateMap = {
     scope("web", { entry: 1, routes: 1, findings: { open: 4, worst: "HIGH" } }),
     scope("quiet"),
   ],
-  edges: [
-    link("web", "directory", "has_identity", 1),
-    link("directory", "prod", "grants_role", 3),
-  ],
+  edges: [link("web", "directory", "has_identity", 1), link("directory", "prod", "grants_role", 3)],
 };
 
 describe("the estate layout", () => {
@@ -88,9 +85,7 @@ describe("the estate layout", () => {
   });
 
   it("stacks a quiet estate into a grid rather than one tall column", () => {
-    const boxes = Array.from({ length: QUIET_ROWS + 2 }, (_, i) =>
-      scope(`s${i}`),
-    );
+    const boxes = Array.from({ length: QUIET_ROWS + 2 }, (_, i) => scope(`s${i}`));
     const { at } = layoutEstate({ lens: ESTATE.lens, boxes, edges: [] });
     const columns = new Set([...at.values()].map((p) => p.x));
     expect(columns.size).toBe(2);
@@ -229,14 +224,12 @@ function mount(
 ) {
   const get = vi.spyOn(api, "get").mockImplementation((url: string) => {
     const found = answer(url);
-    return (
-      found instanceof Error
-        ? Promise.reject(found)
-        : Promise.resolve({
-            data: found,
-            meta: { routes_total: 1, max_assets: 40, folded_with_reach: 0 },
-          })
-    ) as never;
+    return found instanceof Error
+      ? Promise.reject(found)
+      : Promise.resolve({
+          data: found,
+          meta: { routes_total: 1, max_assets: 40, folded_with_reach: 0 },
+        });
   });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
@@ -276,9 +269,7 @@ describe("the estate map", () => {
     // which the panel beside the canvas carries first.
     fireEvent.click(await waitFor(() => box("scope:prod")));
     expect(box("scope:prod")).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByTestId("where")).not.toHaveTextContent(
-      "subscription_id",
-    );
+    expect(screen.getByTestId("where")).not.toHaveTextContent("subscription_id");
     // The panel answers for it: what it is, and the reach on either side.
     const panel = screen.getByRole("complementary", { name: "About the map" });
     expect(panel).toHaveTextContent("Sub prod");
@@ -391,9 +382,7 @@ describe("the estate map", () => {
     await waitFor(() => box("scope:quiet"));
     await userEvent.click(screen.getByRole("tab", { name: /links/i }));
 
-    const row = screen
-      .getAllByRole("button")
-      .find((b) => b.textContent?.includes("runs as"))!;
+    const row = screen.getAllByRole("button").find((b) => b.textContent?.includes("runs as"))!;
     await userEvent.click(row);
 
     // The panel says what the arrow carries; its two ends stay, the rest fade.
@@ -424,9 +413,7 @@ describe("the estate map", () => {
     const panel = screen.getByRole("complementary", { name: "About the map" });
 
     await userEvent.click(
-      [...panel.querySelectorAll("button")].find((b) =>
-        b.textContent?.startsWith("Directory"),
-      )!,
+      [...panel.querySelectorAll("button")].find((b) => b.textContent?.startsWith("Directory"))!,
     );
     expect(panel).toHaveTextContent("Directory → Sub prod");
 
@@ -438,9 +425,7 @@ describe("the estate map", () => {
     mount(() => ESTATE, "/assets?view=graph&walk=vm%7Csa&hop=1");
 
     await waitFor(() =>
-      expect(screen.getByTestId("where")).toHaveTextContent(
-        "/attack-paths?trace=vm%7Csa&hop=1",
-      ),
+      expect(screen.getByTestId("where")).toHaveTextContent("/attack-paths?trace=vm%7Csa&hop=1"),
     );
   });
 });

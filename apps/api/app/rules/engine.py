@@ -161,9 +161,7 @@ class RuleEngine:
         for result in self._safe_evaluate(rule, None, context):
             # An AGGREGATE rule may name a specific resource in its result; if
             # it does, we attribute the verdict to that resource.
-            resource = (
-                context.get_resource(result.resource_id) if result.resource_id else None
-            )
+            resource = context.get_resource(result.resource_id) if result.resource_id else None
             self._record(rule, result, resource, report, coverage)
 
     def _safe_evaluate(
@@ -172,11 +170,7 @@ class RuleEngine:
         try:
             outcome = rule.evaluate(resource, context)
         except Exception as exc:
-            return [
-                RuleResult.unknown(
-                    f"Rule {rule.rule_id} raised {type(exc).__name__}: {exc}"
-                )
-            ]
+            return [RuleResult.unknown(f"Rule {rule.rule_id} raised {type(exc).__name__}: {exc}")]
         if isinstance(outcome, RuleResult):
             return [outcome]
         return list(outcome)

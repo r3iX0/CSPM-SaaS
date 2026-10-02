@@ -28,7 +28,13 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from app.core.config import settings
 from app.core.errors import PayloadTooLarge, error_envelope
 from app.core.logging import get_logger
-from app.core.request_context import REQUEST_ID_HEADER, bound
+from app.core.request_context import (
+    REQUEST_ID_HEADER,
+    RateLimitReading,
+    bound,
+    note_rate_limit,
+    tightest_rate_limit,
+)
 
 log = get_logger(__name__)
 
@@ -57,6 +63,12 @@ SECURITY_HEADERS: dict[str, str] = {
     "Permissions-Policy": "geolocation=(), microphone=(), camera=(), payment=()",
 }
 
+# What the API serves under this prefix is one organization's data, so no cache between the
+# server and the reader may keep it: ``private`` keeps shared caches out, ``no-store`` keeps
+# everything else out. A route that chose its own policy (the event stream, a download) keeps it.
+API_PREFIX = "/api/"
+PRIVATE_CACHE_CONTROL = "private, no-store"
+
 # Two years, with subdomains, and preload-eligible. Sent only over HTTPS: a
 # browser ignores it on a plain connection, and sending it anyway would only
 # mislead whoever is reading the response.
@@ -75,10 +87,13 @@ class SecurityHeadersMiddleware:
             return
 
         secure = arrived_over_https(scope)
+        carries_tenant_data = scope.get("path", "").startswith(API_PREFIX)
 
         async def stamped(message: Message) -> None:
             if message["type"] == "http.response.start":
                 headers = MutableHeaders(scope=message)
+                if carries_tenant_data and "Cache-Control" not in headers:
+                    headers["Cache-Control"] = PRIVATE_CACHE_CONTROL
                 for name, value in SECURITY_HEADERS.items():
                     # Set rather than appended, and only when absent: a route
                     # that has deliberately chosen its own policy keeps it.
@@ -120,7 +135,13 @@ class RequestContextMiddleware:
 
         async def stamped(message: Message) -> None:
             if message["type"] == "http.response.start":
-                MutableHeaders(scope=message)[REQUEST_ID_HEADER] = request_id
+                headers = MutableHeaders(scope=message)
+                headers[REQUEST_ID_HEADER] = request_id
+                # Stamped here, outermost, so the refusals that never reach a route -- a 429 from
+                # the middleware, a 429 raised by a dependency -- carry them too.
+                if (reading := tightest_rate_limit()) is not None:
+                    for name, value in reading.headers().items():
+                        headers[name] = value
             await send(message)
 
         with (
@@ -267,8 +288,7 @@ def is_open_route(path: str) -> bool:
     if path in OPEN_PATHS or path.startswith(OPEN_PREFIXES):
         return True
     return any(
-        path.startswith(prefix) and path.endswith(suffix)
-        for prefix, suffix in OPEN_SUFFIXES
+        path.startswith(prefix) and path.endswith(suffix) for prefix, suffix in OPEN_SUFFIXES
     )
 
 
@@ -381,7 +401,26 @@ async def over_limit(key: str, limit: int, window_seconds: int) -> bool:
     except Exception as exc:
         log.warning("ratelimit.unavailable", error=str(exc))
         return False
+    # Told to the response, so a client can slow down before it is refused. The window ends
+    # where the callers' keys say it does: at the next multiple of its width.
+    note_rate_limit(
+        RateLimitReading(
+            limit=limit,
+            remaining=max(limit - int(count), 0),
+            reset=(int(time.time()) // window_seconds + 1) * window_seconds,
+        )
+    )
     return int(count) > limit
+
+
+async def ping_redis() -> None:
+    """Ask the Redis this API counts in, which is also the task broker, whether it answers.
+
+    For readiness. The rate limit fails open on an outage and the scan routes answer ``503``
+    when a task is refused, so a broker that is down shows up only when somebody clicks; this
+    lets an operator see it first. Raises whatever the client raises.
+    """
+    await _redis().ping()
 
 
 def client_address(scope: Scope) -> str:

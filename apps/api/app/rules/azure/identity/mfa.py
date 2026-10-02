@@ -85,9 +85,7 @@ def _enforced_on(
         covered = (
             policy.get("all_users")
             or user_id in set(policy.get("user_ids") or [])
-            or bool(
-                held & {str(r).strip().lower() for r in policy.get("role_names") or []}
-            )
+            or bool(held & {str(r).strip().lower() for r in policy.get("role_names") or []})
         )
         if not covered:
             continue
@@ -160,10 +158,7 @@ class AzureMfaRule(SecurityRule):
                 field="mfa_methods",
                 comparison=Comparison.NOT_EMPTY,
                 equals=None,
-                describes=(
-                    "The account has a second factor registered that is not a "
-                    "password"
-                ),
+                describes=("The account has a second factor registered that is not a password"),
                 example="microsoftAuthenticator",
             ),
         ),
@@ -172,9 +167,7 @@ class AzureMfaRule(SecurityRule):
         # and saying so is the difference between "your users are fine" and
         # "this is about your administrators".
         applies_when={"directory_roles": ["Global Administrator"]},
-        cli=(
-            "az ad user get-member-groups --id <upn>",
-        ),
+        cli=("az ad user get-member-groups --id <upn>",),
         notes=(
             "No policy is generated and none can be. This is a directory "
             "setting rather than a resource property, so no policyRule can "
@@ -247,11 +240,7 @@ class AzureMfaRule(SecurityRule):
             message=(
                 f"{resource.name} holds privileged role(s) "
                 f"{', '.join(str(r) for r in roles)} with no MFA method registered"
-                + (
-                    f", though {enforced[0].name} still requires one at sign-in"
-                    if enforced
-                    else ""
-                )
+                + (f", though {enforced[0].name} still requires one at sign-in" if enforced else "")
             ),
         )
 
@@ -312,7 +301,7 @@ class AzureUserWithoutMfaRule(SecurityRule):
                 example="microsoftAuthenticator",
             ),
         ),
-        cli=("az ad user list --query \"[].{upn:userPrincipalName}\" -o table",),
+        cli=('az ad user list --query "[].{upn:userPrincipalName}" -o table',),
         notes=(
             "No policy is generated and none can be: this is a directory "
             "setting rather than a resource property, enforced with a "
@@ -343,9 +332,7 @@ class AzureUserWithoutMfaRule(SecurityRule):
         # about them at Critical. Reporting both would raise two findings for
         # one missing second factor and charge the score twice for it.
         if _is_privileged(resource):
-            return RuleResult.not_applicable(
-                "Privileged accounts are judged by AZ-ID-001"
-            )
+            return RuleResult.not_applicable("Privileged accounts are judged by AZ-ID-001")
 
         if resource.get("account_enabled") is False:
             return RuleResult.not_applicable("Account is disabled")
@@ -369,9 +356,7 @@ class AzureUserWithoutMfaRule(SecurityRule):
                 "user_principal_name": resource.get("user_principal_name"),
             },
             controls=enforced,
-            message=(
-                f"{resource.name} signs in with a password and nothing else"
-            ),
+            message=(f"{resource.name} signs in with a password and nothing else"),
         )
 
 
@@ -456,9 +441,7 @@ class AzureTenantMfaEnforcementRule(SecurityRule):
             )
 
         if defaults is True:
-            return RuleResult.passed(
-                {"security_defaults_enabled": True, "tenant_wide_mfa": True}
-            )
+            return RuleResult.passed({"security_defaults_enabled": True, "tenant_wide_mfa": True})
 
         # Only a policy the normalizer could establish covers everybody: enabled,
         # unambiguously multi-factor, every application, every user, with every
@@ -481,9 +464,7 @@ class AzureTenantMfaEnforcementRule(SecurityRule):
                 # Named rather than counted: a tenant with three policies that
                 # each cover one group is a tenant whose administrator believes
                 # they have this, and the list is what shows they do not.
-                "policies_covering_some_users": [
-                    str(p.get("name")) for p in (policies or [])
-                ][:20],
+                "policies_covering_some_users": [str(p.get("name")) for p in (policies or [])][:20],
             },
             message=(
                 "No security default and no Conditional Access policy requires "

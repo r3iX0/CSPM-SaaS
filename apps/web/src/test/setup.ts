@@ -99,14 +99,13 @@ const reactError = console.error;
 console.error = (...args: unknown[]) => {
   if (String(args[0] ?? "").includes('unique "key" prop')) {
     throw new Error(
-      "React reported a list child with no key. Give the element returned by "
-      + "the .map() a key -- a `<>` fragment cannot take one, so use "
-      + `<Fragment key={...}>.\n\n${String(args[0])}`,
+      "React reported a list child with no key. Give the element returned by " +
+        "the .map() a key -- a `<>` fragment cannot take one, so use " +
+        `<Fragment key={...}>.\n\n${String(args[0])}`,
     );
   }
   reactError(...args);
 };
-
 
 /**
  * Every rendered state passes axe (DECISIONS.md §155).

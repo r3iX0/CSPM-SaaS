@@ -1,25 +1,47 @@
 # CloudGuard — Azure Integration
 
-Covers how CloudGuard connects to a customer's Azure environment: auth model, consent flow, onboarding, and the collection pipeline. Schema detail: `DATABASE.md` §6 (`cloud_connections`, which superseded `cloud_accounts` as the unit a scan runs against). Generic connector interface: `ARCHITECTURE.md` §6.
+Covers how CloudGuard connects to a customer's Azure environment: auth model, consent flow,
+onboarding, and the collection pipeline. Schema detail: `DATABASE.md` §6 (`cloud_connections`, which
+superseded
+`cloud_accounts` as the unit a scan runs against). Generic connector interface: `ARCHITECTURE.md`
+§6.
 
 ---
 
 ## 1. Decision: Real Azure Only
 
-There is **no product-facing MockAzureConnector** in the MVP. Rule unit tests use fixture data (`tests/fixtures/secure/`, `vulnerable/`, `unknown/` — see `TESTING.md` §1), not a mock connector component. Real Azure integration is built in **Phase 2** (see `PRODUCT_SPEC.md` §7), not deferred to the end.
+There is **no product-facing MockAzureConnector** in the MVP. Rule unit tests use fixture data
+(`tests/fixtures/secure/`, `vulnerable/`, `unknown/` — see `TESTING.md` §1), not a mock connector
+component. Real Azure integration is built in **Phase 2** (see `PRODUCT_SPEC.md` §7), not deferred
+to the end.
 
 ---
 
 ## 2. Auth Model: Multi-Tenant Entra ID App + Admin Consent
 
-**Not** a manual service-principal credential paste. CloudGuard authenticates as **itself**, using its own app credential, scoped to the customer's `tenant_id`. There is no long-lived per-customer secret to store.
+**Not** a manual service-principal credential paste. CloudGuard authenticates as **itself**, using
+its own app credential, scoped to the customer's `tenant_id`. There is no long-lived per-customer
+secret to store.
 
 This is **two separate consent steps**, not one:
 
-1. **Entra admin consent** — CloudGuard's multi-tenant app requests nine Microsoft Graph *application* permissions, listed in `REQUIRED_GRAPH_PERMISSIONS` (`app/connectors/azure/auth.py`): `Directory.Read.All`, `User.Read.All`, `RoleManagement.Read.Directory`, `UserAuthenticationMethod.Read.All`, `Policy.Read.All`, `Application.Read.All`, `Group.Read.All`, `IdentityRiskyUser.Read.All`, `AuditLog.Read.All`. Every one is a read scope. The customer's Entra admin clicks one consent link and grants tenant-wide.
-2. **Azure RBAC scanner role** — a separate grant not covered by Graph consent. The customer deploys CloudGuard's own custom read-only role and its assignment over the scope to scan, from a pre-filled ARM template the product generates (the "Deploy to Azure" button); the built-in **Reader** works too and grants a superset. Portal and Azure CLI remain available for anyone who prefers to do it by hand. See §"The role is exactly what the scanner reads" for what the custom role contains and why it is versioned.
+1. **Entra admin consent** — CloudGuard's multi-tenant app requests nine Microsoft Graph
+   _application_ permissions, listed in
+   `REQUIRED_GRAPH_PERMISSIONS` (`app/connectors/azure/auth.py`):
+   `Directory.Read.All`, `User.Read.All`,
+   `RoleManagement.Read.Directory`, `UserAuthenticationMethod.Read.All`,
+   `Policy.Read.All`, `Application.Read.All`, `Group.Read.All`, `IdentityRiskyUser.Read.All`,
+   `AuditLog.Read.All`. Every one is a read scope. The customer's Entra admin clicks one consent
+   link and grants tenant-wide.
+2. **Azure RBAC scanner role** — a separate grant not covered by Graph consent. The customer deploys
+   CloudGuard's own custom read-only role and its assignment over the scope to scan, from a
+   pre-filled ARM template the product generates (the "Deploy to Azure" button); the built-in
+   **Reader** works too and grants a superset. Portal and Azure CLI remain available for anyone who
+   prefers to do it by hand. See §"The role is exactly what the scanner reads" for what the custom
+   role contains and why it is versioned.
 
-Access is **read-only** for the MVP. No write permissions are ever requested. Credentials/secrets never reach the frontend.
+Access is **read-only** for the MVP. No write permissions are ever requested. Credentials/secrets
+never reach the frontend.
 
 ### 2.1 Registering CloudGuard's own Entra app
 
@@ -27,16 +49,16 @@ This is CloudGuard's identity, registered **once by whoever operates
 CloudGuard** — not per customer. Until it exists, the connection wizard reports
 that this deployment cannot start a consent flow.
 
-Do not reuse the app registration that backs *Sign in with Microsoft*
+Do not reuse the app registration that backs _Sign in with Microsoft_
 (`DEPLOYMENT.md` step 7). That one authenticates CloudGuard's own users; this
 one reads customers' environments. Separate trust boundaries, separate apps.
 
 1. **Azure Portal → Microsoft Entra ID → App registrations → New registration.**
-   * Name: `CloudGuard`
-   * Supported account types: **Accounts in any organizational directory
+   - Name: `CloudGuard`
+   - Supported account types: **Accounts in any organizational directory
      (multitenant)**. This is the setting that makes one app registration
      serve every customer without a per-customer secret.
-   * Redirect URI: type **Web**, value
+   - Redirect URI: type **Web**, value
      `https://<your-railway-api-domain>/api/v1/cloud-connections/azure/consent/callback`
 
 2. **API permissions → Add a permission → Microsoft Graph → Application
@@ -45,7 +67,7 @@ one reads customers' environments. Separate trust boundaries, separate apps.
    tenant — each customer's administrator grants it in theirs.
 
    The consent request asks for `https://graph.microsoft.com/.default`, which
-   means *whatever application permissions this registration holds*. So this
+   means _whatever application permissions this registration holds_. So this
    step is not merely documentation: a permission missing here is a permission
    no customer will ever be asked to grant, and the rules that need it degrade
    to UNKNOWN with nothing on the consent screen to explain why.
@@ -53,21 +75,21 @@ one reads customers' environments. Separate trust boundaries, separate apps.
    Check the **Type** column afterwards: every row must say **Application**.
    A new registration arrives holding delegated `User.Read` and nothing else,
    and that is exactly what a customer's tenant ends up with if this step is
-   skipped or done under *Delegated permissions* — consent completes, the
+   skipped or done under _Delegated permissions_ — consent completes, the
    callback reports GRANTED, and the scanner's token carries no roles at all.
    The connection page reads the grant back from the token and says
    "Granted, incomplete" with the missing names (DECISIONS.md §114).
    `GET /cloud-connections/azure/app-registration` returns the manifest and an
    `az ad app update` command that applies it by client id.
 
-3. **Certificates & secrets → New client secret.** Copy the *value*
+3. **Certificates & secrets → New client secret.** Copy the _value_
    immediately; the portal will not show it again.
 
 4. **Overview** gives the Application (client) ID and Directory (tenant) ID.
 
 5. Set these on the Railway **API and worker** services, then redeploy:
 
-   ```
+   ```dotenv
    AZURE_CLIENT_ID=<application (client) id>
    AZURE_CLIENT_SECRET=<the secret VALUE, not the Secret ID>
    AZURE_TENANT_ID=<your own directory id>
@@ -78,7 +100,7 @@ The portal lists a secret's **Value** and its **Secret ID** side by side, and
 only the Secret ID survives past the moment of creation — so the ID is what is
 still on screen when people come back to copy it. Pasting it yields
 `AADSTS7000215: Invalid client secret provided` from inside a token request,
-*after* consent has already succeeded. CloudGuard now refuses to start a consent
+_after_ consent has already succeeded. CloudGuard now refuses to start a consent
 flow when `AZURE_CLIENT_SECRET` is GUID-shaped, since a secret value never is.
 If the Value has been lost it cannot be recovered: add a new client secret and
 copy its Value.
@@ -98,7 +120,13 @@ disappears once `AZURE_CLIENT_ID` and `AZURE_CLIENT_SECRET` are both set.
 
 ### Why this replaces the earlier "Tenant ID / Client ID / Credential" flow
 
-An earlier draft of the build spec described the connection screen asking for Tenant ID, Client ID, and a Credential — that's the manual service-principal flow, and it's superseded by the model above. The schema reflects it: no `client_id`/`credential_reference` column anywhere. `cloud_connections` carries `tenant_id`, the service principal's object id, and consent-tracking fields, and nothing that is a secret. See `DATABASE.md` §6.
+An earlier draft of the build spec described the connection screen asking for Tenant ID, Client ID,
+and a Credential — that's the manual service-principal flow, and it's superseded by the model above.
+The schema reflects it: no `client_id`/`credential_reference` column anywhere. `cloud_connections`
+carries
+`tenant_id`, the service principal's object id, and consent-tracking fields, and nothing that is a
+secret. See `DATABASE.md`
+§6.
 
 ---
 
@@ -109,7 +137,7 @@ Subscriptions beneath it are discovered. The five steps each derive their
 completion from server state, because consent happens in another browser tab and
 the access grant frequently happens on another person's machine.
 
-```
+```text
 Create organization
   → 1. Choose scope + permission mode        (no GUIDs are typed)
   → 2. Entra admin consent                   (Entra reports the tenant id)
@@ -140,12 +168,12 @@ A **shell script, not just a template**, because ARM cannot reach Entra — it
 deploys resources, and a service principal is not one. The template covers the
 RBAC half for customers whose change process requires one.
 
-Note the two grants need *different* permissions from different people: admin
+Note the two grants need _different_ permissions from different people: admin
 consent needs a **Global Administrator**, and the role assignment needs **Owner
 or User Access Administrator** on the chosen scope. The wizard says so before it
 sends anyone anywhere.
 
-It also needs a *work or school* account, which is a separate requirement from
+It also needs a _work or school_ account, which is a separate requirement from
 the role and the one people hit first. The consent link targets the
 `organizations` endpoint, so Entra refuses a personal Microsoft account
 (outlook.com, hotmail.com, live.com) with:
@@ -173,14 +201,14 @@ choosing a scope they cannot deploy at:
 > `Microsoft.Resources/deployments/validate/action`.
 
 Azure RBAC inherits **downward only**. Owner on a subscription grants nothing at
-the management group above it, and by default *nobody* — including a Global
+the management group above it, and by default _nobody_ — including a Global
 Administrator — holds Azure RBAC at the tenant root management group. Entra
 directory roles and Azure resource roles are separate systems.
 
 Two ways through, and the second is usually right:
 
-1. **Elevate access.** Entra ID → Properties → *Access management for Azure
-   resources* → Yes. That grants User Access Administrator at root scope, from
+1. **Elevate access.** Entra ID → Properties → _Access management for Azure
+   resources_ → Yes. That grants User Access Administrator at root scope, from
    which the deployer can assign themselves Owner on the tenant root management
    group. Turn it back off afterwards.
 2. **Pick a narrower scope.** A single subscription the customer already owns
@@ -259,7 +287,7 @@ az provider operation show --namespace Microsoft.KeyVault \
 ```
 
 `ROLE_VERSION` is `v12`, and `ROLE_HISTORY` records what every published version
-granted. A version exists to flag a deployed role that is *insufficient* for a
+granted. A version exists to flag a deployed role that is _insufficient_ for a
 newer rule; narrowing is backward compatible and does not warrant a bump. `v2`
 added Resource Graph, which inventory needs since it moved off the ARM resource
 listing (`DECISIONS.md` §14); `v3` key vaults, `v4` SQL auditing settings, `v5`
@@ -331,7 +359,7 @@ checks report UNKNOWN rather than passing.
 
 **Which version a connection is on is read from Azure, not remembered.**
 `cloud_connections.role_version` was stamped when the connection was created and
-never written again, so it recorded the role a customer was *offered* rather
+never written again, so it recorded the role a customer was _offered_ rather
 than the one they have: redeploying could not clear the prompt asking them to
 redeploy. It is now resolved from the assignments the scanner's principal holds
 at the connection's scope, by reading the actions on the definitions those
@@ -367,18 +395,20 @@ and a customer redeploy, which is what `role_version` tracks.
 
 ## 4. Collection Architecture
 
-Rules never execute directly against live Azure APIs. Every scan goes through a fixed pipeline so scans are reproducible and drift-detectable:
+Rules never execute directly against live Azure APIs. Every scan goes through a fixed pipeline so
+scans are reproducible and drift-detectable:
 
-```
+```text
 Azure APIs → Collection → Raw snapshot → Normalization → Internal cloud state → Rule engine
 ```
 
-Every scan produces a `cloud_snapshots` row (see `DATABASE.md`), enabling historical comparison and future drift detection.
+Every scan produces a `cloud_snapshots` row (see `DATABASE.md`), enabling historical comparison and
+future drift detection.
 
 **Consent is verified, not assumed.** Admin consent resolves `/.default` to
 whatever CloudGuard's app registration declares at the moment it is clicked, so
-a registration missing its permissions -- or declaring them as *delegated*
-rather than *application* -- produces a consent screen that succeeds and a
+a registration missing its permissions -- or declaring them as _delegated_
+rather than _application_ -- produces a consent screen that succeeds and a
 service token carrying nothing. The callback therefore reads the token's
 `roles` claim (`graph_grant_problem`) and, when the grant is short, names the
 missing permissions on the connection instead of "Admin consent granted".
@@ -401,7 +431,7 @@ role's `ROLE_ONLY_ACTIONS`.
 
 **Validation probes both.** `validate_connection` proves ARM access by
 listing, and Resource Graph access by querying a single row. A Resource Graph
-failure is recorded as a *note* rather than a problem: it costs inventory and
+failure is recorded as a _note_ rather than a problem: it costs inventory and
 nothing else, so the connection is still usable and saying otherwise would send
 a customer to fix an outage they do not have. It is probed all the same, because
 the cause is specific -- a role deployed before §14 -- and the alternative is
@@ -423,4 +453,9 @@ before any `Retry-After` sleep (`DECISIONS.md` §15).
 
 ## 5. Error Handling
 
-Cloud scanning must tolerate individual API failures. A single Azure API failure (e.g. Storage API timeout) should not fail the entire scan — it should degrade that category's rules to `UNKNOWN` (tracked via `scan_evaluation_gaps`, see `RULE_ENGINE.md` §3) while other categories continue evaluating normally. Scan status supports `PARTIAL` for exactly this case.
+Cloud scanning must tolerate individual API failures. A single Azure API failure (e.g. Storage API
+timeout) should not fail the entire scan — it should degrade that category's rules to
+`UNKNOWN` (tracked via `scan_evaluation_gaps`, see
+`RULE_ENGINE.md` §3) while other categories continue evaluating normally. Scan status supports
+`PARTIAL`
+for exactly this case.

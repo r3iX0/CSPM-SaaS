@@ -95,7 +95,4 @@ class TestTheVerdictItselfIsUnchanged:
         """Different from inconclusive, and the page renders them differently:
         one is CloudGuard having nothing to say, the other is CloudGuard having
         looked and failed."""
-        assert (
-            resolve_control_status([], has_completed_scan=True)
-            == ControlStatus.NOT_COVERED
-        )
+        assert resolve_control_status([], has_completed_scan=True) == ControlStatus.NOT_COVERED

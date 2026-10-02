@@ -1,12 +1,11 @@
 from fastapi import APIRouter
-from sqlalchemy import select
 
 from app.core.deps import DbSession, Tenant
-from app.core.errors import NotFound
 from app.models.rule import Rule
 from app.schemas.common import ERROR_RESPONSES, Envelope, NoMeta
 from app.schemas.rule import RuleOut
 from app.services import findings as findings_service
+from app.services import rules as service
 
 router = APIRouter(prefix="/rules", tags=["rules"], responses=ERROR_RESPONSES)
 
@@ -42,17 +41,13 @@ def _serialize(rule: Rule) -> RuleOut:
 
 @router.get("")
 async def list_rules(session: DbSession, tenant: Tenant) -> Envelope[list[RuleOut], NoMeta]:
-    rows = (
-        (await session.execute(select(Rule).order_by(Rule.rule_id))).scalars().all()
-    )
+    """Every rule that runs, with what it checks and how to fix a failure."""
+    rows = await service.list_rules(session)
     return Envelope(data=[_serialize(r) for r in rows], meta=NoMeta())
 
 
 @router.get("/{rule_id}")
 async def get_rule(rule_id: str, session: DbSession, tenant: Tenant) -> Envelope[RuleOut, NoMeta]:
-    rule = (
-        await session.execute(select(Rule).where(Rule.rule_id == rule_id))
-    ).scalar_one_or_none()
-    if rule is None:
-        raise NotFound("Rule not found")
+    """One rule by its id, such as ``AZ-STO-001``."""
+    rule = await service.get_rule(session, rule_id)
     return Envelope(data=_serialize(rule), meta=NoMeta())

@@ -69,6 +69,7 @@ DATA_HOLDING_TYPES = {
     ResourceType.SEARCH_SERVICE,
 }
 
+
 class ContextFields(TypedDict):
     """The context keyword arguments a :class:`CloudResource` takes.
 
@@ -143,9 +144,7 @@ class ContextDeclaration:
     @property
     def is_empty(self) -> bool:
         return (
-            self.environment is None
-            and self.criticality is None
-            and self.data_sensitivity is None
+            self.environment is None and self.criticality is None and self.data_sensitivity is None
         )
 
     @property
@@ -185,9 +184,7 @@ def infer(
     )
 
 
-def resolve(
-    inferred: AssetContext, declaration: ContextDeclaration | None
-) -> AssetContext:
+def resolve(inferred: AssetContext, declaration: ContextDeclaration | None) -> AssetContext:
     """Combine what was inferred with what the customer declared.
 
     A declaration is a **floor**, not an override, and that is the substantive
@@ -293,9 +290,7 @@ def _environment(tags: dict[str, str], name: str) -> tuple[str | None, ContextSo
     return None, ContextSource.NONE
 
 
-def _criticality(
-    tags: dict[str, str], environment: str | None
-) -> tuple[Level, ContextSource]:
+def _criticality(tags: dict[str, str], environment: str | None) -> tuple[Level, ContextSource]:
     explicit = _tag_level(tags, CRITICALITY_TAG_KEYS)
     if explicit:
         return explicit, ContextSource.PROVIDER_TAG
@@ -334,9 +329,6 @@ def _stronger(
 
     if other.rank > value.rank:
         return other, other_source
-    if (
-        other.rank == value.rank
-        and other_source.confidence > source.confidence
-    ):
+    if other.rank == value.rank and other_source.confidence > source.confidence:
         return other, other_source
     return value, source

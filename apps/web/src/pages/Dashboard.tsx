@@ -76,22 +76,19 @@ export function DashboardPage() {
   // The same key the risks page reads, so the two agree on the link to cut.
   const chokes = useQuery({
     queryKey: ["attack-paths", "choke-points"],
-    queryFn: () =>
-      api.get<ChokePoint[]>("/api/v1/attack-paths/choke-points").then((r) => r.data),
+    queryFn: () => api.get<ChokePoint[]>("/api/v1/attack-paths/choke-points").then((r) => r.data),
     retry: false,
   });
 
   const changes = useQuery({
     queryKey: ["dashboard-changes"],
-    queryFn: () =>
-      api.get<ChangeEvent[]>("/api/v1/changes?days=7&limit=5").then((r) => r.data),
+    queryFn: () => api.get<ChangeEvent[]>("/api/v1/changes?days=7&limit=5").then((r) => r.data),
     retry: false,
   });
 
   const compliance = useQuery({
     queryKey: ["compliance"],
-    queryFn: () =>
-      api.get<ComplianceFramework[]>("/api/v1/compliance").then((r) => r.data),
+    queryFn: () => api.get<ComplianceFramework[]>("/api/v1/compliance").then((r) => r.data),
     retry: false,
   });
 
@@ -215,16 +212,11 @@ export function DashboardPage() {
           inProgress={data.findings_by_status?.IN_PROGRESS ?? 0}
           // `open_finding_count` counts in-progress findings as open too, so
           // they come off it here rather than being counted in both cells.
-          open={Math.max(
-            0,
-            data.open_finding_count - (data.findings_by_status?.IN_PROGRESS ?? 0),
-          )}
+          open={Math.max(0, data.open_finding_count - (data.findings_by_status?.IN_PROGRESS ?? 0))}
         />
         <RecentChanges events={changes.data} loading={changes.isLoading} />
         <ComplianceSummary
-          frameworks={
-            Array.isArray(compliance.data) ? compliance.data : undefined
-          }
+          frameworks={Array.isArray(compliance.data) ? compliance.data : undefined}
           loading={compliance.isLoading}
         />
         {/* Absent until something is tied to a region. */}
@@ -256,7 +248,7 @@ function DashboardError({ error, onRetry }: { error: unknown; onRetry: () => voi
         detail={
           isAuth
             ? "Sign in again to continue — your data is untouched."
-            : apiError?.message ?? "The API could not be reached."
+            : (apiError?.message ?? "The API could not be reached.")
         }
         impact={
           isAuth

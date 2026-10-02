@@ -143,4 +143,3 @@ describe("the remediation queue", () => {
     expect(screen.getByText(/Marked done does not close a finding/)).toBeInTheDocument();
   });
 });
-

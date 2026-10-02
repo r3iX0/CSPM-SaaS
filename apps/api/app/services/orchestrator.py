@@ -56,6 +56,7 @@ WORKER_ID = f"{socket.gethostname()}:{os.getpid()}"
 # tried, which is worth reporting rather than retrying forever.
 DEFAULT_MAX_ATTEMPTS = 3
 
+
 async def create_initial_steps(session: AsyncSession, scan: Scan) -> list[ScanStep]:
     """The two steps every scan has before it knows its own scope.
 
@@ -74,11 +75,7 @@ async def create_initial_steps(session: AsyncSession, scan: Scan) -> list[ScanSt
     has been failing.
     """
     existing = set(
-        (
-            await session.execute(
-                select(ScanStep.kind).where(ScanStep.scan_id == scan.id)
-            )
-        ).scalars()
+        (await session.execute(select(ScanStep.kind).where(ScanStep.scan_id == scan.id))).scalars()
     )
 
     created: list[ScanStep] = []
@@ -192,9 +189,7 @@ def runnable(steps: Sequence[ScanStep]) -> list[ScanStep]:
         ScanStepKind.ANALYZE: reading_settled,
     }
     return [
-        step
-        for step in steps
-        if step.status == ScanStepStatus.PENDING and satisfied[step.kind]
+        step for step in steps if step.status == ScanStepStatus.PENDING and satisfied[step.kind]
     ]
 
 
@@ -269,9 +264,7 @@ async def renew(session: AsyncSession, step_id: UUID, attempt: int) -> bool:
             ScanStep.status == ScanStepStatus.RUNNING,
             ScanStep.attempt == attempt,
         )
-        .values(
-            lease_until=datetime.now(UTC) + timedelta(seconds=ScanStep.LEASE_SECONDS)
-        )
+        .values(lease_until=datetime.now(UTC) + timedelta(seconds=ScanStep.LEASE_SECONDS))
     )
     await session.commit()
     return bool(updated.rowcount)
@@ -419,9 +412,7 @@ async def fail_or_retry(
         await session.commit()
         return ScanStepStatus.PENDING
 
-    settled = await finish(
-        session, step, ScanStepStatus.FAILED, error, attempt=attempt
-    )
+    settled = await finish(session, step, ScanStepStatus.FAILED, error, attempt=attempt)
     return ScanStepStatus.FAILED if settled else None
 
 
@@ -459,8 +450,7 @@ async def reap_expired_steps(session: AsyncSession) -> list[UUID]:
         decided = await fail_or_retry(
             session,
             step,
-            "The worker running this step stopped reporting -- usually a "
-            "redeploy or a restart.",
+            "The worker running this step stopped reporting -- usually a redeploy or a restart.",
             attempt=step.attempt,
         )
         if decided is None:
@@ -521,10 +511,7 @@ def status_for(steps: Sequence[ScanStep], *, degraded: bool = False) -> ScanStat
     finished, step_problems, _problems = summarize(steps)
     degraded = degraded or step_problems
     if finished:
-        if all(
-            step.status in (ScanStepStatus.FAILED, ScanStepStatus.SKIPPED)
-            for step in steps
-        ):
+        if all(step.status in (ScanStepStatus.FAILED, ScanStepStatus.SKIPPED) for step in steps):
             return ScanStatus.FAILED
         return ScanStatus.PARTIAL if degraded else ScanStatus.COMPLETED
 
@@ -551,8 +538,7 @@ async def skip_unreachable(session: AsyncSession, steps: Sequence[ScanStep]) -> 
     read; skipping it would replace that sentence with silence.
     """
     plan_failed = any(
-        step.kind == ScanStepKind.PLAN and step.status == ScanStepStatus.FAILED
-        for step in steps
+        step.kind == ScanStepKind.PLAN and step.status == ScanStepStatus.FAILED for step in steps
     )
     if not plan_failed:
         return False
@@ -598,13 +584,9 @@ async def sync_scan_state(session: AsyncSession, scan: Scan) -> list[ScanStep]:
     # once per settle rather than per step: this is the sentence that ends up in
     # ``error_message``, and it names scopes.
     connection = (
-        await session.get(CloudConnection, scan.connection_id)
-        if scan.connection_id
-        else None
+        await session.get(CloudConnection, scan.connection_id) if scan.connection_id else None
     )
-    finished, _degraded, problems = summarize(
-        steps, connection.provider if connection else None
-    )
+    finished, _degraded, problems = summarize(steps, connection.provider if connection else None)
     # Two independent sources of degradation, and the scan is PARTIAL for
     # either. A step that failed lost a whole scope; ``collection_errors`` is a
     # scope that was read with a listing missing from it.
@@ -632,9 +614,7 @@ async def unfinished_scan_ids(session: AsyncSession) -> list[UUID]:
                 select(ScanStep.scan_id)
                 .join(Scan, Scan.id == ScanStep.scan_id)
                 .where(
-                    ScanStep.status.in_(
-                        [ScanStepStatus.PENDING, ScanStepStatus.RUNNING]
-                    ),
+                    ScanStep.status.in_([ScanStepStatus.PENDING, ScanStepStatus.RUNNING]),
                     Scan.status != ScanStatus.CANCELLED,
                     or_(
                         ScanStep.status == ScanStepStatus.PENDING,

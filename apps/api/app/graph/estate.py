@@ -121,9 +121,7 @@ def _same_group(a: str | None, b: str | None) -> bool:
     return (a or "").lower() == (b or "").lower()
 
 
-def _crosses(
-    graph: AssetGraph, source: str, relationship: RelationshipType, target: str
-) -> bool:
+def _crosses(graph: AssetGraph, source: str, relationship: RelationshipType, target: str) -> bool:
     """Links drawn between boxes: what an identity may do, not where things live
     -- and only where it may do something (a role that controls nothing is not
     reach, DECISIONS.md section 125)."""

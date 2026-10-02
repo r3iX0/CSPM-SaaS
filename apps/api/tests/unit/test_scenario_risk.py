@@ -71,7 +71,7 @@ def test_the_score_is_capped_at_one_hundred() -> None:
 
 
 def test_the_breakdown_names_every_term() -> None:
-    """"Why is this 91?" has to be answerable without rerunning anything — and
+    """ "Why is this 91?" has to be answerable without rerunning anything — and
     the floor has to be visibly the members' rather than something the scorer
     decided."""
     scored = default_scorer.scenario_score(

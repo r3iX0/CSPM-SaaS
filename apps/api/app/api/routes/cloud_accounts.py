@@ -1,7 +1,6 @@
 from uuid import UUID
 
 from fastapi import APIRouter
-from sqlalchemy import select
 
 from app.core.deps import DbSession, Tenant
 from app.models.cloud_account import CloudAccount
@@ -47,17 +46,8 @@ async def azure_permissions() -> Envelope[AzurePermissionsOut, NoMeta]:
 async def list_cloud_accounts(
     session: DbSession, tenant: Tenant
 ) -> Envelope[list[CloudAccountOut], NoMeta]:
-    rows = (
-        (
-            await session.execute(
-                select(CloudAccount)
-                .where(CloudAccount.organization_id == tenant.organization_id)
-                .order_by(CloudAccount.created_at)
-            )
-        )
-        .scalars()
-        .all()
-    )
+    """The subscriptions discovered under this organization's connections."""
+    rows = await service.list_cloud_accounts(session, tenant)
     return Envelope(data=[_serialize(a) for a in rows], meta=NoMeta())
 
 

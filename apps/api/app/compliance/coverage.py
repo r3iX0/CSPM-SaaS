@@ -173,9 +173,7 @@ def summarize_readings(
         if not entries:
             readings.append(Reading(evidence_key=key, outcome=None, scopes=0, collected_at=None))
             continue
-        permissions = sorted(
-            {permission for _o, _c, perms, _h in entries for permission in perms}
-        )
+        permissions = sorted({permission for _o, _c, perms, _h in entries for permission in perms})
         hashes = [content_hash for _o, _c, _p, content_hash in entries]
         readings.append(
             Reading(
@@ -190,8 +188,7 @@ def summarize_readings(
                 # Every payload, not any: a control resting on nine readings of
                 # which one has been pruned cannot be followed all the way back,
                 # and "partly retained" is the honest answer to give as False.
-                retained=bool(hashes)
-                and all(h is not None and h in stored_hashes for h in hashes),
+                retained=bool(hashes) and all(h is not None and h in stored_hashes for h in hashes),
             )
         )
     return tuple(readings)

@@ -114,9 +114,7 @@ def test_tenant_root_scope_is_unknown_before_consent() -> None:
 
 def test_tenant_root_scope_resolves_once_consent_reports_the_tenant() -> None:
     c = connection(tenant_id="contoso-tenant")
-    assert scope_path(c) == (
-        "/providers/Microsoft.Management/managementGroups/contoso-tenant"
-    )
+    assert scope_path(c) == ("/providers/Microsoft.Management/managementGroups/contoso-tenant")
 
 
 def test_management_group_scope_uses_the_named_group() -> None:
@@ -125,9 +123,7 @@ def test_management_group_scope_uses_the_named_group() -> None:
         scope_id="platform-mg",
         tenant_id="contoso-tenant",
     )
-    assert scope_path(c) == (
-        "/providers/Microsoft.Management/managementGroups/platform-mg"
-    )
+    assert scope_path(c) == ("/providers/Microsoft.Management/managementGroups/platform-mg")
 
 
 def test_subscription_scope_is_the_narrowest_grant() -> None:
@@ -249,6 +245,7 @@ async def resolve_with(monkeypatch, raises: Exception | None = None, found=None)
         def __init__(self, *a, **kw) -> None: ...
         async def __aenter__(self):
             return self
+
         async def __aexit__(self, *a) -> None: ...
         async def find_service_principal(self, app_id: str):
             if raises:
@@ -256,12 +253,8 @@ async def resolve_with(monkeypatch, raises: Exception | None = None, found=None)
             return found
 
     assert service  # the neutral caller; the lookup itself lives behind the seam
-    monkeypatch.setattr(
-        "app.connectors.azure.onboarding.GraphClient", FakeGraph
-    )
-    monkeypatch.setattr(
-        "app.connectors.azure.auth.TokenProvider", lambda tenant_id: object()
-    )
+    monkeypatch.setattr("app.connectors.azure.onboarding.GraphClient", FakeGraph)
+    monkeypatch.setattr("app.connectors.azure.auth.TokenProvider", lambda tenant_id: object())
     assert client_module  # imported for the AzureApiError type used by callers
     lookup = await AzureOnboarding().ensure_principal(granted())
     return lookup.problem
@@ -355,8 +348,7 @@ def stalled_case(**kwargs: object) -> CloudConnection:
     defaults: dict = {
         "consent_status": ConsentStatus.GRANTED,
         "tenant_id": "72f988bf-86f1-41af-91ab-2d7cd011db47",
-        "consented_at": datetime.now(UTC)
-        - timedelta(seconds=DEPLOY_PATIENCE_SECONDS + 60),
+        "consented_at": datetime.now(UTC) - timedelta(seconds=DEPLOY_PATIENCE_SECONDS + 60),
     }
     return connection(**{**defaults, **kwargs})
 
@@ -458,8 +450,9 @@ def test_revocation_commands_are_filled_in_for_this_connection() -> None:
     steps = revocation_steps(granted(service_principal_object_id=principal))
     for step in steps["steps"]:
         assert "<" not in step["command"], step["command"]
-    assert all(principal in s["command"] or "role definition" in s["command"]
-               for s in steps["steps"])
+    assert all(
+        principal in s["command"] or "role definition" in s["command"] for s in steps["steps"]
+    )
 
 
 def test_no_commands_before_there_is_anything_to_revoke() -> None:

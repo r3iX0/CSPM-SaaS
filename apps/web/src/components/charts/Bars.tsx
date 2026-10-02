@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 
 import { cn } from "@/lib/format";
 
-export type Bar = {
+export interface Bar {
   key: string;
   label: string;
   value: number;
@@ -18,7 +18,7 @@ export type Bar = {
   unit?: string;
   tone: string;
   to?: string;
-};
+}
 
 /**
  * A ranked comparison, drawn as lengths from a common baseline.

@@ -65,9 +65,7 @@ def validation_response(
     return response
 
 
-def confirmation_url(
-    event: dict[str, Any], provider: Provider = Provider.AZURE
-) -> str | None:
+def confirmation_url(event: dict[str, Any], provider: Provider = Provider.AZURE) -> str | None:
     """Where a subscription is activated, for a cloud that activates out of band.
 
     Azure echoes a code in the response and answers ``None`` here; SNS hands

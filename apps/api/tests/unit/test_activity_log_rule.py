@@ -21,8 +21,7 @@ from app.rules.base import RuleContext
 RULE = AzureActivityLogExportRule()
 
 WORKSPACE = (
-    "/subscriptions/s/resourceGroups/rg/providers"
-    "/Microsoft.OperationalInsights/workspaces/central"
+    "/subscriptions/s/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/central"
 )
 
 
@@ -63,15 +62,10 @@ class TestActivityLogExport:
     def test_an_export_to_storage_passes(self) -> None:
         """Where the logs go is the customer's choice. That they go somewhere
         is the finding."""
-        assert (
-            judge(subscription([setting(storage_account_id="/sa/logs")]))
-            == RuleState.PASS
-        )
+        assert judge(subscription([setting(storage_account_id="/sa/logs")])) == RuleState.PASS
 
     def test_no_setting_at_all_fails(self) -> None:
-        result = RULE.evaluate(
-            subscription([]), RuleContext(resources=[subscription([])])
-        )
+        result = RULE.evaluate(subscription([]), RuleContext(resources=[subscription([])]))
 
         assert result.state == RuleState.FAIL
         assert "90 days" in (result.message or "")
@@ -113,7 +107,4 @@ class TestItCostsNoNewPermission:
         from app.connectors.azure import rbac
 
         assert RULE.requires_evidence == (AzureEvidence.DIAGNOSTIC_SETTINGS,)
-        assert (
-            "Microsoft.Insights/diagnosticSettings/read"
-            in rbac.ROLE_HISTORY["v1"]
-        )
+        assert "Microsoft.Insights/diagnosticSettings/read" in rbac.ROLE_HISTORY["v1"]

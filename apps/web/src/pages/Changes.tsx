@@ -23,12 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { SelectField } from "@/components/common/SelectField";
-import {
-  CardsSkeleton,
-  EmptyState,
-  ErrorState,
-  PageHeader,
-} from "@/components/common/states";
+import { CardsSkeleton, EmptyState, ErrorState, PageHeader } from "@/components/common/states";
 import { StepPager } from "@/components/common/Pager";
 
 const PAGE_SIZE = 50;
@@ -65,9 +60,7 @@ export function ChangesPage() {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["changes", days, kind, page],
     queryFn: () =>
-      api
-        .get<ChangeEvent[]>(`/api/v1/changes?${params.toString()}`)
-        .then((r) => r.data),
+      api.get<ChangeEvent[]>(`/api/v1/changes?${params.toString()}`).then((r) => r.data),
     placeholderData: keepPreviousData,
   });
 
@@ -83,10 +76,7 @@ export function ChangesPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader
-        title={t.changes.title}
-        description={t.changes.intro}
-      />
+      <PageHeader title={t.changes.title} description={t.changes.intro} />
 
       <div className="flex flex-wrap items-center gap-2">
         <SelectField
@@ -132,15 +122,10 @@ export function ChangesPage() {
         <EmptyState
           icon={GitCompareArrowsIcon}
           title={kind === "all" ? t.changes.empty : t.changes.emptyFiltered}
-          detail={
-            kind === "all" ? t.changes.emptyDetail : t.changes.emptyFilteredDetail
-          }
+          detail={kind === "all" ? t.changes.emptyDetail : t.changes.emptyFilteredDetail}
           action={
             kind !== "all" ? (
-              <Button
-                variant="outline"
-                onClick={() => rewindow({ kind: "all" })}
-              >
+              <Button variant="outline" onClick={() => rewindow({ kind: "all" })}>
                 Show all changes
               </Button>
             ) : undefined
@@ -180,12 +165,7 @@ export function ChangesPage() {
               {page * PAGE_SIZE + 1}–{page * PAGE_SIZE + events.length}{" "}
               {events.length === 1 ? t.changes.count : t.changes.countPlural}
             </p>
-            <StepPager
-              page={page}
-              hasMore={hasMore}
-              onPage={setPage}
-              className="w-auto"
-            />
+            <StepPager page={page} hasMore={hasMore} onPage={setPage} className="w-auto" />
           </div>
         </>
       )}
@@ -231,7 +211,8 @@ function withBatches(rows: ChangeEvent[]): (ChangeEvent | { batch: ChangeEvent[]
   const out: (ChangeEvent | { batch: ChangeEvent[] })[] = [];
   const placed = new Set<string>();
   for (const event of rows) {
-    const batch = event.change === "APPEARED" && event.scan_id ? arrivals.get(event.scan_id) : undefined;
+    const batch =
+      event.change === "APPEARED" && event.scan_id ? arrivals.get(event.scan_id) : undefined;
     if (!batch || batch.length < BATCH_AT) {
       out.push(event);
     } else if (!placed.has(event.scan_id!)) {
@@ -273,9 +254,7 @@ function AppearedBatch({ events }: { events: ChangeEvent[] }) {
 function ChangeRow({ event }: { event: ChangeEvent }) {
   const t = useT();
   const attribute = event.change.endsWith("_CHANGED");
-  const moved = attribute
-    ? changeDirection(event.previous_value, event.current_value)
-    : "neutral";
+  const moved = attribute ? changeDirection(event.previous_value, event.current_value) : "neutral";
 
   return (
     <li className="flex items-start gap-3 border-b px-5 py-3 last:border-0">
@@ -293,9 +272,7 @@ function ChangeRow({ event }: { event: ChangeEvent }) {
             type={event.asset.resource_type}
             className="text-body text-muted-foreground"
           />
-          {event.asset.environment && (
-            <Badge variant="outline">{event.asset.environment}</Badge>
-          )}
+          {event.asset.environment && <Badge variant="outline">{event.asset.environment}</Badge>}
         </div>
 
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-muted-foreground">
@@ -311,10 +288,7 @@ function ChangeRow({ event }: { event: ChangeEvent }) {
               <SeverityBadge level={event.current_value ?? "UNKNOWN"} size="sm" />
               {moved !== "neutral" && (
                 <span
-                  className={cn(
-                    "font-medium",
-                    moved === "worse" ? "text-critical" : "text-ok",
-                  )}
+                  className={cn("font-medium", moved === "worse" ? "text-critical" : "text-ok")}
                 >
                   {moved === "worse" ? t.changes.worse : t.changes.better}
                 </span>
@@ -332,9 +306,7 @@ function ChangeRow({ event }: { event: ChangeEvent }) {
             <>
               <span aria-hidden>·</span>
               {event.asset.absent_since ? (
-                <span className="font-medium text-high">
-                  {t.changes.stillMissing}
-                </span>
+                <span className="font-medium text-high">{t.changes.stillMissing}</span>
               ) : (
                 <span className="font-medium text-ok">{t.changes.returned}</span>
               )}
@@ -361,13 +333,7 @@ function ChangeRow({ event }: { event: ChangeEvent }) {
  * who cannot separate the hues nothing at all, on a feed whose entire value is
  * spotting the handful of rows that got worse.
  */
-function ChangeMark({
-  change,
-  moved,
-}: {
-  change: AssetChange;
-  moved: Direction;
-}) {
+function ChangeMark({ change, moved }: { change: AssetChange; moved: Direction }) {
   const Icon =
     change === "APPEARED"
       ? PlusIcon

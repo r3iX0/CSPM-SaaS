@@ -32,11 +32,7 @@ function connection(overrides: Partial<CloudConnection> = {}): CloudConnection {
 
 function mount(overrides: Partial<CloudConnection> = {}) {
   return render(
-    <AccessPanel
-      connection={connection(overrides)}
-      onRecheck={() => {}}
-      rechecking={false}
-    />,
+    <AccessPanel connection={connection(overrides)} onRecheck={() => {}} rechecking={false} />,
   );
 }
 
@@ -45,9 +41,7 @@ describe("the access panel", () => {
     mount();
 
     expect(screen.getByText(/v4, verified/)).toBeInTheDocument();
-    expect(
-      screen.queryByText(/cannot run until the role is redeployed/i),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/cannot run until the role is redeployed/i)).not.toBeInTheDocument();
   });
 
   it("says a role is behind, and which one it should be", () => {
@@ -105,9 +99,7 @@ describe("the access panel", () => {
      * point at, and a dead button is worse than none. */
     mount({ role_upgrade_available: true, template_url: null });
 
-    expect(
-      screen.queryByRole("link", { name: /redeploy the role/i }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /redeploy the role/i })).not.toBeInTheDocument();
   });
 
   it("still reports an unverified role as unverified", () => {

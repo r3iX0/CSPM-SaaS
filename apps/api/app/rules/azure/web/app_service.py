@@ -131,9 +131,7 @@ class AzureAppServiceTlsRule(SecurityRule):
     severity = Severity.MEDIUM
     exploitability = 2
     applies_to: ClassVar[list[ResourceType]] = [ResourceType.APP_SERVICE]
-    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (
-        AzureEvidence.APP_SERVICE_CONFIGS,
-    )
+    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (AzureEvidence.APP_SERVICE_CONFIGS,)
     estimated_effort_minutes = 10
     rationale = (
         "A minimum version of 1.0 does not mean clients use 1.0; it means an attacker "
@@ -157,9 +155,7 @@ class AzureAppServiceTlsRule(SecurityRule):
                 terraform_attribute="site_config.minimum_tls_version",
             ),
         ),
-        cli=(
-            "az webapp config set --name <app> --resource-group <rg> --min-tls-version 1.2",
-        ),
+        cli=("az webapp config set --name <app> --resource-group <rg> --min-tls-version 1.2",),
         notes=(
             "No policy is generated. The setting lives on the site's configuration "
             "child resource rather than on the site, and that alias has not been "
@@ -220,9 +216,7 @@ class AzureAppServiceFtpRule(SecurityRule):
     # credential is not a session, it is write access to what the app runs.
     exploitability = 3
     applies_to: ClassVar[list[ResourceType]] = [ResourceType.APP_SERVICE]
-    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (
-        AzureEvidence.APP_SERVICE_CONFIGS,
-    )
+    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (AzureEvidence.APP_SERVICE_CONFIGS,)
     estimated_effort_minutes = 15
     rationale = (
         "FTP is on by default for App Service and almost nobody deploys with it any "
@@ -247,9 +241,7 @@ class AzureAppServiceFtpRule(SecurityRule):
                 terraform_attribute="site_config.ftps_state",
             ),
         ),
-        cli=(
-            "az webapp config set --name <app> --resource-group <rg> --ftps-state Disabled",
-        ),
+        cli=("az webapp config set --name <app> --resource-group <rg> --ftps-state Disabled",),
         notes=(
             "No policy is generated, for the reason recorded on AZ-WEB-002: the "
             "setting is on the configuration child resource."
@@ -291,8 +283,7 @@ class AzureAppServiceFtpRule(SecurityRule):
         return RuleResult.failed(
             evidence=evidence,
             message=(
-                f"{resource.name} accepts deployments over unencrypted FTP "
-                f"(FTP state: {state})"
+                f"{resource.name} accepts deployments over unencrypted FTP (FTP state: {state})"
             ),
         )
 
@@ -311,9 +302,7 @@ class AzureAppServiceRemoteDebuggingRule(SecurityRule):
     # secrets loaded at start-up -- for whoever holds either.
     exploitability = 2
     applies_to: ClassVar[list[ResourceType]] = [ResourceType.APP_SERVICE]
-    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (
-        AzureEvidence.APP_SERVICE_CONFIGS,
-    )
+    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (AzureEvidence.APP_SERVICE_CONFIGS,)
     estimated_effort_minutes = 5
     rationale = (
         "Remote debugging is meant to be switched on for an afternoon. A site on which "

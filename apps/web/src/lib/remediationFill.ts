@@ -67,7 +67,7 @@ export function placeholderValues(
   if (arm) {
     values["subscription-id"] = arm[1];
     if (arm[2]) values.rg = arm[2];
-    values["resource-id"] = providerResourceId as string;
+    values["resource-id"] = providerResourceId!;
   }
 
   return values;
@@ -113,24 +113,21 @@ export function fillPlaceholders(
   values: Record<string, string>,
 ): { text: string; filled: string[] } {
   const filled = new Set<string>();
-  const text = command.replace(
-    /<([a-z][a-z-]*)>/g,
-    (whole, key: string, index: number) => {
-      const value = values[key];
-      if (value === undefined) return whole;
-      // The ordinary case: a name, a region, an ARM id. Substituted as it
-      // stands, so a filled command reads exactly as the rule wrote it.
-      if (BARE_WORD.test(value)) {
-        filled.add(key);
-        return value;
-      }
-      // Anything else is not a shell word. It can be made one, unless the rule
-      // already put this placeholder inside quotes -- in which case the honest
-      // answer is the placeholder, for the reader to fill in themselves.
-      if (insideQuotes(command, index)) return whole;
+  const text = command.replace(/<([a-z][a-z-]*)>/g, (whole, key: string, index: number) => {
+    const value = values[key];
+    if (value === undefined) return whole;
+    // The ordinary case: a name, a region, an ARM id. Substituted as it
+    // stands, so a filled command reads exactly as the rule wrote it.
+    if (BARE_WORD.test(value)) {
       filled.add(key);
-      return shellQuote(value);
-    },
-  );
+      return value;
+    }
+    // Anything else is not a shell word. It can be made one, unless the rule
+    // already put this placeholder inside quotes -- in which case the honest
+    // answer is the placeholder, for the reader to fill in themselves.
+    if (insideQuotes(command, index)) return whole;
+    filled.add(key);
+    return shellQuote(value);
+  });
   return { text, filled: [...filled] };
 }

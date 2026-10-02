@@ -51,9 +51,7 @@ export function ScanCard({ scan }: { scan: Scan }) {
     // scan is already running for this connection, which is a thing to wait
     // out and not a fault.
     onError: (err) =>
-      setReplayError(
-        err instanceof Error ? err.message : "Could not queue the re-evaluation",
-      ),
+      setReplayError(err instanceof Error ? err.message : "Could not queue the re-evaluation"),
   });
 
   const remove = useMutation({
@@ -171,7 +169,9 @@ export function ScanCard({ scan }: { scan: Scan }) {
         >
           <p
             className={
-              scan.evaluation_only ? "text-xs font-medium text-medium" : "text-xs font-medium text-ok"
+              scan.evaluation_only
+                ? "text-xs font-medium text-medium"
+                : "text-xs font-medium text-ok"
             }
           >
             {scan.evaluation_only ? t.scans.replayAdvisoryTitle : t.scans.replayCurrentTitle}
@@ -252,7 +252,6 @@ export function ScanCard({ scan }: { scan: Scan }) {
           )}
         </div>
       )}
-
     </div>
   );
 }
@@ -284,9 +283,7 @@ function StuckNote() {
         {status.data ? status.data.detail : t.scans.stuckDetail}
       </p>
       {status.data && status.data.workers === 0 && (
-        <p className="mt-1 text-xs leading-relaxed text-foreground">
-          {t.scans.stuckDetail}
-        </p>
+        <p className="mt-1 text-xs leading-relaxed text-foreground">{t.scans.stuckDetail}</p>
       )}
     </div>
   );

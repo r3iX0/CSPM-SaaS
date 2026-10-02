@@ -81,9 +81,7 @@ class TestKeyVaultDeletion:
         not the same as a vault configured badly."""
         kv = vault()
 
-        assert (
-            DELETION.evaluate(kv, RuleContext(resources=[kv])).state == RuleState.UNKNOWN
-        )
+        assert DELETION.evaluate(kv, RuleContext(resources=[kv])).state == RuleState.UNKNOWN
 
     def test_a_failed_listing_is_unknown(self) -> None:
         kv = vault(soft_delete=False, purge_protection=False)
@@ -128,9 +126,7 @@ class TestKeyVaultNetwork:
     def test_no_network_configuration_is_unknown(self) -> None:
         kv = vault()
 
-        assert (
-            NETWORK.evaluate(kv, RuleContext(resources=[kv])).state == RuleState.UNKNOWN
-        )
+        assert NETWORK.evaluate(kv, RuleContext(resources=[kv])).state == RuleState.UNKNOWN
 
     def test_a_failed_listing_is_unknown(self) -> None:
         kv = vault(network_default_action="Allow")

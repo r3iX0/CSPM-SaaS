@@ -46,9 +46,7 @@ export function StepConsent({
     return (
       <Alert className="border-high-border bg-high-bg text-high">
         <AlertTitle>{t.connection.cannotStartConsent}</AlertTitle>
-        <AlertDescription className="text-foreground">
-          {connection.status_detail}
-        </AlertDescription>
+        <AlertDescription className="text-foreground">{connection.status_detail}</AlertDescription>
       </Alert>
     );
   }
@@ -93,11 +91,7 @@ export function StepConsent({
             <LeavesApp data-icon="inline-end" aria-hidden />
           </a>
           {!handoff && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setHandoff(true)}
-            >
+            <Button type="button" variant="outline" onClick={() => setHandoff(true)}>
               <Handoff data-icon="inline-start" aria-hidden />
               {t.setup.notAdmin}
             </Button>

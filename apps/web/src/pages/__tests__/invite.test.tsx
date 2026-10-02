@@ -36,14 +36,12 @@ function preview(overrides: Partial<InvitationPreview> = {}): InvitationPreview 
 function mount(offer: InvitationPreview | null = preview()) {
   const post = vi.spyOn(api, "post").mockImplementation((path: string) => {
     if (path.endsWith("/preview")) {
-      return (
-        offer ? Promise.resolve({ data: offer, meta: {} }) : Promise.reject(new Error("404"))
-      ) as never;
+      return offer ? Promise.resolve({ data: offer, meta: {} }) : Promise.reject(new Error("404"));
     }
     return Promise.resolve({
       data: { id: "o-9", name: "Contoso", role: "SECURITY_ANALYST" },
       meta: {},
-    }) as never;
+    });
   });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(

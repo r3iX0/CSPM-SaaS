@@ -55,17 +55,13 @@ class FakeClient:
     async def call(self, operation: str, **kwargs: Any) -> dict:
         type(self).calls.append((self.service, self.region, operation))
         if operation in type(self).fails:
-            raise AwsApiError(
-                type(self).fails[operation], code="AccessDenied", operation=operation
-            )
+            raise AwsApiError(type(self).fails[operation], code="AccessDenied", operation=operation)
         return dict(type(self).responses.get(operation) or {})
 
     async def paginate(self, operation: str, key: str, **kwargs: Any) -> list[dict]:
         type(self).calls.append((self.service, self.region, operation))
         if operation in type(self).fails:
-            raise AwsApiError(
-                type(self).fails[operation], code="AccessDenied", operation=operation
-            )
+            raise AwsApiError(type(self).fails[operation], code="AccessDenied", operation=operation)
         return list(type(self).listings.get(operation) or [])
 
     async def optional(self, operation: str, **kwargs: Any) -> dict | None:
@@ -94,9 +90,7 @@ def account(monkeypatch: pytest.MonkeyPatch) -> type[FakeClient]:
         "list_accounts",
     }
     FakeClient.responses = {
-        "describe_regions": {
-            "Regions": [{"RegionName": "eu-west-1"}, {"RegionName": "us-east-1"}]
-        },
+        "describe_regions": {"Regions": [{"RegionName": "eu-west-1"}, {"RegionName": "us-east-1"}]},
         "list_buckets": {"Buckets": [{"Name": "logs"}]},
         "get_bucket_location": {"LocationConstraint": "eu-west-1"},
         "get_account_summary": {"SummaryMap": {"AccountMFAEnabled": 1}},
@@ -165,9 +159,7 @@ async def test_only_enabled_regions_are_read() -> None:
     A customer with two regions enabled out of thirty must not pay for
     twenty-eight listings that answer nothing.
     """
-    FakeClient.responses["describe_regions"] = {
-        "Regions": [{"RegionName": "eu-west-1"}]
-    }
+    FakeClient.responses["describe_regions"] = {"Regions": [{"RegionName": "eu-west-1"}]}
     tasks = await prepared().build_account_plan()
 
     assert {t.region for t in tasks if t.region} == {"eu-west-1"}

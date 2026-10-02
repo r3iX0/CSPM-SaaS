@@ -80,9 +80,7 @@ class _Rule(SecurityRule):
     exploitability = 5
     applies_to: ClassVar[list[ResourceType]] = [ResourceType.USER]
 
-    def evaluate(
-        self, resource: CloudResource | None, context: RuleContext
-    ) -> RuleResult:
+    def evaluate(self, resource: CloudResource | None, context: RuleContext) -> RuleResult:
         return RuleResult.failed()
 
 
@@ -136,15 +134,13 @@ class TestWhatTheNormalizerAccepts:
     def test_a_report_only_policy_grants_nothing(self) -> None:
         """It logs what would have happened. Nobody is challenged."""
         controls = normalized(
-            conditional_access_policies=[
-                policy(state="enabledForReportingButNotEnforced")
-            ]
+            conditional_access_policies=[policy(state="enabledForReportingButNotEnforced")]
         )
 
         assert controls["mfa_policies"] == []
 
     def test_mfa_or_something_else_is_not_multi_factor(self) -> None:
-        """"MFA or a compliant device" lets a stolen password through on a
+        """ "MFA or a compliant device" lets a stolen password through on a
         machine the attacker enrolled."""
         controls = normalized(
             conditional_access_policies=[

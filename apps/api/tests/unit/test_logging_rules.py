@@ -80,9 +80,7 @@ class TestCriticalResourceLogging:
         """A vault holds the credentials to everything else. Waiting for a tag
         before asking whether anybody would see it being read is the wrong way
         round."""
-        vault = critical_resource(
-            ResourceType.KEY_VAULT, settings=[], criticality=Level.LOW
-        )
+        vault = critical_resource(ResourceType.KEY_VAULT, settings=[], criticality=Level.LOW)
         assert self.rule.evaluate(vault, make_context(vault)).state is RuleState.FAIL
 
     def test_a_critical_machine_with_no_setting_fails(self) -> None:
@@ -93,12 +91,8 @@ class TestCriticalResourceLogging:
         """MEDIUM is where an untagged, undeclared machine lands, and logging
         every one of those is a catalogue-wide requirement rather than a
         statement about what a customer said matters."""
-        vm = critical_resource(
-            ResourceType.VIRTUAL_MACHINE, settings=[], criticality=Level.MEDIUM
-        )
-        assert (
-            self.rule.evaluate(vm, make_context(vm)).state is RuleState.NOT_APPLICABLE
-        )
+        vm = critical_resource(ResourceType.VIRTUAL_MACHINE, settings=[], criticality=Level.MEDIUM)
+        assert self.rule.evaluate(vm, make_context(vm)).state is RuleState.NOT_APPLICABLE
 
     def test_a_configured_destination_passes(self) -> None:
         vm = critical_resource(

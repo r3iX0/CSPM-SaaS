@@ -54,9 +54,7 @@ export function ConnectEmpty({ provider = "azure" }: { provider?: Provider }) {
   const permissions = useQuery({
     queryKey: ["azure-permissions"],
     queryFn: () =>
-      api
-        .get<AzurePermissions>("/api/v1/cloud-accounts/azure/permissions")
-        .then((r) => r.data),
+      api.get<AzurePermissions>("/api/v1/cloud-accounts/azure/permissions").then((r) => r.data),
     enabled: showing,
     staleTime: Infinity,
   });
@@ -121,9 +119,7 @@ export function ConnectEmpty({ provider = "azure" }: { provider?: Provider }) {
                 // first takes the row and the other two share the next.
                 <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-3 text-xs">
                   <div className="basis-full">
-                    <dt className="font-medium text-foreground">
-                      {t.connection.graphPermissions}
-                    </dt>
+                    <dt className="font-medium text-foreground">{t.connection.graphPermissions}</dt>
                     <dd className="mt-1 flex flex-wrap gap-1.5">
                       {permissions.data.graph_application_permissions.map((name) => (
                         <code
@@ -136,9 +132,7 @@ export function ConnectEmpty({ provider = "azure" }: { provider?: Provider }) {
                     </dd>
                   </div>
                   <div>
-                    <dt className="inline font-medium text-foreground">
-                      {t.connection.rbacRole}:
-                    </dt>{" "}
+                    <dt className="inline font-medium text-foreground">{t.connection.rbacRole}:</dt>{" "}
                     <dd className="inline text-muted-foreground">
                       {permissions.data.azure_rbac_role} ({permissions.data.access_type})
                     </dd>
@@ -158,9 +152,7 @@ export function ConnectEmpty({ provider = "azure" }: { provider?: Provider }) {
         </div>
 
         <div className="rounded-xl border border-border bg-muted/30 p-6">
-          <p className="text-sm font-medium text-foreground">
-            {copy.railTitle}
-          </p>
+          <p className="text-sm font-medium text-foreground">{copy.railTitle}</p>
           <ol className="mt-5">
             {steps.map((step, index) => {
               // The last row is not a step: it is what the customer gets for

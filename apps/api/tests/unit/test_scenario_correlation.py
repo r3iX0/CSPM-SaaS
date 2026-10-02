@@ -68,9 +68,7 @@ def test_every_open_finding_on_an_asset_is_a_member() -> None:
 
 
 def test_an_asset_with_no_open_findings_adds_none() -> None:
-    members = _members_on(
-        ROUTE, {}, {"host": uuid.uuid4(), "identity": uuid.uuid4()}
-    )
+    members = _members_on(ROUTE, {}, {"host": uuid.uuid4(), "identity": uuid.uuid4()})
     assert members == []
 
 
@@ -121,9 +119,7 @@ async def outside(rows: list[tuple[str, bool]], nodes: set[str]) -> set[str] | N
 async def test_an_asset_in_another_subscription_is_outside() -> None:
     """The route through it is not this scan's to close: the graph never held
     that part of the estate."""
-    assert await outside([("host", True), ("store", False)], {"host", "store"}) == {
-        "store"
-    }
+    assert await outside([("host", True), ("store", False)], {"host", "store"}) == {"store"}
 
 
 async def test_an_asset_with_no_row_left_is_inside() -> None:

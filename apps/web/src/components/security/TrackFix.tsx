@@ -42,8 +42,7 @@ export function TrackFix({
   // a join on the hot path of the page the product is really about.
   const tasks = useQuery({
     queryKey: ["remediation"],
-    queryFn: () =>
-      api.get<RemediationTask[]>("/api/v1/remediation").then((r) => r.data),
+    queryFn: () => api.get<RemediationTask[]>("/api/v1/remediation").then((r) => r.data),
     staleTime: 30_000,
     retry: false,
   });
@@ -51,9 +50,7 @@ export function TrackFix({
   const rows = Array.isArray(tasks.data) ? tasks.data : [];
   // A cancelled task is not tracking: the work was called off, and the finding
   // can be picked up again.
-  const task = rows.find(
-    (row) => row.finding_id === findingId && row.status !== "CANCELLED",
-  );
+  const task = rows.find((row) => row.finding_id === findingId && row.status !== "CANCELLED");
 
   const track = useMutation({
     mutationFn: () =>
@@ -71,8 +68,7 @@ export function TrackFix({
     },
     onError: (err) =>
       toast.error("Could not track this fix", {
-        description:
-          err instanceof ApiError ? err.message : "The API rejected the request.",
+        description: err instanceof ApiError ? err.message : "The API rejected the request.",
       }),
   });
 
@@ -104,11 +100,7 @@ export function TrackFix({
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <Button
-        variant="secondary"
-        disabled={track.isPending}
-        onClick={() => track.mutate()}
-      >
+      <Button variant="secondary" disabled={track.isPending} onClick={() => track.mutate()}>
         {track.isPending ? (
           <Spinner data-icon="inline-start" />
         ) : (
@@ -118,8 +110,8 @@ export function TrackFix({
       </Button>
       <p className="text-xs text-muted-foreground">
         Puts it in the remediation queue
-        {effortMinutes ? ` as ${formatEffort(effortMinutes)} of work` : ""}, ranked
-        against everything else open. It does not close the finding — a scan does.
+        {effortMinutes ? ` as ${formatEffort(effortMinutes)} of work` : ""}, ranked against
+        everything else open. It does not close the finding — a scan does.
       </p>
     </div>
   );

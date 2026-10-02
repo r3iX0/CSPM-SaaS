@@ -64,7 +64,9 @@ For a failing finding, CloudGuard produces a real edit to the customer's own
 Terraform or Bicep that makes the rule pass, delivered two ways:
 
 - **Download IaC diff** -- no integration required.
-- **Create pull request** -- GitHub first, then GitLab (maybe Azure Repos and Bitbucket also later on) CloudGuard locates the file and block that define the asset and opens a PR on a new branch. It never pushes to the default branch and never merges.
+- **Create pull request** -- GitHub first, then GitLab (maybe Azure Repos and Bitbucket also later
+  on) CloudGuard locates the file and block that define the asset and opens a PR on a new branch. It
+  never pushes to the default branch and never merges.
 
 The commercial case: remediation time drops from weeks to hours, and the platform
 engineers who review the PR become advocates for the tool.
@@ -131,7 +133,8 @@ them in and applies something nobody asked for. Fix-as-Code keeps that rule:
   multiple matches, azurerm v3 vs v4, Bicep `existing`, Bicep loops.
 - Measure the locate hit rate on real-world samples here, before committing to
   Phase 2.
-- Besides Bicep and Terraform, should be included also azure cli or aws cli fix command (to be copied easily) - cli based on cloud provider (gcloud, kubectl later on...)  
+- Besides Bicep and Terraform, should be included also azure cli or aws cli fix command (to be
+  copied easily) - cli based on cloud provider (gcloud, kubectl later on...)
 
 ### Phase 2 -- GitHub App and pull requests (large)
 

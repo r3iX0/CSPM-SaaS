@@ -110,22 +110,16 @@ class TestResponseEnvelope:
 
 
 class TestTenantIsolationOverHttp:
-    async def test_a_user_cannot_read_another_organization(
-        self, client, cleanup_orgs
-    ) -> None:
+    async def test_a_user_cannot_read_another_organization(self, client, cleanup_orgs) -> None:
         user_a, user_b = uuid.uuid4(), uuid.uuid4()
         org_a = await make_org(client, user_a, "Alpha Ltd")
         org_b = await make_org(client, user_b, "Beta Ltd")
         cleanup_orgs.extend([uuid.UUID(org_a), uuid.UUID(org_b)])
 
-        response = await client.get(
-            f"/api/v1/organizations/{org_b}", headers=auth_header(user_a)
-        )
+        response = await client.get(f"/api/v1/organizations/{org_b}", headers=auth_header(user_a))
         assert response.status_code == 404
 
-    async def test_naming_another_org_in_the_header_is_refused(
-        self, client, cleanup_orgs
-    ) -> None:
+    async def test_naming_another_org_in_the_header_is_refused(self, client, cleanup_orgs) -> None:
         """The header is a preference, never an authorization."""
         user_a, user_b = uuid.uuid4(), uuid.uuid4()
         org_a = await make_org(client, user_a, "Gamma Ltd")
@@ -144,9 +138,7 @@ class TestTenantIsolationOverHttp:
         assert response.status_code == 404
         assert "organization" in response.json()["error"]["message"].lower()
 
-    async def test_findings_list_is_scoped_to_the_callers_org(
-        self, client, cleanup_orgs
-    ) -> None:
+    async def test_findings_list_is_scoped_to_the_callers_org(self, client, cleanup_orgs) -> None:
         user = uuid.uuid4()
         org = await make_org(client, user, "Scoped Ltd")
         cleanup_orgs.append(uuid.UUID(org))
@@ -157,20 +149,16 @@ class TestTenantIsolationOverHttp:
 
 
 class TestOrganizationDeletion:
-    async def test_an_owner_can_delete_their_organization(
-        self, client, cleanup_orgs
-    ) -> None:
+    async def test_an_owner_can_delete_their_organization(self, client, cleanup_orgs) -> None:
         user = uuid.uuid4()
         org = await make_org(client, user, "Departing Ltd")
 
-        response = await client.delete(
-            f"/api/v1/organizations/{org}", headers=auth_header(user)
-        )
+        response = await client.delete(f"/api/v1/organizations/{org}", headers=auth_header(user))
         assert response.status_code == 200
 
-        remaining = (
-            await client.get("/api/v1/organizations", headers=auth_header(user))
-        ).json()["data"]
+        remaining = (await client.get("/api/v1/organizations", headers=auth_header(user))).json()[
+            "data"
+        ]
         assert org not in [o["id"] for o in remaining]
 
     async def test_a_non_owner_is_refused_rather_than_silently_ignored(
@@ -202,9 +190,7 @@ class TestOrganizationDeletion:
             )
             await session.commit()
 
-        response = await client.delete(
-            f"/api/v1/organizations/{org}", headers=auth_header(member)
-        )
+        response = await client.delete(f"/api/v1/organizations/{org}", headers=auth_header(member))
         assert response.status_code in (403, 404)
 
         still_there = (
@@ -212,9 +198,7 @@ class TestOrganizationDeletion:
         ).json()["data"]
         assert org in [o["id"] for o in still_there]
 
-    async def test_a_stranger_cannot_delete_an_organization(
-        self, client, cleanup_orgs
-    ) -> None:
+    async def test_a_stranger_cannot_delete_an_organization(self, client, cleanup_orgs) -> None:
         owner, stranger = uuid.uuid4(), uuid.uuid4()
         org = await make_org(client, owner, "Private Ltd")
         cleanup_orgs.append(uuid.UUID(org))
@@ -246,9 +230,9 @@ class TestConnectionListing:
             headers=auth_header(user),
         )
 
-        rows = (
-            await client.get("/api/v1/cloud-connections", headers=auth_header(user))
-        ).json()["data"]
+        rows = (await client.get("/api/v1/cloud-connections", headers=auth_header(user))).json()[
+            "data"
+        ]
         assert len(rows) == 1
         # Present and empty, rather than absent: the card distinguishes "none
         # discovered" from "not told", and they render differently.
@@ -260,7 +244,7 @@ class TestSubscriptionScope:
     async def test_excluding_a_subscription_records_when_it_was_decided(
         self, client, cleanup_orgs
     ) -> None:
-        """"Excluded by you" is a decision, and a decision has a date.
+        """ "Excluded by you" is a decision, and a decision has a date.
 
         The screen tells the customer that unticking keeps existing findings and
         marks the subscription out of scope rather than deleting it. Months
@@ -348,23 +332,36 @@ class TestCloudConnections:
         """The customer supplies a name and a scope. Nothing else is accepted.
 
         The tenant id in particular is not an input -- it is written later, from
-        what Entra reports on the consent callback. Supplying one here must not
-        bind the connection to it.
+        what Entra reports on the consent callback. Supplying one here is refused
+        rather than ignored, so a client that thinks it binds the connection finds
+        out at once, and none of it can bind anything.
         """
         user = uuid.uuid4()
         org = await make_org(client, user, "Connect Ltd")
         cleanup_orgs.append(uuid.UUID(org))
 
-        response = await client.post(
+        refused = await client.post(
             "/api/v1/cloud-connections",
             json={
                 "name": "Production",
                 "scope_type": "TENANT_ROOT",
-                # All deliberately supplied and all deliberately ignored.
                 "tenant_id": "someone-elses-tenant",
                 "client_secret": "hunter2",
                 "organization_id": str(uuid.uuid4()),
             },
+            headers=auth_header(user),
+        )
+        assert refused.status_code == 422
+        errors = refused.json()["meta"]["errors"]
+        assert {e["loc"][-1] for e in errors if e["type"] == "extra_forbidden"} == {
+            "tenant_id",
+            "client_secret",
+            "organization_id",
+        }
+
+        response = await client.post(
+            "/api/v1/cloud-connections",
+            json={"name": "Production", "scope_type": "TENANT_ROOT"},
             headers=auth_header(user),
         )
         assert response.status_code == 201
@@ -375,9 +372,7 @@ class TestCloudConnections:
         assert data["is_verified"] is False
         assert data["consent_url"] is not None or data["consent_url"] is None
 
-    async def test_create_returns_consent_url(
-        self, client, cleanup_orgs
-    ) -> None:
+    async def test_create_returns_consent_url(self, client, cleanup_orgs) -> None:
         """The create response includes a consent URL so the frontend can
         redirect immediately — no second API call needed."""
         user = uuid.uuid4()
@@ -393,10 +388,11 @@ class TestCloudConnections:
         data = response.json()["data"]
         # Consent URL is returned in the create response
         assert "consent_url" in data
+        # A created resource says where it lives, and the answer is cacheable by nobody.
+        assert response.headers["Location"] == f"/api/v1/cloud-connections/{data['id']}"
+        assert response.headers["Cache-Control"] == "private, no-store"
 
-    async def test_scoped_connection_requires_a_scope_id(
-        self, client, cleanup_orgs
-    ) -> None:
+    async def test_scoped_connection_requires_a_scope_id(self, client, cleanup_orgs) -> None:
         user = uuid.uuid4()
         org = await make_org(client, user, "Scoped Ltd")
         cleanup_orgs.append(uuid.UUID(org))
@@ -432,9 +428,7 @@ class TestCloudConnections:
         )
         assert response.status_code == 400, "signature check skipped"
 
-    async def test_a_user_cannot_read_another_orgs_connection(
-        self, client, cleanup_orgs
-    ) -> None:
+    async def test_a_user_cannot_read_another_orgs_connection(self, client, cleanup_orgs) -> None:
         user_a, user_b = uuid.uuid4(), uuid.uuid4()
         org_a = await make_org(client, user_a, "Owner Ltd")
         org_b = await make_org(client, user_b, "Outsider Ltd")
@@ -454,9 +448,7 @@ class TestCloudConnections:
 
 
 class TestScanGuards:
-    async def test_cannot_scan_another_tenants_account(
-        self, client, cleanup_orgs
-    ) -> None:
+    async def test_cannot_scan_another_tenants_account(self, client, cleanup_orgs) -> None:
         user_a, user_b = uuid.uuid4(), uuid.uuid4()
         org_a = await make_org(client, user_a, "Scan Owner Ltd")
         org_b = await make_org(client, user_b, "Scan Outsider Ltd")
@@ -505,18 +497,16 @@ class TestCompliance:
             assert framework["control_count"] > 0
             assert framework["url"].startswith("https://")
 
-    async def test_unscanned_org_claims_nothing(
-        self, client, cleanup_orgs, rule_catalogue
-    ) -> None:
+    async def test_unscanned_org_claims_nothing(self, client, cleanup_orgs, rule_catalogue) -> None:
         """The important case. With no scan, every mapped control must read as
         NOT_ASSESSED -- never as passing, and never as a coverage figure."""
         user = uuid.uuid4()
         org = await make_org(client, user, "Unscanned Ltd")
         cleanup_orgs.append(uuid.UUID(org))
 
-        data = (
-            await client.get("/api/v1/compliance/GDPR", headers=auth_header(user))
-        ).json()["data"]
+        data = (await client.get("/api/v1/compliance/GDPR", headers=auth_header(user))).json()[
+            "data"
+        ]
 
         assert data["assessed"] is False
         assert data["status_counts"]["PASSING"] == 0
@@ -542,9 +532,7 @@ class TestCompliance:
         org = await make_org(client, user, "Exporting Ltd")
         cleanup_orgs.append(uuid.UUID(org))
 
-        response = await client.get(
-            "/api/v1/compliance/GDPR/export", headers=auth_header(user)
-        )
+        response = await client.get("/api/v1/compliance/GDPR/export", headers=auth_header(user))
 
         assert response.status_code == 200, response.text
         assert response.headers["content-type"].startswith("text/csv")
@@ -552,9 +540,9 @@ class TestCompliance:
         assert "exporting-ltd-GDPR.csv" in response.headers["content-disposition"]
 
         rows = list(csv.DictReader(io.StringIO(response.text)))
-        detail = (
-            await client.get("/api/v1/compliance/GDPR", headers=auth_header(user))
-        ).json()["data"]
+        detail = (await client.get("/api/v1/compliance/GDPR", headers=auth_header(user))).json()[
+            "data"
+        ]
         assert len(rows) == detail["control_count"]
         assert {row["framework"] for row in rows} == {detail["short_name"]}
         # No scan has run, so the assessed column is empty rather than carrying
@@ -608,16 +596,12 @@ class TestCompliance:
         # Not a framework this catalogue has ever held. SOC 2 used to serve as
         # the example and stopped being one the day it was mapped, which is the
         # failure mode of naming a real standard nobody has got to yet.
-        response = await client.get(
-            "/api/v1/compliance/NOT_A_FRAMEWORK", headers=auth_header(user)
-        )
+        response = await client.get("/api/v1/compliance/NOT_A_FRAMEWORK", headers=auth_header(user))
         assert response.status_code == 404
 
 
 class TestDashboard:
-    async def test_empty_org_scores_100_with_no_coverage_claim(
-        self, client, cleanup_orgs
-    ) -> None:
+    async def test_empty_org_scores_100_with_no_coverage_claim(self, client, cleanup_orgs) -> None:
         user = uuid.uuid4()
         org = await make_org(client, user, "Fresh Ltd")
         cleanup_orgs.append(uuid.UUID(org))
@@ -652,9 +636,7 @@ class TestChangeFeed:
     did move.
     """
 
-    async def test_a_tenant_with_no_scans_has_an_empty_week(
-        self, client, cleanup_orgs
-    ) -> None:
+    async def test_a_tenant_with_no_scans_has_an_empty_week(self, client, cleanup_orgs) -> None:
         user = uuid.uuid4()
         org_id = await make_org(client, user, "Quiet Week Ltd")
         cleanup_orgs.append(uuid.UUID(org_id))
@@ -680,16 +662,12 @@ class TestChangeFeed:
             await client.get("/api/v1/changes?days=0", headers=auth_header(user))
         ).status_code == 422
 
-    async def test_an_unknown_change_kind_is_rejected(
-        self, client, cleanup_orgs
-    ) -> None:
+    async def test_an_unknown_change_kind_is_rejected(self, client, cleanup_orgs) -> None:
         user = uuid.uuid4()
         org_id = await make_org(client, user, "Filtered Ltd")
         cleanup_orgs.append(uuid.UUID(org_id))
 
-        response = await client.get(
-            "/api/v1/changes?change=EXPLODED", headers=auth_header(user)
-        )
+        response = await client.get("/api/v1/changes?change=EXPLODED", headers=auth_header(user))
         assert response.status_code == 422
 
     async def test_a_change_feed_needs_a_token(self, client) -> None:
@@ -739,8 +717,7 @@ class TestChangeEventWebhook:
 
     async def test_a_token_for_another_connection_is_refused(self, client) -> None:
         response = await client.post(
-            f"/api/v1/events/azure/{uuid.uuid4()}"
-            f"?token={self._token(str(uuid.uuid4()))}",
+            f"/api/v1/events/azure/{uuid.uuid4()}?token={self._token(str(uuid.uuid4()))}",
             json=[],
         )
         assert response.status_code == 400
@@ -803,9 +780,7 @@ class TestChangeEventWebhook:
             json=[
                 {
                     "eventType": "Microsoft.Resources.ResourceWriteSuccess",
-                    "data": {
-                        "operationName": "Microsoft.Network/networkSecurityGroups/write"
-                    },
+                    "data": {"operationName": "Microsoft.Network/networkSecurityGroups/write"},
                 }
             ],
         )
@@ -902,9 +877,7 @@ class TestSubscriptionDiscovery:
         # holds no provider client to replace -- and the seam test fails the
         # build if it ever does again.
         monkeypatch.setattr("app.connectors.azure.onboarding.ArmClient", FakeArm)
-        monkeypatch.setattr(
-            "app.connectors.azure.auth.TokenProvider", lambda tenant_id: object()
-        )
+        monkeypatch.setattr("app.connectors.azure.auth.TokenProvider", lambda tenant_id: object())
 
         response = await client.post(
             f"/api/v1/cloud-connections/{connection_id}/discover",
@@ -918,9 +891,7 @@ class TestSubscriptionDiscovery:
         # no primary key yet cannot be serialized, and cannot be linked to by
         # anything the customer clicks next.
         assert uuid.UUID(subscriptions[0]["id"])
-        assert subscriptions[0]["subscription_id"] == (
-            "00000000-0000-0000-0000-000000000001"
-        )
+        assert subscriptions[0]["subscription_id"] == ("00000000-0000-0000-0000-000000000001")
 
 
 class TestRecheckingAccess:
@@ -1005,11 +976,7 @@ class TestRecheckingAccess:
 
             async def get_role_definition(self, definition_id_: str) -> dict:
                 return {
-                    "properties": {
-                        "permissions": [
-                            {"actions": list(actions), "notActions": []}
-                        ]
-                    }
+                    "properties": {"permissions": [{"actions": list(actions), "notActions": []}]}
                 }
 
         # Patched where the call is made. Onboarding lives behind
@@ -1017,9 +984,7 @@ class TestRecheckingAccess:
         # holds no provider client to replace -- and the seam test fails the
         # build if it ever does again.
         monkeypatch.setattr("app.connectors.azure.onboarding.ArmClient", FakeArm)
-        monkeypatch.setattr(
-            "app.connectors.azure.auth.TokenProvider", lambda tenant_id: object()
-        )
+        monkeypatch.setattr("app.connectors.azure.auth.TokenProvider", lambda tenant_id: object())
 
     async def test_a_redeployed_role_is_recorded_and_the_prompt_clears(
         self, client, cleanup_orgs, monkeypatch
@@ -1164,9 +1129,7 @@ class TestAssetList:
             )
             await session.commit()
 
-    async def test_a_listed_asset_names_itself_in_the_provider(
-        self, client, cleanup_orgs
-    ) -> None:
+    async def test_a_listed_asset_names_itself_in_the_provider(self, client, cleanup_orgs) -> None:
         import uuid as uuid_module
 
         user = uuid.uuid4()
@@ -1236,12 +1199,8 @@ class TestAssetList:
         )
         await self._asset_in_a_subscription(org_id, arm_id)
 
-        hit = await client.get(
-            "/api/v1/assets?resource_group=PROD", headers=auth_header(user)
-        )
-        miss = await client.get(
-            "/api/v1/assets?resource_group=staging", headers=auth_header(user)
-        )
+        hit = await client.get("/api/v1/assets?resource_group=PROD", headers=auth_header(user))
+        miss = await client.get("/api/v1/assets?resource_group=staging", headers=auth_header(user))
 
         assert hit.status_code == 200, hit.text
         assert len(hit.json()["data"]) == 1
@@ -1431,10 +1390,7 @@ class TestAssetList:
         assert facets["resource_type"] == {"storage_account": 2, "virtual_machine": 2}
         assert facets["environment"] == {"prod": 1}
 
-
-    async def test_region_is_one_spelling_and_global_is_nowhere(
-        self, client, cleanup_orgs
-    ) -> None:
+    async def test_region_is_one_spelling_and_global_is_nowhere(self, client, cleanup_orgs) -> None:
         """`West Europe` and `westeurope` are one region; `global` is none (§113).
 
         The dashboard's region map links here with the code, so the filter has
@@ -1462,9 +1418,7 @@ class TestAssetList:
         )
 
         everything = await client.get("/api/v1/assets", headers=auth_header(user))
-        europe = await client.get(
-            "/api/v1/assets?region=West%20Europe", headers=auth_header(user)
-        )
+        europe = await client.get("/api/v1/assets?region=West%20Europe", headers=auth_header(user))
         unplaced = await client.get("/api/v1/assets?region=none", headers=auth_header(user))
 
         assert everything.json()["meta"]["facets"]["region"] == {
@@ -1576,9 +1530,7 @@ class TestFindingSearchAndSort:
         cleanup_orgs.append(org_id)
         await self._findings(org_id)
 
-        response = await client.get(
-            "/api/v1/findings?search=AZ-NET", headers=auth_header(user)
-        )
+        response = await client.get("/api/v1/findings?search=AZ-NET", headers=auth_header(user))
 
         assert response.status_code == 200, response.text
         [finding] = response.json()["data"]
@@ -1600,18 +1552,14 @@ class TestFindingSearchAndSort:
         [finding] = response.json()["data"]
         assert finding["rule_id"] == "AZ-STO-001"
 
-    async def test_search_narrows_the_total_as_well_as_the_page(
-        self, client, cleanup_orgs
-    ) -> None:
+    async def test_search_narrows_the_total_as_well_as_the_page(self, client, cleanup_orgs) -> None:
         """The count has to describe the search, or pagination lies about it."""
         user = uuid.uuid4()
         org_id = uuid.UUID(await make_org(client, user, "Total Ltd"))
         cleanup_orgs.append(org_id)
         await self._findings(org_id)
 
-        response = await client.get(
-            "/api/v1/findings?search=AZ-NET", headers=auth_header(user)
-        )
+        response = await client.get("/api/v1/findings?search=AZ-NET", headers=auth_header(user))
 
         assert response.json()["meta"]["total"] == 1
 
@@ -1622,9 +1570,7 @@ class TestFindingSearchAndSort:
         await self._findings(org_id)
 
         by_risk = await client.get("/api/v1/findings?sort=risk", headers=auth_header(user))
-        by_severity = await client.get(
-            "/api/v1/findings?sort=severity", headers=auth_header(user)
-        )
+        by_severity = await client.get("/api/v1/findings?sort=severity", headers=auth_header(user))
 
         # A LOW on an exposed asset outranks a CRITICAL on an isolated one, and
         # the product would have nothing to say if both sorts agreed.
@@ -1640,9 +1586,7 @@ class TestFindingSearchAndSort:
         cleanup_orgs.append(org_id)
         await self._findings(org_id)
 
-        response = await client.get(
-            "/api/v1/findings?sort=severity", headers=auth_header(user)
-        )
+        response = await client.get("/api/v1/findings?sort=severity", headers=auth_header(user))
 
         assert [f["severity"] for f in response.json()["data"]] == ["CRITICAL", "LOW"]
 
@@ -1652,9 +1596,7 @@ class TestFindingSearchAndSort:
         cleanup_orgs.append(org_id)
         await self._findings(org_id)
 
-        response = await client.get(
-            "/api/v1/findings?sort=recent", headers=auth_header(user)
-        )
+        response = await client.get("/api/v1/findings?sort=recent", headers=auth_header(user))
 
         assert response.json()["data"][0]["rule_id"] == "AZ-STO-001"
 
@@ -1666,9 +1608,7 @@ class TestFindingSearchAndSort:
         org_id = uuid.UUID(await make_org(client, user, "Bad Sort Ltd"))
         cleanup_orgs.append(org_id)
 
-        response = await client.get(
-            "/api/v1/findings?sort=alphabetical", headers=auth_header(user)
-        )
+        response = await client.get("/api/v1/findings?sort=alphabetical", headers=auth_header(user))
 
         assert response.status_code == 422
 
@@ -1682,9 +1622,7 @@ class TestLiveRisks:
     disagreeing because only one applied the product's own definition of live.
     """
 
-    async def _risk(
-        self, org_id, *, title: str, finding_status=None
-    ) -> None:
+    async def _risk(self, org_id, *, title: str, finding_status=None) -> None:
         from datetime import UTC, datetime
 
         from app.core.db import service_session
@@ -1743,9 +1681,7 @@ class TestLiveRisks:
         cleanup_orgs.append(org_id)
 
         await self._risk(org_id, title="Still wrong", finding_status=FindingStatus.OPEN)
-        await self._risk(
-            org_id, title="Fixed last week", finding_status=FindingStatus.RESOLVED
-        )
+        await self._risk(org_id, title="Fixed last week", finding_status=FindingStatus.RESOLVED)
 
         response = await client.get("/api/v1/risks", headers=auth_header(user))
 
@@ -1768,9 +1704,7 @@ class TestLiveRisks:
         response = await client.get("/api/v1/risks", headers=auth_header(user))
 
         assert response.status_code == 200, response.text
-        assert [risk["title"] for risk in response.json()["data"]] == [
-            "No finding on record"
-        ]
+        assert [risk["title"] for risk in response.json()["data"]] == ["No finding on record"]
 
     async def test_a_settled_risk_is_still_reachable_by_naming_its_status(
         self, client, cleanup_orgs
@@ -1781,18 +1715,12 @@ class TestLiveRisks:
         org_id = uuid.UUID(await make_org(client, user, "Named Status Ltd"))
         cleanup_orgs.append(org_id)
 
-        await self._risk(
-            org_id, title="Fixed last week", finding_status=FindingStatus.RESOLVED
-        )
+        await self._risk(org_id, title="Fixed last week", finding_status=FindingStatus.RESOLVED)
 
-        response = await client.get(
-            "/api/v1/risks?status=OPEN", headers=auth_header(user)
-        )
+        response = await client.get("/api/v1/risks?status=OPEN", headers=auth_header(user))
 
         assert response.status_code == 200, response.text
-        assert [risk["title"] for risk in response.json()["data"]] == [
-            "Fixed last week"
-        ]
+        assert [risk["title"] for risk in response.json()["data"]] == ["Fixed last week"]
 
 
 class TestRiskTriage:
@@ -1876,9 +1804,7 @@ class TestRiskTriage:
             )
             return dict(rows.tuples().all())
 
-    async def test_accepting_a_group_accepts_every_open_member(
-        self, client, cleanup_orgs
-    ) -> None:
+    async def test_accepting_a_group_accepts_every_open_member(self, client, cleanup_orgs) -> None:
         from sqlalchemy import func, select
 
         from app.core.db import service_session
@@ -1947,16 +1873,12 @@ class TestRiskTriage:
         async with service_session() as session:
             exception_status = (
                 await session.execute(
-                    select(RiskException.status).where(
-                        RiskException.finding_id == finding_ids[0]
-                    )
+                    select(RiskException.status).where(RiskException.finding_id == finding_ids[0])
                 )
             ).scalar_one()
         assert exception_status == ExceptionStatus.REVOKED
 
-    async def test_a_route_keeps_its_own_status_and_end_date(
-        self, client, cleanup_orgs
-    ) -> None:
+    async def test_a_route_keeps_its_own_status_and_end_date(self, client, cleanup_orgs) -> None:
         from app.core.enums import FindingStatus
 
         user = uuid.uuid4()
@@ -2081,7 +2003,6 @@ class TestRiskTriage:
 
         assert response.status_code == 403
 
-
     async def test_an_end_date_already_past_is_refused(self, client, cleanup_orgs) -> None:
         from app.core.enums import FindingStatus
 
@@ -2103,9 +2024,7 @@ class TestRiskTriage:
         assert response.status_code == 422
         assert (await self._statuses(finding_ids))[finding_ids[0]] == FindingStatus.OPEN
 
-    async def test_the_list_says_when_an_acceptance_runs_out(
-        self, client, cleanup_orgs
-    ) -> None:
+    async def test_the_list_says_when_an_acceptance_runs_out(self, client, cleanup_orgs) -> None:
         from app.core.enums import FindingStatus
 
         user = uuid.uuid4()
@@ -2199,19 +2118,29 @@ class TestAcceptanceExpiry:
         async with service_session() as session:
             risk = (await session.execute(select(Risk).where(Risk.id == risk_id))).scalar_one()
             exceptions = (
-                await session.execute(
-                    select(RiskException.status).where(RiskException.finding_id.in_(finding_ids))
-                )
-            ).scalars().all()
-            events = (
-                await session.execute(
-                    select(FindingEventRecord).where(
-                        FindingEventRecord.finding_id == finding_ids[0],
-                        FindingEventRecord.previous_status == FindingStatus.ACCEPTED_RISK,
-                        FindingEventRecord.current_status == FindingStatus.OPEN,
+                (
+                    await session.execute(
+                        select(RiskException.status).where(
+                            RiskException.finding_id.in_(finding_ids)
+                        )
                     )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
+            events = (
+                (
+                    await session.execute(
+                        select(FindingEventRecord).where(
+                            FindingEventRecord.finding_id == finding_ids[0],
+                            FindingEventRecord.previous_status == FindingStatus.ACCEPTED_RISK,
+                            FindingEventRecord.current_status == FindingStatus.OPEN,
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
         assert risk.status == RiskStatus.OPEN
         assert set(exceptions) == {ExceptionStatus.EXPIRED}
         # The sweep acted, not a person, and the timeline says why.
@@ -2219,9 +2148,7 @@ class TestAcceptanceExpiry:
         assert event.user_id is None
         assert "Accepted for the migration window" in (event.detail or "")
 
-    async def test_an_acceptance_with_time_left_is_untouched(
-        self, client, cleanup_orgs
-    ) -> None:
+    async def test_an_acceptance_with_time_left_is_untouched(self, client, cleanup_orgs) -> None:
         from app.core.db import service_session
         from app.core.enums import FindingStatus
         from app.services import acceptance
@@ -2262,10 +2189,16 @@ class TestAcceptanceExpiry:
 
         async with service_session() as session:
             statuses = (
-                await session.execute(
-                    select(RiskException.status).where(RiskException.finding_id == finding_ids[0])
+                (
+                    await session.execute(
+                        select(RiskException.status).where(
+                            RiskException.finding_id == finding_ids[0]
+                        )
+                    )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
         # One running acceptance, never two: the older date must not end the
         # newer decision.
         assert sorted(statuses) == [ExceptionStatus.ACTIVE, ExceptionStatus.REVOKED]
@@ -2289,16 +2222,12 @@ class TestAcceptanceExpiry:
             headers=auth_header(user),
         )
         assert accepted.status_code == 200, accepted.text
-        response = await client.get(
-            f"/api/v1/findings/{finding_ids[0]}", headers=auth_header(user)
-        )
+        response = await client.get(f"/api/v1/findings/{finding_ids[0]}", headers=auth_header(user))
 
         assert response.status_code == 200, response.text
         assert datetime.fromisoformat(response.json()["data"]["accepted_until"]) == until
 
-    async def test_the_finding_endpoint_refuses_a_past_end_date(
-        self, client, cleanup_orgs
-    ) -> None:
+    async def test_the_finding_endpoint_refuses_a_past_end_date(self, client, cleanup_orgs) -> None:
         from app.core.enums import FindingStatus
 
         user = uuid.uuid4()
@@ -2317,9 +2246,7 @@ class TestAcceptanceExpiry:
 
         assert response.status_code == 422
 
-    async def test_a_lapsed_route_acceptance_reopens_the_route(
-        self, client, cleanup_orgs
-    ) -> None:
+    async def test_a_lapsed_route_acceptance_reopens_the_route(self, client, cleanup_orgs) -> None:
         from sqlalchemy import select
 
         from app.core.db import service_session
@@ -2394,9 +2321,7 @@ class TestRiskSearch:
 class TestFindingAttackPaths:
     """Whether a finding's asset sits on a route, asked of the live graph."""
 
-    async def test_a_finding_with_no_asset_is_on_no_route(
-        self, client, cleanup_orgs
-    ) -> None:
+    async def test_a_finding_with_no_asset_is_on_no_route(self, client, cleanup_orgs) -> None:
         # Tenant-wide findings carry no resource. "No path" is the true answer
         # and is returned as one, rather than as a 404 the page has to decode.
         user = uuid.uuid4()
@@ -2493,9 +2418,7 @@ class TestAssetNeighborhood:
 
             vm = asset(self.VM, ResourceType.VIRTUAL_MACHINE, public_exposure=Level.CRITICAL)
             identity = asset(self.IDENTITY, ResourceType.SERVICE_PRINCIPAL)
-            storage = asset(
-                self.STORAGE, ResourceType.STORAGE_ACCOUNT, data_sensitivity=Level.HIGH
-            )
+            storage = asset(self.STORAGE, ResourceType.STORAGE_ACCOUNT, data_sensitivity=Level.HIGH)
             session.add_all([vm, identity, storage])
             await session.flush()
             session.add_all(
@@ -2553,9 +2476,7 @@ class TestAssetNeighborhood:
         assert await names("?sensitive=true") == {"payroll"}
         assert await names("?on_attack_path=true") == {"jump-01", "mi-jump-01", "payroll"}
 
-    async def test_an_empty_answer_says_where_each_way_in_stops(
-        self, client, cleanup_orgs
-    ) -> None:
+    async def test_an_empty_answer_says_where_each_way_in_stops(self, client, cleanup_orgs) -> None:
         """No route, and the page names the open machine and why (section 119)."""
         from sqlalchemy import delete
 
@@ -2617,29 +2538,21 @@ class TestAssetNeighborhood:
         assert body["absent_since"] is None
         assert body["open_findings"] == 1
 
-    async def test_a_directory_asset_sits_in_the_directory(
-        self, client, cleanup_orgs
-    ) -> None:
+    async def test_a_directory_asset_sits_in_the_directory(self, client, cleanup_orgs) -> None:
         user = uuid.uuid4()
         org_id = uuid.UUID(await make_org(client, user, "Directory Ltd"))
         cleanup_orgs.append(org_id)
         await self._estate(org_id)
-        listed = await client.get(
-            "/api/v1/assets?search=mi-jump", headers=auth_header(user)
-        )
+        listed = await client.get("/api/v1/assets?search=mi-jump", headers=auth_header(user))
         [identity] = listed.json()["data"]
 
-        response = await client.get(
-            f"/api/v1/assets/{identity['id']}", headers=auth_header(user)
-        )
+        response = await client.get(f"/api/v1/assets/{identity['id']}", headers=auth_header(user))
 
         # The fixture hangs the identity off the account, so it is placed by
         # the account; a group is never invented from a principal id.
         assert response.json()["data"]["placement"]["resource_group"] is None
 
-    async def test_what_a_blast_radius_reaches_can_be_opened(
-        self, client, cleanup_orgs
-    ) -> None:
+    async def test_what_a_blast_radius_reaches_can_be_opened(self, client, cleanup_orgs) -> None:
         from urllib.parse import quote
 
         user = uuid.uuid4()
@@ -2845,7 +2758,6 @@ class TestAssetNeighborhood:
 
         assert response.status_code == 404, response.text
 
-
     async def test_the_estate_map_opens_down_to_the_assets(self, client, cleanup_orgs) -> None:
         user = uuid.uuid4()
         org_id = uuid.UUID(await make_org(client, user, "Graph Ltd"))
@@ -2872,9 +2784,7 @@ class TestAssetNeighborhood:
             headers=auth_header(user),
         )
         assert response.status_code == 200, response.text
-        edges = {
-            (e["source"], e["target"]): e for e in response.json()["data"]["edges"]
-        }
+        edges = {(e["source"], e["target"]): e for e in response.json()["data"]["edges"]}
         prod = f"group:{subscription}:prod"
         identity = f"asset:{self.IDENTITY}"
         assert edges[(prod, identity)]["links"][0]["relationship"] == "has_identity"
@@ -2909,6 +2819,7 @@ class TestAssetNeighborhood:
         assert response.status_code == 200, response.text
         assert response.json()["data"]["boxes"] == []
 
+
 class TestReports:
     """The report endpoints, over the real dependency chain.
 
@@ -2942,16 +2853,13 @@ class TestReports:
 
         assert response.status_code == 401
 
-    async def test_sections_and_a_window_are_honoured(
-        self, client, cleanup_orgs
-    ) -> None:
+    async def test_sections_and_a_window_are_honoured(self, client, cleanup_orgs) -> None:
         user = uuid.uuid4()
         org = await make_org(client, user, "Contoso")
         cleanup_orgs.append(uuid.UUID(org))
 
         response = await client.get(
-            "/api/v1/reports/executive?format=html&days=90"
-            "&sections=top_risks,attack_paths",
+            "/api/v1/reports/executive?format=html&days=90&sections=top_risks,attack_paths",
             headers=auth_header(user),
         )
 
@@ -3066,9 +2974,7 @@ class TestOrganizationProfile:
 
         assert after.json()["data"]["slug"] == before.json()["data"]["slug"]
 
-    async def test_an_edit_cannot_reach_another_organization(
-        self, client, cleanup_orgs
-    ) -> None:
+    async def test_an_edit_cannot_reach_another_organization(self, client, cleanup_orgs) -> None:
         user_a, user_b = uuid.uuid4(), uuid.uuid4()
         org_a = await make_org(client, user_a, "Contoso")
         org_b = await make_org(client, user_b, "Fabrikam")
@@ -3279,9 +3185,7 @@ class TestDeletingWhatARiskRestsOn:
         listed = (await client.get("/api/v1/risks", headers=auth_header(user))).json()["data"]
         assert "Only here" not in [risk["title"] for risk in listed]
 
-    async def test_purging_a_scan_deletes_the_risks_it_emptied(
-        self, client, cleanup_orgs
-    ) -> None:
+    async def test_purging_a_scan_deletes_the_risks_it_emptied(self, client, cleanup_orgs) -> None:
         user = uuid.uuid4()
         org_id = uuid.UUID(await make_org(client, user, "Purging Ltd"))
         cleanup_orgs.append(org_id)
@@ -3303,9 +3207,7 @@ class TestDeletingWhatARiskRestsOn:
         cleanup_orgs.append(org_id)
         estate = await self._estate(org_id)
 
-        response = await client.delete(
-            f"/api/v1/scans/{estate['scan']}", headers=auth_header(user)
-        )
+        response = await client.delete(f"/api/v1/scans/{estate['scan']}", headers=auth_header(user))
 
         assert response.status_code == 200, response.text
         assert await self._risk_ids(org_id) == {estate["only_here"], estate["crossing"]}

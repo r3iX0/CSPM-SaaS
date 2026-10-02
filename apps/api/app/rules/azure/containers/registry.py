@@ -18,9 +18,7 @@ from app.rules.base import RuleContext, RuleResult, SecurityRule
 class _RegistryRule(SecurityRule):
     category = "compute"
     applies_to: ClassVar[list[ResourceType]] = [ResourceType.CONTAINER_REGISTRY]
-    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (
-        AzureEvidence.CONTAINER_REGISTRIES,
-    )
+    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (AzureEvidence.CONTAINER_REGISTRIES,)
 
     def _unreadable(
         self, resource: CloudResource | None, context: RuleContext

@@ -41,9 +41,7 @@ describe("RegionPanel", () => {
     const east = screen.getByRole("link", { name: /East US/ });
     expect(east).toHaveAttribute("href", "/assets?region=eastus");
     expect(east).toHaveTextContent("1 open");
-    expect(screen.getByRole("link", { name: /West Europe/ })).toHaveTextContent(
-      "nothing open",
-    );
+    expect(screen.getByRole("link", { name: /West Europe/ })).toHaveTextContent("nothing open");
     expect(screen.getByText(/The worst is East US/)).toBeInTheDocument();
   });
 

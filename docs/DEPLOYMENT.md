@@ -53,7 +53,7 @@ Node installed on your machine.
 
    The pooler puts the project ref in the username, as `<user>.<project-ref>`:
 
-   ```
+   ```dotenv
    # Owner connection — runs migrations, as the table owner.
    DATABASE_OWNER_URL=postgresql+asyncpg://postgres.<project-ref>:<db-password>@aws-0-<region>.pooler.supabase.com:5432/postgres
 
@@ -84,13 +84,16 @@ Node installed on your machine.
    Nothing to run from your machine.
 
    > At one API instance this is the simplest correct option. If you ever scale
-   > the API past one replica, move the migration to a Railway *release*
+   > the API past one replica, move the migration to a Railway _release_
    > command instead, so two booting instances can't race each other on DDL.
 
 5. **Get the Auth values.** Project Settings → API:
    - **Project URL** → `SUPABASE_URL` (backend) and `VITE_SUPABASE_URL` (frontend)
    - **anon / publishable key** → `SUPABASE_PUBLISHABLE_KEY` and `VITE_SUPABASE_PUBLISHABLE_KEY`
-   - **service_role / secret key** → `SUPABASE_SECRET_KEY` (backend only — **never** put this in Vercel or any frontend env var; see `SECURITY.md` §3)
+   - **service_role / secret key** →
+     `SUPABASE_SECRET_KEY` (backend only — **never** put this in Vercel or any frontend env var; see
+     `SECURITY.md`
+     §3)
 
    Then Project Settings → API → **JWT Settings** → copy the **JWT Secret** →
    `SUPABASE_JWT_SECRET`. This is what `app/core/security.py::decode_token`
@@ -104,7 +107,7 @@ Node installed on your machine.
 
 6. **Enable email sign-in.** Authentication → Providers → **Email** is on by
    default. Leave both **Confirm email** and the email provider's password
-   support enabled: the sign-in screen offers magic links *and* email +
+   support enabled: the sign-in screen offers magic links _and_ email +
    password, and sign-up shows a "check your email" screen when confirmation
    is on (`apps/web/src/lib/supabase.ts`).
 
@@ -121,12 +124,12 @@ Node installed on your machine.
    password-reset email lands on that second path.
 
 7. **Enable Microsoft (Entra ID) sign-in.** Authentication → Providers →
-   **Azure**. This is a *second, separate* Entra app registration from the one
+   **Azure**. This is a _second, separate_ Entra app registration from the one
    that scans subscriptions — do not reuse the scanning app's credentials here.
 
    In the Azure portal, register an app with the redirect URI Supabase shows on
    that provider page (`https://<project-ref>.supabase.co/auth/v1/callback`,
-   type *Web*), add a client secret, and grant the delegated Microsoft Graph
+   type _Web_), add a client secret, and grant the delegated Microsoft Graph
    permissions `openid`, `profile`, `email`, `User.Read`. Paste the
    Application (client) ID and secret into Supabase.
 
@@ -149,7 +152,7 @@ Node installed on your machine.
 3. **Add the API service**: **+ New** → **GitHub Repo** → same repo again.
 
    **Leave Root Directory empty (the repo root).** This is the setting that
-   most often breaks the build: the Dockerfile copies `apps/api` *and*
+   most often breaks the build: the Dockerfile copies `apps/api` _and_
    `database`, so both must be inside the build context. Setting Root Directory
    to `apps/api` makes `COPY apps/api/...` fail, because relative to that
    context there is no `apps/api` folder.
@@ -161,17 +164,18 @@ Node installed on your machine.
    its own -- including the scanner, which then started the API (DECISIONS.md
    §152). With the CLI:
 
-   ```
+   ```bash
    railway api 'mutation($s:String!,$e:String!){serviceInstanceUpdate(serviceId:$s,environmentId:$e,input:{railwayConfigFile:"/infrastructure/railway/api.json"})}' \
      --raw-var s=<api service id> --raw-var e=<environment id>
-   ``` Then **Networking** → generate a public
-   domain; that's your `API_URL`.
+   ```
+
+   Then **Networking** → generate a public domain; that's your `API_URL`.
 
    <details><summary>Setting it by hand instead</summary>
 
    - **Dockerfile Path**: `infrastructure/docker/api.Dockerfile`
    - **Start Command**:
-     ```
+     ```bash
      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"
      ```
    - **Health Check Path**: `/health`
@@ -187,10 +191,10 @@ Node installed on your machine.
    `infrastructure/railway/worker.json`. That file already carries the right
    start command, and nothing has to be retyped.
 
-   Otherwise set **Custom Start Command** — the *Start* one, in the Deploy
+   Otherwise set **Custom Start Command** — the _Start_ one, in the Deploy
    section:
 
-   ```
+   ```bash
    celery -A app.workers.celery_app.celery_app worker --beat --schedule=/tmp/celerybeat-schedule --queues=celery,collect,analyze --loglevel=INFO --concurrency=2
    ```
 
@@ -205,6 +209,8 @@ Node installed on your machine.
    > Safe with more than one worker replica: the reaper is idempotent, so two
    > schedulers firing it merely means one of them finds nothing left to close.
 
+   <!-- Two separate callouts. -->
+
    > **Keep all three queues.** A scan runs as steps, and each is routed by what
    > it costs: `collect` waits on Azure, `analyze` holds a whole tenant in
    > memory, and `celery` carries the short database-only tasks that move a scan
@@ -215,6 +221,8 @@ Node installed on your machine.
    > `--queues=celery,collect` and add a second with
    > `--queues=analyze --concurrency=1`. Worth doing when analysis of a large
    > tenant starts occupying slots collection could have used; not before.
+
+   <!-- Two separate callouts. -->
 
    > **Not Custom Build Command.** They sit near each other in Railway's
    > settings and the mistake is silent: a build command runs at build time,
@@ -229,7 +237,7 @@ Node installed on your machine.
    (Railway lets you reference another service's variable with
    `${{Redis.REDIS_URL}}` instead of copying the value):
 
-   ```
+   ```dotenv
    APP_ENV=staging
    APP_URL=https://<your-vercel-domain>              # step 3, frontend
    API_URL=https://<your-railway-api-domain>
@@ -361,11 +369,13 @@ Node installed on your machine.
    the two stop matching.
 
 3. **Environment variables**:
-   ```
+
+   ```dotenv
    VITE_API_URL=https://<your-railway-api-domain>
    VITE_SUPABASE_URL=https://<project-ref>.supabase.co
    VITE_SUPABASE_PUBLISHABLE_KEY=<anon key>
    ```
+
    Only the anon/publishable key goes here — never the service_role key
    (`SECURITY.md` §3: only the publishable key is safe client-side).
    These are read at **build time**, not run time. Adding or changing one has
@@ -388,11 +398,11 @@ The build succeeded and the container started, but nothing answered on
 `/health`. Two different causes, and the **Deploy Logs** tab tells you which
 (the Build Logs tab only covers the image build):
 
-* **The app never started.** The start command runs `alembic upgrade head`
+- **The app never started.** The start command runs `alembic upgrade head`
   before uvicorn, so a migration failure means the web server is never reached.
   Look for an Alembic traceback — usually a database URL that is wrong or
   unreachable. A configuration problem shows up the same way; see below.
-* **It was still starting.** A first deploy creates every table, RLS policy,
+- **It was still starting.** A first deploy creates every table, RLS policy,
   function and grant before serving anything. `api.json` allows 300s for
   this; if you overrode the healthcheck timeout in the dashboard to something
   short, raise it.
@@ -434,7 +444,8 @@ of likelihood:
 2. **Railway fell back to Nixpacks.** If it cannot find a Dockerfile it tries
    to auto-detect the project, and the repo root has no `package.json` or
    `requirements.txt` for it to recognise, so it gives up fast. The
-   service's config file (`infrastructure/railway/api.json`) prevents this — confirm the build logs say it is using the
+   service's config file (`infrastructure/railway/api.json`) prevents this — confirm the build logs
+   say it is using the
    Dockerfile builder.
 3. **A stale service config** from an earlier attempt overriding the file. A
    value typed into the dashboard wins over `api.json`; clear the Dockerfile
@@ -465,11 +476,11 @@ tables.
 
 ### The worker service is Online but scans stay Queued
 
-`Online` means the container is running, not that it is running *Celery*. The
+`Online` means the container is running, not that it is running _Celery_. The
 usual cause is the Celery command typed into **Custom Build Command** instead
 of **Custom Start Command**: the build command runs during the build, the
 container then starts with the Dockerfile's `CMD`, and the service quietly
-becomes a second copy of the API. It passes every health check because it *is*
+becomes a second copy of the API. It passes every health check because it _is_
 a healthy API.
 
 Check, in order:
@@ -510,7 +521,7 @@ If the URL after clicking looks like
 is missing its `https://` scheme**. Supabase treats a scheme-less value as a
 relative path and appends it to its own origin.
 
-Note the `#access_token=` in that URL: authentication *succeeded*: the token was
+Note the `#access_token=` in that URL: authentication _succeeded_: the token was
 issued and only the destination was wrong. Fix Site URL to the full
 `https://your-domain` and request a fresh link.
 
@@ -529,8 +540,11 @@ file (`index.html`); `/findings/<id>` only exists inside React Router.
 
 ```bash
 curl https://<your-railway-api-domain>/health/ready
-# {"data":{"status":"ready","database":"ok"},"error":null,"meta":{}}
+# {"data":{"status":"ready","database":"ok","queue":"ok"},"error":null,"meta":{}}
 ```
+
+A dependency that does not answer is a `503` that names it, `DATABASE_UNAVAILABLE`
+or `QUEUE_UNAVAILABLE`; the cause is in the API service's log, not in the response.
 
 Then open the Vercel URL, sign in with your real email (check your inbox for
 the magic link — Supabase's default email provider is rate-limited and fine
@@ -548,11 +562,11 @@ else has happened. A worker collects it within seconds when one is running, so
 minutes in that state means nothing is listening — and the scans page now says
 so rather than showing a progress bar indefinitely.
 
-Almost always: **the Celery worker is not deployed.** It is a *second* Railway
+Almost always: **the Celery worker is not deployed.** It is a _second_ Railway
 service, built from the same image but started with
 `infrastructure/railway/worker.json`:
 
-```
+```bash
 celery -A app.workers.celery_app.celery_app worker --beat --schedule=/tmp/celerybeat-schedule --queues=celery,collect,analyze --loglevel=INFO --concurrency=2
 ```
 

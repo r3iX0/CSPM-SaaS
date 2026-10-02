@@ -62,8 +62,7 @@ export function SubscriptionScopeList({
       queryClient.invalidateQueries({ queryKey: ["cloud-connections"] });
       setSelection({});
     },
-    onError: (err) =>
-      onError(err instanceof Error ? err.message : "Could not save scope"),
+    onError: (err) => onError(err instanceof Error ? err.message : "Could not save scope"),
   });
 
   const hasSelectionChanges = Object.keys(selection).length > 0;
@@ -73,10 +72,12 @@ export function SubscriptionScopeList({
   return (
     <div>
       <p className="text-xs text-muted-foreground">
-        {scoped.length} of {subscriptions.length} {vocabulary.accounts}{" "}
-        {t.connection.inScopeCount}
+        {scoped.length} of {subscriptions.length} {vocabulary.accounts} {t.connection.inScopeCount}
         {connection.last_discovery_at && (
-          <> · {t.connection.lastDiscovery} {formatDateTime(connection.last_discovery_at)}</>
+          <>
+            {" "}
+            · {t.connection.lastDiscovery} {formatDateTime(connection.last_discovery_at)}
+          </>
         )}
         <span className="mt-1 block">{t.connection.discoveryPromise}</span>
       </p>
@@ -89,18 +90,14 @@ export function SubscriptionScopeList({
               onCheckedChange={(value) =>
                 setSelection({
                   ...selection,
-                  [sub.subscription_id ?? ""]: value === true,
+                  [sub.subscription_id ?? ""]: value,
                 })
               }
               aria-label={`${t.connection.inScope}: ${sub.display_name}`}
             />
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm text-foreground">
-                {sub.display_name}
-              </span>
-              <code className="text-caption text-muted-foreground">
-                {sub.subscription_id}
-              </code>
+              <span className="block truncate text-sm text-foreground">{sub.display_name}</span>
+              <code className="text-caption text-muted-foreground">{sub.subscription_id}</code>
             </span>
             <SubscriptionNote subscription={sub} lastRead={lastRead} />
           </li>
@@ -124,11 +121,7 @@ export function SubscriptionScopeList({
       )}
 
       {hasSelectionChanges && (
-        <Button
-          className="mt-3"
-          onClick={() => saveScope.mutate()}
-          disabled={saveScope.isPending}
-        >
+        <Button className="mt-3" onClick={() => saveScope.mutate()} disabled={saveScope.isPending}>
           {t.connection.saveScope}
         </Button>
       )}

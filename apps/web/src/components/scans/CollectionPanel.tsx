@@ -34,9 +34,7 @@ export function CollectionPanel({ scanId }: { scanId: string }) {
 
   return (
     <div>
-      <p className="text-caption font-medium text-muted-foreground">
-        {t.scans.collectionTitle}
-      </p>
+      <p className="text-caption font-medium text-muted-foreground">{t.scans.collectionTitle}</p>
 
       <p className="mt-1.5 text-xs text-muted-foreground">
         <span className="font-medium tabular-nums text-foreground">
@@ -114,9 +112,7 @@ export function CollectionPanel({ scanId }: { scanId: string }) {
                     </p>
                   )}
                   <p className="w-full text-xs text-muted-foreground">
-                    <span title={reading.collected_at}>
-                      {formatRelative(reading.collected_at)}
-                    </span>
+                    <span title={reading.collected_at}>{formatRelative(reading.collected_at)}</span>
                     {reading.finding_count > 0 ? (
                       <>
                         {" · "}
@@ -141,7 +137,10 @@ export function CollectionPanel({ scanId }: { scanId: string }) {
                       // reading that failed supported nothing: the rules that
                       // needed it degraded to UNKNOWN and never became
                       // findings, which is the system working.
-                      <>{" · "}{t.scans.supportsNone}</>
+                      <>
+                        {" · "}
+                        {t.scans.supportsNone}
+                      </>
                     )}
                   </p>
                 </li>

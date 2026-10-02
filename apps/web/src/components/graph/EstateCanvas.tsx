@@ -29,14 +29,7 @@ import "@xyflow/react/dist/base.css";
 import type { EstateBox, EstateMap } from "@/lib/types";
 import { cn } from "@/lib/format";
 import { DURATION, usePrefersReducedMotion } from "@/lib/motion";
-import {
-  ARROWS,
-  FIT,
-  FLOW_TOKENS,
-  HIDDEN_HANDLE,
-  kept,
-  type GraphSelection,
-} from "./flowChrome";
+import { ARROWS, FIT, FLOW_TOKENS, HIDDEN_HANDLE, kept, type GraphSelection } from "./flowChrome";
 import { ZoomButtons } from "./ZoomButtons";
 import { layoutEstate } from "./estateLayout";
 import { boxIcon, boxLabel, edgeLabel, edgeLabelShort } from "./estateNames";
@@ -136,13 +129,7 @@ interface CanvasProps {
   takeFocus?: boolean;
 }
 
-function Canvas({
-  map,
-  onOpen,
-  onSelect,
-  takeFocus = false,
-  selected = null,
-}: CanvasProps) {
+function Canvas({ map, onOpen, onSelect, takeFocus = false, selected = null }: CanvasProps) {
   const { nodes, edges: drawn, at, first } = useMemo(() => toFlow(map), [map]);
   const reduced = usePrefersReducedMotion();
   // What the pointer or the keyboard is on, faded around as a selection is
@@ -202,7 +189,7 @@ function Canvas({
     const frameId = requestAnimationFrame(() => focusBox(first));
     return () => cancelAnimationFrame(frameId);
     // Once per canvas: the map remounts it for every lens.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per canvas; the map remounts it for every lens.
   }, []);
 
   // Whether every one of these boxes is on screen at the current viewport.
@@ -239,7 +226,7 @@ function Canvas({
     const edge = selected.kind === "edge" ? drawn.find((e) => e.id === selected.id) : undefined;
     centreOn(selected.kind === "box" ? [selected.id] : edge ? [edge.source, edge.target] : []);
     // Only a new selection moves the view.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only a new selection moves the view.
   }, [selected?.kind, selected?.id]);
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -313,14 +300,12 @@ function toFlow(map: EstateMap): {
   const { at, bends } = layoutEstate(map);
   const origin = { x: 0, y: 0 };
 
-  const nodes: Node[] = map.boxes.map(
-    (box): BoxFlowNode => ({
-      id: box.id,
-      type: "box",
-      position: at.get(box.id) ?? origin,
-      data: box,
-    }),
-  );
+  const nodes: Node[] = map.boxes.map((box): BoxFlowNode => ({
+    id: box.id,
+    type: "box",
+    position: at.get(box.id) ?? origin,
+    data: box,
+  }));
 
   // Below every box: where backward arrows run, each in a lane of its own.
   const floor = Math.max(0, ...[...at.values()].map((p) => p.y)) + BOX_HEIGHT + 40;
@@ -423,8 +408,7 @@ function BoxNode({ id, data }: NodeProps<BoxFlowNode>) {
     "nopan focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring",
     // Dashed, the way every gap in what CloudGuard draws is: counted, not drawn.
     fold && "border-dashed border-border bg-background",
-    !fold &&
-      (data.inside ? "border-border bg-card" : "border-border bg-muted/40"),
+    !fold && (data.inside ? "border-border bg-card" : "border-border bg-muted/40"),
     "transition-[opacity,box-shadow]",
     actions.lit && !actions.lit.has(id) && "opacity-30",
   );
@@ -493,12 +477,7 @@ function BoxNode({ id, data }: NodeProps<BoxFlowNode>) {
 
   return (
     <>
-      <Handle
-        type="target"
-        position={Position.Left}
-        isConnectable={false}
-        style={HIDDEN_HANDLE}
-      />
+      <Handle type="target" position={Position.Left} isConnectable={false} style={HIDDEN_HANDLE} />
       {box}
       <Handle type="source" position={Position.Right} isConnectable={false} style={HIDDEN_HANDLE} />
     </>

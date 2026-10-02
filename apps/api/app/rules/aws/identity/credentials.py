@@ -99,9 +99,7 @@ class AwsUserWithoutMfaRule(SecurityRule):
         has_password = resource.get("password_enabled")
         has_mfa = resource.get("mfa_active")
         if has_password is None or has_mfa is None:
-            return RuleResult.unknown(
-                "The credential report did not cover this user"
-            )
+            return RuleResult.unknown("The credential report did not cover this user")
         evidence = {
             "password_enabled": has_password,
             "mfa_active": has_mfa,
@@ -112,9 +110,7 @@ class AwsUserWithoutMfaRule(SecurityRule):
         # the control that matters for them -- their access keys are, and
         # AWS-IAM-003 is about those.
         if not has_password:
-            return RuleResult.not_applicable(
-                f"{resource.name} has no console password"
-            )
+            return RuleResult.not_applicable(f"{resource.name} has no console password")
         if has_mfa:
             return RuleResult.passed(evidence)
 
@@ -168,8 +164,7 @@ class AwsStaleAccessKeyRule(SecurityRule):
         expected=(),
         cli=(
             "aws iam list-access-keys --user-name <user>",
-            "aws iam update-access-key --user-name <user> "
-            "--access-key-id <id> --status Inactive",
+            "aws iam update-access-key --user-name <user> --access-key-id <id> --status Inactive",
             "aws iam delete-access-key --user-name <user> --access-key-id <id>",
         ),
         notes=(
@@ -212,9 +207,7 @@ class AwsStaleAccessKeyRule(SecurityRule):
 
         return RuleResult.failed(
             evidence=evidence,
-            message=(
-                f"{resource.name} has an active access key unused for {idle} days"
-            ),
+            message=(f"{resource.name} has an active access key unused for {idle} days"),
         )
 
 
@@ -231,9 +224,7 @@ class AwsRootAccessKeyRule(SecurityRule):
     severity = Severity.CRITICAL
     exploitability = 3
     scope = RuleScope.AGGREGATE
-    requires_evidence: ClassVar[tuple[AwsEvidence, ...]] = (
-        AwsEvidence.ACCOUNT_SUMMARY,
-    )
+    requires_evidence: ClassVar[tuple[AwsEvidence, ...]] = (AwsEvidence.ACCOUNT_SUMMARY,)
     estimated_effort_minutes = 15
     rationale = (
         "There is no legitimate day-to-day use for a root access key, and no way to "
@@ -252,10 +243,7 @@ class AwsRootAccessKeyRule(SecurityRule):
         # Aggregate: the expectation is about the account, not about an asset,
         # so there is no resource an expected state could be checked against.
         expected=(),
-        cli=(
-            "aws iam get-account-summary "
-            "--query 'SummaryMap.AccountAccessKeysPresent'",
-        ),
+        cli=("aws iam get-account-summary --query 'SummaryMap.AccountAccessKeysPresent'",),
         notes=(
             "There is no CLI that deletes a root access key: only the root user "
             "can, from the console's Security credentials page. The command "
@@ -308,9 +296,7 @@ class AwsPasswordPolicyRule(SecurityRule):
     severity = Severity.MEDIUM
     exploitability = 2
     scope = RuleScope.AGGREGATE
-    requires_evidence: ClassVar[tuple[AwsEvidence, ...]] = (
-        AwsEvidence.ACCOUNT_PASSWORD_POLICY,
-    )
+    requires_evidence: ClassVar[tuple[AwsEvidence, ...]] = (AwsEvidence.ACCOUNT_PASSWORD_POLICY,)
     estimated_effort_minutes = 10
     rationale = (
         "The policy is what applies to every console user who is not covered by an "
@@ -397,9 +383,7 @@ class AwsRootMfaRule(SecurityRule):
     severity = Severity.CRITICAL
     exploitability = 4
     scope = RuleScope.AGGREGATE
-    requires_evidence: ClassVar[tuple[AwsEvidence, ...]] = (
-        AwsEvidence.ACCOUNT_SUMMARY,
-    )
+    requires_evidence: ClassVar[tuple[AwsEvidence, ...]] = (AwsEvidence.ACCOUNT_SUMMARY,)
     estimated_effort_minutes = 15
     rationale = (
         "The root user's email address is usually known and its password is "
@@ -449,9 +433,7 @@ class AwsRootMfaRule(SecurityRule):
         if enabled:
             return RuleResult.passed(evidence)
 
-        return RuleResult.failed(
-            evidence=evidence, message="The root user has no MFA device"
-        )
+        return RuleResult.failed(evidence=evidence, message="The root user has no MFA device")
 
 
 class AwsAdministratorPolicyRule(SecurityRule):
@@ -522,9 +504,7 @@ class AwsAdministratorPolicyRule(SecurityRule):
 
         documents = context.controls.get("iam_policy_documents") or []
         if not documents:
-            return RuleResult.not_applicable(
-                "This account has no customer-managed policies"
-            )
+            return RuleResult.not_applicable("This account has no customer-managed policies")
 
         offenders = [
             {
@@ -576,9 +556,7 @@ def _grants_everything(document: object) -> bool:
         actions = [actions] if isinstance(actions, str) else actions
         resources = statement.get("Resource") or []
         resources = [resources] if isinstance(resources, str) else resources
-        if any(str(a) in ("*", "*:*") for a in actions) and any(
-            str(r) == "*" for r in resources
-        ):
+        if any(str(a) in ("*", "*:*") for a in actions) and any(str(r) == "*" for r in resources):
             return True
     return False
 
@@ -595,9 +573,7 @@ class AwsExpiredCertificateRule(SecurityRule):
     severity = Severity.MEDIUM
     exploitability = 1
     scope = RuleScope.AGGREGATE
-    requires_evidence: ClassVar[tuple[AwsEvidence, ...]] = (
-        AwsEvidence.IAM_SERVER_CERTIFICATES,
-    )
+    requires_evidence: ClassVar[tuple[AwsEvidence, ...]] = (AwsEvidence.IAM_SERVER_CERTIFICATES,)
     estimated_effort_minutes = 15
     rationale = (
         "An expired certificate in use breaks clients or teaches them to click "
@@ -614,9 +590,7 @@ class AwsExpiredCertificateRule(SecurityRule):
     )
     remediation_spec: ClassVar[RemediationSpec | None] = RemediationSpec(
         expected=(),
-        cli=(
-            "aws iam delete-server-certificate --server-certificate-name <name>",
-        ),
+        cli=("aws iam delete-server-certificate --server-certificate-name <name>",),
         notes=(
             "Check what serves it first. Deleting one still attached to a load "
             "balancer breaks TLS on it."
@@ -640,9 +614,7 @@ class AwsExpiredCertificateRule(SecurityRule):
 
         certificates = context.controls.get("server_certificates") or []
         if not certificates:
-            return RuleResult.not_applicable(
-                "This account has no certificates in IAM"
-            )
+            return RuleResult.not_applicable("This account has no certificates in IAM")
 
         # Expiry is judged against the capture rather than the clock, the same
         # way a credential's age is: a replayed scan has to reach the verdict
@@ -684,8 +656,8 @@ class AwsAccessAnalyzerRule(SecurityRule):
     )
     estimated_effort_minutes = 15
     rationale = (
-        "Access Analyzer is the only service that answers \"what in this account "
-        "can be reached from outside it\" by reasoning about the policies rather "
+        'Access Analyzer is the only service that answers "what in this account '
+        'can be reached from outside it" by reasoning about the policies rather '
         "than by pattern-matching them. It is free, and off by default."
     )
     remediation = (
@@ -763,9 +735,7 @@ class AwsSupportRoleRule(SecurityRule):
     # one — so it scores as nothing and is reported anyway.
     exploitability = 0
     scope = RuleScope.AGGREGATE
-    requires_evidence: ClassVar[tuple[AwsEvidence, ...]] = (
-        AwsEvidence.IAM_SUPPORT_ACCESS,
-    )
+    requires_evidence: ClassVar[tuple[AwsEvidence, ...]] = (AwsEvidence.IAM_SUPPORT_ACCESS,)
     estimated_effort_minutes = 10
     rationale = (
         "The moment this matters is the worst moment to discover it. An account "
@@ -824,9 +794,7 @@ class AwsSupportRoleRule(SecurityRule):
             return RuleResult.unknown("Support policy attachments missing from snapshot")
 
         evidence = {
-            "holders": [
-                {"kind": row.get("kind"), "name": _holder_name(row)} for row in holders
-            ]
+            "holders": [{"kind": row.get("kind"), "name": _holder_name(row)} for row in holders]
         }
         if holders:
             return RuleResult.passed(evidence)

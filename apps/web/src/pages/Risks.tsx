@@ -12,12 +12,7 @@ import { StatusPill } from "@/components/security/StatusPill";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { ScoreTile } from "@/components/security/ScoreTile";
 import { Badge } from "@/components/ui/badge";
-import {
-  CardsSkeleton,
-  EmptyState,
-  ErrorState,
-  PageHeader,
-} from "@/components/common/states";
+import { CardsSkeleton, EmptyState, ErrorState, PageHeader } from "@/components/common/states";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { StatStrip } from "@/components/common/StatStrip";
 import { Input } from "@/components/ui/input";
@@ -100,8 +95,7 @@ export function RisksPage() {
     queryFn: () =>
       api.get<Risk[]>(`/api/v1/risks?${params.toString()}`).then((r) => ({
         risks: r.data,
-        total:
-          (r.meta as { total?: number } | undefined)?.total ?? r.data.length,
+        total: (r.meta as { total?: number } | undefined)?.total ?? r.data.length,
       })),
     placeholderData: keepPreviousData,
   });
@@ -147,10 +141,7 @@ export function RisksPage() {
   const total = data?.total ?? 0;
   const pages = Math.ceil(total / PAGE_SIZE);
   const filtering =
-    search.trim().length > 0 ||
-    level !== "all" ||
-    status !== "all" ||
-    kind !== "all";
+    search.trim().length > 0 || level !== "all" || status !== "all" || kind !== "all";
   const emptyTitle = filtering ? "No risks match these filters" : t.risks.empty;
   const countLine =
     `${page * PAGE_SIZE + 1}–${page * PAGE_SIZE + risks.length} of ${total} ` +
@@ -164,8 +155,7 @@ export function RisksPage() {
   const chokes = useQuery({
     queryKey: ["attack-paths", "choke-points"],
     enabled: hasRoutes && page === 0 && !filtering,
-    queryFn: () =>
-      api.get<ChokePoint[]>("/api/v1/attack-paths/choke-points").then((r) => r.data),
+    queryFn: () => api.get<ChokePoint[]>("/api/v1/attack-paths/choke-points").then((r) => r.data),
   });
 
   // The headline counts, each from the list's own endpoint (`meta.total` of
@@ -299,10 +289,7 @@ export function RisksPage() {
         </div>
       </div>
 
-      <LiveStatus
-        quietFirst
-        message={!data ? null : risks.length > 0 ? countLine : emptyTitle}
-      />
+      <LiveStatus quietFirst message={!data ? null : risks.length > 0 ? countLine : emptyTitle} />
 
       {isLoading && <CardsSkeleton />}
 
@@ -390,15 +377,8 @@ export function RisksPage() {
           </m.div>
 
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs text-muted-foreground">
-              {countLine}
-            </p>
-            <Pager
-              page={page}
-              pages={pages}
-              onPage={setPage}
-              className="w-auto"
-            />
+            <p className="text-xs text-muted-foreground">{countLine}</p>
+            <Pager page={page} pages={pages} onPage={setPage} className="w-auto" />
           </div>
         </>
       )}
@@ -459,25 +439,16 @@ function ScenarioCard({ risk, select }: { risk: Risk; select?: React.ReactNode }
       <RiskFooter>
         <span className="text-muted-foreground">
           {t.risks.worstMember}{" "}
-          <strong className="text-foreground">
-            {breakdown.worst_member ?? "—"}
-          </strong>
+          <strong className="text-foreground">{breakdown.worst_member ?? "—"}</strong>
         </span>
         <span className="text-muted-foreground">
           {t.risks.amplifier}{" "}
-          <strong className="text-foreground">
-            +{breakdown.amplifier ?? 0}
-          </strong>
+          <strong className="text-foreground">+{breakdown.amplifier ?? 0}</strong>
         </span>
         <span className="text-muted-foreground">
-          Hops{" "}
-          <strong className="text-foreground">
-            {breakdown.hops ?? risk.path.length}
-          </strong>
+          Hops <strong className="text-foreground">{breakdown.hops ?? risk.path.length}</strong>
         </span>
-        {capped && (
-          <span className="text-muted-foreground">{t.risks.cappedNote}</span>
-        )}
+        {capped && <span className="text-muted-foreground">{t.risks.cappedNote}</span>}
       </RiskFooter>
     </RiskShell>
   );
@@ -719,8 +690,8 @@ function TopFixes({ chokes }: { chokes: ChokePoint[] }) {
             </GraphLink>
             <span className="shrink-0 text-muted-foreground">
               closes{" "}
-              <strong className="font-semibold tabular-nums text-foreground">{choke.severs}</strong> of{" "}
-              {choke.total_routes} route{choke.total_routes === 1 ? "" : "s"}
+              <strong className="font-semibold tabular-nums text-foreground">{choke.severs}</strong>{" "}
+              of {choke.total_routes} route{choke.total_routes === 1 ? "" : "s"}
             </span>
           </li>
         ))}

@@ -73,9 +73,7 @@ def load_raw(name: str = "snapshot_mixed") -> dict:
 # The recorded fixture is one file covering a whole scan, but a scan reads two
 # scopes and the pipeline asks for them separately. These are the keys that
 # belong to the tenant rather than to any subscription in it.
-DIRECTORY_KEYS = frozenset(
-    {"users", "directory_roles", "user_role_map", "authentication_methods"}
-)
+DIRECTORY_KEYS = frozenset({"users", "directory_roles", "user_role_map", "authentication_methods"})
 DIRECTORY_CATEGORY = "identity"
 
 # Which payload keys each reading owns. The real plan does not need this -- a
@@ -447,8 +445,8 @@ class TestFirstScan:
 
         assert findings, "the vulnerable fixture must produce findings"
         by_rule = {f["rule_id"]: f for f in findings}
-        assert "AZ-NET-001" in by_rule    # RDP open to the internet
-        assert "AZ-DB-001" in by_rule     # SQL firewall allows everything
+        assert "AZ-NET-001" in by_rule  # RDP open to the internet
+        assert "AZ-DB-001" in by_rule  # SQL firewall allows everything
 
         rdp = by_rule["AZ-NET-001"]
         # Every finding needs evidence (SECURITY.md section 1, rule 8).
@@ -472,9 +470,7 @@ class TestFirstScan:
         assert "nsg-jumpbox" in title
         assert "RDP" in title
 
-    async def test_every_finding_gets_a_scored_risk(
-        self, replay, connected_account
-    ) -> None:
+    async def test_every_finding_gets_a_scored_risk(self, replay, connected_account) -> None:
         org_id, account_id = connected_account
         await run_scan(org_id, account_id)
 
@@ -510,9 +506,7 @@ class TestFirstScan:
         assert float(rdp["risk_score"]) >= 75
         assert rdp["risk_level"] == Level.CRITICAL
 
-    async def test_coverage_is_recorded_for_every_rule(
-        self, replay, connected_account
-    ) -> None:
+    async def test_coverage_is_recorded_for_every_rule(self, replay, connected_account) -> None:
         org_id, account_id = connected_account
         scan_id = await run_scan(org_id, account_id)
 
@@ -546,8 +540,7 @@ class TestUnknownHandling:
         assert "timed out" in storage_gaps[0][1]
 
         storage_findings = await fetch(
-            "SELECT rule_id FROM findings WHERE organization_id = :o "
-            "AND rule_id LIKE 'AZ-STO%'",
+            "SELECT rule_id FROM findings WHERE organization_id = :o AND rule_id LIKE 'AZ-STO%'",
             {"o": org_id},
         )
         assert storage_findings == [], "UNKNOWN must never become a Finding"
@@ -568,16 +561,13 @@ class TestUnknownHandling:
 class TestRemediationVerification:
     """Requirement 13: a rescan verifies the fix. No human marks anything."""
 
-    async def test_rescan_auto_resolves_a_fixed_finding(
-        self, replay, connected_account
-    ) -> None:
+    async def test_rescan_auto_resolves_a_fixed_finding(self, replay, connected_account) -> None:
         org_id, account_id = connected_account
 
         # --- scan 1: RDP is open --------------------------------------------
         await run_scan(org_id, account_id)
         rows = await fetch(
-            "SELECT id, status FROM findings WHERE organization_id = :o "
-            "AND rule_id = 'AZ-NET-001'",
+            "SELECT id, status FROM findings WHERE organization_id = :o AND rule_id = 'AZ-NET-001'",
             {"o": org_id},
         )
         assert rows[0][1] == FindingStatus.OPEN
@@ -602,9 +592,7 @@ class TestRemediationVerification:
         # Stamped with the scan that proved it -- this IS the verification.
         assert finding.resolved_by_scan_id == scan_2
 
-    async def test_resolving_a_finding_resolves_its_risk(
-        self, replay, connected_account
-    ) -> None:
+    async def test_resolving_a_finding_resolves_its_risk(self, replay, connected_account) -> None:
         org_id, account_id = connected_account
         await run_scan(org_id, account_id)
 
@@ -642,15 +630,12 @@ class TestRemediationVerification:
         await run_scan(org_id, account_id)
 
         rows = await fetch(
-            "SELECT status FROM findings WHERE organization_id = :o "
-            "AND rule_id = 'AZ-NET-001'",
+            "SELECT status FROM findings WHERE organization_id = :o AND rule_id = 'AZ-NET-001'",
             {"o": org_id},
         )
         assert rows[0][0] == FindingStatus.OPEN
 
-    async def test_a_regression_reopens_a_resolved_finding(
-        self, replay, connected_account
-    ) -> None:
+    async def test_a_regression_reopens_a_resolved_finding(self, replay, connected_account) -> None:
         org_id, account_id = connected_account
         await run_scan(org_id, account_id)
 
@@ -688,9 +673,7 @@ class TestRemediationVerification:
         )
         assert rows == [], "a re-detection must update, not duplicate"
 
-    async def test_risks_are_not_duplicated_across_scans(
-        self, replay, connected_account
-    ) -> None:
+    async def test_risks_are_not_duplicated_across_scans(self, replay, connected_account) -> None:
         """The half the finding check above never covered.
 
         A finding is unique on (organization, rule, resource) and the database
@@ -740,9 +723,7 @@ class TestRemediationVerification:
 
 
 class TestSecurityScoreMoves:
-    async def test_score_improves_after_a_verified_fix(
-        self, replay, connected_account
-    ) -> None:
+    async def test_score_improves_after_a_verified_fix(self, replay, connected_account) -> None:
         """The MVP success condition: the score moves when a fix is verified."""
         from app.services.dashboard import build_dashboard
 
@@ -818,9 +799,7 @@ class TestSnapshotReplay:
             replayed = await session.get(Scan, replayed_id)
         assert replayed.status == ScanStatus.COMPLETED
 
-    async def test_a_replay_writes_no_second_snapshot(
-        self, replay, connected_account
-    ) -> None:
+    async def test_a_replay_writes_no_second_snapshot(self, replay, connected_account) -> None:
         """Snapshots come from collection, not from evaluation.
 
         Counted before and after rather than against a fixed number: what the
@@ -1018,8 +997,7 @@ class TestSnapshotReplay:
         stale_scan_id = await run_scan(org_id, account_id)
         before = dict(
             await fetch(
-                "SELECT id, last_seen_at FROM cloud_resources "
-                "WHERE organization_id = :o",
+                "SELECT id, last_seen_at FROM cloud_resources WHERE organization_id = :o",
                 {"o": org_id},
             )
         )
@@ -1027,8 +1005,7 @@ class TestSnapshotReplay:
         await run_replay(org_id, account_id, stale_scan_id)
         after = dict(
             await fetch(
-                "SELECT id, last_seen_at FROM cloud_resources "
-                "WHERE organization_id = :o",
+                "SELECT id, last_seen_at FROM cloud_resources WHERE organization_id = :o",
                 {"o": org_id},
             )
         )
@@ -1158,15 +1135,16 @@ class TestTenantWideScan:
         assert all(count == 1 for _id, count in rows), (
             "a directory user is one asset in the tenant, not one per subscription"
         )
-        assert all(r[0] is None for r in await fetch(
-            "SELECT cloud_account_id FROM cloud_resources "
-            "WHERE organization_id = :o AND resource_type = 'user'",
-            {"o": org_id},
-        )), "a user belongs to the tenant, so it names no subscription"
+        assert all(
+            r[0] is None
+            for r in await fetch(
+                "SELECT cloud_account_id FROM cloud_resources "
+                "WHERE organization_id = :o AND resource_type = 'user'",
+                {"o": org_id},
+            )
+        ), "a user belongs to the tenant, so it names no subscription"
 
-    async def test_one_administrator_raises_one_finding(
-        self, replay, connected_tenant
-    ) -> None:
+    async def test_one_administrator_raises_one_finding(self, replay, connected_tenant) -> None:
         """The same regression, at the layer the customer would have seen it."""
         org_id, connection_id = connected_tenant
         await run_connection_scan(org_id, connection_id)
@@ -1181,19 +1159,14 @@ class TestTenantWideScan:
         # subscriptions must not double them.
         assert all(count == 1 for *_keys, count in rows)
 
-    async def test_a_scan_with_nothing_in_scope_says_so(
-        self, replay, connected_tenant
-    ) -> None:
+    async def test_a_scan_with_nothing_in_scope_says_so(self, replay, connected_tenant) -> None:
         """Excluding every subscription leaves a connection that cannot be
         scanned, and a scan that reported COMPLETED over zero subscriptions
         would be a clean bill of health for an environment nobody read."""
         org_id, connection_id = connected_tenant
         async with service_session() as session:
             await session.execute(
-                text(
-                    "UPDATE cloud_accounts SET in_scope = false "
-                    "WHERE connection_id = :c"
-                ),
+                text("UPDATE cloud_accounts SET in_scope = false WHERE connection_id = :c"),
                 {"c": connection_id},
             )
             await session.commit()
@@ -1235,7 +1208,7 @@ class TestTenantWideScan:
     async def test_collection_failures_name_the_subscription_they_came_from(
         self, replay, connected_tenant
     ) -> None:
-        """"storage: timeout" twice over says nothing about which subscription
+        """ "storage: timeout" twice over says nothing about which subscription
         to go and look at."""
         broken = load_raw()
         broken["errors"] = {"storage": "read tcp: i/o timeout"}
@@ -1255,9 +1228,7 @@ class TestTenantWideScan:
 class TestCollectionStatus:
     """The record of what a scan managed to read, as facts rather than prose."""
 
-    async def test_every_task_records_its_outcome(
-        self, replay, connected_account
-    ) -> None:
+    async def test_every_task_records_its_outcome(self, replay, connected_account) -> None:
         org_id, account_id = connected_account
         scan_id = await run_scan(org_id, account_id)
 
@@ -1290,9 +1261,7 @@ class TestCollectionStatus:
         assert status["failed"] == 0
         assert status["degraded_categories"] == []
 
-    async def test_a_reading_says_what_rests_on_it(
-        self, replay, connected_account
-    ) -> None:
+    async def test_a_reading_says_what_rests_on_it(self, replay, connected_account) -> None:
         """The citation chain walked from the evidence end.
 
         The finding page asks where its evidence came from. A person looking at
@@ -1433,9 +1402,7 @@ class TestAbandonedScans:
                 await session.commit()
         return scan_id
 
-    async def test_a_scan_whose_lease_expired_is_closed(
-        self, connected_account
-    ) -> None:
+    async def test_a_scan_whose_lease_expired_is_closed(self, connected_account) -> None:
         org_id, account_id = connected_account
         scan_id = await self._make_scan(
             org_id,
@@ -1454,9 +1421,7 @@ class TestAbandonedScans:
         assert "stopped reporting" in scan.error_message
         assert scan.completed_at is not None
 
-    async def test_a_running_scan_with_a_live_lease_is_left_alone(
-        self, connected_account
-    ) -> None:
+    async def test_a_running_scan_with_a_live_lease_is_left_alone(self, connected_account) -> None:
         """The lease is the whole safeguard against reaping working scans."""
         org_id, account_id = connected_account
         scan_id = await self._make_scan(
@@ -1474,9 +1439,7 @@ class TestAbandonedScans:
             scan = await session.get(Scan, scan_id)
         assert scan.status == ScanStatus.EVALUATING
 
-    async def test_a_scan_queued_past_the_grace_period_is_closed(
-        self, connected_account
-    ) -> None:
+    async def test_a_scan_queued_past_the_grace_period_is_closed(self, connected_account) -> None:
         """No lease, because nothing ever claimed it. Judged on how long it has
         waited instead, and told plainly that no worker collected it."""
         org_id, account_id = connected_account
@@ -1485,8 +1448,7 @@ class TestAbandonedScans:
             account_id,
             status=ScanStatus.QUEUED,
             lease_until=None,
-            created_at=datetime.now(UTC)
-            - timedelta(seconds=Scan.QUEUE_GRACE_SECONDS + 60),
+            created_at=datetime.now(UTC) - timedelta(seconds=Scan.QUEUE_GRACE_SECONDS + 60),
         )
 
         async with service_session() as session:
@@ -1535,9 +1497,7 @@ class TestAbandonedScans:
 
         assert not still_blocked
 
-    async def test_a_finished_scan_is_never_reaped(
-        self, replay, connected_account
-    ) -> None:
+    async def test_a_finished_scan_is_never_reaped(self, replay, connected_account) -> None:
         """However stale its lease column looks."""
         org_id, account_id = connected_account
         scan_id = await run_scan(org_id, account_id)
@@ -1589,15 +1549,13 @@ class TestScanScope:
         org_id, account_id = connected_account
         await run_scan(org_id, account_id)
         first = await fetch(
-            "SELECT count(*) FROM findings "
-            "WHERE organization_id = :o AND resource_id IS NULL",
+            "SELECT count(*) FROM findings WHERE organization_id = :o AND resource_id IS NULL",
             {"o": org_id},
         )
 
         await run_scan(org_id, account_id)
         second = await fetch(
-            "SELECT count(*) FROM findings "
-            "WHERE organization_id = :o AND resource_id IS NULL",
+            "SELECT count(*) FROM findings WHERE organization_id = :o AND resource_id IS NULL",
             {"o": org_id},
         )
 
@@ -1690,9 +1648,7 @@ class TestEvidence:
             "the second scan should still record that it read everything again"
         )
 
-    async def test_re_reading_the_same_payload_touches_it(
-        self, replay, connected_account
-    ) -> None:
+    async def test_re_reading_the_same_payload_touches_it(self, replay, connected_account) -> None:
         """What retention reads. A payload still being collected must not look
         like one whose last reference was months ago."""
         org_id, account_id = connected_account
@@ -1713,9 +1669,7 @@ class TestEvidence:
         assert second[0][0] >= first[0][0], "last_seen_at went backwards"
         assert second[0][1] == first[0][1], "first_stored_at is not the storing time"
 
-    async def test_a_failed_reading_points_at_no_payload(
-        self, replay, connected_account
-    ) -> None:
+    async def test_a_failed_reading_points_at_no_payload(self, replay, connected_account) -> None:
         """A hash of nothing would claim there was something to point at."""
         org_id, account_id = connected_account
         replay["payload"]["errors"]["storage"] = "Azure API timeout"
@@ -1741,8 +1695,7 @@ class TestEvidence:
         scan_id = await run_scan(org_id, account_id)
 
         rows = await fetch(
-            "SELECT count(*) FROM evidence "
-            "WHERE scan_id = :s AND collected_at IS NOT NULL",
+            "SELECT count(*) FROM evidence WHERE scan_id = :s AND collected_at IS NOT NULL",
             {"s": scan_id},
         )
         assert rows[0][0] > 0
@@ -1760,9 +1713,7 @@ class TestOrchestration:
         async with service_session() as session:
             return await orchestrator.steps_for(session, scan_id)
 
-    async def test_a_scan_records_a_step_per_scope(
-        self, replay, connected_tenant
-    ) -> None:
+    async def test_a_scan_records_a_step_per_scope(self, replay, connected_tenant) -> None:
         org_id, connection_id = connected_tenant
         scan_id = await run_connection_scan(org_id, connection_id)
 
@@ -1774,9 +1725,7 @@ class TestOrchestration:
         assert kinds.count(ScanStepKind.COLLECT) == 3
         assert all(s.status == ScanStepStatus.SUCCEEDED for s in steps)
 
-    async def test_a_claimed_step_cannot_be_claimed_twice(
-        self, replay, connected_account
-    ) -> None:
+    async def test_a_claimed_step_cannot_be_claimed_twice(self, replay, connected_account) -> None:
         """The concurrency control, exercised where it can actually race.
 
         Two advances arriving together must split the work rather than hand the
@@ -1945,17 +1894,13 @@ class TestOrchestration:
             assert await orchestrator.renew(session, plan_step.id, 1) is True
             # A second claim, as the reaper and another worker would produce.
             await session.execute(
-                text(
-                    "UPDATE scan_steps SET attempt = 2 WHERE id = :s"
-                ),
+                text("UPDATE scan_steps SET attempt = 2 WHERE id = :s"),
                 {"s": plan_step.id},
             )
             await session.commit()
             assert await orchestrator.renew(session, plan_step.id, 1) is False
 
-    async def test_analysis_reports_the_phase_it_reached(
-        self, replay, connected_tenant
-    ) -> None:
+    async def test_analysis_reports_the_phase_it_reached(self, replay, connected_tenant) -> None:
         """The scan wizard draws normalize, evaluate and score inside the one
         ANALYZE step from this column, so a finished analysis must have passed
         all three and left the last one behind."""
@@ -1998,10 +1943,7 @@ class TestOrchestration:
             await orchestrator.claim(session, [analyze.id])
 
         async with service_session() as session:
-            assert (
-                await orchestrator.set_phase(session, analyze.id, 1, AnalyzePhase.SCORE)
-                is True
-            )
+            assert await orchestrator.set_phase(session, analyze.id, 1, AnalyzePhase.SCORE) is True
             # Reaped and reclaimed: back to PENDING, then claimed at attempt 2.
             await session.execute(
                 text("UPDATE scan_steps SET status = 'PENDING' WHERE id = :s"),
@@ -2016,13 +1958,10 @@ class TestOrchestration:
             # A retry starts again from no phase.
             assert reclaimed.phase is None
             assert (
-                await orchestrator.set_phase(session, analyze.id, 1, AnalyzePhase.EVALUATE)
-                is False
+                await orchestrator.set_phase(session, analyze.id, 1, AnalyzePhase.EVALUATE) is False
             )
 
-    async def test_a_reaped_step_is_not_a_reaped_scan(
-        self, replay, connected_account
-    ) -> None:
+    async def test_a_reaped_step_is_not_a_reaped_scan(self, replay, connected_account) -> None:
         """A scan with a step waiting for a worker has work outstanding, not
         work nobody is doing -- and closing it would close a scan that is about
         to continue."""
@@ -2042,8 +1981,7 @@ class TestOrchestration:
             await session.execute(
                 text("UPDATE scans SET created_at = :t WHERE id = :s"),
                 {
-                    "t": datetime.now(UTC)
-                    - timedelta(seconds=Scan.QUEUE_GRACE_SECONDS + 60),
+                    "t": datetime.now(UTC) - timedelta(seconds=Scan.QUEUE_GRACE_SECONDS + 60),
                     "s": scan_id,
                 },
             )
@@ -2063,10 +2001,7 @@ class TestOrchestration:
         org_id, connection_id = connected_tenant
         async with service_session() as session:
             await session.execute(
-                text(
-                    "UPDATE cloud_accounts SET in_scope = false "
-                    "WHERE connection_id = :c"
-                ),
+                text("UPDATE cloud_accounts SET in_scope = false WHERE connection_id = :c"),
                 {"c": connection_id},
             )
             await session.commit()
@@ -2212,9 +2147,7 @@ class TestOrchestration:
         assert scan.status == ScanStatus.PARTIAL
         assert "storage" in scan.collection_errors
 
-    async def test_one_subscription_names_its_gaps_plainly(
-        self, replay, connected_account
-    ) -> None:
+    async def test_one_subscription_names_its_gaps_plainly(self, replay, connected_account) -> None:
         """No qualifier where there is nothing to disambiguate.
 
         The regression: the qualifier was applied whenever a scan held more than
@@ -2235,9 +2168,7 @@ class TestOrchestration:
             f"a single-subscription scan qualified its gaps: {scan.collection_errors}"
         )
 
-    async def test_several_subscriptions_still_name_theirs(
-        self, replay, connected_tenant
-    ) -> None:
+    async def test_several_subscriptions_still_name_theirs(self, replay, connected_tenant) -> None:
         """The other half of the same rule. Two subscriptions can both fail to
         read storage, and "storage: timeout" twice over tells a customer nothing
         about which one to go and look at."""
@@ -2255,7 +2186,7 @@ class TestOrchestration:
     async def test_a_finished_scan_can_say_where_its_time_went(
         self, replay, connected_tenant
     ) -> None:
-        """"Why was this scan slow?" had no answer.
+        """ "Why was this scan slow?" had no answer.
 
         A scan was one task with one start and one end, so a slow subscription
         and a slow evaluation looked identical. Steps record when each stage was
@@ -2282,9 +2213,7 @@ class TestOrchestration:
         collect_scopes = {s["scope"] for s in stages if s["stage"] == "COLLECT"}
         assert collect_scopes == {"Subscription 1", "Subscription 2", DIRECTORY_LABEL}
 
-    async def test_a_stage_reports_the_attempt_it_took(
-        self, replay, connected_account
-    ) -> None:
+    async def test_a_stage_reports_the_attempt_it_took(self, replay, connected_account) -> None:
         """A step on its second attempt is a step that was interrupted, which is
         the first thing to know about a scan that took twice as long as usual."""
         from app.services.scans import scan_stages
@@ -2312,10 +2241,7 @@ class TestScheduling:
     async def _set_interval(self, connection_id: uuid.UUID, hours: int | None) -> None:
         async with service_session() as session:
             await session.execute(
-                text(
-                    "UPDATE cloud_connections SET scan_interval_hours = :h "
-                    "WHERE id = :c"
-                ),
+                text("UPDATE cloud_connections SET scan_interval_hours = :h WHERE id = :c"),
                 {"h": hours, "c": connection_id},
             )
             await session.commit()
@@ -2325,9 +2251,7 @@ class TestScheduling:
             due = await scans_service.connections_due(session, limit=50)
         return {c.id for c in due}
 
-    async def test_an_unscheduled_connection_is_never_due(
-        self, replay, connected_tenant
-    ) -> None:
+    async def test_an_unscheduled_connection_is_never_due(self, replay, connected_tenant) -> None:
         """Every connection starts this way, and stays this way until asked."""
         _org_id, connection_id = connected_tenant
         assert connection_id not in await self._due()
@@ -2345,9 +2269,7 @@ class TestScheduling:
         await self._set_interval(connection_id, 24)
         assert connection_id in await self._due()
 
-    async def test_a_recently_scanned_connection_is_not_due(
-        self, replay, connected_tenant
-    ) -> None:
+    async def test_a_recently_scanned_connection_is_not_due(self, replay, connected_tenant) -> None:
         org_id, connection_id = connected_tenant
         await self._set_interval(connection_id, 24)
         await run_connection_scan(org_id, connection_id)
@@ -2376,9 +2298,7 @@ class TestScheduling:
 
         assert connection_id in await self._due()
 
-    async def test_turning_scheduling_off_stops_it(
-        self, replay, connected_tenant
-    ) -> None:
+    async def test_turning_scheduling_off_stops_it(self, replay, connected_tenant) -> None:
         _org_id, connection_id = connected_tenant
         await self._set_interval(connection_id, 24)
         assert connection_id in await self._due()
@@ -2386,9 +2306,7 @@ class TestScheduling:
         await self._set_interval(connection_id, None)
         assert connection_id not in await self._due()
 
-    async def test_a_scheduled_scan_says_it_was_scheduled(
-        self, replay, connected_tenant
-    ) -> None:
+    async def test_a_scheduled_scan_says_it_was_scheduled(self, replay, connected_tenant) -> None:
         """A NULL user could not carry this once scans could start themselves:
         a manual scan whose user record had gone looked identical."""
         org_id, connection_id = connected_tenant
@@ -2408,9 +2326,7 @@ class TestScheduling:
         assert stored.trigger == ScanTrigger.SCHEDULED
         assert stored.triggered_by_user_id is None
 
-    async def test_a_manual_scan_still_says_manual(
-        self, replay, connected_account
-    ) -> None:
+    async def test_a_manual_scan_still_says_manual(self, replay, connected_account) -> None:
         """The default, so nothing that predates the column is mislabelled."""
         org_id, account_id = connected_account
         scan_id = await run_scan(org_id, account_id)
@@ -2437,9 +2353,7 @@ class TestScheduling:
             )
             await session.commit()
 
-            in_flight = await scans_service.scan_in_flight(
-                session, org_id, connection_id, None
-            )
+            in_flight = await scans_service.scan_in_flight(session, org_id, connection_id, None)
         assert in_flight, "the scheduler's own guard should see this one"
 
 
@@ -2453,9 +2367,7 @@ class TestAssetGraph:
     silently short.
     """
 
-    async def test_a_scan_persists_the_capability_edges(
-        self, replay, connected_account
-    ) -> None:
+    async def test_a_scan_persists_the_capability_edges(self, replay, connected_account) -> None:
         org_id, account_id = connected_account
         await run_scan(org_id, account_id)
 
@@ -2470,9 +2382,7 @@ class TestAssetGraph:
         assert kinds.get("grants_role", 0) == 1, "that identity holds a role"
         assert kinds.get("contains", 0) > 0, "and everything sits somewhere"
 
-    async def test_the_path_survives_the_round_trip(
-        self, replay, connected_account
-    ) -> None:
+    async def test_the_path_survives_the_round_trip(self, replay, connected_account) -> None:
         """Built from the database rather than from the scan's own memory."""
         from app.services import graph as graph_service
 
@@ -2511,10 +2421,7 @@ class TestAssetGraph:
         assert reached, "Contributor over the subscription reaches its contents"
         # Scopes are where the reach lands; the assets beneath are what it is
         # of. Listing both would count the same authority twice.
-        assert all(
-            r.resource_type.value not in ("subscription", "resource_group")
-            for r in reached
-        )
+        assert all(r.resource_type.value not in ("subscription", "resource_group") for r in reached)
 
     async def test_an_unbound_nsg_loses_its_edge_on_the_next_scan(
         self, replay, connected_account
@@ -2597,9 +2504,7 @@ class TestAssetGraph:
         # the directory and never through the machine (section 128).
         remaining = second.attack_paths()
         assert not any(p.entry.name == "vm-jumpbox" for p in remaining)
-        assert all(
-            p.steps[0].relationship is RelationshipType.CAN_TAKE_OVER for p in remaining
-        )
+        assert all(p.steps[0].relationship is RelationshipType.CAN_TAKE_OVER for p in remaining)
 
     async def test_an_edge_outliving_its_resource_is_not_followed(
         self, replay, connected_account
@@ -2635,9 +2540,7 @@ class TestAssetGraph:
         )
         assert not any(p.entry.name == "vm-jumpbox" for p in graph.attack_paths())
 
-    async def test_an_absent_resource_is_not_on_any_route(
-        self, replay, connected_account
-    ) -> None:
+    async def test_an_absent_resource_is_not_on_any_route(self, replay, connected_account) -> None:
         """The reported bug. An asset a scan looked for and did not find keeps
         its row -- so its findings stay history, and so an asset that vanishes
         for a week and returns is one asset rather than two -- and the loader
@@ -2674,8 +2577,7 @@ class TestAssetGraph:
         )
         assert not any(p.entry.name == "vm-jumpbox" for p in graph.attack_paths())
         assert not any(
-            node.resource_type.value == "service_principal"
-            for node in graph.nodes.values()
+            node.resource_type.value == "service_principal" for node in graph.nodes.values()
         )
 
 
@@ -2693,9 +2595,7 @@ class TestRouteProvenance:
     Tuesday. The two render identically.
     """
 
-    async def test_a_route_names_the_scan_that_saw_it(
-        self, replay, connected_account
-    ) -> None:
+    async def test_a_route_names_the_scan_that_saw_it(self, replay, connected_account) -> None:
         org_id, account_id = connected_account
         scan_id = await run_scan(org_id, account_id)
 
@@ -2776,16 +2676,13 @@ class TestRouteProvenance:
         scan_id = await run_scan(org_id, account_id)
 
         before = await fetch(
-            "SELECT count(*) FROM risks WHERE organization_id = :o "
-            "AND kind <> 'FINDING'",
+            "SELECT count(*) FROM risks WHERE organization_id = :o AND kind <> 'FINDING'",
             {"o": org_id},
         )
         assert before[0][0] > 0
 
         async with service_session() as session:
-            await session.execute(
-                text("DELETE FROM scans WHERE id = :s"), {"s": scan_id}
-            )
+            await session.execute(text("DELETE FROM scans WHERE id = :s"), {"s": scan_id})
             await session.commit()
 
         after = await fetch(
@@ -2925,9 +2822,7 @@ class TestCaptureReconstruction:
         assert pruned == 0, "retention pruned a payload a live capture points at"
         assert remaining[0][0] > 0
 
-    async def test_every_hash_a_manifest_names_is_stored(
-        self, replay, connected_account
-    ) -> None:
+    async def test_every_hash_a_manifest_names_is_stored(self, replay, connected_account) -> None:
         """No dangling reference at the moment a capture is written.
 
         This was the gate on the flip, and it read the capture's inline data to
@@ -2958,8 +2853,7 @@ class TestCaptureReconstruction:
                 {"o": org_id, "h": hashes},
             )
             assert stored[0][0] == len(set(hashes)), (
-                "a manifest names bytes nobody stored, so this capture cannot "
-                "be replayed"
+                "a manifest names bytes nobody stored, so this capture cannot be replayed"
             )
 
     async def test_an_unchanged_estate_stores_one_payload_set_and_many_captures(
@@ -3041,7 +2935,6 @@ class TestCaptureReconstruction:
         )
 
 
-
 class TestPayloadCompression:
     """What a stored reading costs, and that it is still exactly what was read.
 
@@ -3057,16 +2950,13 @@ class TestPayloadCompression:
     they are filed under rather than only that a scan finished.
     """
 
-    async def test_a_scan_stores_its_payloads_compressed(
-        self, replay, connected_account
-    ) -> None:
+    async def test_a_scan_stores_its_payloads_compressed(self, replay, connected_account) -> None:
         """The change itself. No row keeps a second, uncompressed copy."""
         org_id, account_id = connected_account
         await run_scan(org_id, account_id)
 
         rows = await fetch(
-            "SELECT payload, payload_compressed FROM evidence_blobs "
-            "WHERE organization_id = :o",
+            "SELECT payload, payload_compressed FROM evidence_blobs WHERE organization_id = :o",
             {"o": org_id},
         )
 
@@ -3284,9 +3174,7 @@ class TestChokePoints:
             assert len(pruned.attack_paths()) == len(routes) - choke.severs
             assert choke.severs <= choke.on_routes
 
-    async def test_asking_does_not_change_the_graph(
-        self, replay, connected_account
-    ) -> None:
+    async def test_asking_does_not_change_the_graph(self, replay, connected_account) -> None:
         """The analysis is a question, not a change."""
         from app.services import graph as graph_service
 
@@ -3353,7 +3241,7 @@ class TestScenarioRisk:
     async def test_a_scenario_carries_the_route_that_made_it(
         self, replay, connected_account
     ) -> None:
-        """"This is a risk" is an alarm. The hops are what somebody acts on."""
+        """ "This is a risk" is an alarm. The hops are what somebody acts on."""
         org_id, account_id = connected_account
         await run_scan(org_id, account_id)
 
@@ -3405,7 +3293,6 @@ class TestScenarioRisk:
             after = await build_dashboard(session, org_id)
 
         assert before["security_score"] == after["security_score"]
-
 
     async def test_a_finding_on_a_route_still_has_its_own_risk(
         self, replay, connected_account
@@ -3610,9 +3497,7 @@ class TestRiskHistory:
             {"o": org_id},
         )
 
-    async def test_a_scan_records_the_posture_it_observed(
-        self, replay, connected_account
-    ) -> None:
+    async def test_a_scan_records_the_posture_it_observed(self, replay, connected_account) -> None:
         org_id, account_id = connected_account
         await run_scan(org_id, account_id)
 
@@ -3620,9 +3505,7 @@ class TestRiskHistory:
         assert len(entries) == 1
         assert entries[0][1] > 0, "the vulnerable fixture has open findings"
 
-    async def test_each_scan_adds_one_reading(
-        self, replay, connected_account
-    ) -> None:
+    async def test_each_scan_adds_one_reading(self, replay, connected_account) -> None:
         """A series with two entries per scan would show movement that never
         happened."""
         org_id, account_id = connected_account
@@ -3644,9 +3527,7 @@ class TestRiskHistory:
         assert len(entries) == 2
         assert entries[1][0] > entries[0][0], "the score should have improved"
 
-    async def test_the_delta_is_measured_not_estimated(
-        self, replay, connected_account
-    ) -> None:
+    async def test_the_delta_is_measured_not_estimated(self, replay, connected_account) -> None:
         """Against the previous reading, rather than against the sum of every
         fix ever verified."""
         from app.services.dashboard import build_dashboard
@@ -3669,9 +3550,7 @@ class TestRiskHistory:
         entries = await self._history(org_id)
         assert second["score_delta"] == entries[1][0] - entries[0][0]
 
-    async def test_a_superseded_replay_records_nothing(
-        self, replay, connected_account
-    ) -> None:
+    async def test_a_superseded_replay_records_nothing(self, replay, connected_account) -> None:
         """It reports what today's rules would have found and changes nothing,
         so recording an entry would make the line move on a day nobody looked
         at the environment."""
@@ -3684,9 +3563,7 @@ class TestRiskHistory:
 
         assert len(await self._history(org_id)) == before
 
-    async def test_the_series_survives_pruning_a_scan(
-        self, replay, connected_account
-    ) -> None:
+    async def test_the_series_survives_pruning_a_scan(self, replay, connected_account) -> None:
         """Deleting an execution log must not rewrite history, exactly as it
         leaves the findings that scan raised alone."""
         org_id, account_id = connected_account
@@ -3843,9 +3720,7 @@ class TestVerification:
     async def test_a_pass_verifies_the_claim(self, replay, connected_account) -> None:
         org_id, account_id = connected_account
         await run_scan(org_id, account_id)
-        verification_id = await self._claim(
-            org_id, await self._open_finding(org_id)
-        )
+        verification_id = await self._claim(org_id, await self._open_finding(org_id))
 
         self._fix_rdp(replay)
         scan_2 = await run_scan(org_id, account_id)
@@ -3863,9 +3738,7 @@ class TestVerification:
         time -- so the claim stays open with another look scheduled."""
         org_id, account_id = connected_account
         await run_scan(org_id, account_id)
-        verification_id = await self._claim(
-            org_id, await self._open_finding(org_id)
-        )
+        verification_id = await self._claim(org_id, await self._open_finding(org_id))
 
         await run_scan(org_id, account_id)
 
@@ -3935,8 +3808,7 @@ class TestVerification:
         await run_connection_scan(org_id, connection_id)
 
         accounts = await fetch(
-            "SELECT id FROM cloud_accounts WHERE organization_id = :o ORDER BY "
-            "display_name",
+            "SELECT id FROM cloud_accounts WHERE organization_id = :o ORDER BY display_name",
             {"o": org_id},
         )
         first, second = accounts[0][0], accounts[1][0]
@@ -3983,9 +3855,7 @@ class TestEscalationChains:
             {"o": org_id},
         )
 
-    async def test_a_contributor_is_not_an_escalation_path(
-        self, replay, connected_account
-    ) -> None:
+    async def test_a_contributor_is_not_an_escalation_path(self, replay, connected_account) -> None:
         """The case that decides whether this template is usable.
 
         Contributor holds ``*`` and is excluded from writing role assignments.
@@ -3997,9 +3867,7 @@ class TestEscalationChains:
 
         assert await self._risks(org_id) == []
 
-    async def test_a_role_that_can_assign_roles_raises_one(
-        self, replay, connected_account
-    ) -> None:
+    async def test_a_role_that_can_assign_roles_raises_one(self, replay, connected_account) -> None:
         org_id, account_id = connected_account
         self._can_assign_roles(replay)
         await run_scan(org_id, account_id)
@@ -4155,16 +4023,13 @@ class TestTemporalModel:
         await run_scan(org_id, account_id)
 
         rows = await fetch(
-            "SELECT absent_since FROM cloud_resources WHERE organization_id = :o "
-            "AND name = :n",
+            "SELECT absent_since FROM cloud_resources WHERE organization_id = :o AND name = :n",
             {"o": org_id, "n": name},
         )
         assert len(rows) == 1, "it came back as a second asset"
         assert rows[0][0] is None, "it is still marked absent"
 
-    async def test_a_finding_carries_its_whole_life(
-        self, replay, connected_account
-    ) -> None:
+    async def test_a_finding_carries_its_whole_life(self, replay, connected_account) -> None:
         """Raised, fixed, and back again. Two timestamps could not tell this
         apart from one raised and fixed once."""
         org_id, account_id = connected_account
@@ -4180,9 +4045,7 @@ class TestTemporalModel:
             "REOPENED",
         ]
 
-    async def test_a_resolution_says_the_status_it_left(
-        self, replay, connected_account
-    ) -> None:
+    async def test_a_resolution_says_the_status_it_left(self, replay, connected_account) -> None:
         org_id, account_id = connected_account
         await run_scan(org_id, account_id)
         self._fix_rdp(replay)
@@ -4193,9 +4056,7 @@ class TestTemporalModel:
         assert resolved[1] == "OPEN"
         assert resolved[2] == "RESOLVED"
 
-    async def test_a_superseded_replay_writes_no_history(
-        self, replay, connected_account
-    ) -> None:
+    async def test_a_superseded_replay_writes_no_history(self, replay, connected_account) -> None:
         """A replay of an old capture makes no observation, so it must not
         appear to have watched the environment change."""
         org_id, account_id = connected_account
@@ -4270,8 +4131,7 @@ class TestContextCoverage:
         await run_scan(org_id, account_id)
 
         rows = await fetch(
-            "SELECT known_risk_level FROM risks "
-            "WHERE organization_id = :o AND kind <> 'FINDING'",
+            "SELECT known_risk_level FROM risks WHERE organization_id = :o AND kind <> 'FINDING'",
             {"o": org_id},
         )
 
@@ -4286,9 +4146,7 @@ class TestEvidenceFreshness:
     weeks out of date, and until this existed nothing said so.
     """
 
-    async def test_a_scan_reports_what_it_read_and_when(
-        self, replay, connected_account
-    ) -> None:
+    async def test_a_scan_reports_what_it_read_and_when(self, replay, connected_account) -> None:
         from app.services.dashboard import build_dashboard
 
         org_id, account_id = connected_account
@@ -4304,9 +4162,7 @@ class TestEvidenceFreshness:
         assert freshness["stale_hours"] < 1
         assert freshness["unusable"] == 0
 
-    async def test_a_failed_reading_is_counted_as_unusable(
-        self, replay, connected_account
-    ) -> None:
+    async def test_a_failed_reading_is_counted_as_unusable(self, replay, connected_account) -> None:
         """Recent and usable are two different halves of "can I trust this".
 
         A customer reading a freshness figure is asking whether to believe the
@@ -4326,9 +4182,7 @@ class TestEvidenceFreshness:
 
         assert summary["evidence_freshness"]["unusable"] >= 1
 
-    async def test_the_oldest_reading_is_the_headline(
-        self, replay, connected_account
-    ) -> None:
+    async def test_the_oldest_reading_is_the_headline(self, replay, connected_account) -> None:
         """An average would let a hundred fresh listings hide the one scope
         nobody has managed to read since Tuesday."""
         from app.services.dashboard import build_dashboard
@@ -4428,8 +4282,7 @@ class TestFindingProvenance:
             {"o": org_id},
         )
         sources = await fetch(
-            "SELECT DISTINCT source_scan_id FROM finding_evidence "
-            "WHERE organization_id = :o",
+            "SELECT DISTINCT source_scan_id FROM finding_evidence WHERE organization_id = :o",
             {"o": org_id},
         )
 
@@ -4475,8 +4328,7 @@ class TestFindingProvenance:
             {"o": org_id},
         )
         sources = await fetch(
-            "SELECT DISTINCT source_scan_id FROM finding_evidence "
-            "WHERE organization_id = :o",
+            "SELECT DISTINCT source_scan_id FROM finding_evidence WHERE organization_id = :o",
             {"o": org_id},
         )
 
@@ -4505,9 +4357,7 @@ class TestFindingProvenance:
         assert before[0][0] > 0
 
         async with service_session() as session:
-            await session.execute(
-                text("DELETE FROM scans WHERE id = :s"), {"s": scan_id}
-            )
+            await session.execute(text("DELETE FROM scans WHERE id = :s"), {"s": scan_id})
             await session.commit()
 
         rows = await fetch(
@@ -4659,9 +4509,7 @@ class TestRetention:
         )
         assert directories[0][0] == 1, "the directory a replay needs was pruned"
 
-    async def test_a_capture_inside_the_window_is_kept(
-        self, replay, connected_account
-    ) -> None:
+    async def test_a_capture_inside_the_window_is_kept(self, replay, connected_account) -> None:
         """Retention is a window, not a "keep one" policy.
 
         Drift between two scans is a diff rather than an inference, and a
@@ -4792,8 +4640,7 @@ class TestRetention:
             await session.commit()
 
         citations_after = await fetch(
-            "SELECT count(*), count(content_hash) FROM finding_evidence "
-            "WHERE organization_id = :o",
+            "SELECT count(*), count(content_hash) FROM finding_evidence WHERE organization_id = :o",
             {"o": org_id},
         )
 
@@ -4820,13 +4667,9 @@ class TestRetention:
                 {"o": org_id},
             )
             await session.commit()
-            first = await retention.prune(
-                session, org_id, snapshot_days=30, evidence_days=90
-            )
+            first = await retention.prune(session, org_id, snapshot_days=30, evidence_days=90)
             await session.commit()
-            second = await retention.prune(
-                session, org_id, snapshot_days=30, evidence_days=90
-            )
+            second = await retention.prune(session, org_id, snapshot_days=30, evidence_days=90)
             await session.commit()
 
         assert first["snapshots"] > 0
@@ -4915,9 +4758,7 @@ class TestRetention:
         assert len(remaining) == 3
         assert all(row[2] == 1 for row in remaining)
 
-    async def test_no_ceiling_leaves_the_window_in_charge(
-        self, replay, connected_account
-    ) -> None:
+    async def test_no_ceiling_leaves_the_window_in_charge(self, replay, connected_account) -> None:
         """The prune runs daily against every tenant, so the extra ranking scan
         is only paid for where a ceiling is actually configured."""
         from app.services import retention
@@ -4997,9 +4838,7 @@ class TestComplianceProvenance:
         await run_scan(org_id, account_id)
 
         detail = await self._framework(org_id, "CIS_AZURE_2.0")
-        passing = [
-            c for c in detail["controls"] if c["status"] == "PASSING" and c["readings"]
-        ]
+        passing = [c for c in detail["controls"] if c["status"] == "PASSING" and c["readings"]]
 
         assert passing, "no passing control carried a reading"
         reading = passing[0]["readings"][0]
@@ -5015,7 +4854,7 @@ class TestComplianceProvenance:
     async def test_the_permission_a_read_was_made_under_reaches_the_control(
         self, replay, connected_account, rule_catalogue
     ) -> None:
-        """"How did you even see this" is a question with an answer.
+        """ "How did you even see this" is a question with an answer.
 
         Written onto the evidence rows rather than taken from the fixture,
         whose coverage report predates CloudGuard recording permissions: what
@@ -5115,6 +4954,4 @@ class TestComplianceProvenance:
         by_id = {c["id"]: c for c in detail["controls"]}
         for row in rows:
             assert row["status"] == by_id[row["control_id"]]["status"]
-        assert {row["assessed_at"] for row in rows} == {
-            detail["assessment"]["completed_at"]
-        }
+        assert {row["assessed_at"] for row in rows} == {detail["assessment"]["completed_at"]}

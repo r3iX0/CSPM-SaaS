@@ -8,12 +8,9 @@ import { ConnectionRow } from "@/components/connections/ConnectionRow";
 import { api } from "@/lib/api";
 import type { CloudConnection, DiscoveredSubscription } from "@/lib/types";
 
-const minutesAgo = (minutes: number) =>
-  new Date(Date.now() - minutes * 60_000).toISOString();
+const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
 
-function subscription(
-  overrides: Partial<DiscoveredSubscription> = {},
-): DiscoveredSubscription {
+function subscription(overrides: Partial<DiscoveredSubscription> = {}): DiscoveredSubscription {
   return {
     id: "s1",
     subscription_id: "00000000-0000-0000-0000-000000000001",
@@ -24,7 +21,7 @@ function subscription(
     last_scan_at: minutesAgo(12),
     is_scannable: true,
     ...overrides,
-  } as DiscoveredSubscription;
+  };
 }
 
 function connection(overrides: Partial<CloudConnection> = {}): CloudConnection {
@@ -93,7 +90,7 @@ describe("a connection row", () => {
       connection({
         is_ready_to_scan: false,
         subscriptions: [subscription({ in_scope: false, is_scannable: false })],
-      } as Partial<CloudConnection>),
+      }),
     );
 
     expect(screen.getByText(/nothing in scope/i)).toBeInTheDocument();
@@ -109,7 +106,7 @@ describe("a connection row", () => {
         status: "PENDING",
         status_detail: "Waiting for an administrator to consent.",
         subscriptions: [],
-      } as Partial<CloudConnection>),
+      }),
     );
 
     expect(screen.getByRole("link", { name: /continue setup/i })).toHaveAttribute(
@@ -145,7 +142,7 @@ describe("a connection row", () => {
             scope_changed_at: "2026-08-20T09:00:00Z",
           }),
         ],
-      } as Partial<CloudConnection>),
+      }),
     );
 
     await userEvent.click(screen.getByRole("button", { name: /show this connection/i }));
@@ -169,7 +166,7 @@ describe("a connection row", () => {
             last_scan_at: null,
           }),
         ],
-      } as Partial<CloudConnection>),
+      }),
     );
 
     await userEvent.click(screen.getByRole("button", { name: /show this connection/i }));
@@ -188,7 +185,7 @@ describe("a connection row", () => {
       role_upgrade_available: true,
       degraded_categories: ["database", "secrets"],
       template_url: "https://portal.azure.com/#create/Microsoft.Template/uri/x",
-    } as Partial<CloudConnection>);
+    });
     const post = vi.spyOn(api, "post").mockResolvedValue({
       data: {
         ...behind,
@@ -197,7 +194,7 @@ describe("a connection row", () => {
         degraded_categories: [],
       },
       meta: {},
-    } as never);
+    });
     mount(behind);
 
     await userEvent.click(screen.getByRole("button", { name: /show this connection/i }));
@@ -242,7 +239,7 @@ describe("a connection row", () => {
               meta: {},
             }
           : { data: connection(), meta: {} },
-      ) as never,
+      ),
     );
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
@@ -258,9 +255,7 @@ describe("a connection row", () => {
     // must not fetch six sets of revocation commands nobody wanted to see.
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
 
-    await userEvent.click(
-      screen.getByRole("button", { name: /remove connection/i }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: /remove connection/i }));
 
     // `alertdialog` rather than `dialog`: this is the one irreversible action
     // in the product, and the role is what tells a screen reader to announce
@@ -278,7 +273,7 @@ describe("a connection row", () => {
   it("closes on the safe answer, and never on a stray keypress", async () => {
     // Escape and "Keep it" are the same action, and the destructive button is
     // not the one either of them reaches.
-    vi.spyOn(api, "get").mockResolvedValue({ data: connection(), meta: {} } as never);
+    vi.spyOn(api, "get").mockResolvedValue({ data: connection(), meta: {} });
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       <QueryClientProvider client={client}>
@@ -289,24 +284,18 @@ describe("a connection row", () => {
     );
 
     await userEvent.click(screen.getByRole("button", { name: /show this connection/i }));
-    await userEvent.click(
-      screen.getByRole("button", { name: /remove connection/i }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: /remove connection/i }));
     await screen.findByRole("alertdialog");
 
     await userEvent.keyboard("{Escape}");
 
-    await waitFor(() =>
-      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
   });
 
   it("scans the connection through one of its scannable subscriptions", async () => {
     // A scan is connection-scoped server-side: the worker resolves what sits
     // beneath, so one scannable subscription names the target for all of them.
-    const post = vi
-      .spyOn(api, "post")
-      .mockResolvedValue({ data: { id: "scan-1" }, meta: {} } as never);
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: { id: "scan-1" }, meta: {} });
     mount(connection());
 
     await userEvent.click(screen.getByRole("button", { name: /scan now/i }));

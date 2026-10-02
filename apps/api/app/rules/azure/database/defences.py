@@ -104,7 +104,7 @@ SPECS = (
         cli=(
             "az rest --method PUT --url https://management.azure.com/<server-id>"
             "/sqlVulnerabilityAssessments/default?api-version=2023-08-01 "
-            "--body '{\"properties\":{\"state\":\"Enabled\"}}'",
+            '--body \'{"properties":{"state":"Enabled"}}\'',
         ),
         severity=Severity.MEDIUM,
         exploitability=1,
@@ -223,9 +223,7 @@ class _ClassicAssessmentRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = _VULNERABILITY
     estimated_effort_minutes = 15
 
-    def _classic(
-        self, resource: CloudResource | None, context: RuleContext
-    ) -> RuleResult | None:
+    def _classic(self, resource: CloudResource | None, context: RuleContext) -> RuleResult | None:
         if resource is None:
             return RuleResult.not_applicable("Rule is per-resource")
         failure = context.has_collection_error(*self.requires_evidence)

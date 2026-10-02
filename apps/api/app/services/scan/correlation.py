@@ -172,9 +172,7 @@ async def _correlate_template(
                 + (f"Severing it: {step.detail()}." if step else "")
             )
         else:
-            risk.title = (
-                f"{path.entry.name} leads to control of {path.target.name}"
-            )
+            risk.title = f"{path.entry.name} leads to control of {path.target.name}"
             risk.description = (
                 f"{path.entry.name} is reachable from the internet and, in "
                 f"{path.hops} steps, reaches an identity that can assign "
@@ -234,9 +232,7 @@ async def _correlate_template(
         for key, risk in existing.items()
         if key not in seen and risk.status != RiskStatus.RESOLVED
     ]
-    outside = await _outside_scope(
-        ctx, {node for risk in unseen for node in _route_nodes(risk)}
-    )
+    outside = await _outside_scope(ctx, {node for risk in unseen for node in _route_nodes(risk)})
     now = datetime.now(UTC)
     for risk in unseen:
         if outside is None or outside & _route_nodes(risk):
@@ -249,9 +245,7 @@ def _route_nodes(risk: Risk) -> set[str]:
     """Every asset a stored route passes through, by provider id."""
     nodes: set[str] = set()
     for step in risk.path or []:
-        nodes.update(
-            str(step[end]) for end in ("source_id", "target_id") if step.get(end)
-        )
+        nodes.update(str(step[end]) for end in ("source_id", "target_id") if step.get(end))
     return nodes
 
 

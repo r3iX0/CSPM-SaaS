@@ -80,8 +80,7 @@ def test_arm_template_includes_all_actions() -> None:
     body = arm_template(context())
     parsed = json.loads(body)
     role_resource = next(
-        r for r in parsed["resources"]
-        if r["type"] == "Microsoft.Authorization/roleDefinitions"
+        r for r in parsed["resources"] if r["type"] == "Microsoft.Authorization/roleDefinitions"
     )
     template_actions = role_resource["properties"]["permissions"][0]["actions"]
     assert set(template_actions) == set(ARM_READ_ACTIONS)
@@ -171,9 +170,7 @@ def test_every_mapped_action_is_actually_granted() -> None:
     from app.connectors.azure.rbac import ARM_READ_ACTIONS, CLIENT_ACTIONS
 
     granted = set(ARM_READ_ACTIONS)
-    ungranted = sorted(
-        {a for actions in CLIENT_ACTIONS.values() for a in actions} - granted
-    )
+    ungranted = sorted({a for actions in CLIENT_ACTIONS.values() for a in actions} - granted)
     assert ungranted == [], f"Mapped to actions the role does not grant: {ungranted}"
 
 

@@ -47,9 +47,7 @@ async def demo_org(cleanup_orgs) -> uuid.UUID:
 
 async def join(user_id: uuid.UUID) -> uuid.UUID:
     async with rls_session(user_id) as session:
-        return (
-            await session.execute(text("SELECT app.join_demo_organization()"))
-        ).scalar_one()
+        return (await session.execute(text("SELECT app.join_demo_organization()"))).scalar_one()
 
 
 @pytest.fixture
@@ -82,11 +80,15 @@ class TestJoining:
         await join(VISITOR_B)
         async with rls_session(VISITOR_A) as session:
             visible = (
-                await session.execute(
-                    text("SELECT user_id FROM organization_members WHERE organization_id = :o"),
-                    {"o": demo_org},
+                (
+                    await session.execute(
+                        text("SELECT user_id FROM organization_members WHERE organization_id = :o"),
+                        {"o": demo_org},
+                    )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
         assert visible == [VISITOR_A]
 
     async def test_an_ordinary_organization_still_shows_its_members(self, cleanup_orgs) -> None:
@@ -105,10 +107,7 @@ class TestJoining:
             visible = set(
                 (
                     await session.execute(
-                        text(
-                            "SELECT user_id FROM organization_members "
-                            "WHERE organization_id = :o"
-                        ),
+                        text("SELECT user_id FROM organization_members WHERE organization_id = :o"),
                         {"o": org},
                     )
                 ).scalars()
@@ -122,11 +121,15 @@ class TestJoining:
             await session.execute(text("SELECT app.leave_demo_organization()"))
         async with service_session() as session:
             remaining = (
-                await session.execute(
-                    text("SELECT user_id FROM organization_members WHERE organization_id = :o"),
-                    {"o": demo_org},
+                (
+                    await session.execute(
+                        text("SELECT user_id FROM organization_members WHERE organization_id = :o"),
+                        {"o": demo_org},
+                    )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
         assert remaining == [VISITOR_B]
 
 
@@ -167,7 +170,8 @@ class TestThroughTheApi:
         assert str(demo_org) in ids
 
         renamed = await client.patch(
-            "/api/v1/organizations", json={"name": "Visitor B Renamed"},
+            "/api/v1/organizations",
+            json={"name": "Visitor B Renamed"},
             headers=auth_header(VISITOR_B),
         )
         assert renamed.status_code == 200, renamed.text

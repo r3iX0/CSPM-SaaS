@@ -46,9 +46,7 @@ def _watches(operation: str) -> Any:
     return test
 
 
-def _alert(
-    rule_id: str, operation: str, event: str, why: str, severity: Severity
-) -> PropertySpec:
+def _alert(rule_id: str, operation: str, event: str, why: str, severity: Severity) -> PropertySpec:
     return PropertySpec(
         rule_id=rule_id,
         name=f"No alert fires when {event}",
@@ -136,8 +134,7 @@ SPECS = (
         "AZ-LOG-009",
         "Microsoft.Security/securitySolutions/write",
         "a security solution is created or changed",
-        "A security solution feeds Defender for Cloud; changing one changes what is "
-        "watched.",
+        "A security solution feeds Defender for Cloud; changing one changes what is watched.",
         Severity.LOW,
     ),
     _alert(
@@ -236,10 +233,10 @@ SPECS = (
         cli=(
             "az monitor diagnostic-settings subscription create --name activity-log-export "
             "--location <region> --workspace <workspace-id> --logs "
-            "'[{\"category\":\"Administrative\",\"enabled\":true},"
-            "{\"category\":\"Security\",\"enabled\":true},"
-            "{\"category\":\"Alert\",\"enabled\":true},"
-            "{\"category\":\"Policy\",\"enabled\":true}]'",
+            '\'[{"category":"Administrative","enabled":true},'
+            '{"category":"Security","enabled":true},'
+            '{"category":"Alert","enabled":true},'
+            '{"category":"Policy","enabled":true}]\'',
         ),
         severity=Severity.MEDIUM,
         exploitability=1,
@@ -249,8 +246,7 @@ SPECS = (
         field="activity_log_categories",
         passes=_exports_required_categories,
         why_no_expected_state=(
-            "The export passes with these four among any others, so there is no one list "
-            "to expect."
+            "The export passes with these four among any others, so there is no one list to expect."
         ),
         describes="The activity log export includes Administrative, Security, Alert and Policy",
         failure="does not export every security category of its activity log",
@@ -336,7 +332,6 @@ SPECS = (
         applies_when=(("holds_activity_log", "true"),),
     ),
 )
-
 
 
 class AzureApplicationInsightsRule(SecurityRule):

@@ -102,10 +102,7 @@ class SigningKeys:
         return self._fetched_at is None or now - self._fetched_at >= JWKS_LIFESPAN_SECONDS
 
     def _may_fetch(self, now: float) -> bool:
-        return (
-            self._attempted_at is None
-            or now - self._attempted_at >= JWKS_MIN_REFRESH_SECONDS
-        )
+        return self._attempted_at is None or now - self._attempted_at >= JWKS_MIN_REFRESH_SECONDS
 
     async def get(self, kid: str) -> PyJWK | None:
         key = self._keys.get(kid)
@@ -176,9 +173,7 @@ async def decode_token(token: str) -> AuthenticatedUser:
         raise NotAuthenticated("Malformed authentication token") from exc
 
     if algorithm not in SUPPORTED_ALGORITHMS:
-        raise NotAuthenticated(
-            f"Unsupported token signing algorithm: {algorithm or 'none'}"
-        )
+        raise NotAuthenticated(f"Unsupported token signing algorithm: {algorithm or 'none'}")
 
     key = await _signing_key(header, algorithm)
 

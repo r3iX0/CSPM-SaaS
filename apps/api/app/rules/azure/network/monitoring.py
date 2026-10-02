@@ -140,8 +140,7 @@ class AzureFlowLogRetentionRule(_FlowLogRule):
     remediation_spec: ClassVar[RemediationSpec | None] = RemediationSpec(
         expected=(),
         cli=(
-            "az network watcher flow-log update --location <region> --name <name> "
-            "--retention 90",
+            "az network watcher flow-log update --location <region> --name <name> --retention 90",
         ),
         notes=(
             "No expected state: retention is set on each flow log, a resource of its "
@@ -169,8 +168,7 @@ class AzureFlowLogRetentionRule(_FlowLogRule):
         ]
         evidence = {
             "retention": [
-                {"flow_log": log.get("id"), "days": log.get("retention_days")}
-                for log in logs
+                {"flow_log": log.get("id"), "days": log.get("retention_days")} for log in logs
             ]
         }
         if not short:

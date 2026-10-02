@@ -72,9 +72,7 @@ export function StepDeploy({
     return (
       <Alert className="border-high-border bg-high-bg text-high">
         <AlertTitle>{t.connection.cannotDeployYet}</AlertTitle>
-        <AlertDescription className="text-foreground">
-          {connection.status_detail}
-        </AlertDescription>
+        <AlertDescription className="text-foreground">{connection.status_detail}</AlertDescription>
       </Alert>
     );
   }
@@ -101,10 +99,7 @@ export function StepDeploy({
 
   return (
     <>
-      <StepHeader
-        title={copy.deployTitle}
-        description={copy.deployBody}
-      />
+      <StepHeader title={copy.deployTitle} description={copy.deployBody} />
 
       {/* The external id, in front of the customer *before* they deploy.
           They are about to create a trust policy that requires it, and the one
@@ -168,16 +163,14 @@ export function StepDeploy({
             </div>
           </div>
           <ol className="divide-y divide-border border-t border-high-border bg-card">
-            {[t.setup.stalledPropagation, wrongScope, t.setup.stalledOwner].map(
-              (cause, index) => (
-                <li key={index} className="flex gap-3 px-4 py-3">
-                  <span className="flex size-5 shrink-0 items-center justify-center rounded-full border border-border text-micro font-semibold tabular-nums text-muted-foreground">
-                    {index + 1}
-                  </span>
-                  <span className="text-xs leading-relaxed text-foreground">{cause}</span>
-                </li>
-              ),
-            )}
+            {[t.setup.stalledPropagation, wrongScope, t.setup.stalledOwner].map((cause, index) => (
+              <li key={index} className="flex gap-3 px-4 py-3">
+                <span className="flex size-5 shrink-0 items-center justify-center rounded-full border border-border text-micro font-semibold tabular-nums text-muted-foreground">
+                  {index + 1}
+                </span>
+                <span className="text-xs leading-relaxed text-foreground">{cause}</span>
+              </li>
+            ))}
           </ol>
           <div className="flex flex-wrap gap-2 border-t border-border bg-card px-4 py-3">
             <Button variant="outline" size="sm" onClick={onRecheck} disabled={rechecking}>
@@ -206,19 +199,10 @@ export function StepDeploy({
                 {t.connection.discardDetail}
               </p>
               <div className="mt-2 flex flex-wrap gap-2">
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={onDiscard}
-                  disabled={discarding}
-                >
+                <Button variant="destructive" size="sm" onClick={onDiscard} disabled={discarding}>
                   {discarding ? t.connection.discarding : t.connection.discard}
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setConfirmingDiscard(false)}
-                >
+                <Button variant="outline" size="sm" onClick={() => setConfirmingDiscard(false)}>
                   {t.connection.keep}
                 </Button>
               </div>

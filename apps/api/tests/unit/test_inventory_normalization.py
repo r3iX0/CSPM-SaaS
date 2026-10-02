@@ -115,9 +115,7 @@ class TestNothingIsCountedTwice:
             }
         )
 
-        matching = [
-            r for r in state.resources if r.provider_resource_id == account_id
-        ]
+        matching = [r for r in state.resources if r.provider_resource_id == account_id]
         assert len(matching) == 1
         assert matching[0].resource_type == ResourceType.STORAGE_ACCOUNT
 
@@ -134,9 +132,7 @@ class TestNothingIsCountedTwice:
         CloudGuard happens to model."""
         state = normalize(
             {
-                "storage_accounts": [
-                    {"id": f"{SUB}/sa", "name": "sa", "properties": {}}
-                ],
+                "storage_accounts": [{"id": f"{SUB}/sa", "name": "sa", "properties": {}}],
                 "resources": [
                     row("api", "Microsoft.Web/sites"),
                     row("cache", "Microsoft.Cache/Redis"),
@@ -145,9 +141,7 @@ class TestNothingIsCountedTwice:
         )
 
         assert len(unchecked(state)) == 2
-        assert any(
-            r.resource_type == ResourceType.STORAGE_ACCOUNT for r in state.resources
-        )
+        assert any(r.resource_type == ResourceType.STORAGE_ACCOUNT for r in state.resources)
 
 
 class TestNothingJudgesThem:

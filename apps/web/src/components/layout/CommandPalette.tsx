@@ -16,9 +16,7 @@ const CommandPaletteDialog = lazy(() =>
  * reader nothing worse than a hint naming the other key.
  */
 function shortcutLabel(): string {
-  const mac =
-    typeof navigator !== "undefined" &&
-    /Mac|iPhone|iPad/.test(navigator.userAgent);
+  const mac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.userAgent);
   return mac ? "\u2318K" : "Ctrl K";
 }
 

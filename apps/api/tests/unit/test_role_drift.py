@@ -142,9 +142,7 @@ V12_READS = {
     "Microsoft.Compute/virtualMachineScaleSets/read",
 }
 V12_CATEGORIES = frozenset({EvidenceCategory.COMPUTE})
-BEHIND_SINCE_V7 = (
-    V7_CATEGORIES | V8_CATEGORIES | V9_CATEGORIES | V10_CATEGORIES | V11_CATEGORIES
-)
+BEHIND_SINCE_V7 = V7_CATEGORIES | V8_CATEGORIES | V9_CATEGORIES | V10_CATEGORIES | V11_CATEGORIES
 
 
 # --------------------------------------------------------------- the guards
@@ -205,9 +203,7 @@ def test_collection_categories_match_the_plan() -> None:
 
     assert planned, "could not build a collection plan"
     orphaned = set(COLLECTION_ACTIONS) - planned
-    assert not orphaned, (
-        f"COLLECTION_ACTIONS names categories the plan does not gather: {orphaned}"
-    )
+    assert not orphaned, f"COLLECTION_ACTIONS names categories the plan does not gather: {orphaned}"
 
 
 def test_every_planned_arm_action_is_granted_by_the_role() -> None:
@@ -227,9 +223,7 @@ def test_every_collection_action_is_claimed_by_a_task() -> None:
     claimed = {action for task in build_test_plan() for action in task.actions}
     for category, actions in COLLECTION_ACTIONS.items():
         for action in actions:
-            assert action in claimed, (
-                f"{category} declares {action}, which no collection task uses"
-            )
+            assert action in claimed, f"{category} declares {action}, which no collection task uses"
 
 
 # ------------------------------------------------------------ current role
@@ -473,9 +467,7 @@ class TestRoleUpgrades:
         # returns a secret's value or a key's private material (section 176).
         # Reading a value is ``secrets/getSecret/action``, a data action, and
         # the role carries no data action at all.
-        assert [
-            a for a in rbac.ARM_READ_ACTIONS if a.startswith("Microsoft.KeyVault/")
-        ] == [
+        assert [a for a in rbac.ARM_READ_ACTIONS if a.startswith("Microsoft.KeyVault/")] == [
             "Microsoft.KeyVault/vaults/read",
             "Microsoft.KeyVault/vaults/keys/read",
             "Microsoft.KeyVault/vaults/secrets/read",
@@ -484,9 +476,7 @@ class TestRoleUpgrades:
         assert not [a for a in rbac.ARM_READ_ACTIONS if "readmetadata" in a.lower()]
         # Defender is read and never driven. No action here starts a scan,
         # dismisses a finding, or changes what the customer is assessed on.
-        assert [
-            a for a in rbac.ARM_READ_ACTIONS if a.startswith("Microsoft.Security/")
-        ] == [
+        assert [a for a in rbac.ARM_READ_ACTIONS if a.startswith("Microsoft.Security/")] == [
             "Microsoft.Security/assessments/read",
             "Microsoft.Security/pricings/read",
             "Microsoft.Security/securityContacts/read",
@@ -589,7 +579,6 @@ class TestTheConnectionPayloadExplainsTheGap:
         assert self._payload("v2")["degraded_categories"] == since_v7
 
 
-
 # ------------------------------------------------ what the customer deployed
 class TestReadingTheGrantedActions:
     """Identifying a deployed role by what it allows, not by its name.
@@ -638,9 +627,7 @@ class TestReadingTheGrantedActions:
     def test_a_role_that_was_never_cloudguards_reads_back_as_nothing(self) -> None:
         """None rather than a version string. "I could not tell" is not "v1":
         recording a guess is the lie this whole mechanism exists to stop."""
-        granted = rbac.actions_granted_by(
-            self._permissions("Microsoft.Cdn/profiles/read")
-        )
+        granted = rbac.actions_granted_by(self._permissions("Microsoft.Cdn/profiles/read"))
 
         assert granted == frozenset()
         assert rbac.version_of_granted(granted) is None
@@ -682,9 +669,7 @@ class FakeArm:
         return type(self).assignments
 
     async def get_role_definition(self, definition_id: str) -> dict:
-        return {
-            "properties": {"permissions": type(self).definitions.get(definition_id, [])}
-        }
+        return {"properties": {"permissions": type(self).definitions.get(definition_id, [])}}
 
 
 class FakeSession:
@@ -742,9 +727,7 @@ class TestTheDeployedRoleIsRecorded:
             }
         ]
         FakeArm.definitions = {
-            "/providers/.../roleDefinitions/role-1": [
-                {"actions": list(actions), "notActions": []}
-            ]
+            "/providers/.../roleDefinitions/role-1": [{"actions": list(actions), "notActions": []}]
         }
 
     async def test_a_redeployed_role_clears_the_banner(self) -> None:

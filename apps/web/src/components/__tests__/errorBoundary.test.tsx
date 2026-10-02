@@ -30,13 +30,9 @@ describe("the last thing between an error and a blank page", () => {
     );
 
     expect(screen.getByText(/something went wrong/i)).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /reload cleave/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /reload cleave/i })).toBeInTheDocument();
     // The one line worth quoting to support, and never a stack.
-    expect(
-      screen.getByText(/cannot read properties of undefined/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/cannot read properties of undefined/i)).toBeInTheDocument();
   });
 
   it("says nothing about the environment having changed", () => {
@@ -65,7 +61,9 @@ describe("the last thing between an error and a blank page", () => {
       render(
         <ErrorBoundary>
           <Boom
-            error={new Error("Failed to fetch dynamically imported module: /assets/Findings-abc.js")}
+            error={
+              new Error("Failed to fetch dynamically imported module: /assets/Findings-abc.js")
+            }
           />
         </ErrorBoundary>,
       );
@@ -155,9 +153,7 @@ describe("telling a new release apart from a broken app", () => {
     ]) {
       expect(isStaleChunkError(new Error(message))).toBe(true);
     }
-    expect(isStaleChunkError(Object.assign(new Error("x"), { name: "ChunkLoadError" }))).toBe(
-      true,
-    );
+    expect(isStaleChunkError(Object.assign(new Error("x"), { name: "ChunkLoadError" }))).toBe(true);
   });
 
   it("does not mistake an ordinary bug for one", () => {

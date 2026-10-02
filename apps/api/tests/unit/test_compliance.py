@@ -201,10 +201,8 @@ def test_no_framework_text_carries_markup_the_page_renders_literally() -> None:
             if markup in text:
                 offenders.append(f"{framework.id}: {markup!r}")
     assert offenders == [], (
-        "these render as literal characters rather than formatting: "
-        f"{offenders}"
+        f"these render as literal characters rather than formatting: {offenders}"
     )
-
 
 
 # ------------------------------------------------ the readings under a control
@@ -293,7 +291,7 @@ class TestReadingsBehindAControl:
         assert readings[0].scopes == 0
 
     def test_permissions_are_reported_once_across_scopes(self) -> None:
-        """"Under what permission did you see this" is one answer, not fifty."""
+        """ "Under what permission did you see this" is one answer, not fifty."""
         readings = summarize_readings(
             ["storage_accounts"],
             [

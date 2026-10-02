@@ -50,8 +50,7 @@ export function OrganizationForm({ organization }: { organization: Organization 
       window.setTimeout(() => setSaved(false), 2000);
       queryClient.invalidateQueries({ queryKey: ["organizations"] });
     },
-    onError: (err) =>
-      setError(err instanceof ApiError ? err.message : t.settings.orgFailed),
+    onError: (err) => setError(err instanceof ApiError ? err.message : t.settings.orgFailed),
   });
 
   const changed =
@@ -145,7 +144,6 @@ export function OrganizationForm({ organization }: { organization: Organization 
             </div>
           )}
         </div>
-
       </form>
     </div>
   );

@@ -55,9 +55,7 @@ class AwsCollector:
     ) -> RawSnapshot:
         if not self.account_id:
             raise ValueError("An account id is required to collect AWS state")
-        builder = AwsPlanBuilder(
-            self.assumer, self.account_id, session=self.session
-        )
+        builder = AwsPlanBuilder(self.assumer, self.account_id, session=self.session)
         return await self._run(
             RawSnapshot(
                 provider=Provider.AWS,

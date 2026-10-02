@@ -21,9 +21,7 @@ from app.core.enums import FindingStatus, RiskStatus
 _LIVE = {FindingStatus.OPEN, FindingStatus.IN_PROGRESS, FindingStatus.ACCEPTED_RISK}
 
 
-def finding_risk_status(
-    members: Iterable[FindingStatus], current: RiskStatus
-) -> RiskStatus:
+def finding_risk_status(members: Iterable[FindingStatus], current: RiskStatus) -> RiskStatus:
     """A finding risk's status, read from its findings.
 
     The finding is where the decision is recorded -- compliance cites it, the

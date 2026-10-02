@@ -92,10 +92,7 @@ SPECS = (
             "it and letting the sign-in through leaves the account to whoever has the "
             "breach list."
         ),
-        remediation=(
-            "Set the compromised-credentials action to BLOCK.\n\n"
-            f"  {_UPDATE}"
-        ),
+        remediation=(f"Set the compromised-credentials action to BLOCK.\n\n  {_UPDATE}"),
         cli=(_UPDATE,),
         severity=Severity.MEDIUM,
         exploitability=3,
@@ -137,8 +134,7 @@ SPECS = (
         field="account_takeover_actions",
         passes=_challenges_every_level,
         why_no_expected_state=(
-            "Two actions pass at each of three levels, so there is no one value to "
-            "expect."
+            "Two actions pass at each of three levels, so there is no one value to expect."
         ),
         describes="Every risk level blocks the sign-in or requires MFA",
         failure="lets risky sign-ins through without a challenge",

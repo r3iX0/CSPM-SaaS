@@ -14,13 +14,7 @@ import type {
 import { FACTOR_ICONS, GRAPH_ICON, RISK_KIND_ICONS, resourceTypeIcon } from "@/lib/icons";
 import { cn, levelStyle, resourceTypeLabel } from "@/lib/format";
 import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/common/states";
 import { AttackPathRoute } from "./AttackPathRoute";
@@ -123,9 +117,7 @@ export function AssetNeighborhood({
   // Drawn on arrival whenever the link names a centre, even this asset: the
   // estate map's asset boxes link here with `?around=` set to the asset itself,
   // because the graph is what the reader was looking at when they followed it.
-  const [asked, setAsked] = useState(
-    drawNow || params.has(AROUND) || arrivingWith !== null,
-  );
+  const [asked, setAsked] = useState(drawNow || params.has(AROUND) || arrivingWith !== null);
   // Three hops when arriving to trace a route: most routes are three or four
   // long, and two would cut the one the reader came to see in half.
   const [depth, setDepth] = useState<number>(arrivingWith ? 3 : NEIGHBORHOOD_DEPTH);
@@ -148,8 +140,7 @@ export function AssetNeighborhood({
   const [selection, setSelection] = useState<{ key: string; on: GraphSelection } | null>(null);
   const navigate = useNavigate();
   const frame = useRef<HTMLDivElement>(null);
-  const keyboardInCanvas = () =>
-    frame.current?.contains(document.activeElement) ?? false;
+  const keyboardInCanvas = () => frame.current?.contains(document.activeElement) ?? false;
 
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     ...neighborhoodQuery(providerResourceId, around, depth, folds),
@@ -227,17 +218,14 @@ export function AssetNeighborhood({
 
   const pictureKey = neighborhood ? canvasKey(neighborhood.focus, depth, folds) : "";
   const selected = selection?.key === pictureKey ? selection.on : null;
-  const select = (on: GraphSelection | null) =>
-    setSelection(on ? { key: pictureKey, on } : null);
+  const select = (on: GraphSelection | null) => setSelection(on ? { key: pictureKey, on } : null);
 
   return (
     // What a link from the dashboard grows into (DECISIONS.md §140).
     <Card data-graph-frame="">
       <CardHeader>
         <CardTitle>Around this asset</CardTitle>
-        <CardDescription>
-          What can reach {name}, and what it can reach, hop by hop
-        </CardDescription>
+        <CardDescription>What can reach {name}, and what it can reach, hop by hop</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {!asked && (
@@ -284,14 +272,14 @@ export function AssetNeighborhood({
                 >
                   <p>
                     Left of {centreName} is what can reach it; right is what it can reach. Only
-                    reach is drawn — the network rules around an asset are configuration, and
-                    are not. Hops on an attack path are drawn darker.
+                    reach is drawn — the network rules around an asset are configuration, and are
+                    not. Hops on an attack path are drawn darker.
                   </p>
                   <p>
                     Pointing at a box fades what it does not touch. Pressing a box or an arrow
-                    selects it, and the panel shows what runs through it. Double-click a box,
-                    or press Enter, to centre the graph on it. In the graph, arrow keys move
-                    between boxes.
+                    selects it, and the panel shows what runs through it. Double-click a box, or
+                    press Enter, to centre the graph on it. In the graph, arrow keys move between
+                    boxes.
                   </p>
                 </GraphLegend>
               </div>
@@ -329,10 +317,10 @@ export function AssetNeighborhood({
         {/* Only a 404 means the asset is not in the graph. Anything else is
             CloudGuard failing to answer, and "not in the graph" would present
             an outage as a fact about the estate (§66). */}
-        {asked && error && (error instanceof ApiError && error.status === 404) && (
+        {asked && error && error instanceof ApiError && error.status === 404 && (
           <p className="text-sm text-muted-foreground">
-            This asset is not a vertex in the current graph — it may not have been in the
-            most recent scan.
+            This asset is not a vertex in the current graph — it may not have been in the most
+            recent scan.
           </p>
         )}
         {asked && error && !(error instanceof ApiError && error.status === 404) && (
@@ -407,16 +395,15 @@ export function AssetNeighborhood({
             </div>
             {meta && neighborhood.groups.length > 0 && (
               <p className="text-xs text-muted-foreground">
-                Dashed boxes are counted, not drawn: past {meta.fan_out} neighbors of one
-                asset the rest are grouped, except those exposed to the internet or holding
-                sensitive data. Double-click one to draw its members.
+                Dashed boxes are counted, not drawn: past {meta.fan_out} neighbors of one asset the
+                rest are grouped, except those exposed to the internet or holding sensitive data.
+                Double-click one to draw its members.
               </p>
             )}
             {meta?.truncated && (
               <p className="text-xs text-muted-foreground">
-                The graph stops at {meta.max_nodes} assets. What lies beyond the outermost
-                boxes was not read — choose fewer hops, or centre on one of them to look
-                further.
+                The graph stops at {meta.max_nodes} assets. What lies beyond the outermost boxes was
+                not read — choose fewer hops, or centre on one of them to look further.
               </p>
             )}
             {traced && (
@@ -514,8 +501,7 @@ function RouteList({
       </ul>
       {total > routes.length && (
         <p className="text-xs text-muted-foreground">
-          Showing the {routes.length} shortest of {total}. The attack paths page lists every
-          one.
+          Showing the {routes.length} shortest of {total}. The attack paths page lists every one.
         </p>
       )}
     </section>
@@ -653,7 +639,12 @@ function SelectedHere({
                 ))}
               </ul>
             </div>
-            <Button variant="outline" size="sm" className="self-start" onClick={() => onOpen(group.id)}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="self-start"
+              onClick={() => onOpen(group.id)}
+            >
               Show them
             </Button>
           </>
@@ -726,11 +717,14 @@ function TracedRoute({
     <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
       {partlyOff && (
         <p className="text-xs text-muted-foreground">
-          Part of this route runs more than {depth} {depth === 1 ? "hop" : "hops"} from {name},
-          so the canvas shows only some of it. The line below is the whole route.
+          Part of this route runs more than {depth} {depth === 1 ? "hop" : "hops"} from {name}, so
+          the canvas shows only some of it. The line below is the whole route.
         </p>
       )}
-      <AttackPathRoute steps={traced.steps} cutIndex={cutStep ? traced.steps.indexOf(cutStep) : -1} />
+      <AttackPathRoute
+        steps={traced.steps}
+        cutIndex={cutStep ? traced.steps.indexOf(cutStep) : -1}
+      />
       <WhatIfCut
         route={traced}
         cutStep={cutStep}
@@ -815,8 +809,7 @@ function WhatIfCut({
         {state !== "error" && current && whatIf.closes.length > 0 && (
           <>
             <p>
-              Closes{" "}
-              <span className="font-medium tabular-nums">{whatIf.closes.length}</span> of{" "}
+              Closes <span className="font-medium tabular-nums">{whatIf.closes.length}</span> of{" "}
               <span className="tabular-nums">{whatIf.before}</span> attack paths in the
               organization, leaving <span className="tabular-nums">{whatIf.after}</span>.
             </p>

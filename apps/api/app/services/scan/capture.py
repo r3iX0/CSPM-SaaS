@@ -100,8 +100,10 @@ async def rebuild_capture(
 
     manifest = dict(row.manifest)
     hashes = dict(manifest.pop("payload_hashes", {}) or {})
-    held = payloads if payloads is not None else await payloads_by_hash(
-        session, organization_id, set(hashes.values())
+    held = (
+        payloads
+        if payloads is not None
+        else await payloads_by_hash(session, organization_id, set(hashes.values()))
     )
 
     data: dict = {}
@@ -172,9 +174,7 @@ class ReconstructedScan:
     """
 
     merged: NormalizedState = field(default_factory=NormalizedState)
-    account_state: list[tuple[CloudAccount, NormalizedState]] = field(
-        default_factory=list
-    )
+    account_state: list[tuple[CloudAccount, NormalizedState]] = field(default_factory=list)
     directory: tuple[CloudConnection, NormalizedState] | None = None
     errors: dict[str, str] = field(default_factory=dict)
     # Whether these captures are still CloudGuard's current picture. False when
@@ -184,9 +184,7 @@ class ReconstructedScan:
     observed_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
-def _scoped_key(
-    account: CloudAccount, category: str, account_count: int
-) -> str:
+def _scoped_key(account: CloudAccount, category: str, account_count: int) -> str:
     """Category name, qualified by subscription when there is more than one.
 
     ``account_count`` counts *subscriptions*, not captures. A scan now
@@ -234,9 +232,7 @@ async def reconstruct(
         [row.cloud_account_id for row in stored if row.cloud_account_id],
     )
     newest_by_account = (
-        await _newest_snapshot_ids(session, org_id, list(accounts))
-        if check_freshness
-        else {}
+        await _newest_snapshot_ids(session, org_id, list(accounts)) if check_freshness else {}
     )
     # What the customer has said about these subscriptions since the capture
     # was taken. Read here rather than at collection time on purpose: a
@@ -251,9 +247,7 @@ async def reconstruct(
     # before a single rule ran -- and the captures share hashes, because
     # content addressing is the whole reason two subscriptions with the same
     # empty listing store it once.
-    payloads = await payloads_by_hash(
-        session, org_id, manifest_hashes(stored)
-    )
+    payloads = await payloads_by_hash(session, org_id, manifest_hashes(stored))
 
     for row in stored:
         # The directory capture, read on its own terms. It is a reading of
@@ -275,9 +269,7 @@ async def reconstruct(
             state.is_current = state.is_current and current
             state.merged.resources.extend(state.directory[1].resources)
             state.merged.relationships.extend(state.directory[1].relationships)
-            state.merged.collection_errors.update(
-                state.directory[1].collection_errors
-            )
+            state.merged.collection_errors.update(state.directory[1].collection_errors)
             # Tenant defences. They come from the directory reading and are
             # about the whole tenant, so they merge once rather than per
             # subscription -- the same reason the directory is read once.
@@ -296,9 +288,7 @@ async def reconstruct(
         if check_freshness and row.id != newest_by_account.get(account.id):
             state.is_current = False
 
-        snapshot = RawSnapshot.from_json(
-            await rebuild_capture(session, org_id, row, payloads)
-        )
+        snapshot = RawSnapshot.from_json(await rebuild_capture(session, org_id, row, payloads))
         connector = get_connector(
             account.provider,
             tenant_id=account.tenant_id,
@@ -312,8 +302,7 @@ async def reconstruct(
         declared = declarations.get(account.id)
         if declared is not None:
             account_state.resources = [
-                resolve_resource(resource, declared)
-                for resource in account_state.resources
+                resolve_resource(resource, declared) for resource in account_state.resources
             ]
         state.account_state.append((account, account_state))
         state.merged.resources.extend(account_state.resources)
@@ -322,9 +311,7 @@ async def reconstruct(
         # read storage, and "storage: timeout" twice over tells a customer
         # nothing about which one to look at.
         for category, reason in snapshot.errors.items():
-            state.errors[
-                _scoped_key(account, category, len(accounts))
-            ] = reason
+            state.errors[_scoped_key(account, category, len(accounts))] = reason
         state.merged.collection_errors.update(account_state.collection_errors)
 
     return state
@@ -402,9 +389,7 @@ async def directory_gap(
     # reading "the tenant directory" about an AWS organization is reading a
     # product that has not noticed which cloud it is looking at.
     connection = (
-        await session.get(CloudConnection, scan.connection_id)
-        if scan.connection_id
-        else None
+        await session.get(CloudConnection, scan.connection_id) if scan.connection_id else None
     )
     scope_words = words(connection.provider if connection else None)
     if step is None:
@@ -452,9 +437,7 @@ async def _provider_of(session: AsyncSession, scan: Scan) -> Provider:
     return Provider.AZURE
 
 
-async def snapshots_of(
-    session: AsyncSession, org_id: UUID, scan_id: UUID
-) -> list[CloudSnapshot]:
+async def snapshots_of(session: AsyncSession, org_id: UUID, scan_id: UUID) -> list[CloudSnapshot]:
     """Every capture stored under one scan, oldest first.
 
     Scoped by organization as well as by scan. The id arrives on a scan row
@@ -477,9 +460,7 @@ async def snapshots_of(
     )
 
 
-async def stored_snapshots(
-    session: AsyncSession, org_id: UUID, scan: Scan
-) -> list[CloudSnapshot]:
+async def stored_snapshots(session: AsyncSession, org_id: UUID, scan: Scan) -> list[CloudSnapshot]:
     """Every snapshot the replayed scan stored, one per subscription.
 
     Scoped by organization as well as scan id: the id arrives on the scan
@@ -542,9 +523,7 @@ async def _restore_directory(
                     CloudSnapshot.connection_id == connection.id,
                     CloudSnapshot.cloud_account_id.is_(None),
                 )
-                .order_by(
-                    CloudSnapshot.created_at.desc(), CloudSnapshot.id.desc()
-                )
+                .order_by(CloudSnapshot.created_at.desc(), CloudSnapshot.id.desc())
                 .limit(1)
             )
         ).scalar_one_or_none()
@@ -552,9 +531,7 @@ async def _restore_directory(
         else row.id
     )
 
-    snapshot = RawSnapshot.from_json(
-        await rebuild_capture(session, org_id, row, payloads)
-    )
+    snapshot = RawSnapshot.from_json(await rebuild_capture(session, org_id, row, payloads))
     connector = get_connector(
         connection.provider,
         tenant_id=connection.tenant_id,
@@ -623,8 +600,4 @@ async def _newest_snapshot_ids(
     )
     # The NOT NULL in the query is what makes this narrowing sound; the
     # comprehension states it in a form the type checker can follow.
-    return {
-        account_id: snapshot_id
-        for account_id, snapshot_id in rows
-        if account_id is not None
-    }
+    return {account_id: snapshot_id for account_id, snapshot_id in rows if account_id is not None}

@@ -126,9 +126,7 @@ class AzurePublicDatabaseRule(SecurityRule):
             start = str(rule.get("start_ip_address", ""))
             end = str(rule.get("end_ip_address", ""))
             if (start, end) == self.ALL_ADDRESSES:
-                problems.append(
-                    f"Firewall rule '{rule.get('name')}' allows the entire internet"
-                )
+                problems.append(f"Firewall rule '{rule.get('name')}' allows the entire internet")
                 offending.append(rule)
             elif start == "0.0.0.0" and end == "0.0.0.0":
                 # Azure's "Allow Azure services" shortcut -- every Azure tenant,
@@ -440,8 +438,7 @@ class AzureDatabaseAuditingRule(SecurityRule):
             return RuleResult.failed(
                 evidence={**evidence, "problems": ["Auditing is not enabled"]},
                 message=(
-                    f"{resource.name} keeps no record of who connects to it or what "
-                    "they query"
+                    f"{resource.name} keeps no record of who connects to it or what they query"
                 ),
             )
 

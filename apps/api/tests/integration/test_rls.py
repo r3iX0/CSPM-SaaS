@@ -83,8 +83,10 @@ class TestTenantDataIsolation:
 
         async with rls_session(USER_A) as session:
             names = (
-                await session.execute(text("SELECT account_name FROM cloud_accounts"))
-            ).scalars().all()
+                (await session.execute(text("SELECT account_name FROM cloud_accounts")))
+                .scalars()
+                .all()
+            )
 
         assert "A Production" in names
         assert "B Production" not in names
@@ -105,7 +107,7 @@ class TestTenantDataIsolation:
         assert "row-level security" in str(exc.value).lower()
 
     async def test_cannot_update_another_tenants_row(self, two_orgs) -> None:
-        org_a, org_b = two_orgs
+        _, org_b = two_orgs
         async with rls_session(USER_B) as session:
             await session.execute(
                 text(
@@ -128,8 +130,10 @@ class TestTenantDataIsolation:
 
         async with rls_session(USER_B) as session:
             names = (
-                await session.execute(text("SELECT account_name FROM cloud_accounts"))
-            ).scalars().all()
+                (await session.execute(text("SELECT account_name FROM cloud_accounts")))
+                .scalars()
+                .all()
+            )
         assert "hijacked" not in names
 
     async def test_cannot_delete_another_tenants_row(self, two_orgs) -> None:
@@ -192,9 +196,7 @@ class TestCollectionStatusIsolation:
             {"org": org_id, "sid": sid, "aid": aid, "task": task},
         )
 
-    async def test_collection_results_do_not_leak_across_tenants(
-        self, two_orgs
-    ) -> None:
+    async def test_collection_results_do_not_leak_across_tenants(self, two_orgs) -> None:
         org_a, org_b = two_orgs
 
         async with rls_session(USER_A) as session:
@@ -204,17 +206,13 @@ class TestCollectionStatusIsolation:
 
         async with rls_session(USER_A) as session:
             keys = (
-                await session.execute(
-                    text("SELECT evidence_key FROM evidence")
-                )
-            ).scalars().all()
+                (await session.execute(text("SELECT evidence_key FROM evidence"))).scalars().all()
+            )
 
         assert "a_storage" in keys
         assert "b_storage" not in keys, "one tenant read another's collection gaps"
 
-    async def test_cannot_write_collection_results_into_another_tenant(
-        self, two_orgs
-    ) -> None:
+    async def test_cannot_write_collection_results_into_another_tenant(self, two_orgs) -> None:
         org_a, org_b = two_orgs
         async with rls_session(USER_A) as session:
             await self._seed(session, org_a, "mine")
@@ -263,8 +261,10 @@ class TestMembershipEscalation:
     async def test_cannot_see_another_organizations_members(self, two_orgs) -> None:
         async with rls_session(USER_A) as session:
             rows = (
-                await session.execute(text("SELECT user_id FROM organization_members"))
-            ).scalars().all()
+                (await session.execute(text("SELECT user_id FROM organization_members")))
+                .scalars()
+                .all()
+            )
         assert rows, "User A should see their own membership"
         assert set(rows) == {USER_A}
 
@@ -290,9 +290,7 @@ class TestRuleCatalogueIsReadOnly:
                 )
         assert "permission denied" in str(exc.value).lower()
 
-    async def test_existing_rules_cannot_be_disabled_through_the_app_role(
-        self, two_orgs
-    ) -> None:
+    async def test_existing_rules_cannot_be_disabled_through_the_app_role(self, two_orgs) -> None:
         with pytest.raises((DBAPIError, ProgrammingError)) as exc:
             async with rls_session(USER_A) as session:
                 await session.execute(text("UPDATE rules SET enabled = false"))
@@ -328,15 +326,19 @@ class TestConnectionRoleItself:
         anyone holding the anon key. ``alembic_version`` was one (§131)."""
         async with rls_session(USER_A) as session:
             exposed = (
-                await session.execute(
-                    text(
-                        "SELECT c.relname FROM pg_class c "
-                        "JOIN pg_namespace n ON n.oid = c.relnamespace "
-                        "WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p') "
-                        "AND NOT c.relrowsecurity ORDER BY c.relname"
+                (
+                    await session.execute(
+                        text(
+                            "SELECT c.relname FROM pg_class c "
+                            "JOIN pg_namespace n ON n.oid = c.relnamespace "
+                            "WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p') "
+                            "AND NOT c.relrowsecurity ORDER BY c.relname"
+                        )
                     )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
         assert exposed == []
 
     async def test_migration_state_is_closed_to_the_app_role(self) -> None:
@@ -376,9 +378,7 @@ class TestEvidenceBlobIsolation:
             },
         )
 
-    async def test_identical_content_stays_two_rows_in_two_tenants(
-        self, two_orgs
-    ) -> None:
+    async def test_identical_content_stays_two_rows_in_two_tenants(self, two_orgs) -> None:
         """The same bytes in two tenants are two rows, not one shared row.
 
         Deduplication is a saving inside a tenant, never a structure spanning
@@ -394,10 +394,10 @@ class TestEvidenceBlobIsolation:
 
         async with rls_session(USER_A) as session:
             rows = (
-                await session.execute(
-                    text("SELECT organization_id FROM evidence_blobs")
-                )
-            ).scalars().all()
+                (await session.execute(text("SELECT organization_id FROM evidence_blobs")))
+                .scalars()
+                .all()
+            )
 
         assert rows == [org_a], "a tenant saw a payload row belonging to another"
 
@@ -455,24 +455,18 @@ class TestWorkerTenancy:
             await session.commit()
         return scan_id
 
-    async def test_a_scan_session_sees_only_its_own_organization(
-        self, two_orgs
-    ) -> None:
+    async def test_a_scan_session_sees_only_its_own_organization(self, two_orgs) -> None:
         org_a, org_b = two_orgs
         mine = await self._seed(org_a)
         theirs = await self._seed(org_b)
 
         async with scan_session(org_a) as session:
-            visible = set(
-                (await session.execute(text("SELECT id FROM scans"))).scalars().all()
-            )
+            visible = set((await session.execute(text("SELECT id FROM scans"))).scalars().all())
 
         assert mine in visible
         assert theirs not in visible, "a scan session reached another tenant's rows"
 
-    async def test_a_scan_session_cannot_write_into_another_organization(
-        self, two_orgs
-    ) -> None:
+    async def test_a_scan_session_cannot_write_into_another_organization(self, two_orgs) -> None:
         """The WITH CHECK half. A pipeline bug that carried the wrong
         organization onto a row is refused by the database rather than
         written."""
@@ -503,14 +497,10 @@ class TestWorkerTenancy:
             pytest.skip("worker role not configured; the owner connection sees all")
 
         async with worker_engine_session() as session:
-            rows = (
-                await session.execute(text("SELECT count(*) FROM scans"))
-            ).scalar_one()
+            rows = (await session.execute(text("SELECT count(*) FROM scans"))).scalar_one()
         assert rows == 0
 
-    async def test_the_claim_survives_the_pipeline_committing(
-        self, two_orgs
-    ) -> None:
+    async def test_the_claim_survives_the_pipeline_committing(self, two_orgs) -> None:
         """The regression that took thirty-two tests with it.
 
         ``SET LOCAL`` is transaction-scoped, which is what stops the claim
@@ -524,27 +514,19 @@ class TestWorkerTenancy:
         mine = await self._seed(org_a)
 
         async with scan_session(org_a) as session:
-            before = (
-                await session.execute(text("SELECT count(*) FROM scans"))
-            ).scalar_one()
+            before = (await session.execute(text("SELECT count(*) FROM scans"))).scalar_one()
             # Exactly what the pipeline does between phases.
             await session.commit()
-            after = (
-                await session.execute(text("SELECT count(*) FROM scans"))
-            ).scalar_one()
+            after = (await session.execute(text("SELECT count(*) FROM scans"))).scalar_one()
 
         assert before >= 1, "the seeded scan should be visible"
         assert after == before, "the organization claim did not survive the commit"
 
         async with scan_session(org_a) as session:
-            visible = set(
-                (await session.execute(text("SELECT id FROM scans"))).scalars().all()
-            )
+            visible = set((await session.execute(text("SELECT id FROM scans"))).scalars().all())
         assert mine in visible
 
-    async def test_a_write_after_a_commit_is_still_constrained(
-        self, two_orgs
-    ) -> None:
+    async def test_a_write_after_a_commit_is_still_constrained(self, two_orgs) -> None:
         """Re-declaring the claim must not become a way around the check.
 
         A listener that re-issued the wrong organization -- or issued nothing
@@ -567,9 +549,7 @@ class TestWorkerTenancy:
                 )
         assert "row-level security" in str(exc.value).lower()
 
-    async def test_the_worker_role_does_not_inherit_the_membership_arm(
-        self, two_orgs
-    ) -> None:
+    async def test_the_worker_role_does_not_inherit_the_membership_arm(self, two_orgs) -> None:
         """The two roles resolve tenancy differently on purpose.
 
         Granting ``authenticated`` to the worker would give it the
@@ -582,10 +562,7 @@ class TestWorkerTenancy:
         async with service_session() as session:
             inherited = (
                 await session.execute(
-                    text(
-                        "SELECT pg_has_role('cloudguard_worker', 'authenticated', "
-                        "'MEMBER')"
-                    )
+                    text("SELECT pg_has_role('cloudguard_worker', 'authenticated', 'MEMBER')")
                 )
             ).scalar_one()
         assert inherited is False

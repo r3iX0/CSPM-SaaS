@@ -126,20 +126,15 @@ class AwsOnboarding(ProviderOnboarding):
         publish; AWS's waits for nothing, because the identity the trust policy
         names is CloudGuard's own and was known before the customer arrived.
         """
-        return bool(
-            connection.provider_ref.get("external_id") and connection.scope_id
-        )
+        return bool(connection.provider_ref.get("external_id") and connection.scope_id)
 
     def artifact(self, connection: CloudConnection) -> DeploymentArtifact:
         external_id = str(connection.provider_ref.get("external_id") or "")
         if not external_id:
             raise ValidationFailed(
-                "This connection has no external id yet, so there is nothing "
-                "safe to deploy."
+                "This connection has no external id yet, so there is nothing safe to deploy."
             )
-        context = TemplateContext(
-            principal_arn=cloudguard_principal_arn(), external_id=external_id
-        )
+        context = TemplateContext(principal_arn=cloudguard_principal_arn(), external_id=external_id)
         return DeploymentArtifact(
             body=cloudformation_template(context),
             filename="cloudguard-scanner.template.json",
@@ -171,9 +166,7 @@ class AwsOnboarding(ProviderOnboarding):
             async with self._client(connection, "sts") as sts:
                 identity = await sts.call("get_caller_identity")
             check.subscription_id = str(identity.get("Account") or "") or None
-            check.permissions_verified.append(
-                f"Assumed the scanner role as {identity.get('Arn')}"
-            )
+            check.permissions_verified.append(f"Assumed the scanner role as {identity.get('Arn')}")
             async with self._client(connection, "ec2") as ec2:
                 regions = await ec2.call("describe_regions", AllRegions=False)
             check.permissions_verified.append(
@@ -272,9 +265,7 @@ class AwsOnboarding(ProviderOnboarding):
     def grant_is_behind(self, connection: CloudConnection) -> bool:
         return not policy_is_current(connection.role_version)
 
-    def degraded_categories(
-        self, connection: CloudConnection
-    ) -> dict[EvidenceCategory, str]:
+    def degraded_categories(self, connection: CloudConnection) -> dict[EvidenceCategory, str]:
         if not self.grant_is_behind(connection):
             return {}
         explanation = (
@@ -283,10 +274,7 @@ class AwsOnboarding(ProviderOnboarding):
             "not grant the permissions these checks need. Redeploy the stack "
             "from the connection page to enable them."
         )
-        return {
-            category: explanation
-            for category in categories_behind(connection.role_version)
-        }
+        return dict.fromkeys(categories_behind(connection.role_version), explanation)
 
     async def detect_grant(self, connection: CloudConnection) -> GrantReading | None:
         """What the deployed role actually allows, read from the role.
@@ -357,9 +345,7 @@ class AwsOnboarding(ProviderOnboarding):
                         "stack was deployed to, or delete the StackSet if you "
                         "used one."
                     ),
-                    "command": (
-                        f"aws cloudformation delete-stack --stack-name {STACK_NAME}"
-                    ),
+                    "command": (f"aws cloudformation delete-stack --stack-name {STACK_NAME}"),
                 },
                 {
                     "title": "Confirm the role is gone",

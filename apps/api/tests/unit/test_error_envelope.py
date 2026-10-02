@@ -138,14 +138,9 @@ class TestUnhandledErrors:
         tells the customer the request never went anywhere."""
         client = TestClient(self._app(), raise_server_exceptions=False)
 
-        response = client.patch(
-            "/boom", headers={"Origin": "https://cspmcloud.vercel.app"}
-        )
+        response = client.patch("/boom", headers={"Origin": "https://cspmcloud.vercel.app"})
 
-        assert (
-            response.headers["access-control-allow-origin"]
-            == "https://cspmcloud.vercel.app"
-        )
+        assert response.headers["access-control-allow-origin"] == "https://cspmcloud.vercel.app"
 
     def test_the_message_does_not_carry_the_exception(self) -> None:
         """A stack trace rendered into a browser is a disclosure, and this is a

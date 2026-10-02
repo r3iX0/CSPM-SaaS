@@ -253,10 +253,7 @@ def build_consent_url(state: str, tenant_hint: str = "organizations") -> str:
         "redirect_uri": settings.azure_redirect_uri,
         "state": state,
     }
-    return (
-        f"https://login.microsoftonline.com/{tenant_hint}/v2.0/adminconsent?"
-        + urlencode(params)
-    )
+    return f"https://login.microsoftonline.com/{tenant_hint}/v2.0/adminconsent?" + urlencode(params)
 
 
 class TokenProvider:
@@ -288,12 +285,8 @@ class TokenProvider:
         result = self._app.acquire_token_for_client(scopes=[scope])
         if "access_token" not in result:
             error = result.get("error_description") or result.get("error") or "unknown error"
-            log.warning(
-                "azure.token_failed", tenant_id=self.tenant_id, scope=scope, error=error
-            )
-            raise CloudConnectionError(
-                f"Could not obtain an Azure token for this tenant: {error}"
-            )
+            log.warning("azure.token_failed", tenant_id=self.tenant_id, scope=scope, error=error)
+            raise CloudConnectionError(f"Could not obtain an Azure token for this tenant: {error}")
 
         token = AccessToken(
             token=result["access_token"],

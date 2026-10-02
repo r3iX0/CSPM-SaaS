@@ -1,0 +1,4 @@
+# Ruff for Python outside apps/api (tools/): the API's settings, so one file
+# holds the project's Python standard. Ruff picks the nearest config, so
+# apps/api keeps reading its own pyproject.toml directly.
+extend = "apps/api/pyproject.toml"

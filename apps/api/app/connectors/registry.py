@@ -54,9 +54,7 @@ def get_connector_class(provider: Provider | str) -> type[CloudConnector]:
     provider = Provider(provider)
     implementation = CONNECTORS.get(provider)
     if implementation is None:
-        raise NotConfigured(
-            f"No connector is implemented for {provider.value}."
-        )
+        raise NotConfigured(f"No connector is implemented for {provider.value}.")
     return implementation
 
 
@@ -74,9 +72,7 @@ def get_onboarding(provider: Provider | str) -> ProviderOnboarding:
     resolved = Provider(provider)
     implementation = ONBOARDING.get(resolved)
     if implementation is None:
-        raise NotConfigured(
-            f"No onboarding flow is implemented for {resolved.value}."
-        )
+        raise NotConfigured(f"No onboarding flow is implemented for {resolved.value}.")
     return implementation()
 
 
@@ -91,7 +87,5 @@ def get_change_feed(provider: Provider | str) -> ModuleType:
     resolved = Provider(provider)
     feed = CHANGE_FEEDS.get(resolved)
     if feed is None:
-        raise NotConfigured(
-            f"No change feed is implemented for {resolved.value}."
-        )
+        raise NotConfigured(f"No change feed is implemented for {resolved.value}.")
     return feed

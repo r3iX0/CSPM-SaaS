@@ -27,7 +27,7 @@ import { isStaleChunkError } from "@/lib/staleChunk";
 
 const RELOAD_KEY = "cloudguard.chunk-reloaded";
 
-type Props = {
+interface Props {
   children: ReactNode;
   /**
    * ``page`` keeps the surrounding chrome. Used around the router's outlet, so
@@ -36,17 +36,19 @@ type Props = {
    * viewport, because at the root there is nothing left to keep.
    */
   variant?: "app" | "page";
-};
-type State = { error: Error | null };
+}
+interface State {
+  error: Error | null;
+}
 
 export class ErrorBoundary extends Component<Props, State> {
-  state: State = { error: null };
+  override state: State = { error: null };
 
   static getDerivedStateFromError(error: Error): State {
     return { error };
   }
 
-  componentDidCatch(error: Error, info: ErrorInfo): void {
+  override componentDidCatch(error: Error, info: ErrorInfo): void {
     if (isStaleChunkError(error) && !sessionStorage.getItem(RELOAD_KEY)) {
       try {
         sessionStorage.setItem(RELOAD_KEY, "1");
@@ -64,6 +66,7 @@ export class ErrorBoundary extends Component<Props, State> {
     // what a reader is asked for when they say the page broke. There is no
     // error-reporting service wired up, and inventing one here would send a
     // customer's screen contents somewhere nobody agreed to.
+    // eslint-disable-next-line no-console -- the browser console is the error report here, as above.
     console.error("Cleave failed to render", error, info.componentStack);
   }
 
@@ -76,7 +79,7 @@ export class ErrorBoundary extends Component<Props, State> {
     window.location.reload();
   };
 
-  render(): ReactNode {
+  override render(): ReactNode {
     const { error } = this.state;
     if (!error) return this.props.children;
 

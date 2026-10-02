@@ -100,9 +100,7 @@ def test_a_service_does_not_commit_a_transaction_it_may_not_own(module: str) -> 
         pytest.skip("runs only under scan_session, which owns no transaction")
 
     allowed = WORKER_OWNED.get(module) or set()
-    offenders = [
-        name for name in committing_functions(SERVICES / module) if name not in allowed
-    ]
+    offenders = [name for name in committing_functions(SERVICES / module) if name not in allowed]
 
     assert offenders == [], (
         f"{module} commits directly in {offenders}; use "

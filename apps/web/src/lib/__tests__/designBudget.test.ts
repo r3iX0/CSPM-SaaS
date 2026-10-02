@@ -19,7 +19,7 @@ function strings(node: unknown, path: string[] = []): [string, string][] {
 }
 
 /** A key ending `Explain` is read in an `InfoTip`, where length is the point. */
-const isExplain = (key: string) => /Explain$/.test(key.split(".").at(-1) ?? "");
+const isExplain = (key: string) => (key.split(".").at(-1) ?? "").endsWith("Explain");
 
 const overBudget = strings(en)
   .filter(([key, value]) => value.length > COPY_BUDGET && !isExplain(key))
@@ -71,4 +71,3 @@ describe("radius and spacing", () => {
     expect(offenders).toEqual([]);
   });
 });
-

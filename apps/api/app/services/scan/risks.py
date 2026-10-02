@@ -100,9 +100,7 @@ async def upsert_group_risk(
     # worst member's -- which would name one asset on a row about forty.
     risk.description = rule.rationale or rule.description
     # Every member has a say, not only the worst one the row was scored from.
-    risk.status = finding_risk_status(
-        [finding.status for finding, *_ in members], risk.status
-    )
+    risk.status = finding_risk_status([finding.status for finding, *_ in members], risk.status)
 
     # A risk being inserted has no id yet, so every member needs a link.
     # An existing one keeps the links it already has.

@@ -39,9 +39,7 @@ class _ClusterRule(SecurityRule):
 
     category = "compute"
     applies_to: ClassVar[list[ResourceType]] = [ResourceType.KUBERNETES_CLUSTER]
-    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (
-        AzureEvidence.KUBERNETES_CLUSTERS,
-    )
+    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (AzureEvidence.KUBERNETES_CLUSTERS,)
 
     def _unreadable(
         self, resource: CloudResource | None, context: RuleContext
@@ -164,9 +162,7 @@ class AzureClusterLocalAccountsRule(_ClusterRule):
                 terraform_attribute="local_account_disabled",
             ),
         ),
-        cli=(
-            "az aks update --name <cluster> --resource-group <rg> --disable-local-accounts",
-        ),
+        cli=("az aks update --name <cluster> --resource-group <rg> --disable-local-accounts",),
         notes=_NO_POLICY,
         terraform_resource_types=("azurerm_kubernetes_cluster",),
     )
@@ -232,8 +228,7 @@ class AzureClusterRbacRule(_ClusterRule):
             ),
         ),
         cli=(
-            "az aks create --name <cluster> --resource-group <rg> --enable-aad "
-            "--enable-azure-rbac",
+            "az aks create --name <cluster> --resource-group <rg> --enable-aad --enable-azure-rbac",
         ),
         notes=_NO_POLICY,
         terraform_resource_types=("azurerm_kubernetes_cluster",),
@@ -299,10 +294,7 @@ class AzureClusterNodePublicIpRule(_ClusterRule):
                 describes="No node pool assigns public IP addresses to its nodes",
             ),
         ),
-        cli=(
-            "az aks nodepool add --cluster-name <cluster> --resource-group <rg> "
-            "--name <pool>",
-        ),
+        cli=("az aks nodepool add --cluster-name <cluster> --resource-group <rg> --name <pool>",),
         notes=_NO_POLICY,
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = _MAPPINGS_EXPOSURE

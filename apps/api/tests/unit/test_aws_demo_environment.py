@@ -30,10 +30,7 @@ from app.rules.base import RuleContext
 from app.rules.engine import RuleEngine
 
 FIXTURE = (
-    pathlib.Path(__file__).resolve().parents[1]
-    / "fixtures"
-    / "aws_raw"
-    / "snapshot_mixed.json"
+    pathlib.Path(__file__).resolve().parents[1] / "fixtures" / "aws_raw" / "snapshot_mixed.json"
 )
 
 # What this recorded estate is wrong about. Pinned as a set rather than a count,
@@ -69,12 +66,7 @@ def seed_module() -> ModuleType:
     keeps that true while still letting the tests hold its fix function to the
     rules it is supposed to satisfy.
     """
-    path = (
-        pathlib.Path(__file__).resolve().parents[4]
-        / "database"
-        / "seed"
-        / "demo_environment.py"
-    )
+    path = pathlib.Path(__file__).resolve().parents[4] / "database" / "seed" / "demo_environment.py"
     spec = importlib.util.spec_from_file_location("demo_environment", path)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
@@ -193,11 +185,7 @@ def test_a_repaired_estate_closes_the_findings_it_repaired() -> None:
     assert "AWS-NET-001" not in raised
     assert "AWS-DB-001" in raised
 
-    passed = {
-        rule_id
-        for rule_id, coverage in report.coverage.items()
-        if coverage.passed_count
-    }
+    passed = {rule_id for rule_id, coverage in report.coverage.items() if coverage.passed_count}
     assert {"AWS-STO-001", "AWS-NET-001"} <= passed
 
 
@@ -205,15 +193,12 @@ def test_the_bucket_fix_closes_both_ways_in() -> None:
     """The rule refuses a bucket that blocks public ACLs and still carries a
     policy granting ``*``. A fix that satisfied half of it would leave the
     finding open and make the demo look broken when it is working correctly."""
-    repaired = seed_module()._apply_aws_fixes(
-        copy.deepcopy(json.loads(FIXTURE.read_text()))
-    )
+    repaired = seed_module()._apply_aws_fixes(copy.deepcopy(json.loads(FIXTURE.read_text())))
     state = AwsNormalizer().normalize(RawSnapshot.from_json(repaired))
     bucket = next(
         r
         for r in state.resources
-        if r.resource_type is ResourceType.STORAGE_ACCOUNT
-        and r.name == "bk-customer-statements"
+        if r.resource_type is ResourceType.STORAGE_ACCOUNT and r.name == "bk-customer-statements"
     )
 
     assert bucket.get("public_access_blocked") is True

@@ -1,13 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  BellIcon,
-  CircleCheckIcon,
-  EyeOffIcon,
-  ShieldAlertIcon,
-  XIcon,
-} from "lucide-react";
+import { BellIcon, CircleCheckIcon, EyeOffIcon, ShieldAlertIcon, XIcon } from "lucide-react";
 
 import { api } from "@/lib/api";
 import type { AppNotification, NotificationKind } from "@/lib/types";
@@ -15,11 +9,7 @@ import { useT } from "@/i18n";
 import { useValueChange } from "@/lib/motion";
 import { formatDateTime, formatRelative } from "@/lib/format";
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 /**
  * What happened that you have not seen.
@@ -43,19 +33,16 @@ export function NotificationBell() {
   const { data, error } = useQuery({
     queryKey: ["notifications"],
     queryFn: () =>
-      api
-        .get<AppNotification[]>("/api/v1/notifications")
-        .then((r) => ({
-          rows: r.data,
-          unread: (r.meta as { unread?: number } | undefined)?.unread ?? 0,
-        })),
+      api.get<AppNotification[]>("/api/v1/notifications").then((r) => ({
+        rows: r.data,
+        unread: (r.meta as { unread?: number } | undefined)?.unread ?? 0,
+      })),
     retry: false,
   });
 
   const markRead = useMutation({
     mutationFn: () => api.post("/api/v1/notifications/read"),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
   });
 
   // Dismissing is not marking read. Read is a watermark in time and moves on
@@ -63,14 +50,12 @@ export function NotificationBell() {
   // with a row, and it is the only thing that takes one out of the list.
   const dismiss = useMutation({
     mutationFn: (id: string) => api.del(`/api/v1/notifications/${id}`),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
   });
 
   const clearAll = useMutation({
     mutationFn: () => api.del("/api/v1/notifications"),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
   });
 
   const rows = data?.rows ?? [];
@@ -79,8 +64,7 @@ export function NotificationBell() {
   // somebody is on the page. Compared from the first loaded count, not from
   // nothing, so a page load with three unread does not ring (§179).
   const count = useValueChange(data?.unread);
-  const rang =
-    count.changes > 0 && typeof count.previous === "number" && unread > count.previous;
+  const rang = count.changes > 0 && typeof count.previous === "number" && unread > count.previous;
 
   // Read on open, not on close: the panel being on screen is the moment the
   // news was seen, and marking on close would leave the badge lit behind
@@ -103,7 +87,7 @@ export function NotificationBell() {
     }
     // `markRead` is a stable mutation object; including it would re-run this on
     // every render of a mutation that is itself the effect's only side effect.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- markRead is a stable mutation object.
   }, [open, unread]);
 
   // A failed request is not an absence of news: rendering an empty bell would
@@ -223,10 +207,7 @@ function Row({
             {row.detail}
           </p>
         )}
-        <p
-          className="mt-1 text-xs text-muted-foreground"
-          title={formatDateTime(row.event_at)}
-        >
+        <p className="mt-1 text-xs text-muted-foreground" title={formatDateTime(row.event_at)}>
           {formatRelative(row.event_at)}
         </p>
       </div>
@@ -236,11 +217,7 @@ function Row({
   return (
     <div className="relative">
       {row.link ? (
-        <Link
-          to={row.link}
-          onClick={onNavigate}
-          className="block hover:bg-muted/60"
-        >
+        <Link to={row.link} onClick={onNavigate} className="block hover:bg-muted/60">
           {body}
         </Link>
       ) : (

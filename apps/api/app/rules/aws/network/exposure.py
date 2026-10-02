@@ -87,9 +87,7 @@ class _OpenPortRule(SecurityRule):
     ports: ClassVar[set[int]] = set()
     service: str = ""
     applies_to: ClassVar[list[ResourceType]] = [ResourceType.NETWORK_SECURITY_GROUP]
-    requires_evidence: ClassVar[tuple[AwsEvidence, ...]] = (
-        AwsEvidence.SECURITY_GROUPS,
-    )
+    requires_evidence: ClassVar[tuple[AwsEvidence, ...]] = (AwsEvidence.SECURITY_GROUPS,)
     estimated_effort_minutes = 15
 
     def evaluate(
@@ -126,8 +124,11 @@ class _OpenPortRule(SecurityRule):
             exploitability=None if protecting else 2,
             message=(
                 f"{resource.name} allows {self.service} from the whole internet"
-                + (f", in front of {len(protecting)} instance(s)" if protecting else
-                   " (attached to nothing today)")
+                + (
+                    f", in front of {len(protecting)} instance(s)"
+                    if protecting
+                    else " (attached to nothing today)"
+                )
             ),
         )
 
@@ -273,9 +274,7 @@ class AwsPublicDatabasePortRule(_OpenPortRule):
                 equals=None,
                 comparison=Comparison.NONE_MATCHING,
                 example=_open_rule(5432),
-                describes=(
-                    "No ingress rule admits a database port from the whole internet"
-                ),
+                describes=("No ingress rule admits a database port from the whole internet"),
                 terraform_attribute="aws_security_group_rule.cidr_blocks",
             ),
         ),
@@ -314,9 +313,7 @@ class AwsOpenNetworkAclRule(SecurityRule):
     # traffic. It is a layer that should have said no and did not.
     exploitability = 2
     scope = RuleScope.AGGREGATE
-    requires_evidence: ClassVar[tuple[AwsEvidence, ...]] = (
-        AwsEvidence.NETWORK_ACLS,
-    )
+    requires_evidence: ClassVar[tuple[AwsEvidence, ...]] = (AwsEvidence.NETWORK_ACLS,)
     estimated_effort_minutes = 25
     rationale = (
         "Defence in depth is the whole argument for a network ACL: it is the "
@@ -370,9 +367,7 @@ class AwsOpenNetworkAclRule(SecurityRule):
         open_acls: list[dict[str, Any]] = []
         for acl in acls:
             entries = [
-                entry
-                for entry in acl.get("Entries") or []
-                if _acl_entry_admits_admin_port(entry)
+                entry for entry in acl.get("Entries") or [] if _acl_entry_admits_admin_port(entry)
             ]
             if entries:
                 open_acls.append(
@@ -432,9 +427,7 @@ class AwsDefaultSecurityGroupRule(SecurityRule):
     severity = Severity.MEDIUM
     exploitability = 2
     applies_to: ClassVar[list[ResourceType]] = [ResourceType.NETWORK_SECURITY_GROUP]
-    requires_evidence: ClassVar[tuple[AwsEvidence, ...]] = (
-        AwsEvidence.SECURITY_GROUPS,
-    )
+    requires_evidence: ClassVar[tuple[AwsEvidence, ...]] = (AwsEvidence.SECURITY_GROUPS,)
     estimated_effort_minutes = 15
     rationale = (
         "The default group cannot be deleted and is applied by omission, which "
@@ -460,10 +453,7 @@ class AwsDefaultSecurityGroupRule(SecurityRule):
                 terraform_attribute="aws_default_security_group",
             ),
         ),
-        cli=(
-            "aws ec2 revoke-security-group-egress --group-id <sg-id> "
-            "--ip-permissions <rules>",
-        ),
+        cli=("aws ec2 revoke-security-group-egress --group-id <sg-id> --ip-permissions <rules>",),
         # Only about the default group. Every other group is judged on what it
         # admits, which is what the port rules above do.
         applies_when={"is_default": True},
@@ -492,9 +482,7 @@ class AwsDefaultSecurityGroupRule(SecurityRule):
             return RuleResult.unknown(f"Security groups unavailable: {failure}")
 
         if not resource.get("is_default"):
-            return RuleResult.not_applicable(
-                f"{resource.name} is not a default security group"
-            )
+            return RuleResult.not_applicable(f"{resource.name} is not a default security group")
 
         has_rules = resource.get("has_any_rule")
         if has_rules is None:
@@ -511,7 +499,6 @@ class AwsDefaultSecurityGroupRule(SecurityRule):
         return RuleResult.failed(
             evidence=evidence,
             message=(
-                f"The default security group in {resource.region or 'this region'} "
-                "carries rules"
+                f"The default security group in {resource.region or 'this region'} carries rules"
             ),
         )

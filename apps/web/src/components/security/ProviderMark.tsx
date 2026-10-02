@@ -91,11 +91,7 @@ export function ProviderMark({
       <svg viewBox="0 0 24 24" className={classes} role="img" aria-label={name}>
         <title>{name}</title>
         <path d="M9.6 3h5.3L8.3 21H3l6.6-18Z" fill="currentColor" />
-        <path
-          d="M15.5 7.2 21 21H9.4l7.1-2.1-3.9-4.5 2.9-7.2Z"
-          fill="currentColor"
-          opacity="0.6"
-        />
+        <path d="M15.5 7.2 21 21H9.4l7.1-2.1-3.9-4.5 2.9-7.2Z" fill="currentColor" opacity="0.6" />
       </svg>
     );
   }
