@@ -10930,6 +10930,56 @@ had a gap, it raised `TypeError` and failed the COLLECT step. It reads the
 class now (`get_connector_class`), as the registry intends for provider-level
 facts. `tests/unit/test_licence_gaps.py` covers all of the above.
 
+## 197. An audit package is a sealed assessment, and an auditor is given a grant to read it
+
+An external audit asks what the estate looked like on a date, and weeks of console screenshots
+are how that is answered today. CloudGuard already holds the answer -- readings, timestamps,
+permissions and a SHA-256 of every payload -- but not in a form that stays put. The compliance
+assessment reads the latest scan, and retention prunes the payloads a citation points at.
+
+**A package is stored, and that is a deliberate exception.** Phase 9 chose to generate reports
+on request and never store them, because a stored assessment outlives the evidence behind it and
+leaves a question about which copy is current. An auditor needs the opposite: a fixed record of
+a date that nothing refreshes. So a package is named, dated, immutable and never claims to be
+current, and the exception stops there: reports and `GET /compliance/{id}/export` stay live.
+
+**Sealed from the latest completed scan.** `audit_packages` keeps every control's verdict and
+the rules behind it, minus what changes with the clock (age, whether a payload is still held).
+`audit_package_items` keeps one row per reading the controls rest on -- listing, time,
+permissions, api-version, and the payload's hash -- for the chosen frameworks only, so a package
+for one framework does not carry the whole estate's configuration. Owners and admins may read
+and insert; nobody is granted UPDATE or DELETE, and the cascade from the organization is the
+only way a package ends.
+
+**One manifest, hashed.** `compliance/package.py` defines the canonical manifest, built from the
+stored rows. Sealing stores its SHA-256 and verifying rebuilds it, so a row edited behind the
+application's back no longer matches. The organization is named by id, since its display name may
+change after an audit.
+
+**What the hash proves, and what it does not.** It proves the rows are those that were sealed,
+and that a payload is the bytes CloudGuard captured. It does not prove the provider said them:
+that rests on CloudGuard having asked, which is why each reading carries the permissions and
+api-version it was made under. The archive's README says so in as many words, and carries
+`UNKNOWN`, `NOT_READ` and `FAILED` readings and the technically-unassessable controls beside the
+passes, because an export that showed only green would be the one document where that omission
+is expensive.
+
+**Retention keeps what a package names.** `prune_blobs` keeps every hash an item names, as it
+does for a surviving capture manifest. Without it an auditor could be promised bytes by a hash in
+a document they hold, and find the payload aged out.
+
+**Frameworks.** v1 seals the six in the catalogue. SOC 2, ISO 27001 and PCI DSS v4 are not in
+`frameworks.json` and stay a content job: a package must not imply an assessment against a
+framework CloudGuard has no controls for. The declared audit period is informational; the
+evidence is the closing scan's, and a per-scan timeline for a Type II period is not built.
+
+**Planned, not built.** An auditor is not an organization member, so a grant is bound to the
+auditor's verified email and read through `SECURITY DEFINER` functions, as invitations are
+(§162), rather than through a new bypass session. The token is stored only as its hash and
+carried in a URL fragment. The archive is a zip whose payload files are the canonical bytes, so
+`sha256sum -c` checks them, and the manifest signature (Ed25519) is a later step. Until those
+land, a package is sealed and verifiable but only an owner or admin can read it.
+
 ## Open items carried forward
 
 **Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read

@@ -1,5 +1,6 @@
 """SQLAlchemy models. Importing this package registers every table on Base."""
 
+from app.models.audit_package import AuditPackage, AuditPackageItem
 from app.models.base import Base
 from app.models.cloud_account import CloudAccount
 from app.models.cloud_connection import CloudConnection
@@ -26,6 +27,8 @@ from app.models.webhook import WebhookDelivery, WebhookEndpoint
 __all__ = [
     "AssetChangeEvent",
     "AuditLog",
+    "AuditPackage",
+    "AuditPackageItem",
     "Base",
     "CloudAccount",
     "CloudConnection",
