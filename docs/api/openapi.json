@@ -8885,6 +8885,7 @@
           "meta"
         ],
         "summary": "Ready",
+        "description": "Whether this instance can do its work: the database and the task broker both answer.\n\nUnlike ``/health`` this touches both dependencies, so it is rate limited and is for an\noperator or a deploy check, not for the platform's probe. A dependency that does not answer\nis a ``503`` in the envelope, naming which one, and never the dependency's own error: that\ncan carry an address or a credential. The detail goes to the log.",
         "operationId": "meta_ready",
         "responses": {
           "200": {
@@ -8893,6 +8894,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Envelope_ReadyOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -16532,15 +16543,21 @@
             "type": "string",
             "const": "ok",
             "title": "Database"
+          },
+          "queue": {
+            "type": "string",
+            "const": "ok",
+            "title": "Queue"
           }
         },
         "type": "object",
         "required": [
           "status",
-          "database"
+          "database",
+          "queue"
         ],
         "title": "ReadyOut",
-        "description": "The process is up and its database answers."
+        "description": "The process is up, its database answers and the task broker does too.\n\nA dependency that does not answer is not a field here: the endpoint answers ``503`` with the\nerror envelope instead, so ``\"ok\"`` is the only value there is to read."
       },
       "RegionOut": {
         "properties": {

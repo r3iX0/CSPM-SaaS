@@ -20,6 +20,8 @@ from app.core.config import settings
 from app.core.db import dispose_engines, ping
 from app.core.errors import (
     AppError,
+    DatabaseUnavailable,
+    QueueUnavailable,
     UnhandledErrorMiddleware,
     app_error_handler,
     http_error_handler,
@@ -31,9 +33,10 @@ from app.core.middleware import (
     RequestContextMiddleware,
     RequestSizeLimitMiddleware,
     SecurityHeadersMiddleware,
+    ping_redis,
 )
 from app.core.openapi import TAGS, operation_id
-from app.schemas.common import Envelope, NoMeta
+from app.schemas.common import Envelope, NoMeta, error_responses
 from app.schemas.health import HealthOut, ReadyOut
 
 log = get_logger(__name__)
@@ -130,10 +133,22 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    # Readable by the frontend, so an error it shows can name the request.
-    expose_headers=["X-Request-ID"],
+    # Exactly what the web app sends, so a page on an allowed origin still cannot ask for more
+    # than it uses. The request headers the browser always allows (Accept, Content-Type for a
+    # simple type) need no entry; ``Authorization`` and ``X-Organization-Id`` do.
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allow_headers=["Authorization", "Content-Type", "X-Organization-Id"],
+    # Readable by the frontend: the request id so an error it shows can name the request, the
+    # rate limit so it can slow down, and the headers a created or queued answer points by.
+    expose_headers=[
+        "X-Request-ID",
+        "X-RateLimit-Limit",
+        "X-RateLimit-Remaining",
+        "X-RateLimit-Reset",
+        "Retry-After",
+        "Location",
+        "Content-Disposition",
+    ],
 )
 
 app.add_middleware(SecurityHeadersMiddleware)
@@ -159,7 +174,23 @@ async def health() -> Envelope[HealthOut, NoMeta]:
     return Envelope(data=HealthOut(status="ok"), meta=NoMeta())
 
 
-@app.get("/health/ready", tags=["meta"])
+@app.get("/health/ready", tags=["meta"], responses=error_responses(503))
 async def ready() -> Envelope[ReadyOut, NoMeta]:
-    await ping()
-    return Envelope(data=ReadyOut(status="ready", database="ok"), meta=NoMeta())
+    """Whether this instance can do its work: the database and the task broker both answer.
+
+    Unlike ``/health`` this touches both dependencies, so it is rate limited and is for an
+    operator or a deploy check, not for the platform's probe. A dependency that does not answer
+    is a ``503`` in the envelope, naming which one, and never the dependency's own error: that
+    can carry an address or a credential. The detail goes to the log.
+    """
+    try:
+        await ping()
+    except Exception as exc:
+        log.warning("ready.database_unavailable", error=type(exc).__name__)
+        raise DatabaseUnavailable("The database did not answer.") from exc
+    try:
+        await ping_redis()
+    except Exception as exc:
+        log.warning("ready.queue_unavailable", error=type(exc).__name__)
+        raise QueueUnavailable("The task broker did not answer.") from exc
+    return Envelope(data=ReadyOut(status="ready", database="ok", queue="ok"), meta=NoMeta())

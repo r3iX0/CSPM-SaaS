@@ -9,6 +9,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
+from fastapi import Response
 
 from app.api.routes import remediation as route
 from app.core.errors import ValidationFailed
@@ -34,7 +35,13 @@ def members(monkeypatch: pytest.MonkeyPatch) -> set[UUID]:
 async def test_a_task_for_a_stranger_is_refused(members: set[UUID]) -> None:
     payload = RemediationCreate(finding_id=uuid4(), assigned_to=uuid4())
     with pytest.raises(ValidationFailed, match="not a member"):
-        await route.create_task(payload, session=None, tenant=_tenant())  # type: ignore[arg-type]
+        await route.create_task(
+            payload,
+            request=None,  # type: ignore[arg-type]
+            response=Response(),
+            session=None,  # type: ignore[arg-type]
+            tenant=_tenant(),
+        )
 
 
 async def test_reassigning_to_a_stranger_is_refused(members: set[UUID]) -> None:

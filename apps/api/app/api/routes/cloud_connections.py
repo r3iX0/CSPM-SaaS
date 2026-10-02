@@ -2,9 +2,10 @@ import json
 from urllib.parse import quote
 from uuid import UUID
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Query, Request, Response, status
 from fastapi.responses import JSONResponse, RedirectResponse
 
+from app.api.links import created
 from app.core.config import settings
 from app.core.db import service_session
 from app.core.deps import Costly, DbSession, Tenant
@@ -296,12 +297,17 @@ def _consent_link_problem(exc: Exception) -> str:
 
 @router.post("", status_code=status.HTTP_201_CREATED, responses=WRITE)
 async def create_connection(
-    payload: CloudConnectionCreate, session: DbSession, tenant: Tenant
+    payload: CloudConnectionCreate,
+    request: Request,
+    response: Response,
+    session: DbSession,
+    tenant: Tenant,
 ) -> Envelope[CloudConnectionOut, NoMeta]:
     """Create a connection and return it with the consent redirect URL."""
     tenant.require_role(Role.OWNER, Role.ADMIN)
     connection, consent_url = await service.create_connection(session, tenant, payload)
     await session.commit()
+    created(request, response, "get_connection", connection_id=connection.id)
     return Envelope(data=_serialize(connection, consent_url=consent_url), meta=NoMeta())
 
 

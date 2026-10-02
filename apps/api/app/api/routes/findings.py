@@ -3,10 +3,11 @@ from typing import Any, Literal
 from uuid import UUID
 
 import anyio
-from fastapi import APIRouter, Query, UploadFile, status
+from fastapi import APIRouter, Query, Request, Response, UploadFile, status
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.sql.elements import UnaryExpression
 
+from app.api.links import accepted
 from app.core.deps import Costly, DbSession, Tenant
 from app.core.enums import FindingStatus, ScanStatus, Severity
 from app.core.errors import ConflictError, QueueUnavailable, ValidationFailed
@@ -319,7 +320,7 @@ async def set_finding_status(
     responses=error_responses(403, 409, 503),
 )
 async def rescan_finding(
-    finding_id: UUID, session: DbSession, tenant: Tenant
+    finding_id: UUID, request: Request, response: Response, session: DbSession, tenant: Tenant
 ) -> Envelope[RescanQueuedOut, NoMeta]:
     """Re-check the environment after a fix.
 
@@ -395,6 +396,7 @@ async def rescan_finding(
         # Unlike a scan started from the scans page, nothing here shows the
         # scan record, so the refusal is the answer rather than a row to find.
         raise QueueUnavailable(scan.error_message)
+    accepted(request, response, "get_scan_detail", scan_id=scan.id)
     return Envelope(
         data=RescanQueuedOut(
             scan_id=scan.id,

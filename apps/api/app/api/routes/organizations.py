@@ -1,7 +1,8 @@
 from uuid import UUID
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Request, Response, status
 
+from app.api.links import created
 from app.core.deps import CurrentUser, DbSession, Tenant
 from app.core.enums import Role
 from app.core.errors import OrganizationNotFound
@@ -26,9 +27,14 @@ router = APIRouter(
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_organization(
-    payload: OrganizationCreate, user: CurrentUser, session: DbSession
+    payload: OrganizationCreate,
+    request: Request,
+    response: Response,
+    user: CurrentUser,
+    session: DbSession,
 ) -> Envelope[OrganizationOut, NoMeta]:
     org = await service.create_organization(session, user, payload)
+    created(request, response, "get_organization", organization_id=org.id)
     return Envelope(data=OrganizationOut.model_validate(org), meta=NoMeta())
 
 

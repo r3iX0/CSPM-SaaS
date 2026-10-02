@@ -3,8 +3,9 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Request, Response, status
 
+from app.api.links import created
 from app.core.deps import CurrentUser, DbSession, Tenant
 from app.models.organization import OrganizationInvitation, OrganizationMember
 from app.schemas.common import ERROR_RESPONSES, Envelope, NoMeta, error_responses
@@ -86,7 +87,11 @@ async def list_invitations(
 
 @router.post("/invitations", status_code=status.HTTP_201_CREATED, responses=WRITE)
 async def create_invitation(
-    payload: InvitationCreate, session: DbSession, tenant: Tenant
+    payload: InvitationCreate,
+    request: Request,
+    response: Response,
+    session: DbSession,
+    tenant: Tenant,
 ) -> Envelope[InvitationCreatedOut, NoMeta]:
     """Invite an address, and return the link -- this once.
 
@@ -95,6 +100,7 @@ async def create_invitation(
     that travels further than meant joins nobody.
     """
     invitation, link = await service.invite(session, tenant, str(payload.email), payload.role)
+    created(request, response, "revoke_invitation", invitation_id=invitation.id)
     return Envelope(
         data=InvitationCreatedOut(**_invitation(invitation).model_dump(), link=link),
         meta=NoMeta(),

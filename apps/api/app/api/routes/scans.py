@@ -1,11 +1,12 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Query, Request, status
+from fastapi import APIRouter, Query, Request, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.links import accepted
 from app.core.db import rls_session
 from app.core.deps import Costly, DbSession, Tenant
 from app.core.enums import ScanStatus
@@ -49,7 +50,7 @@ WORKER_PING_FAILED = (
     dependencies=[Costly],
 )
 async def create_scan(
-    payload: ScanCreate, session: DbSession, tenant: Tenant
+    payload: ScanCreate, request: Request, response: Response, session: DbSession, tenant: Tenant
 ) -> Envelope[ScanOut, NoMeta]:
     tenant.require_write()
     account = await accounts_service.get_cloud_account(session, tenant, payload.cloud_account_id)
@@ -99,6 +100,7 @@ async def create_scan(
     # from the scan row rather than trusting the message.
     await scans_service.enqueue_or_fail(run_scan.delay, scan, tenant.user.id)
 
+    accepted(request, response, "get_scan_detail", scan_id=scan.id)
     return Envelope(data=ScanOut.model_validate(scan), meta=NoMeta())
 
 
@@ -109,7 +111,7 @@ async def create_scan(
     dependencies=[Costly],
 )
 async def replay_scan_endpoint(
-    scan_id: UUID, session: DbSession, tenant: Tenant
+    scan_id: UUID, request: Request, response: Response, session: DbSession, tenant: Tenant
 ) -> Envelope[ScanOut, NoMeta]:
     """Re-evaluate a finished scan's stored snapshot against today's rules.
 
@@ -169,6 +171,7 @@ async def replay_scan_endpoint(
 
     await scans_service.enqueue_or_fail(replay_scan.delay, scan, tenant.user.id, noun="replay")
 
+    accepted(request, response, "get_scan_detail", scan_id=scan.id)
     return Envelope(data=ScanOut.model_validate(scan), meta=NoMeta())
 
 

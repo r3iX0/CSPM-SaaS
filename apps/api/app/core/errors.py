@@ -147,6 +147,13 @@ class QueueUnavailable(AppError):
     status_code_default = status.HTTP_503_SERVICE_UNAVAILABLE
 
 
+class DatabaseUnavailable(AppError):
+    """The database did not answer"""
+
+    code = "DATABASE_UNAVAILABLE"
+    status_code_default = status.HTTP_503_SERVICE_UNAVAILABLE
+
+
 class RateLimited(AppError):
     """Too many requests. Wait a moment and try again."""
 

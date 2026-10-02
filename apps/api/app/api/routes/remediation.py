@@ -1,10 +1,11 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.links import created
 from app.core.deps import DbSession, Tenant, TenantContext
 from app.core.enums import FindingStatus, Priority, RemediationStatus
 from app.core.errors import NotFound, ValidationFailed
@@ -45,7 +46,11 @@ async def _require_assignee(
 
 @router.post("", status_code=status.HTTP_201_CREATED, responses=error_responses(403))
 async def create_task(
-    payload: RemediationCreate, session: DbSession, tenant: Tenant
+    payload: RemediationCreate,
+    request: Request,
+    response: Response,
+    session: DbSession,
+    tenant: Tenant,
 ) -> Envelope[RemediationOut, NoMeta]:
     tenant.require_write()
     await _require_assignee(session, tenant, payload.assigned_to)
@@ -102,6 +107,7 @@ async def create_task(
         metadata={"assigned_to": str(payload.assigned_to) if payload.assigned_to else None},
     )
     await session.commit()
+    created(request, response, "update_task", task_id=task.id)
     return Envelope(data=RemediationOut.model_validate(task), meta=NoMeta())
 
 
