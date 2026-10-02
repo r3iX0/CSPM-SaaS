@@ -125,6 +125,9 @@ how the system works is recorded in [`docs/DECISIONS.md`](docs/DECISIONS.md) fir
 
 ## Layout
 
+The API has its own guide, [`apps/api/README.md`](apps/api/README.md): configuration, commands,
+how a request flows, and the rules the code holds to.
+
 ```text
 apps/api/app/
 ├── core/          config, RLS-scoped sessions, auth, errors, enums, vocabulary
