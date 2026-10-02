@@ -1,22 +1,29 @@
-# CloudGuard — API Design
+# Cleave — API guide
 
-> 🔗 **Interactive API Documentation & Schema**:
+The endpoints, the response envelope, and the reasons behind the parts of them that are not
+obvious. The contract itself is generated from the code; this is the guide that explains it. The
+API's own README, [`apps/api/README.md`](../apps/api/README.md), covers running and testing it.
+
+> **Interactive documentation and schema**
 >
-> - [Interactive API Playground & Docs](api/index.html)
-> - [OpenAPI 3.1.0 Specification (JSON)](api/openapi.json)
+> - [Interactive API playground and docs](api/index.html)
+> - [OpenAPI 3.1.0 specification (JSON)](api/openapi.json)
 > - Spec generator script:
 >   [`apps/api/scripts/generate_openapi.py`](../apps/api/scripts/generate_openapi.py)
 > - How to design a new endpoint: [API guidelines](API_GUIDELINES.md)
 
 ## 1. Endpoints
 
-Every path below is prefixed `/api/v1`. This list is generated from the routers
-under `app/api/routes/` — if it disagrees with them, they are right.
+Every path below is prefixed `/api/v1`, except the two health checks at the end. The list is
+written by hand, and `tests/unit/test_api_doc_endpoints.py` fails when it disagrees with the routes
+the app serves, so a route added without a line here is caught. The generated contract leaves out
+three of them on purpose (below); this list does not.
 
 ```text
 POST   /organizations                      GET    /organizations
 GET    /organizations/{id}                 PATCH  /organizations
 DELETE /organizations/{id}
+POST   /organizations/demo/join            POST   /organizations/demo/leave
 
 GET    /members                            PATCH  /members/{id}
 DELETE /members/{id}
@@ -29,6 +36,7 @@ PATCH  /webhooks/{id}                      DELETE /webhooks/{id}
 POST   /webhooks/{id}/test                 GET    /webhooks/{id}/deliveries
 
 POST   /cloud-connections                  GET    /cloud-connections
+GET    /cloud-connections/providers
 GET    /cloud-connections/{id}             DELETE /cloud-connections/{id}
 POST   /cloud-connections/{id}/discover
 POST   /cloud-connections/{id}/recheck
@@ -43,7 +51,7 @@ GET    /cloud-connections/azure/app-registration
 GET    /cloud-connections/{id}/template            (unauthenticated, CORS-open)
 GET    /cloud-connections/azure/consent/callback   (unauthenticated, signed state)
 
-POST   /events/azure/{connection_id}               (unauthenticated, signed token)
+POST   /events/{provider}/{connection_id}          (unauthenticated, signed token; azure or aws)
 
 GET    /cloud-accounts                     GET    /cloud-accounts/{id}
 GET    /cloud-accounts/azure/permissions
@@ -68,7 +76,7 @@ POST   /risks/{id}/status                  POST   /risks/status
 POST   /remediation                        GET    /remediation
 PATCH  /remediation/{id}
 POST   /findings/{id}/accept-risk          POST   /findings/{id}/status
-POST   /findings/{id}/rescan
+POST   /findings/{id}/rescan               POST   /findings/{id}/iac-diff  (multipart)
 GET    /findings/{id}/attack-paths         GET    /findings/{id}/provenance
 
 GET    /attack-paths                       GET    /attack-paths/choke-points
@@ -89,6 +97,8 @@ DELETE /notifications                      DELETE /notifications/{id}
 
 GET    /dashboard
 GET    /reports/{kind}?format=pdf|html&days=30&sections=a,b
+
+GET    /health                             GET    /health/ready   (outside /api/v1, unauthenticated)
 ```
 
 Three of the scan endpoints exist because a scan is resumable work rather than
@@ -106,7 +116,8 @@ has no scan record on screen to show that, so it answers 503 `QUEUE_UNAVAILABLE`
 instead (DECISIONS.md §158).
 
 `POST /findings/{id}/status` is the general transition; `accept-risk` is its own
-endpoint rather than a status value because it takes a reason and an approver.
+endpoint rather than a status value because it takes a reason and an optional end
+date.
 
 `/cloud-connections/{id}/recheck` is a POST because it is a probe rather than a
 read. The GET validates a connection only while it is _unverified_ — that is
@@ -130,7 +141,7 @@ inference, and there was previously nowhere to put the answer. The PUT replaces
 the whole declaration rather than patching it — a field left out is one the
 customer is no longer claiming, and a body claiming nothing withdraws the
 declaration entirely, exactly as DELETE does. `UNKNOWN` is rejected for either
-level: it is CloudGuard's own answer for "nothing said anything", so declaring
+level: it is Cleave's own answer for "nothing said anything", so declaring
 it would be asserting an absence that leaving the field out already asserts.
 
 A declaration is applied by the next evaluation of the subscription — the next
@@ -159,21 +170,37 @@ which Entra's redirect reaches from the customer's browser;
 `/cloud-connections/{id}/template`, which Azure Portal fetches _from the
 customer's browser_ for the Deploy to Azure button — the reason it is also the
 one endpoint answering `Access-Control-Allow-Origin: *`; and
-`/events/azure/{connection_id}`, which Azure Event Grid delivers to when their
-environment changes. All three are `include_in_schema=False`: they are reached
-by Azure and by browsers following a link, never by this product's client, and
-listing them in the OpenAPI document would invite a consumer to call them.
+`/events/{provider}/{connection_id}`, which Azure Event Grid, or AWS SNS for an
+AWS connection, delivers to when the customer's environment changes. All three
+are `include_in_schema=False`: they are reached by a cloud and by browsers
+following a link, never by this product's client, and listing them in the
+OpenAPI document would invite a consumer to call them.
+
+Two more routes answer without a session and carry no token.
+`/cloud-accounts/azure/permissions` lists what Cleave will be able to read, so a
+customer can review it before anybody has signed in to consent, and the health
+checks answer a platform's probe and an operator's check. Every other route
+needs a bearer token (section 3), and `tests/unit/test_openapi_contract.py` lists
+the open ones.
 
 The webhook is separated from the template token by the `purpose` claim, not by
 the signature — both are signed with the same secret, so it checks the claim
 rather than treating a valid signature as proof of intent.
 
 `/cloud-connections/{id}/change-events` returns the commands the customer runs
-to wire their subscriptions up. CloudGuard cannot create the Event Grid
+to wire their subscriptions up. Cleave cannot create the Event Grid
 subscription itself: that is a write in their tenant, and it holds no write
 permission anywhere. An event does not start a scan directly — a burst marks the
 connection, the scan waits for the environment to go quiet, and a floor stops an
 afternoon of deployments becoming an afternoon of scans.
+
+`GET /cloud-connections/providers` lists the clouds this deployment can connect,
+each as `{id, name, available, unavailable_reason}`. It is behind authentication
+because it describes the deployment's configuration, and the setup wizard's
+first step reads it. A cloud that cannot be connected is returned with its
+reason rather than left out, so a picker never answers "does this support AWS?"
+with silence: AWS reads `available: false` until the deployment sets
+`AWS_ENABLED` and an AWS identity.
 
 A rule's `compliance_mappings` on `/rules` and `/findings/{id}` include, beside
 the rule's own, the controls `app/compliance/data/crosswalk.json` adds for
@@ -197,6 +224,64 @@ must not exist, or an entry that satisfies. Two rules report an empty
 `expected_state` with a `notes` field explaining why — one judges a ratio across
 the directory, the other a relationship between two assets — rather than
 inventing a per-asset setting to point at.
+
+`POST /findings/{id}/iac-diff` writes a finding's fix into a Terraform file the
+caller uploads (DECISIONS.md §190, [`FIX_AS_CODE.md`](FIX_AS_CODE.md)). It takes
+`multipart/form-data`: `file`, the Terraform file, and an optional `lockfile`,
+the `.terraform.lock.hcl`, each at most 256 KiB. The answer is either
+`outcome: "patched"` with a unified `diff`, the `edits` made (`attribute`,
+`before`, `after`, `line`) and `matched_by` -- `name` when the block's literal
+name is the asset's, `sole_block` when it is the only block of its type and its
+name is an expression, which a reviewer should confirm -- or
+`outcome: "declined"` with a stable `decline_reason` (such as
+`interpolated_name`, `multiple_matches`, `variable_value` or `too_large`) and a
+sentence in `detail`. A decline is an answer, not an error: the file was read
+and the edit would have needed a guess. `provider_version` comes from the lock
+file where one was sent, and `checked_against` names the azurerm releases the
+edit was held to. Nothing uploaded is stored and the finding does not change, so
+a viewer and the demo organization may ask; it counts against the costly
+allowance.
+
+`POST /organizations/demo/join` adds the caller to the one shared demo
+organization as `VIEWER`, whatever the request says, and
+`POST /organizations/demo/leave` removes only their own membership (DECISIONS.md
+§99). The demo is a recorded estate run through the real pipeline, so a new
+customer can see the product before connecting anything. Every write in it
+answers 403 `PERMISSION_DENIED`, by flag as well as by role, and visitors do not
+see each other in `/members`.
+
+Members and invitations (DECISIONS.md §162). `/members` is readable by any
+member. Changing a role or removing somebody takes an owner or an admin, only an
+owner touches an owner, and the last owner can be neither removed nor demoted.
+An invitation takes an address and any role but `OWNER`, and the link comes back
+once, in `link`: its token is stored only as a hash, travels in the link's
+fragment, and works only for the address on the caller's verified token. Cleave
+sends no email. `DELETE /invitations/{id}` withdraws a link and keeps the row as
+history. `preview` and `accept` take the signed-in user and no tenant, because
+the caller is not a member yet.
+
+Webhooks (DECISIONS.md §164) are for owners and admins, up to twenty per
+organization. `format` is `GENERIC`, `SLACK` or `TEAMS`, and `kinds` is any of
+the three notification kinds (`REACHABLE_FINDING`, `VERIFIED_FIX`,
+`COVERAGE_DROP`). The URL must be HTTPS on port 443 and resolve only to public
+addresses, which is checked when the webhook is created and again at every send;
+redirects are not followed, and a refusal is 422 `VALIDATION_FAILED`. A
+`GENERIC` delivery is JSON signed with the endpoint's own secret:
+`X-Cleave-Signature` is `sha256=` and the HMAC of `<X-Cleave-Timestamp>.<body>`,
+with `X-Cleave-Event` and `X-Cleave-Delivery` beside it, and a receiver should
+refuse a timestamp that is too old. That secret is in the creation answer and
+never again, and `url_preview` shows only the host and the last few characters,
+because a Slack or Teams URL is itself the credential. `POST /webhooks/{id}/test`
+sends one message now and says what came back; `GET /webhooks/{id}/deliveries`
+lists the attempts.
+
+`GET /audit-log` is the append-only record of every change a person makes
+(DECISIONS.md §163). Owners and admins read it, newest first. `action` is one verb
+(`member.removed`) or, ending in a dot, a family (`member.`); `actor` and
+`resource_type` filter too, and `limit` is 1 to 200, 50 by default. Each entry
+carries the actor's address, the caller's IP address and the `request_id` that
+finds the log lines. The database refuses to edit or delete an entry, so no
+endpoint can.
 
 `/notifications` is deliberately not `/changes`. That answers "what moved in the
 environment" and is a property of the estate; this answers "what happened since
@@ -222,7 +307,7 @@ panel. Dismissing is also not marking read: the watermark is a boundary in time
 that moves on its own when the panel opens, while this is somebody saying they
 are done with one row, and it says nothing about what arrives next.
 
-Coverage-drop notifications carry CloudGuard's own sentence and never the
+Coverage-drop notifications carry Cleave's own sentence and never the
 provider's. The collector's explanation — the remedy, who can apply it, every
 permission a tenant did not grant — is the right paragraph on `/scans`, which is
 where the row links; in a bell it filled the panel with one item and pushed the
@@ -243,7 +328,7 @@ listings hide the one subscription nobody has managed to read since Tuesday.
 `/assets` returns `provider_resource_id` on every row, not only on the detail.
 It is the one field that says where an asset _sits_: an ARM id spells out its
 own subscription and resource group, so a client can group an inventory by scope
-without a request per row. The row `id` is a CloudGuard identifier and names
+without a request per row. The row `id` is a Cleave identifier and names
 nothing in the customer's cloud — the ARM id is what they can search for in
 their own portal.
 
@@ -281,11 +366,11 @@ regression becomes visible: a finding raised, fixed and raised again is
 indistinguishable from one raised and fixed once if all you have is
 `first_detected_at` and `resolved_at`.
 
-Marking a remediation task `DONE` opens a **verification**: CloudGuard records
+Marking a remediation task `DONE` opens a **verification**: Cleave records
 what it now expects to see and checks the environment on a backoff (5m, 15m, 1h,
 4h) until it can answer. `GET /findings/{id}` returns that answer under
 `verification`, and its `detail` is written for a person, because "still
-failing", "CloudGuard could not read enough to tell" and "too soon, checking
+failing", "Cleave could not read enough to tell" and "too soon, checking
 again" are the same open finding and three different pieces of news. Cancelling
 the task, or accepting the risk, withdraws the question rather than leaving it
 pending.
@@ -453,7 +538,7 @@ citation for it, and the difference is whether a customer has to accept the
 claim or can check it.
 
 `evidence: null` means no citation was recorded — a finding raised before
-CloudGuard tracked this. `[]` would mean the rule reads nothing, and answering
+Cleave tracked this. `[]` would mean the rule reads nothing, and answering
 the first as the second would make a claim about the rule out of a gap in our
 own history; `meta.recorded` says which. `age_seconds` is computed here rather
 than left to the client, because a carried reading is older than the scan that
@@ -473,7 +558,7 @@ Each citation also carries `endpoints` — `[{path, api_version}]`, what the
 reading actually called. The api-version is the half that settles an argument: a
 field absent from a stored capture is a setting nobody set, or a contract too
 old to return it, and a rule reading the second as the first raises a finding
-out of CloudGuard's own staleness. Empty where the scan has been pruned, or
+out of Cleave's own staleness. Empty where the scan has been pruned, or
 where the reading predates this being recorded — never a claim the task called
 nothing. `/scans/{id}/collection` carries the same field per reading.
 
@@ -622,7 +707,10 @@ where there is nothing beside the data), and every error is `ErrorEnvelope` --
 including 422, whose `meta.errors` lists the fields that failed. Every route
 is typed (DECISIONS.md §157). A few routes answer with something other than an envelope
 and are declared as such: `/reports/{kind}` and the compliance export return a
-document, `/scans/{id}/events` a server-sent event stream.
+document, `/scans/{id}/events` a server-sent event stream. The status codes and
+the error codes a route can answer with are in
+[API_GUIDELINES.md](API_GUIDELINES.md#3-methods-and-status-codes) and
+[section 5](API_GUIDELINES.md#5-errors).
 
 Every response carries `X-Request-ID`, minted by the server for that request
 and bound into every log line it produced; an unhandled 500 repeats it in
