@@ -3870,6 +3870,7 @@
           "scans"
         ],
         "summary": "Create Scan",
+        "description": "Queue a scan of an account's connection. One scan at a time per connection.",
         "operationId": "scans_create_scan",
         "security": [
           {
@@ -3972,6 +3973,7 @@
           "scans"
         ],
         "summary": "List Scans",
+        "description": "The most recent scans, newest first.",
         "operationId": "scans_list_scans",
         "security": [
           {
@@ -4509,6 +4511,7 @@
           "scans"
         ],
         "summary": "Get Scan",
+        "description": "One scan's record: what it covered, how it ended and how many findings it raised.",
         "operationId": "scans_get_scan",
         "security": [
           {

@@ -36,7 +36,6 @@ SESSION_CALLS = {
 
 PENDING = {
     "assets.py",
-    "scans.py",
 }
 
 
