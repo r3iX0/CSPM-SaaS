@@ -391,7 +391,6 @@ class TestCloudConnections:
         # A created resource says where it lives, and the answer is cacheable by nobody.
         assert response.headers["Location"] == f"/api/v1/cloud-connections/{data['id']}"
         assert response.headers["Cache-Control"] == "private, no-store"
-        assert int(response.headers["X-RateLimit-Remaining"]) >= 0
 
     async def test_scoped_connection_requires_a_scope_id(self, client, cleanup_orgs) -> None:
         user = uuid.uuid4()

@@ -7988,6 +7988,7 @@
           "remediation"
         ],
         "summary": "Create Task",
+        "description": "Open a remediation task for a finding. A finding has at most one open task.",
         "operationId": "remediation_create_task",
         "security": [
           {
@@ -8080,7 +8081,7 @@
           "remediation"
         ],
         "summary": "List Tasks",
-        "description": "The queue, in the order the page says it is in.\n\nIt said \"ordered by impact against effort\" and was ordered by when each\ntask was created. Now: open work first; then priority, which is impact\nagainst effort (RISK_ENGINE.md section 4); then how many attack paths run\nthrough the finding's asset, so of two equally urgent fixes the one on a\nroute comes first; then the finding's own score (DECISIONS.md section 127).\n\nThe routes break ties rather than set the order. A finding on a route is\nalready outranked by the route itself in the risks queue, and scoring it\nup here as well would count the route twice.",
+        "description": "The queue, in the order the page says it is in.\n\nIt said \"ordered by impact against effort\" and was ordered by when each\ntask was created. Now: open work first, then priority, then how many attack\npaths run through the finding's asset, then the finding's own score\n(DECISIONS.md section 127). ``service.queue`` holds the ordering.",
         "operationId": "remediation_list_tasks",
         "security": [
           {
@@ -8155,6 +8156,7 @@
           "remediation"
         ],
         "summary": "Update Task",
+        "description": "Change a task. Marking it done opens a claim for the next scan to check.\n\nIt does not close the finding: only an observation does.",
         "operationId": "remediation_update_task",
         "security": [
           {
