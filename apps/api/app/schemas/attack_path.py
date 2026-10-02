@@ -13,6 +13,7 @@ from app.core.enums import (
 )
 from app.graph.model import DeadEndReason
 from app.graph.patterns import PatternKind
+from app.schemas.common import RequestModel
 
 #: Links one simulation may remove. Each is weighed against the rest by
 #: rebuilding the estate without it, so the cost grows with the plan -- and a
@@ -20,7 +21,7 @@ from app.graph.patterns import PatternKind
 MAX_SIMULATED_CUTS = 10
 
 
-class SimulatedLink(BaseModel):
+class SimulatedLink(RequestModel):
     """One link, named the way a drawn edge names it."""
 
     source: str = Field(min_length=1, max_length=2048)
@@ -28,7 +29,7 @@ class SimulatedLink(BaseModel):
     target: str = Field(min_length=1, max_length=2048)
 
 
-class SimulationRequest(BaseModel):
+class SimulationRequest(RequestModel):
     """Links to remove together. A body rather than a query string, because
     ten Azure ids three times over do not fit in a URL every proxy accepts."""
 

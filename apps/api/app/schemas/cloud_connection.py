@@ -11,10 +11,10 @@ from app.core.enums import (
     Provider,
 )
 from app.models.cloud_connection import CloudConnection
-from app.schemas.common import ClosedModel
+from app.schemas.common import ClosedModel, RequestModel
 
 
-class CloudConnectionCreate(BaseModel):
+class CloudConnectionCreate(RequestModel):
     """Starting a connection needs a name and a decision about scope.
 
     Note what is absent: no tenant id, no subscription id, no client id, no
@@ -22,6 +22,12 @@ class CloudConnectionCreate(BaseModel):
     from discovery, and CloudGuard never holds a customer credential at all
     (AZURE_INTEGRATION.md 2).
     """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [{"name": "Production", "provider": "azure", "scope_type": "TENANT_ROOT"}]
+        }
+    )
 
     name: str = Field(min_length=1, max_length=200)
     provider: Provider = Provider.AZURE
@@ -78,6 +84,7 @@ class CloudConnectionOut(BaseModel):
         a provider reference means before looking a key up in it.
         """
         return value if isinstance(value, dict) else {}
+
     # True once the deployment has been outstanding long enough that "still in
     # progress" no longer explains it.
     deploy_stalled: bool = False
@@ -120,7 +127,7 @@ class DiscoveredSubscription(BaseModel):
     is_scannable: bool = False
 
 
-class ScheduleUpdate(BaseModel):
+class ScheduleUpdate(RequestModel):
     """How often this environment should be re-read.
 
     ``None`` turns scheduling off and leaves the connection scannable by hand,
@@ -133,19 +140,18 @@ class ScheduleUpdate(BaseModel):
         ge=CloudConnection.MIN_INTERVAL_HOURS,
         le=CloudConnection.MAX_INTERVAL_HOURS,
         description=(
-            "Read this environment at least this often. Omit or send null for "
-            "manual scanning only."
+            "Read this environment at least this often. Omit or send null for manual scanning only."
         ),
     )
 
 
-class ScopeSelection(BaseModel):
+class ScopeSelection(RequestModel):
     """Which discovered subscriptions to actually scan, keyed by subscription id."""
 
     in_scope: dict[str, bool]
 
 
-class ChangeEventsUpdate(BaseModel):
+class ChangeEventsUpdate(RequestModel):
     """Turn change-triggered scanning on or off.
 
     A bare boolean, because there is nothing else for the customer to choose:

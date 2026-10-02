@@ -120,6 +120,4 @@ class NotificationRead(Base):
     )
     user_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True)
     #: Everything with an ``event_at`` at or before this has been seen.
-    read_through: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    read_through: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

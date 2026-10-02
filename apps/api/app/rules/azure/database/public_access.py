@@ -85,6 +85,7 @@ class AzurePublicDatabaseRule(SecurityRule):
             "the generated policy closes public network access and does not "
             "claim to close an over-broad firewall rule."
         ),
+        terraform_resource_types=("azurerm_mssql_server", "azurerm_postgresql_flexible_server"),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["4.1.2"],
@@ -125,9 +126,7 @@ class AzurePublicDatabaseRule(SecurityRule):
             start = str(rule.get("start_ip_address", ""))
             end = str(rule.get("end_ip_address", ""))
             if (start, end) == self.ALL_ADDRESSES:
-                problems.append(
-                    f"Firewall rule '{rule.get('name')}' allows the entire internet"
-                )
+                problems.append(f"Firewall rule '{rule.get('name')}' allows the entire internet")
                 offending.append(rule)
             elif start == "0.0.0.0" and end == "0.0.0.0":
                 # Azure's "Allow Azure services" shortcut -- every Azure tenant,
@@ -234,6 +233,7 @@ class AzureDatabasePrivateConnectivityRule(SecurityRule):
                 equals="Disabled",
                 describes="The server's public endpoint is turned off",
                 terraform_attribute="public_network_access_enabled",
+                terraform_value=False,
             ),
         ),
         # Who the expectation is about. Stated so a reader knows this is not a
@@ -255,6 +255,7 @@ class AzureDatabasePrivateConnectivityRule(SecurityRule):
             "preventive form of this is a landing-zone decision rather than a rule on "
             "the server."
         ),
+        terraform_resource_types=("azurerm_mssql_server", "azurerm_postgresql_flexible_server"),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.20", "A.8.22"],
@@ -437,8 +438,7 @@ class AzureDatabaseAuditingRule(SecurityRule):
             return RuleResult.failed(
                 evidence={**evidence, "problems": ["Auditing is not enabled"]},
                 message=(
-                    f"{resource.name} keeps no record of who connects to it or what "
-                    "they query"
+                    f"{resource.name} keeps no record of who connects to it or what they query"
                 ),
             )
 

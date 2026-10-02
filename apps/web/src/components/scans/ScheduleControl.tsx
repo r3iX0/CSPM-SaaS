@@ -41,10 +41,9 @@ export function ScheduleControl({
 
   const save = useMutation({
     mutationFn: (hours: number | null) =>
-      api.patch<CloudConnection>(
-        `/api/v1/cloud-connections/${connection.id}/schedule`,
-        { scan_interval_hours: hours },
-      ),
+      api.patch<CloudConnection>(`/api/v1/cloud-connections/${connection.id}/schedule`, {
+        scan_interval_hours: hours,
+      }),
     onSuccess: () => {
       // Confirmation for a control that has no Save button: without it, a
       // dropdown that writes silently gives no evidence it wrote at all.
@@ -54,9 +53,7 @@ export function ScheduleControl({
       queryClient.invalidateQueries({ queryKey: ["cloud-connections"] });
     },
     onError: (err) =>
-      onError(
-        err instanceof Error ? err.message : "Could not change the scan schedule",
-      ),
+      onError(err instanceof Error ? err.message : "Could not change the scan schedule"),
   });
 
   const current = connection.scan_interval_hours;
@@ -105,9 +102,7 @@ export function ScheduleControl({
         </span>
 
         {save.isPending && (
-          <span className="text-xs text-muted-foreground">
-            {t.connection.scheduleSaving}
-          </span>
+          <span className="text-xs text-muted-foreground">{t.connection.scheduleSaving}</span>
         )}
         {saved && !save.isPending && (
           <span className="text-xs text-ok">{t.connection.scheduleSaved}</span>

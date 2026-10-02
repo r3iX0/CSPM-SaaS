@@ -1,18 +1,5 @@
-import {
-  createElement,
-  lazy,
-  Suspense,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
-import {
-  Link,
-  Navigate,
-  useLocation,
-  useNavigate,
-  useSearchParams,
-} from "react-router-dom";
+import { createElement, lazy, Suspense, useRef, useState, type ReactNode } from "react";
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { ArrowLeftIcon, ChevronRightIcon } from "lucide-react";
 
@@ -161,8 +148,8 @@ export function EstateGraph({ scopeId, group }: { scopeId: string; group: string
       <Card>
         <CardContent className="flex flex-col items-start gap-3">
           <p className="text-sm">
-            Cleave holds nothing in that {opened ? "resource group" : "scope"}. It may
-            have been removed since the link was made, or not have been in the most recent scan.
+            Cleave holds nothing in that {opened ? "resource group" : "scope"}. It may have been
+            removed since the link was made, or not have been in the most recent scan.
           </p>
           <Button variant="outline" size="sm" onClick={() => open({ scope: null, group: null })}>
             Draw the whole estate
@@ -192,8 +179,7 @@ export function EstateGraph({ scopeId, group }: { scopeId: string; group: string
   // when the new one arrives, not when it was asked for.
   const key = lensKey(map.lens.scope_id, map.lens.group);
   const selected = selection?.lens === key ? selection.on : null;
-  const select = (on: MapSelection | null) =>
-    setSelection(on ? { lens: key, on } : null);
+  const select = (on: MapSelection | null) => setSelection(on ? { lens: key, on } : null);
   // The estate's own nouns: a subscription on Azure, an account on AWS (§78).
   const w = words(map.boxes.find((box) => box.provider)?.provider);
   const titled = new Map(map.boxes.map((box) => [box.id, boxLabel(box).title]));
@@ -208,7 +194,10 @@ export function EstateGraph({ scopeId, group }: { scopeId: string; group: string
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <nav aria-label="Where the map is opened" className="flex flex-wrap items-center gap-1 text-sm">
+        <nav
+          aria-label="Where the map is opened"
+          className="flex flex-wrap items-center gap-1 text-sm"
+        >
           <Crumb current={!scope} onClick={() => open({ scope: null, group: null })}>
             Estate
           </Crumb>
@@ -312,15 +301,9 @@ export function EstateGraph({ scopeId, group }: { scopeId: string; group: string
                               "focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring",
                             )}
                           >
-                            <span className="font-medium">
-                              {titled.get(edge.source)}
-                            </span>
-                            <span className="text-muted-foreground">
-                              {edgeLabel(edge.links)}
-                            </span>
-                            <span className="font-medium">
-                              {titled.get(edge.target)}
-                            </span>
+                            <span className="font-medium">{titled.get(edge.source)}</span>
+                            <span className="text-muted-foreground">{edgeLabel(edge.links)}</span>
+                            <span className="font-medium">{titled.get(edge.target)}</span>
                           </button>
                         </li>
                       );
@@ -437,8 +420,7 @@ function Selected({
                 className="flex items-center gap-1.5 self-start text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
               >
                 <Route className="size-3.5" aria-hidden />
-                On {box.routes} attack path{box.routes === 1 ? "" : "s"} — see
-                them
+                On {box.routes} attack path{box.routes === 1 ? "" : "s"} — see them
               </Link>
             )}
             <ReachList
@@ -519,18 +501,14 @@ function ReachList({
             <li key={`${edge.source}|${edge.target}`}>
               <button
                 type="button"
-                onClick={() =>
-                  onPick({ kind: "edge", id: `${edge.source}|${edge.target}` })
-                }
+                onClick={() => onPick({ kind: "edge", id: `${edge.source}|${edge.target}` })}
                 className={cn(
                   "flex w-full flex-wrap gap-x-1.5 rounded-md px-2 py-1 text-left text-sm transition-colors hover:bg-muted/60",
                   "focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring",
                 )}
               >
                 <span className="font-medium">{name(edge)}</span>
-                <span className="text-muted-foreground">
-                  {edgeLabel(edge.links) ?? "contains"}
-                </span>
+                <span className="text-muted-foreground">{edgeLabel(edge.links) ?? "contains"}</span>
               </button>
             </li>
           ))}
@@ -600,9 +578,7 @@ function Contents({
                 )}
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium">{title}</span>
-                  <span className="block truncate text-xs text-muted-foreground">
-                    {detail}
-                  </span>
+                  <span className="block truncate text-xs text-muted-foreground">{detail}</span>
                 </span>
                 <Markers box={box} className="text-xs" />
               </button>
@@ -630,24 +606,22 @@ function Legend({ accounts }: { accounts: string }) {
       ]}
     >
       <p>
-        Boxes are {accounts}, the directory, resource groups and assets. Arrows are reach
-        that crosses between them: the identity a resource runs as, or a role held over
-        another scope. A role over a box reaches everything inside it.
+        Boxes are {accounts}, the directory, resource groups and assets. Arrows are reach that
+        crosses between them: the identity a resource runs as, or a role held over another scope. A
+        role over a box reaches everything inside it.
       </p>
       <p>
-        Reach runs left to right: each box sits one column past the furthest box
-        that reaches it, so the first column holds what nothing reaches. Where
-        reach loops, one arrow has to run back, and it goes round under the
-        boxes. A box reachable from the internet carries a globe wherever it
-        sits.
+        Reach runs left to right: each box sits one column past the furthest box that reaches it, so
+        the first column holds what nothing reaches. Where reach loops, one arrow has to run back,
+        and it goes round under the boxes. A box reachable from the internet carries a globe
+        wherever it sits.
       </p>
       <p>
-        Pointing at a box fades what it does not touch. Pressing a box or an
-        arrow selects it, and the panel shows what reaches it and what it
-        reaches. Attack paths are on their own page; a box they run through
-        links there. Double-click, or press Enter, to open one of the {accounts}{" "}
-        or groups here, or an asset's own graph. In the map, arrow keys move
-        between boxes.
+        Pointing at a box fades what it does not touch. Pressing a box or an arrow selects it, and
+        the panel shows what reaches it and what it reaches. Attack paths are on their own page; a
+        box they run through links there. Double-click, or press Enter, to open one of the{" "}
+        {accounts} or groups here, or an asset's own graph. In the map, arrow keys move between
+        boxes.
       </p>
     </GraphLegend>
   );

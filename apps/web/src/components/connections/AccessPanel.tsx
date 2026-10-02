@@ -63,9 +63,7 @@ export function AccessPanel({
 
   return (
     <div className="rounded-xl border border-border bg-muted/30 p-4">
-      <p className="text-xs font-medium text-muted-foreground">
-        {t.connection.accessTitle}
-      </p>
+      <p className="text-xs font-medium text-muted-foreground">{t.connection.accessTitle}</p>
 
       <dl className="mt-3 space-y-2 text-sm">
         {hasConsentStep(connection.provider) && (
@@ -83,11 +81,7 @@ export function AccessPanel({
           </Line>
         )}
         <Line
-          label={
-            connection.provider === "aws"
-              ? t.connection.scannerRole
-              : t.connection.readerRole
-          }
+          label={connection.provider === "aws" ? t.connection.scannerRole : t.connection.readerRole}
         >
           {!connection.rbac_verified_at ? (
             <span className="text-high">{t.connection.notVerified}</span>
@@ -109,9 +103,7 @@ export function AccessPanel({
         </Line>
         {connection.provider_ref?.external_id && (
           <Line label={t.setup.aws.externalIdTitle}>
-            <code className="font-mono text-xs">
-              {connection.provider_ref.external_id}
-            </code>
+            <code className="font-mono text-xs">{connection.provider_ref.external_id}</code>
           </Line>
         )}
         <Line label={t.connection.writePermission}>{t.connection.noneByDesign}</Line>
@@ -143,12 +135,8 @@ export function AccessPanel({
                 somebody whether this is urgent for them. */}
             {connection.degraded_categories.length > 0 && (
               <span className="mt-2 block">
-                <span className="text-muted-foreground">
-                  {t.connection.roleUpgradeAffects}:{" "}
-                </span>
-                {connection.degraded_categories
-                  .map(collectionCategoryLabel)
-                  .join(", ")}
+                <span className="text-muted-foreground">{t.connection.roleUpgradeAffects}: </span>
+                {connection.degraded_categories.map(collectionCategoryLabel).join(", ")}
               </span>
             )}
             {/* The same link the setup wizard uses. Redeploying is deploying

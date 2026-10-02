@@ -160,33 +160,23 @@ class TestOrdinaryAccountsWithoutMfa:
 
     def test_a_registered_second_factor_passes(self) -> None:
         person = user(roles=[], mfa=["microsoftAuthenticator"])
-        assert (
-            self.rule.evaluate(person, make_context(person)).state is RuleState.PASS
-        )
+        assert self.rule.evaluate(person, make_context(person)).state is RuleState.PASS
 
     def test_an_administrator_belongs_to_the_critical_rule(self) -> None:
         """Not a pass: a scope statement. Reporting both would raise two
         findings for one missing second factor."""
         admin = user(roles=["Global Administrator"], mfa=[])
-        assert (
-            self.rule.evaluate(admin, make_context(admin)).state
-            is RuleState.NOT_APPLICABLE
-        )
+        assert self.rule.evaluate(admin, make_context(admin)).state is RuleState.NOT_APPLICABLE
 
     def test_a_disabled_account_is_not_judged(self) -> None:
         person = user(roles=[], mfa=[], enabled=False)
-        assert (
-            self.rule.evaluate(person, make_context(person)).state
-            is RuleState.NOT_APPLICABLE
-        )
+        assert self.rule.evaluate(person, make_context(person)).state is RuleState.NOT_APPLICABLE
 
     def test_unread_authentication_methods_are_unknown(self) -> None:
         """Reading them needs a Graph permission that may not be consented.
         That is a coverage gap, not a clean account."""
         person = user(roles=[], mfa=None)
-        assert (
-            self.rule.evaluate(person, make_context(person)).state is RuleState.UNKNOWN
-        )
+        assert self.rule.evaluate(person, make_context(person)).state is RuleState.UNKNOWN
 
     def test_security_defaults_lower_the_score_without_clearing_the_finding(
         self,
@@ -238,9 +228,7 @@ class TestWhetherAnythingEnforcesMfa:
         assert result.evidence["policies_covering_some_users"] == ["Admins", "Finance"]
 
     def test_nothing_at_all_fails(self) -> None:
-        context = make_context(
-            controls={"security_defaults_enabled": False, "mfa_policies": []}
-        )
+        context = make_context(controls={"security_defaults_enabled": False, "mfa_policies": []})
         assert self.rule.evaluate(None, context).state is RuleState.FAIL
 
     def test_a_tenant_whose_policies_were_never_read_is_unknown(self) -> None:
@@ -304,27 +292,19 @@ class TestGuestsHoldingPrivilege:
 
     def test_a_privileged_member_passes(self) -> None:
         member = user(roles=["Global Administrator"], user_type="Member")
-        assert (
-            self.rule.evaluate(member, make_context(member)).state is RuleState.PASS
-        )
+        assert self.rule.evaluate(member, make_context(member)).state is RuleState.PASS
 
     def test_an_ordinary_guest_is_out_of_scope(self) -> None:
         """Guests are how organizations work with each other. The finding is
         the privilege, not the guest."""
         guest = user(roles=[], user_type="Guest")
-        assert (
-            self.rule.evaluate(guest, make_context(guest)).state
-            is RuleState.NOT_APPLICABLE
-        )
+        assert self.rule.evaluate(guest, make_context(guest)).state is RuleState.NOT_APPLICABLE
 
     def test_an_unreported_user_type_is_unknown(self) -> None:
         """Guessing "Member" because most accounts are one would be a pass
         nobody earned."""
         unknown = user(roles=["Global Administrator"], user_type=None)
-        assert (
-            self.rule.evaluate(unknown, make_context(unknown)).state
-            is RuleState.UNKNOWN
-        )
+        assert self.rule.evaluate(unknown, make_context(unknown)).state is RuleState.UNKNOWN
 
 
 class TestDisabledAccountsHoldingPrivilege:
@@ -347,13 +327,8 @@ class TestDisabledAccountsHoldingPrivilege:
 
     def test_a_disabled_ordinary_account_is_out_of_scope(self) -> None:
         leaver = user(roles=[], enabled=False)
-        assert (
-            self.rule.evaluate(leaver, make_context(leaver)).state
-            is RuleState.NOT_APPLICABLE
-        )
+        assert self.rule.evaluate(leaver, make_context(leaver)).state is RuleState.NOT_APPLICABLE
 
     def test_an_unreported_account_state_is_unknown(self) -> None:
         admin = user(roles=["Global Administrator"], enabled=None)
-        assert (
-            self.rule.evaluate(admin, make_context(admin)).state is RuleState.UNKNOWN
-        )
+        assert self.rule.evaluate(admin, make_context(admin)).state is RuleState.UNKNOWN

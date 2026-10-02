@@ -36,7 +36,7 @@ function findingRisk(overrides: Partial<Risk> = {}): Risk {
     business_impact: 4.5,
     score_breakdown: { components: {}, total: 84 },
     ...overrides,
-  } as Risk;
+  };
 }
 
 function scenarioRisk(overrides: Partial<Risk> = {}): Risk {
@@ -79,7 +79,7 @@ function scenarioRisk(overrides: Partial<Risk> = {}): Risk {
       total: 96,
     },
     ...overrides,
-  } as Risk;
+  };
 }
 
 function mount(
@@ -113,10 +113,10 @@ function mount(
             }
           : url.includes("status=OPEN&limit=1")
             ? { data: [], meta: { total: untriaged } }
-        : url.includes("/organizations")
-          ? { data: [{ id: "org-1", name: "Contoso", is_demo: demo }], meta: {} }
-          : { data: risks, meta: {} },
-    ) as never,
+            : url.includes("/organizations")
+              ? { data: [{ id: "org-1", name: "Contoso", is_demo: demo }], meta: {} }
+              : { data: risks, meta: {} },
+    ),
   );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -144,9 +144,13 @@ describe("RisksPage", () => {
     const triage = await screen.findByText("Needs triage", { selector: "dt" });
     await waitFor(() => expect(triage.nextElementSibling).toHaveTextContent("5"));
     await waitFor(() =>
-      expect(screen.getByText("Live risks", { selector: "dt" }).nextElementSibling).toHaveTextContent("9"),
+      expect(
+        screen.getByText("Live risks", { selector: "dt" }).nextElementSibling,
+      ).toHaveTextContent("9"),
     );
-    expect(screen.getByText("Critical", { selector: "dt" }).nextElementSibling).toHaveTextContent("4");
+    expect(screen.getByText("Critical", { selector: "dt" }).nextElementSibling).toHaveTextContent(
+      "4",
+    );
     expect(screen.getByText("High", { selector: "dt" }).nextElementSibling).toHaveTextContent("3");
     expect(screen.queryByText("No verdict", { selector: "dt" })).not.toBeInTheDocument();
   });
@@ -183,7 +187,7 @@ describe("RisksPage", () => {
   });
 
   it("decides about the selected rows in one request", async () => {
-    const post = vi.spyOn(api, "post").mockResolvedValue({ data: [], meta: {} } as never);
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: [], meta: {} });
     mount([scenarioRisk(), findingRisk()]);
 
     await userEvent.click(
@@ -200,7 +204,7 @@ describe("RisksPage", () => {
   });
 
   it("asks for a reason, and says how far an acceptance reaches", async () => {
-    const post = vi.spyOn(api, "post").mockResolvedValue({ data: [], meta: {} } as never);
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: [], meta: {} });
     mount([findingRisk({ finding_count: 40 })]);
 
     await userEvent.click(
@@ -243,7 +247,7 @@ describe("RisksPage", () => {
   });
 
   it("sends an end date as the end of the picked day", async () => {
-    const post = vi.spyOn(api, "post").mockResolvedValue({ data: [], meta: {} } as never);
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: [], meta: {} });
     mount([findingRisk()]);
 
     await userEvent.click(
@@ -323,9 +327,7 @@ describe("RisksPage", () => {
   it("shows a scenario's route, hop by hop", async () => {
     mount([scenarioRisk()]);
 
-    await waitFor(() =>
-      expect(screen.getByText("jump-01 runs as mi-jump-01")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText("jump-01 runs as mi-jump-01")).toBeInTheDocument());
     expect(screen.getByText("mi-jump-01 can act over sub-1")).toBeInTheDocument();
   });
 
@@ -341,9 +343,7 @@ describe("RisksPage", () => {
   it("shows the arithmetic that put it above its worst finding", async () => {
     mount([scenarioRisk()]);
 
-    await waitFor(() =>
-      expect(screen.getByText("Worst finding on the route")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText("Worst finding on the route")).toBeInTheDocument());
     expect(screen.getByText("84")).toBeInTheDocument();
     expect(screen.getByText("+12")).toBeInTheDocument();
   });
@@ -415,9 +415,7 @@ describe("RisksPage", () => {
       }),
     ]);
 
-    await waitFor(() =>
-      expect(screen.getByText("Privilege escalation")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText("Privilege escalation")).toBeInTheDocument());
     expect(screen.getByText("jump-01 leads to control of sub-1")).toBeInTheDocument();
     expect(screen.getByText("The route")).toBeInTheDocument();
     expect(screen.queryByText("Attack path")).not.toBeInTheDocument();
@@ -521,9 +519,7 @@ describe("the risk ranking", () => {
     fireEvent.change(screen.getByLabelText("Search risks"), { target: { value: "payroll" } });
     await vi.advanceTimersByTimeAsync(300);
 
-    await waitFor(() =>
-      expect(requested.some((u) => u.includes("search=payroll"))).toBe(true),
-    );
+    await waitFor(() => expect(requested.some((u) => u.includes("search=payroll"))).toBe(true));
   });
 
   it("offers UNKNOWN as a level, because the engine really assigns it", async () => {
@@ -544,12 +540,10 @@ describe("the risk ranking", () => {
     await waitFor(() => expect(trigger).toHaveAttribute("aria-expanded", "true"));
     await user.click(await screen.findByRole("option", { name: "Unknown" }));
 
-    await waitFor(() =>
-      expect(requested.some((u) => u.includes("risk_level=UNKNOWN"))).toBe(true),
+    await waitFor(() => expect(requested.some((u) => u.includes("risk_level=UNKNOWN"))).toBe(true));
+    expect(screen.getByRole("combobox", { name: "Filter by risk level" })).toHaveTextContent(
+      "Unknown",
     );
-    expect(
-      screen.getByRole("combobox", { name: "Filter by risk level" }),
-    ).toHaveTextContent("Unknown");
   });
 
   it("opens on the band a dashboard risk bar linked to", async () => {
@@ -580,9 +574,10 @@ describe("the risk ranking", () => {
     mount([scenarioRisk(), findingRisk()]);
 
     await waitFor(() =>
-      expect(
-        screen.getByRole("link", { name: "jump-01 can reach customerdata" }),
-      ).toHaveAttribute("href", "/risks/r-scenario"),
+      expect(screen.getByRole("link", { name: "jump-01 can reach customerdata" })).toHaveAttribute(
+        "href",
+        "/risks/r-scenario",
+      ),
     );
     expect(
       screen.getByRole("link", { name: "Public blob access on customerdata" }),

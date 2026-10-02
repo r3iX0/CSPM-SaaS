@@ -1,6 +1,8 @@
 # CloudGuard — Security Principles
 
-CloudGuard is itself a security product — security is not a later feature. This doc is the cross-cutting reference; detail lives in `DATABASE.md` (RLS/schema), `AZURE_INTEGRATION.md` (credential handling), and `API.md` (auth flow).
+CloudGuard is itself a security product — security is not a later feature. This doc is the
+cross-cutting reference; detail lives in `DATABASE.md` (RLS/schema), `AZURE_INTEGRATION.md`
+(credential handling), and `API.md` (auth flow).
 
 ---
 
@@ -25,14 +27,17 @@ CloudGuard is itself a security product — security is not a later feature. Thi
 
 Two independent layers, not one:
 
-1. **Application layer** — `organization_id` is always derived server-side from the authenticated user's membership, never trusted from a client-supplied value.
-2. **Database layer** — PostgreSQL RLS enforces the same boundary independently, resolving through `authenticated user → organization_members → organization_id → requested row`. See `DATABASE.md` §7.
+1. **Application layer** — `organization_id` is always derived server-side from the authenticated
+   user's membership, never trusted from a client-supplied value.
+2. **Database layer** — PostgreSQL RLS enforces the same boundary independently, resolving through
+   `authenticated user → organization_members → organization_id → requested row`. See `DATABASE.md`
+   §7.
 
 **RLS only binds a role that is not the owner.** PostgreSQL exempts a table's
 owner from its own row-level policies, so an application connecting as the owner
 has RLS enabled, policies written, and no boundary at all — the second layer
 looks present in every migration and enforces nothing. The database therefore has
-three logins, and which one a process uses *is* the security control:
+three logins, and which one a process uses _is_ the security control:
 
 | Role | Used by | RLS |
 |---|---|---|
@@ -57,11 +62,25 @@ two is in force, and the worker logs it on its first task.
 carries its placeholder password** — a real credential must never be committed
 there.
 
-**Joining an organization.** There are three doors, all SECURITY DEFINER functions, because a person who is not yet a member cannot satisfy any membership policy: creating an organization (as its OWNER), joining the demo (as VIEWER), and accepting an invitation. An invitation is a single-use token stored only as its SHA-256, carried in the link's URL fragment so no server logs it, valid for seven days, and accepted only by the address it names -- checked inside the function against the email on the caller's verified token, never against an argument. Nobody is invited as OWNER (`DECISIONS.md` §162).
+**Joining an organization.** There are three doors, all SECURITY DEFINER functions, because a person
+who is not yet a member cannot satisfy any membership policy: creating an organization (as its
+OWNER), joining the demo (as VIEWER), and accepting an invitation. An invitation is a single-use
+token stored only as its SHA-256, carried in the link's URL fragment so no server logs it, valid for
+seven days, and accepted only by the address it names -- checked inside the function against the
+email on the caller's verified token, never against an argument. Nobody is invited as OWNER
+(`DECISIONS.md` §162).
 
-**Requests to a URL a customer typed** go only through `app/core/outbound.py`: HTTPS on port 443, every resolved address public (no private, loopback, link-local, shared, reserved or multicast range, IPv4-mapped IPv6 judged as IPv4), the connection pinned to the checked address with the name kept for TLS verification, no redirects and no environment proxies. This is what stops a webhook URL from reaching Redis, the database pooler or the metadata address from inside Railway's network. Stored webhook URLs and signing secrets are credentials: the API shows a URL only in part and a secret once (`DECISIONS.md` §164).
+**Requests to a URL a customer typed** go only through
+`app/core/outbound.py`: HTTPS on port 443, every resolved address public (no private, loopback,
+link-local, shared, reserved or multicast range, IPv4-mapped IPv6 judged as IPv4), the connection
+pinned to the checked address with the name kept for TLS verification, no redirects and no
+environment proxies. This is what stops a webhook URL from reaching Redis, the database pooler or
+the metadata address from inside Railway's network. Stored webhook URLs and signing secrets are
+credentials: the API shows a URL only in part and a secret once (`DECISIONS.md`
+§164).
 
-Automated RLS tests must confirm Organization A can never read Organization B's rows — this is a required test category, not optional coverage (`tests/integration/test_rls.py`, `TESTING.md` §3).
+Automated RLS tests must confirm Organization A can never read Organization B's rows — this is a
+required test category, not optional coverage (`tests/integration/test_rls.py`, `TESTING.md` §3).
 
 ---
 
@@ -79,11 +98,13 @@ Automated RLS tests must confirm Organization A can never read Organization B's 
   code path that writes to a customer tenant, which is why enabling change
   events hands the customer an `az eventgrid` command to run themselves rather
   than creating the subscription for them — CloudGuard could not create it.
-- CloudGuard authenticates to customer tenants as itself (multi-tenant app + admin consent) — there is **no per-customer secret to store**. See `AZURE_INTEGRATION.md` §2.
-- Supabase service-role/secret keys and Azure app credentials **never** reach the frontend. Only the Supabase publishable key is used client-side.
+- CloudGuard authenticates to customer tenants as itself (multi-tenant app + admin consent) — there
+  is **no per-customer secret to store**. See `AZURE_INTEGRATION.md` §2.
+- Supabase service-role/secret keys and Azure app credentials **never** reach the frontend. Only the
+  Supabase publishable key is used client-side.
 - Secrets live in environment variables server-side, never committed:
 
-```
+```text
 APP_ENV=                        -- test / staging / production
 APP_URL=                        -- where a consent redirect lands the customer
 API_URL=
@@ -123,10 +144,17 @@ mid-consent with no way back.
 
 ## 4. Accepted Risk / Exceptions
 
-Users can mark a finding as an intentionally accepted risk rather than remediate it. Store `reason`, `approved_by`, `expires_at`, `status` (see `exceptions` table, `DATABASE.md`). **Accepted risks are never permanently hidden** — they remain auditable via `audit_logs`, which no application role can edit or delete (`DECISIONS.md` §163). Every entry carries the actor, the caller's address and the request id.
+Users can mark a finding as an intentionally accepted risk rather than remediate it. Store
+`reason`, `approved_by`, `expires_at`, `status` (see `exceptions` table, `DATABASE.md`). **Accepted
+risks are never permanently hidden** — they remain auditable via
+`audit_logs`, which no application role can edit or delete (`DECISIONS.md` §163). Every entry
+carries the actor, the caller's address and the request id.
 
 ---
 
 ## 5. Product Trust Model
 
-The customer is giving CloudGuard permission to inspect its infrastructure. The product must clearly communicate: what CloudGuard accesses, why, what it cannot access, how credentials are protected, how data is isolated, and who can access it. Trust is a product feature, not an afterthought — this shapes the onboarding copy in `AZURE_INTEGRATION.md` §3.
+The customer is giving CloudGuard permission to inspect its infrastructure. The product must clearly
+communicate: what CloudGuard accesses, why, what it cannot access, how credentials are protected,
+how data is isolated, and who can access it. Trust is a product feature, not an afterthought — this
+shapes the onboarding copy in `AZURE_INTEGRATION.md` §3.

@@ -172,9 +172,7 @@ def test_every_rule_now_carries_a_declaration() -> None:
     """Both directions of the same discipline as ``rbac.py``: no rule ships
     without a machine-readable remediation, and none carries one that says
     nothing without saying why."""
-    undeclared = [
-        rule.rule_id for rule in RULE_REGISTRY if rule.remediation_spec is None
-    ]
+    undeclared = [rule.rule_id for rule in RULE_REGISTRY if rule.remediation_spec is None]
     assert not undeclared, f"rules with no remediation declaration: {undeclared}"
 
 
@@ -217,9 +215,9 @@ def test_a_floor_is_expressed_as_a_set_rather_than_an_equality() -> None:
         ),
         policy_resource_type="Microsoft.Storage/storageAccounts",
     )
-    condition = azure_policy("AZ-TEST-002", "Test", spec)["properties"]["policyRule"][
-        "if"
-    ]["allOf"][1]
+    condition = azure_policy("AZ-TEST-002", "Test", spec)["properties"]["policyRule"]["if"][
+        "allOf"
+    ][1]
 
     assert condition["notIn"] == ["TLS1_2", "TLS1_3"]
 

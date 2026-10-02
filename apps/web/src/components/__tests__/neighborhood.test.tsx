@@ -15,11 +15,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AssetNeighborhood } from "@/components/graph/AssetNeighborhood";
 import { OpenInGraph } from "@/components/graph/OpenInGraph";
-import {
-  COLUMN_GAP,
-  layoutNeighborhood,
-  stepFrom,
-} from "@/components/graph/neighborhoodLayout";
+import { COLUMN_GAP, layoutNeighborhood, stepFrom } from "@/components/graph/neighborhoodLayout";
 import { api } from "@/lib/api";
 import type { AttackPath, Neighborhood, NeighborhoodNode, WhatIf } from "@/lib/types";
 
@@ -55,11 +51,7 @@ const AROUND_VM: Neighborhood = {
     vertex("rg", -1, "resource_group"),
   ],
   groups: [],
-  edges: [
-    edge("rg", "vm"),
-    edge("vm", "mi", "has_identity"),
-    edge("mi", "sub", "grants_role"),
-  ],
+  edges: [edge("rg", "vm"), edge("vm", "mi", "has_identity"), edge("mi", "sub", "grants_role")],
   routes: [],
 };
 
@@ -190,7 +182,7 @@ function mount(
             data: typeof neighborhood === "function" ? neighborhood(url) : neighborhood,
             meta: { depth: 2, truncated: false, max_nodes: 150, fan_out: 12, ...meta },
           },
-    ) as never,
+    ),
   );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
@@ -297,9 +289,7 @@ describe("the neighbourhood card", () => {
     mount({ ...AROUND_VM, focus: "mi" }, {}, "/assets/row-vm?around=mi");
 
     // No "draw" press needed: a link to a re-centred view is a request for it.
-    await waitFor(() =>
-      expect(screen.getByText(/centred on/i)).toHaveTextContent("Centred on mi"),
-    );
+    await waitFor(() => expect(screen.getByText(/centred on/i)).toHaveTextContent("Centred on mi"));
     expect(screen.getByRole("link", { name: /open its page/i })).toHaveAttribute(
       "href",
       "/assets/row-mi",
@@ -625,9 +615,7 @@ describe("exploring a route in the graph", () => {
   }
 
   it("opens the entry point's page with the route to trace", async () => {
-    const get = vi
-      .spyOn(api, "get")
-      .mockResolvedValue({ data: { id: "row-7" }, meta: {} } as never);
+    const get = vi.spyOn(api, "get").mockResolvedValue({ data: { id: "row-7" }, meta: {} });
     mountButton();
 
     await userEvent.click(screen.getByRole("button", { name: /explore in graph/i }));

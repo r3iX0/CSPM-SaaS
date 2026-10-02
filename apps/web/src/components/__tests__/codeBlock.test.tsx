@@ -26,9 +26,7 @@ describe("a block of code", () => {
     withClipboard(() => Promise.resolve());
     render(<CodeBlock code="az role assignment delete --assignee 00000000" />);
 
-    expect(
-      screen.getByText(/az role assignment delete --assignee 00000000/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/az role assignment delete --assignee 00000000/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /copy/i })).toBeInTheDocument();
   });
 

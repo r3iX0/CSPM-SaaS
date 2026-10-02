@@ -74,9 +74,7 @@ function DeclarationFields({
   const key = ["account-context", account.id];
 
   const [environment, setEnvironment] = useState(declaration?.environment ?? "");
-  const [criticality, setCriticality] = useState<string>(
-    declaration?.criticality ?? NOT_DECLARED,
-  );
+  const [criticality, setCriticality] = useState<string>(declaration?.criticality ?? NOT_DECLARED);
   const [sensitivity, setSensitivity] = useState<string>(
     declaration?.data_sensitivity ?? NOT_DECLARED,
   );
@@ -98,8 +96,7 @@ function DeclarationFields({
       window.setTimeout(() => setSaved(false), 2000);
       queryClient.setQueryData(key, data);
     },
-    onError: (err) =>
-      setError(err instanceof ApiError ? err.message : t.settings.contextFailed),
+    onError: (err) => setError(err instanceof ApiError ? err.message : t.settings.contextFailed),
   });
 
   const clear = useMutation({
@@ -112,8 +109,7 @@ function DeclarationFields({
       setNote("");
       queryClient.setQueryData(key, null);
     },
-    onError: (err) =>
-      setError(err instanceof ApiError ? err.message : t.settings.contextFailed),
+    onError: (err) => setError(err instanceof ApiError ? err.message : t.settings.contextFailed),
   });
 
   const declared = Boolean(declaration);

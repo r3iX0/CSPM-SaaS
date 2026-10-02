@@ -30,9 +30,7 @@ class AzureLoggingRule(SecurityRule):
         ResourceType.POSTGRESQL_SERVER,
         ResourceType.NETWORK_SECURITY_GROUP,
     ]
-    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (
-        AzureEvidence.DIAGNOSTIC_SETTINGS,
-    )
+    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (AzureEvidence.DIAGNOSTIC_SETTINGS,)
     estimated_effort_minutes = 120
     rationale = (
         "Logging does not prevent an incident, but without it you cannot detect one, scope "
@@ -47,7 +45,7 @@ class AzureLoggingRule(SecurityRule):
         "Azure CLI:\n"
         "  az monitor diagnostic-settings create --name security-logs \\\n"
         "    --resource <resource-id> --workspace <workspace-id> \\\n"
-        "    --logs '[{\"categoryGroup\":\"audit\",\"enabled\":true}]'\n\n"
+        '    --logs \'[{"categoryGroup":"audit","enabled":true}]\'\n\n'
         "Apply this at scale with an Azure Policy 'DeployIfNotExists' assignment rather than "
         "resource by resource."
     )
@@ -152,9 +150,7 @@ class AzureActivityLogExportRule(SecurityRule):
     # behind at all.
     exploitability = 1
     applies_to: ClassVar[list[ResourceType]] = [ResourceType.SUBSCRIPTION]
-    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (
-        AzureEvidence.DIAGNOSTIC_SETTINGS,
-    )
+    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (AzureEvidence.DIAGNOSTIC_SETTINGS,)
     estimated_effort_minutes = 60
     rationale = (
         "This is the log an investigation starts from, and the one that answers the "
@@ -174,9 +170,9 @@ class AzureActivityLogExportRule(SecurityRule):
         "  az monitor diagnostic-settings subscription create \\\n"
         "    --name activity-log-export --location <region> \\\n"
         "    --workspace <workspace-id> \\\n"
-        "    --logs '[{\"category\":\"Administrative\",\"enabled\":true},"
-        "{\"category\":\"Security\",\"enabled\":true},"
-        "{\"category\":\"Policy\",\"enabled\":true}]'\n\n"
+        '    --logs \'[{"category":"Administrative","enabled":true},'
+        '{"category":"Security","enabled":true},'
+        '{"category":"Policy","enabled":true}]\'\n\n'
         "Set the workspace retention to match how long you would want to investigate "
         "backwards -- the export is what makes retention yours to choose rather than "
         "Azure's."
@@ -201,8 +197,8 @@ class AzureActivityLogExportRule(SecurityRule):
         cli=(
             "az monitor diagnostic-settings subscription create "
             "--name activity-log-export --location <region> --workspace <workspace-id> "
-            "--logs '[{\"category\":\"Administrative\",\"enabled\":true},"
-            "{\"category\":\"Security\",\"enabled\":true}]'",
+            '--logs \'[{"category":"Administrative","enabled":true},'
+            '{"category":"Security","enabled":true}]\'',
         ),
         notes=(
             "No policy is generated. A subscription diagnostic setting is not a "
@@ -237,9 +233,7 @@ class AzureActivityLogExportRule(SecurityRule):
             # could not read, and the normalizer turns that into None. A
             # subscription whose settings could not be read is not one without
             # them.
-            return RuleResult.unknown(
-                "The subscription's diagnostic settings could not be read"
-            )
+            return RuleResult.unknown("The subscription's diagnostic settings could not be read")
 
         # A setting with no destination exports nothing. Counting it would let
         # an empty shell of a setting answer this rule.
@@ -297,9 +291,7 @@ class AzureCriticalResourceLoggingRule(SecurityRule):
         ResourceType.KEY_VAULT,
         ResourceType.VIRTUAL_MACHINE,
     ]
-    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (
-        AzureEvidence.DIAGNOSTIC_SETTINGS,
-    )
+    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (AzureEvidence.DIAGNOSTIC_SETTINGS,)
     estimated_effort_minutes = 90
     rationale = (
         "The value of a log is decided before the incident, not during it. On the assets "
@@ -315,7 +307,7 @@ class AzureCriticalResourceLoggingRule(SecurityRule):
         "Azure CLI:\n"
         "  az monitor diagnostic-settings create --name security-logs \\\n"
         "    --resource <resource-id> --workspace <workspace-id> \\\n"
-        "    --logs '[{\"categoryGroup\":\"audit\",\"enabled\":true}]'\n\n"
+        '    --logs \'[{"categoryGroup":"audit","enabled":true}]\'\n\n'
         "Do it once across the estate with an Azure Policy assignment that deploys the "
         "setting, rather than per resource: the resources created next month are the ones "
         "a manual pass will miss."
@@ -333,7 +325,7 @@ class AzureCriticalResourceLoggingRule(SecurityRule):
         cli=(
             "az monitor diagnostic-settings create --name security-logs "
             "--resource <resource-id> --workspace <workspace-id> "
-            "--logs '[{\"categoryGroup\":\"audit\",\"enabled\":true}]'",
+            '--logs \'[{"categoryGroup":"audit","enabled":true}]\'',
         ),
         notes=(
             "Azure Policy has built-in DeployIfNotExists definitions that add "

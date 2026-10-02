@@ -306,9 +306,7 @@ async def neighborhood(
     if around is None:
         raise NotFound("No such asset in this organization")
 
-    ids = await graph_service.asset_ids(
-        session, tenant.organization_id, list(around.layers)
-    )
+    ids = await graph_service.asset_ids(session, tenant.organization_id, list(around.layers))
     findings = await graph_service.open_findings(
         session, tenant.organization_id, list(ids.values())
     )

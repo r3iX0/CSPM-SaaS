@@ -60,6 +60,7 @@ DETAIL_CONCURRENCY = 8
 # so a wave that opened every region at once would be shaped to be throttled.
 MAX_CONCURRENT_TASKS = 12
 
+
 # The API contract each reading is taken under, recorded on the evidence row.
 # ``api_version`` is botocore's service model date rather than a URL parameter,
 # which is the same fact in AWS's vocabulary: it is what decides the response
@@ -129,11 +130,7 @@ def categories_for_actions(actions: Iterable[str]) -> frozenset[EvidenceCategory
     categories report UNKNOWN until you redeploy", which is the sentence a
     customer can act on.
     """
-    return frozenset(
-        key.category
-        for action in actions
-        for key in ACTION_KEYS.get(action, ())
-    )
+    return frozenset(key.category for action in actions for key in ACTION_KEYS.get(action, ()))
 
 
 class AwsPlanBuilder:
@@ -161,9 +158,7 @@ class AwsPlanBuilder:
         self.home_region = home_region
 
     def client(self, service: str, region: str | None = None) -> AwsClient:
-        return AwsClient(
-            self.assumer, service, region or self.home_region, session=self.session
-        )
+        return AwsClient(self.assumer, service, region or self.home_region, session=self.session)
 
     # ------------------------------------------------------------- the plans
 
@@ -232,17 +227,13 @@ class AwsPlanBuilder:
             return [], str(exc) or type(exc).__name__
 
         regions = sorted(
-            str(r.get("RegionName"))
-            for r in response.get("Regions") or []
-            if r.get("RegionName")
+            str(r.get("RegionName")) for r in response.get("Regions") or [] if r.get("RegionName")
         )
         if not regions:
             return [], "the account reported no enabled regions"
         return regions, None
 
-    def _region_task(
-        self, regions: list[str], problem: str | None
-    ) -> CollectionTask:
+    def _region_task(self, regions: list[str], problem: str | None) -> CollectionTask:
         """The region listing, recorded as the reading it was.
 
         The call has already been made -- the plan's shape depended on it -- so
@@ -312,9 +303,7 @@ class AwsPlanBuilder:
                 key=AwsEvidence.ACCOUNT_PASSWORD_POLICY,
                 run=self._password_policy,
                 actions=("iam:GetAccountPasswordPolicy",),
-                endpoints=(
-                    endpoint("iam", "GetAccountPasswordPolicy", "2010-05-08"),
-                ),
+                endpoints=(endpoint("iam", "GetAccountPasswordPolicy", "2010-05-08"),),
             ),
             CollectionTask(
                 key=AwsEvidence.ACCOUNT_SUMMARY,
@@ -336,9 +325,7 @@ class AwsPlanBuilder:
                 run=self._s3_public_access,
                 depends_on=(AwsEvidence.S3_BUCKETS,),
                 actions=("s3:GetBucketPublicAccessBlock",),
-                endpoints=(
-                    endpoint("s3", "GetPublicAccessBlock", "2006-03-01"),
-                ),
+                endpoints=(endpoint("s3", "GetPublicAccessBlock", "2006-03-01"),),
             ),
             CollectionTask(
                 key=AwsEvidence.S3_BUCKET_POLICY_STATUS,
@@ -385,17 +372,13 @@ class AwsPlanBuilder:
                 key=AwsEvidence.IAM_SERVER_CERTIFICATES,
                 run=self._iam_server_certificates,
                 actions=("iam:ListServerCertificates",),
-                endpoints=(
-                    endpoint("iam", "ListServerCertificates", "2010-05-08"),
-                ),
+                endpoints=(endpoint("iam", "ListServerCertificates", "2010-05-08"),),
             ),
             CollectionTask(
                 key=AwsEvidence.IAM_SUPPORT_ACCESS,
                 run=self._iam_support_access,
                 actions=("iam:ListEntitiesForPolicy",),
-                endpoints=(
-                    endpoint("iam", "ListEntitiesForPolicy", "2010-05-08"),
-                ),
+                endpoints=(endpoint("iam", "ListEntitiesForPolicy", "2010-05-08"),),
             ),
         ]
 
@@ -525,9 +508,7 @@ class AwsPlanBuilder:
 
         async def pools(collected: dict[str, Any]) -> TaskData:
             async with self.client("cognito-idp", region) as cognito:
-                listed = await cognito.paginate(
-                    "list_user_pools", "UserPools", MaxResults=60
-                )
+                listed = await cognito.paginate("list_user_pools", "UserPools", MaxResults=60)
 
                 async def describe(entry: dict[str, Any]) -> dict[str, Any] | None:
                     found = await cognito.optional(
@@ -539,9 +520,7 @@ class AwsPlanBuilder:
                 return TaskData(
                     {AwsEvidence.COGNITO_USER_POOLS.value: [p for p in described if p]},
                     partial_reason=(
-                        "list_user_pools stopped at the page cap"
-                        if cognito.truncated
-                        else None
+                        "list_user_pools stopped at the page cap" if cognito.truncated else None
                     ),
                 )
 
@@ -663,9 +642,7 @@ class AwsPlanBuilder:
                 return TaskData(
                     {key.value: items},
                     partial_reason=(
-                        f"{operation} stopped at the page cap"
-                        if client.truncated
-                        else None
+                        f"{operation} stopped at the page cap" if client.truncated else None
                     ),
                 )
 
@@ -689,9 +666,7 @@ class AwsPlanBuilder:
 
         async def run(collected: dict[str, Any]) -> TaskData:
             async with self.client("ec2", region) as ec2:
-                reservations = await ec2.paginate(
-                    "describe_instances", "Reservations"
-                )
+                reservations = await ec2.paginate("describe_instances", "Reservations")
                 instances = [
                     {**instance, "ReservationId": reservation.get("ReservationId")}
                     for reservation in reservations
@@ -700,9 +675,7 @@ class AwsPlanBuilder:
                 return TaskData(
                     {AwsEvidence.EC2_INSTANCES.value: instances},
                     partial_reason=(
-                        "describe_instances stopped at the page cap"
-                        if ec2.truncated
-                        else None
+                        "describe_instances stopped at the page cap" if ec2.truncated else None
                     ),
                 )
 
@@ -718,9 +691,7 @@ class AwsPlanBuilder:
         async def run(collected: dict[str, Any]) -> TaskData:
             async with self.client("ec2", region) as ec2:
                 response = await ec2.call("get_ebs_encryption_by_default")
-                return TaskData(
-                    {AwsEvidence.EBS_ENCRYPTION_DEFAULT.value: [response]}
-                )
+                return TaskData({AwsEvidence.EBS_ENCRYPTION_DEFAULT.value: [response]})
 
         return CollectionTask(
             key=AwsEvidence.EBS_ENCRYPTION_DEFAULT,
@@ -741,6 +712,7 @@ class AwsPlanBuilder:
         async def run(collected: dict[str, Any]) -> TaskData:
             async with self.client("kms", region) as kms:
                 listed = await kms.paginate("list_keys", "Keys")
+
                 async def describe(entry: dict[str, Any]) -> dict[str, Any] | None:
                     key_id = str(entry.get("KeyId"))
                     found = await kms.optional("describe_key", KeyId=key_id)
@@ -752,12 +724,9 @@ class AwsPlanBuilder:
                     # answers ``UnsupportedOperationException``, which is not a
                     # finding and not a gap.
                     if metadata.get("KeyManager") == "CUSTOMER":
-                        rotation = await kms.optional(
-                            "get_key_rotation_status", KeyId=key_id
-                        )
+                        rotation = await kms.optional("get_key_rotation_status", KeyId=key_id)
                         metadata["KeyRotationEnabled"] = (
-                            None if rotation is None
-                            else bool(rotation.get("KeyRotationEnabled"))
+                            None if rotation is None else bool(rotation.get("KeyRotationEnabled"))
                         )
                     return metadata
 
@@ -765,9 +734,7 @@ class AwsPlanBuilder:
                 keys = [result for result in described if result]
                 return TaskData(
                     {AwsEvidence.KMS_KEYS.value: keys},
-                    partial_reason=(
-                        "list_keys stopped at the page cap" if kms.truncated else None
-                    ),
+                    partial_reason=("list_keys stopped at the page cap" if kms.truncated else None),
                 )
 
         return CollectionTask(
@@ -795,13 +762,10 @@ class AwsPlanBuilder:
         async def run(collected: dict[str, Any]) -> TaskData:
             async with self.client("config", region) as config:
                 listed = await config.call("describe_configuration_recorders")
-                status = await config.optional(
-                    "describe_configuration_recorder_status"
-                )
+                status = await config.optional("describe_configuration_recorder_status")
                 by_name = {
                     str(entry.get("name")): entry
-                    for entry in (status or {}).get("ConfigurationRecordersStatus")
-                    or []
+                    for entry in (status or {}).get("ConfigurationRecordersStatus") or []
                 }
                 recorders = [
                     {**recorder, "Status": by_name.get(str(recorder.get("name")))}
@@ -819,9 +783,7 @@ class AwsPlanBuilder:
             ),
             endpoints=(
                 endpoint("config", "DescribeConfigurationRecorders", "2014-11-12"),
-                endpoint(
-                    "config", "DescribeConfigurationRecorderStatus", "2014-11-12"
-                ),
+                endpoint("config", "DescribeConfigurationRecorderStatus", "2014-11-12"),
             ),
         )
 
@@ -840,9 +802,7 @@ class AwsPlanBuilder:
         async def run(collected: dict[str, Any]) -> TaskData:
             async with self.client("securityhub", region) as hub:
                 found = await hub.optional("describe_hub")
-                return TaskData(
-                    {AwsEvidence.SECURITYHUB_STATUS.value: [found] if found else []}
-                )
+                return TaskData({AwsEvidence.SECURITYHUB_STATUS.value: [found] if found else []})
 
         return CollectionTask(
             key=AwsEvidence.SECURITYHUB_STATUS,
@@ -859,11 +819,7 @@ class AwsPlanBuilder:
             async with self.client("accessanalyzer", region) as analyzer:
                 listed = await analyzer.call("list_analyzers")
                 return TaskData(
-                    {
-                        AwsEvidence.ACCESS_ANALYZERS.value: list(
-                            listed.get("analyzers") or []
-                        )
-                    }
+                    {AwsEvidence.ACCESS_ANALYZERS.value: list(listed.get("analyzers") or [])}
                 )
 
         return CollectionTask(
@@ -888,9 +844,7 @@ class AwsPlanBuilder:
                 listed = await guardduty.call("list_detectors")
                 detectors = []
                 for detector_id in listed.get("DetectorIds") or []:
-                    detail = await guardduty.optional(
-                        "get_detector", DetectorId=detector_id
-                    )
+                    detail = await guardduty.optional("get_detector", DetectorId=detector_id)
                     if detail is not None:
                         detectors.append({**detail, "DetectorId": detector_id})
                 return TaskData({AwsEvidence.GUARDDUTY_DETECTORS.value: detectors})
@@ -914,9 +868,7 @@ class AwsPlanBuilder:
             return TaskData(
                 {AwsEvidence.ORGANIZATION_ACCOUNTS.value: accounts},
                 partial_reason=(
-                    "list_accounts stopped at the page cap"
-                    if organizations.truncated
-                    else None
+                    "list_accounts stopped at the page cap" if organizations.truncated else None
                 ),
             )
 
@@ -925,9 +877,7 @@ class AwsPlanBuilder:
             users = await iam.paginate("list_users", "Users")
             return TaskData(
                 {AwsEvidence.IAM_USERS.value: users},
-                partial_reason=(
-                    "list_users stopped at the page cap" if iam.truncated else None
-                ),
+                partial_reason=("list_users stopped at the page cap" if iam.truncated else None),
             )
 
     async def _iam_roles(self, collected: dict[str, Any]) -> TaskData:
@@ -935,9 +885,7 @@ class AwsPlanBuilder:
             roles = await iam.paginate("list_roles", "Roles")
             return TaskData(
                 {AwsEvidence.IAM_ROLES.value: roles},
-                partial_reason=(
-                    "list_roles stopped at the page cap" if iam.truncated else None
-                ),
+                partial_reason=("list_roles stopped at the page cap" if iam.truncated else None),
             )
 
     async def _iam_policies(self, collected: dict[str, Any]) -> TaskData:
@@ -952,9 +900,7 @@ class AwsPlanBuilder:
             policies = await iam.paginate("list_policies", "Policies", Scope="Local")
             return TaskData(
                 {AwsEvidence.IAM_POLICIES.value: policies},
-                partial_reason=(
-                    "list_policies stopped at the page cap" if iam.truncated else None
-                ),
+                partial_reason=("list_policies stopped at the page cap" if iam.truncated else None),
             )
 
     async def _credential_report(self, collected: dict[str, Any]) -> TaskData:
@@ -998,16 +944,12 @@ class AwsPlanBuilder:
         async with self.client("iam") as iam:
             response = await iam.optional("get_account_password_policy")
             policy = (response or {}).get("PasswordPolicy")
-            return TaskData(
-                {AwsEvidence.ACCOUNT_PASSWORD_POLICY.value: [policy] if policy else []}
-            )
+            return TaskData({AwsEvidence.ACCOUNT_PASSWORD_POLICY.value: [policy] if policy else []})
 
     async def _account_summary(self, collected: dict[str, Any]) -> TaskData:
         async with self.client("iam") as iam:
             response = await iam.call("get_account_summary")
-            return TaskData(
-                {AwsEvidence.ACCOUNT_SUMMARY.value: [response.get("SummaryMap") or {}]}
-            )
+            return TaskData({AwsEvidence.ACCOUNT_SUMMARY.value: [response.get("SummaryMap") or {}]})
 
     async def _iam_policy_documents(self, collected: dict[str, Any]) -> TaskData:
         """What each customer-managed policy actually grants.
@@ -1031,9 +973,7 @@ class AwsPlanBuilder:
             if not arn or not version:
                 return None
             async with self.client("iam") as iam:
-                found = await iam.optional(
-                    "get_policy_version", PolicyArn=arn, VersionId=version
-                )
+                found = await iam.optional("get_policy_version", PolicyArn=arn, VersionId=version)
             if found is None:
                 return None
             document = (found.get("PolicyVersion") or {}).get("Document")
@@ -1051,21 +991,15 @@ class AwsPlanBuilder:
             }
 
         rows = await _fan_out(policies, read)
-        return TaskData(
-            {AwsEvidence.IAM_POLICY_DOCUMENTS.value: [row for row in rows if row]}
-        )
+        return TaskData({AwsEvidence.IAM_POLICY_DOCUMENTS.value: [row for row in rows if row]})
 
     async def _iam_instance_profiles(self, collected: dict[str, Any]) -> TaskData:
         async with self.client("iam") as iam:
-            profiles = await iam.paginate(
-                "list_instance_profiles", "InstanceProfiles"
-            )
+            profiles = await iam.paginate("list_instance_profiles", "InstanceProfiles")
             return TaskData(
                 {AwsEvidence.IAM_INSTANCE_PROFILES.value: profiles},
                 partial_reason=(
-                    "list_instance_profiles stopped at the page cap"
-                    if iam.truncated
-                    else None
+                    "list_instance_profiles stopped at the page cap" if iam.truncated else None
                 ),
             )
 
@@ -1077,9 +1011,7 @@ class AwsPlanBuilder:
             return TaskData(
                 {AwsEvidence.IAM_SERVER_CERTIFICATES.value: certificates},
                 partial_reason=(
-                    "list_server_certificates stopped at the page cap"
-                    if iam.truncated
-                    else None
+                    "list_server_certificates stopped at the page cap" if iam.truncated else None
                 ),
             )
 
@@ -1116,9 +1048,7 @@ class AwsPlanBuilder:
         treats as an answer -- and it *is* one: no policy means no policy
         denying plaintext HTTP, which is the finding.
         """
-        rows = await self._per_bucket(
-            collected, AwsEvidence.S3_BUCKET_POLICY, "get_bucket_policy"
-        )
+        rows = await self._per_bucket(collected, AwsEvidence.S3_BUCKET_POLICY, "get_bucket_policy")
         parsed = []
         for row in rows.data[AwsEvidence.S3_BUCKET_POLICY.value]:
             document = (row.get("Configuration") or {}).get("Policy")
@@ -1148,16 +1078,12 @@ class AwsPlanBuilder:
             buckets = list(listed.get("Buckets") or [])
 
             async def locate(bucket: dict[str, Any]) -> dict[str, Any]:
-                where = await s3.optional(
-                    "get_bucket_location", Bucket=str(bucket.get("Name"))
-                )
+                where = await s3.optional("get_bucket_location", Bucket=str(bucket.get("Name")))
                 constraint = (where or {}).get("LocationConstraint")
                 return {**bucket, "Region": constraint or "us-east-1"}
 
             located = await _fan_out(buckets, locate)
-            return TaskData(
-                {AwsEvidence.S3_BUCKETS.value: [b for b in located if b]}
-            )
+            return TaskData({AwsEvidence.S3_BUCKETS.value: [b for b in located if b]})
 
     async def _s3_public_access(self, collected: dict[str, Any]) -> TaskData:
         return await self._per_bucket(
@@ -1172,9 +1098,7 @@ class AwsPlanBuilder:
         )
 
     async def _s3_encryption(self, collected: dict[str, Any]) -> TaskData:
-        return await self._per_bucket(
-            collected, AwsEvidence.S3_ENCRYPTION, "get_bucket_encryption"
-        )
+        return await self._per_bucket(collected, AwsEvidence.S3_ENCRYPTION, "get_bucket_encryption")
 
     async def _per_bucket(
         self, collected: dict[str, Any], key: AwsEvidence, operation: str

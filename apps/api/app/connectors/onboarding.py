@@ -281,9 +281,7 @@ class ProviderOnboarding(ABC):
         """
         return self.grant_is_behind(connection)
 
-    def degraded_categories(
-        self, connection: CloudConnection
-    ) -> dict[EvidenceCategory, str]:
+    def degraded_categories(self, connection: CloudConnection) -> dict[EvidenceCategory, str]:
         """Categories this connection's deployed grant cannot fully serve.
 
         Category -> the sentence to show the customer. Empty when the grant is

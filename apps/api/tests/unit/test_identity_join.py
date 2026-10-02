@@ -254,9 +254,7 @@ def test_a_role_holding_group_is_a_group_with_its_members_recorded() -> None:
         }
     )
     groups = {
-        r.provider_resource_id: r
-        for r in state.resources
-        if r.resource_type is ResourceType.GROUP
+        r.provider_resource_id: r for r in state.resources if r.resource_type is ResourceType.GROUP
     }
     read = groups["/principals/g-1"]
     assert read.name == "Platform admins"
@@ -363,7 +361,7 @@ def test_everyone_in_a_group_is_one_route_said_once() -> None:
         metadata={
             "identity_id": "g-1",
             "stub": True,
-            "members": MEMBERS[:1] + [{"id": "u-2", "kind": "user", "name": "B"}],
+            "members": [*MEMBERS[:1], {"id": "u-2", "kind": "user", "name": "B"}],
             "roles": [role("Storage Blob Data Reader", SUB, BLOB_READER)],
         },
     )

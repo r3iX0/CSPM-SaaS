@@ -44,6 +44,7 @@ from app.compliance.coverage import (
 from app.core.enums import FindingStatus, Provider, ScanStatus, TaskOutcome
 from app.models.cloud_connection import CloudConnection
 from app.models.finding import Finding
+from app.models.organization import Organization
 from app.models.rule import Rule
 from app.models.scan import Evidence, EvidenceBlob, Scan, ScanEvaluationGap, ScanRuleResult
 
@@ -97,9 +98,7 @@ class _Snapshot:
         reading with no outcome, which is the only honest way to render "this
         control is green and nobody looked".
         """
-        keys = {
-            key for rule in rules for key in (rule.requires_evidence or []) if key
-        }
+        keys = {key for rule in rules for key in (rule.requires_evidence or []) if key}
         if not keys:
             return ()
         return summarize_readings(
@@ -319,9 +318,7 @@ def _serialize_reading(reading: Reading, now: datetime) -> dict:
         "evidence_key": reading.evidence_key,
         "outcome": reading.outcome,
         "scopes": reading.scopes,
-        "collected_at": (
-            reading.collected_at.isoformat() if reading.collected_at else None
-        ),
+        "collected_at": (reading.collected_at.isoformat() if reading.collected_at else None),
         "age_seconds": (
             int((now - _aware(reading.collected_at)).total_seconds())
             if reading.collected_at
@@ -377,9 +374,7 @@ def _resolve(framework: Framework, snapshot: _Snapshot) -> list[tuple[dict, Cont
     return resolved
 
 
-async def connected_providers(
-    session: AsyncSession, organization_id: UUID
-) -> set[Provider]:
+async def connected_providers(session: AsyncSession, organization_id: UUID) -> set[Provider]:
     """Which clouds this organization actually has a connection to.
 
     Every connection, not only the verified ones. A customer part-way through
@@ -486,6 +481,12 @@ def _assessment(snapshot: _Snapshot) -> dict | None:
         # be the one document where that omission is expensive.
         "scan_status": scan.status.value,
     }
+
+
+async def organization_name(session: AsyncSession, organization_id: UUID) -> str:
+    """The organization's display name, for the heading of an export."""
+    organization = await session.get(Organization, organization_id)
+    return organization.name if organization else "organization"
 
 
 async def build_export(

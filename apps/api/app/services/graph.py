@@ -356,8 +356,7 @@ def serialize_simulation(simulation: Simulation) -> SimulationOut:
         # Still open, and how long each now runs -- round a cut link where the
         # drawn route used to cross one.
         remaining=[
-            RemainingRouteOut(key=route_key(path), hops=path.hops)
-            for path in simulation.remaining
+            RemainingRouteOut(key=route_key(path), hops=path.hops) for path in simulation.remaining
         ],
         cuts=[
             SimulatedCutOut(
@@ -696,9 +695,7 @@ def serialize_neighborhood(
             )
         )
 
-    edges = [
-        _edge(source, relationship, target) for source, relationship, target in around.edges
-    ]
+    edges = [_edge(source, relationship, target) for source, relationship, target in around.edges]
 
     groups = []
     for group in around.groups:

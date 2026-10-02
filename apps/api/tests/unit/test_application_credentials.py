@@ -64,9 +64,7 @@ def test_certificates_are_read_as_well_as_secrets() -> None:
     saw only one half would pass an application whose certificate outlives
     everybody who remembers issuing it."""
     state = AzureNormalizer().normalize(
-        snapshot(
-            [{"id": "a1", "displayName": "signer", **secret(900, "keyCredentials")}]
-        )
+        snapshot([{"id": "a1", "displayName": "signer", **secret(900, "keyCredentials")}])
     )
 
     credential = applications_in(state)[0].metadata["credentials"][0]
@@ -98,9 +96,15 @@ def test_an_age_is_measured_from_the_capture_and_not_from_now() -> None:
 
 def test_an_unreadable_expiry_is_not_an_expiry_of_zero() -> None:
     state = AzureNormalizer().normalize(
-        snapshot([{"id": "a1", "displayName": "odd", "passwordCredentials": [
-            {"keyId": "k1", "endDateTime": "whenever"}
-        ]}])
+        snapshot(
+            [
+                {
+                    "id": "a1",
+                    "displayName": "odd",
+                    "passwordCredentials": [{"keyId": "k1", "endDateTime": "whenever"}],
+                }
+            ]
+        )
     )
 
     credential = applications_in(state)[0].metadata["credentials"][0]
@@ -140,17 +144,21 @@ def test_an_already_expired_secret_is_not_a_finding() -> None:
 def test_an_application_with_no_credentials_is_out_of_scope() -> None:
     """A federated credential or a managed identity has no secret to leak,
     which is the recommended shape rather than an unchecked one."""
-    state = AzureNormalizer().normalize(
-        snapshot([{"id": "a1", "displayName": "federated"}])
-    )
+    state = AzureNormalizer().normalize(snapshot([{"id": "a1", "displayName": "federated"}]))
     assert verdict(applications_in(state)[0]) is RuleState.NOT_APPLICABLE
 
 
 def test_a_credential_this_scan_could_not_read_is_unknown() -> None:
     state = AzureNormalizer().normalize(
-        snapshot([{"id": "a1", "displayName": "odd", "passwordCredentials": [
-            {"keyId": "k1", "endDateTime": "whenever"}
-        ]}])
+        snapshot(
+            [
+                {
+                    "id": "a1",
+                    "displayName": "odd",
+                    "passwordCredentials": [{"keyId": "k1", "endDateTime": "whenever"}],
+                }
+            ]
+        )
     )
     assert verdict(applications_in(state)[0]) is RuleState.UNKNOWN
 
@@ -161,6 +169,4 @@ def test_a_failed_listing_degrades_rather_than_passes() -> None:
     )
     app = applications_in(state)[0]
 
-    assert (
-        verdict(app, {"application_credentials": "Access denied."}) is RuleState.UNKNOWN
-    )
+    assert verdict(app, {"application_credentials": "Access denied."}) is RuleState.UNKNOWN

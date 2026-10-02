@@ -4,13 +4,8 @@ import type { RemediationSpec } from "@/lib/types";
 import { formatEffort } from "@/lib/format";
 import { fillPlaceholders } from "@/lib/remediationFill";
 import { CodeBlock } from "@/components/common/CodeBlock";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { IacDiffCheck } from "@/components/security/IacDiffCheck";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 /**
@@ -35,6 +30,7 @@ export function RemediationPanel({
   effortMinutes,
   footer,
   fill,
+  findingId,
 }: {
   remediation: string;
   spec?: RemediationSpec | null;
@@ -51,6 +47,12 @@ export function RemediationPanel({
    * placeholders are the honest answer.
    */
   fill?: { values: Record<string, string>; resourceName: string };
+  /**
+   * The finding this fix is for, which lets the Terraform tab write the fix
+   * into an uploaded file. Absent on the rules catalogue: there is no asset,
+   * so no block to find.
+   */
+  findingId?: string;
 }) {
   const hasCli = (spec?.cli?.length ?? 0) > 0;
   const hasTerraform = (spec?.terraform?.length ?? 0) > 0;
@@ -73,9 +75,7 @@ export function RemediationPanel({
       <CardContent className="flex flex-col gap-4">
         {spec && spec.expected_state.length > 0 && (
           <div className="rounded-lg border bg-muted/40 p-3">
-            <p className="text-xs font-medium text-muted-foreground">
-              This finding closes when
-            </p>
+            <p className="text-xs font-medium text-muted-foreground">This finding closes when</p>
             <ul className="mt-1.5 flex flex-col gap-1">
               {spec.expected_state.map((state) => (
                 <li key={state.field} className="flex items-start gap-2 text-sm">
@@ -117,15 +117,15 @@ export function RemediationPanel({
           {hasTerraform && (
             <TabsContent value="terraform" className="flex flex-col gap-2">
               <CodeBlock
-                code={spec!.terraform
-                  .map((hint) => `${hint.attribute} = ${hint.value}`)
-                  .join("\n")}
+                code={spec!.terraform.map((hint) => `${hint.attribute} = ${hint.value}`).join("\n")}
               />
               <p className="text-xs text-muted-foreground">
-                The arguments to set on the resource you already manage — not a whole
-                block, which would be missing everything Terraform requires and could not
-                be applied.
+                The arguments to set on the resource you already manage — not a whole block, which
+                would be missing everything Terraform requires and could not be applied.
               </p>
+              {findingId && fill && (
+                <IacDiffCheck findingId={findingId} resourceName={fill.resourceName} />
+              )}
             </TabsContent>
           )}
 
@@ -133,8 +133,8 @@ export function RemediationPanel({
             <TabsContent value="policy" className="flex flex-col gap-2">
               <CodeBlock code={JSON.stringify(spec!.azure_policy, null, 2)} />
               <p className="text-xs text-muted-foreground">
-                Deploying this refuses the whole class of this misconfiguration, rather
-                than only today's instance of it.
+                Deploying this refuses the whole class of this misconfiguration, rather than only
+                today's instance of it.
               </p>
             </TabsContent>
           )}

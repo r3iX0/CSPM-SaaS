@@ -48,9 +48,7 @@ class Result:
 class FakeSession:
     """Reports a version this test controls, and counts full reads."""
 
-    def __init__(
-        self, *, updated_at: datetime, count: int, edges: int = 9
-    ) -> None:
+    def __init__(self, *, updated_at: datetime, count: int, edges: int = 9) -> None:
         self.updated_at = updated_at
         self.count = count
         self.edges = edges

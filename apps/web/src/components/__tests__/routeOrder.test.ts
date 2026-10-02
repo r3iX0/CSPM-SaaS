@@ -20,7 +20,12 @@ function route(
     key,
     pattern: null,
     entry: { id: entry, name: entry, resource_type: "virtual_machine", public_exposure: "HIGH" },
-    target: { id: target, name: target, resource_type: "storage_account", data_sensitivity: "HIGH" },
+    target: {
+      id: target,
+      name: target,
+      resource_type: "storage_account",
+      data_sensitivity: "HIGH",
+    },
     hops: 2,
     steps: [
       {

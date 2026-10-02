@@ -110,22 +110,16 @@ class AwsConnector(CloudConnector):
             async with identity_client as sts:
                 identity = await sts.call("get_caller_identity")
         except Exception as exc:
-            check.problems.append(
-                f"Cleave could not assume the scanner role: {exc}"
-            )
+            check.problems.append(f"Cleave could not assume the scanner role: {exc}")
             check.detail = "The scanner role could not be assumed"
             return check
 
         check.subscription_id = str(identity.get("Account") or "") or None
-        check.permissions_verified.append(
-            f"Assumed {identity.get('Arn') or ROLE_NAME}"
-        )
+        check.permissions_verified.append(f"Assumed {identity.get('Arn') or ROLE_NAME}")
 
         for service, operation, described, action in PROBES:
             try:
-                client = AwsClient(
-                    collector.assumer, service, "us-east-1", session=self._session
-                )
+                client = AwsClient(collector.assumer, service, "us-east-1", session=self._session)
                 async with client as probe:
                     await probe.call(operation)
             except AwsApiError as error:

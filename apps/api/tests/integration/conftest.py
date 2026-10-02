@@ -23,9 +23,7 @@ async def cleanup_orgs() -> AsyncIterator[list[uuid.UUID]]:
     yield created
     async with service_session() as session:
         for org_id in created:
-            await session.execute(
-                text("DELETE FROM organizations WHERE id = :id"), {"id": org_id}
-            )
+            await session.execute(text("DELETE FROM organizations WHERE id = :id"), {"id": org_id})
         await session.commit()
 
 

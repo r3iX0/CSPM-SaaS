@@ -142,12 +142,8 @@ class AzureCollector:
         http = self._http or httpx.AsyncClient(timeout=DEFAULT_TIMEOUT)
         limiter = RequestLimiter()
         try:
-            builder = AzurePlanBuilder(
-                self.tokens, self.subscription_id, http, limiter=limiter
-            )
-            run = CollectionRun(
-                select_plan(builder), on_progress=on_progress, plan=plan
-            )
+            builder = AzurePlanBuilder(self.tokens, self.subscription_id, http, limiter=limiter)
+            run = CollectionRun(select_plan(builder), on_progress=on_progress, plan=plan)
             report = await run.execute(snapshot.data)
         finally:
             if owns_http:

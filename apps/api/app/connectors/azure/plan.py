@@ -81,6 +81,7 @@ async def _postgres_logging(arm: ArmClient, server_id: str) -> dict[str, Any]:
         for name in POSTGRES_LOGGING_PARAMETERS
     }
 
+
 async def _sql_assessments(arm: ArmClient, server_id: str) -> dict[str, Any]:
     """Both forms of a SQL server's vulnerability assessment (section 176).
 
@@ -125,28 +126,23 @@ DETAIL_CONCURRENCY = 8
 ARM = "https://management.azure.com"
 
 NSG_ENDPOINT = ProviderEndpoint(
-    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Network"
-    "/networkSecurityGroups",
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Network/networkSecurityGroups",
     "2023-09-01",
 )
 NIC_ENDPOINT = ProviderEndpoint(
-    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Network"
-    "/networkInterfaces",
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Network/networkInterfaces",
     "2023-09-01",
 )
 PUBLIC_IP_ENDPOINT = ProviderEndpoint(
-    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Network"
-    "/publicIPAddresses",
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Network/publicIPAddresses",
     "2023-09-01",
 )
 VM_ENDPOINT = ProviderEndpoint(
-    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Compute"
-    "/virtualMachines",
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Compute/virtualMachines",
     "2023-09-01",
 )
 STORAGE_ENDPOINT = ProviderEndpoint(
-    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Storage"
-    "/storageAccounts",
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Storage/storageAccounts",
     "2023-01-01",
 )
 SQL_SERVERS_ENDPOINT = ProviderEndpoint(
@@ -156,9 +152,7 @@ SQL_SERVERS_ENDPOINT = ProviderEndpoint(
 # The second call the SQL task makes, per server. Declared rather than folded
 # into the one above, because a reading of servers whose firewall rules failed
 # is a different reading from one where both succeeded.
-SQL_FIREWALL_ENDPOINT = ProviderEndpoint(
-    f"{ARM}/{{serverId}}/firewallRules", "2021-11-01"
-)
+SQL_FIREWALL_ENDPOINT = ProviderEndpoint(f"{ARM}/{{serverId}}/firewallRules", "2021-11-01")
 # The third call the SQL task makes, per server, and declared for the same
 # reason: a reading of servers whose auditing settings failed is a different
 # reading from one where all three succeeded.
@@ -170,9 +164,7 @@ SQL_AUDITING_ENDPOINT = ProviderEndpoint(
 # a server holds and then asking each one -- a fan-out beneath a listing rather
 # than another field on it.
 SQL_DATABASES_ENDPOINT = ProviderEndpoint(f"{ARM}/{{serverId}}/databases", "2021-11-01")
-SQL_TDE_ENDPOINT = ProviderEndpoint(
-    f"{ARM}/{{databaseId}}/transparentDataEncryption", "2021-11-01"
-)
+SQL_TDE_ENDPOINT = ProviderEndpoint(f"{ARM}/{{databaseId}}/transparentDataEncryption", "2021-11-01")
 SECURITY_ASSESSMENTS_ENDPOINT = ProviderEndpoint(
     f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Security/assessments",
     "2020-01-01",
@@ -182,31 +174,26 @@ KEY_VAULT_ENDPOINT = ProviderEndpoint(
     "2023-07-01",
 )
 POSTGRES_ENDPOINT = ProviderEndpoint(
-    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.DBforPostgreSQL"
-    "/flexibleServers",
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.DBforPostgreSQL/flexibleServers",
     "2023-03-01-preview",
 )
 # v9. Six listings of types the connector models from here on, each under the
 # provider's generally available api-version as the published REST reference
 # gave it on 2026-09-29 (DECISIONS.md section 169).
 AKS_ENDPOINT = ProviderEndpoint(
-    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.ContainerService"
-    "/managedClusters",
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.ContainerService/managedClusters",
     "2024-02-01",
 )
 ACR_ENDPOINT = ProviderEndpoint(
-    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.ContainerRegistry"
-    "/registries",
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.ContainerRegistry/registries",
     "2023-07-01",
 )
 COSMOS_ENDPOINT = ProviderEndpoint(
-    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.DocumentDB"
-    "/databaseAccounts",
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.DocumentDB/databaseAccounts",
     "2024-11-15",
 )
 MYSQL_ENDPOINT = ProviderEndpoint(
-    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.DBforMySQL"
-    "/flexibleServers",
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.DBforMySQL/flexibleServers",
     "2023-12-30",
 )
 DATABRICKS_ENDPOINT = ProviderEndpoint(
@@ -234,38 +221,28 @@ POSTGRES_PARAMETER_ENDPOINT = ProviderEndpoint(
 )
 # v7. Four fan-outs beneath listings the plan already takes, and two new
 # listings.
-SQL_ADMINISTRATORS_ENDPOINT = ProviderEndpoint(
-    f"{ARM}/{{serverId}}/administrators", "2021-11-01"
-)
+SQL_ADMINISTRATORS_ENDPOINT = ProviderEndpoint(f"{ARM}/{{serverId}}/administrators", "2021-11-01")
 POSTGRES_SECURE_TRANSPORT_ENDPOINT = ProviderEndpoint(
     f"{ARM}/{{serverId}}/configurations/require_secure_transport",
     "2023-03-01-preview",
 )
-BLOB_SERVICE_ENDPOINT = ProviderEndpoint(
-    f"{ARM}/{{accountId}}/blobServices/default", "2023-01-01"
-)
+BLOB_SERVICE_ENDPOINT = ProviderEndpoint(f"{ARM}/{{accountId}}/blobServices/default", "2023-01-01")
 APP_SERVICES_ENDPOINT = ProviderEndpoint(
     f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Web/sites",
     "2022-09-01",
 )
-APP_SERVICE_CONFIG_ENDPOINT = ProviderEndpoint(
-    f"{ARM}/{{siteId}}/config/web", "2022-09-01"
-)
-SUBSCRIPTION_ENDPOINT = ProviderEndpoint(
-    f"{ARM}/subscriptions/{{subscriptionId}}", "2022-12-01"
-)
+APP_SERVICE_CONFIG_ENDPOINT = ProviderEndpoint(f"{ARM}/{{siteId}}/config/web", "2022-09-01")
+SUBSCRIPTION_ENDPOINT = ProviderEndpoint(f"{ARM}/subscriptions/{{subscriptionId}}", "2022-12-01")
 DEFENDER_PLANS_ENDPOINT = ProviderEndpoint(
     f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Security/pricings",
     "2024-01-01",
 )
 ROLE_ASSIGNMENTS_ENDPOINT = ProviderEndpoint(
-    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Authorization"
-    "/roleAssignments",
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Authorization/roleAssignments",
     "2022-04-01",
 )
 ROLE_DEFINITIONS_ENDPOINT = ProviderEndpoint(
-    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Authorization"
-    "/roleDefinitions",
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Authorization/roleDefinitions",
     "2022-04-01",
 )
 ROLE_ELIGIBILITIES_ENDPOINT = ProviderEndpoint(
@@ -292,17 +269,14 @@ SQL_VULNERABILITY_ASSESSMENT_ENDPOINT = ProviderEndpoint(
 SQL_EXPRESS_ASSESSMENT_ENDPOINT = ProviderEndpoint(
     f"{ARM}/{{serverId}}/sqlVulnerabilityAssessments/default", "2023-08-01"
 )
-FILE_SERVICE_ENDPOINT = ProviderEndpoint(
-    f"{ARM}/{{accountId}}/fileServices/default", "2023-01-01"
-)
+FILE_SERVICE_ENDPOINT = ProviderEndpoint(f"{ARM}/{{accountId}}/fileServices/default", "2023-01-01")
 VAULT_KEYS_ENDPOINT = ProviderEndpoint(f"{ARM}/{{vaultId}}/keys", "2023-07-01")
 VAULT_SECRETS_ENDPOINT = ProviderEndpoint(f"{ARM}/{{vaultId}}/secrets", "2023-07-01")
 APP_SERVICE_AUTH_ENDPOINT = ProviderEndpoint(
     f"{ARM}/{{siteId}}/config/authsettingsV2", "2022-09-01"
 )
 SECURITY_CONTACTS_ENDPOINT = ProviderEndpoint(
-    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Security"
-    "/securityContacts",
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Security/securityContacts",
     "2023-12-01-preview",
 )
 SECURITY_SETTINGS_ENDPOINT = ProviderEndpoint(
@@ -310,29 +284,22 @@ SECURITY_SETTINGS_ENDPOINT = ProviderEndpoint(
     "2022-05-01",
 )
 IOT_SECURITY_ENDPOINT = ProviderEndpoint(
-    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Security"
-    "/iotSecuritySolutions",
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Security/iotSecuritySolutions",
     "2019-08-01",
 )
 JIT_ENDPOINT = ProviderEndpoint(
-    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Security"
-    "/jitNetworkAccessPolicies",
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Security/jitNetworkAccessPolicies",
     "2020-01-01",
 )
 RECOVERY_VAULTS_ENDPOINT = ProviderEndpoint(
     f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.RecoveryServices/vaults",
     "2023-04-01",
 )
-BACKUP_ITEMS_ENDPOINT = ProviderEndpoint(
-    f"{ARM}/{{vaultId}}/backupProtectedItems", "2023-04-01"
-)
+BACKUP_ITEMS_ENDPOINT = ProviderEndpoint(f"{ARM}/{{vaultId}}/backupProtectedItems", "2023-04-01")
 # v12 (DECISIONS.md section 177).
-BACKUP_POLICIES_ENDPOINT = ProviderEndpoint(
-    f"{ARM}/{{vaultId}}/backupPolicies", "2023-04-01"
-)
+BACKUP_POLICIES_ENDPOINT = ProviderEndpoint(f"{ARM}/{{vaultId}}/backupPolicies", "2023-04-01")
 SCALE_SETS_ENDPOINT = ProviderEndpoint(
-    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Compute"
-    "/virtualMachineScaleSets",
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Compute/virtualMachineScaleSets",
     "2023-09-01",
 )
 DISKS_ENDPOINT = ProviderEndpoint(
@@ -340,13 +307,11 @@ DISKS_ENDPOINT = ProviderEndpoint(
     "2023-04-02",
 )
 ACTIVITY_LOG_ALERTS_ENDPOINT = ProviderEndpoint(
-    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Insights"
-    "/activityLogAlerts",
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Insights/activityLogAlerts",
     "2020-10-01",
 )
 POLICY_ASSIGNMENTS_ENDPOINT = ProviderEndpoint(
-    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Authorization"
-    "/policyAssignments",
+    f"{ARM}/subscriptions/{{subscriptionId}}/providers/Microsoft.Authorization/policyAssignments",
     "2022-06-01",
 )
 VIRTUAL_NETWORKS_ENDPOINT = ProviderEndpoint(
@@ -398,9 +363,7 @@ SECURITY_DEFAULTS_ENDPOINT = ProviderEndpoint(
 CONDITIONAL_ACCESS_ENDPOINT = ProviderEndpoint(
     f"{GRAPH}/identity/conditionalAccess/policies", GRAPH_VERSION
 )
-GROUP_MEMBERS_ENDPOINT = ProviderEndpoint(
-    f"{GRAPH}/groups/{{groupId}}/members", GRAPH_VERSION
-)
+GROUP_MEMBERS_ENDPOINT = ProviderEndpoint(f"{GRAPH}/groups/{{groupId}}/members", GRAPH_VERSION)
 GROUPS_ENDPOINT = ProviderEndpoint(f"{GRAPH}/groups", GRAPH_VERSION)
 DIRECTORY_ROLE_ELIGIBILITIES_ENDPOINT = ProviderEndpoint(
     f"{GRAPH}/roleManagement/directory/roleEligibilityScheduleInstances", GRAPH_VERSION
@@ -554,9 +517,7 @@ class AzurePlanBuilder:
         the cost and the correctness problem this split exists to fix.
         """
         if not self.subscription_id:
-            raise ValueError(
-                "An account plan reads one subscription and needs its id"
-            )
+            raise ValueError("An account plan reads one subscription and needs its id")
         sub = self.subscription_id
 
         async def nsgs(arm: ArmClient) -> dict[str, Any]:
@@ -677,9 +638,7 @@ class AzurePlanBuilder:
             # that server rather than for the whole subscription.
             async def with_rules(server: dict[str, Any]) -> dict[str, Any]:
                 try:
-                    server["_firewall_rules"] = await arm.list_sql_firewall_rules(
-                        server["id"]
-                    )
+                    server["_firewall_rules"] = await arm.list_sql_firewall_rules(server["id"])
                 except Exception as exc:
                     server["_firewall_rules_error"] = str(exc)
                 return server
@@ -706,11 +665,9 @@ class AzurePlanBuilder:
             return TaskData(
                 data,
                 partial_reason=(
-                    f"firewall rules could not be read for {unread} of "
-                    f"{len(read)} servers"
+                    f"firewall rules could not be read for {unread} of {len(read)} servers"
                 ),
             )
-
 
         tasks = [
             self._arm_task(
@@ -1219,8 +1176,7 @@ class AzurePlanBuilder:
                 return TaskData(
                     data,
                     partial_reason=(
-                        f"backup policies could not be read for {failures} of {len(ids)} "
-                        "vaults"
+                        f"backup policies could not be read for {failures} of {len(ids)} vaults"
                         if failures
                         else "a vault holds more backup policies than one scan reads"
                     ),
@@ -1353,8 +1309,7 @@ class AzurePlanBuilder:
                 wanted = [
                     database
                     for database in databases
-                    if database.get("id")
-                    and str(database.get("name", "")).lower() != "master"
+                    if database.get("id") and str(database.get("name", "")).lower() != "master"
                 ]
                 return server_id, await self._gather_limited(
                     [for_database(database) for database in wanted]
@@ -1405,8 +1360,7 @@ class AzurePlanBuilder:
                 {
                     str(props["principalId"])
                     for assignment in collected.get("role_assignments") or []
-                    if (props := assignment.get("properties") or {}).get("principalType")
-                    == "Group"
+                    if (props := assignment.get("properties") or {}).get("principalType") == "Group"
                     and props.get("principalId")
                 }
             )
@@ -1433,9 +1387,7 @@ class AzurePlanBuilder:
 
             async def read(group_id: str) -> tuple[str, dict[str, Any] | None]:
                 try:
-                    members = await self._graph_call(
-                        graph.list_group_transitive_members(group_id)
-                    )
+                    members = await self._graph_call(graph.list_group_transitive_members(group_id))
                 except Exception as exc:
                     log.warning("azure.role_group_members_failed", error=str(exc))
                     return group_id, None
@@ -1509,9 +1461,7 @@ class AzurePlanBuilder:
             raise ValueError("The inventory task reads one subscription")
 
         async def run(collected: dict[str, Any]) -> TaskData:
-            client = ResourceGraphClient(
-                self.tokens, self._http, limiter=self._limiter
-            )
+            client = ResourceGraphClient(self.tokens, self._http, limiter=self._limiter)
             rows = await client.list_inventory(sub)
             data = {"resources": rows}
             if client.truncated:
@@ -1556,10 +1506,7 @@ class AzurePlanBuilder:
         async def run(collected: dict[str, Any]) -> TaskData:
             arm = ArmClient(self.tokens, self._http, limiter=self._limiter)
             targets = [
-                item["id"]
-                for key in sources
-                for item in collected.get(key, [])
-                if item.get("id")
+                item["id"] for key in sources for item in collected.get(key, []) if item.get("id")
             ]
             # The subscription itself, which is where the activity log is
             # exported from. Every other target here is a resource whose own
@@ -1792,9 +1739,7 @@ class AzurePlanBuilder:
             # thing this task exists to find -- dropping it would leave the
             # normalizer unable to tell it from an account this read missed.
             activity = {
-                str(user["id"]): user.get("signInActivity")
-                for user in found
-                if user.get("id")
+                str(user["id"]): user.get("signInActivity") for user in found if user.get("id")
             }
             if graph.truncated:
                 return TaskData(
@@ -1908,9 +1853,7 @@ class AzurePlanBuilder:
         principal and managed identity (DECISIONS.md section 129).
         """
         graph = GraphClient(self.tokens, self._http, limiter=self._limiter)
-        catalogue = await self._graph_call(
-            graph.find_permission_catalogue(GRAPH_RESOURCE_APP_ID)
-        )
+        catalogue = await self._graph_call(graph.find_permission_catalogue(GRAPH_RESOURCE_APP_ID))
         if catalogue is None or not catalogue.get("id"):
             # A tenant always holds Graph's principal; not finding it is a
             # reading that failed to say anything, not a tenant with no grants.
@@ -2041,7 +1984,5 @@ class AzurePlanBuilder:
             "authentication_methods": dict(pairs),
         }
         if failures:
-            return TaskData(
-                data, partial_reason=f"membership unreadable for {failures} role(s)"
-            )
+            return TaskData(data, partial_reason=f"membership unreadable for {failures} role(s)")
         return TaskData(data)

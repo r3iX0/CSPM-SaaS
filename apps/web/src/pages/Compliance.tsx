@@ -3,30 +3,15 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 import { ArrowRightIcon, ClipboardCheckIcon } from "lucide-react";
 
 import { api } from "@/lib/api";
-import type {
-  ComplianceFramework,
-  ComplianceFrameworkDetail,
-  ControlStatus,
-} from "@/lib/types";
+import type { ComplianceFramework, ComplianceFrameworkDetail, ControlStatus } from "@/lib/types";
 import { useT } from "@/i18n";
 import { cn } from "@/lib/format";
 import { EvidenceNotice } from "@/components/compliance";
 import { Bars } from "@/components/charts/Bars";
 import { Donut } from "@/components/charts/Donut";
 import type { Slice } from "@/components/charts/DonutLegend";
-import {
-  CardsSkeleton,
-  EmptyState,
-  ErrorState,
-  PageHeader,
-} from "@/components/common/states";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { CardsSkeleton, EmptyState, ErrorState, PageHeader } from "@/components/common/states";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 /**
  * Framework overview.
@@ -41,16 +26,12 @@ export function CompliancePage() {
   const t = useT();
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["compliance"],
-    queryFn: () =>
-      api.get<ComplianceFramework[]>("/api/v1/compliance").then((r) => r.data),
+    queryFn: () => api.get<ComplianceFramework[]>("/api/v1/compliance").then((r) => r.data),
   });
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader
-        title={t.compliance.title}
-        description={t.compliance.intro}
-      />
+      <PageHeader title={t.compliance.title} description={t.compliance.intro} />
 
       <EvidenceNotice />
 
@@ -91,8 +72,18 @@ const STATUSES: { key: ControlStatus; label: string; tone: string; dot: string }
   { key: "PASSING", label: "passing", tone: "var(--sev-ok)", dot: "bg-ok" },
   { key: "FAILING", label: "failing", tone: "var(--sev-critical)", dot: "bg-critical" },
   { key: "INCONCLUSIVE", label: "inconclusive", tone: "var(--sev-unknown)", dot: "bg-unknown" },
-  { key: "NOT_ASSESSED", label: "not assessed", tone: "var(--muted-foreground)", dot: "bg-muted-foreground" },
-  { key: "NOT_COVERED", label: "not covered", tone: "var(--border)", dot: "border border-dashed border-muted-foreground bg-transparent" },
+  {
+    key: "NOT_ASSESSED",
+    label: "not assessed",
+    tone: "var(--muted-foreground)",
+    dot: "bg-muted-foreground",
+  },
+  {
+    key: "NOT_COVERED",
+    label: "not covered",
+    tone: "var(--border)",
+    dot: "border border-dashed border-muted-foreground bg-transparent",
+  },
 ];
 
 function FrameworkCard({ framework }: { framework: ComplianceFramework }) {
@@ -131,9 +122,7 @@ function FrameworkCard({ framework }: { framework: ComplianceFramework }) {
                 className="size-16"
                 valueClassName="text-meta"
               />
-              <span className="text-caption text-muted-foreground">
-                {t.compliance.withVerdict}
-              </span>
+              <span className="text-caption text-muted-foreground">{t.compliance.withVerdict}</span>
             </div>
             <div className="min-w-0">
               <CardTitle>{framework.short_name}</CardTitle>
@@ -190,9 +179,7 @@ function DomainCoverage({ frameworks }: { frameworks: ComplianceFramework[] }) {
       queryKey: ["compliance", framework.id],
       queryFn: () =>
         api
-          .get<ComplianceFrameworkDetail>(
-            `/api/v1/compliance/${encodeURIComponent(framework.id)}`,
-          )
+          .get<ComplianceFrameworkDetail>(`/api/v1/compliance/${encodeURIComponent(framework.id)}`)
           .then((r) => r.data),
       retry: false,
     })),
@@ -212,8 +199,8 @@ function DomainCoverage({ frameworks }: { frameworks: ComplianceFramework[] }) {
           Coverage by domain
         </h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Where assessable evidence concentrates for each framework, and where
-          Cleave has nothing to show its work for.
+          Where assessable evidence concentrates for each framework, and where Cleave has nothing to
+          show its work for.
         </p>
       </header>
       <div className="grid gap-6 border-t px-5 py-4 md:grid-cols-2">

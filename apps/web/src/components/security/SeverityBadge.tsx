@@ -48,13 +48,7 @@ export function SeverityBadge({
  * product that renders "we could not tell" as a quiet grey pill has technically
  * disclosed it; this makes it something the reader actually stops on.
  */
-export function UnknownNote({
-  reason,
-  className,
-}: {
-  reason?: string | null;
-  className?: string;
-}) {
+export function UnknownNote({ reason, className }: { reason?: string | null; className?: string }) {
   return (
     <div
       className={cn(

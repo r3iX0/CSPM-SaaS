@@ -223,9 +223,7 @@ class Settings(BaseSettings):
         a provider yet.
         """
         return bool(
-            self.aws_access_key_id
-            and self.aws_secret_access_key
-            and self.aws_principal_arn
+            self.aws_access_key_id and self.aws_secret_access_key and self.aws_principal_arn
         )
 
     @property
@@ -345,8 +343,7 @@ class Settings(BaseSettings):
         require(
             self.redis_url,
             "REDIS_URL",
-            "Celery uses it to queue scans; without it a scan can be requested "
-            "but never runs.",
+            "Celery uses it to queue scans; without it a scan can be requested but never runs.",
         )
         require(
             self.supabase_url,
@@ -398,8 +395,7 @@ class Settings(BaseSettings):
 
         if any("localhost" in origin for origin in self.cors_origins):
             problems.append(
-                "CORS_ORIGINS contains localhost. Set it to your deployed "
-                "frontend's URL."
+                "CORS_ORIGINS contains localhost. Set it to your deployed frontend's URL."
             )
 
         # Only the *missing* case is fatal, as it always has been: an Azure

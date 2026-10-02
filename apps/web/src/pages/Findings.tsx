@@ -1,12 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import {
-  ArrowDownIcon,
-  SearchIcon,
-  ShieldCheckIcon,
-  XIcon,
-} from "lucide-react";
+import { ArrowDownIcon, SearchIcon, ShieldCheckIcon, XIcon } from "lucide-react";
 import { ResourceIcon } from "@/components/security/ResourceIcon";
 
 import { api } from "@/lib/api";
@@ -15,20 +10,11 @@ import { useT } from "@/i18n";
 import { StatusPill } from "@/components/security/StatusPill";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { RiskScore } from "@/components/security/SecurityScore";
-import {
-  EmptyState,
-  ErrorState,
-  PageHeader,
-  TableSkeleton,
-} from "@/components/common/states";
+import { EmptyState, ErrorState, PageHeader, TableSkeleton } from "@/components/common/states";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Input } from "@/components/ui/input";
 import { SelectField } from "@/components/common/SelectField";
 import { SegmentedFilter } from "@/components/common/SegmentedFilter";
@@ -104,9 +90,7 @@ export function FindingsPage() {
     ? filters.severity
     : "all";
   const status = filters.status;
-  const sort: SortKey = (["risk", "severity", "recent"] as const).includes(
-    filters.sort as SortKey,
-  )
+  const sort: SortKey = (["risk", "severity", "recent"] as const).includes(filters.sort as SortKey)
     ? (filters.sort as SortKey)
     : "risk";
   const page = Math.max(0, Number.parseInt(filters.page, 10) || 0);
@@ -150,21 +134,11 @@ export function FindingsPage() {
   }
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: [
-      "findings",
-      severity,
-      status,
-      ruleId,
-      evidenceId,
-      debouncedSearch,
-      sort,
-      page,
-    ],
+    queryKey: ["findings", severity, status, ruleId, evidenceId, debouncedSearch, sort, page],
     queryFn: () =>
       api.get<Finding[]>(`/api/v1/findings?${params.toString()}`).then((r) => ({
         findings: r.data,
-        total:
-          (r.meta as { total?: number } | undefined)?.total ?? r.data.length,
+        total: (r.meta as { total?: number } | undefined)?.total ?? r.data.length,
       })),
     // Without this the table blanks on every page turn, which reads as the
     // findings having gone rather than as a page loading.
@@ -191,18 +165,12 @@ export function FindingsPage() {
   const pages = Math.ceil(total / PAGE_SIZE);
 
   const filtered =
-    search.trim().length > 0 ||
-    severity !== "all" ||
-    status !== "OPEN" ||
-    !!ruleId ||
-    !!evidenceId;
+    search.trim().length > 0 || severity !== "all" || status !== "OPEN" || !!ruleId || !!evidenceId;
 
   const emptyTitle = filtered ? "No findings match these filters" : t.findings.empty;
   const countLine =
     `${page * PAGE_SIZE + 1}–${page * PAGE_SIZE + rows.length} of ${total} ` +
     `finding${total === 1 ? "" : "s"}${filtered ? " matching these filters" : ""}`;
-
-
 
   return (
     <div className="flex flex-col gap-4">
@@ -323,10 +291,7 @@ export function FindingsPage() {
         </div>
       )}
 
-      <LiveStatus
-        quietFirst
-        message={!data ? null : rows.length > 0 ? countLine : emptyTitle}
-      />
+      <LiveStatus quietFirst message={!data ? null : rows.length > 0 ? countLine : emptyTitle} />
 
       {isLoading && <TableSkeleton columns={6} />}
 
@@ -345,7 +310,9 @@ export function FindingsPage() {
           title={emptyTitle}
           // Filtered, the button says what to do; the sentence that said it
           // again is gone (DECISIONS.md §179).
-          detail={filtered ? undefined : "The latest scan raised nothing on any check it could run."}
+          detail={
+            filtered ? undefined : "The latest scan raised nothing on any check it could run."
+          }
           action={
             filtered ? (
               <Button
@@ -367,10 +334,7 @@ export function FindingsPage() {
                 Clear filters
               </Button>
             ) : (
-              <Link
-                to="/scans"
-                className={buttonVariants({ variant: "outline" })}
-              >
+              <Link to="/scans" className={buttonVariants({ variant: "outline" })}>
                 View scan coverage
               </Link>
             )
@@ -455,14 +419,8 @@ export function FindingsPage() {
                           >
                             {finding.title}
                           </HoverCardTrigger>
-                          <HoverCardContent
-                            side="right"
-                            align="start"
-                            className="w-96"
-                          >
-                            <p className="text-sm font-medium">
-                              {finding.title}
-                            </p>
+                          <HoverCardContent side="right" align="start" className="w-96">
+                            <p className="text-sm font-medium">{finding.title}</p>
                             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                               {finding.description}
                             </p>
@@ -499,7 +457,10 @@ export function FindingsPage() {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <RiskScore score={finding.risk_score} className="text-body text-foreground" />
+                        <RiskScore
+                          score={finding.risk_score}
+                          className="text-body text-foreground"
+                        />
                       </TableCell>
                       <TableCell className="max-sm:hidden">
                         <StatusPill status={finding.status} />
@@ -517,12 +478,7 @@ export function FindingsPage() {
             </CardContent>
             <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-2.5">
               <p className="text-xs text-muted-foreground tabular-nums">{countLine}</p>
-              <Pager
-                page={page}
-                pages={pages}
-                onPage={setPage}
-                className="w-auto"
-              />
+              <Pager page={page} pages={pages} onPage={setPage} className="w-auto" />
             </div>
           </Card>
         </>
@@ -577,10 +533,7 @@ function SortableHead({
       >
         {label}
         <ArrowDownIcon
-          className={cn(
-            "size-3 transition-opacity",
-            isActive ? "opacity-100" : "opacity-0",
-          )}
+          className={cn("size-3 transition-opacity", isActive ? "opacity-100" : "opacity-0")}
           aria-hidden
         />
       </button>

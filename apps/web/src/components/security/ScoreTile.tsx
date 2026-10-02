@@ -33,7 +33,9 @@ export function ScoreTile({
       // `img`, so the label is read: a name on a role-less span is ignored.
       role="img"
       aria-label={
-        unknown ? "Risk score: no verdict" : `Risk score ${Math.round(score)}, ${level.toLowerCase()}`
+        unknown
+          ? "Risk score: no verdict"
+          : `Risk score ${Math.round(score)}, ${level.toLowerCase()}`
       }
     >
       <span className="text-title leading-none font-semibold" aria-hidden>

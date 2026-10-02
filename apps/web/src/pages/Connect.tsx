@@ -161,9 +161,7 @@ function ComingSoon() {
             className="flex items-center gap-2.5 rounded-lg border border-dashed border-border bg-card px-3.5 py-2.5"
           >
             <ProviderMark provider={id} tile className="text-muted-foreground" />
-            <span className="text-meta font-medium text-muted-foreground">
-              {PLANNED_NAMES[id]}
-            </span>
+            <span className="text-meta font-medium text-muted-foreground">{PLANNED_NAMES[id]}</span>
           </li>
         ))}
       </ul>

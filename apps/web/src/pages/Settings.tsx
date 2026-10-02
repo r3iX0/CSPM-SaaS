@@ -12,12 +12,7 @@ import { MembersSection } from "@/components/settings/Members";
 import { ActivitySection } from "@/components/settings/Activity";
 import { WebhooksSection } from "@/components/settings/Webhooks";
 import { SettingsSection } from "@/components/settings/SettingsSection";
-import {
-  CardsSkeleton,
-  EmptyState,
-  ErrorState,
-  PageHeader,
-} from "@/components/common/states";
+import { CardsSkeleton, EmptyState, ErrorState, PageHeader } from "@/components/common/states";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -49,8 +44,7 @@ export function SettingsPage() {
   // targets. Falls back to the first membership for the common single-org
   // case, exactly as the API does when no header is sent.
   const current =
-    organizations.data?.find((org) => org.id === auth.organizationId) ??
-    organizations.data?.[0];
+    organizations.data?.find((org) => org.id === auth.organizationId) ?? organizations.data?.[0];
 
   // A link to a section (`/settings#context`, from an asset whose context is
   // not declared) lands on it. The router does not scroll to a fragment, and
@@ -59,7 +53,9 @@ export function SettingsPage() {
   const loaded = Boolean(current);
   useEffect(() => {
     if (!hash || !loaded) return;
-    document.getElementById(decodeURIComponent(hash.slice(1)))?.scrollIntoView?.({ block: "start" });
+    document
+      .getElementById(decodeURIComponent(hash.slice(1)))
+      ?.scrollIntoView?.({ block: "start" });
   }, [hash, loaded]);
 
   if (organizations.isLoading) return <CardsSkeleton count={2} />;
@@ -93,14 +89,14 @@ export function SettingsPage() {
 
   return (
     <div className="flex max-w-[820px] flex-col gap-7">
-      <PageHeader
-        title={t.settings.title}
-        description={t.settings.intro}
-      />
+      <PageHeader title={t.settings.title} description={t.settings.intro} />
 
       {/* The page is seven topics long; the links say what is on it and get to
           the one that was wanted without a scroll hunt (DECISIONS.md §188). */}
-      <nav aria-label="Settings sections" className="-mt-3 flex flex-wrap gap-x-4 gap-y-1 text-meta">
+      <nav
+        aria-label="Settings sections"
+        className="-mt-3 flex flex-wrap gap-x-4 gap-y-1 text-meta"
+      >
         {sections.map((section) => (
           <a
             key={section.id}
@@ -112,7 +108,11 @@ export function SettingsPage() {
         ))}
       </nav>
 
-      <SettingsSection id="organization" title={t.settings.orgTitle} description={t.settings.orgHelp}>
+      <SettingsSection
+        id="organization"
+        title={t.settings.orgTitle}
+        description={t.settings.orgHelp}
+      >
         {/* Keyed, so switching organization remounts the form with the new
             values rather than leaving the previous one's name in the boxes. */}
         <OrganizationForm key={current.id} organization={current} />
@@ -126,7 +126,11 @@ export function SettingsPage() {
         </SettingsSection>
       )}
 
-      <SettingsSection id="context" title={t.settings.contextTitle} description={t.settings.contextHelp}>
+      <SettingsSection
+        id="context"
+        title={t.settings.contextTitle}
+        description={t.settings.contextHelp}
+      >
         {accounts.isLoading && <CardsSkeleton count={1} />}
 
         {accounts.data && accounts.data.length === 0 && (
@@ -193,8 +197,7 @@ function DangerZone({ organization }: { organization: Organization }) {
       queryClient.clear();
       navigate("/", { replace: true });
     },
-    onError: (err) =>
-      setError(err instanceof ApiError ? err.message : t.settings.deleteFailed),
+    onError: (err) => setError(err instanceof ApiError ? err.message : t.settings.deleteFailed),
   });
 
   return (
@@ -210,9 +213,7 @@ function DangerZone({ organization }: { organization: Organization }) {
         ) : (
           <div className="flex flex-col gap-3">
             <Field>
-              <FieldLabel htmlFor="confirm-name">
-                {t.settings.dangerConfirmLabel}
-              </FieldLabel>
+              <FieldLabel htmlFor="confirm-name">{t.settings.dangerConfirmLabel}</FieldLabel>
               <Input
                 id="confirm-name"
                 value={typed}

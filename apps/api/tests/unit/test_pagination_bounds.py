@@ -10,8 +10,8 @@ endpoint that forgets them fails here rather than in production.
 
 from typing import Any
 
-from app.api.routes.findings import SORTS
 from app.main import app
+from app.services.findings import SORTS
 
 
 def _query_params(name: str) -> list[tuple[str, dict[str, Any]]]:

@@ -361,9 +361,7 @@ def test_the_batch_asks_for_every_hash_every_capture_names() -> None:
 
     captures = [
         SimpleNamespace(manifest={"payload_hashes": {"vms": "a" * 64}}),
-        SimpleNamespace(
-            manifest={"payload_hashes": {"vms": "a" * 64, "storage": "b" * 64}}
-        ),
+        SimpleNamespace(manifest={"payload_hashes": {"vms": "a" * 64, "storage": "b" * 64}}),
         # Written before manifests: its readings are inline and none are fetched.
         SimpleNamespace(manifest=None),
     ]

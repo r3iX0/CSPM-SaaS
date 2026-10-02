@@ -36,9 +36,7 @@ class FakeTokens:
 class FakeGraph:
     """A Graph client where each call either answers or refuses."""
 
-    def __init__(
-        self, tokens: object = None, http: object = None, limiter: object = None
-    ) -> None:
+    def __init__(self, tokens: object = None, http: object = None, limiter: object = None) -> None:
         self.truncated: set[str] = set()
 
     denied: ClassVar[set[str]] = set()
@@ -180,9 +178,7 @@ async def test_a_partial_directory_still_marks_the_category_failed(
 
 
 async def test_every_failure_in_a_category_is_reported_together(monkeypatch) -> None:
-    _, report = await run_identity(
-        monkeypatch, {"list_users", "list_directory_roles"}
-    )
+    _, report = await run_identity(monkeypatch, {"list_users", "list_directory_roles"})
     problem = report.category_problems()["identity"]
 
     assert "users" in problem
@@ -194,9 +190,8 @@ async def test_every_failure_in_a_category_is_reported_together(monkeypatch) -> 
 def _no_real_tokens(monkeypatch: pytest.MonkeyPatch) -> None:
     """The connector must not reach for a real token."""
     monkeypatch.setattr("app.connectors.azure.connector.TokenProvider", FakeTokens)
-    monkeypatch.setattr(
-        "app.connectors.azure.connector.missing_permissions", lambda token: ()
-    )
+    monkeypatch.setattr("app.connectors.azure.connector.missing_permissions", lambda token: ())
+
 
 GRAPH_PATHS = {
     "/organization": "get_organization",
@@ -217,8 +212,7 @@ def azure_returning(denied_paths: set[str]):
                         403,
                         json={
                             "error": {
-                                "message": "Insufficient privileges to complete "
-                                "the operation."
+                                "message": "Insufficient privileges to complete the operation."
                             }
                         },
                     )

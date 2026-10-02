@@ -1,10 +1,12 @@
 """Finding queries and the workflow actions on a finding."""
 
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import case, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import UnaryExpression
 
 from app.compliance.crosswalk import compliance_mappings_for
 from app.core.db import commit_unless_externally_managed
@@ -14,6 +16,7 @@ from app.core.enums import (
     FindingEvent,
     FindingStatus,
     RiskKind,
+    Severity,
 )
 from app.core.errors import FindingNotFound, ValidationFailed
 from app.models.finding import Finding, FindingEvidence
@@ -38,10 +41,113 @@ from app.schemas.rule import (
 from app.services import audit as audit_service
 from app.services import verification as verification_service
 
+SEVERITY_ORDER = {
+    Severity.CRITICAL: 0,
+    Severity.HIGH: 1,
+    Severity.MEDIUM: 2,
+    Severity.LOW: 3,
+}
 
-async def get_finding(
-    session: AsyncSession, tenant: TenantContext, finding_id: UUID
-) -> Finding:
+# The same ranking expressed for the database, so "worst first" survives
+# pagination. Sorting severity in Python could only ever order the page it was
+# handed, which puts the CRITICAL on page four below the LOW on page one.
+SEVERITY_SORT = case(SEVERITY_ORDER, value=Finding.severity, else_=9)
+
+# Every ordering ends on the id. Scores and detection times tie constantly --
+# one scan stamps every finding it raises -- and PostgreSQL orders ties however
+# the plan happens to, so without it the same offset can return a different
+# row on the next request and a page can repeat or skip a finding.
+SORTS: dict[str, tuple[UnaryExpression[Any], ...]] = {
+    # Risk first by default: the product's claim is that it tells you what
+    # matters here, not what the rulebook says in the abstract.
+    "risk": (
+        Finding.risk_score.desc().nullslast(),
+        Finding.last_detected_at.desc(),
+        Finding.id.asc(),
+    ),
+    "severity": (SEVERITY_SORT.asc(), Finding.risk_score.desc().nullslast(), Finding.id.asc()),
+    "recent": (Finding.last_detected_at.desc(), Finding.id.asc()),
+}
+
+
+async def list_findings(
+    session: AsyncSession,
+    tenant: TenantContext,
+    *,
+    severity: Severity | None,
+    status: FindingStatus | None,
+    rule_id: str | None,
+    resource_id: UUID | None,
+    evidence_id: UUID | None,
+    environment: str | None,
+    search: str | None,
+    sort: str,
+    limit: int,
+    offset: int,
+) -> tuple[list[tuple[Finding, ResourceRecord | None]], int]:
+    """One page of findings, each with its asset, and how many match in all.
+
+    Filtered, ordered and cut in the database: a page that filtered only the rows it held would
+    search one page of an estate and report "nothing matches" for the rest.
+    """
+    stmt = (
+        select(Finding, ResourceRecord)
+        .outerjoin(ResourceRecord, ResourceRecord.id == Finding.resource_id)
+        .where(Finding.organization_id == tenant.organization_id)
+    )
+
+    if severity:
+        stmt = stmt.where(Finding.severity == severity)
+    if status:
+        stmt = stmt.where(Finding.status == status)
+    if rule_id:
+        stmt = stmt.where(Finding.rule_id == rule_id)
+    if resource_id:
+        stmt = stmt.where(Finding.resource_id == resource_id)
+    if evidence_id:
+        # "What rests on this reading" -- the citation chain walked from the
+        # evidence end, which is what a person looking at a failed or stale
+        # listing on the scans page is actually asking.
+        #
+        # Filtered on the reading rather than on its key, because a key spans
+        # every subscription and every scan that read it: the count offered
+        # beside a reading and the rows this returns have to be the same set,
+        # or the link is a number that does not survive being clicked.
+        stmt = stmt.where(
+            Finding.id.in_(
+                select(FindingEvidence.finding_id).where(
+                    FindingEvidence.organization_id == tenant.organization_id,
+                    FindingEvidence.evidence_id == evidence_id,
+                )
+            )
+        )
+    if environment:
+        stmt = stmt.where(ResourceRecord.environment == environment)
+    if search:
+        # Three ways a person names the same finding: what it is called, the
+        # rule that raised it, and the resource it was found on.
+        needle = f"%{search}%"
+        stmt = stmt.where(
+            or_(
+                Finding.title.ilike(needle),
+                Finding.rule_id.ilike(needle),
+                ResourceRecord.name.ilike(needle),
+            )
+        )
+
+    total = (await session.execute(select(func.count()).select_from(stmt.subquery()))).scalar_one()
+    rows = (await session.execute(stmt.order_by(*SORTS[sort]).limit(limit).offset(offset))).all()
+    return [(finding, resource) for finding, resource in rows], total
+
+
+async def resource_of(session: AsyncSession, finding: Finding) -> ResourceRecord | None:
+    """The asset a finding was raised on, or ``None`` for a tenant-wide finding."""
+    if finding.resource_id is None:
+        return None
+    return await session.get(ResourceRecord, finding.resource_id)
+
+
+async def get_finding(session: AsyncSession, tenant: TenantContext, finding_id: UUID) -> Finding:
     finding = (
         await session.execute(
             select(Finding).where(
@@ -55,14 +161,10 @@ async def get_finding(
     return finding
 
 
-async def load_detail(
-    session: AsyncSession, tenant: TenantContext, finding: Finding
-) -> dict:
+async def load_detail(session: AsyncSession, tenant: TenantContext, finding: Finding) -> dict:
     """Assemble everything the finding detail page asks for."""
     resource = (
-        await session.get(ResourceRecord, finding.resource_id)
-        if finding.resource_id
-        else None
+        await session.get(ResourceRecord, finding.resource_id) if finding.resource_id else None
     )
 
     rule_row = (
@@ -372,9 +474,7 @@ def rule_metadata(rule_id: str) -> dict:
         "remediation_spec": remediation_detail(rule_id),
         # Every control this rule is evidence toward, including those the
         # crosswalk adds (DECISIONS.md section 168).
-        "compliance_mappings": compliance_mappings_for(
-            rule.rule_id, rule.compliance_mappings
-        ),
+        "compliance_mappings": compliance_mappings_for(rule.rule_id, rule.compliance_mappings),
     }
 
 
@@ -531,9 +631,7 @@ async def load_provenance(
                 # another is worse than no figure at all.
                 "age_seconds": max(0, int((now - link.collected_at).total_seconds())),
                 "source_scan_id": link.source_scan_id,
-                "payload_available": bool(
-                    link.content_hash and link.content_hash in stored
-                ),
+                "payload_available": bool(link.content_hash and link.content_hash in stored),
             }
         )
     return out

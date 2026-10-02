@@ -97,9 +97,7 @@ async def test_the_message_says_what_still_works(tokens, monkeypatch) -> None:
 
 
 async def test_a_partial_grant_names_only_what_is_absent(tokens, monkeypatch) -> None:
-    monkeypatch.setattr(
-        tokens, "token", token_granting("Directory.Read.All", "User.Read.All")
-    )
+    monkeypatch.setattr(tokens, "token", token_granting("Directory.Read.All", "User.Read.All"))
 
     problem = await grant_problem(connection()) or ""
 
@@ -129,11 +127,7 @@ def graph_denying() -> httpx.AsyncClient:
     def handler(_request: httpx.Request) -> httpx.Response:
         return httpx.Response(
             403,
-            json={
-                "error": {
-                    "message": "Insufficient privileges to complete the operation."
-                }
-            },
+            json={"error": {"message": "Insufficient privileges to complete the operation."}},
         )
 
     return httpx.AsyncClient(transport=httpx.MockTransport(handler))
@@ -171,9 +165,7 @@ async def test_a_denied_listing_names_the_permissions_it_needed() -> None:
 async def test_a_denial_under_a_complete_grant_names_nothing_extra() -> None:
     """Every permission is granted and Graph still refused, so the grant is not
     the explanation and guessing at one would be noise."""
-    report = await run_identity(
-        token_granting(*REQUIRED_GRAPH_PERMISSIONS), graph_denying()
-    )
+    report = await run_identity(token_granting(*REQUIRED_GRAPH_PERMISSIONS), graph_denying())
 
     detail = report.results["users"].detail
     assert "Insufficient privileges" in detail

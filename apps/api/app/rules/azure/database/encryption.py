@@ -148,6 +148,4 @@ class AzureDatabaseEncryptionRule(SecurityRule):
                 f"{resource.name} could not be read"
             )
 
-        return RuleResult.passed(
-            {"database_count": len(databases), "all_encrypted": True}
-        )
+        return RuleResult.passed({"database_count": len(databases), "all_encrypted": True})

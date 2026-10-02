@@ -88,8 +88,7 @@ def _pg_parameter(
         rule_id=rule_id,
         name=f"PostgreSQL server does not {what}",
         description=(
-            f"The PostgreSQL flexible server's `{name}` parameter is off, so it does "
-            f"not {what}."
+            f"The PostgreSQL flexible server's `{name}` parameter is off, so it does not {what}."
         ),
         rationale=why,
         remediation=(
@@ -140,8 +139,7 @@ SPECS = (
         field="auto_upgrade_channel",
         passes=_upgrades_automatically,
         why_no_expected_state=(
-            "Any channel but none upgrades the cluster, so there is no one value to "
-            "expect."
+            "Any channel but none upgrades the cluster, so there is no one value to expect."
         ),
         # Absent is the service default: no automatic upgrades.
         absent="fail",
@@ -633,12 +631,12 @@ PROTECTION_SPECS = (
             "Azure CLI:\n"
             "  az monitor diagnostic-settings create --name http-logs \\\n"
             "    --resource <app-id> --workspace <workspace-id> \\\n"
-            "    --logs '[{\"category\":\"AppServiceHTTPLogs\",\"enabled\":true}]'"
+            '    --logs \'[{"category":"AppServiceHTTPLogs","enabled":true}]\''
         ),
         cli=(
             "az monitor diagnostic-settings create --name http-logs --resource <app-id> "
             "--workspace <workspace-id> "
-            "--logs '[{\"category\":\"AppServiceHTTPLogs\",\"enabled\":true}]'",
+            '--logs \'[{"category":"AppServiceHTTPLogs","enabled":true}]\'',
         ),
         severity=Severity.LOW,
         exploitability=1,
@@ -654,6 +652,7 @@ PROTECTION_SPECS = (
         applies_when=(("is_function_app", "false"),),
     ),
 )
+
 
 # Section 177: a Defender profile on AKS, filed wrongly as reading activity and
 # answerable from the cluster listing all along; and web apps' HTTP/2 and the
@@ -682,7 +681,7 @@ def _runtime(rule_id: str, language: str, label: str, *prefixes: str) -> Propert
             f"Move the app to a supported {label} version, and test it there first.\n\n"
             "Azure CLI:\n"
             "  az webapp config set --name <app> --resource-group <rg> \\\n"
-            "    --linux-fx-version \"<STACK>|<version>\""
+            '    --linux-fx-version "<STACK>|<version>"'
         ),
         cli=(
             "az webapp config set --name <app> --resource-group <rg> "
@@ -720,8 +719,7 @@ LIFECYCLE_SPECS = (
             "not enough if the cluster never received it."
         ),
         remediation=(
-            "Azure CLI:\n"
-            "  az aks update --name <cluster> --resource-group <rg> --enable-defender"
+            "Azure CLI:\n  az aks update --name <cluster> --resource-group <rg> --enable-defender"
         ),
         cli=("az aks update --name <cluster> --resource-group <rg> --enable-defender",),
         severity=Severity.MEDIUM,
@@ -757,7 +755,8 @@ LIFECYCLE_SPECS = (
         evidence=(AzureEvidence.APP_SERVICES, AzureEvidence.APP_SERVICE_CONFIGS),
         field="http2_enabled",
         safe=True,
-        terraform_attribute="http2_enabled",
+        terraform_attribute="site_config.http2_enabled",
+        terraform_resource_types=("azurerm_linux_web_app", "azurerm_windows_web_app"),
         describes="HTTP/2 is enabled",
         failure="does not use HTTP/2",
         mappings=_HARDENING,
@@ -767,6 +766,4 @@ LIFECYCLE_SPECS = (
     _runtime("AZ-WEB-013", "java", "Java", "java ", "tomcat "),
 )
 
-RULES = tuple(
-    property_rule(spec) for spec in (*SPECS, *PROTECTION_SPECS, *LIFECYCLE_SPECS)
-)
+RULES = tuple(property_rule(spec) for spec in (*SPECS, *PROTECTION_SPECS, *LIFECYCLE_SPECS))

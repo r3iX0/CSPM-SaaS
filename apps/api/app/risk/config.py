@@ -125,8 +125,7 @@ class RiskEngineConfig:
             raise ValueError(f"Risk weights must sum to 1.0, got {total}")
         if not 0.0 < self.score_anchor_value < 100.0:
             raise ValueError(
-                "Score anchor must sit strictly between 0 and 100, got "
-                f"{self.score_anchor_value}"
+                f"Score anchor must sit strictly between 0 and 100, got {self.score_anchor_value}"
             )
         if self.score_anchor_criticals < 1:
             raise ValueError("Score anchor needs at least one Critical to pin to")

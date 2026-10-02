@@ -57,9 +57,7 @@ def test_a_validation_event_with_no_code_is_not_answered() -> None:
 def test_a_write_to_something_a_rule_reads_is_relevant() -> None:
     assert service.is_relevant(change("Microsoft.Network/networkSecurityGroups/write"))
     assert service.is_relevant(change("Microsoft.Storage/storageAccounts/write"))
-    assert service.is_relevant(
-        change("Microsoft.Authorization/roleAssignments/write")
-    )
+    assert service.is_relevant(change("Microsoft.Authorization/roleAssignments/write"))
 
 
 def test_a_deletion_is_a_change_too() -> None:

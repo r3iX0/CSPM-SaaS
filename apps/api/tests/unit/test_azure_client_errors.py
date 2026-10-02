@@ -109,9 +109,7 @@ async def test_the_two_surfaces_do_not_share_a_message() -> None:
     """A regression guard. The failure being fixed here was one message doing
     the work of two, and the cheapest way to reintroduce it is to write a
     shared default and forget to override it."""
-    assert str(await error_from(ArmClient, 403)) != str(
-        await error_from(GraphClient, 403)
-    )
+    assert str(await error_from(ArmClient, 403)) != str(await error_from(GraphClient, 403))
 
 
 # ------------------------------------------------------- Azure's own account
@@ -253,9 +251,7 @@ async def test_a_truncated_listing_is_recorded_on_the_client() -> None:
     and the rules would have read it as the whole environment."""
 
     def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(
-            200, json={"value": [{"id": "x"}], "nextLink": "https://arm/next"}
-        )
+        return httpx.Response(200, json={"value": [{"id": "x"}], "nextLink": "https://arm/next"})
 
     async with ArmClient(
         FakeTokens(), httpx.AsyncClient(transport=httpx.MockTransport(handler))
@@ -297,9 +293,7 @@ def logs_from(status: int, payload: dict | None = None, text: str = "", headers=
 
     async def run() -> None:
         transport = httpx.MockTransport(handler)
-        async with ArmClient(
-            FakeTokens(), httpx.AsyncClient(transport=transport)
-        ) as api:
+        async with ArmClient(FakeTokens(), httpx.AsyncClient(transport=transport)) as api:
             with pytest.raises(AzureApiError):
                 await api.get("/subscriptions")
 
@@ -374,8 +368,8 @@ def test_a_block_page_logs_its_reference_not_its_stylesheet() -> None:
 
     assert "font-family" not in failure["detail"]
     assert "The request is blocked." in failure["detail"]
-    assert "20260919T182450Z-17d8f4c6b8dxk9tphC1LONnkx40000000ff0000000000a1b2" in (
-        failure["detail"]
+    assert (
+        "20260919T182450Z-17d8f4c6b8dxk9tphC1LONnkx40000000ff0000000000a1b2" in (failure["detail"])
     )
     assert failure["edge_blocked"] is True
 
@@ -427,16 +421,19 @@ async def test_an_unregistered_provider_hands_over_the_command() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
             404,
-            json={"error": {"code": "SubscriptionNotRegistered",
-                            "message": "Subscription Not Registered"}},
+            json={
+                "error": {
+                    "code": "SubscriptionNotRegistered",
+                    "message": "Subscription Not Registered",
+                }
+            },
         )
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     async with ArmClient(FakeTokens(), client) as api:
         with pytest.raises(AzureApiError) as raised:
             await api.get(
-                "/subscriptions/s/providers/Microsoft.Security/pricings"
-                "?api-version=2024-01-01"
+                "/subscriptions/s/providers/Microsoft.Security/pricings?api-version=2024-01-01"
             )
 
     message = str(raised.value)
@@ -449,16 +446,18 @@ async def test_the_namespace_azure_names_wins_over_the_url() -> None:
         await error_from(
             ArmClient,
             409,
-            {"error": {"code": "MissingSubscriptionRegistration",
-                       "message": "The subscription is not registered to use "
-                                  "namespace 'Microsoft.Insights'."}},
+            {
+                "error": {
+                    "code": "MissingSubscriptionRegistration",
+                    "message": "The subscription is not registered to use "
+                    "namespace 'Microsoft.Insights'.",
+                }
+            },
         )
     )
     assert "az provider register -n Microsoft.Insights" in message
 
 
 async def test_an_ordinary_404_gets_no_registration_advice() -> None:
-    message = str(
-        await error_from(ArmClient, 404, {"error": {"code": "ResourceNotFound"}})
-    )
+    message = str(await error_from(ArmClient, 404, {"error": {"code": "ResourceNotFound"}}))
     assert "provider register" not in message

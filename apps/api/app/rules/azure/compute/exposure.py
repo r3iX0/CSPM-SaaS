@@ -234,9 +234,7 @@ class AzureUnguardedVmRule(SecurityRule):
 
         guarding = context.get_related_inverse(resource, "protects")
         if guarding:
-            return RuleResult.passed(
-                {"guarding_nsgs": [n.name for n in guarding]}
-            )
+            return RuleResult.passed({"guarding_nsgs": [n.name for n in guarding]})
 
         return RuleResult.failed(
             evidence={
@@ -272,9 +270,7 @@ class AzureLinuxPasswordSignInRule(SecurityRule):
     severity = Severity.MEDIUM
     exploitability = 4
     applies_to: ClassVar[list[ResourceType]] = [ResourceType.VIRTUAL_MACHINE]
-    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (
-        AzureEvidence.VIRTUAL_MACHINES,
-    )
+    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (AzureEvidence.VIRTUAL_MACHINES,)
     estimated_effort_minutes = 60
     rationale = (
         "Password sign-in is what SSH brute forcing needs. With keys only, a "
@@ -289,7 +285,7 @@ class AzureLinuxPasswordSignInRule(SecurityRule):
         "  az vm run-command invoke --name <vm> --resource-group <rg> \\\n"
         "    --command-id RunShellScript --scripts \\\n"
         "    \"sed -i 's/^#\\\\?PasswordAuthentication.*/PasswordAuthentication no/' "
-        "/etc/ssh/sshd_config && systemctl reload sshd\""
+        '/etc/ssh/sshd_config && systemctl reload sshd"'
     )
     remediation_spec: ClassVar[RemediationSpec | None] = RemediationSpec(
         expected=(
@@ -306,6 +302,7 @@ class AzureLinuxPasswordSignInRule(SecurityRule):
         ),
         applies_when={"os_type": "Linux"},
         notes=_NO_POLICY,
+        terraform_resource_types=("azurerm_linux_virtual_machine",),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.17"],

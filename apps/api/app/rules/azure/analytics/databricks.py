@@ -32,9 +32,7 @@ _NETWORK_MAPPINGS: dict[str, list[str]] = {
 class _WorkspaceRule(SecurityRule):
     category = "compute"
     applies_to: ClassVar[list[ResourceType]] = [ResourceType.ANALYTICS_WORKSPACE]
-    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (
-        AzureEvidence.DATABRICKS_WORKSPACES,
-    )
+    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (AzureEvidence.DATABRICKS_WORKSPACES,)
     compliance_mappings: ClassVar[dict[str, list[str]]] = _NETWORK_MAPPINGS
 
     def _unreadable(
@@ -83,10 +81,10 @@ class AzureDatabricksPublicNetworkRule(_WorkspaceRule):
             ),
         ),
         cli=(
-            "az resource update --ids <resource-id> "
-            "--set properties.publicNetworkAccess=Disabled",
+            "az resource update --ids <resource-id> --set properties.publicNetworkAccess=Disabled",
         ),
         notes=_NO_POLICY,
+        terraform_resource_types=("azurerm_databricks_workspace",),
     )
 
     def evaluate(
@@ -147,6 +145,7 @@ class AzureDatabricksNoPublicIpRule(_WorkspaceRule):
             "--set properties.parameters.enableNoPublicIp.value=true",
         ),
         notes=_NO_POLICY,
+        terraform_resource_types=("azurerm_databricks_workspace",),
     )
 
     def evaluate(

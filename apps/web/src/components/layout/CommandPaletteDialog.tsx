@@ -153,10 +153,7 @@ export function CommandPaletteDialog({
     () =>
       NAV_GROUPS.flatMap((group) =>
         group.items
-          .filter(
-            (item) =>
-              !filtering || matches(`${item.label} ${group.label}`, trimmed),
-          )
+          .filter((item) => !filtering || matches(`${item.label} ${group.label}`, trimmed))
           .map((item) => ({ ...item, group: group.label })),
       ),
     [filtering, trimmed],
@@ -165,9 +162,7 @@ export function CommandPaletteDialog({
   const ruleHits = useMemo(() => {
     if (!filtering || !rules) return [];
     return rules
-      .filter((rule) =>
-        matchesRule(`${rule.name} ${rule.rule_id} ${rule.category}`, trimmed),
-      )
+      .filter((rule) => matchesRule(`${rule.name} ${rule.rule_id} ${rule.category}`, trimmed))
       .slice(0, RESULT_LIMIT);
   }, [rules, filtering, trimmed]);
 
@@ -189,8 +184,7 @@ export function CommandPaletteDialog({
     : actions;
 
   const themeHits = useMemo(
-    () =>
-      filtering ? THEME_COMMANDS.filter((c) => matches(c.label, trimmed)) : [],
+    () => (filtering ? THEME_COMMANDS.filter((c) => matches(c.label, trimmed)) : []),
     [filtering, trimmed],
   );
 
@@ -241,9 +235,7 @@ export function CommandPaletteDialog({
         <div role="status" aria-live="polite">
           {nothing && (
             <div className="py-6 text-center text-sm">
-              <span className="text-muted-foreground">
-                Nothing matches “{trimmed}”.
-              </span>
+              <span className="text-muted-foreground">Nothing matches “{trimmed}”.</span>
               {/* Says what was searched, because a bare "no results" over a
               partial search is a claim the product cannot support. */}
               <span className="mt-1 block text-xs text-muted-foreground">
@@ -253,7 +245,6 @@ export function CommandPaletteDialog({
           )}
         </div>
         <CommandList>
-
           {actionHits.length > 0 && (
             <CommandGroup heading="Actions">
               {actionHits.map((action) => (
@@ -280,11 +271,7 @@ export function CommandPaletteDialog({
           {pages.length > 0 && (
             <CommandGroup heading="Go to">
               {pages.map((page) => (
-                <CommandItem
-                  key={page.to}
-                  value={page.to}
-                  onSelect={() => go(page.to)}
-                >
+                <CommandItem key={page.to} value={page.to} onSelect={() => go(page.to)}>
                   <page.icon />
                   {page.label}
                   <CommandShortcut>{page.group}</CommandShortcut>
@@ -302,9 +289,7 @@ export function CommandPaletteDialog({
                   onSelect={() => go(`/assets/${asset.id}`)}
                 >
                   <BoxesIcon />
-                  <span className="min-w-0 flex-1 truncate">
-                    {asset.name}
-                  </span>
+                  <span className="min-w-0 flex-1 truncate">{asset.name}</span>
                   <ResourceTypeLabel
                     type={asset.resource_type}
                     className="shrink-0 text-xs text-muted-foreground"
@@ -341,11 +326,7 @@ export function CommandPaletteDialog({
                   value={rule.rule_id}
                   // A rule on its own is a definition; what a reader wants is
                   // what it found in their environment.
-                  onSelect={() =>
-                    go(
-                      `/findings?rule_id=${encodeURIComponent(rule.rule_id)}`,
-                    )
-                  }
+                  onSelect={() => go(`/findings?rule_id=${encodeURIComponent(rule.rule_id)}`)}
                 >
                   <ListChecksIcon />
                   <span className="min-w-0 flex-1 truncate">{rule.name}</span>

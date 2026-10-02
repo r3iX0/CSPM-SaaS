@@ -7,13 +7,7 @@ import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { GraphLink } from "@/components/graph/GraphLink";
 import type { GraphTarget } from "@/components/graph/graphQueries";
 import { buttonVariants } from "@/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { stagger } from "@/lib/motion";
 import { useT } from "@/i18n";
 import { InfoTip } from "@/components/common/InfoTip";
@@ -53,9 +47,7 @@ export function PriorityRisks({ risks }: { risks: Risk[] }) {
           <CardTitle id="priority-risks" className="text-body font-semibold">
             Priority risks
           </CardTitle>
-          <InfoTip label={t.dashboard.priorityExplainLabel}>
-            {t.dashboard.priorityExplain}
-          </InfoTip>
+          <InfoTip label={t.dashboard.priorityExplainLabel}>{t.dashboard.priorityExplain}</InfoTip>
         </div>
         <CardAction>
           <Link
@@ -70,8 +62,8 @@ export function PriorityRisks({ risks }: { risks: Risk[] }) {
       {risks.length === 0 ? (
         <CardContent className="border-t py-8">
           <p className="text-center text-body text-muted-foreground">
-            Nothing ranked as a risk. Every check with a verdict passed — coverage
-            says how much that is.
+            Nothing ranked as a risk. Every check with a verdict passed — coverage says how much
+            that is.
           </p>
         </CardContent>
       ) : (
@@ -157,8 +149,7 @@ function RiskContext({ risk }: { risk: Risk }) {
     { label: "Business-critical", level: risk.asset_criticality },
   ]
     .filter(
-      (fact) =>
-        fact.level === "CRITICAL" || fact.level === "HIGH" || fact.level === "UNKNOWN",
+      (fact) => fact.level === "CRITICAL" || fact.level === "HIGH" || fact.level === "UNKNOWN",
     )
     .map((fact) => (fact.level === "UNKNOWN" ? `${fact.label}: not known` : fact.label));
 

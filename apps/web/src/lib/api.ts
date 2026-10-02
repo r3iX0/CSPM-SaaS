@@ -16,11 +16,11 @@ export const API_URL = import.meta.env.VITE_API_URL ?? "";
 const TOKEN_KEY = "cloudguard.token";
 const ORG_KEY = "cloudguard.org";
 
-export type Envelope<T> = {
+export interface Envelope<T> {
   data: T | null;
   error: { code: string; message: string } | null;
   meta: Record<string, unknown>;
-};
+}
 
 export class ApiError extends Error {
   constructor(
@@ -123,11 +123,7 @@ function handleUnauthorized(): void {
   if (auth.token) auth.signOut();
 }
 
-async function send(
-  url: string,
-  init: RequestInit,
-  timeoutMs: number,
-): Promise<Response> {
+async function send(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
   // A caller's own signal is honoured alongside the timeout -- TanStack passes
   // one when a query is cancelled, and dropping it would leave abandoned
   // requests running.
@@ -168,7 +164,9 @@ async function request<T>(
 ): Promise<{ data: T; meta: Record<string, unknown> }> {
   const { skipAuth, ...init } = options;
   const headers = new Headers(init.headers);
-  headers.set("Content-Type", "application/json");
+  // A form's content type carries its multipart boundary, which only the
+  // browser knows; setting one here would make the upload unreadable.
+  if (!(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
 
   if (!skipAuth && auth.token) {
     headers.set("Authorization", `Bearer ${auth.token}`);
@@ -234,15 +232,17 @@ async function fetchDocument(path: string): Promise<Blob> {
 }
 
 export const api = {
-  get: <T,>(path: string) => request<T>(path).then((r) => r),
+  get: <T>(path: string) => request<T>(path).then((r) => r),
   /** A PDF or HTML report, fetched with the caller's token. */
   document: (path: string) => fetchDocument(path),
-  post: <T,>(path: string, body?: unknown, opts: { skipAuth?: boolean } = {}) =>
+  post: <T>(path: string, body?: unknown, opts: { skipAuth?: boolean } = {}) =>
     request<T>(path, { method: "POST", body: JSON.stringify(body ?? {}), ...opts }),
-  patch: <T,>(path: string, body: unknown) =>
+  patch: <T>(path: string, body: unknown) =>
     request<T>(path, { method: "PATCH", body: JSON.stringify(body) }),
+  /** Files, as multipart. Nothing is stored unless the endpoint says so. */
+  upload: <T>(path: string, form: FormData) => request<T>(path, { method: "POST", body: form }),
   /** A full replacement. Used where the API stores a statement, not a profile. */
-  put: <T,>(path: string, body: unknown) =>
+  put: <T>(path: string, body: unknown) =>
     request<T>(path, { method: "PUT", body: JSON.stringify(body) }),
-  del: <T,>(path: string) => request<T>(path, { method: "DELETE" }),
+  del: <T>(path: string) => request<T>(path, { method: "DELETE" }),
 };

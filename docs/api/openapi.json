@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Cleave API",
-    "description": "Azure-first Cloud Security Posture Management.",
+    "description": "Azure-first cloud security posture management. Every response is the envelope `{data, error, meta}`; a failure carries a stable `error.code` to branch on. Send a Supabase access token as `Authorization: Bearer`. The organization comes from the token, never from the path or the body, and a request body refuses a field it does not know.",
     "version": "0.1.0"
   },
   "paths": {
@@ -12,23 +12,10 @@
           "organizations"
         ],
         "summary": "Create Organization",
-        "operationId": "create_organization_api_v1_organizations_post",
-        "parameters": [
+        "operationId": "organizations_create_organization",
+        "security": [
           {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
+            "bearerAuth": []
           }
         ],
         "requestBody": {
@@ -79,23 +66,10 @@
           "organizations"
         ],
         "summary": "List Organizations",
-        "operationId": "list_organizations_api_v1_organizations_get",
-        "parameters": [
+        "operationId": "organizations_list_organizations",
+        "security": [
           {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
+            "bearerAuth": []
           }
         ],
         "responses": {
@@ -137,24 +111,13 @@
         ],
         "summary": "Update Organization",
         "description": "Correct how this organization describes itself.\n\nNo id in the path, unlike DELETE. Deleting a different organization from\nthe one on screen is a real thing to want; editing one is not, and taking\nthe target from the tenant context means the membership check has already\nhappened rather than being repeated here.",
-        "operationId": "update_organization_api_v1_organizations_patch",
-        "parameters": [
+        "operationId": "organizations_update_organization",
+        "security": [
           {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
           {
             "name": "x-organization-id",
             "in": "header",
@@ -243,25 +206,7 @@
         ],
         "summary": "Join Demo",
         "description": "Open the shared demo organization, read-only.\n\nA recorded estate run through the real pipeline, so a new customer sees\nwhat CloudGuard does before connecting anything. The caller becomes a\nVIEWER, and every write in the demo is refused whatever the role.",
-        "operationId": "join_demo_api_v1_organizations_demo_join_post",
-        "parameters": [
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
+        "operationId": "organizations_join_demo",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -274,36 +219,41 @@
             }
           },
           "401": {
+            "description": "Unauthorized",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Unauthorized"
+            }
           },
           "422": {
+            "description": "Unprocessable Entity",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Unprocessable Entity"
+            }
           },
           "404": {
+            "description": "Not Found",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Not Found"
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
       }
     },
     "/api/v1/organizations/demo/leave": {
@@ -313,25 +263,7 @@
         ],
         "summary": "Leave Demo",
         "description": "Take the demo out of the caller's organization list.",
-        "operationId": "leave_demo_api_v1_organizations_demo_leave_post",
-        "parameters": [
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
+        "operationId": "organizations_leave_demo",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -344,26 +276,31 @@
             }
           },
           "401": {
+            "description": "Unauthorized",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Unauthorized"
+            }
           },
           "422": {
+            "description": "Unprocessable Entity",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Unprocessable Entity"
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
       }
     },
     "/api/v1/organizations/{organization_id}": {
@@ -372,7 +309,12 @@
           "organizations"
         ],
         "summary": "Get Organization",
-        "operationId": "get_organization_api_v1_organizations__organization_id__get",
+        "operationId": "organizations_get_organization",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "organization_id",
@@ -382,22 +324,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Organization Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -466,7 +392,12 @@
         ],
         "summary": "Delete Organization",
         "description": "Delete an organization and everything under it.\n\nTakes the id from the path rather than the tenant header: this is the one\noperation whose target is not \"the organization I am currently working in\",\nand resolving it from the header would make deleting a *different* one\nimpossible from a single screen.",
-        "operationId": "delete_organization_api_v1_organizations__organization_id__delete",
+        "operationId": "organizations_delete_organization",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "organization_id",
@@ -476,22 +407,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Organization Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           }
         ],
@@ -556,24 +471,13 @@
         ],
         "summary": "List Members",
         "description": "Everyone in this organization. Any member may ask.",
-        "operationId": "list_members_api_v1_members_get",
-        "parameters": [
+        "operationId": "team_list_members",
+        "security": [
           {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
           {
             "name": "x-organization-id",
             "in": "header",
@@ -642,7 +546,12 @@
         ],
         "summary": "Change Member Role",
         "description": "Change what a member may do. Owners and admins; only an owner touches an owner.",
-        "operationId": "change_member_role_api_v1_members__member_id__patch",
+        "operationId": "team_change_member_role",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "member_id",
@@ -652,22 +561,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Member Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -766,7 +659,12 @@
         ],
         "summary": "Remove Member",
         "description": "Take somebody out of this organization. The last owner cannot be removed.",
-        "operationId": "remove_member_api_v1_members__member_id__delete",
+        "operationId": "team_remove_member",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "member_id",
@@ -776,22 +674,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Member Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -882,24 +764,13 @@
         ],
         "summary": "List Invitations",
         "description": "Invitations waiting to be used, expired ones included. Owners and admins.",
-        "operationId": "list_invitations_api_v1_invitations_get",
-        "parameters": [
+        "operationId": "team_list_invitations",
+        "security": [
           {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
           {
             "name": "x-organization-id",
             "in": "header",
@@ -976,24 +847,13 @@
         ],
         "summary": "Create Invitation",
         "description": "Invite an address, and return the link -- this once.\n\nCloudGuard sends no email: the link is handed to whoever invited, to pass on\nhowever their team talks. It works only for the invited address, so a link\nthat travels further than meant joins nobody.",
-        "operationId": "create_invitation_api_v1_invitations_post",
-        "parameters": [
+        "operationId": "team_create_invitation",
+        "security": [
           {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
           {
             "name": "x-organization-id",
             "in": "header",
@@ -1092,7 +952,12 @@
         ],
         "summary": "Revoke Invitation",
         "description": "Withdraw an invitation, so its link stops working. Kept as history.",
-        "operationId": "revoke_invitation_api_v1_invitations__invitation_id__delete",
+        "operationId": "team_revoke_invitation",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "invitation_id",
@@ -1102,22 +967,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Invitation Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -1208,34 +1057,16 @@
         ],
         "summary": "Preview Invitation",
         "description": "What an invitation link offers, before it is used.",
-        "operationId": "preview_invitation_api_v1_invitations_preview_post",
-        "parameters": [
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
+        "operationId": "team_preview_invitation",
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/InvitationToken"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -1249,36 +1080,41 @@
             }
           },
           "401": {
+            "description": "Unauthorized",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Unauthorized"
+            }
           },
           "404": {
+            "description": "Not Found",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Not Found"
+            }
           },
           "422": {
+            "description": "Unprocessable Entity",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Unprocessable Entity"
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
       }
     },
     "/api/v1/invitations/accept": {
@@ -1288,34 +1124,16 @@
         ],
         "summary": "Accept Invitation",
         "description": "Join the organization an invitation names, as the invited address.",
-        "operationId": "accept_invitation_api_v1_invitations_accept_post",
-        "parameters": [
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
+        "operationId": "team_accept_invitation",
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/InvitationToken"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -1329,56 +1147,61 @@
             }
           },
           "401": {
+            "description": "Unauthorized",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Unauthorized"
+            }
           },
           "404": {
+            "description": "Not Found",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Not Found"
+            }
           },
           "422": {
+            "description": "Unprocessable Entity",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Unprocessable Entity"
+            }
           },
           "403": {
+            "description": "Forbidden",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Forbidden"
+            }
           },
           "409": {
+            "description": "Conflict",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Conflict"
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
       }
     },
     "/api/v1/audit-log": {
@@ -1388,7 +1211,12 @@
         ],
         "summary": "List Audit Log",
         "description": "The audit trail, newest first. Owners and admins.\n\n``action`` is one verb (``member.removed``) or, ending in a dot, a family\n(``member.``). Entries cannot be edited or deleted by anybody through any\npath the application has -- the database refuses it.",
-        "operationId": "list_audit_log_api_v1_audit_log_get",
+        "operationId": "audit_list_audit_log",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "action",
@@ -1464,22 +1292,6 @@
               "minimum": 0,
               "default": 0,
               "title": "Offset"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -1559,24 +1371,13 @@
           "webhooks"
         ],
         "summary": "List Webhooks",
-        "operationId": "list_webhooks_api_v1_webhooks_get",
-        "parameters": [
+        "operationId": "webhooks_list_webhooks",
+        "security": [
           {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
           {
             "name": "x-organization-id",
             "in": "header",
@@ -1653,24 +1454,13 @@
         ],
         "summary": "Create Webhook",
         "description": "Add a webhook. A generic one's signing secret is in this answer and no other.",
-        "operationId": "create_webhook_api_v1_webhooks_post",
-        "parameters": [
+        "operationId": "webhooks_create_webhook",
+        "security": [
           {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
           {
             "name": "x-organization-id",
             "in": "header",
@@ -1758,7 +1548,12 @@
           "webhooks"
         ],
         "summary": "Update Webhook",
-        "operationId": "update_webhook_api_v1_webhooks__webhook_id__patch",
+        "operationId": "webhooks_update_webhook",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "webhook_id",
@@ -1768,22 +1563,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Webhook Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -1871,7 +1650,12 @@
           "webhooks"
         ],
         "summary": "Delete Webhook",
-        "operationId": "delete_webhook_api_v1_webhooks__webhook_id__delete",
+        "operationId": "webhooks_delete_webhook",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "webhook_id",
@@ -1881,22 +1665,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Webhook Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -1977,7 +1745,12 @@
         ],
         "summary": "Test Webhook",
         "description": "Send a test message now and say what the receiver answered.",
-        "operationId": "test_webhook_api_v1_webhooks__webhook_id__test_post",
+        "operationId": "webhooks_test_webhook",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "webhook_id",
@@ -1987,22 +1760,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Webhook Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -2083,7 +1840,12 @@
         ],
         "summary": "List Webhook Deliveries",
         "description": "The most recent deliveries to this webhook, and how each went.",
-        "operationId": "list_webhook_deliveries_api_v1_webhooks__webhook_id__deliveries_get",
+        "operationId": "webhooks_list_webhook_deliveries",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "webhook_id",
@@ -2105,22 +1867,6 @@
               "minimum": 1,
               "default": 20,
               "title": "Limit"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -2201,7 +1947,7 @@
         ],
         "summary": "Azure Permissions",
         "description": "What CloudGuard will be able to see, shown before anyone consents.",
-        "operationId": "azure_permissions_api_v1_cloud_accounts_azure_permissions_get",
+        "operationId": "cloud_accounts_azure_permissions",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2222,24 +1968,14 @@
           "cloud-accounts"
         ],
         "summary": "List Cloud Accounts",
-        "operationId": "list_cloud_accounts_api_v1_cloud_accounts_get",
-        "parameters": [
+        "description": "The subscriptions discovered under this organization's connections.",
+        "operationId": "cloud_accounts_list_cloud_accounts",
+        "security": [
           {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
           {
             "name": "x-organization-id",
             "in": "header",
@@ -2307,7 +2043,12 @@
           "cloud-accounts"
         ],
         "summary": "Get Cloud Account",
-        "operationId": "get_cloud_account_api_v1_cloud_accounts__account_id__get",
+        "operationId": "cloud_accounts_get_cloud_account",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "account_id",
@@ -2317,22 +2058,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Account Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -2403,7 +2128,12 @@
         ],
         "summary": "Get Account Context",
         "description": "What has been declared about this subscription, or null if nothing has.",
-        "operationId": "get_account_context_api_v1_cloud_accounts__account_id__context_get",
+        "operationId": "cloud_accounts_get_account_context",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "account_id",
@@ -2413,22 +2143,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Account Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -2497,7 +2211,12 @@
         ],
         "summary": "Declare Account Context",
         "description": "Declare the environment, criticality or data sensitivity of a subscription.\n\nA full replacement rather than a patch: a field left out is one the customer\nis no longer claiming, and a body claiming nothing at all clears the\ndeclaration entirely.\n\nApplied by the next evaluation of this subscription -- the next scan, or a\nreplay of its latest capture. Deliberately not rescored here: a risk score\nis what a scan concluded, and rewriting stored scores from an API call would\nleave findings carrying numbers no observation ever produced.",
-        "operationId": "declare_account_context_api_v1_cloud_accounts__account_id__context_put",
+        "operationId": "cloud_accounts_declare_account_context",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "account_id",
@@ -2507,22 +2226,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Account Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -2611,7 +2314,12 @@
         ],
         "summary": "Clear Account Context",
         "description": "Withdraw the declaration, leaving CloudGuard to infer as it did before.",
-        "operationId": "clear_account_context_api_v1_cloud_accounts__account_id__context_delete",
+        "operationId": "cloud_accounts_clear_account_context",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "account_id",
@@ -2621,22 +2329,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Account Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -2717,7 +2409,12 @@
         ],
         "summary": "List Providers",
         "description": "Which clouds this deployment can connect, and why not.\n\nBehind authentication because it describes the deployment's configuration,\nand read by the wizard's first step. Unavailable providers come back with a\nreason rather than being omitted -- a picker that silently held an option\nwould answer \"does this support AWS?\" with nothing.",
-        "operationId": "list_providers_api_v1_cloud_connections_providers_get",
+        "operationId": "cloud_connections_list_providers",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "x-organization-id",
@@ -2733,22 +2430,6 @@
                 }
               ],
               "title": "X-Organization-Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           }
         ],
@@ -2803,7 +2484,12 @@
         ],
         "summary": "App Registration",
         "description": "What CloudGuard's own Entra app registration must declare.\n\nThe other half of the deployment. The ARM template grants subscription\naccess in the *customer's* tenant; directory access comes from application\npermissions on CloudGuard's registration in its own tenant, which no\ntemplate a customer runs can touch. That half has only ever existed as a\nlist in a code comment, which is why a registration missing seven of nine\npermissions still produced a consent screen that looked entirely normal.\n\nReturned as the manifest fragment plus the command that applies it, so the\nregistration can be diffed against what is deployed instead of inspected by\neye in a portal.",
-        "operationId": "app_registration_api_v1_cloud_connections_azure_app_registration_get",
+        "operationId": "cloud_connections_app_registration",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "x-organization-id",
@@ -2819,22 +2505,6 @@
                 }
               ],
               "title": "X-Organization-Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           }
         ],
@@ -2899,24 +2569,13 @@
         ],
         "summary": "Create Connection",
         "description": "Create a connection and return it with the consent redirect URL.",
-        "operationId": "create_connection_api_v1_cloud_connections_post",
-        "parameters": [
+        "operationId": "cloud_connections_create_connection",
+        "security": [
           {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
           {
             "name": "x-organization-id",
             "in": "header",
@@ -3002,24 +2661,13 @@
           "cloud-connections"
         ],
         "summary": "List Connections",
-        "operationId": "list_connections_api_v1_cloud_connections_get",
-        "parameters": [
+        "operationId": "cloud_connections_list_connections",
+        "security": [
           {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
           {
             "name": "x-organization-id",
             "in": "header",
@@ -3088,7 +2736,12 @@
         ],
         "summary": "Get Connection",
         "description": "Get a connection with subscriptions. Triggers auto-validation if needed.\n\nThe consent link comes back only for a caller who may actually complete the\ngrant. The wizard polls this endpoint, so this is also where a link that has\nexpired is replaced -- and where one that is still live is returned\nunchanged, so that the copy a customer already sent to their administrator\nkeeps working.",
-        "operationId": "get_connection_api_v1_cloud_connections__connection_id__get",
+        "operationId": "cloud_connections_get_connection",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "connection_id",
@@ -3098,22 +2751,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Connection Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -3181,7 +2818,12 @@
           "cloud-connections"
         ],
         "summary": "Delete Connection",
-        "operationId": "delete_connection_api_v1_cloud_connections__connection_id__delete",
+        "operationId": "cloud_connections_delete_connection",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "connection_id",
@@ -3191,22 +2833,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Connection Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -3287,7 +2913,12 @@
         ],
         "summary": "Rediscover",
         "description": "Look for subscriptions again.\n\nDiscovery normally runs by itself, once, while the connections page polls.\nThat leaves no way back from the case where verification succeeded and the\ndiscovery call immediately after it did not: the page stops polling a\nverified connection, so nothing ever asks again. This is the ask-again.",
-        "operationId": "rediscover_api_v1_cloud_connections__connection_id__discover_post",
+        "operationId": "cloud_connections_rediscover",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "connection_id",
@@ -3297,22 +2928,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Connection Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -3393,7 +3008,12 @@
         ],
         "summary": "Recheck Access",
         "description": "Ask Azure again what this connection is allowed to do.\n\nA real probe, which is what the access panel's button has always said it\nwas. The GET only validates a connection that is not verified yet, so on a\nworking connection re-checking read the same row back -- and the role\nversion on it had not been looked at since the connection was created.",
-        "operationId": "recheck_access_api_v1_cloud_connections__connection_id__recheck_post",
+        "operationId": "cloud_connections_recheck_access",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "connection_id",
@@ -3403,22 +3023,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Connection Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -3499,7 +3103,12 @@
         ],
         "summary": "Set Scope",
         "description": "Include or exclude discovered subscriptions from scanning.",
-        "operationId": "set_scope_api_v1_cloud_connections__connection_id__subscriptions_patch",
+        "operationId": "cloud_connections_set_scope",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "connection_id",
@@ -3509,22 +3118,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Connection Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -3615,7 +3208,12 @@
         ],
         "summary": "Set Schedule",
         "description": "Read this environment on a schedule, or stop.\n\nEvery connection starts unscheduled. Turning a customer's cloud into a\nrecurring API cost without being asked would be a surprise on their Azure\nbill as much as on ours, so continuous scanning is something they switch on\nrather than something they discover.",
-        "operationId": "set_schedule_api_v1_cloud_connections__connection_id__schedule_patch",
+        "operationId": "cloud_connections_set_schedule",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "connection_id",
@@ -3625,22 +3223,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Connection Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -3731,7 +3313,12 @@
         ],
         "summary": "Get Change Events",
         "description": "Whether this connection reacts to change, and how to wire it up.\n\nThe commands are the deliverable. CloudGuard cannot create the Event Grid\nsubscription itself -- that is a write in the customer's tenant, and holding\nno write permission anywhere is the strongest security claim this product\nmakes -- so it generates what the customer runs, one per subscription,\nbecause that is how Event Grid is scoped.",
-        "operationId": "get_change_events_api_v1_cloud_connections__connection_id__change_events_get",
+        "operationId": "cloud_connections_get_change_events",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "connection_id",
@@ -3741,22 +3328,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Connection Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -3825,7 +3396,12 @@
         ],
         "summary": "Set Change Events",
         "description": "Open or close the webhook for this connection.\n\nOpening it wires nothing up on its own; closing it takes effect at once,\nbefore the customer has deleted anything in Azure. That is the right way\nround -- a switch that appears to stop something and does not is worse than\none that leaves a subscription delivering to an endpoint now refusing it.",
-        "operationId": "set_change_events_api_v1_cloud_connections__connection_id__change_events_patch",
+        "operationId": "cloud_connections_set_change_events",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "connection_id",
@@ -3835,22 +3411,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Connection Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -3941,7 +3501,12 @@
         ],
         "summary": "Cancel Setup",
         "description": "Stop the setup process without discarding the connection.",
-        "operationId": "cancel_setup_api_v1_cloud_connections__connection_id__cancel_post",
+        "operationId": "cloud_connections_cancel_setup",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "connection_id",
@@ -3951,22 +3516,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Connection Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -4047,7 +3596,12 @@
         ],
         "summary": "Resume Setup",
         "description": "Pick setup back up where it was left.",
-        "operationId": "resume_setup_api_v1_cloud_connections__connection_id__resume_post",
+        "operationId": "cloud_connections_resume_setup",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "connection_id",
@@ -4057,22 +3611,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Connection Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -4153,7 +3691,12 @@
         ],
         "summary": "Revocation",
         "description": "What to run in Azure to take CloudGuard's access away.\n\nGenerated rather than performed: CloudGuard has no write permission in a\ncustomer tenant and deliberately never asks for one, so revocation is the\ncustomer's action. See ``service.revocation_steps``.",
-        "operationId": "revocation_api_v1_cloud_connections__connection_id__revocation_get",
+        "operationId": "cloud_connections_revocation",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "connection_id",
@@ -4163,22 +3706,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Connection Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -4249,7 +3776,12 @@
         ],
         "summary": "Check Revoked",
         "description": "Confirm by trying: revocation is verified by the access failing.",
-        "operationId": "check_revoked_api_v1_cloud_connections__connection_id__check_revoked_post",
+        "operationId": "cloud_connections_check_revoked",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "connection_id",
@@ -4259,22 +3791,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Connection Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -4354,24 +3870,14 @@
           "scans"
         ],
         "summary": "Create Scan",
-        "operationId": "create_scan_api_v1_scans_post",
-        "parameters": [
+        "description": "Queue a scan of an account's connection. One scan at a time per connection.",
+        "operationId": "scans_create_scan",
+        "security": [
           {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
           {
             "name": "x-organization-id",
             "in": "header",
@@ -4467,7 +3973,13 @@
           "scans"
         ],
         "summary": "List Scans",
-        "operationId": "list_scans_api_v1_scans_get",
+        "description": "The most recent scans, newest first.",
+        "operationId": "scans_list_scans",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "limit",
@@ -4479,22 +3991,6 @@
               "minimum": 1,
               "default": 25,
               "title": "Limit"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -4565,7 +4061,12 @@
         ],
         "summary": "Replay Scan Endpoint",
         "description": "Re-evaluate a finished scan's stored snapshot against today's rules.\n\nCosts nothing in the customer's cloud: no Azure call, no consent, no\nthrottle budget. Every scan already stored the provider's own JSON before\ninterpreting it, so a rule shipped after that scan ran can still be applied\nto it.\n\nWhether the result may change anything is decided in the pipeline, not\nhere, and it turns on one question: is that snapshot still the newest one\nfor the account? If it is, the replay behaves as a scan that skipped\ncollection. If it is not, it reports what the rules would have found and\nwrites no findings -- a capture from last month is evidence about last\nmonth, and resolving a finding on the strength of it would put \"verified\nfixed\" against something nobody looked at.",
-        "operationId": "replay_scan_endpoint_api_v1_scans__scan_id__replay_post",
+        "operationId": "scans_replay_scan_endpoint",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "scan_id",
@@ -4575,22 +4076,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Scan Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -4681,7 +4166,12 @@
         ],
         "summary": "Cancel Scan",
         "description": "Stop a scan that has not finished.\n\nCancelling a queued scan is the common case and the reason this exists: a\nscan sits queued until a worker collects it, and if none is running it sits\nthere indefinitely. The pipeline re-reads the status before it starts, so a\ntask collected after cancellation stops rather than writing findings nobody\nasked for.",
-        "operationId": "cancel_scan_api_v1_scans__scan_id__cancel_post",
+        "operationId": "scans_cancel_scan",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "scan_id",
@@ -4691,22 +4181,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Scan Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -4797,7 +4271,12 @@
         ],
         "summary": "Worker Status",
         "description": "Whether any Celery worker is actually listening.\n\nThe scans page infers trouble from elapsed time, which is a guess: a scan\nqueued for five minutes *probably* means no worker. This asks the broker\ninstead and turns that into a fact, which matters because the failure looks\nlike success from every other angle -- the worker service reports Online,\npasses health checks, and is simply running the wrong process.\n\nCalled only when a scan already looks stuck. A broker round trip on every\npoll would be a cost paid by every healthy deployment to diagnose a rare\nbroken one.",
-        "operationId": "worker_status_api_v1_scans_worker_status_get",
+        "operationId": "scans_worker_status",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "x-organization-id",
@@ -4813,22 +4292,6 @@
                 }
               ],
               "title": "X-Organization-Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           }
         ],
@@ -4883,7 +4346,12 @@
         ],
         "summary": "Get Scan Detail",
         "description": "One scan, with its scope, identity, stages and severity breakdown.",
-        "operationId": "get_scan_detail_api_v1_scans__scan_id__detail_get",
+        "operationId": "scans_get_scan_detail",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "scan_id",
@@ -4893,22 +4361,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Scan Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -4979,7 +4431,12 @@
         ],
         "summary": "Scan Events",
         "description": "A running scan's detail, pushed as server-sent events whenever it changes.\n\nThe scan is resolved once up front, on the request's session, so a scan\nthis reader cannot see is a 404 before any stream opens. Every tick after\nthat reads through a fresh ``rls_session`` for the same user: the request\nsession is not held open for the life of a stream, and PostgreSQL applies\nthe tenant boundary to each read exactly as it does to a poll.",
-        "operationId": "scan_events_api_v1_scans__scan_id__events_get",
+        "operationId": "scans_scan_events",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "scan_id",
@@ -4989,22 +4446,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Scan Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -5070,7 +4511,13 @@
           "scans"
         ],
         "summary": "Get Scan",
-        "operationId": "get_scan_api_v1_scans__scan_id__get",
+        "description": "One scan's record: what it covered, how it ended and how many findings it raised.",
+        "operationId": "scans_get_scan",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "scan_id",
@@ -5080,22 +4527,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Scan Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -5164,7 +4595,12 @@
         ],
         "summary": "Delete Scan",
         "description": "Delete a scan record, and optionally the findings it last detected.\n\n``purge_findings`` defaults to false because the two are different acts:\ndeleting the record prunes an execution log, while purging also discards\nwhat was found. Resolved findings are never purged either way -- each one\nis the evidence that a fix was verified.",
-        "operationId": "delete_scan_api_v1_scans__scan_id__delete",
+        "operationId": "scans_delete_scan",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "scan_id",
@@ -5184,22 +4620,6 @@
               "type": "boolean",
               "default": false,
               "title": "Purge Findings"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -5280,7 +4700,12 @@
         ],
         "summary": "Scan Collection",
         "description": "What this scan could and could not read, per subscription and per task.\n\nSeparate from ``/coverage``, which reports what the rules concluded. The\ntwo were one flat map of category to a sentence, which could say a category\nwas unreliable but not whether it had failed outright or merely come back\ntruncated -- an outage and a very large tenant, reported identically.",
-        "operationId": "scan_collection_api_v1_scans__scan_id__collection_get",
+        "operationId": "scans_scan_collection",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "scan_id",
@@ -5290,22 +4715,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Scan Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -5376,7 +4785,12 @@
         ],
         "summary": "Scan Coverage",
         "description": "What this scan could and could not determine.\n\nReported apart from the security score: a user asking \"why is my score 84?\"\nshould not have to understand coverage maths to get an answer, and a user\nasking \"what did you miss?\" deserves a straight one.",
-        "operationId": "scan_coverage_api_v1_scans__scan_id__coverage_get",
+        "operationId": "scans_scan_coverage",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "scan_id",
@@ -5386,22 +4800,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Scan Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -5471,7 +4869,13 @@
           "assets"
         ],
         "summary": "List Assets",
-        "operationId": "list_assets_api_v1_assets_get",
+        "description": "The inventory, with the asset carrying the most open findings first.\n\n``entry_point``, ``sensitive`` and ``on_attack_path`` narrow it to what the estate map marks;\n``subscription_id`` (``directory`` for the tenant-scoped assets), ``resource_group`` and\n``region`` (``none`` for unplaced ones) are how the hierarchy and the region map drill in.\n``meta.facets`` counts each filter's options over the whole filtered set.",
+        "operationId": "assets_list_assets",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "resource_type",
@@ -5655,22 +5059,6 @@
             }
           },
           {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
             "name": "x-organization-id",
             "in": "header",
             "required": false,
@@ -5737,25 +5125,14 @@
           "assets"
         ],
         "summary": "Asset Hierarchy",
-        "description": "The estate as it is actually organised: subscriptions, then groups.\n\nA flat inventory answers \"what do I have\"; it cannot answer \"which part of\nmy estate is the problem\", and that is the question with an owner attached\n-- a resource group usually has one, and a subscription almost always does.\n\nCounted in the database and returned whole. The list view pages, and a tree\nbuilt from one page of it would be a lie of the worst kind: a resource group\nwhose assets straddled two pages would appear twice, each time with a\nfraction of its findings.",
-        "operationId": "asset_hierarchy_api_v1_assets_hierarchy_get",
-        "parameters": [
+        "description": "The estate as it is actually organised: subscriptions, then groups.\n\nA flat inventory answers \"what do I have\"; it cannot answer \"which part of\nmy estate is the problem\", and that is the question with an owner attached\n-- a resource group usually has one, and a subscription almost always does.",
+        "operationId": "assets_asset_hierarchy",
+        "security": [
           {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
           {
             "name": "x-organization-id",
             "in": "header",
@@ -5823,8 +5200,13 @@
           "assets"
         ],
         "summary": "Resolve Asset",
-        "description": "The row id behind a provider id, for opening that asset's page.\n\nRoutes and graphs are statements about provider ids -- the cloud's own\nnames -- and the asset page is addressed by row id. A page holding only a\nprovider id asks here once, when somebody follows it, rather than every\nroute list carrying a surrogate key it rarely needs.\n\nPresent assets only, like the graph: a route through something a later\nscan no longer found should not open a page describing it as current.",
-        "operationId": "resolve_asset_api_v1_assets_resolve_get",
+        "description": "The row id behind a provider id, for opening that asset's page.\n\nRoutes and graphs are statements about provider ids -- the cloud's own\nnames -- and the asset page is addressed by row id. A page holding only a\nprovider id asks here once, when somebody follows it, rather than every\nroute list carrying a surrogate key it rarely needs.",
+        "operationId": "assets_resolve_asset",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "provider_resource_id",
@@ -5835,22 +5217,6 @@
               "minLength": 1,
               "maxLength": 2048,
               "title": "Provider Resource Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -5920,7 +5286,13 @@
           "assets"
         ],
         "summary": "Get Asset",
-        "operationId": "get_asset_api_v1_assets__asset_id__get",
+        "description": "One asset: its context and where each value came from, its place, and its findings.",
+        "operationId": "assets_get_asset",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "asset_id",
@@ -5930,22 +5302,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Asset Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -6016,7 +5372,12 @@
         ],
         "summary": "List Changes",
         "description": "Asset changes, newest first.\n\nJoined to the asset so a row is readable on its own. A feed of resource ids\nwould be technically complete and would make the reader look up every line\nto find out whether it mattered.",
-        "operationId": "list_changes_api_v1_changes_get",
+        "operationId": "changes_list_changes",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "days",
@@ -6067,22 +5428,6 @@
               "minimum": 0,
               "default": 0,
               "title": "Offset"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -6153,7 +5498,12 @@
         ],
         "summary": "List Notifications",
         "description": "What happened that this person has not seen.\n\nDeliberately not ``/changes``. That answers \"what moved in the environment\"\nand is a property of the estate; this answers \"what happened since you last\nlooked\" and is a property of a reader -- so the same scan produces the same\nchanges for everyone and a different unread count for each of them.\n\nThe list and the count come from one read of the same rows. Counting in a\nsecond query would let a badge say three above a panel showing two, which is\nthe kind of disagreement people stop trusting a whole feature over.",
-        "operationId": "list_notifications_api_v1_notifications_get",
+        "operationId": "notifications_list_notifications",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "limit",
@@ -6165,22 +5515,6 @@
               "minimum": 1,
               "default": 20,
               "title": "Limit"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -6249,24 +5583,13 @@
         ],
         "summary": "Dismiss All Notifications",
         "description": "Clear the panel for the person asking.\n\nDistinct from ``/read``, which moves a watermark and leaves everything in\nplace. This is the reader saying they are done with what is there, and it\nsays nothing about what arrives next.",
-        "operationId": "dismiss_all_notifications_api_v1_notifications_delete",
-        "parameters": [
+        "operationId": "notifications_dismiss_all_notifications",
+        "security": [
           {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
           {
             "name": "x-organization-id",
             "in": "header",
@@ -6335,24 +5658,13 @@
         ],
         "summary": "Mark Read",
         "description": "Move this person's watermark to now.\n\nA watermark rather than a flag per row, because the question has one answer\nand one timestamp -- and per-row read state would make the badge a number\nabout somebody's habits rather than about their estate.\n\nNo role check: reading is not a privilege, and a VIEWER who cannot dismiss\nwhat they have already read would be shown the same news for ever.",
-        "operationId": "mark_read_api_v1_notifications_read_post",
-        "parameters": [
+        "operationId": "notifications_mark_read",
+        "security": [
           {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
           {
             "name": "x-organization-id",
             "in": "header",
@@ -6421,7 +5733,12 @@
         ],
         "summary": "Dismiss Notification",
         "description": "Stop showing one notification to the person asking.\n\nA dismissal rather than a delete. What happened belongs to the organization\nand everybody in it reads the same rows, so removing one would be a reader\ndeciding what their colleagues get told. DELETE all the same: from the\ncaller's side the resource is their view of it, and that is what goes.\n\nNo role check, for the reason ``/read`` has none: a VIEWER who cannot put\ndown something they have already read would be shown it for ever.",
-        "operationId": "dismiss_notification_api_v1_notifications__notification_id__delete",
+        "operationId": "notifications_dismiss_notification",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "notification_id",
@@ -6431,22 +5748,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Notification Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -6517,7 +5818,12 @@
         ],
         "summary": "List Attack Paths",
         "description": "Every route from an exposed asset to a sensitive one, shortest first.\n\nBuilt from the assets and edges the last scan stored rather than from a\ntable of its own: a path is a pure function of those, and a stored one\ncould describe a route the customer has already closed.",
-        "operationId": "list_attack_paths_api_v1_attack_paths_get",
+        "operationId": "attack_paths_list_attack_paths",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "limit",
@@ -6529,22 +5835,6 @@
               "minimum": 1,
               "default": 50,
               "title": "Limit"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -6615,7 +5905,12 @@
         ],
         "summary": "Route Graph",
         "description": "Every route in the estate, as one graph, with what each link holds up.\n\nThe list above ranks routes, which is the right order for reading them and\nthe wrong one for acting: forty routes through one identity are forty rows\nthat never say \"one identity\". The drawing says it in one look, and the\nnumbers on its links say what closes if that identity's role goes -- for\nevery link, not for a shortlist, because they are all read off one analysis\n(``graph/severance.py``).\n\nOne request rather than three. The page used to ask for routes, then for\nchoke points, then for the outcome of a cut, and drew a shape in between\nthat it had to revise twice.",
-        "operationId": "route_graph_api_v1_attack_paths_graph_get",
+        "operationId": "attack_paths_route_graph",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "limit",
@@ -6627,22 +5922,6 @@
               "minimum": 1,
               "default": 200,
               "title": "Limit"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -6713,7 +5992,12 @@
         ],
         "summary": "List Choke Points",
         "description": "The links worth cutting first, ranked by how many routes close with them.\n\nA separate endpoint rather than a field on the list above, because it costs\na re-traversal per candidate and the list is read far more often than the\nquestion is asked. A page that wants both asks for both.",
-        "operationId": "list_choke_points_api_v1_attack_paths_choke_points_get",
+        "operationId": "attack_paths_list_choke_points",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "limit",
@@ -6725,22 +6009,6 @@
               "minimum": 1,
               "default": 5,
               "title": "Limit"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -6811,7 +6079,12 @@
         ],
         "summary": "Blast Radius",
         "description": "What one identity or asset can act on.\n\nThe question a customer actually asks about an over-privileged principal:\nnever \"is this role too broad\" in the abstract, but \"what would go with it\".",
-        "operationId": "blast_radius_api_v1_attack_paths_blast_radius__resource_id__get",
+        "operationId": "attack_paths_blast_radius",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "resource_id",
@@ -6820,22 +6093,6 @@
             "schema": {
               "type": "string",
               "title": "Resource Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -6906,7 +6163,12 @@
         ],
         "summary": "Access",
         "description": "Who holds access to one asset, and what one identity holds.\n\nWhether or not anything exposed leads there -- the half of the question a\nroute cannot answer, because a route needs a way in. Read from the same\nper-role evaluation the routes are walked with, so a principal listed here\nas controlling an asset is exactly one a route may pass through\n(DECISIONS.md section 125).",
-        "operationId": "access_api_v1_attack_paths_access__resource_id__get",
+        "operationId": "attack_paths_access",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "resource_id",
@@ -6915,22 +6177,6 @@
             "schema": {
               "type": "string",
               "title": "Resource Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -7001,7 +6247,12 @@
         ],
         "summary": "Neighborhood",
         "description": "The assets around one, what reaches it and what it reaches.\n\nFor the graph view on an asset's page. The route list stays the answer to\n\"which link do I cut\"; this is for looking around (DECISIONS.md section 101).\nCapped at three hops: every route this graph can express is three or four\nhops end to end, and a neighbourhood that deep either way already spans it.",
-        "operationId": "neighborhood_api_v1_attack_paths_neighborhood__resource_id__get",
+        "operationId": "attack_paths_neighborhood",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "resource_id",
@@ -7036,22 +6287,6 @@
               "maxItems": 20,
               "default": [],
               "title": "Expand"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -7122,7 +6357,12 @@
         ],
         "summary": "Estate",
         "description": "The estate as boxes -- subscriptions, groups, assets -- and the reach\nbetween them.\n\nFor the graph view on the assets page. The neighbourhood draws one asset's\nsurroundings and never the whole tenant; this draws the whole tenant by\ndrawing its containers, and opens one at a time (DECISIONS.md section 111).\nThe lens is the same pair the list filters by, so a box and the list it\nopens into hold the same assets.",
-        "operationId": "estate_api_v1_attack_paths_estate_get",
+        "operationId": "attack_paths_estate",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "subscription_id",
@@ -7158,22 +6398,6 @@
                 }
               ],
               "title": "Resource Group"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -7244,7 +6468,12 @@
         ],
         "summary": "What If",
         "description": "What closes if one link is removed, across the organization.\n\nFor the graph view's traced route: pick a hop, see what cutting it would\ndo before anybody changes a role assignment. A full re-traversal, the same\ncost as one choke-point check, so it is asked per link rather than for\nevery link on every route.",
-        "operationId": "what_if_api_v1_attack_paths_what_if_get",
+        "operationId": "attack_paths_what_if",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "source",
@@ -7274,22 +6503,6 @@
               "minLength": 1,
               "maxLength": 2048,
               "title": "Target"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -7360,24 +6573,13 @@
         ],
         "summary": "Simulate",
         "description": "What closes if several links are removed together, across the organization.\n\nA POST because the plan is a body, not because anything is written: this\nchanges nothing, in CloudGuard or in the cloud, and a demo visitor may ask\nit like any other question. The answer is exact for the plan as a whole --\nnever the sum of what each link closes alone, which is the one number a\nplan of several changes cannot be read off (``AssetGraph.simulate``).",
-        "operationId": "simulate_api_v1_attack_paths_simulate_post",
-        "parameters": [
+        "operationId": "attack_paths_simulate",
+        "security": [
           {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
           {
             "name": "x-organization-id",
             "in": "header",
@@ -7456,7 +6658,12 @@
         ],
         "summary": "List Findings",
         "description": "Findings, filtered and ordered by the database rather than by the client.\n\n``search`` and ``sort`` are here because the alternative is worse than a\nmissing feature. A page that filters and orders the rows it happens to hold\nsearches one page of an estate and reports \"nothing matches\" for the rest --\na false negative wearing an answer's clothes, in the one product where that\nis least acceptable.",
-        "operationId": "list_findings_api_v1_findings_get",
+        "operationId": "findings_list_findings",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "severity",
@@ -7607,22 +6814,6 @@
             }
           },
           {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
             "name": "x-organization-id",
             "in": "header",
             "required": false,
@@ -7690,7 +6881,12 @@
         ],
         "summary": "Finding Attack Paths",
         "description": "The routes this finding's asset sits on, if any.\n\nIts own endpoint rather than a field on the finding, because it costs a\ngraph build and the finding page must not wait on one to say what is wrong.\nThe page asks for this after it has rendered, and a reader who never scrolls\nto it has paid nothing.\n\nMembership is asked of the whole route, not of its endpoints: a person\nlooking at a misconfiguration on the jump box at the start and a person\nlooking at one on the storage account at the end are looking at the same\nproblem, and both deserve to be told it is a route rather than an isolated\nfault.",
-        "operationId": "finding_attack_paths_api_v1_findings__finding_id__attack_paths_get",
+        "operationId": "findings_finding_attack_paths",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "finding_id",
@@ -7700,22 +6896,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Finding Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -7786,7 +6966,12 @@
         ],
         "summary": "Finding Provenance",
         "description": "How CloudGuard knows: the readings this finding rests on.\n\nThe finding already carries an *excerpt* of its evidence. This is the\ncitation -- which listing, taken when, under which permissions, and the hash\nof the bytes -- which is the difference between a claim a customer has to\naccept and one they can check.\n\nIts own endpoint rather than a field on the finding, for the same reason\n``/attack-paths`` is: the page answering \"what is wrong\" must not wait on a\nquestion most readers never ask.\n\n``evidence: null`` means no citation was recorded, which for a finding\nraised before this existed is a fact about CloudGuard rather than about the\nfinding. An empty list would say the rule reads nothing, and the two must\nnot be answered the same way -- a product that cannot tell them apart is\nback to asking to be believed.",
-        "operationId": "finding_provenance_api_v1_findings__finding_id__provenance_get",
+        "operationId": "findings_finding_provenance",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "finding_id",
@@ -7796,22 +6981,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Finding Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -7881,7 +7050,12 @@
           "findings"
         ],
         "summary": "Get Finding",
-        "operationId": "get_finding_api_v1_findings__finding_id__get",
+        "operationId": "findings_get_finding",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "finding_id",
@@ -7891,22 +7065,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Finding Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -7976,7 +7134,12 @@
           "findings"
         ],
         "summary": "Accept Risk",
-        "operationId": "accept_risk_api_v1_findings__finding_id__accept_risk_post",
+        "operationId": "findings_accept_risk",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "finding_id",
@@ -7986,22 +7149,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Finding Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -8091,7 +7238,12 @@
           "findings"
         ],
         "summary": "Set Finding Status",
-        "operationId": "set_finding_status_api_v1_findings__finding_id__status_post",
+        "operationId": "findings_set_finding_status",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "finding_id",
@@ -8109,22 +7261,6 @@
             "required": true,
             "schema": {
               "$ref": "#/components/schemas/FindingStatus"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -8205,7 +7341,12 @@
         ],
         "summary": "Rescan Finding",
         "description": "Re-check the environment after a fix.\n\nThis is the verification step, and it is a full scan rather than a\nsingle-rule re-check: fixing one thing frequently changes another, and a\nnarrow re-check would report a fix that a wider view would contradict. If\nthe rule now passes, the pipeline resolves the finding on its own.",
-        "operationId": "rescan_finding_api_v1_findings__finding_id__rescan_post",
+        "operationId": "findings_rescan_finding",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "finding_id",
@@ -8215,22 +7356,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Finding Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -8324,13 +7449,114 @@
         }
       }
     },
+    "/api/v1/findings/{finding_id}/iac-diff": {
+      "post": {
+        "tags": [
+          "findings"
+        ],
+        "summary": "Finding Iac Diff",
+        "description": "This finding's fix, written into a Terraform file the customer uploads.\n\nReturns a unified diff that changes one argument in the block defining the\nasset, or a decline with its reason -- an answer, not an error, when the\nedit would need a guess (DECISIONS.md \u00a7190). ``lockfile`` is the optional\n``.terraform.lock.hcl``, which lets the answer say which azurerm release it\nholds. Nothing uploaded is stored, and the finding is not changed, so a\nviewer and the demo organization may ask.",
+        "operationId": "findings_finding_iac_diff",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "finding_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Finding Id"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_findings_finding_iac_diff"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_IacDiffOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
     "/api/v1/risks": {
       "get": {
         "tags": [
           "risks"
         ],
         "summary": "List Risks",
-        "operationId": "list_risks_api_v1_risks_get",
+        "description": "The live risks, worst first; ask for a status by name to reach the settled ones.\n\nA risk is live unless its findings say it is over (``service.list_risks`` holds the rule and\nwhy it is \"settled\" rather than \"strict\").",
+        "operationId": "risks_list_risks",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "risk_level",
@@ -8420,22 +7646,6 @@
             }
           },
           {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
             "name": "x-organization-id",
             "in": "header",
             "required": false,
@@ -8503,24 +7713,13 @@
         ],
         "summary": "Set Risks Status",
         "description": "One decision about several risks, applied to all of them or to none.",
-        "operationId": "set_risks_status_api_v1_risks_status_post",
-        "parameters": [
+        "operationId": "risks_set_risks_status",
+        "security": [
           {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
           {
             "name": "x-organization-id",
             "in": "header",
@@ -8608,7 +7807,13 @@
           "risks"
         ],
         "summary": "Set Risk Status",
-        "operationId": "set_risk_status_api_v1_risks__risk_id__status_post",
+        "description": "One decision about one risk: open it, start work on it, or accept it with a reason.",
+        "operationId": "risks_set_risk_status",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "risk_id",
@@ -8618,22 +7823,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Risk Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -8723,7 +7912,13 @@
           "risks"
         ],
         "summary": "Get Risk",
-        "operationId": "get_risk_api_v1_risks__risk_id__get",
+        "description": "One risk with the findings it covers and when its route was last seen.",
+        "operationId": "risks_get_risk",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "risk_id",
@@ -8733,22 +7928,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Risk Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -8818,24 +7997,14 @@
           "remediation"
         ],
         "summary": "Create Task",
-        "operationId": "create_task_api_v1_remediation_post",
-        "parameters": [
+        "description": "Open a remediation task for a finding. A finding has at most one open task.",
+        "operationId": "remediation_create_task",
+        "security": [
           {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
           {
             "name": "x-organization-id",
             "in": "header",
@@ -8921,25 +8090,14 @@
           "remediation"
         ],
         "summary": "List Tasks",
-        "description": "The queue, in the order the page says it is in.\n\nIt said \"ordered by impact against effort\" and was ordered by when each\ntask was created. Now: open work first; then priority, which is impact\nagainst effort (RISK_ENGINE.md section 4); then how many attack paths run\nthrough the finding's asset, so of two equally urgent fixes the one on a\nroute comes first; then the finding's own score (DECISIONS.md section 127).\n\nThe routes break ties rather than set the order. A finding on a route is\nalready outranked by the route itself in the risks queue, and scoring it\nup here as well would count the route twice.",
-        "operationId": "list_tasks_api_v1_remediation_get",
-        "parameters": [
+        "description": "The queue, in the order the page says it is in.\n\nIt said \"ordered by impact against effort\" and was ordered by when each\ntask was created. Now: open work first, then priority, then how many attack\npaths run through the finding's asset, then the finding's own score\n(DECISIONS.md section 127). ``service.queue`` holds the ordering.",
+        "operationId": "remediation_list_tasks",
+        "security": [
           {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
           {
             "name": "x-organization-id",
             "in": "header",
@@ -9007,7 +8165,13 @@
           "remediation"
         ],
         "summary": "Update Task",
-        "operationId": "update_task_api_v1_remediation__task_id__patch",
+        "description": "Change a task. Marking it done opens a claim for the next scan to check.\n\nIt does not close the finding: only an observation does.",
+        "operationId": "remediation_update_task",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "task_id",
@@ -9017,22 +8181,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Task Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -9122,24 +8270,14 @@
           "rules"
         ],
         "summary": "List Rules",
-        "operationId": "list_rules_api_v1_rules_get",
-        "parameters": [
+        "description": "Every rule that runs, with what it checks and how to fix a failure.",
+        "operationId": "rules_list_rules",
+        "security": [
           {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
           {
             "name": "x-organization-id",
             "in": "header",
@@ -9207,7 +8345,13 @@
           "rules"
         ],
         "summary": "Get Rule",
-        "operationId": "get_rule_api_v1_rules__rule_id__get",
+        "description": "One rule by its id, such as ``AZ-STO-001``.",
+        "operationId": "rules_get_rule",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "rule_id",
@@ -9216,22 +8360,6 @@
             "schema": {
               "type": "string",
               "title": "Rule Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -9301,24 +8429,13 @@
           "compliance"
         ],
         "summary": "List Frameworks",
-        "operationId": "list_frameworks_api_v1_compliance_get",
-        "parameters": [
+        "operationId": "compliance_list_frameworks",
+        "security": [
           {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
           {
             "name": "x-organization-id",
             "in": "header",
@@ -9387,7 +8504,12 @@
         ],
         "summary": "Export Framework",
         "description": "One framework's assessment, as a file.\n\nCSV for the spreadsheet an audit is actually run from, JSON for a GRC\nplatform that would otherwise have somebody retyping it. Both carry the\nsame thing: every control, its verdict, the rules behind that verdict and\nthe provider readings behind those -- including for the controls that\npassed, which is the half a screen tends to leave out and an auditor asks\nabout first.",
-        "operationId": "export_framework_api_v1_compliance__framework_id__export_get",
+        "operationId": "compliance_export_framework",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "framework_id",
@@ -9407,22 +8529,6 @@
               "pattern": "^(csv|json)$",
               "default": "csv",
               "title": "Format"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -9489,7 +8595,12 @@
           "compliance"
         ],
         "summary": "Get Framework",
-        "operationId": "get_framework_api_v1_compliance__framework_id__get",
+        "operationId": "compliance_get_framework",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "framework_id",
@@ -9498,22 +8609,6 @@
             "schema": {
               "type": "string",
               "title": "Framework Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           },
           {
@@ -9583,24 +8678,13 @@
           "dashboard"
         ],
         "summary": "Get Dashboard",
-        "operationId": "get_dashboard_api_v1_dashboard_get",
-        "parameters": [
+        "operationId": "dashboard_get_dashboard",
+        "security": [
           {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
           {
             "name": "x-organization-id",
             "in": "header",
@@ -9669,7 +8753,12 @@
         ],
         "summary": "Get Report",
         "description": "One report, rendered now from the current evidence.",
-        "operationId": "get_report_api_v1_reports__kind__get",
+        "operationId": "reports_get_report",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "kind",
@@ -9722,22 +8811,6 @@
               "title": "Sections"
             },
             "description": "Comma-separated optional sections to include. Omit the parameter for all of them; pass it empty for none. The posture block and the evidence caveats are not optional either way."
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
           },
           {
             "name": "x-organization-id",
@@ -9804,7 +8877,7 @@
         ],
         "summary": "Health",
         "description": "The platform's liveness probe, and nothing else.\n\nAnswers whether this process is up, and says nothing about what it is: the\nendpoint is unauthenticated and rate-limit exempt, so every field on it is\na field anybody can read. Which environment a deployment is tells a\nstranger nothing they need and one thing they might use.",
-        "operationId": "health_health_get",
+        "operationId": "meta_health",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -9825,7 +8898,8 @@
           "meta"
         ],
         "summary": "Ready",
-        "operationId": "ready_health_ready_get",
+        "description": "Whether this instance can do its work: the database and the task broker both answer.\n\nUnlike ``/health`` this touches both dependencies, so it is rate limited and is for an\noperator or a deploy check, not for the platform's probe. A dependency that does not answer\nis a ``503`` in the envelope, naming which one, and never the dependency's own error: that\ncan carry an address or a credential. The detail goes to the log.",
+        "operationId": "meta_ready",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -9833,6 +8907,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Envelope_ReadyOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
             }
@@ -9864,11 +8948,18 @@
             "title": "Expires At"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "reason"
         ],
-        "title": "AcceptRiskRequest"
+        "title": "AcceptRiskRequest",
+        "examples": [
+          {
+            "expires_at": "2026-12-31T00:00:00Z",
+            "reason": "The jump box is the documented way in until the migration ends"
+          }
+        ]
       },
       "AccessByTypeOut": {
         "properties": {
@@ -11085,6 +10176,32 @@
         ],
         "title": "BlastAssetOut"
       },
+      "Body_findings_finding_iac_diff": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          },
+          "lockfile": {
+            "anyOf": [
+              {
+                "type": "string",
+                "contentMediaType": "application/octet-stream"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lockfile"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_findings_finding_iac_diff"
+      },
       "BulkRiskStatusRequest": {
         "properties": {
           "status": {
@@ -11126,6 +10243,7 @@
             "title": "Risk Ids"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "status",
@@ -11211,6 +10329,7 @@
             "title": "Enabled"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "enabled"
@@ -11577,12 +10696,20 @@
             "title": "Scope Id"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "name"
         ],
         "title": "CloudConnectionCreate",
-        "description": "Starting a connection needs a name and a decision about scope.\n\nNote what is absent: no tenant id, no subscription id, no client id, no\nsecret. The tenant comes from Entra's consent callback, subscriptions come\nfrom discovery, and CloudGuard never holds a customer credential at all\n(AZURE_INTEGRATION.md 2)."
+        "description": "Starting a connection needs a name and a decision about scope.\n\nNote what is absent: no tenant id, no subscription id, no client id, no\nsecret. The tenant comes from Entra's consent callback, subscriptions come\nfrom discovery, and CloudGuard never holds a customer credential at all\n(AZURE_INTEGRATION.md 2).",
+        "examples": [
+          {
+            "name": "Production",
+            "provider": "azure",
+            "scope_type": "TENANT_ROOT"
+          }
+        ]
       },
       "CloudConnectionOut": {
         "properties": {
@@ -12116,6 +11243,7 @@
             "title": "Note"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "title": "ContextDeclarationIn",
         "description": "What a customer says about a subscription.\n\nEvery field optional, and omitting one is not the same as clearing it --\na PUT replaces the whole declaration, so a field left out is a field the\ncustomer is no longer claiming. That is the honest reading of \"this is my\nstatement about this subscription\": a statement is replaced entire, not\npatched, or nobody can tell what it currently says without diffing.\n\n``UNKNOWN`` is deliberately not accepted for either level. UNKNOWN is\nCloudGuard's own answer for \"nothing said anything\", and a customer\ndeclaring it would be asserting an absence -- which is what leaving the\nfield out already does, more clearly."
@@ -13137,6 +12265,26 @@
           "meta"
         ],
         "title": "Envelope[HealthOut, NoMeta]"
+      },
+      "Envelope_IacDiffOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/IacDiffOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[IacDiffOut, NoMeta]"
       },
       "Envelope_InvitationCreatedOut_NoMeta_": {
         "properties": {
@@ -15992,6 +15140,143 @@
         "title": "HierarchyScopeOut",
         "description": "A subscription, or the directory, and its groups -- worst first."
       },
+      "IacDiffOut": {
+        "properties": {
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "patched",
+              "declined"
+            ],
+            "title": "Outcome"
+          },
+          "diff": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diff"
+          },
+          "edits": {
+            "items": {
+              "$ref": "#/components/schemas/IacEditOut"
+            },
+            "type": "array",
+            "title": "Edits"
+          },
+          "decline_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decline Reason"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "provider_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Version"
+          },
+          "checked_against": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Checked Against"
+          },
+          "matched_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "name",
+                  "sole_block"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matched By"
+          }
+        },
+        "type": "object",
+        "required": [
+          "filename",
+          "outcome",
+          "diff",
+          "edits",
+          "decline_reason",
+          "detail",
+          "provider_version",
+          "checked_against"
+        ],
+        "title": "IacDiffOut",
+        "description": "A finding's fix written into the customer's Terraform, or why it was not.\n\nA decline is an answer, not an error (DECISIONS.md \u00a7190): the file was read\nand the edit would have needed a guess. ``decline_reason`` is for a program\nto branch on; ``detail`` is the sentence a person reads."
+      },
+      "IacEditOut": {
+        "properties": {
+          "attribute": {
+            "type": "string",
+            "title": "Attribute"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before"
+          },
+          "after": {
+            "type": "string",
+            "title": "After"
+          },
+          "line": {
+            "type": "integer",
+            "title": "Line"
+          }
+        },
+        "type": "object",
+        "required": [
+          "attribute",
+          "before",
+          "after",
+          "line"
+        ],
+        "title": "IacEditOut"
+      },
       "InvitationCreate": {
         "properties": {
           "email": {
@@ -16004,11 +15289,18 @@
             "default": "VIEWER"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "email"
         ],
-        "title": "InvitationCreate"
+        "title": "InvitationCreate",
+        "examples": [
+          {
+            "email": "colleague@example.com",
+            "role": "VIEWER"
+          }
+        ]
       },
       "InvitationCreatedOut": {
         "properties": {
@@ -16181,6 +15473,7 @@
             "title": "Token"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "token"
@@ -16433,6 +15726,7 @@
             "$ref": "#/components/schemas/Role"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "role"
@@ -16703,11 +15997,19 @@
             "title": "Country"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "name"
         ],
-        "title": "OrganizationCreate"
+        "title": "OrganizationCreate",
+        "examples": [
+          {
+            "country": "AL",
+            "industry": "Finance",
+            "name": "Contoso Security"
+          }
+        ]
       },
       "OrganizationDeletedOut": {
         "properties": {
@@ -16883,6 +16185,7 @@
             "title": "Country"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "title": "OrganizationUpdate",
         "description": "A correction to how an organization describes itself.\n\nEvery field optional and applied only when present, which is the opposite\nof ``ContextDeclarationIn`` and deliberately so. That one is a *statement*\nabout a subscription, replaced entire so a reader always knows what it\ncurrently claims. This is a profile: a form that saves only the name must\nnot silently clear the country nobody touched.\n\nThe slug is not here. It is an identifier that already appears in stored\nreferences, and quietly changing it when somebody fixes a typo in a display\nname would be renaming a thing rather than relabelling it."
@@ -17253,15 +16556,21 @@
             "type": "string",
             "const": "ok",
             "title": "Database"
+          },
+          "queue": {
+            "type": "string",
+            "const": "ok",
+            "title": "Queue"
           }
         },
         "type": "object",
         "required": [
           "status",
-          "database"
+          "database",
+          "queue"
         ],
         "title": "ReadyOut",
-        "description": "The process is up and its database answers."
+        "description": "The process is up, its database answers and the task broker does too.\n\nA dependency that does not answer is not a field here: the endpoint answers ``503`` with the\nerror envelope instead, so ``\"ok\"`` is the only value there is to read."
       },
       "RegionOut": {
         "properties": {
@@ -17407,11 +16716,18 @@
             "title": "Notes"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "finding_id"
         ],
-        "title": "RemediationCreate"
+        "title": "RemediationCreate",
+        "examples": [
+          {
+            "due_date": "2026-10-15",
+            "finding_id": "2d7a9b14-3c68-4f5e-b1a7-90e4c6d8f253"
+          }
+        ]
       },
       "RemediationOut": {
         "properties": {
@@ -17650,6 +16966,7 @@
             "title": "Notes"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "title": "RemediationUpdate"
       },
@@ -18558,6 +17875,7 @@
             "title": "Expires At"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "status"
@@ -19069,11 +18387,17 @@
             "title": "Cloud Account Id"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "cloud_account_id"
         ],
-        "title": "ScanCreate"
+        "title": "ScanCreate",
+        "examples": [
+          {
+            "cloud_account_id": "6b1e0c2a-5d1f-4a52-9a43-2f7f4f7d9c10"
+          }
+        ]
       },
       "ScanDeletedOut": {
         "properties": {
@@ -19284,7 +18608,19 @@
           "created_at"
         ],
         "title": "ScanDetailOut",
-        "description": "A single scan with everything the detail panel shows.\n\nSeparate from ``ScanOut`` because the list renders dozens of these and none\nof it is cheap: the scope panel reads two more tables and the breakdown\naggregates findings. The event stream pushes this same document."
+        "description": "A single scan with everything the detail panel shows.\n\nSeparate from ``ScanOut`` because the list renders dozens of these and none\nof it is cheap: the scope panel reads two more tables and the breakdown\naggregates findings. The event stream pushes this same document.",
+        "examples": [
+          {
+            "connection_id": "6b1e0c2a-5d1f-4a52-9a43-2f7f4f7d9c10",
+            "created_at": "2026-10-01T09:30:00Z",
+            "finding_count": 0,
+            "id": "0f4c8a52-7d3e-4e0b-8a52-1c9d2b7e6f31",
+            "resource_count": 0,
+            "rule_count": 0,
+            "status": "QUEUED",
+            "trigger": "MANUAL"
+          }
+        ]
       },
       "ScanOut": {
         "properties": {
@@ -19445,7 +18781,19 @@
           "finding_count",
           "created_at"
         ],
-        "title": "ScanOut"
+        "title": "ScanOut",
+        "examples": [
+          {
+            "connection_id": "6b1e0c2a-5d1f-4a52-9a43-2f7f4f7d9c10",
+            "created_at": "2026-10-01T09:30:00Z",
+            "finding_count": 0,
+            "id": "0f4c8a52-7d3e-4e0b-8a52-1c9d2b7e6f31",
+            "resource_count": 0,
+            "rule_count": 0,
+            "status": "QUEUED",
+            "trigger": "MANUAL"
+          }
+        ]
       },
       "ScanScopeOut": {
         "properties": {
@@ -19711,6 +19059,7 @@
             "description": "Read this environment at least this often. Omit or send null for manual scanning only."
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "title": "ScheduleUpdate",
         "description": "How often this environment should be re-read.\n\n``None`` turns scheduling off and leaves the connection scannable by hand,\nwhich is where every connection starts: turning a customer's cloud into a\nrecurring API cost without being asked would be a surprise on their bill."
@@ -19812,6 +19161,7 @@
             "title": "In Scope"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "in_scope"
@@ -19927,6 +19277,7 @@
             "title": "Target"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "source",
@@ -20061,6 +19412,7 @@
             "title": "Cuts"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "cuts"
@@ -20302,13 +19654,24 @@
             "title": "Kinds"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "name",
           "url",
           "kinds"
         ],
-        "title": "WebhookCreate"
+        "title": "WebhookCreate",
+        "examples": [
+          {
+            "format": "GENERIC",
+            "kinds": [
+              "VERIFIED_FIX"
+            ],
+            "name": "Security channel",
+            "url": "https://hooks.example.com/services/<path>"
+          }
+        ]
       },
       "WebhookCreatedOut": {
         "properties": {
@@ -20680,6 +20043,7 @@
             "title": "Enabled"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "title": "WebhookUpdate",
         "description": "Only what is sent changes. The URL and format are fixed: a new one is a new webhook."
@@ -20855,6 +20219,96 @@
         "title": "CoverageOut",
         "description": "Reported separately from the security score on purpose.\n\nFolding coverage into the score would make \"why is my score 84?\"\nunanswerable without also explaining coverage maths (RISK_ENGINE.md 3)."
       }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "description": "A Supabase Auth access token, sent as `Authorization: Bearer <token>`.",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
     }
-  }
+  },
+  "tags": [
+    {
+      "name": "organizations",
+      "description": "The caller's organizations and the shared demo."
+    },
+    {
+      "name": "team",
+      "description": "Members, roles and invitations to an organization."
+    },
+    {
+      "name": "audit",
+      "description": "The append-only record of every change a person made."
+    },
+    {
+      "name": "webhooks",
+      "description": "Endpoints that receive notifications, and their deliveries."
+    },
+    {
+      "name": "notifications",
+      "description": "In-app notifications for the signed-in member."
+    },
+    {
+      "name": "cloud-accounts",
+      "description": "Single-subscription accounts and what is declared."
+    },
+    {
+      "name": "cloud-connections",
+      "description": "Connecting a cloud: consent, scope, schedule."
+    },
+    {
+      "name": "scans",
+      "description": "Starting, following, cancelling and replaying scans."
+    },
+    {
+      "name": "assets",
+      "description": "Discovered resources, how they connect and who reaches them."
+    },
+    {
+      "name": "changes",
+      "description": "Changes the cloud reported since the last scan."
+    },
+    {
+      "name": "attack-paths",
+      "description": "Routes to an asset, and what closing them would do."
+    },
+    {
+      "name": "findings",
+      "description": "Rule failures on one asset, with evidence and a fix."
+    },
+    {
+      "name": "risks",
+      "description": "Findings and routes scored as business risks, and triage."
+    },
+    {
+      "name": "remediation",
+      "description": "The queue of fixes being worked, and who owns each."
+    },
+    {
+      "name": "rules",
+      "description": "The rules that run, and how each one is judged."
+    },
+    {
+      "name": "compliance",
+      "description": "Framework controls and the evidence each rests on."
+    },
+    {
+      "name": "dashboard",
+      "description": "One summary of the estate for the first screen."
+    },
+    {
+      "name": "reports",
+      "description": "Rendered reports and exports."
+    },
+    {
+      "name": "events",
+      "description": "Receivers a cloud provider calls; not for browsers."
+    },
+    {
+      "name": "meta",
+      "description": "Health checks for the platform; no authentication."
+    }
+  ]
 }

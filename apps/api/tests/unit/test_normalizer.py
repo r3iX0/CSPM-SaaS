@@ -148,10 +148,7 @@ class TestCollectionErrorPropagation:
         snapshot = load_snapshot("snapshot_mixed")
         snapshot.gaps[AzureEvidence.STORAGE_ACCOUNTS] = "Azure API timeout"
         state = AzureNormalizer().normalize(snapshot)
-        assert (
-            state.collection_errors[AzureEvidence.STORAGE_ACCOUNTS]
-            == "Azure API timeout"
-        )
+        assert state.collection_errors[AzureEvidence.STORAGE_ACCOUNTS] == "Azure API timeout"
 
     def test_the_category_summary_does_not_degrade_a_rule_on_its_own(self) -> None:
         """A category is a permission, not a listing.
@@ -177,12 +174,12 @@ class TestEndToEndEvaluation:
         report = RuleEngine().evaluate(context)
         failed = {e.rule.rule_id for e in report.failures}
 
-        assert "AZ-NET-001" in failed   # RDP open to the world
-        assert "AZ-STO-001" in failed   # public blob access
-        assert "AZ-DB-001" in failed    # SQL firewall allows all
-        assert "AZ-ID-001" in failed    # admin with password only
-        assert "AZ-CMP-001" in failed   # public VM with RDP open
-        assert "AZ-LOG-001" in failed   # storage has no diagnostics
+        assert "AZ-NET-001" in failed  # RDP open to the world
+        assert "AZ-STO-001" in failed  # public blob access
+        assert "AZ-DB-001" in failed  # SQL firewall allows all
+        assert "AZ-ID-001" in failed  # admin with password only
+        assert "AZ-CMP-001" in failed  # public VM with RDP open
+        assert "AZ-LOG-001" in failed  # storage has no diagnostics
 
     def test_ssh_rule_does_not_fire_on_an_rdp_only_environment(self, state) -> None:
         context = RuleContext(
@@ -268,8 +265,7 @@ class TestGraphFromRecordedAzure:
 
     def test_a_managed_identity_becomes_a_principal(self, state) -> None:
         principals = [
-            r for r in state.resources
-            if r.resource_type == ResourceType.SERVICE_PRINCIPAL
+            r for r in state.resources if r.resource_type == ResourceType.SERVICE_PRINCIPAL
         ]
         assert len(principals) == 1
         assert principals[0].get("principal_type") in ("ServicePrincipal", "ManagedIdentity")
@@ -294,25 +290,17 @@ class TestGraphFromRecordedAzure:
         )
         # The type alone made every such identity read alike; the start of the
         # object id tells them apart and can be looked up in Entra.
-        assert principal.name == (
-            f"ServicePrincipal {principal.metadata['principal_id'][:8]}"
-        )
+        assert principal.name == (f"ServicePrincipal {principal.metadata['principal_id'][:8]}")
 
     def test_the_vm_runs_as_that_identity(self, state) -> None:
-        edges = {
-            (s, r, t) for s, r, t in state.relationships
-            if r == RelationshipType.HAS_IDENTITY
-        }
+        edges = {(s, r, t) for s, r, t in state.relationships if r == RelationshipType.HAS_IDENTITY}
         assert len(edges) == 1
         source, _rel, target = next(iter(edges))
         assert source.endswith("/virtualMachines/vm-jumpbox")
         assert target.startswith("/principals/")
 
     def test_that_identity_holds_a_role_over_the_subscription(self, state) -> None:
-        edges = [
-            (s, t) for s, r, t in state.relationships
-            if r == RelationshipType.GRANTS_ROLE
-        ]
+        edges = [(s, t) for s, r, t in state.relationships if r == RelationshipType.GRANTS_ROLE]
         assert len(edges) == 1
         _source, target = edges[0]
         assert target.startswith("/subscriptions/")
@@ -516,18 +504,14 @@ class TestWhatTheNewRulesRead:
     def test_encryption_state_reaches_the_server_it_belongs_to(self) -> None:
         servers = load_snapshot("snapshot_mixed").data["sql_servers"]
         state = self._state(
-            sql_tde={
-                servers[0]["id"]: [{"database": "payments", "state": "Disabled"}]
-            }
+            sql_tde={servers[0]["id"]: [{"database": "payments", "state": "Disabled"}]}
         )
         server = next(
             s
             for s in by_type(state, ResourceType.SQL_SERVER)
             if s.provider_resource_id == servers[0]["id"]
         )
-        assert server.metadata["databases"] == [
-            {"database": "payments", "state": "Disabled"}
-        ]
+        assert server.metadata["databases"] == [{"database": "payments", "state": "Disabled"}]
 
     def test_a_server_whose_databases_were_never_read_carries_none(self) -> None:
         """None, not []. "No databases" and "we could not list them" are

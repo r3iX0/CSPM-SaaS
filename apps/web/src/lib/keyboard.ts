@@ -35,9 +35,7 @@ export function plainKey(event: KeyboardEvent): boolean {
  * button, and used to be sent to the marked row instead.
  */
 export function isControlTarget(target: EventTarget | null): boolean {
-  return (
-    target instanceof HTMLElement && target !== document.body && target.tabIndex >= 0
-  );
+  return target instanceof HTMLElement && target !== document.body && target.tabIndex >= 0;
 }
 
 /** Where the single-key preference lives. Per browser, like the theme. */
@@ -136,14 +134,12 @@ export function useRowNavigation(hrefs: string[]): number {
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
     // `listKey` stands in for `hrefs`, which is a new array every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- listKey stands in for hrefs, a new array every render.
   }, [active, listKey, navigate]);
 
   useEffect(() => {
     if (active < 0) return;
-    document
-      .querySelector(`[data-row-index="${active}"]`)
-      ?.scrollIntoView({ block: "nearest" });
+    document.querySelector(`[data-row-index="${active}"]`)?.scrollIntoView({ block: "nearest" });
   }, [active]);
 
   return active;

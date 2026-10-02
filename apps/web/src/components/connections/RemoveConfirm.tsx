@@ -70,9 +70,7 @@ export function RemoveConfirm({
 
   const check = useMutation({
     mutationFn: () =>
-      api.post<RevocationCheck>(
-        `/api/v1/cloud-connections/${connectionId}/check-revoked`,
-      ),
+      api.post<RevocationCheck>(`/api/v1/cloud-connections/${connectionId}/check-revoked`),
     onSuccess: ({ data }) => setChecked(data),
   });
 
@@ -82,12 +80,8 @@ export function RemoveConfirm({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent className="sm:max-w-lg">
         <AlertDialogHeader>
-          <AlertDialogTitle className="text-critical">
-            {t.connection.removeTitle}
-          </AlertDialogTitle>
-          <AlertDialogDescription>
-            {t.connection.removeDetail}
-          </AlertDialogDescription>
+          <AlertDialogTitle className="text-critical">{t.connection.removeTitle}</AlertDialogTitle>
+          <AlertDialogDescription>{t.connection.removeDetail}</AlertDialogDescription>
         </AlertDialogHeader>
 
         {/* Revocation sits inside the removal confirmation on purpose. It is the
@@ -102,9 +96,7 @@ export function RemoveConfirm({
         {steps.length > 0 && (
           <div className="flex max-h-[50vh] flex-col gap-3 overflow-y-auto rounded-lg border p-3">
             <div className="flex flex-col gap-1">
-              <p className="text-sm font-medium text-foreground">
-                {t.connection.revokeTitle}
-              </p>
+              <p className="text-sm font-medium text-foreground">{t.connection.revokeTitle}</p>
               <p className="text-xs leading-relaxed text-muted-foreground">
                 {t.connection.revokeIntro}
               </p>
@@ -114,9 +106,7 @@ export function RemoveConfirm({
               {steps.map((step) => (
                 <li key={step.title} className="flex flex-col gap-1">
                   <p className="text-xs font-medium text-foreground">{step.title}</p>
-                  <p className="text-xs leading-relaxed text-muted-foreground">
-                    {step.detail}
-                  </p>
+                  <p className="text-xs leading-relaxed text-muted-foreground">{step.detail}</p>
                   <CodeBlock
                     code={step.command}
                     className="px-2.5 py-1.5"
@@ -154,9 +144,7 @@ export function RemoveConfirm({
               )}
             </div>
             {checked && (
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                {checked.detail}
-              </p>
+              <p className="text-xs leading-relaxed text-muted-foreground">{checked.detail}</p>
             )}
           </div>
         )}
@@ -165,14 +153,8 @@ export function RemoveConfirm({
           {/* "Keep it" is the close, so Escape does the same thing the button
               does -- and the destructive action is never the one a stray
               keypress reaches. */}
-          <AlertDialogCancel variant="secondary">
-            {t.connection.keep}
-          </AlertDialogCancel>
-          <AlertDialogAction
-            variant="destructive"
-            onClick={onConfirm}
-            disabled={busy}
-          >
+          <AlertDialogCancel variant="secondary">{t.connection.keep}</AlertDialogCancel>
+          <AlertDialogAction variant="destructive" onClick={onConfirm} disabled={busy}>
             {busy ? t.connection.removing : t.connection.remove}
           </AlertDialogAction>
         </AlertDialogFooter>

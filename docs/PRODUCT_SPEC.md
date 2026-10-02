@@ -1,10 +1,14 @@
 # CloudGuard — Product Specification
 
 **Status:** MVP Prototype v0.1 — single source of truth
-**Companion docs:** `ARCHITECTURE.md`, `AZURE_INTEGRATION.md`, `DATABASE.md`, `RULE_ENGINE.md`, `RISK_ENGINE.md`, `API.md`, `SECURITY.md`, `TESTING.md`, `UI.md`, `DEPLOYMENT.md`, `MULTI_CLOUD.md`, `ROADMAP.md`
-**Decision log:** `DECISIONS.md` — every choice that departed from this spec, and why. Where the two disagree, that file is the later word.
+**Companion docs:** `ARCHITECTURE.md`, `AZURE_INTEGRATION.md`, `DATABASE.md`, `RULE_ENGINE.md`,
+`RISK_ENGINE.md`, `API.md`, `SECURITY.md`, `TESTING.md`, `UI.md`, `DEPLOYMENT.md`,
+`MULTI_CLOUD.md`, `ROADMAP.md`
+**Decision log:** `DECISIONS.md` — every choice that departed from this spec, and why. Where the two
+disagree, that file is the later word.
 
-Read this file first. It sets the vision and scope; the companion docs hold the implementation detail for their area.
+Read this file first. It sets the vision and scope; the companion docs hold the implementation
+detail for their area.
 
 ---
 
@@ -23,29 +27,40 @@ Read this file first. It sets the vision and scope; the companion docs hold the 
 
 Every feature exists to support this loop:
 
-```
+```text
 CONNECT → DISCOVER → SNAPSHOT → ASSESS → PRIORITIZE → REMEDIATE → VERIFY → MONITOR
 ```
 
 ### MVP success condition
 
-A user connects a real Azure environment, CloudGuard finds a real security problem, explains why it matters, tells them how to fix it, the user fixes it, CloudGuard rescans, and the finding is verified resolved and the score moves. That loop is the entire proof the prototype needs to deliver — nothing else is required to call the MVP a success.
+A user connects a real Azure environment, CloudGuard finds a real security problem, explains why it
+matters, tells them how to fix it, the user fixes it, CloudGuard rescans, and the finding is
+verified resolved and the score moves. That loop is the entire proof the prototype needs to deliver
+— nothing else is required to call the MVP a success.
 
 ---
 
 ## 2. The Problem & Product Philosophy
 
-Organizations running cloud infrastructure without a dedicated security team usually can't answer: what do we have, what's insecure, what actually matters, what should be fixed first, and whether they're getting more or less secure over time. Traditional CSPM tooling tends to be expensive, enterprise-oriented, and overwhelming — it dumps hundreds of findings without prioritization.
+Organizations running cloud infrastructure without a dedicated security team usually can't answer:
+what do we have, what's insecure, what actually matters, what should be fixed first, and whether
+they're getting more or less secure over time. Traditional CSPM tooling tends to be expensive,
+enterprise-oriented, and overwhelming — it dumps hundreds of findings without prioritization.
 
-**CloudGuard is not primarily a configuration scanner.** The scanner is the engine underneath the product; the actual experience takes a user from *"Something is wrong"* to *"This is why it matters"* to *"This is what I should do"* to *"CloudGuard verified it's fixed."*
+**CloudGuard is not primarily a configuration scanner.** The scanner is the engine underneath the
+product; the actual experience takes a user from _"Something is wrong"_ to _"This is why it
+matters"_ to _"This is what I should do"_ to _"CloudGuard verified it's fixed."_
 
-**Finding ≠ Risk.** A finding is a technical observation ("RDP is open to 0.0.0.0/0"). A risk is what that finding means in business context (asset criticality, data sensitivity, exposure). This separation is preserved end-to-end — see `RISK_ENGINE.md` and `DATABASE.md`.
+**Finding ≠ Risk.** A finding is a technical observation ("RDP is open to 0.0.0.0/0"). A risk is
+what that finding means in business context (asset criticality, data sensitivity, exposure). This
+separation is preserved end-to-end — see `RISK_ENGINE.md` and `DATABASE.md`.
 
 ---
 
 ## 3. Users
 
-The MVP targets two personas directly; the rest are future audiences the architecture should not block, but the MVP does not build dedicated experiences for them.
+The MVP targets two personas directly; the rest are future audiences the architecture should not
+block, but the MVP does not build dedicated experiences for them.
 
 | Persona | MVP status |
 |---|---|
@@ -59,14 +74,16 @@ The MVP targets two personas directly; the rest are future audiences the archite
 
 ## 4. Product Differentiation & UX Principle
 
-CloudGuard does not compete on having the largest rule library. It competes on being simple, actionable, risk-focused, and verifiable.
+CloudGuard does not compete on having the largest rule library. It competes on being simple,
+actionable, risk-focused, and verifiable.
 
 | Instead of | CloudGuard says |
 |---|---|
 | 147 vulnerabilities | 8 security risks — here are the 3 that matter most, and what to do about them |
 | NSG rule ID 94 permits unrestricted inbound TCP/3389 | Internet-exposed RDP detected on production-vm-01. Restrict TCP/3389 to your VPN or approved networks. |
 
-If a page doesn't help answer **WHAT / WHY / HOW BAD / HOW DO I FIX IT / DID THE FIX WORK**, question whether it belongs in the MVP.
+If a page doesn't help answer **WHAT / WHY / HOW BAD / HOW DO I FIX IT / DID THE FIX WORK**,
+question whether it belongs in the MVP.
 
 ---
 
@@ -74,7 +91,7 @@ If a page doesn't help answer **WHAT / WHY / HOW BAD / HOW DO I FIX IT / DID THE
 
 Explicitly not built now:
 
-```
+```text
 AWS, GCP, Kubernetes, CNAPP, DSPM, KSPM, CIEM, autonomous remediation,
 AI agent, MSP portal, white-labeling, complex billing, enterprise SSO,
 microservices
@@ -83,38 +100,42 @@ microservices
 **Two items have left this list since it was written, and both were deliberate
 scope increases rather than drift.**
 
-*Attack paths* were a non-goal here and are now core. The reason for the change
+_Attack paths_ were a non-goal here and are now core. The reason for the change
 is the one in §2: a finding is a technical observation, and this product's claim
-is that it says what that observation *means*. Five findings across a jump box,
+is that it says what that observation _means_. Five findings across a jump box,
 an identity and a storage account rank by severity and get worked top-down,
 which is the right order for "what is wrong" and the wrong one for "what is
 wrong together". The graph answers the second question from the same normalized
 state the rules already read, so it cost a traversal rather than a second
 collection path (`app/graph/`, `DECISIONS.md` §44, §49).
 
-*Compliance* is partly built rather than absent — CIS Azure 2.0, ISO 27001, GDPR,
+_Compliance_ is partly built rather than absent — CIS Azure 2.0, ISO 27001, GDPR,
 NIST CSF, NIST SP 800-53, SOC 2 and PCI DSS map to a coverage view, driven
 entirely by
 `rules.compliance_mappings`
 data with no rule branching on a framework name. Still a non-goal is the rest of
-a compliance *engine*: per-control evidence export for auditors, per-organization
+a compliance _engine_: per-control evidence export for auditors, per-organization
 framework selection, NIS2. See `ROADMAP.md`.
 
 ---
 
 ## 6. MVP Success Criteria
 
-**Technical** — React app runs; FastAPI runs; Supabase + RLS work; Celery/Redis work; the real Azure connector works; a scan completes; findings and risk scores are generated; reports can be generated.
+**Technical** — React app runs; FastAPI runs; Supabase + RLS work; Celery/Redis work; the real Azure
+connector works; a scan completes; findings and risk scores are generated; reports can be generated.
 
-**Product** — a user completes signup → organization → Azure connection → scan → findings → risk → remediation → rescan → resolution, end to end.
+**Product** — a user completes signup → organization → Azure connection → scan → findings → risk →
+remediation → rescan → resolution, end to end.
 
-**Security** — no cross-tenant data access; no secrets exposed to the frontend; no write access to customer Azure.
+**Security** — no cross-tenant data access; no secrets exposed to the frontend; no write access to
+customer Azure.
 
 ---
 
 ## 7. Phase Plan
 
-Revised from the original build spec: MockAzureConnector dropped, real Azure integration moved from Phase 9 up to Phase 2.
+Revised from the original build spec: MockAzureConnector dropped, real Azure integration moved from
+Phase 9 up to Phase 2.
 
 | Phase | Scope |
 |---|---|
@@ -127,7 +148,7 @@ Revised from the original build spec: MockAzureConnector dropped, real Azure int
 | 6 | Risk engine — scoring, grouping, priority |
 | 7 | React UI — dashboard, assets, findings, finding detail, scans |
 | 8 | Remediation — assignment, status, due date, rescan, verification |
-| 9 | Reports — executive + technical PDFs *(Jinja2 + WeasyPrint, generated on request, not stored — see `DECISIONS.md`)* |
+| 9 | Reports — executive + technical PDFs _(Jinja2 + WeasyPrint, generated on request, not stored — see `DECISIONS.md`)_ |
 
 **All ten phases are built.** The loop in §1 runs end to end. Work since has been
 depth rather than new phases, and it is worth naming because none of it appears
@@ -149,7 +170,7 @@ remediation verification as its own settled/unsettled state.
 - ~~Cautious-Unknown extended from criticality/data-sensitivity to
   internet_exposure~~ **Resolved — confirmed and shipped.** UNKNOWN scores just
   under HIGH on all three (`app/risk/config.py`). It has since been split in two:
-  that cautious reading is what *ranks* a finding, while a second pass takes every
+  that cautious reading is what _ranks_ a finding, while a second pass takes every
   UNKNOWN at the bottom of the scale and is what the org security score charges
   for (`RISK_ENGINE.md` §3).
 - Azure dev tenant/subscription: still the one open item from Phase 2 — whether a
@@ -162,7 +183,7 @@ remediation verification as its own settled/unsettled state.
 
 Give Claude Code this instruction before asking it to write any application code:
 
-```
+```text
 You are the lead engineer for CloudGuard, an Azure-first Cloud Security Posture
 Management (CSPM) SaaS.
 

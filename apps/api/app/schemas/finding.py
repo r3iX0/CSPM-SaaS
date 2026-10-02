@@ -18,6 +18,7 @@ from app.core.enums import (
     VerificationStatus,
 )
 from app.schemas.attack_path import AttackPathOut
+from app.schemas.common import RequestModel
 from app.schemas.rule import RemediationSpecOut
 
 
@@ -147,12 +148,23 @@ class RiskStatusOut(BaseModel):
     status: RiskStatus
 
 
-class AcceptRiskRequest(BaseModel):
+class AcceptRiskRequest(RequestModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "reason": "The jump box is the documented way in until the migration ends",
+                    "expires_at": "2026-12-31T00:00:00Z",
+                }
+            ]
+        }
+    )
+
     reason: str = Field(min_length=10, max_length=2000)
     expires_at: datetime | None = None
 
 
-class RiskStatusRequest(BaseModel):
+class RiskStatusRequest(RequestModel):
     """A decision about a risk. ``reason`` is required to accept one."""
 
     status: RiskStatus
@@ -169,14 +181,22 @@ class BulkRiskStatusRequest(RiskStatusRequest):
     risk_ids: list[UUID] = Field(min_length=1, max_length=100)
 
 
-class RemediationCreate(BaseModel):
+class RemediationCreate(RequestModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {"finding_id": "2d7a9b14-3c68-4f5e-b1a7-90e4c6d8f253", "due_date": "2026-10-15"}
+            ]
+        }
+    )
+
     finding_id: UUID
     assigned_to: UUID | None = None
     due_date: date | None = None
     notes: str | None = Field(default=None, max_length=2000)
 
 
-class RemediationUpdate(BaseModel):
+class RemediationUpdate(RequestModel):
     status: RemediationStatus | None = None
     assigned_to: UUID | None = None
     due_date: date | None = None
@@ -349,3 +369,38 @@ class RescanQueuedOut(BaseModel):
     scan_id: UUID
     finding_id: UUID
     message: str
+
+
+class IacEditOut(BaseModel):
+    attribute: str
+    #: The value as the file had it; ``None`` where the argument was added.
+    before: str | None
+    after: str
+    #: 1-based, in the edited file.
+    line: int
+
+
+class IacDiffOut(BaseModel):
+    """A finding's fix written into the customer's Terraform, or why it was not.
+
+    A decline is an answer, not an error (DECISIONS.md §190): the file was read
+    and the edit would have needed a guess. ``decline_reason`` is for a program
+    to branch on; ``detail`` is the sentence a person reads.
+    """
+
+    filename: str
+    outcome: Literal["patched", "declined"]
+    diff: str | None
+    edits: list[IacEditOut]
+    decline_reason: str | None
+    detail: str | None
+    #: From the lock file, where one was sent. ``None`` means not known -- the
+    #: edit was checked against ``checked_against``, not against the release
+    #: the customer runs.
+    provider_version: str | None
+    checked_against: list[str]
+    #: How the block was found: ``name`` (its literal name is the asset's) or
+    #: ``sole_block`` (the only block of the type in the uploaded file, its
+    #: name an expression -- the reviewer should check it is the right one).
+    #: ``None`` on a decline.
+    matched_by: Literal["name", "sole_block"] | None = None

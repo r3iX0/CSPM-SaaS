@@ -93,9 +93,7 @@ class _Clock:
         return self.now
 
 
-def _publish(
-    security: Any, monkeypatch: pytest.MonkeyPatch, keys: list[dict[str, Any]]
-) -> _Jwks:
+def _publish(security: Any, monkeypatch: pytest.MonkeyPatch, keys: list[dict[str, Any]]) -> _Jwks:
     """Point the module at a JWKS endpoint that serves ``keys``."""
     endpoint = _Jwks(keys)
     signing_keys = SigningKeys("https://abc.supabase.co/jwks", fetch=endpoint)
@@ -110,7 +108,6 @@ class TestAcceptsValidTokens:
         result = await _hs256_project.decode_token(token)
         assert result.id == user_id
         assert result.email == "user@example.com"
-
 
     async def test_an_es256_token_verifies_against_the_published_key(
         self, _hs256_project, monkeypatch: pytest.MonkeyPatch

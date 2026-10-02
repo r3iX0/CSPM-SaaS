@@ -43,9 +43,7 @@ class TestPublicRdp:
         nsg = resource_from("vulnerable", "nsg_public_rdp")
         ctx = make_context(
             nsg,
-            collection_errors={
-                AzureEvidence.NETWORK_SECURITY_GROUPS: "Azure API timeout"
-            },
+            collection_errors={AzureEvidence.NETWORK_SECURITY_GROUPS: "Azure API timeout"},
         )
         result = self.rule.evaluate(nsg, ctx)
         assert result.state == RuleState.UNKNOWN
@@ -79,9 +77,7 @@ class TestPublicRdp:
         context = make_context(
             nsg,
             vm,
-            relationships={
-                (nsg.provider_resource_id, "protects"): [vm.provider_resource_id]
-            },
+            relationships={(nsg.provider_resource_id, "protects"): [vm.provider_resource_id]},
         )
 
         result = self.rule.evaluate(nsg, context)
@@ -251,9 +247,7 @@ class TestTheCatchAllStopsWhereTheNamedRulesStart:
         """The catch-all still earns its place: Redis on the internet has no
         rule of its own and is not a design."""
         nsg = nsg_with("6379")
-        assert (
-            AzureOpenNsgRule().evaluate(nsg, make_context(nsg)).state is RuleState.FAIL
-        )
+        assert AzureOpenNsgRule().evaluate(nsg, make_context(nsg)).state is RuleState.FAIL
 
 
 # ------------------------------------------------ an address on a machine that matters
@@ -301,9 +295,7 @@ class TestSensitiveMachineWithAnAddress:
         """Not a pass. AZ-CMP-001 already reports what the internet can reach;
         this rule is about the data on the machine."""
         vm = machine(public=True, sensitivity=Level.MEDIUM, criticality=Level.MEDIUM)
-        assert (
-            self.rule.evaluate(vm, make_context(vm)).state is RuleState.NOT_APPLICABLE
-        )
+        assert self.rule.evaluate(vm, make_context(vm)).state is RuleState.NOT_APPLICABLE
 
     def test_a_sensitive_machine_with_no_address_passes(self) -> None:
         vm = machine(public=False, sensitivity=Level.CRITICAL)

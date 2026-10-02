@@ -1,4 +1,5 @@
 import js from "@eslint/js";
+import eslintComments from "@eslint-community/eslint-plugin-eslint-comments/configs";
 import globals from "globals";
 import jsxA11y from "eslint-plugin-jsx-a11y";
 import reactHooks from "eslint-plugin-react-hooks";
@@ -6,27 +7,57 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 /**
- * Flat config, because ESLint 9 removed the `.eslintrc` format and the `--ext`
- * flag along with it.
+ * The TypeScript standard as checks (docs/TYPESCRIPT_GUIDELINES.md, DECISIONS.md §193).
  *
- * There was no config here at all: `npm run lint` pointed at a file that did
- * not exist, with ESLint itself absent from the dependencies and arriving only
- * as somebody else's transitive install. It failed the same way whether the
- * code was clean or not, and nothing noticed because the CI job runs types,
- * tests and build and never called it. That is the actual bug -- a lint script
- * nobody runs is a lint script that stops working -- so the CI job now runs it.
+ * typescript-eslint's strict and stylistic sets, type-aware, so the rules that
+ * need the type checker -- floating promises, unsafe `any`, needless assertions
+ * -- can see types. A rule that is wrong for this codebase is turned off or
+ * tuned below with its reason, never the set.
+ *
+ * What the code already broke when a rule landed is recorded in
+ * eslint-suppressions.json (`eslint --suppress-all`): only new violations fail,
+ * and a fixed one must be pruned (`npm run lint:prune`), so the file only
+ * shrinks. Never add to it by hand.
+ *
+ * History: there was once no config here at all, and `npm run lint` pointed at a
+ * missing file for months because nothing ran it. CI runs it now.
  */
 export default tseslint.config(
   {
-    // Build output and the vendored registry components are not ours to lint.
     ignores: ["dist", "node_modules", "coverage"],
   },
   {
+    linterOptions: {
+      // A disable comment that no longer disables anything is an error, so
+      // they do not outlive the code they excused.
+      reportUnusedDisableDirectives: "error",
+    },
+  },
+  {
+    // Every disable comment names its rule and says why (`-- reason`).
+    ...eslintComments.recommended,
+    rules: {
+      ...eslintComments.recommended.rules,
+      "@eslint-community/eslint-comments/require-description": "error",
+      "@eslint-community/eslint-comments/no-unlimited-disable": "error",
+    },
+  },
+
+  // --- TypeScript ----------------------------------------------------------
+  {
     files: ["**/*.{ts,tsx}"],
-    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+    extends: [
+      js.configs.recommended,
+      ...tseslint.configs.strictTypeChecked,
+      ...tseslint.configs.stylisticTypeChecked,
+    ],
     languageOptions: {
       ecmaVersion: 2022,
       globals: globals.browser,
+      parserOptions: {
+        projectService: { allowDefaultProject: ["vite.config.ts"] },
+        tsconfigRootDir: import.meta.dirname,
+      },
     },
     plugins: {
       "jsx-a11y": jsxA11y,
@@ -58,24 +89,96 @@ export default tseslint.config(
       // build over a development-time convenience would be the wrong trade.
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
 
+      // --- Language (Google TS style guide) -------------------------------
+      eqeqeq: ["error", "always", { null: "ignore" }],
+      "no-console": "error",
+      "no-var": "error",
+      "prefer-const": "error",
+      "no-param-reassign": "error",
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "TSEnumDeclaration",
+          message:
+            "Use a union of string literals (`type Severity = 'HIGH' | 'LOW'`), not an enum.",
+        },
+        {
+          selector: "ExportDefaultDeclaration",
+          message:
+            "Use a named export. Only a module loaded with lazy()/import() may default-export.",
+        },
+        {
+          selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
+          message: "Render text as children. Raw HTML is an XSS sink.",
+        },
+        {
+          selector:
+            "JSXOpeningElement[name.name='Button'] > JSXAttribute[name.name='render'] JSXOpeningElement[name.name='Link']",
+          message:
+            "A navigation styled as a button is a Link with buttonVariants() (DECISIONS.md §31).",
+        },
+        {
+          selector: "Literal[value=/\\btext-\\[\\d+px\\]/]",
+          message:
+            "Use a step of the type scale (text-caption, text-body...), not text-[Npx] (§166).",
+        },
+        {
+          selector: "TemplateElement[value.raw=/\\btext-\\[\\d+px\\]/]",
+          message:
+            "Use a step of the type scale (text-caption, text-body...), not text-[Npx] (§166).",
+        },
+      ],
+
+      // --- Types -----------------------------------------------------------
+      "@typescript-eslint/consistent-type-imports": "error",
+      "@typescript-eslint/switch-exhaustiveness-check": "error",
+      // `as Foo` on an object literal hides a missing or misspelled field; a
+      // `: Foo` annotation reports it.
+      "@typescript-eslint/consistent-type-assertions": [
+        "error",
+        { assertionStyle: "as", objectLiteralTypeAssertions: "never" },
+      ],
       // The type checker already fails the build on an unused local
-      // (`noUnusedLocals`), and having both report it means fixing the same
-      // thing twice in two vocabularies.
+      // (`noUnusedLocals`); two tools reporting one thing is noise.
       "@typescript-eslint/no-unused-vars": "off",
 
-      // `any` is worth arguing about, and it is not worth failing a build over
-      // while there are still a handful in code that predates this config.
-      "@typescript-eslint/no-explicit-any": "warn",
+      // --- Tuned for React -------------------------------------------------
+      // `onClick={() => setOpen(false)}` returns the setter's void; the rule
+      // would put braces on every handler in the app for no reader's benefit.
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      // Counts and percentages are the numbers this UI prints.
+      "@typescript-eslint/restrict-template-expressions": ["error", { allowNumber: true }],
+      // A no-op default (`onClose = () => {}`) is an arrow on purpose.
+      "@typescript-eslint/no-empty-function": ["error", { allow: ["arrowFunctions"] }],
+      // Without noUncheckedIndexedAccess the checker believes `items[i]` is
+      // always defined, so this rule calls the guard on it "unnecessary" and
+      // would talk people out of a real check. On once that flag is (§193).
+      "@typescript-eslint/no-unnecessary-condition": "off",
     },
   },
   {
+    // A module loaded with lazy() or import() needs a default export.
+    files: [
+      "src/components/graph/EstateCanvas.tsx",
+      "src/components/graph/NeighborhoodCanvas.tsx",
+      "src/components/graph/RouteMapCanvas.tsx",
+      "src/lib/motionFeatures.ts",
+      "vite.config.ts",
+    ],
+    rules: { "no-restricted-syntax": "off" },
+  },
+  {
     // shadcn components are vendored source: they are ours to edit, but they
-    // arrive from the registry in the registry's own style and re-formatting
-    // them on arrival would make every future `add --diff` unreadable.
+    // arrive from the registry in the registry's own style, and restyling them
+    // on arrival would make every later `shadcn add --diff` unreadable. They
+    // keep the correctness rules and drop the stylistic ones.
     files: ["src/components/ui/**"],
+    extends: [tseslint.configs.disableTypeChecked],
     rules: {
       "react-refresh/only-export-components": "off",
       "@typescript-eslint/no-empty-object-type": "off",
+      "@typescript-eslint/consistent-type-definitions": "off",
+      "@typescript-eslint/no-non-null-assertion": "off",
       // Props arrive spread, so the rule cannot see the `htmlFor` a `Label`
       // is given or the text a `PaginationLink` wraps.
       "jsx-a11y/label-has-associated-control": "off",
@@ -98,5 +201,32 @@ export default tseslint.config(
     languageOptions: {
       globals: { ...globals.browser, ...globals.node },
     },
+    rules: {
+      // A test may assert what it just arranged.
+      "@typescript-eslint/no-non-null-assertion": "off",
+      "no-console": "off",
+    },
+  },
+
+  // --- JavaScript (config files, scripts, the pre-paint theme script) -----
+  {
+    files: ["**/*.{js,mjs}"],
+    extends: [js.configs.recommended],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "module",
+      globals: { ...globals.node },
+    },
+    rules: {
+      eqeqeq: ["error", "always", { null: "ignore" }],
+      "no-var": "error",
+      "prefer-const": "error",
+    },
+  },
+  {
+    // Runs as a classic script in the page before React, to set the theme
+    // without a flash.
+    files: ["public/**/*.js"],
+    languageOptions: { sourceType: "script", globals: { ...globals.browser } },
   },
 );

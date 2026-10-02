@@ -244,9 +244,7 @@ def _history_within(history: list[dict], cutoff: datetime) -> list[dict]:
     return kept
 
 
-async def _verified_resolved(
-    session: AsyncSession, organization_id: UUID, since: datetime
-) -> int:
+async def _verified_resolved(session: AsyncSession, organization_id: UUID, since: datetime) -> int:
     """Findings a later scan observed passing, inside the window.
 
     Counted here rather than taken from the dashboard's fixed thirty days,
@@ -370,9 +368,7 @@ def _evidence(dashboard: dict) -> dict:
     }
 
 
-async def _findings(
-    session: AsyncSession, organization_id: UUID
-) -> tuple[list[dict], int]:
+async def _findings(session: AsyncSession, organization_id: UUID) -> tuple[list[dict], int]:
     """Open findings, worst first, with the asset each was found on.
 
     Open only, and that is the report's claim rather than a filter left over
@@ -385,9 +381,7 @@ async def _findings(
         .outerjoin(ResourceRecord, ResourceRecord.id == Finding.resource_id)
         .where(
             Finding.organization_id == organization_id,
-            Finding.status.in_(
-                [FindingStatus.OPEN.value, FindingStatus.IN_PROGRESS.value]
-            ),
+            Finding.status.in_([FindingStatus.OPEN.value, FindingStatus.IN_PROGRESS.value]),
         )
         .order_by(Finding.risk_score.desc().nullslast(), Finding.last_detected_at.desc())
     )
@@ -398,9 +392,7 @@ async def _findings(
             await session.execute(
                 select(Finding.id).where(
                     Finding.organization_id == organization_id,
-                    Finding.status.in_(
-                        [FindingStatus.OPEN.value, FindingStatus.IN_PROGRESS.value]
-                    ),
+                    Finding.status.in_([FindingStatus.OPEN.value, FindingStatus.IN_PROGRESS.value]),
                 )
             )
         )
@@ -420,14 +412,10 @@ async def _findings(
                     float(finding.risk_score) if finding.risk_score is not None else None
                 ),
                 "first_detected_at": (
-                    finding.first_detected_at.isoformat()
-                    if finding.first_detected_at
-                    else None
+                    finding.first_detected_at.isoformat() if finding.first_detected_at else None
                 ),
                 "last_detected_at": (
-                    finding.last_detected_at.isoformat()
-                    if finding.last_detected_at
-                    else None
+                    finding.last_detected_at.isoformat() if finding.last_detected_at else None
                 ),
                 "remediation": finding.remediation,
                 "asset": (

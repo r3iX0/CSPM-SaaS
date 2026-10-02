@@ -295,9 +295,7 @@ def route_ends(path: list) -> dict | None:
 REMEDIATION_WEEKS = 8
 
 
-async def _remediation_activity(
-    session: AsyncSession, organization_id: UUID
-) -> list[dict]:
+async def _remediation_activity(session: AsyncSession, organization_id: UUID) -> list[dict]:
     """Findings raised, fixed and *come back*, by week.
 
     Read from the transition log rather than from the findings themselves.
@@ -334,9 +332,7 @@ async def _remediation_activity(
     weeks: dict[str, dict] = {}
     for start, event, count in rows:
         key = _aware(start).date().isoformat()
-        entry = weeks.setdefault(
-            key, {"week": key, "detected": 0, "resolved": 0, "reopened": 0}
-        )
+        entry = weeks.setdefault(key, {"week": key, "detected": 0, "resolved": 0, "reopened": 0})
         entry[str(event).lower()] = int(count)
 
     return list(weeks.values())
@@ -349,9 +345,7 @@ def _remediation_rate(status_counts: dict[str, int]) -> float:
     return round(resolved / total, 3) if total else 0.0
 
 
-async def _score_delta(
-    session: AsyncSession, organization_id: UUID, current: int
-) -> int | None:
+async def _score_delta(session: AsyncSession, organization_id: UUID, current: int) -> int | None:
     """Movement since the previous scan -- the number that tells a user whether
     what they did last week worked.
 
@@ -368,17 +362,21 @@ async def _score_delta(
     rather than "no comparison".
     """
     previous = (
-        await session.execute(
-            select(RiskHistory.security_score)
-            .where(RiskHistory.organization_id == organization_id)
-            .order_by(RiskHistory.observed_at.desc())
-            # Two, because the newest entry is this scan's own: the pipeline
-            # records posture before anything reads the dashboard, so comparing
-            # against the first row would compare a scan with itself and report
-            # no movement, always.
-            .limit(2)
+        (
+            await session.execute(
+                select(RiskHistory.security_score)
+                .where(RiskHistory.organization_id == organization_id)
+                .order_by(RiskHistory.observed_at.desc())
+                # Two, because the newest entry is this scan's own: the pipeline
+                # records posture before anything reads the dashboard, so comparing
+                # against the first row would compare a scan with itself and report
+                # no movement, always.
+                .limit(2)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     if len(previous) < 2:
         return None
@@ -482,9 +480,7 @@ async def posture_history(
     ]
 
 
-async def _coverage(
-    session: AsyncSession, organization_id: UUID, last_scan: Scan | None
-) -> dict:
+async def _coverage(session: AsyncSession, organization_id: UUID, last_scan: Scan | None) -> dict:
     """Kept out of the security score, on purpose — both halves of it.
 
     Two different things can be missing, and only one of them was ever counted
@@ -702,9 +698,7 @@ async def _coverage_categories(session: AsyncSession, last_scan: Scan) -> list[d
 
     categories: dict[str, dict] = {}
     for category, outcome, count in rows:
-        entry = categories.setdefault(
-            category, {"name": category, "readings": 0, "incomplete": 0}
-        )
+        entry = categories.setdefault(category, {"name": category, "readings": 0, "incomplete": 0})
         entry["readings"] += int(count)
         if outcome != TaskOutcome.COMPLETE:
             entry["incomplete"] += int(count)

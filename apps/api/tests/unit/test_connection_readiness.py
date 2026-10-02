@@ -81,18 +81,18 @@ def test_a_verified_connection_with_nothing_beneath_it_is_not_ready() -> None:
 
 
 def test_a_connection_with_a_scannable_subscription_is_ready() -> None:
-    data = routes._serialize(
-        verified_connection(), 1, [subscription(scannable=True)]
-    ).model_dump(mode="json")
+    data = routes._serialize(verified_connection(), 1, [subscription(scannable=True)]).model_dump(
+        mode="json"
+    )
     assert data["is_ready_to_scan"] is True
 
 
 def test_subscriptions_the_customer_excluded_do_not_make_it_ready() -> None:
     """Discovering a subscription and then excluding it from scanning leaves
     the connection exactly as unable to scan as before."""
-    data = routes._serialize(
-        verified_connection(), 1, [subscription(scannable=False)]
-    ).model_dump(mode="json")
+    data = routes._serialize(verified_connection(), 1, [subscription(scannable=False)]).model_dump(
+        mode="json"
+    )
     assert data["is_ready_to_scan"] is False
 
 

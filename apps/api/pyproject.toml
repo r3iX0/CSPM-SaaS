@@ -5,7 +5,10 @@ description = "CloudGuard - Azure-first CSPM. Modular monolith API + worker."
 requires-python = ">=3.12"
 
 dependencies = [
-  "fastapi==0.115.6",
+  "fastapi==0.133.0",
+  # Pinned directly because FastAPI's range is open: 0.41.x carries seven published advisories,
+  # all fixed by 1.3.1, and a resolver left alone could install either (DECISIONS.md §195).
+  "starlette==1.7.0",
   "uvicorn[standard]==0.34.0",
   "pydantic[email]==2.10.4",
   "pydantic-settings==2.7.0",
@@ -20,8 +23,12 @@ dependencies = [
   # (reports, graph work) are created at import, outside any running loop,
   # which only a 4.x release allows (DECISIONS.md sections 158, 161).
   "anyio==4.15.1",
-  "pyjwt==2.15.0",
-  "msal==1.31.1",
+  "pyjwt==2.15.1",
+  # 1.31.1 capped cryptography below 46, which left the image on 45.0.7 and its seven published
+  # advisories; 1.39.0 lifts the cap, and cryptography is pinned beside it so a resolver cannot
+  # drift back (DECISIONS.md §195).
+  "msal==1.39.0",
+  "cryptography==50.0.2",
   # AWS. The connector stores the provider's own response verbatim, exactly as
   # the Azure one does -- what this handles is the layer beneath that, which
   # Azure does not have: SigV4, and three different wire protocols across the
@@ -33,8 +40,13 @@ dependencies = [
   # PDF reports. Needs native pango/cairo/harfbuzz, installed in the API image
   # and in CI; app.reports.render imports it lazily so a machine without them
   # can still render, and test, the HTML the PDF is printed from.
-  "weasyprint==63.1",
+  "weasyprint==70.0",
   "python-multipart==0.0.31",
+  # Fix-as-Code parses a customer's Terraform for exact byte ranges, so an edit
+  # replaces one value and leaves formatting and comments alone. Binary wheels
+  # for macOS and manylinux; nothing to compile in the image (DECISIONS.md §190).
+  "tree-sitter==0.26.0",
+  "tree-sitter-hcl==1.2.0",
 ]
 
 [project.optional-dependencies]
@@ -42,8 +54,9 @@ dev = [
   "pytest==8.3.4",
   "pytest-asyncio==0.25.0",
   "pytest-cov==6.0.0",
-  "ruff==0.8.4",
+  "ruff==0.16.9",
   "mypy==1.14.0",
+  "pre-commit==4.6.2",
   "respx==0.22.0",
 ]
 

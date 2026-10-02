@@ -28,9 +28,7 @@ class AzureStorageCrossTenantReplicationRule(SecurityRule):
     # then offers is exfiltration that looks like a feature and runs by itself.
     exploitability = 2
     applies_to: ClassVar[list[ResourceType]] = [ResourceType.STORAGE_ACCOUNT]
-    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (
-        AzureEvidence.STORAGE_ACCOUNTS,
-    )
+    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (AzureEvidence.STORAGE_ACCOUNTS,)
     estimated_effort_minutes = 10
     rationale = (
         "Replication across tenants is almost never wanted and very hard to notice: "
@@ -66,6 +64,7 @@ class AzureStorageCrossTenantReplicationRule(SecurityRule):
         ),
         policy_resource_type="Microsoft.Storage/storageAccounts",
         policy_effect="Deny",
+        terraform_resource_types=("azurerm_storage_account",),
     )
     # No CIS mapping: CIS Azure 2.0 predates a control for this.
     compliance_mappings: ClassVar[dict[str, list[str]]] = {

@@ -24,9 +24,7 @@ class FakeTokens:
         return "graph"
 
 
-def azure(
-    *, fail: set[str] | None = None, truncate: set[str] | None = None
-) -> httpx.AsyncClient:
+def azure(*, fail: set[str] | None = None, truncate: set[str] | None = None) -> httpx.AsyncClient:
     """An Azure that answers every listing with one item.
 
     ``fail`` and ``truncate`` match on a path fragment, so a test can break one
@@ -68,15 +66,11 @@ def azure(
 
 @pytest.fixture(autouse=True)
 def _no_real_tokens(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "app.connectors.azure.collector.TokenProvider", FakeTokens
-    )
+    monkeypatch.setattr("app.connectors.azure.collector.TokenProvider", FakeTokens)
 
 
 async def collect(**kwargs):
-    collector = AzureCollector(
-        tenant_id="t", subscription_id="sub-1", http_client=azure(**kwargs)
-    )
+    collector = AzureCollector(tenant_id="t", subscription_id="sub-1", http_client=azure(**kwargs))
     return await collector.collect()
 
 
@@ -258,9 +252,7 @@ async def test_progress_counts_every_task_in_the_plan() -> None:
     async def record(done: int, total: int) -> None:
         seen.append((done, total))
 
-    collector = AzureCollector(
-        tenant_id="t", subscription_id="sub-1", http_client=azure()
-    )
+    collector = AzureCollector(tenant_id="t", subscription_id="sub-1", http_client=azure())
     await collector.collect(record)
 
     assert seen, "collection reports progress"
@@ -277,9 +269,7 @@ async def test_inventory_is_read_through_resource_graph() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         paths.append(f"{request.method} {request.url.path}")
         if "Microsoft.ResourceGraph" in request.url.path:
-            return httpx.Response(
-                200, json={"data": [{"id": "/x"}], "totalRecords": 1, "count": 1}
-            )
+            return httpx.Response(200, json={"data": [{"id": "/x"}], "totalRecords": 1, "count": 1})
         return httpx.Response(200, json={"value": []})
 
     collector = AzureCollector(
@@ -292,9 +282,9 @@ async def test_inventory_is_read_through_resource_graph() -> None:
     assert snapshot.data["resources"], "inventory collected"
     assert snapshot.coverage["resources"]["outcome"] == "COMPLETE"
     assert "POST /providers/Microsoft.ResourceGraph/resources" in paths
-    assert not any(
-        path.endswith("/subscriptions/sub-1/resources") for path in paths
-    ), "and not through the ARM listing it replaced"
+    assert not any(path.endswith("/subscriptions/sub-1/resources") for path in paths), (
+        "and not through the ARM listing it replaced"
+    )
 
 
 async def test_an_inventory_short_of_its_stated_total_is_partial() -> None:
@@ -328,9 +318,7 @@ async def test_the_whole_plan_shares_one_request_ceiling() -> None:
         finally:
             state["in_flight"] -= 1
         if "Microsoft.ResourceGraph" in request.url.path:
-            return httpx.Response(
-                200, json={"data": [{"id": "/x"}], "totalRecords": 1}
-            )
+            return httpx.Response(200, json={"data": [{"id": "/x"}], "totalRecords": 1})
         return httpx.Response(
             200, json={"value": [{"id": f"/x/{n}", "name": "a"} for n in range(5)]}
         )
@@ -375,7 +363,7 @@ async def test_a_refused_encryption_read_leaves_the_server_listing_complete() ->
 
 
 async def test_a_refused_encryption_read_names_the_role_as_the_likely_cause() -> None:
-    """"Encryption state could not be read" points nowhere. "Your scanner role
+    """ "Encryption state could not be read" points nowhere. "Your scanner role
     predates the permission" is a thing a customer can act on this afternoon."""
     snapshot = await collect(fail={"transparentDataEncryption"})
 
@@ -400,12 +388,8 @@ async def test_encryption_waits_for_the_servers_it_reads() -> None:
     from app.connectors.azure.evidence import AzureEvidence
     from app.connectors.azure.plan import AzurePlanBuilder
 
-    builder = AzurePlanBuilder(
-        tokens=FakeTokens(), subscription_id="sub-1", http_client=azure()
-    )
-    task = next(
-        t for t in builder.build_account_plan() if t.key is AzureEvidence.SQL_TDE
-    )
+    builder = AzurePlanBuilder(tokens=FakeTokens(), subscription_id="sub-1", http_client=azure())
+    task = next(t for t in builder.build_account_plan() if t.key is AzureEvidence.SQL_TDE)
 
     assert AzureEvidence.SQL_SERVERS in task.depends_on
 
@@ -419,9 +403,6 @@ async def test_the_subscription_record_is_read_for_its_name() -> None:
 
     assert "subscription" in snapshot.data
     assert snapshot.coverage["subscription"]["outcome"] == "COMPLETE"
-    builder = AzurePlanBuilder(
-        tokens=FakeTokens(), subscription_id="sub-1", http_client=azure()
-    )
+    builder = AzurePlanBuilder(tokens=FakeTokens(), subscription_id="sub-1", http_client=azure())
     task = next(t for t in builder.build_account_plan() if t.key.value == "subscription")
     assert task.actions == ("Microsoft.Resources/subscriptions/read",)
-

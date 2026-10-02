@@ -151,6 +151,14 @@ class RemediationSpec:
     # out of scope. Stated so a test builds an asset the rule will actually
     # judge, and so the customer is told who the expectation is about.
     applies_when: dict[str, Any] = field(default_factory=dict)
+    # The Terraform resources the ``terraform_attribute``s sit on, which is what
+    # the edit engine looks for in a customer's HCL. More than one where the
+    # provider split one Azure type in two -- a web app is Linux or Windows --
+    # and only types whose every hinted argument is held to the provider schema
+    # of each release the engine claims (DECISIONS.md §190). A legacy type that
+    # spells an argument differently (``azurerm_app_service`` calls it
+    # ``min_tls_version``) is left out rather than given a second spelling.
+    terraform_resource_types: tuple[str, ...] = ()
     notes: str = ""
 
     @property
@@ -173,8 +181,7 @@ class RemediationSpec:
             self.policy_resource_type
             and self.expected
             and all(
-                state.arm_alias and state.comparison is Comparison.EQUALS
-                for state in self.expected
+                state.arm_alias and state.comparison is Comparison.EQUALS for state in self.expected
             )
         )
 
@@ -247,15 +254,25 @@ def terraform_hints(spec: RemediationSpec) -> list[dict[str, str]]:
         {
             "attribute": state.terraform_attribute,
             "value": _hcl_value(
-                state.equals
-                if state.terraform_value is UNSET
-                else state.terraform_value
+                state.equals if state.terraform_value is UNSET else state.terraform_value
             ),
             "describes": state.describes,
         }
         for state in spec.expected
         if state.terraform_attribute
     ]
+
+
+def terraform_accepts(state: ExpectedState) -> tuple[str, ...]:
+    """The other values that meet ``state``, written as HCL.
+
+    Only where Terraform spells the value as ARM does: ``also_accepts`` is in
+    ARM's vocabulary, and where ``terraform_value`` translates the one value
+    there is no declared translation for the others -- so none is guessed.
+    """
+    if state.terraform_value is not UNSET:
+        return ()
+    return tuple(_hcl_value(value) for value in state.also_accepts)
 
 
 def _policy_value(value: Any) -> Any:
@@ -273,4 +290,3 @@ def _hcl_value(value: Any) -> str:
     if isinstance(value, str):
         return f'"{value}"'
     return str(value)
-

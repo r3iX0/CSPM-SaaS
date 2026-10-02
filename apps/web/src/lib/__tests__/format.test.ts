@@ -78,9 +78,7 @@ describe("outcomeStyle", () => {
   });
 
   it("gives every outcome its own treatment", () => {
-    const styles = (["COMPLETE", "PARTIAL", "FAILED", "SKIPPED"] as const).map(
-      outcomeStyle,
-    );
+    const styles = (["COMPLETE", "PARTIAL", "FAILED", "SKIPPED"] as const).map(outcomeStyle);
     expect(new Set(styles).size).toBe(4);
   });
 
@@ -93,8 +91,7 @@ describe("outcomeStyle", () => {
 });
 
 describe("how long ago something happened", () => {
-  const minutesAgo = (minutes: number) =>
-    new Date(Date.now() - minutes * 60_000).toISOString();
+  const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
 
   it("rounds down at every step", () => {
     // "1 hour ago" of something 119 minutes old flatters the product, which is

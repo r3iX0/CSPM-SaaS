@@ -109,9 +109,7 @@ describe("the change-events control", () => {
     mount(setup({ enabled: true, pending_since: "2026-08-31T10:00:00Z" }));
 
     await waitFor(() =>
-      expect(
-        screen.getByText(/a scan starts once the environment is quiet/),
-      ).toBeInTheDocument(),
+      expect(screen.getByText(/a scan starts once the environment is quiet/)).toBeInTheDocument(),
     );
   });
 
@@ -133,10 +131,9 @@ describe("the change-events control", () => {
     fireEvent.click(screen.getByRole("switch", { name: "React to changes" }));
 
     await waitFor(() => expect(screen.getByText("az eventgrid one")).toBeInTheDocument());
-    expect(patch).toHaveBeenCalledWith(
-      "/api/v1/cloud-connections/c1/change-events",
-      { enabled: true },
-    );
+    expect(patch).toHaveBeenCalledWith("/api/v1/cloud-connections/c1/change-events", {
+      enabled: true,
+    });
   });
 
   it("refreshes the connection the panel beside it reads", async () => {

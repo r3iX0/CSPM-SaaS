@@ -263,13 +263,9 @@ CLIENT_ACTIONS: dict[str, tuple[str, ...]] = {
     "list_role_assignments": ("Microsoft.Authorization/roleAssignments/read",),
     "list_role_assignments_at_scope": ("Microsoft.Authorization/roleAssignments/read",),
     "list_sql_databases": ("Microsoft.Sql/servers/databases/read",),
-    "get_database_encryption": (
-        "Microsoft.Sql/servers/databases/transparentDataEncryption/read",
-    ),
+    "get_database_encryption": ("Microsoft.Sql/servers/databases/transparentDataEncryption/read",),
     "list_role_definitions": ("Microsoft.Authorization/roleDefinitions/read",),
-    "list_role_eligibilities": (
-        "Microsoft.Authorization/roleEligibilityScheduleInstances/read",
-    ),
+    "list_role_eligibilities": ("Microsoft.Authorization/roleEligibilityScheduleInstances/read",),
     "get_role_definition": ("Microsoft.Authorization/roleDefinitions/read",),
     "list_key_vaults": ("Microsoft.KeyVault/vaults/read",),
     "list_security_assessments": ("Microsoft.Security/assessments/read",),
@@ -290,18 +286,12 @@ CLIENT_ACTIONS: dict[str, tuple[str, ...]] = {
     "get_mysql_secure_transport": ("Microsoft.DBforMySQL/flexibleServers/configurations/read",),
     "get_mysql_tls_version": ("Microsoft.DBforMySQL/flexibleServers/configurations/read",),
     "get_mysql_parameter": ("Microsoft.DBforMySQL/flexibleServers/configurations/read",),
-    "get_postgresql_parameter": (
-        "Microsoft.DBforPostgreSQL/flexibleServers/configurations/read",
-    ),
+    "get_postgresql_parameter": ("Microsoft.DBforPostgreSQL/flexibleServers/configurations/read",),
     # v11 (DECISIONS.md section 176).
     "get_sql_threat_detection": ("Microsoft.Sql/servers/securityAlertPolicies/read",),
     "get_sql_encryption_protector": ("Microsoft.Sql/servers/encryptionProtector/read",),
-    "get_sql_vulnerability_assessment": (
-        "Microsoft.Sql/servers/vulnerabilityAssessments/read",
-    ),
-    "get_sql_express_assessment": (
-        "Microsoft.Sql/servers/sqlVulnerabilityAssessments/read",
-    ),
+    "get_sql_vulnerability_assessment": ("Microsoft.Sql/servers/vulnerabilityAssessments/read",),
+    "get_sql_express_assessment": ("Microsoft.Sql/servers/sqlVulnerabilityAssessments/read",),
     "get_file_service": ("Microsoft.Storage/storageAccounts/fileServices/read",),
     "list_vault_keys": ("Microsoft.KeyVault/vaults/keys/read",),
     "list_vault_secrets": ("Microsoft.KeyVault/vaults/secrets/read",),
@@ -315,9 +305,7 @@ CLIENT_ACTIONS: dict[str, tuple[str, ...]] = {
         "Microsoft.Security/locations/jitNetworkAccessPolicies/read",
     ),
     "list_recovery_vaults": ("Microsoft.RecoveryServices/Vaults/read",),
-    "list_backup_protected_items": (
-        "Microsoft.RecoveryServices/Vaults/backupProtectedItems/read",
-    ),
+    "list_backup_protected_items": ("Microsoft.RecoveryServices/Vaults/backupProtectedItems/read",),
     "list_disks": ("Microsoft.Compute/disks/read",),
     "list_activity_log_alerts": ("Microsoft.Insights/activityLogAlerts/read",),
     "list_policy_assignments": ("Microsoft.Authorization/policyAssignments/read",),
@@ -830,7 +818,6 @@ ROLE_HISTORY: dict[str, tuple[str, ...]] = {
         "Microsoft.Network/networkWatchers/read",
         "Microsoft.Network/networkWatchers/flowLogs/read",
         "Microsoft.Network/bastionHosts/read",
-
         "Microsoft.RecoveryServices/Vaults/backupPolicies/read",
         "Microsoft.Compute/virtualMachineScaleSets/read",
     ),
@@ -946,7 +933,6 @@ ROLE_ONLY_ACTIONS: tuple[str, ...] = tuple(
 )
 
 
-
 @dataclass(frozen=True)
 class TemplateContext:
     """Everything the ARM template needs, all known after consent.
@@ -994,9 +980,7 @@ def arm_template(context: TemplateContext) -> str:
     idempotency: a redeployment is a no-op, not an error.
     """
     scope_kind = (
-        "subscription"
-        if context.scope_type == ConnectionScope.SUBSCRIPTION
-        else "managementGroup"
+        "subscription" if context.scope_type == ConnectionScope.SUBSCRIPTION else "managementGroup"
     )
     target = (
         "subscription()"
@@ -1004,12 +988,14 @@ def arm_template(context: TemplateContext) -> str:
         else "managementGroup()"
     )
 
-    actions = [{
-        "actions": list(ARM_READ_ACTIONS),
-        "notActions": [],
-        "dataActions": [],
-        "notDataActions": [],
-    }]
+    actions = [
+        {
+            "actions": list(ARM_READ_ACTIONS),
+            "notActions": [],
+            "dataActions": [],
+            "notDataActions": [],
+        }
+    ]
 
     template = {
         "$schema": "https://schema.management.azure.com/schemas/2019-08-01/managementGroupDeploymentTemplate.json#"

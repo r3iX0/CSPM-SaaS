@@ -120,9 +120,7 @@ class AzureLongLivedApplicationCredentialRule(SecurityRule):
             # An application authenticating through a federated credential or a
             # managed identity has none of these, which is the recommended
             # shape rather than an unchecked one.
-            return RuleResult.not_applicable(
-                "Application holds no client secret or certificate"
-            )
+            return RuleResult.not_applicable("Application holds no client secret or certificate")
 
         unreadable = [c for c in credentials if c.get("days_remaining") is None]
         long_lived = [
@@ -152,8 +150,7 @@ class AzureLongLivedApplicationCredentialRule(SecurityRule):
             # about. Reporting the rest as clean would be a pass covering
             # something nobody looked at.
             return RuleResult.unknown(
-                f"{len(unreadable)} credential(s) carry an expiry date this scan "
-                "could not read"
+                f"{len(unreadable)} credential(s) carry an expiry date this scan could not read"
             )
 
         return RuleResult.passed(

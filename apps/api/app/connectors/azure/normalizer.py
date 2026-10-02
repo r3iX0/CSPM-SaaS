@@ -198,9 +198,7 @@ _MEMBER_KINDS = {
 }
 
 
-def _group_node(
-    node_id: str, group_id: str, read: dict[str, Any] | None
-) -> CloudResource:
+def _group_node(node_id: str, group_id: str, read: dict[str, Any] | None) -> CloudResource:
     """A group that holds a role, with the identities its role reaches.
 
     The members are recorded on the group rather than drawn as edges here: a
@@ -252,9 +250,7 @@ _TAKEOVER_ROLES = frozenset(
 )
 # Directory roles that can add a credential to any application registration,
 # and so act as any of the tenant's service principals.
-_APPLICATION_ROLES = frozenset(
-    {"application administrator", "cloud application administrator"}
-)
+_APPLICATION_ROLES = frozenset({"application administrator", "cloud application administrator"})
 
 
 # Microsoft Graph application permissions that are a directory role by another
@@ -532,9 +528,7 @@ class AzureNormalizer:
             if snapshot.subscription_id
             else None
         )
-        state.resources.extend(
-            self._normalize_storage(data, diagnostics, activity_log_accounts)
-        )
+        state.resources.extend(self._normalize_storage(data, diagnostics, activity_log_accounts))
         state.resources.extend(self._normalize_databases(data, diagnostics))
         state.resources.extend(self._normalize_key_vaults(data, diagnostics))
         state.resources.extend(
@@ -565,9 +559,7 @@ class AzureNormalizer:
         )
 
         state.resources.extend(self._normalize_users(data, snapshot.collected_at))
-        state.resources.extend(
-            self._normalize_applications(data, snapshot.collected_at)
-        )
+        state.resources.extend(self._normalize_applications(data, snapshot.collected_at))
         state.resources.extend(_directory_principals(data))
 
         # Everything else the subscription holds. Added after the service
@@ -583,15 +575,11 @@ class AzureNormalizer:
         # composes into a path: a rule can tell you a VM is internet-facing and
         # that an identity is over-privileged, and no rule can tell you they are
         # the same VM.
-        scopes, scope_edges = self._normalize_scopes(
-            snapshot, state.resources, diagnostics
-        )
+        scopes, scope_edges = self._normalize_scopes(snapshot, state.resources, diagnostics)
         state.resources.extend(scopes)
         state.relationships.extend(scope_edges)
 
-        principals, identity_edges = self._normalize_authorization(
-            data, state.resources
-        )
+        principals, identity_edges = self._normalize_authorization(data, state.resources)
         state.resources.extend(principals)
         state.relationships.extend(identity_edges)
         state.relationships = _canonical_edges(state.resources, state.relationships)
@@ -613,9 +601,7 @@ class AzureNormalizer:
         return state
 
     # --------------------------------------------------------------- posture
-    def _assessments_by_resource(
-        self, data: dict[str, Any]
-    ) -> dict[str, list[dict[str, Any]]]:
+    def _assessments_by_resource(self, data: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
         """Defender's unhealthy findings, indexed by the resource they are about.
 
         Only the unhealthy ones are kept. A healthy assessment says Defender
@@ -864,9 +850,7 @@ class AzureNormalizer:
                     # the activity log is one record of what was done across
                     # the whole subscription -- not a property of anything
                     # inside it.
-                    "diagnostic_settings": self._diagnostics_for(
-                        subscription_node, diagnostics
-                    ),
+                    "diagnostic_settings": self._diagnostics_for(subscription_node, diagnostics),
                     # Section 176: Defender for Cloud's contacts and
                     # integrations, the security benchmark's assignment, the
                     # activity-log alerts and categories, Bastion, and IoT.
@@ -915,12 +899,8 @@ class AzureNormalizer:
                         provider=Provider.AZURE,
                     )
                 )
-                edges.append(
-                    (subscription_node, RelationshipType.CONTAINS, group_node)
-                )
-            edges.append(
-                (group_node, RelationshipType.CONTAINS, resource.provider_resource_id)
-            )
+                edges.append((subscription_node, RelationshipType.CONTAINS, group_node))
+            edges.append((group_node, RelationshipType.CONTAINS, resource.provider_resource_id))
 
         return nodes, edges
 
@@ -1068,9 +1048,7 @@ class AzureNormalizer:
                 # nodes; this says the reach has no ceiling, because the holder
                 # can grant itself whatever it does not already have.
                 if escalates:
-                    edges.append(
-                        (principal_node, RelationshipType.CAN_GRANT_ROLES, target)
-                    )
+                    edges.append((principal_node, RelationshipType.CAN_GRANT_ROLES, target))
 
             # Recorded on whichever node holds this principal -- one minted
             # here, or the directory user the ``known`` lookup found.
@@ -1194,10 +1172,7 @@ class AzureNormalizer:
         resources = []
         for nsg in data.get("network_security_groups", []):
             props = nsg.get("properties", {}) or {}
-            rules = [
-                self._normalize_security_rule(r)
-                for r in (props.get("securityRules") or [])
-            ]
+            rules = [self._normalize_security_rule(r) for r in (props.get("securityRules") or [])]
             context = _context(nsg, ResourceType.NETWORK_SECURITY_GROUP)
             resources.append(
                 CloudResource(
@@ -1212,9 +1187,7 @@ class AzureNormalizer:
                         "security_rules": rules,
                         "default_security_rules": len(props.get("defaultSecurityRules") or []),
                         "diagnostic_settings": self._diagnostics_for(nsg["id"], diagnostics),
-                        "attached_subnets": [
-                            s.get("id") for s in (props.get("subnets") or [])
-                        ],
+                        "attached_subnets": [s.get("id") for s in (props.get("subnets") or [])],
                         "attached_interfaces": [
                             n.get("id") for n in (props.get("networkInterfaces") or [])
                         ],
@@ -1325,9 +1298,7 @@ class AzureNormalizer:
                         # documents that such an account permits cross-tenant
                         # replication -- so the absence is kept as None and the
                         # rule reads it as the documented default.
-                        "allow_cross_tenant_replication": props.get(
-                            "allowCrossTenantReplication"
-                        ),
+                        "allow_cross_tenant_replication": props.get("allowCrossTenantReplication"),
                         **self._blob_service(
                             account["id"], data.get("storage_blob_services", {}) or {}
                         ),
@@ -1410,14 +1381,11 @@ class AzureNormalizer:
                     metadata={
                         "purge_protection": props.get("enablePurgeProtection"),
                         "soft_delete": props.get("enableSoftDelete"),
-                        "soft_delete_retention_days": props.get(
-                            "softDeleteRetentionInDays"
-                        ),
+                        "soft_delete_retention_days": props.get("softDeleteRetentionInDays"),
                         "public_network_access": public_access,
                         "network_default_action": default_action,
                         "ip_rules": network_acls.get("ipRules") or [],
-                        "virtual_network_rules": network_acls.get("virtualNetworkRules")
-                        or [],
+                        "virtual_network_rules": network_acls.get("virtualNetworkRules") or [],
                         "rbac_authorization": props.get("enableRbacAuthorization"),
                         # The neutral reading of the same flag, for the graph
                         # (``graph/access.py``): a vault on access policies is
@@ -1435,9 +1403,7 @@ class AzureNormalizer:
                             data.get("key_vault_keys"),
                             data.get("key_vault_secrets"),
                         ),
-                        "diagnostic_settings": self._diagnostics_for(
-                            vault["id"], diagnostics
-                        ),
+                        "diagnostic_settings": self._diagnostics_for(vault["id"], diagnostics),
                         "tags": vault.get("tags") or {},
                     },
                 )
@@ -1498,9 +1464,7 @@ class AzureNormalizer:
             props = server.get("properties", {}) or {}
             context = _context(server, ResourceType.POSTGRESQL_SERVER)
             network = props.get("network", {}) or {}
-            public_access = network.get("publicNetworkAccess") or props.get(
-                "publicNetworkAccess"
-            )
+            public_access = network.get("publicNetworkAccess") or props.get("publicNetworkAccess")
 
             resources.append(
                 CloudResource(
@@ -1542,9 +1506,7 @@ class AzureNormalizer:
                             },
                         ),
                         # Section 177.
-                        "high_availability": (props.get("highAvailability") or {}).get(
-                            "mode"
-                        ),
+                        "high_availability": (props.get("highAvailability") or {}).get("mode"),
                         "geo_redundant_backup": (props.get("backup") or {}).get(
                             "geoRedundantBackup"
                         ),
@@ -1662,9 +1624,7 @@ class AzureNormalizer:
             for r in raw
         ]
 
-    def _auditing(
-        self, server_id: str, auditing: dict[str, Any]
-    ) -> dict[str, Any] | None:
+    def _auditing(self, server_id: str, auditing: dict[str, Any]) -> dict[str, Any] | None:
         """What this server records about who queried it.
 
         Read from its own task's output rather than off the server, because it
@@ -1693,9 +1653,7 @@ class AzureNormalizer:
         }
 
     @staticmethod
-    def _encryption(
-        server_id: str, encryption: dict[str, Any]
-    ) -> list[dict[str, Any]] | None:
+    def _encryption(server_id: str, encryption: dict[str, Any]) -> list[dict[str, Any]] | None:
         """What this server's databases do about encryption at rest.
 
         ``None`` when the reading failed or was never taken -- the same
@@ -1919,9 +1877,7 @@ class AzureNormalizer:
 
             raw_config = configs.get(site["id"])
             cfg = (raw_config.get("properties", {}) or {}) if isinstance(raw_config, dict) else {}
-            restricted = (
-                self._access_restricted(cfg) if isinstance(raw_config, dict) else None
-            )
+            restricted = self._access_restricted(cfg) if isinstance(raw_config, dict) else None
 
             resources.append(
                 CloudResource(
@@ -2056,9 +2012,7 @@ class AzureNormalizer:
         )
 
     @staticmethod
-    def _cluster(
-        cluster: dict[str, Any], props: dict[str, Any]
-    ) -> tuple[Level, dict[str, Any]]:
+    def _cluster(cluster: dict[str, Any], props: dict[str, Any]) -> tuple[Level, dict[str, Any]]:
         """A managed Kubernetes cluster: who can reach its API server, and what
         its nodes expose."""
         access = props.get("apiServerAccessProfile") or {}
@@ -2100,18 +2054,12 @@ class AzureNormalizer:
                 if isinstance(pool, dict) and pool.get("enableNodePublicIP") is True
             ],
             "node_pool_count": len(pools),
-            "auto_upgrade_channel": (props.get("autoUpgradeProfile") or {}).get(
-                "upgradeChannel"
-            ),
+            "auto_upgrade_channel": (props.get("autoUpgradeProfile") or {}).get("upgradeChannel"),
             "defender_enabled": defender.get("enabled"),
             # Container insights or managed Prometheus: either is monitoring.
             "monitoring_enabled": bool(
                 ((props.get("addonProfiles") or {}).get("omsagent") or {}).get("enabled")
-                or (
-                    ((props.get("azureMonitorProfile") or {}).get("metrics") or {}).get(
-                        "enabled"
-                    )
-                )
+                or (((props.get("azureMonitorProfile") or {}).get("metrics") or {}).get("enabled"))
             ),
         }
 
@@ -2161,17 +2109,13 @@ class AzureNormalizer:
             "kind": account.get("kind"),
             "public_network_access": public_access,
             "ip_rules": [
-                rule.get("ipAddressOrRange")
-                for rule in ip_rules
-                if isinstance(rule, dict)
+                rule.get("ipAddressOrRange") for rule in ip_rules if isinstance(rule, dict)
             ],
             "virtual_network_filter": vnet_filter,
             "private_endpoints": cls._private_endpoints(props),
             "local_auth_disabled": props.get("disableLocalAuth"),
             "minimal_tls_version": props.get("minimalTlsVersion"),
-            "key_metadata_writes_disabled": props.get(
-                "disableKeyBasedMetadataWriteAccess"
-            ),
+            "key_metadata_writes_disabled": props.get("disableKeyBasedMetadataWriteAccess"),
             "network_bypass": props.get("networkAclBypass"),
             "customer_managed_key": bool(props.get("keyVaultKeyUri")),
             "automatic_failover": props.get("enableAutomaticFailover"),
@@ -2195,9 +2139,7 @@ class AzureNormalizer:
         """
         network = props.get("network") or {}
         public_access = network.get("publicNetworkAccess")
-        exposure = (
-            Level.LOW if str(public_access).lower() == "disabled" else Level.UNKNOWN
-        )
+        exposure = Level.LOW if str(public_access).lower() == "disabled" else Level.UNKNOWN
         backup = props.get("backup") or {}
         return exposure, {
             "version": props.get("version"),
@@ -2207,8 +2149,7 @@ class AzureNormalizer:
             "geo_redundant_backup": backup.get("geoRedundantBackup"),
             "backup_retention_days": backup.get("backupRetentionDays"),
             "customer_managed_key": (
-                str((props.get("dataEncryption") or {}).get("type", "")).lower()
-                == "azurekeyvault"
+                str((props.get("dataEncryption") or {}).get("type", "")).lower() == "azurekeyvault"
                 if props.get("dataEncryption")
                 else None
             ),
@@ -2250,19 +2191,16 @@ class AzureNormalizer:
         and whether its cluster nodes get public addresses."""
         public_access = props.get("publicNetworkAccess")
         # Enabled unless switched off, which is the service's own default.
-        exposure = (
-            Level.LOW if str(public_access).lower() == "disabled" else Level.HIGH
-        )
+        exposure = Level.LOW if str(public_access).lower() == "disabled" else Level.HIGH
         parameters = props.get("parameters") or {}
 
         def parameter(name: str) -> Any:
             value = parameters.get(name)
             return value.get("value") if isinstance(value, dict) else None
 
-        services = (
-            ((props.get("encryption") or {}).get("entities") or {}).get("managedServices")
-            or {}
-        )
+        services = ((props.get("encryption") or {}).get("entities") or {}).get(
+            "managedServices"
+        ) or {}
         return exposure, {
             "public_network_access": public_access,
             "no_public_ip": parameter("enableNoPublicIp"),
@@ -2330,9 +2268,7 @@ class AzureNormalizer:
         return bool(rules)
 
     # --------------------------------------------------------------- identity
-    def _normalize_users(
-        self, data: dict[str, Any], collected_at: datetime
-    ) -> list[CloudResource]:
+    def _normalize_users(self, data: dict[str, Any], collected_at: datetime) -> list[CloudResource]:
         role_map = data.get("user_role_map", {}) or {}
         eligible_names, _ = _eligible_directory_roles(data)
         auth_methods = data.get("authentication_methods", {}) or {}
@@ -2370,15 +2306,11 @@ class AzureNormalizer:
                     eligible_names.get(str(user_id), [])
                 ),
             }
-            metadata.update(
-                self._sign_in_state(user, sign_in, collected_at)
-            )
+            metadata.update(self._sign_in_state(user, sign_in, collected_at))
             # Only set mfa_methods when we actually read them. Absent means the
             # rule reports UNKNOWN; empty list means "read it, found nothing".
             if methods_raw != "__absent__" and methods_raw is not None:
-                metadata["mfa_methods"] = [
-                    self._method_name(m) for m in methods_raw
-                ]
+                metadata["mfa_methods"] = [self._method_name(m) for m in methods_raw]
 
             resources.append(
                 CloudResource(
@@ -2540,9 +2472,7 @@ class AzureNormalizer:
                     "display_name": credential.get("displayName"),
                     "end_date": expires.isoformat() if expires else None,
                     "days_remaining": (
-                        _days_between(collected_at, expires)
-                        if expires is not None
-                        else None
+                        _days_between(collected_at, expires) if expires is not None else None
                     ),
                 }
             )
@@ -2606,9 +2536,7 @@ class AzureNormalizer:
             # tenant rather than as a policy list, because that is the whole
             # question: legacy protocols bypass Conditional Access, so MFA is
             # not enforced anywhere they are still allowed.
-            controls["legacy_authentication_blocked"] = self._blocks_legacy_auth(
-                policies
-            )
+            controls["legacy_authentication_blocked"] = self._blocks_legacy_auth(policies)
         return controls
 
     @staticmethod
@@ -2729,9 +2657,7 @@ class AzureNormalizer:
                 continue
 
             conditions = policy.get("conditions") or {}
-            client_types = {
-                str(c).lower() for c in (conditions.get("clientAppTypes") or [])
-            }
+            client_types = {str(c).lower() for c in (conditions.get("clientAppTypes") or [])}
             if not legacy <= client_types:
                 continue
 
@@ -2739,9 +2665,7 @@ class AzureNormalizer:
             included = {str(u).lower() for u in (users.get("includeUsers") or [])}
             if "all" not in included:
                 continue
-            applications = (conditions.get("applications") or {}).get(
-                "includeApplications"
-            ) or []
+            applications = (conditions.get("applications") or {}).get("includeApplications") or []
             if "all" not in {str(a).lower() for a in applications}:
                 continue
             return True
@@ -2819,9 +2743,7 @@ class AzureNormalizer:
             if any(group not in members for group in exclude_groups):
                 continue
 
-            excluded_users = {
-                str(u) for u in (users.get("excludeUsers") or []) if u
-            }
+            excluded_users = {str(u) for u in (users.get("excludeUsers") or []) if u}
             for group in exclude_groups:
                 excluded_users.update(str(m) for m in members.get(group, []))
 

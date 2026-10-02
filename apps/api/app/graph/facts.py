@@ -55,9 +55,7 @@ def edge_facts(
     edge that cannot say more than its kind says its kind and stops.
     """
     if relationship in {RelationshipType.GRANTS_ROLE, RelationshipType.CAN_GRANT_ROLES}:
-        return _roles(
-            source, target, escalating=relationship is RelationshipType.CAN_GRANT_ROLES
-        )
+        return _roles(source, target, escalating=relationship is RelationshipType.CAN_GRANT_ROLES)
     if relationship is RelationshipType.HAS_IDENTITY:
         return _identity_kind(target)
     if relationship is RelationshipType.NETWORK_ACCESS:
@@ -70,9 +68,7 @@ def edge_facts(
     return ()
 
 
-def _roles(
-    principal: CloudResource, scope: CloudResource, *, escalating: bool
-) -> tuple[str, ...]:
+def _roles(principal: CloudResource, scope: CloudResource, *, escalating: bool) -> tuple[str, ...]:
     """The roles this principal holds over this scope, by name.
 
     Matched on where the edge was drawn, case-insensitively, for the reason the
@@ -97,9 +93,11 @@ def _roles(
         origin = entry.get("inherited_from")
         if isinstance(origin, str) and origin:
             name = f"{name} from {_ancestor_name(origin)}"
-        controlling = "access" not in entry or bool(
-            entry.get("grants_role_assignment")
-        ) or any(True for _ in control_pairs(entry.get("access")))
+        controlling = (
+            "access" not in entry
+            or bool(entry.get("grants_role_assignment"))
+            or any(True for _ in control_pairs(entry.get("access")))
+        )
         ranked.append((not controlling, name))
 
     names: list[str] = []

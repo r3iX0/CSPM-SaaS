@@ -92,9 +92,7 @@ async def test_a_dismissed_notification_stops_being_listed(client, cleanup_orgs)
     first = await announce(org_id, "users", 10)
     await announce(org_id, "storage_accounts", 20)
 
-    response = await client.delete(
-        f"/api/v1/notifications/{first}", headers=auth_header(user)
-    )
+    response = await client.delete(f"/api/v1/notifications/{first}", headers=auth_header(user))
 
     assert response.status_code == 200, response.text
     assert await subjects(client, user) == ["storage_accounts"]
@@ -113,17 +111,13 @@ async def test_dismissing_is_a_decision_about_one_reader(client, cleanup_orgs) -
     await add_member(org_id, colleague)
     notification_id = await announce(org_id, "users", 10)
 
-    await client.delete(
-        f"/api/v1/notifications/{notification_id}", headers=auth_header(reader)
-    )
+    await client.delete(f"/api/v1/notifications/{notification_id}", headers=auth_header(reader))
 
     assert await listed(client, reader) == []
     assert await subjects(client, colleague) == ["users"]
 
 
-async def test_clearing_empties_the_panel_for_the_person_asking(
-    client, cleanup_orgs
-) -> None:
+async def test_clearing_empties_the_panel_for_the_person_asking(client, cleanup_orgs) -> None:
     user = uuid.uuid4()
     org_id = await create_org_as(user, "Clear Ltd")
     cleanup_orgs.append(org_id)
@@ -137,9 +131,7 @@ async def test_clearing_empties_the_panel_for_the_person_asking(
     assert await listed(client, user) == []
 
 
-async def test_clearing_says_nothing_about_what_arrives_next(
-    client, cleanup_orgs
-) -> None:
+async def test_clearing_says_nothing_about_what_arrives_next(client, cleanup_orgs) -> None:
     """Distinct from the read watermark, which is a boundary in time.
 
     Somebody who clears the panel and is then told about a new failure is being
@@ -156,9 +148,7 @@ async def test_clearing_says_nothing_about_what_arrives_next(
     assert await subjects(client, user) == ["key_vaults"]
 
 
-async def test_dismissing_something_that_is_not_there_is_a_404(
-    client, cleanup_orgs
-) -> None:
+async def test_dismissing_something_that_is_not_there_is_a_404(client, cleanup_orgs) -> None:
     """Including another tenant's notification, which is the case that matters:
     recording a dismissal of a row this organization cannot see would answer a
     probe with a 200."""

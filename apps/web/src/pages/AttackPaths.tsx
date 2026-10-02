@@ -1,21 +1,7 @@
-import {
-  lazy,
-  Suspense,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
-import {
-  RouteIcon,
-  ScissorsIcon,
-  SearchIcon,
-  UndoIcon,
-  XIcon,
-} from "lucide-react";
+import { RouteIcon, ScissorsIcon, SearchIcon, UndoIcon, XIcon } from "lucide-react";
 
 import { api } from "@/lib/api";
 import type {
@@ -55,12 +41,7 @@ import { usePrefersReducedMotion } from "@/lib/motion";
 import { arrivedByMorph } from "@/lib/viewTransition";
 import type { Hop, SimulatedPlan } from "@/components/graph/RouteMapCanvas";
 import { SimulationPanel } from "@/components/graph/SimulationPanel";
-import {
-  CardsSkeleton,
-  EmptyState,
-  ErrorState,
-  PageHeader,
-} from "@/components/common/states";
+import { CardsSkeleton, EmptyState, ErrorState, PageHeader } from "@/components/common/states";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -139,10 +120,7 @@ export function AttackPathsPage() {
   const location = useLocation();
   /** The route being read, by key. Null means every route is drawn. */
   const traced = params.get("trace");
-  const hopParam = Math.max(
-    0,
-    Number.parseInt(params.get("hop") ?? "0", 10) || 0,
-  );
+  const hopParam = Math.max(0, Number.parseInt(params.get("hop") ?? "0", 10) || 0);
   /** The box whose routes the list is narrowed to. */
   const picked = params.get("through");
   /** The subscription, and perhaps the group, the list is narrowed to. */
@@ -210,10 +188,7 @@ export function AttackPathsPage() {
 
   const map = data?.map;
   const routes = useMemo(() => map?.routes ?? [], [map]);
-  const nodes = useMemo(
-    () => new Map((map?.nodes ?? []).map((node) => [node.id, node])),
-    [map],
-  );
+  const nodes = useMemo(() => new Map((map?.nodes ?? []).map((node) => [node.id, node])), [map]);
   const edges = useMemo(
     () =>
       new Map(
@@ -224,24 +199,17 @@ export function AttackPathsPage() {
       ),
     [map],
   );
-  const trackedKeys = useMemo(
-    () => new Set(tracked.data?.keys() ?? []),
-    [tracked.data],
-  );
+  const trackedKeys = useMemo(() => new Set(tracked.data?.keys() ?? []), [tracked.data]);
   const listing = useMemo(
     () =>
-      map
-        ? listRoutes(map, nodes, { picked, place, query, sort, tracked: trackedKeys })
-        : null,
+      map ? listRoutes(map, nodes, { picked, place, query, sort, tracked: trackedKeys }) : null,
     [map, nodes, picked, place, query, sort, trackedKeys],
   );
   const tracedRoute = useMemo(
     () => routes.find((route) => route.key === traced) ?? null,
     [routes, traced],
   );
-  const hop = tracedRoute
-    ? Math.min(hopParam, tracedRoute.steps.length - 1)
-    : 0;
+  const hop = tracedRoute ? Math.min(hopParam, tracedRoute.steps.length - 1) : 0;
   const previewRoute = useMemo(
     () =>
       previewKey && !tracedRoute
@@ -292,9 +260,7 @@ export function AttackPathsPage() {
     // starting again.
     placeholderData: keepPreviousData,
     queryFn: () =>
-      api
-        .post<Simulation>("/api/v1/attack-paths/simulate", { cuts: plan })
-        .then((r) => r.data),
+      api.post<Simulation>("/api/v1/attack-paths/simulate", { cuts: plan }).then((r) => r.data),
   });
   const result = plan.length > 0 ? simulation.data : undefined;
   const simulatedBase = useMemo(
@@ -373,10 +339,7 @@ export function AttackPathsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader
-        title={t.attackPaths.title}
-        description={t.attackPaths.intro}
-      />
+      <PageHeader title={t.attackPaths.title} description={t.attackPaths.intro} />
 
       {isLoading && <CardsSkeleton />}
 
@@ -484,11 +447,7 @@ export function AttackPathsPage() {
                   plan={plan}
                   result={result}
                   state={
-                    simulation.isError
-                      ? "error"
-                      : simulation.isFetching
-                        ? "checking"
-                        : "ready"
+                    simulation.isError ? "error" : simulation.isFetching ? "checking" : "ready"
                   }
                   maxCuts={MAX_CUTS}
                   onRetry={() => void simulation.refetch()}
@@ -692,9 +651,7 @@ function RouteMapFrame({
         {simulated && (
           <div className="flex items-center gap-2 border-b border-ok-border bg-ok-bg px-3 py-1.5 text-xs text-foreground">
             <ScissorsIcon className="size-3.5 shrink-0 text-ok" aria-hidden />
-            <p className="min-w-0 flex-1">
-              {t.attackPaths.simulating(simulated.links.length)}
-            </p>
+            <p className="min-w-0 flex-1">{t.attackPaths.simulating(simulated.links.length)}</p>
             {tab !== "simulate" && (
               <Button variant="ghost" size="sm" onClick={() => onTab("simulate")}>
                 {t.attackPaths.simulationShow}
@@ -732,9 +689,7 @@ function RouteMapFrame({
                 <TabsList className="w-full">
                   <TabsTrigger value="routes">
                     {t.attackPaths.tabRoutes}
-                    <span className="text-muted-foreground tabular-nums">
-                      {map.routes.length}
-                    </span>
+                    <span className="text-muted-foreground tabular-nums">{map.routes.length}</span>
                   </TabsTrigger>
                   <TabsTrigger value="simulate">
                     {t.attackPaths.tabSimulate}
@@ -808,10 +763,7 @@ function RouteList({
   onClearPlace: () => void;
 }) {
   const t = useT();
-  const byKey = useMemo(
-    () => new Map(map.routes.map((route) => [route.key, route])),
-    [map.routes],
-  );
+  const byKey = useMemo(() => new Map(map.routes.map((route) => [route.key, route])), [map.routes]);
   const labels: Record<RouteSort, string> = {
     hops: t.attackPaths.sortHops,
     sensitive: t.attackPaths.sortSensitive,
@@ -820,16 +772,11 @@ function RouteList({
   };
   const pickedNode = picked ? nodes.get(picked) : undefined;
   // Named by any node in the subscription; the id alone when none drawn is.
-  const placeNode = place
-    ? map.nodes.find((node) => node.scope_id === place.scope)
-    : undefined;
+  const placeNode = place ? map.nodes.find((node) => node.scope_id === place.scope) : undefined;
   const placeLabel = place
     ? placeName({
         scope_name: placeNode?.scope_name ?? place.scope,
-        group:
-          place.group === undefined
-            ? null
-            : (place.group ?? "what sits directly in it"),
+        group: place.group === undefined ? null : (place.group ?? "what sits directly in it"),
       })
     : null;
 
@@ -842,8 +789,7 @@ function RouteList({
       {place && (
         <div className="flex items-center gap-2 border-b border-border p-2 pl-3">
           <p className="min-w-0 flex-1 text-xs text-muted-foreground">
-            Through{" "}
-            <span className="font-medium text-foreground">{placeLabel}</span>{" "}
+            Through <span className="font-medium text-foreground">{placeLabel}</span>{" "}
             <span className="tabular-nums">({listing.count})</span>
           </p>
           <Button
@@ -1015,8 +961,7 @@ function DeadEnds({ meta }: { meta: AttackPathMeta }) {
   const t = useT();
   const ends = meta.dead_ends ?? [];
   const sensitive = Object.keys(meta.sensitive_target_types ?? {});
-  const onlyAccounts =
-    sensitive.length > 0 && sensitive.every((type) => IDENTITY_TYPES.has(type));
+  const onlyAccounts = sensitive.length > 0 && sensitive.every((type) => IDENTITY_TYPES.has(type));
   const more = (meta.dead_ends_total ?? ends.length) - ends.length;
 
   return (
@@ -1025,10 +970,7 @@ function DeadEnds({ meta }: { meta: AttackPathMeta }) {
         <CardTitle className="text-sm">{t.attackPaths.deadEndsTitle}</CardTitle>
         <div className="mt-1.5 flex flex-col gap-1.5 text-xs text-muted-foreground">
           <TypeCounts label={t.attackPaths.exposedCount} counts={meta.entry_point_types} />
-          <TypeCounts
-            label={t.attackPaths.sensitiveCount}
-            counts={meta.sensitive_target_types}
-          />
+          <TypeCounts label={t.attackPaths.sensitiveCount} counts={meta.sensitive_target_types} />
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
@@ -1081,13 +1023,7 @@ function deadEndReason(t: ReturnType<typeof useT>, end: DeadEnd): string {
   }
 }
 
-function TypeCounts({
-  label,
-  counts,
-}: {
-  label: string;
-  counts?: Record<string, number>;
-}) {
+function TypeCounts({ label, counts }: { label: string; counts?: Record<string, number> }) {
   const entries = Object.entries(counts ?? {}).sort((a, b) => b[1] - a[1]);
   if (entries.length === 0) return null;
   return (

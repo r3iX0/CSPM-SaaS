@@ -16,15 +16,18 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import Select, delete, exists, select
+from sqlalchemy import Select, delete, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.core.db import commit_unless_externally_managed
 from app.core.deps import TenantContext
-from app.core.enums import FindingStatus, RiskKind, RiskStatus
+from app.core.enums import ExceptionStatus, FindingStatus, Level, RiskKind, RiskStatus
 from app.core.errors import NotFound, ValidationFailed
 from app.models.finding import Finding
+from app.models.remediation import RiskException
 from app.models.risk import Risk, RiskFinding
+from app.models.scan import Scan
 from app.risk.triage import acceptance_expiry, finding_risk_status, finding_status_for
 from app.services import findings as findings_service
 
@@ -32,6 +35,205 @@ from app.services import findings as findings_service
 #: and a false positive was never a problem; neither is re-decided by a
 #: decision about the group.
 _TRIAGEABLE = (FindingStatus.OPEN, FindingStatus.IN_PROGRESS, FindingStatus.ACCEPTED_RISK)
+
+#: A finding that still needs somebody: what "live" means for a risk, and what a queue row counts.
+_OPEN_FINDINGS = (FindingStatus.OPEN, FindingStatus.IN_PROGRESS)
+
+
+async def list_risks(
+    session: AsyncSession,
+    tenant: TenantContext,
+    *,
+    level: Level | None,
+    status: RiskStatus | None,
+    kind: RiskKind | None,
+    search: str | None,
+    limit: int,
+    offset: int,
+) -> tuple[list[Risk], int]:
+    """One page of risks, worst first, and how many match in all."""
+    stmt = select(Risk).where(Risk.organization_id == tenant.organization_id)
+
+    # Live risks only, unless a status is asked for by name.
+    #
+    # A risk row outlives the finding it was scored from: the finding closes,
+    # the next scan supersedes it, and the row stays. Listed unfiltered, the
+    # page showed every risk ever raised as though all of them were current --
+    # four identical "Storage account allows public access" cards, all Open,
+    # on an estate the dashboard was simultaneously reporting two open findings
+    # for. The two screens disagreed because only one of them was applying the
+    # product's own definition of live.
+    #
+    # The rule is *settled* rather than *strict*: a risk is hidden when its
+    # findings say it is over, not merely when they fail to say it is current.
+    # A risk linked to nothing at all stays listed — the link table is the only
+    # thing that could vouch for it, and a row whose evidence is missing is
+    # exactly the row a security product must not quietly drop. Hiding it would
+    # trade four duplicates for an empty page, which is the worse failure.
+    #
+    # Asking for a status explicitly still reaches everything, which is how a
+    # resolved risk is looked up rather than lost.
+    if status is None:
+        linked_findings = select(RiskFinding.risk_id).where(
+            RiskFinding.organization_id == tenant.organization_id
+        )
+        live_finding_risks = (
+            select(RiskFinding.risk_id)
+            .join(Finding, Finding.id == RiskFinding.finding_id)
+            .where(
+                RiskFinding.organization_id == tenant.organization_id,
+                Finding.status.in_(_OPEN_FINDINGS),
+            )
+        )
+        stmt = stmt.where(
+            or_(
+                Risk.kind != RiskKind.FINDING,
+                Risk.id.notin_(linked_findings),
+                Risk.id.in_(live_finding_risks),
+            ),
+            Risk.status != RiskStatus.RESOLVED,
+        )
+
+    if level:
+        stmt = stmt.where(Risk.risk_level == level)
+    if status:
+        stmt = stmt.where(Risk.status == status)
+    # Unfiltered by default, so a scenario ranks against the findings it groups
+    # rather than hiding on a page of its own. That is the whole point of
+    # putting it in this table: the combination outranking its parts is only
+    # visible where they are listed together.
+    if kind:
+        stmt = stmt.where(Risk.kind == kind)
+    if search:
+        # A risk is named by its own title and explained by its description; a
+        # scenario's asset names live in the description rather than in a
+        # column, so both are searched.
+        needle = f"%{search}%"
+        stmt = stmt.where(or_(Risk.title.ilike(needle), Risk.description.ilike(needle)))
+
+    total = (await session.execute(select(func.count()).select_from(stmt.subquery()))).scalar_one()
+    rows = (
+        await session.execute(
+            stmt.order_by(Risk.risk_score.desc(), Risk.id).limit(limit).offset(offset)
+        )
+    ).scalars()
+    return list(rows.all()), total
+
+
+async def member_expiries(session: AsyncSession, risk_ids: list[UUID]) -> dict[UUID, datetime]:
+    """The earliest running acceptance's end date among each risk's accepted findings.
+
+    The earliest, because that is when the risk next needs a decision: one
+    member coming back is enough to put the row back in the queue.
+    """
+    if not risk_ids:
+        return {}
+    rows = (
+        await session.execute(
+            select(RiskFinding.risk_id, func.min(RiskException.expires_at))
+            .join(Finding, Finding.id == RiskFinding.finding_id)
+            .join(RiskException, RiskException.finding_id == Finding.id)
+            .where(
+                RiskFinding.risk_id.in_(risk_ids),
+                Finding.status == FindingStatus.ACCEPTED_RISK,
+                RiskException.status == ExceptionStatus.ACTIVE,
+                RiskException.expires_at.is_not(None),
+            )
+            .group_by(RiskFinding.risk_id)
+        )
+    ).tuples()
+    return {risk_id: until for risk_id, until in rows if until is not None}
+
+
+async def open_counts(
+    session: AsyncSession, risk_ids: list[UUID]
+) -> tuple[dict[UUID, int], dict[UUID, int]]:
+    """How many open findings each risk covers, and how many open routes it is on.
+
+    Both for the queue, where a row has to say what deciding about it would
+    decide: a grouped risk is forty accounts, and a finding on two routes is
+    worth more than its own score says. A page at a time, two grouped queries.
+    """
+    if not risk_ids:
+        return {}, {}
+    findings = dict(
+        (
+            await session.execute(
+                select(RiskFinding.risk_id, func.count(func.distinct(Finding.id)))
+                .join(Finding, Finding.id == RiskFinding.finding_id)
+                .where(
+                    RiskFinding.risk_id.in_(risk_ids),
+                    Finding.status.in_(_OPEN_FINDINGS),
+                )
+                .group_by(RiskFinding.risk_id)
+            )
+        )
+        .tuples()
+        .all()
+    )
+    # Routes that share a member finding with this risk. Counted for finding
+    # risks only: a route sharing findings with another route is overlap, not
+    # a fact about either of them.
+    own, other = aliased(RiskFinding), aliased(RiskFinding)
+    route = aliased(Risk)
+    subject = aliased(Risk)
+    routes = dict(
+        (
+            await session.execute(
+                select(own.risk_id, func.count(func.distinct(route.id)))
+                .join(subject, subject.id == own.risk_id)
+                .join(other, other.finding_id == own.finding_id)
+                .join(route, route.id == other.risk_id)
+                .where(
+                    own.risk_id.in_(risk_ids),
+                    subject.kind == RiskKind.FINDING,
+                    route.kind != RiskKind.FINDING,
+                    route.status != RiskStatus.RESOLVED,
+                )
+                .group_by(own.risk_id)
+            )
+        )
+        .tuples()
+        .all()
+    )
+    return findings, routes
+
+
+async def get_risk_detail(
+    session: AsyncSession, tenant: TenantContext, risk_id: UUID
+) -> tuple[Risk, list[Finding], datetime | None]:
+    """One risk, its member findings, and when its route was last seen."""
+    risk = (
+        await session.execute(
+            select(Risk).where(Risk.id == risk_id, Risk.organization_id == tenant.organization_id)
+        )
+    ).scalar_one_or_none()
+    if risk is None:
+        raise NotFound("Risk not found")
+
+    # 1:1 with findings today; the join already supports many.
+    findings = (
+        await session.execute(
+            select(Finding)
+            .join(RiskFinding, RiskFinding.finding_id == Finding.id)
+            .where(RiskFinding.risk_id == risk_id)
+        )
+    ).scalars()
+
+    # When the route was last seen, not merely which scan saw it. A bare id is
+    # not an answer a person can act on, and one extra lookup on a single-row
+    # page is cheaper than a client fetching the scan itself to render a date.
+    observed_at = None
+    if risk.observed_scan_id is not None:
+        observed_at = (
+            await session.execute(
+                select(Scan.completed_at).where(
+                    Scan.id == risk.observed_scan_id,
+                    Scan.organization_id == tenant.organization_id,
+                )
+            )
+        ).scalar_one_or_none()
+    return risk, list(findings.all()), observed_at
 
 
 async def get_risks(
@@ -170,9 +372,7 @@ async def linked_to(
     )
 
 
-async def delete_emptied(
-    session: AsyncSession, organization_id: UUID, risk_ids: set[UUID]
-) -> int:
+async def delete_emptied(session: AsyncSession, organization_id: UUID, risk_ids: set[UUID]) -> int:
     """Delete those of these risks that no finding is a member of any more.
 
     For after a delete that took findings with it -- a connection, or a scan
@@ -205,9 +405,7 @@ async def delete_emptied(
     return len(list(emptied))
 
 
-async def _members(
-    session: AsyncSession, risk_ids: list[UUID]
-) -> dict[UUID, list[Finding]]:
+async def _members(session: AsyncSession, risk_ids: list[UUID]) -> dict[UUID, list[Finding]]:
     """The triageable findings of each finding risk, in one query."""
     if not risk_ids:
         return {}

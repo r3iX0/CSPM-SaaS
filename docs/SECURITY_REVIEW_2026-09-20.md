@@ -92,7 +92,8 @@ fail — clear, commit, then proceed — and assert the durable outcome in
 
 ### Finding 2 — The repository-root `vercel.json` carries no security headers
 
-**Severity:** Medium · **OWASP API8** Security Misconfiguration · **CWE-693** Protection Mechanism Failure
+**Severity:** Medium · **OWASP API8** Security Misconfiguration · **CWE-693** Protection Mechanism
+Failure
 **Location:** `/vercel.json`, against `apps/web/vercel.json` and `docs/DEPLOYMENT.md:321-323`
 
 `apps/web/vercel.json` defines the frontend's `Content-Security-Policy`,
@@ -120,7 +121,8 @@ and is weaker: it fixes the instruction rather than the artifact.
 
 ### Finding 3 — The rate-limit bucket is chosen by an unverified header
 
-**Severity:** Low-Medium · **OWASP API4** Unrestricted Resource Consumption · **CWE-807** Reliance on Untrusted Input
+**Severity:** Low-Medium · **OWASP API4** Unrestricted Resource Consumption · **CWE-807** Reliance
+on Untrusted Input
 **Location:** `apps/api/app/core/middleware.py:200`
 
 ```python
@@ -150,7 +152,8 @@ design, or resolve the bucket after verification and key the authenticated one o
 
 ### Finding 4 — `/health/ready` is unauthenticated, exempt from limiting, and opens a connection
 
-**Severity:** Low · **OWASP API4** Unrestricted Resource Consumption · **CWE-770** Allocation Without Limits
+**Severity:** Low · **OWASP API4** Unrestricted Resource Consumption · **CWE-770** Allocation
+Without Limits
 **Location:** `apps/api/app/core/middleware.py:179,195`; `apps/api/app/main.py` (`ready`)
 
 `RateLimitMiddleware` exempts every path under `/health`, for the good reason that the
@@ -170,7 +173,8 @@ keeps the platform probe working.
 
 ### Finding 5 — The API image runs as root and retains its build toolchain
 
-**Severity:** Low · **OWASP API8** Security Misconfiguration · **CWE-250** Execution With Unnecessary Privileges
+**Severity:** Low · **OWASP API8** Security Misconfiguration · **CWE-250** Execution With
+Unnecessary Privileges
 **Location:** `infrastructure/docker/api.Dockerfile`
 
 No `USER` instruction, so uvicorn and the Celery worker run as uid 0. `build-essential` and
@@ -188,7 +192,8 @@ the runtime.
 
 ### Finding 6 — Fix commands substitute cloud-supplied names without quoting
 
-**Severity:** Low · **OWASP API8** Security Misconfiguration · **CWE-78** OS Command Injection (downstream)
+**Severity:** Low · **OWASP API8** Security Misconfiguration · **CWE-78** OS Command Injection
+(downstream)
 **Location:** `apps/web/src/lib/remediationFill.ts:35-68`
 
 `placeholderValues` takes the resource's name, region, subscription id and resource group —

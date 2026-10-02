@@ -87,10 +87,7 @@ class TestExposedVulnerableMachine:
         """Real, and a different finding. Defender already raises the
         vulnerability on its own terms; without the reachability there is
         nothing here CloudGuard knows that Defender did not say better."""
-        assert (
-            judge(VULN, machine([VULNERABLE], exposure=Level.LOW))
-            == RuleState.NOT_APPLICABLE
-        )
+        assert judge(VULN, machine([VULNERABLE], exposure=Level.LOW)) == RuleState.NOT_APPLICABLE
 
     def test_reachable_and_assessed_clean_passes(self) -> None:
         """An empty list is Defender having looked at this subscription and
@@ -141,9 +138,7 @@ class TestMissingEndpointProtection:
         """Unlike the vulnerability rule. Malware arrives by mail and by USB as
         readily as over a public address, so exposure is not the qualifier
         here."""
-        assert judge(MALWARE, machine([PROTECTION], exposure=Level.LOW)) == (
-            RuleState.FAIL
-        )
+        assert judge(MALWARE, machine([PROTECTION], exposure=Level.LOW)) == (RuleState.FAIL)
 
     def test_a_machine_with_other_findings_passes_this_one(self) -> None:
         """Each rule reads the assessments it is about. A vulnerability finding

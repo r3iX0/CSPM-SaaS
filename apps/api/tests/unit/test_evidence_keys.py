@@ -89,8 +89,7 @@ def test_a_rule_declares_its_own_provider_evidence() -> None:
     for rule in RULE_REGISTRY:
         for key in rule.requires_evidence:
             assert isinstance(key, expected[rule.provider]), (
-                f"{rule.rule_id} is a {rule.provider.value} rule declaring "
-                f"{type(key).__name__}"
+                f"{rule.rule_id} is a {rule.provider.value} rule declaring {type(key).__name__}"
             )
 
 
@@ -147,9 +146,7 @@ def test_the_permission_map_covers_every_collected_category() -> None:
     # Identity is Graph, granted by admin consent rather than by the ARM role,
     # so it is deliberately absent from the ARM permission map.
     ungranted = collected - set(COLLECTION_ACTIONS) - {EvidenceCategory.IDENTITY}
-    assert not ungranted, (
-        f"categories collected over ARM with no declared permission: {ungranted}"
-    )
+    assert not ungranted, f"categories collected over ARM with no declared permission: {ungranted}"
 
 
 def test_the_mfa_rule_depends_on_the_evidence_it_actually_reads() -> None:
@@ -182,8 +179,7 @@ def test_every_collected_key_is_wanted_by_a_rule_or_declared_baseline() -> None:
     wanted = {key for rule in RULE_REGISTRY for key in rule.requires_evidence}
     unexplained = planned_keys() - wanted - AzureConnector.baseline_evidence()
     assert not unexplained, (
-        f"collected but nothing declares a need for it: "
-        f"{sorted(k.value for k in unexplained)}"
+        f"collected but nothing declares a need for it: {sorted(k.value for k in unexplained)}"
     )
 
 
@@ -235,9 +231,7 @@ def test_only_the_declared_rules_degrade_on_the_inventory() -> None:
     unable to tell "none" from "none listed".
     """
     declaring = [
-        rule.rule_id
-        for rule in RULE_REGISTRY
-        if AzureEvidence.RESOURCES in rule.requires_evidence
+        rule.rule_id for rule in RULE_REGISTRY if AzureEvidence.RESOURCES in rule.requires_evidence
     ]
     assert declaring == ["AZ-DEF-009", "AZ-LOG-019"], (
         "these rules depend on the inventory, so a failed Resource Graph query "
@@ -269,11 +263,7 @@ def test_the_inventory_payload_is_read_and_no_rule_judges_it() -> None:
         "scan and a stored blob for a capability that does not exist"
     )
 
-    judging = [
-        rule.rule_id
-        for rule in RULE_REGISTRY
-        if ResourceType.UNKNOWN in rule.applies_to
-    ]
+    judging = [rule.rule_id for rule in RULE_REGISTRY if ResourceType.UNKNOWN in rule.applies_to]
     assert judging == [], (
         "these rules would judge a resource CloudGuard holds no configuration "
         f"for, so their verdict rests on nothing: {judging}"
@@ -292,4 +282,3 @@ def test_the_inventory_is_still_collected_though_no_rule_reads_it() -> None:
 
     assert AzureEvidence.RESOURCES in AzureConnector.baseline_evidence()
     assert AzureEvidence.RESOURCES in planned_keys()
-

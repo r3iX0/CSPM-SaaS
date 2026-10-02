@@ -11,12 +11,9 @@ Errors never pass through these. They are written by the exception handlers in
 documents them separately.
 """
 
-from typing import Any, Generic, TypeVar
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
-
-DataT = TypeVar("DataT")
-MetaT = TypeVar("MetaT")
 
 
 class ClosedModel(BaseModel):
@@ -27,6 +24,19 @@ class ClosedModel(BaseModel):
     model. A model that ignored unknown keys would drop a field the service
     added and nobody declared; this one refuses it, so the omission fails where
     a missing required field would.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class RequestModel(BaseModel):
+    """A request body: what a client may send, and nothing else.
+
+    Pydantic ignores an unknown key by default, so a client that misspells an
+    optional field (``severty``) or sends one the server owns (``organization_id``)
+    gets a ``200`` that did something other than what it asked. This one answers
+    ``422`` and names the field, which is the answer a client can act on
+    (API_GUIDELINES.md section 4).
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -50,7 +60,7 @@ class TotalMeta(BaseModel):
     total: int
 
 
-class Envelope(BaseModel, Generic[DataT, MetaT]):
+class Envelope[DataT, MetaT](BaseModel):
     """A success: ``{"data": ..., "error": null, "meta": {...}}``."""
 
     data: DataT

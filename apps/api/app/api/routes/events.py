@@ -128,9 +128,7 @@ async def change_event(
     return JSONResponse({"accepted": len(events), "relevant": len(relevant)}, status_code=200)
 
 
-async def _handshake(
-    event: dict[str, Any], cloud: Provider, connection_id: UUID
-) -> JSONResponse:
+async def _handshake(event: dict[str, Any], cloud: Provider, connection_id: UUID) -> JSONResponse:
     """Activate the subscription, whichever way this cloud does it.
 
     Event Grid wants a code echoed in the body. SNS wants a URL fetched. A

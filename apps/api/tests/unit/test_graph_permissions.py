@@ -60,9 +60,9 @@ def test_a_token_with_no_roles_claim_reports_everything_missing() -> None:
     were the same value, so the worst outcome read as the healthiest."""
     assert granted_permissions(token_granting()) == frozenset()
     assert missing_permissions(token_granting()) == tuple(REQUIRED_GRAPH_PERMISSIONS)
-    assert missing_permissions(
-        jwt.encode({"roles": []}, "x", algorithm="HS256")
-    ) == tuple(REQUIRED_GRAPH_PERMISSIONS)
+    assert missing_permissions(jwt.encode({"roles": []}, "x", algorithm="HS256")) == tuple(
+        REQUIRED_GRAPH_PERMISSIONS
+    )
 
 
 def test_an_unreadable_token_claims_no_knowledge() -> None:
@@ -144,8 +144,7 @@ def test_every_requested_permission_is_used_or_reserved() -> None:
     unexplained = [
         permission
         for permission in REQUIRED_GRAPH_PERMISSIONS
-        if not GRAPH_PERMISSION_USE.get(permission)
-        and permission not in RESERVED_GRAPH_PERMISSIONS
+        if not GRAPH_PERMISSION_USE.get(permission) and permission not in RESERVED_GRAPH_PERMISSIONS
     ]
     assert unexplained == [], (
         "requested on a customer's consent screen with nothing calling it and "
@@ -157,9 +156,7 @@ def test_a_reserved_permission_says_why_it_is_there() -> None:
     for permission, reason in RESERVED_GRAPH_PERMISSIONS.items():
         assert permission in REQUIRED_GRAPH_PERMISSIONS
         assert reason.strip(), f"{permission} is reserved for no stated reason"
-        assert not GRAPH_PERMISSION_USE.get(permission), (
-            f"{permission} is both used and reserved"
-        )
+        assert not GRAPH_PERMISSION_USE.get(permission), f"{permission} is both used and reserved"
 
 
 def test_every_declared_use_names_a_call_that_exists() -> None:

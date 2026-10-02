@@ -150,9 +150,7 @@ async def test_one_statement_per_table_however_many_rows() -> None:
     session = FakeSession()
     writer = writer_over(session)
     for _ in range(250):
-        writer.add(
-            AssetChangeEvent, resource_id=uuid.uuid4(), change=AssetChange.APPEARED
-        )
+        writer.add(AssetChangeEvent, resource_id=uuid.uuid4(), change=AssetChange.APPEARED)
     await writer.flush()
 
     ((statement, rows),) = session.inserts()
@@ -191,9 +189,7 @@ async def test_an_edge_already_recorded_is_skipped_by_the_insert_itself() -> Non
     writer.add(FindingEventRecord, **event_row())
     await writer.flush()
 
-    compiled = {
-        statement.table.name: sql(statement) for statement, _ in session.inserts()
-    }
+    compiled = {statement.table.name: sql(statement) for statement, _ in session.inserts()}
     assert "ON CONFLICT DO NOTHING" in compiled["resource_relationships"]
     assert "ON CONFLICT" not in compiled["finding_events"]
 

@@ -1,8 +1,10 @@
 # Security Audit — CloudGuard API and Web
 
 **Date:** 20 September 2026
-**Scope:** `apps/api`, `apps/web`, `database/`, `infrastructure/` at commit `f245f1c` (branch `develop-eh`)
-**Method:** Static review against the OWASP Top 10 (2021). No live traffic was sent; no deployed environment was touched.
+**Scope:** `apps/api`, `apps/web`, `database/`, `infrastructure/` at commit
+`f245f1c` (branch `develop-eh`)
+**Method:** Static review against the OWASP Top 10 (2021). No live traffic was sent; no deployed
+environment was touched.
 **Assessed by:** Claude Opus 5, at the request of the repository owner.
 
 ---
@@ -76,8 +78,10 @@ again.
 
 ### Finding 2 — The `tenant` query parameter is trusted and written to the database
 
-**Severity:** High · **OWASP:** A01 Broken Access Control · **CWE-807** Reliance on Untrusted Inputs in a Security Decision
-**Location:** `apps/api/app/api/routes/cloud_connections.py:264`, `apps/api/app/services/cloud_connections.py:282`
+**Severity:** High · **OWASP:** A01 Broken Access Control · **CWE-807** Reliance on Untrusted Inputs
+in a Security Decision
+**Location:**
+`apps/api/app/api/routes/cloud_connections.py:264`, `apps/api/app/services/cloud_connections.py:282`
 
 The callback passes the raw `tenant` query parameter into `record_consent`:
 
@@ -120,14 +124,16 @@ re-bind afterwards. Do not silently overwrite a tenant that has already been est
 
 ### Finding 3 — Consent state carries no `purpose`, and the callback checks none
 
-**Severity:** Medium · **OWASP:** A01 Broken Access Control · **CWE-345** Insufficient Verification of Data Authenticity
-**Location:** `apps/api/app/connectors/azure/onboarding.py:109`, `apps/api/app/api/routes/cloud_connections.py:246`
+**Severity:** Medium · **OWASP:** A01 Broken Access Control · **CWE-345** Insufficient Verification
+of Data Authenticity
+**Location:**
+`apps/api/app/connectors/azure/onboarding.py:109`, `apps/api/app/api/routes/cloud_connections.py:246`
 
 Three separate round trips are authenticated by tokens minted from one secret through
 `app/core/signing.py`. The module documents exactly what keeps them apart:
 
 > `purpose` is not enforced here on purpose. Every caller checks its own, and it must: the
-> tokens are signed with one secret, so a template token and a webhook token differ *only* by
+> tokens are signed with one secret, so a template token and a webhook token differ _only_ by
 > that field, and a caller that verified the signature and skipped the purpose would accept
 > the other one.
 
@@ -153,7 +159,8 @@ matching the other two callers.
 
 ### Finding 4 — No security response headers on API or frontend
 
-**Severity:** Medium · **OWASP:** A05 Security Misconfiguration · **CWE-693** Protection Mechanism Failure
+**Severity:** Medium · **OWASP:** A05 Security Misconfiguration · **CWE-693** Protection Mechanism
+Failure
 **Location:** `apps/api/app/main.py`, `apps/web/vercel.json`
 
 `main.py` installs `UnhandledErrorMiddleware` and `CORSMiddleware` and nothing else.
@@ -175,11 +182,12 @@ for the static frontend at the CDN.
 
 ### Finding 5 — No inbound rate limiting and no request body size cap
 
-**Severity:** Medium · **OWASP:** A04 Insecure Design · **CWE-770** Allocation of Resources Without Limits
+**Severity:** Medium · **OWASP:** A04 Insecure Design · **CWE-770** Allocation of Resources Without
+Limits
 **Location:** `apps/api/app/main.py`
 
 Nothing limits the rate or size of inbound requests. `RequestLimiter` in
-`app/connectors/azure/client.py` is an *outbound* concurrency control for calls CloudGuard
+`app/connectors/azure/client.py` is an _outbound_ concurrency control for calls CloudGuard
 makes to Azure, and is unrelated.
 
 Four endpoints are reachable with no authentication and each performs real work:
@@ -202,7 +210,8 @@ before they are buffered.
 
 ### Finding 6 — No dependency scanning in CI, and 31 known advisories in the pinned set
 
-**Severity:** High · **OWASP:** A06 Vulnerable and Outdated Components · **CWE-1104** Use of Unmaintained Third Party Components
+**Severity:** High · **OWASP:** A06 Vulnerable and Outdated Components · **CWE-1104** Use of
+Unmaintained Third Party Components
 **Location:** `.github/workflows/ci.yml`, `apps/api/pyproject.toml`
 
 CI runs lint, type checks and tests. There is no `pip-audit`, no `npm audit`, no Dependabot
@@ -214,7 +223,7 @@ This was opened as a process gap and did not stay one. Running `pip-audit` again
 set returned **31 known advisories across six packages**, the most serious being **seven
 against PyJWT 2.10.1** — the library that verifies every authentication token this API
 accepts. A finding about missing scanning is ordinarily Low. A finding that the scanning was
-missing *and* that the library holding up authentication is five releases behind its
+missing _and_ that the library holding up authentication is five releases behind its
 advisories is not.
 
 | Package | Pinned | Advisories | Note |
@@ -254,7 +263,7 @@ outermost so it stamps CORS preflights and anything raised further in. The front
 equivalent is in `apps/web/vercel.json`, deliberately a different and looser policy: an
 application needs `script-src 'self'`, and Tailwind and React both write inline styles.
 
-**Finding 5 — limits.** `RequestSizeLimitMiddleware` checks `Content-Length` *and* counts
+**Finding 5 — limits.** `RequestSizeLimitMiddleware` checks `Content-Length` _and_ counts
 bytes as they arrive, because the first is a claim and a chunked request carries none.
 `RateLimitMiddleware` counts in Redis rather than per process — the API runs as more than one
 instance — with a smaller ceiling for requests carrying no `Authorization` header. Which

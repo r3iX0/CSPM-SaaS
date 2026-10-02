@@ -212,9 +212,7 @@ def test_a_sibling_listing_failing_costs_nothing() -> None:
 
 
 def test_a_bucket_with_no_default_encryption_fails() -> None:
-    context = context_from(
-        **bucket(s3_encryption=[{"Bucket": "logs", "Configuration": None}])
-    )
+    context = context_from(**bucket(s3_encryption=[{"Bucket": "logs", "Configuration": None}]))
     assert verdict(AwsBucketEncryptionRule(), context) is RuleState.FAIL
 
 
@@ -227,11 +225,7 @@ def test_a_bucket_with_default_encryption_passes() -> None:
                     "Configuration": {
                         "ServerSideEncryptionConfiguration": {
                             "Rules": [
-                                {
-                                    "ApplyServerSideEncryptionByDefault": {
-                                        "SSEAlgorithm": "aws:kms"
-                                    }
-                                }
+                                {"ApplyServerSideEncryptionByDefault": {"SSEAlgorithm": "aws:kms"}}
                             ]
                         }
                     },
@@ -248,50 +242,38 @@ def group(region: str = "eu-west-1", **permission: Any) -> dict[str, Any]:
         "security_groups": [
             {
                 "region": region,
-                "items": [
-                    {"GroupId": "sg-1", "GroupName": "web", "IpPermissions": [permission]}
-                ],
+                "items": [{"GroupId": "sg-1", "GroupName": "web", "IpPermissions": [permission]}],
             }
         ]
     }
 
 
 def test_ssh_open_to_the_world_fails() -> None:
-    context = context_from(
-        **group(FromPort=22, ToPort=22, IpRanges=[{"CidrIp": "0.0.0.0/0"}])
-    )
+    context = context_from(**group(FromPort=22, ToPort=22, IpRanges=[{"CidrIp": "0.0.0.0/0"}]))
     assert verdict(AwsPublicSshRule(), context) is RuleState.FAIL
 
 
 def test_ssh_open_to_the_world_over_ipv6_fails_too() -> None:
     """A group open to every IPv6 host on earth is open."""
-    context = context_from(
-        **group(FromPort=22, ToPort=22, Ipv6Ranges=[{"CidrIpv6": "::/0"}])
-    )
+    context = context_from(**group(FromPort=22, ToPort=22, Ipv6Ranges=[{"CidrIpv6": "::/0"}]))
     assert verdict(AwsPublicSshRule(), context) is RuleState.FAIL
 
 
 def test_a_wide_port_range_covering_ssh_fails() -> None:
-    context = context_from(
-        **group(FromPort=1, ToPort=1024, IpRanges=[{"CidrIp": "0.0.0.0/0"}])
-    )
+    context = context_from(**group(FromPort=1, ToPort=1024, IpRanges=[{"CidrIp": "0.0.0.0/0"}]))
     assert verdict(AwsPublicSshRule(), context) is RuleState.FAIL
 
 
 def test_all_protocols_open_covers_every_rule() -> None:
     """``-1`` returns no port range, which is broader than any range, not
     narrower."""
-    context = context_from(
-        **group(IpProtocol="-1", IpRanges=[{"CidrIp": "0.0.0.0/0"}])
-    )
+    context = context_from(**group(IpProtocol="-1", IpRanges=[{"CidrIp": "0.0.0.0/0"}]))
     assert verdict(AwsPublicSshRule(), context) is RuleState.FAIL
     assert verdict(AwsPublicRdpRule(), context) is RuleState.FAIL
 
 
 def test_ssh_open_to_one_range_passes() -> None:
-    context = context_from(
-        **group(FromPort=22, ToPort=22, IpRanges=[{"CidrIp": "203.0.113.0/24"}])
-    )
+    context = context_from(**group(FromPort=22, ToPort=22, IpRanges=[{"CidrIp": "203.0.113.0/24"}]))
     assert verdict(AwsPublicSshRule(), context) is RuleState.PASS
 
 
@@ -300,9 +282,7 @@ def test_an_open_group_in_front_of_nothing_scores_lower() -> None:
     today -- and the score should say so rather than treating a forgotten
     template as an open door."""
     rule = AwsPublicSshRule()
-    context = context_from(
-        **group(FromPort=22, ToPort=22, IpRanges=[{"CidrIp": "0.0.0.0/0"}])
-    )
+    context = context_from(**group(FromPort=22, ToPort=22, IpRanges=[{"CidrIp": "0.0.0.0/0"}]))
     target = next(r for r in context.resources if rule.matches(r))
     result = rule.evaluate(target, context)
 
@@ -517,9 +497,7 @@ def test_a_public_bucket_produces_an_aws_fix_and_never_an_azure_one() -> None:
     assert all(rule_id.startswith("AWS-") for rule_id in raised), raised
     assert "AWS-STO-001" in raised
 
-    fix = next(
-        r.remediation for r in RULE_REGISTRY if r.rule_id == "AWS-STO-001"
-    )
+    fix = next(r.remediation for r in RULE_REGISTRY if r.rule_id == "AWS-STO-001")
     assert "aws s3api" in fix
     assert "az storage" not in fix
 
@@ -561,9 +539,7 @@ def test_an_instance_accepting_imdsv1_fails() -> None:
         ec2_instances=[
             {
                 "region": "eu-west-1",
-                "items": [
-                    {"InstanceId": "i-1", "MetadataOptions": {"HttpTokens": "optional"}}
-                ],
+                "items": [{"InstanceId": "i-1", "MetadataOptions": {"HttpTokens": "optional"}}],
             }
         ]
     )
@@ -575,9 +551,7 @@ def test_an_instance_requiring_a_token_passes() -> None:
         ec2_instances=[
             {
                 "region": "eu-west-1",
-                "items": [
-                    {"InstanceId": "i-1", "MetadataOptions": {"HttpTokens": "required"}}
-                ],
+                "items": [{"InstanceId": "i-1", "MetadataOptions": {"HttpTokens": "required"}}],
             }
         ]
     )
@@ -613,9 +587,7 @@ def test_an_aws_managed_key_is_not_the_customer_s_to_rotate() -> None:
         kms_keys=[
             {
                 "region": "eu-west-1",
-                "items": [
-                    {"Arn": "arn:aws:kms:eu-west-1:1:key/aws", "KeyManager": "AWS"}
-                ],
+                "items": [{"Arn": "arn:aws:kms:eu-west-1:1:key/aws", "KeyManager": "AWS"}],
             }
         ]
     )
@@ -637,9 +609,7 @@ def test_a_policy_granting_everything_fails_in_either_spelling() -> None:
                     "Arn": "arn:aws:iam::1:policy/admin",
                     "PolicyName": "admin",
                     "Document": {
-                        "Statement": [
-                            {"Effect": "Allow", "Action": action, "Resource": "*"}
-                        ]
+                        "Statement": [{"Effect": "Allow", "Action": action, "Resource": "*"}]
                     },
                 }
             ],
@@ -684,9 +654,7 @@ def test_a_wildcard_grant_behind_a_condition_is_not_unbounded() -> None:
                             "Effect": "Allow",
                             "Action": "*",
                             "Resource": "*",
-                            "Condition": {
-                                "StringEquals": {"aws:PrincipalOrgID": "o-example"}
-                            },
+                            "Condition": {"StringEquals": {"aws:PrincipalOrgID": "o-example"}},
                         }
                     ]
                 },
@@ -703,11 +671,7 @@ def test_a_deny_of_everything_is_not_a_grant_of_everything() -> None:
             {
                 "Arn": "arn:aws:iam::1:policy/deny",
                 "PolicyName": "deny",
-                "Document": {
-                    "Statement": [
-                        {"Effect": "Deny", "Action": "*", "Resource": "*"}
-                    ]
-                },
+                "Document": {"Statement": [{"Effect": "Deny", "Action": "*", "Resource": "*"}]},
             }
         ],
     )
@@ -718,9 +682,7 @@ def test_a_deny_of_everything_is_not_a_grant_of_everything() -> None:
 def test_a_bucket_with_no_policy_accepts_plaintext_http() -> None:
     """AWS answers ``NoSuchBucketPolicy``, which the collector records as a null
     configuration -- and that *is* the finding, not a missing reading."""
-    context = context_from(
-        **bucket(s3_bucket_policy=[{"Bucket": "logs", "Document": None}])
-    )
+    context = context_from(**bucket(s3_bucket_policy=[{"Bucket": "logs", "Document": None}]))
     assert verdict(AwsBucketTransportRule(), context) is RuleState.FAIL
 
 
@@ -737,9 +699,7 @@ def test_a_policy_denying_insecure_transport_passes() -> None:
                                 "Principal": "*",
                                 "Action": "s3:*",
                                 "Resource": "arn:aws:s3:::logs/*",
-                                "Condition": {
-                                    "Bool": {"aws:SecureTransport": "false"}
-                                },
+                                "Condition": {"Bool": {"aws:SecureTransport": "false"}},
                             }
                         ]
                     },
@@ -777,9 +737,7 @@ def test_an_acl_admitting_ssh_from_anywhere_fails() -> None:
 def test_a_deny_entry_is_not_a_finding_whatever_it_covers() -> None:
     """The default ACL ends with a deny-all on 0.0.0.0/0. Read without this,
     every well-written ACL in AWS reports as open."""
-    context = context_from(
-        **acl(Egress=False, RuleAction="deny", CidrBlock="0.0.0.0/0")
-    )
+    context = context_from(**acl(Egress=False, RuleAction="deny", CidrBlock="0.0.0.0/0"))
     assert verdict(AwsOpenNetworkAclRule(), context) is RuleState.PASS
 
 
@@ -824,10 +782,7 @@ def test_a_named_group_is_judged_on_what_it_admits_instead() -> None:
             }
         ]
     )
-    assert (
-        verdict(AwsDefaultSecurityGroupRule(), context, "web")
-        is RuleState.NOT_APPLICABLE
-    )
+    assert verdict(AwsDefaultSecurityGroupRule(), context, "web") is RuleState.NOT_APPLICABLE
 
 
 # -------------------------------------------------------------------- logging
@@ -1014,7 +969,7 @@ def test_a_region_without_guardduty_fails() -> None:
 
 
 def test_not_knowing_the_regions_never_passes_a_coverage_rule() -> None:
-    """"No uncovered regions" is trivially true of an account nobody
+    """ "No uncovered regions" is trivially true of an account nobody
     enumerated, and would be the most misleading PASS this product could
     produce."""
     for rule in (AwsGuardDutyRule(), AwsSecurityHubRule(), AwsAccessAnalyzerRule()):
@@ -1081,9 +1036,7 @@ def monitoring(
                 "AlarmName": "a1",
                 "MetricName": metric,
                 "Namespace": "CISBenchmark",
-                "AlarmActions": (
-                    ["arn:aws:sns:eu-west-1:1:alerts"] if alarm_actions else []
-                ),
+                "AlarmActions": (["arn:aws:sns:eu-west-1:1:alerts"] if alarm_actions else []),
             }
         ]
         if alarm
@@ -1113,9 +1066,7 @@ def test_a_trail_that_never_reaches_cloudwatch_cannot_be_alarmed_on() -> None:
 
 
 def test_a_filter_that_does_not_name_the_event_is_not_this_filter() -> None:
-    context = context_from(
-        **monitoring(pattern='{ $.eventName = "ConsoleLogin" }')
-    )
+    context = context_from(**monitoring(pattern='{ $.eventName = "ConsoleLogin" }'))
     assert verdict(AwsUnauthorizedApiMonitoringRule(), context) is RuleState.FAIL
 
 
@@ -1149,10 +1100,7 @@ def test_an_alarm_in_another_region_never_meets_the_metric() -> None:
 def test_a_filter_on_a_different_log_group_is_not_on_the_trail() -> None:
     payload = monitoring()
     payload["log_metric_filters"][0]["items"][0]["logGroupName"] = "/aws/lambda/other"
-    assert (
-        verdict(AwsUnauthorizedApiMonitoringRule(), context_from(**payload))
-        is RuleState.FAIL
-    )
+    assert verdict(AwsUnauthorizedApiMonitoringRule(), context_from(**payload)) is RuleState.FAIL
 
 
 def test_the_root_rule_wants_its_own_fields() -> None:
@@ -1160,8 +1108,7 @@ def test_the_root_rule_wants_its_own_fields() -> None:
     matching refused calls says nothing about root."""
     unauthorized_only = monitoring()
     assert (
-        verdict(AwsRootUsageMonitoringRule(), context_from(**unauthorized_only))
-        is RuleState.FAIL
+        verdict(AwsRootUsageMonitoringRule(), context_from(**unauthorized_only)) is RuleState.FAIL
     )
 
     root = monitoring(pattern=ROOT_PATTERN, metric="RootAccountUsage")
@@ -1191,9 +1138,7 @@ def test_no_trail_is_the_coverage_rule_s_finding_not_these_two() -> None:
 
 
 def test_a_failed_filter_listing_degrades_rather_than_passes() -> None:
-    context = context_from(
-        gaps={"log_metric_filters": "AccessDenied"}, **monitoring()
-    )
+    context = context_from(gaps={"log_metric_filters": "AccessDenied"}, **monitoring())
     assert verdict(AwsUnauthorizedApiMonitoringRule(), context) is RuleState.UNKNOWN
 
 
@@ -1208,9 +1153,11 @@ SECTION_FOUR = [rule for rule in RULE_REGISTRY if isinstance(rule, _MonitoredEve
 
 def declared_pattern(rule) -> str:
     """The filter pattern out of the command the rule tells a customer to run."""
-    return rule.remediation_spec.cli[0].split("--filter-pattern '", 1)[1].split(
-        "' --metric-transformations", 1
-    )[0]
+    return (
+        rule.remediation_spec.cli[0]
+        .split("--filter-pattern '", 1)[1]
+        .split("' --metric-transformations", 1)[0]
+    )
 
 
 def declared_metric(rule) -> str:
@@ -1259,9 +1206,7 @@ def test_an_account_where_nobody_holds_support_access_fails() -> None:
 
 def test_a_role_holding_support_access_passes() -> None:
     context = context_from(
-        iam_support_access=[
-            {"kind": "role", "RoleName": "incident-response", "RoleId": "AROA1"}
-        ]
+        iam_support_access=[{"kind": "role", "RoleName": "incident-response", "RoleId": "AROA1"}]
     )
     assert verdict(AwsSupportRoleRule(), context) is RuleState.PASS
 
@@ -1280,16 +1225,12 @@ def test_any_kind_of_principal_counts() -> None:
 
 
 def test_the_holders_are_named_in_the_evidence() -> None:
-    """"Which role" is the first thing somebody asks, and the answer is one
+    """ "Which role" is the first thing somebody asks, and the answer is one
     field away."""
-    context = context_from(
-        iam_support_access=[{"kind": "role", "RoleName": "incident-response"}]
-    )
+    context = context_from(iam_support_access=[{"kind": "role", "RoleName": "incident-response"}])
     result = AwsSupportRoleRule().evaluate(None, context)
 
-    assert result.evidence["holders"] == [
-        {"kind": "role", "name": "incident-response"}
-    ]
+    assert result.evidence["holders"] == [{"kind": "role", "name": "incident-response"}]
 
 
 def test_a_readiness_gap_scores_as_nothing_and_is_reported_anyway() -> None:
@@ -1304,9 +1245,7 @@ def test_a_readiness_gap_scores_as_nothing_and_is_reported_anyway() -> None:
 
 
 def test_a_failed_support_listing_degrades_rather_than_fails() -> None:
-    """"We could not ask" is not "nobody holds it" -- and this is a finding
+    """ "We could not ask" is not "nobody holds it" -- and this is a finding
     somebody would go and create a role over."""
-    context = context_from(
-        gaps={"iam_support_access": "AccessDenied"}, iam_support_access=[]
-    )
+    context = context_from(gaps={"iam_support_access": "AccessDenied"}, iam_support_access=[])
     assert verdict(AwsSupportRoleRule(), context) is RuleState.UNKNOWN

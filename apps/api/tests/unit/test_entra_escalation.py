@@ -181,9 +181,7 @@ def test_a_registration_with_a_credential_is_a_way_in_and_one_without_is_not() -
 
 
 def test_an_application_administrator_can_sign_in_as_every_application() -> None:
-    graph = estate(
-        user(ADMIN, "admin", ("act_as_any_application", "Application Administrator"))
-    )
+    graph = estate(user(ADMIN, "admin", ("act_as_any_application", "Application Administrator")))
     (path,) = [p for p in graph.attack_paths() if p.entry.provider_resource_id == ADMIN]
     assert path.steps[0].relationship is RelationshipType.CAN_ACT_AS
     assert path.steps[0].facts == ("Application Administrator",)
@@ -232,9 +230,7 @@ def test_what_a_person_holds_through_the_directory() -> None:
 
 
 def test_a_hop_names_the_directory_role() -> None:
-    graph = estate(
-        user(ADMIN, "admin", ("control_all_scopes", "Privileged Role Administrator"))
-    )
+    graph = estate(user(ADMIN, "admin", ("control_all_scopes", "Privileged Role Administrator")))
     facts = edge_facts(graph.nodes[ADMIN], RelationshipType.CAN_TAKE_OVER, graph.nodes[SUB])
     assert facts == ("Privileged Role Administrator",)
 

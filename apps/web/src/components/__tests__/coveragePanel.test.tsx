@@ -33,9 +33,7 @@ describe("collection failures", () => {
   it("never cuts a provider message in half on a semicolon of its own", () => {
     // Azure's text carries its own punctuation, and a reader searching for the
     // error they were given must find the whole of it.
-    const causes = groupCauses(
-      "users: Access denied; the tenant did not grant Directory.Read.All",
-    );
+    const causes = groupCauses("users: Access denied; the tenant did not grant Directory.Read.All");
 
     expect(causes).toHaveLength(1);
     expect(causes[0].message).toContain("did not grant Directory.Read.All");
@@ -56,9 +54,7 @@ describe("collection failures", () => {
 
     expect(screen.getByText("1 category could not be collected")).toBeInTheDocument();
     // The provider's own words are kept, not paraphrased — just not all at once.
-    expect(
-      screen.getByRole("button", { name: "Show the whole message" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show the whole message" })).toBeInTheDocument();
     expect(screen.getByText(/Access denied/)).toBeInTheDocument();
   });
 });

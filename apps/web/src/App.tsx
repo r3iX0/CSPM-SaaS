@@ -21,23 +21,17 @@ import { Spinner } from "@/components/ui/spinner";
  * Named exports, so each of these unwraps the one it wants -- `lazy` resolves a
  * module's `default` and nothing here has one.
  */
-const SignInPage = lazy(() =>
-  import("@/pages/SignIn").then((m) => ({ default: m.SignInPage })),
-);
+const SignInPage = lazy(() => import("@/pages/SignIn").then((m) => ({ default: m.SignInPage })));
 const ResetPasswordPage = lazy(() =>
   import("@/pages/ResetPassword").then((m) => ({
     default: m.ResetPasswordPage,
   })),
 );
-const InvitePage = lazy(() =>
-  import("@/pages/Invite").then((m) => ({ default: m.InvitePage })),
-);
+const InvitePage = lazy(() => import("@/pages/Invite").then((m) => ({ default: m.InvitePage })));
 const OnboardingPage = lazy(() =>
   import("@/pages/Onboarding").then((m) => ({ default: m.OnboardingPage })),
 );
-const ConnectPage = lazy(() =>
-  import("@/pages/Connect").then((m) => ({ default: m.ConnectPage })),
-);
+const ConnectPage = lazy(() => import("@/pages/Connect").then((m) => ({ default: m.ConnectPage })));
 const ConnectionSetupPage = lazy(() =>
   import("@/pages/ConnectionSetup").then((m) => ({
     default: m.ConnectionSetupPage,
@@ -46,18 +40,12 @@ const ConnectionSetupPage = lazy(() =>
 const DashboardPage = lazy(() =>
   import("@/pages/Dashboard").then((m) => ({ default: m.DashboardPage })),
 );
-const ChangesPage = lazy(() =>
-  import("@/pages/Changes").then((m) => ({ default: m.ChangesPage })),
-);
-const ReportsPage = lazy(() =>
-  import("@/pages/Reports").then((m) => ({ default: m.ReportsPage })),
-);
+const ChangesPage = lazy(() => import("@/pages/Changes").then((m) => ({ default: m.ChangesPage })));
+const ReportsPage = lazy(() => import("@/pages/Reports").then((m) => ({ default: m.ReportsPage })));
 const SettingsPage = lazy(() =>
   import("@/pages/Settings").then((m) => ({ default: m.SettingsPage })),
 );
-const AssetsPage = lazy(() =>
-  import("@/pages/Assets").then((m) => ({ default: m.AssetsPage })),
-);
+const AssetsPage = lazy(() => import("@/pages/Assets").then((m) => ({ default: m.AssetsPage })));
 const AssetDetailPage = lazy(() =>
   import("@/pages/AssetDetail").then((m) => ({ default: m.AssetDetailPage })),
 );
@@ -69,21 +57,15 @@ const FindingDetailPage = lazy(() =>
     default: m.FindingDetailPage,
   })),
 );
-const RisksPage = lazy(() =>
-  import("@/pages/Risks").then((m) => ({ default: m.RisksPage })),
-);
+const RisksPage = lazy(() => import("@/pages/Risks").then((m) => ({ default: m.RisksPage })));
 const RiskDetailPage = lazy(() =>
   import("@/pages/RiskDetail").then((m) => ({ default: m.RiskDetailPage })),
 );
 const AttackPathsPage = lazy(() =>
   import("@/pages/AttackPaths").then((m) => ({ default: m.AttackPathsPage })),
 );
-const ScansPage = lazy(() =>
-  import("@/pages/Scans").then((m) => ({ default: m.ScansPage })),
-);
-const RulesPage = lazy(() =>
-  import("@/pages/Rules").then((m) => ({ default: m.RulesPage })),
-);
+const ScansPage = lazy(() => import("@/pages/Scans").then((m) => ({ default: m.ScansPage })));
+const RulesPage = lazy(() => import("@/pages/Rules").then((m) => ({ default: m.RulesPage })));
 const CompliancePage = lazy(() =>
   import("@/pages/Compliance").then((m) => ({ default: m.CompliancePage })),
 );
@@ -133,63 +115,57 @@ export function App() {
     // Shell stays mounted across a navigation, so what a reader actually sees
     // is the chrome they already had plus a spinner where the page will be.
     <DocumentTitle>
-    <Suspense fallback={<PageLoading />}>
-      <Routes>
-        <Route path="/sign-in" element={<SignInPage />} />
-        {/* Not behind RequireAuth: a recovery link carries its own session, and
+      <Suspense fallback={<PageLoading />}>
+        <Routes>
+          <Route path="/sign-in" element={<SignInPage />} />
+          {/* Not behind RequireAuth: a recovery link carries its own session, and
           an expired one needs to say so rather than bounce to sign-in. */}
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
-        {/* Not behind RequireAuth either: whoever opens an invitation may not
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          {/* Not behind RequireAuth either: whoever opens an invitation may not
             have an account yet, and the page holds the link while they make one. */}
-        <Route path="/invite" element={<InvitePage />} />
-        <Route
-          path="/onboarding"
-          element={
-            <RequireAuth>
-              <OnboardingPage />
-            </RequireAuth>
-          }
-        />
-        <Route
-          element={
-            <RequireAuth>
-              <Shell />
-            </RequireAuth>
-          }
-        >
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/changes" element={<ChangesPage />} />
-          <Route path="/reports" element={<ReportsPage />} />
-          <Route path="/assets" element={<AssetsPage />} />
-          <Route path="/assets/:assetId" element={<AssetDetailPage />} />
-          <Route path="/findings" element={<FindingsPage />} />
-          <Route path="/findings/:findingId" element={<FindingDetailPage />} />
-          <Route path="/risks" element={<RisksPage />} />
-          <Route path="/risks/:riskId" element={<RiskDetailPage />} />
-          <Route path="/attack-paths" element={<AttackPathsPage />} />
-          <Route path="/remediation" element={<RemediationPage />} />
-          <Route path="/scans" element={<ScansPage />} />
-          <Route path="/rules" element={<RulesPage />} />
-          <Route path="/compliance" element={<CompliancePage />} />
+          <Route path="/invite" element={<InvitePage />} />
           <Route
-            path="/compliance/:frameworkId"
-            element={<ComplianceFrameworkPage />}
+            path="/onboarding"
+            element={
+              <RequireAuth>
+                <OnboardingPage />
+              </RequireAuth>
+            }
           />
-          <Route path="/connections" element={<ConnectPage />} />
-          {/* The wizard has its own URLs because setup leaves the browser for
+          <Route
+            element={
+              <RequireAuth>
+                <Shell />
+              </RequireAuth>
+            }
+          >
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/changes" element={<ChangesPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/assets" element={<AssetsPage />} />
+            <Route path="/assets/:assetId" element={<AssetDetailPage />} />
+            <Route path="/findings" element={<FindingsPage />} />
+            <Route path="/findings/:findingId" element={<FindingDetailPage />} />
+            <Route path="/risks" element={<RisksPage />} />
+            <Route path="/risks/:riskId" element={<RiskDetailPage />} />
+            <Route path="/attack-paths" element={<AttackPathsPage />} />
+            <Route path="/remediation" element={<RemediationPage />} />
+            <Route path="/scans" element={<ScansPage />} />
+            <Route path="/rules" element={<RulesPage />} />
+            <Route path="/compliance" element={<CompliancePage />} />
+            <Route path="/compliance/:frameworkId" element={<ComplianceFrameworkPage />} />
+            <Route path="/connections" element={<ConnectPage />} />
+            {/* The wizard has its own URLs because setup leaves the browser for
               Microsoft and for Azure Portal and comes back through a full page
               load. A dialog over the list could not survive either trip. */}
-          <Route path="/connections/new" element={<ConnectionSetupPage />} />
-          <Route
-            path="/connections/:connectionId/setup"
-            element={<ConnectionSetupPage />}
-          />
-          <Route path="/settings" element={<SettingsPage />} />
-        </Route>
+            <Route path="/connections/new" element={<ConnectionSetupPage />} />
+            <Route path="/connections/:connectionId/setup" element={<ConnectionSetupPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+          </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Suspense>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
     </DocumentTitle>
   );
 }

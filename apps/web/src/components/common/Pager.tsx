@@ -165,12 +165,7 @@ export function StepPager({
           </Button>
         </PaginationItem>
         <PaginationItem>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={!hasMore}
-            onClick={() => onPage(page + 1)}
-          >
+          <Button variant="outline" size="sm" disabled={!hasMore} onClick={() => onPage(page + 1)}>
             Next
             <ChevronRightIcon data-icon="inline-end" />
           </Button>

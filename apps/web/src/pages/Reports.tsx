@@ -7,13 +7,7 @@ import { openBlob, saveBlob } from "@/lib/download";
 import { useT } from "@/i18n";
 import { ErrorState, PageHeader } from "@/components/common/states";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SelectField } from "@/components/common/SelectField";
 import { Spinner } from "@/components/ui/spinner";
@@ -28,13 +22,13 @@ type Kind = "executive" | "technical";
  * let somebody produce a cleaner-looking document by unticking a box. What is
  * optional is detail, never the terms the numbers are read on.
  */
-type Section = {
+interface Section {
   id: string;
   label: string;
   detail: string;
   /** Only meaningful in the technical report, which is the one that lists them. */
   technicalOnly?: boolean;
-};
+}
 
 const SECTIONS: Section[] = [
   {
@@ -96,9 +90,7 @@ export function ReportsPage() {
    */
   function query(kind: Kind, format: "pdf" | "html"): string {
     const applicable = chosen.filter(
-      (id) =>
-        kind === "technical" ||
-        !SECTIONS.find((section) => section.id === id)?.technicalOnly,
+      (id) => kind === "technical" || !SECTIONS.find((section) => section.id === id)?.technicalOnly,
     );
     const params = new URLSearchParams();
     params.set("format", format);
@@ -167,10 +159,7 @@ export function ReportsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader
-        title={t.reports.title}
-        description={t.reports.intro}
-      />
+      <PageHeader title={t.reports.title} description={t.reports.intro} />
 
       {failure && (
         <ErrorState
@@ -207,10 +196,9 @@ export function ReportsPage() {
         <CardHeader>
           <CardTitle>What to include</CardTitle>
           <CardDescription className="max-w-[84ch] text-meta leading-relaxed">
-            Every report carries the posture, the evidence's age, and what
-            couldn't be read — the terms the numbers are read on, so they're not
-            optional. Anything unticked is named on the cover as excluded, not
-            silently dropped.
+            Every report carries the posture, the evidence's age, and what couldn't be read — the
+            terms the numbers are read on, so they're not optional. Anything unticked is named on
+            the cover as excluded, not silently dropped.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-5">
@@ -229,9 +217,8 @@ export function ReportsPage() {
               />
             </div>
             <p className="max-w-xl text-xs leading-relaxed text-muted-foreground">
-              Sets how far back verified fixes, completed work and the trend line
-              reach. It does not filter the posture: a score is a reading of now,
-              not a thing that has a date range.
+              Sets how far back verified fixes, completed work and the trend line reach. It does not
+              filter the posture: a score is a reading of now, not a thing that has a date range.
             </p>
           </div>
 
@@ -245,7 +232,7 @@ export function ReportsPage() {
                   className="mt-0.5"
                   aria-labelledby={`section-${section.id}-label`}
                   checked={chosen.includes(section.id)}
-                  onCheckedChange={(value) => toggle(section.id, value === true)}
+                  onCheckedChange={(value) => toggle(section.id, value)}
                 />
                 <div>
                   <span
@@ -261,7 +248,6 @@ export function ReportsPage() {
               </li>
             ))}
           </ul>
-
         </CardContent>
       </Card>
     </div>

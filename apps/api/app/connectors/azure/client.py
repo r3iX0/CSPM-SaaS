@@ -24,9 +24,7 @@ log = get_logger(__name__)
 
 ARM_BASE = "https://management.azure.com"
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
-RESOURCE_GRAPH_QUERY_URL = (
-    "/providers/Microsoft.ResourceGraph/resources?api-version=2022-10-01"
-)
+RESOURCE_GRAPH_QUERY_URL = "/providers/Microsoft.ResourceGraph/resources?api-version=2022-10-01"
 
 DEFAULT_TIMEOUT = httpx.Timeout(30.0, connect=10.0)
 
@@ -304,8 +302,7 @@ class _BaseClient:
             )
         if response.status_code == 403:
             raise AzureApiError(
-                f"Access denied. {self.access_denied_hint}"
-                f"{self._reported_detail(response)}",
+                f"Access denied. {self.access_denied_hint}{self._reported_detail(response)}",
                 status_code=403,
             )
         if response.status_code == 429:
@@ -452,9 +449,7 @@ class _BaseClient:
             # fine" that the four rule states exist to prevent, one layer below
             # where the doctrine is enforced.
             self.truncated.add(url)
-            log.warning(
-                "azure.pagination_truncated", url=url, pages=pages, items=len(items)
-            )
+            log.warning("azure.pagination_truncated", url=url, pages=pages, items=len(items))
         return items
 
 
@@ -538,13 +533,9 @@ class ArmClient(_BaseClient):
         directly: ``auditingSettings/default`` is the one that applies, and
         paging a collection to find it would be pretending there is a choice.
         """
-        return await self.get(
-            f"{server_id}/auditingSettings/default?api-version=2021-11-01"
-        )
+        return await self.get(f"{server_id}/auditingSettings/default?api-version=2021-11-01")
 
-    async def list_security_assessments(
-        self, subscription_id: str
-    ) -> list[dict[str, Any]]:
+    async def list_security_assessments(self, subscription_id: str) -> list[dict[str, Any]]:
         """What Defender for Cloud has already concluded about this subscription.
 
         One listing for every assessed resource, rather than a call per
@@ -578,9 +569,7 @@ class ArmClient(_BaseClient):
         the collection endpoint rather than a singleton: the API models
         transparent data encryption as a child resource named ``current``.
         """
-        return await self.get(
-            f"{database_id}/transparentDataEncryption?api-version=2021-11-01"
-        )
+        return await self.get(f"{database_id}/transparentDataEncryption?api-version=2021-11-01")
 
     async def list_key_vaults(self, subscription_id: str) -> list[dict[str, Any]]:
         """Every key vault's configuration, not its contents.
@@ -633,9 +622,7 @@ class ArmClient(_BaseClient):
             "/flexibleServers?api-version=2023-12-30"
         )
 
-    async def list_databricks_workspaces(
-        self, subscription_id: str
-    ) -> list[dict[str, Any]]:
+    async def list_databricks_workspaces(self, subscription_id: str) -> list[dict[str, Any]]:
         return await self.get_all(
             f"/subscriptions/{subscription_id}/providers/Microsoft.Databricks"
             "/workspaces?api-version=2024-05-01"
@@ -672,9 +659,7 @@ class ArmClient(_BaseClient):
 
     async def get_postgresql_parameter(self, server_id: str, name: str) -> dict[str, Any]:
         """One PostgreSQL server parameter by name (DECISIONS.md section 175)."""
-        return await self.get(
-            f"{server_id}/configurations/{name}?api-version=2023-03-01-preview"
-        )
+        return await self.get(f"{server_id}/configurations/{name}?api-version=2023-03-01-preview")
 
     async def get_postgresql_secure_transport(self, server_id: str) -> dict[str, Any]:
         """Whether this PostgreSQL server refuses connections without TLS.
@@ -684,8 +669,7 @@ class ArmClient(_BaseClient):
         a rule reads.
         """
         return await self.get(
-            f"{server_id}/configurations/require_secure_transport"
-            "?api-version=2023-03-01-preview"
+            f"{server_id}/configurations/require_secure_transport?api-version=2023-03-01-preview"
         )
 
     async def list_sql_administrators(self, server_id: str) -> list[dict[str, Any]]:
@@ -713,8 +697,7 @@ class ArmClient(_BaseClient):
         (:meth:`get_app_service_config`).
         """
         return await self.get_all(
-            f"/subscriptions/{subscription_id}/providers/Microsoft.Web"
-            "/sites?api-version=2022-09-01"
+            f"/subscriptions/{subscription_id}/providers/Microsoft.Web/sites?api-version=2022-09-01"
         )
 
     async def get_app_service_config(self, site_id: str) -> dict[str, Any]:
@@ -736,17 +719,13 @@ class ArmClient(_BaseClient):
     async def get_sql_threat_detection(self, server_id: str) -> dict[str, Any]:
         """Whether Defender for SQL watches this server, set on the server
         itself. ``Default`` is the only policy a server holds."""
-        return await self.get(
-            f"{server_id}/securityAlertPolicies/Default?api-version=2021-11-01"
-        )
+        return await self.get(f"{server_id}/securityAlertPolicies/Default?api-version=2021-11-01")
 
     async def get_sql_encryption_protector(self, server_id: str) -> dict[str, Any]:
         """Which key protects the server's transparent data encryption: the
         service's own, or one in the customer's vault. ``current`` is the only
         protector a server holds."""
-        return await self.get(
-            f"{server_id}/encryptionProtector/current?api-version=2021-11-01"
-        )
+        return await self.get(f"{server_id}/encryptionProtector/current?api-version=2021-11-01")
 
     async def get_sql_vulnerability_assessment(self, server_id: str) -> dict[str, Any]:
         """The classic, storage-backed vulnerability assessment. The storage
@@ -800,9 +779,7 @@ class ArmClient(_BaseClient):
             "/settings?api-version=2022-05-01"
         )
 
-    async def list_iot_security_solutions(
-        self, subscription_id: str
-    ) -> list[dict[str, Any]]:
+    async def list_iot_security_solutions(self, subscription_id: str) -> list[dict[str, Any]]:
         """Defender for IoT solutions and the IoT hubs each one watches."""
         return await self.get_all(
             f"/subscriptions/{subscription_id}/providers/Microsoft.Security"
@@ -1233,13 +1210,9 @@ class GraphClient(_BaseClient):
         An owner can add a credential to the registration and sign in as its
         service principal, so an owner holds whatever that principal holds.
         """
-        return await self.get_all(
-            f"/applications/{application_id}/owners?$select=id&$top=999"
-        )
+        return await self.get_all(f"/applications/{application_id}/owners?$select=id&$top=999")
 
-    async def list_service_principals_by_app_id(
-        self, app_ids: list[str]
-    ) -> list[dict[str, Any]]:
+    async def list_service_principals_by_app_id(self, app_ids: list[str]) -> list[dict[str, Any]]:
         """The service principals of up to fifteen application registrations.
 
         A role assignment names a service principal by its object id; an

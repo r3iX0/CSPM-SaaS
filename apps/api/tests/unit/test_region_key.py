@@ -29,7 +29,5 @@ def test_a_region_has_one_spelling(value: str | None, expected: str | None) -> N
 
 
 def test_the_sql_spelling_folds_global_and_empty_into_null() -> None:
-    sql = str(
-        REGION.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True})
-    )
+    sql = str(REGION.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}))
     assert sql == "nullif(nullif(lower(replace(cloud_resources.region, ' ', '')), 'global'), '')"

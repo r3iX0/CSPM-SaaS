@@ -107,9 +107,7 @@ describe("the findings list", () => {
 
     // Filtering in the browser would search 50 of 120 findings and report
     // "no findings match" for the other 70.
-    await waitFor(() =>
-      expect(requested.some((url) => url.includes("search=payroll"))).toBe(true),
-    );
+    await waitFor(() => expect(requested.some((url) => url.includes("search=payroll"))).toBe(true));
   });
 
   it("debounces, so typing a word is one request and not six", async () => {
@@ -121,9 +119,7 @@ describe("the findings list", () => {
       fireEvent.change(screen.getByLabelText("Search findings"), { target: { value } });
     }
     await vi.advanceTimersByTimeAsync(300);
-    await waitFor(() =>
-      expect(requested.some((url) => url.includes("search=payroll"))).toBe(true),
-    );
+    await waitFor(() => expect(requested.some((url) => url.includes("search=payroll"))).toBe(true));
 
     expect(requested.length - before).toBe(1);
   });
@@ -213,9 +209,7 @@ describe("the findings list", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Verified fixed" }));
 
-    await waitFor(() =>
-      expect(requested[requested.length - 1]).toContain("status=RESOLVED"),
-    );
+    await waitFor(() => expect(requested[requested.length - 1]).toContain("status=RESOLVED"));
     expect(screen.getByRole("button", { name: "Verified fixed" })).toHaveAttribute(
       "aria-pressed",
       "true",
@@ -232,7 +226,9 @@ describe("the findings list", () => {
     const critical = await screen.findByText("Critical", { selector: "dt" });
     expect(critical.nextElementSibling).toHaveTextContent("6");
     expect(critical.nextElementSibling?.className).toContain("text-critical");
-    expect(screen.getByText("No verdict", { selector: "dt" }).nextElementSibling).toHaveTextContent("1");
+    expect(screen.getByText("No verdict", { selector: "dt" }).nextElementSibling).toHaveTextContent(
+      "1",
+    );
   });
 
   it("narrows the list from a severity count, and lets go on a second press", async () => {
@@ -244,15 +240,11 @@ describe("the findings list", () => {
 
     const critical = await screen.findByRole("button", { name: "Show only critical findings" });
     fireEvent.click(critical);
-    await waitFor(() =>
-      expect(requested[requested.length - 1]).toContain("severity=CRITICAL"),
-    );
+    await waitFor(() => expect(requested[requested.length - 1]).toContain("severity=CRITICAL"));
     expect(critical).toHaveAttribute("aria-pressed", "true");
 
     fireEvent.click(critical);
-    await waitFor(() =>
-      expect(requested[requested.length - 1]).not.toContain("severity="),
-    );
+    await waitFor(() => expect(requested[requested.length - 1]).not.toContain("severity="));
     expect(critical).toHaveAttribute("aria-pressed", "false");
     // A count of checks is not a slice of this list, so it is not a toggle.
     expect(screen.queryByRole("button", { name: /no verdict/i })).not.toBeInTheDocument();

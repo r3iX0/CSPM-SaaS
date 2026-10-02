@@ -13,10 +13,10 @@ export function ConfigError({ problems }: { problems: ConfigProblem[] }) {
           Cleave is deployed but not configured
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          The build is missing environment variables it needs to reach the API. Set these
-          in your hosting provider (Vercel: Project Settings → Environment Variables),
-          then <strong>redeploy</strong> — Vite reads these at build time, so changing
-          them does not take effect until the next build.
+          The build is missing environment variables it needs to reach the API. Set these in your
+          hosting provider (Vercel: Project Settings → Environment Variables), then{" "}
+          <strong>redeploy</strong> — Vite reads these at build time, so changing them does not take
+          effect until the next build.
         </p>
 
         <ul className="mt-5 space-y-4">

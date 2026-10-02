@@ -33,9 +33,7 @@ def crosswalk() -> dict[str, dict[str, list[str]]]:
     }
 
 
-def compliance_mappings_for(
-    rule_id: str, own: Mapping[str, Sequence[str]]
-) -> dict[str, list[str]]:
+def compliance_mappings_for(rule_id: str, own: Mapping[str, Sequence[str]]) -> dict[str, list[str]]:
     """A rule's mappings as the compliance view should see them.
 
     Its own, plus what the crosswalk gives it for the frameworks it does not

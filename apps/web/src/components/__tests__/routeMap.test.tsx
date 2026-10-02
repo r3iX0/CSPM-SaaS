@@ -53,19 +53,8 @@ const edge = (source: string, target: string) => ({
 const MAP: RouteMap = {
   // Deliberately out of order, so the answer cannot come from the sequence the
   // API happened to send.
-  nodes: [
-    node("mi-b", 1),
-    node("web", 0),
-    node("mi-a", 1),
-    node("data", 2),
-    node("api", 0),
-  ],
-  edges: [
-    edge("web", "mi-a"),
-    edge("api", "mi-b"),
-    edge("mi-a", "data"),
-    edge("mi-b", "data"),
-  ],
+  nodes: [node("mi-b", 1), node("web", 0), node("mi-a", 1), node("data", 2), node("api", 0)],
+  edges: [edge("web", "mi-a"), edge("api", "mi-b"), edge("mi-a", "data"), edge("mi-b", "data")],
   routes: [],
   patterns: [],
   loose: [],
@@ -123,8 +112,9 @@ describe("the route map's labels", () => {
     });
     // What is being read speaks for the pair when it is the other line.
     expect(
-      pairSpeakers([grant, role], (each) => [each.relationship === "can_grant_roles" ? 1 : 0])
-        .get("admin|sub")?.key,
+      pairSpeakers([grant, role], (each) => [each.relationship === "can_grant_roles" ? 1 : 0]).get(
+        "admin|sub",
+      )?.key,
     ).toBe("admin|can_grant_roles|sub");
   });
 

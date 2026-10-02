@@ -76,14 +76,10 @@ class TestDatabaseAuditing:
     def test_auditing_on_with_nowhere_to_write_fails_differently(self) -> None:
         """The setting people believe they have. Reported apart from 'off'
         because the fix is a destination, not a switch."""
-        result = RULE.evaluate(
-            server(auditing()), RuleContext(resources=[server(auditing())])
-        )
+        result = RULE.evaluate(server(auditing()), RuleContext(resources=[server(auditing())]))
 
         assert result.state == RuleState.FAIL
-        assert result.evidence["problems"] == [
-            "Auditing is enabled but has no destination"
-        ]
+        assert result.evidence["problems"] == ["Auditing is enabled but has no destination"]
         assert "writes nowhere" in (result.message or "")
 
     def test_settings_that_could_not_be_read_are_unknown(self) -> None:
@@ -185,7 +181,4 @@ class TestTheKeysAreSeparate:
         )
 
         assert RULE.evaluate(sql, context).state == RuleState.UNKNOWN
-        assert (
-            AzurePublicDatabaseRule().evaluate(sql, context).state == RuleState.FAIL
-        )
-
+        assert AzurePublicDatabaseRule().evaluate(sql, context).state == RuleState.FAIL

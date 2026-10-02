@@ -113,10 +113,7 @@ async def test_the_services_own_truncation_flag_is_believed() -> None:
 async def test_the_page_cap_stops_the_walk_and_records_the_gap() -> None:
     """A query that keeps offering another page must degrade one category, not
     hold the scan open."""
-    endless = [
-        {"data": rows(f"/{n}"), "totalRecords": 99, "$skipToken": "more"}
-        for n in range(5)
-    ]
+    endless = [{"data": rows(f"/{n}"), "totalRecords": 99, "$skipToken": "more"} for n in range(5)]
     found, client = await collect(*endless, max_pages=3)
 
     assert len(found) == 3
@@ -144,9 +141,7 @@ async def test_a_denied_query_names_the_role_not_consent() -> None:
 
 
 # ------------------------------------------------------- validating a connection
-def azure_where_resource_graph(
-    *, denied: bool = False, record: list[dict] | None = None
-):
+def azure_where_resource_graph(*, denied: bool = False, record: list[dict] | None = None):
     """An Azure where everything works except, optionally, Resource Graph."""
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -157,9 +152,7 @@ def azure_where_resource_graph(
                 import json
 
                 record.append(json.loads(request.content))
-            return httpx.Response(
-                200, json={"data": [{"id": "/x"}], "totalRecords": 1, "count": 1}
-            )
+            return httpx.Response(200, json={"data": [{"id": "/x"}], "totalRecords": 1, "count": 1})
         if request.url.host.startswith("graph"):
             return httpx.Response(200, json={"value": []})
         if request.url.path == "/subscriptions":
@@ -185,9 +178,7 @@ async def validate(
             return "graph"
 
     monkeypatch.setattr("app.connectors.azure.connector.TokenProvider", Tokens)
-    monkeypatch.setattr(
-        "app.connectors.azure.connector.missing_permissions", lambda token: ()
-    )
+    monkeypatch.setattr("app.connectors.azure.connector.missing_permissions", lambda token: ())
     connector = AzureConnector(
         tenant_id="t",
         subscription_id="sub-1",

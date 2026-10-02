@@ -118,9 +118,7 @@ class AwsPublicBucketRule(SecurityRule):
         if policy_is_public:
             problems.append("The bucket policy grants access to a wildcard principal")
         if blocked is False:
-            problems.append(
-                "The bucket does not block public access on all four settings"
-            )
+            problems.append("The bucket does not block public access on all four settings")
 
         evidence = {
             "public_access_blocked": blocked,
@@ -172,9 +170,9 @@ class AwsBucketEncryptionRule(SecurityRule):
         "Set default encryption on the bucket.\n\n"
         "AWS CLI:\n"
         "  aws s3api put-bucket-encryption --bucket <bucket> \\\n"
-        "    --server-side-encryption-configuration '{\"Rules\":[{"
+        '    --server-side-encryption-configuration \'{"Rules":[{'
         '"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"aws:kms"},'
-        "\"BucketKeyEnabled\":true}]}'\n\n"
+        '"BucketKeyEnabled":true}]}\'\n\n'
         "SSE-S3 (`AES256`) is the zero-effort option; a customer-managed KMS key adds "
         "an access-control boundary of its own and is worth it for anything sensitive."
     )
@@ -184,9 +182,7 @@ class AwsBucketEncryptionRule(SecurityRule):
                 field="default_encryption_enabled",
                 equals=True,
                 describes="The bucket applies server-side encryption by default",
-                terraform_attribute=(
-                    "aws_s3_bucket_server_side_encryption_configuration"
-                ),
+                terraform_attribute=("aws_s3_bucket_server_side_encryption_configuration"),
             ),
         ),
         cli=(
@@ -282,17 +278,11 @@ class AwsBucketTransportRule(SecurityRule):
             ExpectedState(
                 field="policy_denies_insecure_transport",
                 equals=True,
-                describes=(
-                    "The bucket policy denies requests where "
-                    "aws:SecureTransport is false"
-                ),
+                describes=("The bucket policy denies requests where aws:SecureTransport is false"),
                 terraform_attribute="aws_s3_bucket_policy.policy",
             ),
         ),
-        cli=(
-            "aws s3api put-bucket-policy --bucket <bucket> "
-            "--policy file://policy.json",
-        ),
+        cli=("aws s3api put-bucket-policy --bucket <bucket> --policy file://policy.json",),
         notes=(
             "The deny needs both ARNs -- the bucket and its objects -- or "
             "operations on the bucket itself stay reachable over HTTP."

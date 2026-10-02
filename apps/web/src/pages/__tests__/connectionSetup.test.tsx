@@ -54,10 +54,7 @@ function mount(value: CloudConnection | null, path = "/connections/c1/setup") {
       <MemoryRouter initialEntries={[path]}>
         <Routes>
           <Route path="/connections/new" element={<ConnectionSetupPage />} />
-          <Route
-            path="/connections/:connectionId/setup"
-            element={<ConnectionSetupPage />}
-          />
+          <Route path="/connections/:connectionId/setup" element={<ConnectionSetupPage />} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -78,22 +75,29 @@ describe("the connection wizard", () => {
   it("tells a customer a cloud is unavailable, and keeps the variables for the operator", async () => {
     // "Set AWS_ACCESS_KEY_ID" read as an instruction to whoever was
     // connecting (DECISIONS.md §186).
-    vi.spyOn(api, "get").mockImplementation(async (path: string) =>
-      ({
-        data: path.endsWith("/providers")
-          ? [
-              { id: "azure", name: "Microsoft Azure", available: true, unavailable_reason: null, operator_detail: null },
-              {
-                id: "aws",
-                name: "Amazon Web Services",
-                available: false,
-                unavailable_reason: "Coming soon. Cleave does not connect AWS accounts yet.",
-                operator_detail: "Set AWS_ACCESS_KEY_ID.",
-              },
-            ]
-          : null,
-        meta: {},
-      }) as never,
+    vi.spyOn(api, "get").mockImplementation(
+      async (path: string) =>
+        ({
+          data: path.endsWith("/providers")
+            ? [
+                {
+                  id: "azure",
+                  name: "Microsoft Azure",
+                  available: true,
+                  unavailable_reason: null,
+                  operator_detail: null,
+                },
+                {
+                  id: "aws",
+                  name: "Amazon Web Services",
+                  available: false,
+                  unavailable_reason: "Coming soon. Cleave does not connect AWS accounts yet.",
+                  operator_detail: "Set AWS_ACCESS_KEY_ID.",
+                },
+              ]
+            : null,
+          meta: {},
+        }) as never,
     );
     mount(null, "/connections/new");
 
@@ -120,9 +124,9 @@ describe("the connection wizard", () => {
 
     // The link, and the sentence that explains what is being approved: a bare
     // URL in a chat window is the request an administrator should refuse.
-    expect(
-      screen.getByText(/approve read-only access for Cleave/i),
-    ).toHaveTextContent("https://login.microsoftonline.com/consent");
+    expect(screen.getByText(/approve read-only access for Cleave/i)).toHaveTextContent(
+      "https://login.microsoftonline.com/consent",
+    );
     expect(screen.getByRole("button", { name: /copy the message/i })).toBeInTheDocument();
   });
 
@@ -145,7 +149,7 @@ describe("the connection wizard", () => {
         template_url: "https://portal.azure.com/#create/template",
         deploy_stalled: true,
         status_detail: "No read access has appeared since the consent was granted.",
-      } as Partial<CloudConnection>),
+      }),
     );
 
     expect(await screen.findByText(/has not propagated yet/i)).toBeInTheDocument();

@@ -60,7 +60,9 @@ class AzureKeyVaultDeletionRule(SecurityRule):
                 equals=True,
                 describes="Deleted vaults and secrets are recoverable",
                 arm_alias="Microsoft.KeyVault/vaults/enableSoftDelete",
-                terraform_attribute="soft_delete_retention_days",
+                # No Terraform argument: azurerm cannot turn soft delete off, so
+                # there is none to turn it on. ``soft_delete_retention_days``
+                # is a number of days, not this switch.
             ),
             ExpectedState(
                 field="purge_protection",
@@ -80,6 +82,7 @@ class AzureKeyVaultDeletionRule(SecurityRule):
         # everything it holds is destroyable, and no deployment needs that
         # window.
         policy_effect="Deny",
+        terraform_resource_types=("azurerm_key_vault",),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["8.5"],
@@ -105,9 +108,7 @@ class AzureKeyVaultDeletionRule(SecurityRule):
         purge_protection = resource.get("purge_protection")
 
         if soft_delete is None and purge_protection is None:
-            return RuleResult.unknown(
-                "Key vault recovery configuration missing from snapshot"
-            )
+            return RuleResult.unknown("Key vault recovery configuration missing from snapshot")
 
         problems = []
         if soft_delete is False:
@@ -191,8 +192,7 @@ class AzureKeyVaultNetworkRule(SecurityRule):
         cli=(
             "az keyvault network-rule add --name <vault> --resource-group <rg> "
             "--vnet-name <vnet> --subnet <subnet>",
-            "az keyvault update --name <vault> --resource-group <rg> "
-            "--default-action Deny",
+            "az keyvault update --name <vault> --resource-group <rg> --default-action Deny",
         ),
         policy_resource_type="Microsoft.KeyVault/vaults",
         # Audit rather than Deny. A vault is often created before the network
@@ -201,6 +201,7 @@ class AzureKeyVaultNetworkRule(SecurityRule):
         # there, the unsafe setting is anonymous read, and here it is the
         # absence of a network boundary that may genuinely arrive a step later.
         policy_effect="Audit",
+        terraform_resource_types=("azurerm_key_vault",),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.20", "A.8.24"],
@@ -225,17 +226,13 @@ class AzureKeyVaultNetworkRule(SecurityRule):
         public_access = resource.get("public_network_access")
 
         if default_action is None and public_access is None:
-            return RuleResult.unknown(
-                "Key vault network configuration missing from snapshot"
-            )
+            return RuleResult.unknown("Key vault network configuration missing from snapshot")
 
         evidence = {
             "network_default_action": default_action,
             "public_network_access": public_access,
             "ip_rule_count": len(resource.get("ip_rules", []) or []),
-            "virtual_network_rule_count": len(
-                resource.get("virtual_network_rules", []) or []
-            ),
+            "virtual_network_rule_count": len(resource.get("virtual_network_rules", []) or []),
             "rbac_authorization": resource.get("rbac_authorization"),
         }
 

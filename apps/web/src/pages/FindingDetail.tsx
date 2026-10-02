@@ -17,22 +17,18 @@ import { InfoTip } from "@/components/common/InfoTip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusPill } from "@/components/security/StatusPill";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
-import { Breadcrumbs, DetailSkeleton, ErrorState, PAGE_TITLE_CLASS, RailHeading } from "@/components/common/states";
+import {
+  Breadcrumbs,
+  DetailSkeleton,
+  ErrorState,
+  PAGE_TITLE_CLASS,
+  RailHeading,
+} from "@/components/common/states";
 import { CodeBlock } from "@/components/common/CodeBlock";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
@@ -71,10 +67,7 @@ export function FindingDetailPage() {
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["finding", findingId],
-    queryFn: () =>
-      api
-        .get<FindingDetail>(`/api/v1/findings/${findingId}`)
-        .then((r) => r.data),
+    queryFn: () => api.get<FindingDetail>(`/api/v1/findings/${findingId}`).then((r) => r.data),
   });
 
   /**
@@ -91,8 +84,7 @@ export function FindingDetailPage() {
   // organization does not use, which the compliance page never shows (§189).
   const frameworks = useQuery({
     queryKey: ["compliance"],
-    queryFn: () =>
-      api.get<ComplianceFramework[]>("/api/v1/compliance").then((r) => r.data),
+    queryFn: () => api.get<ComplianceFramework[]>("/api/v1/compliance").then((r) => r.data),
     staleTime: 60_000,
     retry: false,
   });
@@ -118,9 +110,7 @@ export function FindingDetailPage() {
   const provenance = useQuery({
     queryKey: ["finding-provenance", findingId],
     queryFn: () =>
-      api
-        .get<FindingProvenance>(`/api/v1/findings/${findingId}/provenance`)
-        .then((r) => r.data),
+      api.get<FindingProvenance>(`/api/v1/findings/${findingId}/provenance`).then((r) => r.data),
     retry: false,
   });
 
@@ -160,8 +150,7 @@ export function FindingDetailPage() {
     },
     onError: (err) =>
       toast.error("Could not start a rescan", {
-        description:
-          err instanceof ApiError ? err.message : "The API rejected the request.",
+        description: err instanceof ApiError ? err.message : "The API rejected the request.",
       }),
   });
 
@@ -189,12 +178,7 @@ export function FindingDetailPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Breadcrumbs
-        trail={[
-          { label: t.findings.title, to: "/findings" },
-          { label: data.title },
-        ]}
-      />
+      <Breadcrumbs trail={[{ label: t.findings.title, to: "/findings" }, { label: data.title }]} />
 
       {/* WHAT, and what to do about it. The actions sit beside the title
           rather than at the foot of the page: they are the reason most people
@@ -214,9 +198,7 @@ export function FindingDetailPage() {
               {data.rule_id} · v{data.rule_version}
             </span>
           </div>
-          <h1 className={cn("mt-3", PAGE_TITLE_CLASS)}>
-            {data.title}
-          </h1>
+          <h1 className={cn("mt-3", PAGE_TITLE_CLASS)}>{data.title}</h1>
           <p className="mt-1.5 text-body leading-relaxed text-muted-foreground">
             {data.description}
           </p>
@@ -225,38 +207,38 @@ export function FindingDetailPage() {
         {/* Not in the demo: its findings are a recording, and every action
             here is one the API would refuse there. */}
         {!isDemo && (
-        <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
-          <div className="flex flex-wrap gap-2">
-            {/* Decided on the risk, the one place triage happens, so a
+          <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+            <div className="flex flex-wrap gap-2">
+              {/* Decided on the risk, the one place triage happens, so a
                 grouped finding cannot be accepted out from under its group. */}
-            {data.risk && data.status !== "RESOLVED" && (
-              <Link
-                to={`/risks/${data.risk.id}`}
-                className={buttonVariants({ variant: "outline" })}
-              >
-                {t.findings.decideOnRisk}
-                <ArrowRightIcon data-icon="inline-end" aria-hidden />
-              </Link>
-            )}
-            {/* Only where the fix below has no "Verify it now" of its own --
+              {data.risk && data.status !== "RESOLVED" && (
+                <Link
+                  to={`/risks/${data.risk.id}`}
+                  className={buttonVariants({ variant: "outline" })}
+                >
+                  {t.findings.decideOnRisk}
+                  <ArrowRightIcon data-icon="inline-end" aria-hidden />
+                </Link>
+              )}
+              {/* Only where the fix below has no "Verify it now" of its own --
                 a finding on no asset, or one already resolved. The same
                 action twice, both filled, left a reader choosing between two
                 primary buttons that did one thing (DECISIONS.md §187). */}
-            {!verifyInFix && (
-              <Button onClick={() => rescan.mutate()} disabled={rescan.isPending}>
-                {rescan.isPending ? (
-                  <Spinner data-icon="inline-start" />
-                ) : (
-                  <RotateCcwIcon data-icon="inline-start" aria-hidden />
-                )}
-                {rescan.isPending ? t.common.loading : t.findings.rescan}
-              </Button>
-            )}
+              {!verifyInFix && (
+                <Button onClick={() => rescan.mutate()} disabled={rescan.isPending}>
+                  {rescan.isPending ? (
+                    <Spinner data-icon="inline-start" />
+                  ) : (
+                    <RotateCcwIcon data-icon="inline-start" aria-hidden />
+                  )}
+                  {rescan.isPending ? t.common.loading : t.findings.rescan}
+                </Button>
+              )}
+            </div>
+            <p className="max-w-xs text-xs text-muted-foreground sm:text-right">
+              {t.findings.cannotResolveManually}
+            </p>
           </div>
-          <p className="max-w-xs text-xs text-muted-foreground sm:text-right">
-            {t.findings.cannotResolveManually}
-          </p>
-        </div>
         )}
       </div>
 
@@ -282,8 +264,7 @@ export function FindingDetailPage() {
           <CircleCheckIcon />
           <AlertTitle>Verified fixed</AlertTitle>
           <AlertDescription className="text-foreground">
-            A scan on {formatDateTime(data.resolved_at)} confirmed this issue no
-            longer exists.
+            A scan on {formatDateTime(data.resolved_at)} confirmed this issue no longer exists.
           </AlertDescription>
         </Alert>
       )}
@@ -297,9 +278,7 @@ export function FindingDetailPage() {
                 <CardTitle>{t.findings.whyItMatters}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm leading-relaxed text-foreground">
-                  {data.rationale}
-                </p>
+                <p className="text-sm leading-relaxed text-foreground">{data.rationale}</p>
               </CardContent>
             </Card>
           )}
@@ -309,6 +288,7 @@ export function FindingDetailPage() {
             remediation={data.remediation}
             spec={data.remediation_spec}
             effortMinutes={data.estimated_effort_minutes}
+            findingId={data.id}
             fill={
               data.resource
                 ? {
@@ -348,9 +328,7 @@ export function FindingDetailPage() {
           />
 
           {/* DID IT WORK — only once somebody has claimed it did. */}
-          {data.verification && (
-            <VerificationPanel verification={data.verification} />
-          )}
+          {data.verification && <VerificationPanel verification={data.verification} />}
 
           {/* WHAT IS ALREADY IN THE WAY */}
           <ControlsPanel controls={data.evidence.compensating_controls} />
@@ -392,16 +370,12 @@ export function FindingDetailPage() {
                 </TabsContent>
                 {(provenance.isLoading || provenance.data) && (
                   <TabsContent value="provenance" keepMounted className="pt-3">
-                    <ProvenancePanel
-                      provenance={provenance.data}
-                      loading={provenance.isLoading}
-                    />
+                    <ProvenancePanel provenance={provenance.data} loading={provenance.isLoading} />
                   </TabsContent>
                 )}
               </Tabs>
             </CardContent>
           </Card>
-
         </div>
 
         {/* The facts, as one card of short rows rather than four cards: how
@@ -464,11 +438,7 @@ export function FindingDetailPage() {
                       />
                     )}
                     {data.resource.region && (
-                      <Row
-                        icon={FACT_ICONS.region}
-                        label="Region"
-                        value={data.resource.region}
-                      />
+                      <Row icon={FACT_ICONS.region} label="Region" value={data.resource.region} />
                     )}
                     <Row
                       icon={FACTOR_ICONS.criticality}
@@ -514,17 +484,17 @@ export function FindingDetailPage() {
               </section>
 
               {/* TOWARD WHICH CONTROLS */}
-              {data.compliance_mappings &&
-                Object.keys(data.compliance_mappings).length > 0 && (
-                  <section aria-labelledby="finding-compliance">
-                    <div className="flex items-center gap-1">
-                      <RailHeading id="finding-compliance">{t.findings.compliance}</RailHeading>
-                      <InfoTip label="What these controls mean">
-                        Evidence toward these controls — not a compliance claim.
-                      </InfoTip>
-                    </div>
-                    <ul className="mt-2 flex flex-col gap-2">
-                      {mappedFrameworks(data.compliance_mappings, frameworks.data).map(({ id, name, controls }) => (
+              {data.compliance_mappings && Object.keys(data.compliance_mappings).length > 0 && (
+                <section aria-labelledby="finding-compliance">
+                  <div className="flex items-center gap-1">
+                    <RailHeading id="finding-compliance">{t.findings.compliance}</RailHeading>
+                    <InfoTip label="What these controls mean">
+                      Evidence toward these controls — not a compliance claim.
+                    </InfoTip>
+                  </div>
+                  <ul className="mt-2 flex flex-col gap-2">
+                    {mappedFrameworks(data.compliance_mappings, frameworks.data).map(
+                      ({ id, name, controls }) => (
                         <li key={id} className="text-xs">
                           <Link
                             to={`/compliance/${encodeURIComponent(id)}`}
@@ -534,32 +504,23 @@ export function FindingDetailPage() {
                           </Link>
                           <span className="ml-2 text-muted-foreground">{controls.join(", ")}</span>
                         </li>
-                      ))}
-                    </ul>
-                  </section>
-                )}
+                      ),
+                    )}
+                  </ul>
+                </section>
+              )}
             </CardContent>
           </Card>
 
           {/* How it got here, after how bad and where. */}
-          {data.timeline && data.timeline.length > 0 && (
-            <FindingTimeline events={data.timeline} />
-          )}
+          {data.timeline && data.timeline.length > 0 && <FindingTimeline events={data.timeline} />}
         </div>
       </div>
     </div>
   );
 }
 
-function Row({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: React.ReactNode;
-  icon?: LucideIcon;
-}) {
+function Row({ label, value, icon }: { label: string; value: React.ReactNode; icon?: LucideIcon }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <dt className="text-muted-foreground">
@@ -614,9 +575,7 @@ function ControlsPanel({
               className="rounded-lg border border-ok-border bg-ok-bg/40 px-4 py-3"
             >
               <p className="text-sm font-medium text-foreground">{control.name}</p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                {control.detail}
-              </p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{control.detail}</p>
             </li>
           ))}
         </ul>
@@ -659,11 +618,7 @@ function EvidencePanel({ evidence }: { evidence: unknown }) {
             )}
           </div>
           {long && (
-            <CollapsibleTrigger
-              render={
-                <Button variant="outline" size="sm" className="mt-3" />
-              }
-            >
+            <CollapsibleTrigger render={<Button variant="outline" size="sm" className="mt-3" />}>
               {expanded ? "Show less" : "Show the whole capture"}
             </CollapsibleTrigger>
           )}
@@ -716,29 +671,25 @@ function ProvenancePanel({
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">{t.findings.provenanceIntro}</p>
-        {citations === null ? (
-          // `null` and `[]` are different answers and the page must not blur
-          // them. This one is about CloudGuard, not about the finding.
-          <p className="text-sm text-muted-foreground">
-            {t.findings.provenanceUnrecorded}
-          </p>
-        ) : citations.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            {t.findings.provenanceNone}
-          </p>
-        ) : (
-          <ul className="space-y-2">
-            {citations.map((citation) => (
-              <Citation key={citation.evidence_key} citation={citation} />
-            ))}
-          </ul>
-        )}
+      {citations === null ? (
+        // `null` and `[]` are different answers and the page must not blur
+        // them. This one is about CloudGuard, not about the finding.
+        <p className="text-sm text-muted-foreground">{t.findings.provenanceUnrecorded}</p>
+      ) : citations.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{t.findings.provenanceNone}</p>
+      ) : (
+        <ul className="space-y-2">
+          {citations.map((citation) => (
+            <Citation key={citation.evidence_key} citation={citation} />
+          ))}
+        </ul>
+      )}
 
-        <p className="text-xs text-muted-foreground">
-          {t.findings.provenanceRule
-            .replace("{rule}", provenance.rule_id)
-            .replace("{version}", provenance.rule_version)}
-        </p>
+      <p className="text-xs text-muted-foreground">
+        {t.findings.provenanceRule
+          .replace("{rule}", provenance.rule_id)
+          .replace("{version}", provenance.rule_version)}
+      </p>
     </div>
   );
 }
@@ -754,23 +705,15 @@ function Citation({ citation }: { citation: EvidenceCitation }) {
   return (
     <li className="rounded-lg border border-border bg-muted/40 px-3 py-2.5">
       <div className="flex flex-wrap items-center gap-2">
-        <code className="text-sm font-medium text-foreground">
-          {citation.evidence_key}
-        </code>
+        <code className="text-sm font-medium text-foreground">{citation.evidence_key}</code>
         {outcome && (
-          <Badge
-            variant="outline"
-            className={cn("border text-xs", outcomeStyle(outcome))}
-          >
+          <Badge variant="outline" className={cn("border text-xs", outcomeStyle(outcome))}>
             {outcome}
           </Badge>
         )}
         {typeof citation.item_count === "number" && (
           <span className="text-xs text-muted-foreground">
-            {t.findings.provenanceItems.replace(
-              "{count}",
-              String(citation.item_count),
-            )}
+            {t.findings.provenanceItems.replace("{count}", String(citation.item_count))}
           </span>
         )}
       </div>
@@ -785,13 +728,9 @@ function Citation({ citation }: { citation: EvidenceCitation }) {
           </dd>
         </div>
         <div className="flex gap-2">
-          <dt className="text-muted-foreground">
-            {t.findings.provenancePayload}
-          </dt>
+          <dt className="text-muted-foreground">{t.findings.provenancePayload}</dt>
           <dd className="text-foreground">
-            {citation.payload_available
-              ? t.findings.provenanceHeld
-              : t.findings.provenancePruned}
+            {citation.payload_available ? t.findings.provenanceHeld : t.findings.provenancePruned}
           </dd>
         </div>
       </dl>
@@ -820,10 +759,7 @@ function Citation({ citation }: { citation: EvidenceCitation }) {
               title={endpoint.path}
             >
               {endpoint.path.replace(/^https?:\/\/[^/]+/, "")}
-              <span className="text-foreground">
-                {" "}
-                ?api-version={endpoint.api_version}
-              </span>
+              <span className="text-foreground"> ?api-version={endpoint.api_version}</span>
             </li>
           ))}
         </ul>
@@ -879,50 +815,45 @@ function AttackPathContext({
           {`On ${routes.length} route${routes.length === 1 ? "" : "s"} from an exposed asset to a sensitive one`}
         </p>
       )}
-        {routes.length === 0 ? (
-          // Not an all-clear, and it does not read as one. What counts as
-          // sensitive is something the customer declares, so an estate that
-          // has declared nothing produces no routes at all.
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            No route from an internet-facing asset to a sensitive one runs through
-            this one. What counts as sensitive is declared per subscription in Settings.
-          </p>
-        ) : (
-          routes.slice(0, 2).map((path) => (
-            <div key={`${path.entry.id}->${path.target.id}`}>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-medium">
-                  {path.entry.name}
-                  <span className="mx-1.5 text-muted-foreground">→</span>
-                  {path.target.name}
-                </p>
-                <Badge variant="secondary" className="font-normal">
-                  {ROLE_LABEL[path.asset_role]}
-                </Badge>
-              </div>
-              <AttackPathRoute
-                className="mt-3"
-                steps={path.steps}
-                cutIndex={path.steps.findIndex(
-                  (step) =>
-                    path.cheapest_break?.source_id === step.source_id &&
-                    path.cheapest_break?.target_id === step.target_id,
-                )}
-              />
+      {routes.length === 0 ? (
+        // Not an all-clear, and it does not read as one. What counts as
+        // sensitive is something the customer declares, so an estate that
+        // has declared nothing produces no routes at all.
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          No route from an internet-facing asset to a sensitive one runs through this one. What
+          counts as sensitive is declared per subscription in Settings.
+        </p>
+      ) : (
+        routes.slice(0, 2).map((path) => (
+          <div key={`${path.entry.id}->${path.target.id}`}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-medium">
+                {path.entry.name}
+                <span className="mx-1.5 text-muted-foreground">→</span>
+                {path.target.name}
+              </p>
+              <Badge variant="secondary" className="font-normal">
+                {ROLE_LABEL[path.asset_role]}
+              </Badge>
             </div>
-          ))
-        )}
+            <AttackPathRoute
+              className="mt-3"
+              steps={path.steps}
+              cutIndex={path.steps.findIndex(
+                (step) =>
+                  path.cheapest_break?.source_id === step.source_id &&
+                  path.cheapest_break?.target_id === step.target_id,
+              )}
+            />
+          </div>
+        ))
+      )}
 
-        {routes.length > 0 && (
-          <Link
-            to="/attack-paths"
-            className="text-sm text-foreground underline underline-offset-2"
-          >
-            {routes.length > 2
-              ? `See all ${routes.length} routes`
-              : "See every route in this estate"}
-          </Link>
-        )}
+      {routes.length > 0 && (
+        <Link to="/attack-paths" className="text-sm text-foreground underline underline-offset-2">
+          {routes.length > 2 ? `See all ${routes.length} routes` : "See every route in this estate"}
+        </Link>
+      )}
     </div>
   );
 }

@@ -12,7 +12,12 @@ import { cn, formatDate, formatDateTime, formatRelative } from "@/lib/format";
 import { ASSET_TAB_ICONS, FACT_ICONS, FACTOR_ICONS, resourceTypeIcon } from "@/lib/icons";
 import { portalUrl } from "@/lib/portal";
 import { IconLabel, ResourceTypeLabel } from "@/components/security/IconLabel";
-import { Breadcrumbs, DetailSkeleton, ErrorState, PAGE_TITLE_CLASS } from "@/components/common/states";
+import {
+  Breadcrumbs,
+  DetailSkeleton,
+  ErrorState,
+  PAGE_TITLE_CLASS,
+} from "@/components/common/states";
 import { CodeBlock } from "@/components/common/CodeBlock";
 import { CopyButton } from "@/components/common/CopyButton";
 import { SegmentedFilter } from "@/components/common/SegmentedFilter";
@@ -158,9 +163,9 @@ export function AssetDetailPage() {
         <Alert>
           <AlertTitle>Not seen since {formatDateTime(data.absent_since)}</AlertTitle>
           <AlertDescription>
-            The last scan looked for this asset and did not find it: it was deleted, or
-            Cleave lost access to where it was. Its findings are kept as they were at the
-            last scan that saw it, and it is no longer part of any attack path.
+            The last scan looked for this asset and did not find it: it was deleted, or Cleave lost
+            access to where it was. Its findings are kept as they were at the last scan that saw it,
+            and it is no longer part of any attack path.
           </AlertDescription>
         </Alert>
       )}
@@ -406,8 +411,7 @@ function Summary({
         </Cell>
       </CardContent>
       <p className="border-t px-4 py-2 text-xs text-muted-foreground">
-        Criticality, data sensitivity and exposure multiply the risk of every finding on this
-        asset.
+        Criticality, data sensitivity and exposure multiply the risk of every finding on this asset.
       </p>
     </Card>
   );

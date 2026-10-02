@@ -33,7 +33,7 @@ export function ScanIndicator() {
     // Only while something is in flight. A dashboard left open overnight should
     // not poll a finished scan every ten seconds until the tab is closed.
     refetchInterval: (query) => {
-      const scans = query.state.data as Scan[] | undefined;
+      const scans = query.state.data;
       return scans?.some((s) => IN_FLIGHT.includes(s.status)) ? 10_000 : false;
     },
     retry: false,

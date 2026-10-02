@@ -39,9 +39,7 @@ class _ClusterRule(SecurityRule):
 
     category = "compute"
     applies_to: ClassVar[list[ResourceType]] = [ResourceType.KUBERNETES_CLUSTER]
-    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (
-        AzureEvidence.KUBERNETES_CLUSTERS,
-    )
+    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (AzureEvidence.KUBERNETES_CLUSTERS,)
 
     def _unreadable(
         self, resource: CloudResource | None, context: RuleContext
@@ -92,7 +90,6 @@ class AzureClusterPublicApiRule(_ClusterRule):
                 comparison=Comparison.NOT_EMPTY,
                 example="203.0.113.0/24",
                 describes="The API server accepts only named address ranges",
-                terraform_attribute="api_server_access_profile.authorized_ip_ranges",
             ),
         ),
         cli=(
@@ -165,10 +162,9 @@ class AzureClusterLocalAccountsRule(_ClusterRule):
                 terraform_attribute="local_account_disabled",
             ),
         ),
-        cli=(
-            "az aks update --name <cluster> --resource-group <rg> --disable-local-accounts",
-        ),
+        cli=("az aks update --name <cluster> --resource-group <rg> --disable-local-accounts",),
         notes=_NO_POLICY,
+        terraform_resource_types=("azurerm_kubernetes_cluster",),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.15", "A.5.17"],
@@ -232,10 +228,10 @@ class AzureClusterRbacRule(_ClusterRule):
             ),
         ),
         cli=(
-            "az aks create --name <cluster> --resource-group <rg> --enable-aad "
-            "--enable-azure-rbac",
+            "az aks create --name <cluster> --resource-group <rg> --enable-aad --enable-azure-rbac",
         ),
         notes=_NO_POLICY,
+        terraform_resource_types=("azurerm_kubernetes_cluster",),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.15", "A.8.2"],
@@ -298,10 +294,7 @@ class AzureClusterNodePublicIpRule(_ClusterRule):
                 describes="No node pool assigns public IP addresses to its nodes",
             ),
         ),
-        cli=(
-            "az aks nodepool add --cluster-name <cluster> --resource-group <rg> "
-            "--name <pool>",
-        ),
+        cli=("az aks nodepool add --cluster-name <cluster> --resource-group <rg> --name <pool>",),
         notes=_NO_POLICY,
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = _MAPPINGS_EXPOSURE

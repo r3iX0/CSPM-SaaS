@@ -34,9 +34,7 @@ class CollectionStateOut(_StateBase):
     comparison: Literal[Comparison.NONE_MATCHING, Comparison.NOT_EMPTY]
 
 
-ExpectedStateOut = Annotated[
-    EqualsStateOut | CollectionStateOut, Field(discriminator="comparison")
-]
+ExpectedStateOut = Annotated[EqualsStateOut | CollectionStateOut, Field(discriminator="comparison")]
 
 
 class TerraformHintOut(BaseModel):

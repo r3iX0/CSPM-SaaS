@@ -179,8 +179,7 @@ def test_one_resource_group_is_one_node_whatever_its_casing() -> None:
     groups = [r for r in state.resources if r.resource_type is ResourceType.RESOURCE_GROUP]
     assert len(groups) == 1
     contained = {
-        t for s, t in edges(state, RelationshipType.CONTAINS)
-        if s == groups[0].provider_resource_id
+        t for s, t in edges(state, RelationshipType.CONTAINS) if s == groups[0].provider_resource_id
     }
     assert VAULT in contained
     assert by_name(state, "app").provider_resource_id in contained
@@ -272,9 +271,7 @@ def test_address_ranges_are_matched_against_private_addresses() -> None:
     assert admits(nsg, "inbound", web, app) is False
     assert admits({"properties": {}}, "inbound", web, app) is True
     outbound = {
-        "properties": {
-            "securityRules": [rule("egress", 100, "Deny", direction="Outbound")]
-        }
+        "properties": {"securityRules": [rule("egress", 100, "Deny", direction="Outbound")]}
     }
     assert admits(outbound, "outbound", web, app) is False
     assert admits(outbound, "inbound", web, app) is True

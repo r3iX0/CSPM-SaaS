@@ -21,9 +21,7 @@ class AzurePublicStorageRule(SecurityRule):
     severity = Severity.HIGH
     exploitability = 5
     applies_to: ClassVar[list[ResourceType]] = [ResourceType.STORAGE_ACCOUNT]
-    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (
-        AzureEvidence.STORAGE_ACCOUNTS,
-    )
+    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (AzureEvidence.STORAGE_ACCOUNTS,)
     estimated_effort_minutes = 20
     rationale = (
         "Publicly readable storage is the single most common source of large cloud data "
@@ -67,6 +65,7 @@ class AzurePublicStorageRule(SecurityRule):
         # exposed from the moment it exists, and no deployment needs it to pass
         # through unblocked first.
         policy_effect="Deny",
+        terraform_resource_types=("azurerm_storage_account",),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["3.7", "3.8"],
@@ -101,8 +100,10 @@ class AzurePublicStorageRule(SecurityRule):
             problems.append("Anonymous blob public access is enabled")
         if network_default is not None and str(network_default).lower() == "allow":
             problems.append("Network access rules default to Allow (open to all networks)")
-        if public_network is not None and str(public_network).lower() == "enabled" and (
-            network_default is not None and str(network_default).lower() == "allow"
+        if (
+            public_network is not None
+            and str(public_network).lower() == "enabled"
+            and (network_default is not None and str(network_default).lower() == "allow")
         ):
             problems.append("Public network access is enabled without network restrictions")
 
@@ -141,9 +142,7 @@ class AzureStorageEncryptionRule(SecurityRule):
     severity = Severity.HIGH
     exploitability = 2
     applies_to: ClassVar[list[ResourceType]] = [ResourceType.STORAGE_ACCOUNT]
-    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (
-        AzureEvidence.STORAGE_ACCOUNTS,
-    )
+    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (AzureEvidence.STORAGE_ACCOUNTS,)
     estimated_effort_minutes = 20
     rationale = (
         "Without enforced HTTPS and a current TLS version, credentials and data can be read "
@@ -168,7 +167,10 @@ class AzureStorageEncryptionRule(SecurityRule):
                 equals=True,
                 describes="Secure transfer required is enabled",
                 arm_alias="Microsoft.Storage/storageAccounts/supportsHttpsTrafficOnly",
-                terraform_attribute="https_traffic_only",
+                # Not ``https_traffic_only``, which azurerm never had, nor v3's
+                # ``enable_https_traffic_only``, which v4 removed. This name is
+                # in both 3.117 and 4.x.
+                terraform_attribute="https_traffic_only_enabled",
             ),
             ExpectedState(
                 field="min_tls_version",
@@ -188,6 +190,7 @@ class AzureStorageEncryptionRule(SecurityRule):
             "--https-only true --min-tls-version TLS1_2",
         ),
         policy_resource_type="Microsoft.Storage/storageAccounts",
+        terraform_resource_types=("azurerm_storage_account",),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["3.1", "3.15"],
@@ -257,9 +260,7 @@ class AzureStorageTransportRule(SecurityRule):
     # somebody else controls. Real, and it needs a position first.
     exploitability = 2
     applies_to: ClassVar[list[ResourceType]] = [ResourceType.STORAGE_ACCOUNT]
-    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (
-        AzureEvidence.STORAGE_ACCOUNTS,
-    )
+    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (AzureEvidence.STORAGE_ACCOUNTS,)
     estimated_effort_minutes = 10
     rationale = (
         "The shared key that authenticates a storage request is the whole account: it "
@@ -304,6 +305,7 @@ class AzureStorageTransportRule(SecurityRule):
         # first request, and no deployment needs to pass through unencrypted
         # first.
         policy_effect="Deny",
+        terraform_resource_types=("azurerm_storage_account",),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["3.1", "3.15"],
@@ -361,8 +363,5 @@ class AzureStorageTransportRule(SecurityRule):
         return RuleResult.failed(
             evidence={**evidence, "problems": problems},
             exploitability=1 if keyless else None,
-            message=(
-                f"{resource.name} accepts insecure connections: "
-                + "; ".join(problems)
-            ),
+            message=(f"{resource.name} accepts insecure connections: " + "; ".join(problems)),
         )

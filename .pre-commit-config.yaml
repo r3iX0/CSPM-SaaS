@@ -1,0 +1,114 @@
+# The repository's standards, as the checks that enforce them (DECISIONS.md §191).
+#
+# One file, three places it runs:
+#   - on commit and on push, once a clone has run tools/dev/setup.sh;
+#   - in CI's `repo` job on every pull request, which is the one that counts --
+#     a hook can be skipped locally, a required check cannot;
+#   - by hand: `pre-commit run --all-files`.
+#
+# Third-party hooks are frozen to a commit, not a tag: a tag can be moved to
+# different code after review, a commit cannot. `pre-commit autoupdate --freeze`
+# bumps them. Tools the project already pins (Prettier, ESLint, mypy, tsc) run
+# at the project's own version; Ruff runs from its hook repo so it works before
+# a clone has a virtualenv, and `ruff-pin` keeps that version equal to
+# pyproject.toml's.
+minimum_pre_commit_version: "4.0.0"
+default_install_hook_types: [pre-commit, pre-push]
+default_stages: [pre-commit]
+
+exclude: |
+  (?x)^(
+    docs/design_handoff_cleave_redesign/.*
+  )$
+
+repos:
+  # --- Repository hygiene -----------------------------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c # frozen: v6.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
+      - id: check-json
+      - id: check-toml
+      - id: check-yaml
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+      - id: end-of-file-fixer
+        # ESLint writes its suppressions file without a final newline.
+        exclude: ^(docs/api/|apps/web/eslint-suppressions\.json$)
+      - id: trailing-whitespace
+        args: ["--markdown-linebreak-ext=md"]
+        exclude: ^docs/api/
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+      - id: detect-private-key
+      # Local only: CI skips it, because a push to main runs these hooks on main.
+      - id: no-commit-to-branch
+        args: ["--branch", "main"]
+
+  # --- Secrets ------------------------------------------------------------------
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: 83d9cd684c87d95d656c1458ef04895a7f1cbd8e # frozen: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  # --- Markdown -----------------------------------------------------------------
+  # Rules and ignores: .markdownlint-cli2.jsonc. Why: docs/MARKDOWN_GUIDELINES.md.
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: 916ad0aaa108c64d294101002066f530ea170b10 # frozen: v0.23.3
+    hooks:
+      - id: markdownlint-cli2
+
+  # --- Python -------------------------------------------------------------------
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: a56c0b927e6465d37cae3e97d35d4d18ab2b96cd # frozen: v0.16.9
+    hooks:
+      # Lint before format: a fix can leave lines the formatter then tidies.
+      - id: ruff-check
+        args: ["--fix"]
+        files: ^(apps/api|tools)/
+      - id: ruff-format
+        files: ^(apps/api|tools)/
+
+  - repo: local
+    hooks:
+      - id: ruff-pin
+        name: Ruff hook matches the pyproject pin
+        language: python
+        entry: python tools/dev/check_hook_pins.py
+        files: ^(\.pre-commit-config\.yaml|apps/api/pyproject\.toml)$
+        pass_filenames: false
+
+      # --- TypeScript / JavaScript / CSS / JSON -------------------------------
+      - id: prettier
+        name: prettier
+        language: system
+        entry: tools/dev/web.sh prettier --write --ignore-unknown
+        files: ^(apps/web/|infrastructure/ci/.*\.mjs$|\.prettierrc\.json$)
+        types_or: [ts, tsx, javascript, jsx, css, json]
+
+      - id: eslint
+        name: eslint
+        language: system
+        entry: tools/dev/web.sh eslint --no-warn-ignored
+        files: ^apps/web/
+        types_or: [ts, tsx, javascript]
+
+      # --- Whole-program checks: slower, so on push rather than every commit --
+      - id: mypy
+        name: mypy (apps/api)
+        language: system
+        entry: tools/dev/api.sh mypy app
+        files: ^apps/api/.*\.py$
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: tsc
+        name: tsc (apps/web)
+        language: system
+        entry: tools/dev/web.sh tsc --noEmit
+        files: ^apps/web/.*\.tsx?$
+        pass_filenames: false
+        stages: [pre-push]

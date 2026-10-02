@@ -217,8 +217,7 @@ def observe(
         # customer stop believing the eventual answer.
         verification.next_attempt_at = following
         verification.detail = (
-            "Checked, and the environment does not show the fix yet. "
-            "Cleave will look again."
+            "Checked, and the environment does not show the fix yet. Cleave will look again."
             if state is RuleState.FAIL
             else "Cleave could not read enough to tell yet, and will try again."
         )

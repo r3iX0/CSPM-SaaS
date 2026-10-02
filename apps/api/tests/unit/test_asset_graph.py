@@ -78,12 +78,9 @@ def test_the_path_no_rule_could_find() -> None:
 
 
 def test_the_path_says_how_it_got_there() -> None:
-    """"This storage account is reachable" is an alarm. Naming the route is a
+    """ "This storage account is reachable" is an alarm. Naming the route is a
     thing somebody can act on, and it names every place they could cut it."""
-    path = next(
-        p for p in environment().attack_paths()
-        if p.target.provider_resource_id == STORAGE
-    )
+    path = next(p for p in environment().attack_paths() if p.target.provider_resource_id == STORAGE)
 
     assert path.entry.provider_resource_id == VM
     assert path.describe() == [
@@ -100,10 +97,7 @@ def test_the_cheapest_break_is_a_capability_hop() -> None:
     and the earliest of those closes the way in rather than containing what
     somebody reaches once inside.
     """
-    path = next(
-        p for p in environment().attack_paths()
-        if p.target.provider_resource_id == STORAGE
-    )
+    path = next(p for p in environment().attack_paths() if p.target.provider_resource_id == STORAGE)
     step = path.cheapest_break()
 
     assert step is not None
@@ -147,9 +141,7 @@ def test_unknown_exposure_is_not_treated_as_exposed() -> None:
     internet-facing would manufacture attack paths out of failed collection --
     the same overclaim as a PASS nobody earned, pointed the other way.
     """
-    graph = AssetGraph.build(
-        [node(VM, ResourceType.VIRTUAL_MACHINE, exposure=Level.UNKNOWN)], []
-    )
+    graph = AssetGraph.build([node(VM, ResourceType.VIRTUAL_MACHINE, exposure=Level.UNKNOWN)], [])
     assert graph.entry_points() == []
 
 
@@ -209,9 +201,7 @@ def test_blast_radius_answers_what_would_go_with_it() -> None:
     """The question a customer actually asks about an over-privileged identity:
     never "is this role too broad" in the abstract, but "what goes if this is
     taken"."""
-    reached = {
-        r.provider_resource_id for r in environment().blast_radius(IDENTITY)
-    }
+    reached = {r.provider_resource_id for r in environment().blast_radius(IDENTITY)}
 
     assert reached == {VM, STORAGE, QUIET_VM}
 
@@ -219,18 +209,14 @@ def test_blast_radius_answers_what_would_go_with_it() -> None:
 def test_blast_radius_reports_assets_not_scopes() -> None:
     """A subscription is where the reach lands; the resources beneath it are
     what the reach is of. Listing both would count the same authority twice."""
-    reached = {
-        r.resource_type for r in environment().blast_radius(IDENTITY)
-    }
+    reached = {r.resource_type for r in environment().blast_radius(IDENTITY)}
 
     assert ResourceType.SUBSCRIPTION not in reached
     assert ResourceType.RESOURCE_GROUP not in reached
 
 
 def test_an_identity_nobody_granted_anything_reaches_nothing() -> None:
-    graph = AssetGraph.build(
-        [node(IDENTITY, ResourceType.SERVICE_PRINCIPAL)], []
-    )
+    graph = AssetGraph.build([node(IDENTITY, ResourceType.SERVICE_PRINCIPAL)], [])
     assert graph.blast_radius(IDENTITY) == []
 
 
@@ -261,10 +247,7 @@ def test_a_long_containment_chain_does_not_run_away() -> None:
     ids = [f"{SUB}/level/{n}" for n in range(12)]
     graph = AssetGraph.build(
         [node(i, ResourceType.RESOURCE_GROUP) for i in ids],
-        [
-            (ids[n], RelationshipType.CONTAINS, ids[n + 1])
-            for n in range(len(ids) - 1)
-        ],
+        [(ids[n], RelationshipType.CONTAINS, ids[n + 1]) for n in range(len(ids) - 1)],
     )
 
     assert len(graph.reachable_from(ids[0], max_depth=3)) == 3
@@ -299,9 +282,7 @@ def test_the_graph_survives_being_keyed_by_surrogate_ids() -> None:
 
     # Store: every asset gets a surrogate key, and edges are written against it.
     surrogate = {r.provider_resource_id: uuidlib.uuid4() for r in resources}
-    stored = [
-        (surrogate[s], relationship, surrogate[t]) for s, relationship, t in provider_edges
-    ]
+    stored = [(surrogate[s], relationship, surrogate[t]) for s, relationship, t in provider_edges]
 
     # Load: the surrogate keys come back and have to become provider ids again.
     by_id = {value: key for key, value in surrogate.items()}
@@ -342,9 +323,7 @@ def escalating_environment() -> AssetGraph:
     today, the other says the ceiling is whatever it chooses to give itself.
     """
     graph = environment()
-    graph._out.setdefault(IDENTITY, []).append(
-        (RelationshipType.CAN_GRANT_ROLES, SUB)
-    )
+    graph._out.setdefault(IDENTITY, []).append((RelationshipType.CAN_GRANT_ROLES, SUB))
     return graph
 
 

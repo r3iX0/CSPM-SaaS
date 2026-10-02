@@ -111,9 +111,7 @@ class RuleContext:
     providers: frozenset[Provider] | None = None
 
     _by_id: dict[str, CloudResource] = field(default_factory=dict, init=False, repr=False)
-    _inverse: dict[tuple[str, str], list[str]] = field(
-        default_factory=dict, init=False, repr=False
-    )
+    _inverse: dict[tuple[str, str], list[str]] = field(default_factory=dict, init=False, repr=False)
 
     def __post_init__(self) -> None:
         self._by_id = {r.provider_resource_id: r for r in self.resources}
@@ -131,9 +129,7 @@ class RuleContext:
     def get_resources_by_type(self, resource_type: ResourceType) -> list[CloudResource]:
         return [r for r in self.resources if r.resource_type == resource_type]
 
-    def get_related(
-        self, resource: CloudResource, relationship_type: str
-    ) -> list[CloudResource]:
+    def get_related(self, resource: CloudResource, relationship_type: str) -> list[CloudResource]:
         """Follow edges outward: "what does this resource point at?"""
         ids = self.relationships.get((resource.provider_resource_id, relationship_type), [])
         return [self._by_id[i] for i in ids if i in self._by_id]
@@ -309,10 +305,7 @@ class SecurityRule(ABC):
         worth fixing now: the day a second connector lands, this is a silent
         wrong answer rather than a crash.
         """
-        return (
-            resource.provider == self.provider
-            and resource.resource_type in self.applies_to
-        )
+        return resource.provider == self.provider and resource.resource_type in self.applies_to
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<{type(self).__name__} {self.rule_id} v{self.version}>"

@@ -9,7 +9,11 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/format";
 
-export type Option = { value: string; label: string; icon?: LucideIcon };
+export interface Option {
+  value: string;
+  label: string;
+  icon?: LucideIcon;
+}
 
 /**
  * A select whose trigger says what was chosen.

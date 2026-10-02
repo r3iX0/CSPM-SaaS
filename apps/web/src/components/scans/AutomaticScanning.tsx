@@ -23,15 +23,10 @@ import { cn } from "@/lib/format";
  * rather than of a subscription — every subscription beneath a connection is
  * read on the same clock.
  */
-export function AutomaticScanning({
-  onError,
-}: {
-  onError: (message: string) => void;
-}) {
+export function AutomaticScanning({ onError }: { onError: (message: string) => void }) {
   const { data, isLoading } = useQuery({
     queryKey: ["cloud-connections"],
-    queryFn: () =>
-      api.get<CloudConnection[]>("/api/v1/cloud-connections").then((r) => r.data),
+    queryFn: () => api.get<CloudConnection[]>("/api/v1/cloud-connections").then((r) => r.data),
     retry: false,
   });
 
@@ -78,9 +73,7 @@ export function AutomaticScanning({
                     connection the panel heading has already said which
                     environment this is. */}
                 {connections.length > 1 && (
-                  <p className="text-xs font-medium text-foreground">
-                    {connection.name}
-                  </p>
+                  <p className="text-xs font-medium text-foreground">{connection.name}</p>
                 )}
                 <ScheduleControl connection={connection} onError={onError} />
               </div>

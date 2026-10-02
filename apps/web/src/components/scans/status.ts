@@ -7,10 +7,4 @@
  * steps. Its own module because a constant exported beside a component defeats
  * fast refresh for that file.
  */
-export const IN_FLIGHT = [
-  "QUEUED",
-  "DISCOVERING",
-  "NORMALIZING",
-  "EVALUATING",
-  "CALCULATING_RISK",
-];
+export const IN_FLIGHT = ["QUEUED", "DISCOVERING", "NORMALIZING", "EVALUATING", "CALCULATING_RISK"];

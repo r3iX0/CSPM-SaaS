@@ -182,8 +182,16 @@ def test_unknown_checks_are_named_and_are_not_a_pass():
 
 def test_a_report_over_stale_evidence_says_so_before_the_score():
     html = render_html(
-        report(dashboard={"evidence_freshness": {"stale_hours": 72.0, "oldest_at": None,
-                                                 "newest_at": None, "unusable": 0}})
+        report(
+            dashboard={
+                "evidence_freshness": {
+                    "stale_hours": 72.0,
+                    "oldest_at": None,
+                    "newest_at": None,
+                    "unusable": 0,
+                }
+            }
+        )
     )
 
     warning = html.index("has not been read recently")
@@ -380,8 +388,7 @@ def test_a_report_fetches_nothing_when_it_renders():
 def test_both_reports_carry_the_same_posture_block(kind: str):
     # Two pages of one report disagreeing about the score is the first thing
     # anybody notices, and the last thing they forgive.
-    html = render_html(report(kind=kind, findings=[], finding_total=0,
-                              findings_truncated=False))
+    html = render_html(report(kind=kind, findings=[], finding_total=0, findings_truncated=False))
 
     assert "84" in html
     assert "Assets under assessment" in html
@@ -425,8 +432,10 @@ def test_a_trend_is_drawn_on_a_fixed_scale_not_a_fitted_one():
 def test_a_score_outside_the_scale_is_clamped_rather_than_drawn_off_the_chart():
     svg = score_trend_svg(readings(-10, 140))
 
-    ys = [float(pair.split(",")[1]) for pair in
-          svg.split('<polyline points="')[1].split('"')[0].split(" ")]
+    ys = [
+        float(pair.split(",")[1])
+        for pair in svg.split('<polyline points="')[1].split('"')[0].split(" ")
+    ]
     assert all(0 <= y <= VIEW_HEIGHT for y in ys)
 
 
@@ -468,9 +477,7 @@ def test_an_accepted_risk_is_counted_rather_than_absorbed_into_not_open():
     # A finding somebody decided to live with is still in the environment.
     # Silently excluding it lets a report claim an estate that is clean by
     # decision rather than by remediation.
-    html = render_html(
-        report(dashboard={"findings_by_status": {"OPEN": 7, "ACCEPTED_RISK": 4}})
-    )
+    html = render_html(report(dashboard={"findings_by_status": {"OPEN": 7, "ACCEPTED_RISK": 4}}))
 
     assert "accepted as risk" in html
     assert "not a fix" in html
@@ -480,6 +487,7 @@ def test_nothing_is_said_about_accepted_risk_when_there_is_none():
     html = render_html(report())
 
     assert "accepted as risk" not in html
+
 
 # --- what a reader chose to leave in ---------------------------------------
 
@@ -563,9 +571,7 @@ def test_the_score_ring_is_bounded_and_draws_nothing_for_nothing():
 
 
 def test_the_contents_name_only_the_sections_the_document_contains():
-    html = render_html(
-        report(sections=["top_risks"], omitted_sections=["compliance coverage"])
-    )
+    html = render_html(report(sections=["top_risks"], omitted_sections=["compliance coverage"]))
     contents = body(html).split('class="contents"', 1)[1].split("</ul>", 1)[0]
 
     assert 'href="#posture"' in contents

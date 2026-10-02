@@ -99,9 +99,7 @@ export function KeyboardShortcuts() {
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Keyboard shortcuts</DialogTitle>
-          <DialogDescription>
-            None of these fire while you are typing in a field.
-          </DialogDescription>
+          <DialogDescription>None of these fire while you are typing in a field.</DialogDescription>
         </DialogHeader>
 
         {/* Speech input types a spoken word as its letters, so one-letter
@@ -109,10 +107,12 @@ export function KeyboardShortcuts() {
             the way back here with them off. */}
         <div className="flex items-start justify-between gap-4 rounded-lg border border-border p-3">
           <div className="min-w-0">
-            <Label id="single-key-shortcuts-label" htmlFor="single-key-shortcuts">Single-key shortcuts</Label>
+            <Label id="single-key-shortcuts-label" htmlFor="single-key-shortcuts">
+              Single-key shortcuts
+            </Label>
             <p id="single-key-shortcuts-hint" className="mt-1 text-xs text-muted-foreground">
-              Everything below except ⌘K. Turn them off if you use speech input
-              or they fire by accident.
+              Everything below except ⌘K. Turn them off if you use speech input or they fire by
+              accident.
             </p>
           </div>
           <Switch

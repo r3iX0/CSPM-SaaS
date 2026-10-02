@@ -121,7 +121,7 @@ function NavRow({
   count?: number;
   onNavigate?: () => void;
 }) {
-  const exact = "end" in item && item.end === true;
+  const exact = "end" in item && item.end;
   // Non-exact rows stay lit on their detail screens: a reader on
   // /findings/<id> has not left Findings, and a navigation that says otherwise
   // makes them look for where they are.

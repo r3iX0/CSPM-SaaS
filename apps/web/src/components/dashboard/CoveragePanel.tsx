@@ -93,9 +93,7 @@ export function CoveragePanel({
                 {freshness.unusable > 0 && (
                   <>
                     {" · "}
-                    <span className="font-medium text-medium">
-                      {freshness.unusable} unusable
-                    </span>
+                    <span className="font-medium text-medium">{freshness.unusable} unusable</span>
                   </>
                 )}
               </span>
@@ -135,8 +133,7 @@ export function CoveragePanel({
         <div className="border-t border-dashed px-5 py-3">
           <p className="text-xs leading-relaxed text-muted-foreground">
             <span className="font-medium text-foreground">
-              {context.unclassified} of{" "}
-              {context.unclassified + context.classified} open risks
+              {context.unclassified} of {context.unclassified + context.classified} open risks
             </span>{" "}
             sit on assets Cleave could not classify.{" "}
             <Link
@@ -152,8 +149,7 @@ export function CoveragePanel({
       {gaps.length > 0 && (
         <div className="flex flex-col gap-2.5 border-t border-dashed border-medium-border bg-medium-bg px-5 py-4">
           <p className="text-xs font-medium text-medium">
-            {gaps.length} {gaps.length === 1 ? "category" : "categories"} could not
-            be collected
+            {gaps.length} {gaps.length === 1 ? "category" : "categories"} could not be collected
           </p>
           <ul className="flex flex-col gap-2.5">
             {gaps.map(([category, reason]) => (
@@ -161,11 +157,7 @@ export function CoveragePanel({
                 <span className="font-medium capitalize">{label(category)}</span>
                 <ul className="mt-1 flex flex-col gap-1.5">
                   {groupCauses(reason).map((cause) => (
-                    <GapCause
-                      key={cause.message}
-                      keys={cause.keys}
-                      message={cause.message}
-                    />
+                    <GapCause key={cause.message} keys={cause.keys} message={cause.message} />
                   ))}
                 </ul>
               </li>
@@ -173,10 +165,7 @@ export function CoveragePanel({
           </ul>
           <Link
             to="/scans"
-            className={cn(
-              buttonVariants({ variant: "outline", size: "sm" }),
-              "self-start",
-            )}
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "self-start")}
           >
             View scan detail
           </Link>
@@ -228,9 +217,7 @@ function GapCause({ keys, message }: { keys: string[]; message: string }) {
 
   return (
     <li>
-      {keys.length > 0 && (
-        <span className="font-medium text-foreground">{keys.join(", ")}</span>
-      )}
+      {keys.length > 0 && <span className="font-medium text-foreground">{keys.join(", ")}</span>}
       <span className="text-muted-foreground">
         {keys.length > 0 && " — "}
         {long && !expanded ? `${message.slice(0, 180).trimEnd()}…` : message}

@@ -70,9 +70,9 @@ function mount(
   requested = [];
   vi.spyOn(api, "get").mockImplementation((url: string) => {
     requested.push(url);
-    if (url === "/api/v1/assets/asset-1") return Promise.resolve({ data: detail, meta: {} }) as never;
+    if (url === "/api/v1/assets/asset-1") return Promise.resolve({ data: detail, meta: {} });
     // The graph endpoints: a 404 is enough to prove they were asked.
-    return Promise.reject(new ApiError("NOT_FOUND", "not a vertex", 404)) as never;
+    return Promise.reject(new ApiError("NOT_FOUND", "not a vertex", 404));
   });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -223,11 +223,10 @@ describe("the access tab", () => {
 
   function mountAccess(detail: Record<string, unknown>, access: Record<string, unknown>) {
     vi.spyOn(api, "get").mockImplementation((url: string) => {
-      if (url === "/api/v1/assets/asset-1")
-        return Promise.resolve({ data: detail, meta: {} }) as never;
+      if (url === "/api/v1/assets/asset-1") return Promise.resolve({ data: detail, meta: {} });
       if (url.startsWith("/api/v1/attack-paths/access/"))
-        return Promise.resolve({ data: access, meta: {} }) as never;
-      return Promise.reject(new ApiError("NOT_FOUND", "not a vertex", 404)) as never;
+        return Promise.resolve({ data: access, meta: {} });
+      return Promise.reject(new ApiError("NOT_FOUND", "not a vertex", 404));
     });
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     return render(
@@ -272,10 +271,7 @@ describe("the access tab", () => {
     });
 
     expect(await screen.findByText("Can take what it holds")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "mi-app" })).toHaveAttribute(
-      "href",
-      "/assets/asset-p",
-    );
+    expect(screen.getByRole("link", { name: "mi-app" })).toHaveAttribute("href", "/assets/asset-p");
     expect(screen.getByText("Reads its data")).toBeInTheDocument();
     // The workload the identity runs on is how it would be taken.
     expect(screen.getByRole("link", { name: "vm-app" })).toHaveAttribute(
@@ -283,9 +279,7 @@ describe("the access tab", () => {
       "/assets/asset-vm",
     );
     expect(screen.getByText("Can read its configuration")).toBeInTheDocument();
-    expect(
-      screen.getByText(/inherited from management group root-mg/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/inherited from management group root-mg/)).toBeInTheDocument();
   });
 
   it("names who a group's role reaches, and says when it could not read them", async () => {
@@ -386,27 +380,24 @@ describe("the access tab", () => {
   });
 
   it("counts what an identity's role controls rather than listing it all", async () => {
-    mountAccess(
-      asset({ name: "mi-app", resource_type: "service_principal" }),
-      {
-        holders: [],
-        grants: [
-          {
-            role: "Contributor",
-            at: ref("/subscriptions/sub-1", "Production", "subscription", "asset-sub"),
-            scope: "/subscriptions/sub-1",
-            inherited_from: null,
-            conditional: true,
-            resolved: true,
-            grants_access: false,
-            access: [{ resource_type: "virtual_machine", kinds: ["execute", "manage", "read"] }],
-            controlled: [ref("/vm", "vm-app", "virtual_machine", "asset-vm")],
-            controlled_total: 30,
-            via: ref("/principals/g", "Platform admins", "group", "asset-g"),
-          },
-        ],
-      },
-    );
+    mountAccess(asset({ name: "mi-app", resource_type: "service_principal" }), {
+      holders: [],
+      grants: [
+        {
+          role: "Contributor",
+          at: ref("/subscriptions/sub-1", "Production", "subscription", "asset-sub"),
+          scope: "/subscriptions/sub-1",
+          inherited_from: null,
+          conditional: true,
+          resolved: true,
+          grants_access: false,
+          access: [{ resource_type: "virtual_machine", kinds: ["execute", "manage", "read"] }],
+          controlled: [ref("/vm", "vm-app", "virtual_machine", "asset-vm")],
+          controlled_total: 30,
+          via: ref("/principals/g", "Platform admins", "group", "asset-g"),
+        },
+      ],
+    });
 
     expect(await screen.findByText("What this identity holds")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Platform admins" })).toHaveAttribute(
@@ -415,10 +406,10 @@ describe("the access tab", () => {
     );
     expect(screen.getByText("Controls 30 assets")).toBeInTheDocument();
     expect(screen.getByText("and 29 more")).toBeInTheDocument();
+    expect(screen.getByText("Limited by a condition Cleave cannot evaluate")).toBeInTheDocument();
     expect(
-      screen.getByText("Limited by a condition Cleave cannot evaluate"),
+      screen.getByText("runs code as it, changes configuration, reads configuration"),
     ).toBeInTheDocument();
-    expect(screen.getByText("runs code as it, changes configuration, reads configuration")).toBeInTheDocument();
     // Nobody is assigned a role on an identity; an empty holders card says nothing.
     expect(screen.queryByText("Who can reach this")).toBeNull();
   });
@@ -434,8 +425,8 @@ describe("when the graph cannot be read", () => {
     // outage as a fact about the estate.
     vi.spyOn(api, "get").mockImplementation((url: string) =>
       url === "/api/v1/assets/asset-1"
-        ? (Promise.resolve({ data: asset(), meta: {} }) as never)
-        : (Promise.reject(new ApiError("INTERNAL", "boom", 500)) as never),
+        ? Promise.resolve({ data: asset(), meta: {} })
+        : Promise.reject(new ApiError("INTERNAL", "boom", 500)),
     );
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(

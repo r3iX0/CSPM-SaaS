@@ -5,7 +5,10 @@ Written against the repository rather than against a plan: every claim about
 what exists names the file it lives in, and every claim about what is missing
 was checked before it was made.
 
-> **Update (20 September 2026):** A full comprehensive architecture review reflecting the current implementation (multi-step durable pipeline, 98 rules, exact severance choke points, dual RLS isolation, and multi-cloud support) has been completed. See [`docs/ARCHITECTURE_REVIEW_2026-09-20.md`](ARCHITECTURE_REVIEW_2026-09-20.md).
+> **Update (20 September 2026):** A full comprehensive architecture review reflecting the current
+> implementation (multi-step durable pipeline, 98 rules, exact severance choke points, dual RLS
+> isolation, and multi-cloud support) has been completed. See
+> [`docs/ARCHITECTURE_REVIEW_2026-09-20.md`](ARCHITECTURE_REVIEW_2026-09-20.md).
 
 Written when the pipeline was one file, `app/services/scanner.py`. It is now the
 `app/services/scan/` package (DECISIONS.md §108); the method names below are
@@ -37,7 +40,7 @@ Contents:
 
 ## 1. Current state
 
-```
+```text
 apps/api/app/
   main.py, api/router.py, api/routes/*        11 routers, envelope {data,error,meta}
   core/       config deps db enums errors logging security urls
@@ -93,37 +96,37 @@ depth.
 > true" loses the argument that produced the fix. What follows is which of them
 > are closed, checked against the repository rather than against memory.
 >
-> * **2.1 Identity collected per subscription** -- closed. The directory is one
+> - **2.1 Identity collected per subscription** -- closed. The directory is one
 >   tenant-scoped COLLECT step, and its assets are keyed by connection rather
 >   than by account, so one administrator is one row and one finding.
-> * **2.2 One Celery task, no lease, no reaper** -- closed. A scan is durable
+> - **2.2 One Celery task, no lease, no reaper** -- closed. A scan is durable
 >   `scan_steps` claimed under a lease, retried individually, reaped when a
 >   worker stops reporting (`services/orchestrator.py`). Every write a running
 >   step makes is fenced on the attempt it was claimed under, and the lease is
 >   held on a clock for every kind of step rather than only while collection
 >   reports progress (`DECISIONS.md` §65).
-> * **2.3 `scan_in_flight` read-then-insert race** -- closed. A transaction
+> - **2.3 `scan_in_flight` read-then-insert race** -- closed. A transaction
 >   scoped advisory lock keyed on the connection covers the check and the
 >   insert, and every caller now takes the same lock for the same target,
 >   whichever ids it happens to hold (`DECISIONS.md` §65).
-> * **2.4 Whole-tenant reads in the hot path** -- closed for findings, risk
+> - **2.4 Whole-tenant reads in the hot path** -- closed for findings, risk
 >   links and relationships, which are scoped to what the scan covers, and for
 >   the capture rebuild, which fetches every subscription's readings in one
 >   statement rather than one per capture.
-> * **2.5 Unbounded snapshots** -- closed. Captures are manifests over
+> - **2.5 Unbounded snapshots** -- closed. Captures are manifests over
 >   content-addressed, compressed payloads (`DECISIONS.md` §55), and retention
 >   prunes on both a window and a per-scope ceiling, never the newest capture of
 >   a scope.
-> * **2.6 No evidence model** -- closed. `evidence` records one row per reading
+> - **2.6 No evidence model** -- closed. `evidence` records one row per reading
 >   with its outcome, permissions, endpoints, collected-at, hash and -- since
 >   0031 -- which scan actually read the provider; `finding_evidence` is the
 >   citation.
-> * **2.7 Collection is static** -- closed. `services/evidence_planner.py`
+> - **2.7 Collection is static** -- closed. `services/evidence_planner.py`
 >   derives the requirement from the enabled rules and the connector's baseline,
 >   and carries a reading forward only where the key opts into reuse.
-> * **2.8 No asset graph** -- closed. `app/graph/` answers reachability,
+> - **2.8 No asset graph** -- closed. `app/graph/` answers reachability,
 >   escalation chains and choke points from one scan's normalized state.
-> * **2.12 No scheduling** -- closed. `celery_app.conf.beat_schedule` runs the
+> - **2.12 No scheduling** -- closed. `celery_app.conf.beat_schedule` runs the
 >   reaper, the due-scan sweep, change-triggered scans, verification,
 >   notifications and retention.
 >
@@ -142,7 +145,7 @@ authentication methods per privileged user twenty times.
 
 The cost is the smaller half. `normalizer` emits
 `provider_resource_id="/users/{id}"`; `ResourceRecord` is unique on
-*(cloud_account_id, provider_resource_id)*, so one administrator becomes twenty
+_(cloud_account_id, provider_resource_id)_, so one administrator becomes twenty
 rows. `AzureMfaRule` is `PER_RESOURCE` and iterates `merged.resources`, which
 `scanner.py` builds by `.extend`-ing each subscription's state — duplicates and
 all. One administrator without MFA therefore produces twenty findings.
@@ -170,13 +173,13 @@ failed scan. There is no advisory lock and no partial unique index.
 
 **2.4 Whole-tenant table reads inside the per-scan hot path.**
 
-* `_persist_findings` selects every `Finding` in the organization, and every
+- `_persist_findings` selects every `Finding` in the organization, and every
   `RiskFinding`, into memory on every scan.
-* `_persist_relationships` selects the organization's entire edge table.
-* `_verify_remediations` loads all open findings, then issues a `RiskFinding`
-  query and a `Risk` get *inside the loop* — an N+1 on exactly the path the
+- `_persist_relationships` selects the organization's entire edge table.
+- `_verify_remediations` loads all open findings, then issues a `RiskFinding`
+  query and a `Risk` get _inside the loop_ — an N+1 on exactly the path the
   product is sold on.
-* `RuleContext` holds every resource, and `for_provider()` copies the resource
+- `RuleContext` holds every resource, and `for_provider()` copies the resource
   list and rewrites the whole relationship dict.
 
 Invisible at 500 resources. At 50,000 it is the first thing to fall over, and
@@ -188,7 +191,7 @@ retention.**
 One row per (scan, subscription) holding the full Resource Graph inventory plus
 every ARM listing. Nothing prunes, compresses or tiers. Replay deserializes the
 entire payload in worker memory. Twelve months of daily scans and this table
-*is* the database.
+_is_ the database.
 
 ### High
 
@@ -266,7 +269,7 @@ assertion before interpolation costs nothing and closes the class.
 
 ## 3. Recommended architecture
 
-```
+```text
                               HTTP (Supabase JWT)
                                      │
                     ┌────────────────▼────────────────┐
@@ -353,7 +356,7 @@ Both consume the graph; correlation consumes both. A path exists whether or not
 any rule failed along it, and an internet-to-data path with no failing rule on
 it is exactly the finding worth having.
 
-**The evidence planner reads the enabled rule set *and* the evidence store.**
+**The evidence planner reads the enabled rule set _and_ the evidence store.**
 Its job is not "what do rules need" — that is a set union — but "what do rules
 need that we do not already hold, fresh enough to use". That second half is
 where incremental scans, verification scans and API cost reduction all come
@@ -363,7 +366,7 @@ from, and it is one join.
 
 ## 4. Data flow
 
-```
+```text
 POST /scans
   → service creates scans row (QUEUED) + scan_steps rows (PLAN)
   → advisory lock on (org_id, connection_id) prevents the duplicate enqueue
@@ -399,7 +402,7 @@ step ANALYZE                                          after all COLLECT settle
 
 One rule holds throughout: a step that fails records why and does not block
 steps that do not depend on it. That is already how `CollectionRun` behaves
-inside a task; the change is making it true *between* tasks.
+inside a task; the change is making it true _between_ tasks.
 
 ---
 
@@ -411,7 +414,7 @@ Unchanged: `Organization`, `OrganizationMember`, `CloudConnection`,
 
 Added or reshaped:
 
-```
+```text
 ScanStep            scan_id, kind(PLAN|COLLECT|ANALYZE), target, status,
                     attempt, lease_until, worker_id, depends_on[], error
                     — makes scans resumable, leasable, reapable
@@ -443,7 +446,7 @@ VerificationAttempt finding_id, expected_state, evidence_ids[], outcome, attempt
 Nothing is dropped. `cloud_snapshots` becomes a pointer table or folds into
 `Evidence`.
 
-On granularity: evidence is per *(scan, account, evidence_key)*, not per API
+On granularity: evidence is per _(scan, account, evidence_key)_, not per API
 object. Per-object evidence multiplies rows by resource count for provenance
 nobody queries. The task is the thing that fails, truncates, expires and gets
 reused, so the task is the thing that gets a row.
@@ -467,7 +470,7 @@ constraints that Python developers get wrong routinely. That is the right trade
 at large scale or when a scan spans services. It is not the right trade for a
 modular monolith whose workflow has three step kinds.
 
-```
+```text
 Scan
  ├── PLAN                       depends: —
  ├── COLLECT(directory)         depends: PLAN
@@ -477,27 +480,27 @@ Scan
       (settled = terminal, not = succeeded)
 ```
 
-* **Claim.** `UPDATE ... SET status='RUNNING', lease_until=now()+ttl WHERE
+- **Claim.** `UPDATE ... SET status='RUNNING', lease_until=now()+ttl WHERE
   id=:id AND status='PENDING' RETURNING id`. Only the winner enqueues. This
   replaces `scan_in_flight` as the concurrency control and closes §2.3.
-* **Heartbeat.** A running step extends its lease every sixty seconds.
-* **Reaper.** One beat task per minute: `lease_until < now()` returns the step
+- **Heartbeat.** A running step extends its lease every sixty seconds.
+- **Reaper.** One beat task per minute: `lease_until < now()` returns the step
   to PENDING with `attempt + 1`, or FAILED past `max_attempts`. Closes §2.2 —
   a crashed worker's scan recovers by itself instead of blocking the
   connection.
-* **Retry.** Per step, not per scan. Idempotency comes from the step being
-  *(scan, target, kind)*: re-running COLLECT overwrites that target's evidence
+- **Retry.** Per step, not per scan. Idempotency comes from the step being
+  _(scan, target, kind)_: re-running COLLECT overwrites that target's evidence
   rows under the same keys. `max_retries=0` was the right call while a scan was
   one indivisible unit; it stops being right once the units are collection
   steps that write nothing durable until they finish.
-* **Concurrency.** Dedicated queues: `collect` (IO-bound, high concurrency) and
+- **Concurrency.** Dedicated queues: `collect` (IO-bound, high concurrency) and
   `analyze` (memory-bound, low concurrency). Opposite resource profiles; they
   should not share a worker.
-* **Throttling.** Move the ceiling from a per-run `RequestLimiter` to a Redis
-  token bucket keyed *(tenant_id, service)*. ARM meters per subscription, Graph
+- **Throttling.** Move the ceiling from a per-run `RequestLimiter` to a Redis
+  token bucket keyed _(tenant_id, service)_. ARM meters per subscription, Graph
   meters per tenant, and three subscriptions collecting in parallel currently
   have no shared Graph budget.
-* **Timeouts.** `task_time_limit` now bounds one account's collection rather
+- **Timeouts.** `task_time_limit` now bounds one account's collection rather
   than a whole tenant scan — the difference between a safety net and a ceiling
   on customer size.
 
@@ -511,7 +514,7 @@ outright degrades that account's categories and ANALYZE still runs.
 
 ## 7. Evidence architecture
 
-```
+```text
 Rule declares       requires_evidence: (EvidenceKey.AZURE_NSG,
                                         EvidenceKey.AZURE_NIC)
                               ▼
@@ -545,7 +548,7 @@ Retention           blobs tier out on a schedule; evidence rows and the
 
 Confidence does not belong on evidence. Evidence is either what the provider
 said or it is not, and `outcome` already carries the only distinction that
-changes a verdict. Confidence belongs on derived *context*.
+changes a verdict. Confidence belongs on derived _context_.
 
 ---
 
@@ -564,7 +567,7 @@ in-memory and finishes in milliseconds.
 
 The work is not the store. The work is typed edges with capability semantics:
 
-```
+```text
 network:   CAN_REACH(src, dst, ports, via)      from NSG rules, public IPs, routes
 identity:  GRANTS_ROLE(principal, role, scope)  from role assignments (rbac.py
            CAN_ASSUME(principal, principal)      already collects these)
@@ -579,7 +582,7 @@ predicate. Deterministic, explainable, and every hop cites an `evidence_id`.
 
 ### A concrete path, from rules that already exist
 
-```
+```text
 INTERNET
    │  CAN_REACH :3389/tcp
    │  evidence: nsg-prod-web rule "AllowRDP" src 0.0.0.0/0     [AZ-NET-002 FAIL]
@@ -616,16 +619,16 @@ rather than from a weighted sum.
 
 **Two layers, both deterministic.**
 
-`risk/scorer.py` stays as it is, as *finding risk*. It works, the weights live
+`risk/scorer.py` stays as it is, as _finding risk_. It works, the weights live
 in one file and are validated to sum to 1.0, the breakdown is persisted, and
 UNKNOWN scores at 3.5 rather than being quietly treated as LOW. Do not replace
 it with a probability model: calibrating one needs breach outcome data that
 will never exist here, and an uncalibrated probability is a weighted sum
 wearing a costume.
 
-*Scenario risk* sits on top:
+_Scenario risk_ sits on top:
 
-```
+```text
 scenario_score = max(member_finding_scores)
                + path_amplifier(path)      bounded, e.g. ≤ +25
                + toxicity(template)        fixed per template
@@ -641,7 +644,7 @@ into six named components, each into an evidence row.
 
 Today:
 
-```
+```text
 AZ-NET-002  Public RDP on nsg-prod-web           risk 78  CRITICAL
 AZ-CMP-001  VM reachable from internet           risk 71  HIGH
 AZ-ID-002   Over-privileged managed identity     risk 66  HIGH
@@ -655,7 +658,7 @@ isolation, and it leaves the path intact.
 
 With correlation:
 
-```
+```text
 SCENARIO  internet-to-sensitive-data                        risk 96  CRITICAL
   template SC-001 v1.2 — internet-reachable host with subscription-wide
                          identity reaching sensitive storage
@@ -786,17 +789,17 @@ on the reaper.
 
    **The shared rate budget is deliberately not built**, and the reasoning is
    worth keeping. §6 called for moving the ceiling from a per-run
-   `RequestLimiter` to a Redis token bucket keyed *(tenant, service)*, on the
+   `RequestLimiter` to a Redis token bucket keyed _(tenant, service)_, on the
    grounds that parallel subscriptions would contend for one budget. Checked
    against how the surfaces actually meter:
 
-   * **ARM** meters per subscription, and a COLLECT step reads exactly one — so
+   - **ARM** meters per subscription, and a COLLECT step reads exactly one — so
      parallel steps draw on different budgets and the per-step ceiling of 16 is
      already the right ceiling.
-   * **Microsoft Graph** meters per tenant, and the directory is read by exactly
+   - **Microsoft Graph** meters per tenant, and the directory is read by exactly
      one step per scan. That is what the directory split bought, and it bought
      this as well.
-   * **Resource Graph** meters per tenant and *is* in the per-subscription plan,
+   - **Resource Graph** meters per tenant and _is_ in the per-subscription plan,
      so N subscriptions now issue N concurrent queries against one budget. This
      is real new exposure — and it is one query per subscription, on the single
      collection task no rule reads, degrading through the existing Retry-After
@@ -804,7 +807,7 @@ on the reaper.
 
    A distributed token bucket would therefore be new infrastructure protecting
    the least consequential task in the plan. The trigger to build it is a
-   tenant-metered surface that a *rule* depends on becoming parallel per
+   tenant-metered surface that a _rule_ depends on becoming parallel per
    subscription — not the parallelism on its own.
 3. **Partly done** — the evidence model. (§7, §2.5, §2.6) Migration 0010
    renames `scan_collection_results` to `evidence` and gives a reading the
@@ -840,7 +843,7 @@ on the reaper.
 
     The rule-set half is exact today: union equals plan, nothing is dropped, no
     request is saved. That is the intended result rather than a disappointing
-    one — what it buys is that the equality is now *checked*. Three keys are
+    one — what it buys is that the equality is now _checked_. Three keys are
     named by no rule (inventory, role assignments, role definitions), and the
     connector declares them as baseline rather than the plan carrying them by
     habit; a listing whose last reader is deleted now fails a test instead of
@@ -914,7 +917,7 @@ on the reaper.
     worth asking — where an exposed asset can reach, and what one identity can
     act on.
 
-    Two corrections to what §8 assumed. Role assignments were *not* already
+    Two corrections to what §8 assumed. Role assignments were _not_ already
     collected — the ARM permission was in the role from v1 but nothing read it,
     so `AzureEvidence.ROLE_ASSIGNMENTS` and `ROLE_DEFINITIONS` are new tasks
     under a new `AUTHORIZATION` category. And there are **no synthetic nodes**:
@@ -973,7 +976,7 @@ on the reaper.
 
     `AssetGraph.escalation_chains()` answers the resulting question, and it is
     a different one from `attack_paths()` rather than a variation on it — not
-    what an attacker reaches, but what they could be *given* once they arrive.
+    what an attacker reaches, but what they could be _given_ once they arrive.
     A route ends at the **scope**, because the scope is the size of the answer:
     "this VM runs as an identity that can grant itself Owner" is alarming, and
     naming the subscription it can do that over is what makes it actionable.
@@ -985,7 +988,7 @@ on the reaper.
     to each: a route with no failing check on it creates no risk, a route that
     closes is resolved rather than deleted, and a route seen again keeps the
     risk it had. Scoring differs in one input — an escalation's
-    `target_sensitivity` is the most sensitive thing *under* the scope, taken
+    `target_sensitivity` is the most sensitive thing _under_ the scope, taken
     over known levels only, because that is what the escalation would be an
     escalation to.
 
@@ -1017,7 +1020,7 @@ on the reaper.
     renders as its own shape rather than as a finding risk with extra fields:
     it shows the route and the arithmetic that lifted it above its worst
     member, and deliberately omits exploitability and asset criticality, which
-    are inputs to the *finding* formula and were never used here. Showing them
+    are inputs to the _finding_ formula and were never used here. Showing them
     would be showing working that was never done.
 
     **Risk history is now built.** Migration 0015 adds `risk_history`: one
@@ -1074,7 +1077,7 @@ on the reaper.
     Measured over the newest reading of each (scope, evidence key) rather than
     from `scans.completed_at`, because those differ now that a scan may carry a
     reading forward instead of re-taking it — and a carried reading keeps the
-    time it was *collected* (`DECISIONS.md` §16). The headline is the **oldest**
+    time it was _collected_ (`DECISIONS.md` §16). The headline is the **oldest**
     of them: an average would let a hundred fresh listings hide the one
     subscription nobody has managed to read since Tuesday. `unusable` counts
     readings that came back failed, truncated or skipped, because "recent" and
@@ -1090,7 +1093,7 @@ on the reaper.
     scan, so a quiet week reads as a quiet week instead of a wall of rows saying
     everything is still where it was.
 
-    Disappearance needed the new column to be a *transition* rather than a
+    Disappearance needed the new column to be a _transition_ rather than a
     standing condition. Derived from `last_seen_at`, an absence would need a
     scan cadence nobody records and would re-report itself on every scan
     afterwards; `absent_since` is set when a covering scan misses an asset and
@@ -1119,7 +1122,7 @@ on the reaper.
     03:00" needs a timezone, a window and an answer for what happens when a
     scan overruns its slot; an interval says the only thing a scanner can
     promise, which is that the environment is read at least this often. Due-ness
-    is measured from when the last scan *started*, so a slow scan does not drift
+    is measured from when the last scan _started_, so a slow scan does not drift
     the schedule later every time.
 
     The control to set it lives on the connection card, after the "run a scan"
@@ -1160,7 +1163,7 @@ on the reaper.
     be true for a finding to close, carrying three names for one setting --
     the normalized field the rule reads, the ARM alias a policy matches on, and
     the Terraform argument that sets it -- because the setting genuinely has
-    three. The Azure Policy definition and the Terraform hints are *generated*
+    three. The Azure Policy definition and the Terraform hints are _generated_
     from that, which is the `rbac.py` pattern: one declaration, several
     artifacts, tests holding them to each other.
 
@@ -1176,7 +1179,7 @@ on the reaper.
     expected state carries an alias -- one covering half a rule would pass an
     asset that still fails it, and a customer who deployed it would believe the
     class was closed. And `also_accepts` exists because a rule that accepts TLS
-    1.2 *or higher* would otherwise generate a policy pinned to equality, which
+    1.2 _or higher_ would otherwise generate a policy pinned to equality, which
     refuses an account configured better than asked; that is a change-control
     incident rather than a bug report.
 
@@ -1205,7 +1208,7 @@ on the reaper.
     both directions against their own declaration.
 
     Two rules have no per-asset expectation and say why. AZ-ID-002 judges a
-    *ratio across the directory*, and AZ-CMP-001 is about a *relationship*
+    _ratio across the directory_, and AZ-CMP-001 is about a _relationship_
     between a machine and the security groups that govern it — neither is a
     setting on an asset, and the fix for the second lands on the NSG where
     AZ-NET-001 already declares it. An empty declaration is also what a rule
@@ -1213,7 +1216,7 @@ on the reaper.
     carry a reason and something a customer can still run.
 
     Policy generation stayed narrow on purpose: three rules produce one. The
-    network and logging expectations *could* be expressed as Azure Policy
+    network and logging expectations _could_ be expressed as Azure Policy
     `count` expressions and DeployIfNotExists definitions respectively, and
     neither the aliases nor the expressions have been verified against a real
     deployment from here — which `rbac.py` records the cost of. The generator
@@ -1235,7 +1238,7 @@ on the reaper.
     generalize the permission-manifest pattern and migrate the scope
     vocabulary, in the order `MULTI_CLOUD.md` §8 already argues for.
 
-Deliberately postponed, with reasons: automated remediation *apply* (it needs
+Deliberately postponed, with reasons: automated remediation _apply_ (it needs
 write permissions, which would destroy the read-only, holds-no-customer-secret
 property that is currently the strongest security claim — generated pull
 requests against the customer's IaC repository instead); MSP and advisor modes;

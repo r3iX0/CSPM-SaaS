@@ -114,9 +114,7 @@ class RemediationVerification(UUIDPrimaryKey, TenantOwned, Timestamps, Base):
     # when the attempts run out: having once seen the check fail is a stronger
     # and truer statement than "we could not tell", so a run of UNKNOWNs after
     # a definite failure still settles as STILL_FAILING.
-    observed_failure: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False
-    )
+    observed_failure: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # The sentence a customer reads. Written for them, not for a log.
     detail: Mapped[str | None] = mapped_column(Text)
 

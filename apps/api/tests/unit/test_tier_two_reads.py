@@ -51,9 +51,7 @@ def judge(
     rule = get_rule(rule_id)
     assert rule is not None
     resource = (
-        next(r for r in resources if r.provider_resource_id == resource_id)
-        if resource_id
-        else None
+        next(r for r in resources if r.provider_resource_id == resource_id) if resource_id else None
     )
     result = rule.evaluate(resource, context)
     return (result if isinstance(result, list) else [result])[0].state
@@ -142,15 +140,11 @@ def test_iot_hubs_are_judged_only_where_there_are_hubs() -> None:
     hub = f"{SUB}/resourceGroups/rg/providers/Microsoft.Devices/IotHubs/hub"
     inventory = {"resources": [{"id": hub, "type": "Microsoft.Devices/IotHubs", "name": "hub"}]}
     watched = {
-        "iot_security_solutions": [
-            {"properties": {"status": "Enabled", "iotHubs": [hub.upper()]}}
-        ]
+        "iot_security_solutions": [{"properties": {"status": "Enabled", "iotHubs": [hub.upper()]}}]
     }
     assert judge("AZ-DEF-009", {"resources": [], **watched}) is RuleState.NOT_APPLICABLE
     assert judge("AZ-DEF-009", {**inventory, **watched}) is RuleState.PASS
-    assert (
-        judge("AZ-DEF-009", {**inventory, "iot_security_solutions": []}) is RuleState.FAIL
-    )
+    assert judge("AZ-DEF-009", {**inventory, "iot_security_solutions": []}) is RuleState.FAIL
     assert judge("AZ-DEF-009", inventory) is RuleState.UNKNOWN
 
 
@@ -164,8 +158,7 @@ def test_a_machine_with_no_vulnerability_assessment() -> None:
                     "properties": {
                         "status": {"code": "Unhealthy"},
                         "resourceDetails": {"Id": VM},
-                        "displayName": "Machines should have a vulnerability assessment "
-                        "solution",
+                        "displayName": "Machines should have a vulnerability assessment solution",
                         "metadata": {"severity": "High"},
                     },
                 }
@@ -219,19 +212,15 @@ def alert(*operations: str, scope: str = SUB, enabled: bool = True) -> dict[str,
         ("AZ-LOG-014", "Microsoft.Network/publicIPAddresses/delete"),
     ],
 )
-def test_each_operation_needs_its_own_subscription_wide_alert(
-    rule_id: str, operation: str
-) -> None:
+def test_each_operation_needs_its_own_subscription_wide_alert(rule_id: str, operation: str) -> None:
     assert judge(rule_id, {"activity_log_alerts": [alert(operation.upper())]}) is RuleState.PASS
     assert judge(rule_id, {"activity_log_alerts": [alert("x/y/write")]}) is RuleState.FAIL
     group = f"{SUB}/resourceGroups/rg"
     assert (
-        judge(rule_id, {"activity_log_alerts": [alert(operation, scope=group)]})
-        is RuleState.FAIL
+        judge(rule_id, {"activity_log_alerts": [alert(operation, scope=group)]}) is RuleState.FAIL
     )
     assert (
-        judge(rule_id, {"activity_log_alerts": [alert(operation, enabled=False)]})
-        is RuleState.FAIL
+        judge(rule_id, {"activity_log_alerts": [alert(operation, enabled=False)]}) is RuleState.FAIL
     )
     assert judge(rule_id, {}) is RuleState.UNKNOWN
 
@@ -292,18 +281,16 @@ def storage(kind: str = "StorageV2", files: dict[str, Any] | None = None, **prop
 def test_file_share_settings() -> None:
     hardened = {
         "shareDeleteRetentionPolicy": {"enabled": True, "days": 7},
-        "protocolSettings": {
-            "smb": {"versions": "SMB3.1.1", "channelEncryption": "AES-256-GCM"}
-        },
+        "protocolSettings": {"smb": {"versions": "SMB3.1.1", "channelEncryption": "AES-256-GCM"}},
     }
     for rule_id in ("AZ-STO-012", "AZ-STO-013", "AZ-STO-014"):
         assert judge(rule_id, storage(files=hardened), ACCOUNT) is RuleState.PASS, rule_id
         # Unset: soft delete off, and every SMB version and cipher allowed.
         assert judge(rule_id, storage(files={}), ACCOUNT) is RuleState.FAIL, rule_id
         assert judge(rule_id, storage(), ACCOUNT) is RuleState.UNKNOWN, rule_id
-        assert (
-            judge(rule_id, storage("BlockBlobStorage"), ACCOUNT) is RuleState.NOT_APPLICABLE
-        ), rule_id
+        assert judge(rule_id, storage("BlockBlobStorage"), ACCOUNT) is RuleState.NOT_APPLICABLE, (
+            rule_id
+        )
 
 
 def test_access_key_expiry() -> None:
@@ -419,9 +406,9 @@ def test_vulnerability_assessment_express_and_classic() -> None:
     assert judge("AZ-DB-019", sql(), SERVER) is RuleState.UNKNOWN
 
     for rule_id in ("AZ-DB-020", "AZ-DB-021", "AZ-DB-022"):
-        assert (
-            judge(rule_id, sql(**{reading: express}), SERVER) is RuleState.NOT_APPLICABLE
-        ), rule_id
+        assert judge(rule_id, sql(**{reading: express}), SERVER) is RuleState.NOT_APPLICABLE, (
+            rule_id
+        )
         assert judge(rule_id, sql(), SERVER) is RuleState.UNKNOWN, rule_id
     assert judge("AZ-DB-020", sql(**{reading: classic}), SERVER) is RuleState.PASS
     assert judge("AZ-DB-021", sql(**{reading: classic}), SERVER) is RuleState.PASS
@@ -487,9 +474,7 @@ def network(
         "virtual_networks": [
             {"id": VNET, "name": "vnet", "location": "westeurope", "properties": props}
         ],
-        "network_watchers": (
-            [{"id": WATCHER, "location": "westeurope"}] if watcher else []
-        ),
+        "network_watchers": ([{"id": WATCHER, "location": "westeurope"}] if watcher else []),
         "flow_logs": {WATCHER: list(logs)} if watcher else {},
     }
     return data
@@ -515,9 +500,7 @@ def flow_log(target: str, days: int = 90, analytics: bool = True) -> dict[str, A
 def test_flow_logs_cover_a_network_through_it_or_its_subnets_groups() -> None:
     assert judge("AZ-NET-010", network(flow_log(VNET)), VNET) is RuleState.PASS
     assert judge("AZ-NET-010", network(flow_log(NSG)), VNET) is RuleState.PASS
-    assert judge("AZ-NET-010", network(flow_log(VNET, analytics=False)), VNET) is (
-        RuleState.FAIL
-    )
+    assert judge("AZ-NET-010", network(flow_log(VNET, analytics=False)), VNET) is (RuleState.FAIL)
     assert judge("AZ-NET-010", network(), VNET) is RuleState.FAIL
     assert judge("AZ-NET-010", network(watcher=False), VNET) is RuleState.FAIL
 
@@ -578,9 +561,7 @@ def test_http_logs_for_web_apps_only() -> None:
     assert judge("AZ-WEB-009", site(logs=["AppServiceHTTPLogs"]), SITE) is RuleState.PASS
     assert judge("AZ-WEB-009", site(logs=["AppServiceConsoleLogs"]), SITE) is RuleState.FAIL
     assert judge("AZ-WEB-009", site(), SITE) is RuleState.UNKNOWN
-    assert (
-        judge("AZ-WEB-009", site("functionapp", logs=[]), SITE) is RuleState.NOT_APPLICABLE
-    )
+    assert judge("AZ-WEB-009", site("functionapp", logs=[]), SITE) is RuleState.NOT_APPLICABLE
 
 
 # ------------------------------------------------------------ directory

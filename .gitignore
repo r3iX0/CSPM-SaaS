@@ -27,5 +27,12 @@ apps/web/.vite/
 # OS / editor
 .DS_Store
 .idea/
-.vscode/
+.vscode/*
+# Shared: the formatters and linters the hooks run, applied on save.
+!.vscode/extensions.json
+!.vscode/settings.json
 temp/
+
+# Claude Code: per-developer settings and hookify rules
+.claude/settings.local.json
+.claude/*.local.md

@@ -28,12 +28,15 @@ function rule(overrides: Partial<Rule> = {}): Rule {
 }
 
 function mount(rules: Rule[], connectedClouds: string[] = []) {
-  vi.spyOn(api, "get").mockImplementation(async (url: string) => ({
-    data: url.includes("cloud-connections")
-      ? connectedClouds.map((provider) => ({ provider }))
-      : rules,
-    meta: {},
-  }) as never);
+  vi.spyOn(api, "get").mockImplementation(
+    async (url: string) =>
+      ({
+        data: url.includes("cloud-connections")
+          ? connectedClouds.map((provider) => ({ provider }))
+          : rules,
+        meta: {},
+      }) as never,
+  );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
@@ -64,9 +67,7 @@ describe("the rule catalogue", () => {
     });
 
     expect(screen.getByText("Network security group permits inbound SSH")).toBeInTheDocument();
-    expect(
-      screen.queryByText("Storage account allows public blob access"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Storage account allows public blob access")).not.toBeInTheDocument();
   });
 
   it("matches on the rule id, which is how a finding names its rule", async () => {
@@ -121,8 +122,9 @@ describe("the rule catalogue", () => {
 
     expect(screen.getByText("Retired check")).toBeInTheDocument();
     expect(screen.getByText("Withdrawn")).toBeInTheDocument();
-    expect(screen.getByText(/no longer runs and compliance coverage no longer counts it/))
-      .toBeInTheDocument();
+    expect(
+      screen.getByText(/no longer runs and compliance coverage no longer counts it/),
+    ).toBeInTheDocument();
   });
 
   it("offers no withdrawn toggle when nothing is withdrawn", async () => {
@@ -154,12 +156,18 @@ describe("the rule catalogue", () => {
     mount(
       [
         rule({ provider: "azure" } as Partial<Rule>),
-        rule({ rule_id: "AWS-IAM-004", name: "Account password policy is weak", provider: "aws" } as Partial<Rule>),
+        rule({
+          rule_id: "AWS-IAM-004",
+          name: "Account password policy is weak",
+          provider: "aws",
+        } as Partial<Rule>),
       ],
       ["azure"],
     );
 
-    expect(await screen.findByText("Storage account allows public blob access")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Storage account allows public blob access"),
+    ).toBeInTheDocument();
     expect(screen.queryByText("Account password policy is weak")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Filter by cloud")).toHaveTextContent("Your clouds");
   });
@@ -167,7 +175,11 @@ describe("the rule catalogue", () => {
   it("lists every cloud's rules before anything is connected", async () => {
     mount([
       rule({ provider: "azure" } as Partial<Rule>),
-      rule({ rule_id: "AWS-IAM-004", name: "Account password policy is weak", provider: "aws" } as Partial<Rule>),
+      rule({
+        rule_id: "AWS-IAM-004",
+        name: "Account password policy is weak",
+        provider: "aws",
+      } as Partial<Rule>),
     ]);
 
     expect(await screen.findByText("Account password policy is weak")).toBeInTheDocument();

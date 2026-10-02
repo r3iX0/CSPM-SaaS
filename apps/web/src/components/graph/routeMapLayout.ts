@@ -48,9 +48,7 @@ export function layoutRouteMap(map: RouteMap): Map<string, { x: number; y: numbe
       const found = (anchors.get(id) ?? [])
         .map((other) => placed.get(other)?.y)
         .filter((y): y is number => y !== undefined);
-      return found.length === 0
-        ? 0
-        : found.reduce((sum, y) => sum + y, 0) / found.length;
+      return found.length === 0 ? 0 : found.reduce((sum, y) => sum + y, 0) / found.length;
     };
 
     const boxes = [...(columns.get(column) ?? [])]

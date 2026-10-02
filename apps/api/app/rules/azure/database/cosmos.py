@@ -70,6 +70,7 @@ class AzureCosmosPublicNetworkRule(_CosmosRule):
             "--public-network-access DISABLED",
         ),
         notes=_NO_POLICY,
+        terraform_resource_types=("azurerm_cosmosdb_account",),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.20", "A.8.22"],
@@ -140,6 +141,7 @@ class AzureCosmosLocalAuthRule(_CosmosRule):
         ),
         cli=("az resource update --ids <resource-id> --set properties.disableLocalAuth=true",),
         notes=_NO_POLICY,
+        terraform_resource_types=("azurerm_cosmosdb_account",),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.16", "A.5.17"],
@@ -197,10 +199,9 @@ class AzureCosmosTlsRule(_CosmosRule):
                 terraform_attribute="minimal_tls_version",
             ),
         ),
-        cli=(
-            "az resource update --ids <resource-id> --set properties.minimalTlsVersion=Tls12",
-        ),
+        cli=("az resource update --ids <resource-id> --set properties.minimalTlsVersion=Tls12",),
         notes=_NO_POLICY,
+        terraform_resource_types=("azurerm_cosmosdb_account",),
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.24"],

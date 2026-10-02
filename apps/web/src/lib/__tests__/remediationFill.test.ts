@@ -34,7 +34,9 @@ describe("filling a fix command from its resource", () => {
       values,
     );
 
-    expect(text).toBe("az network nsg rule delete --nsg-name nsg-jump --resource-group rg-ops --name <rule>");
+    expect(text).toBe(
+      "az network nsg rule delete --nsg-name nsg-jump --resource-group rg-ops --name <rule>",
+    );
   });
 
   it("does not use a name for a placeholder of a different kind", () => {
@@ -52,7 +54,10 @@ describe("filling a fix command from its resource", () => {
       { name: "ci-deployer", resource_type: "service_principal", region: null },
       "/directory/servicePrincipals/abc",
     );
-    const { text, filled } = fillPlaceholders("az role assignment delete --assignee <object-id>", values);
+    const { text, filled } = fillPlaceholders(
+      "az role assignment delete --assignee <object-id>",
+      values,
+    );
     expect(text).toBe("az role assignment delete --assignee <object-id>");
     expect(filled).toEqual([]);
   });
@@ -108,15 +113,18 @@ describe("quoting what came out of somebody else's cloud", () => {
     const { text, filled } = fillPlaceholders(command, { bucket: "logs bucket" });
 
     expect(text).toBe(
-      'aws s3api put-bucket-logging --bucket \'logs bucket\' --bucket-logging-status \'{"TargetBucket":"<bucket>"}\'',
+      "aws s3api put-bucket-logging --bucket 'logs bucket' --bucket-logging-status '{\"TargetBucket\":\"<bucket>\"}'",
     );
     expect(filled).toEqual(["bucket"]);
   });
 
   it("still fills a quoted position when the value needs no quoting", () => {
-    const command = 'aws s3api put-bucket-logging --bucket-logging-status \'{"TargetBucket":"<bucket>"}\'';
+    const command =
+      'aws s3api put-bucket-logging --bucket-logging-status \'{"TargetBucket":"<bucket>"}\'';
     const { text } = fillPlaceholders(command, { bucket: "cg-logs" });
 
-    expect(text).toBe('aws s3api put-bucket-logging --bucket-logging-status \'{"TargetBucket":"cg-logs"}\'');
+    expect(text).toBe(
+      'aws s3api put-bucket-logging --bucket-logging-status \'{"TargetBucket":"cg-logs"}\'',
+    );
   });
 });

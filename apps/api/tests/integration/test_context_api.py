@@ -101,9 +101,7 @@ class TestDeclaringContext:
         # ask of the label rather than of the audit log.
         assert declaration["declared_by_user_id"] == str(user)
 
-    async def test_nothing_declared_is_null_rather_than_a_404(
-        self, client, cleanup_orgs
-    ) -> None:
+    async def test_nothing_declared_is_null_rather_than_a_404(self, client, cleanup_orgs) -> None:
         """A subscription nobody has described is a subscription, not a missing
         one. Only "that is not yours" earns a 404 here."""
         user = uuid.uuid4()
@@ -117,9 +115,7 @@ class TestDeclaringContext:
         assert response.status_code == 200
         assert response.json()["data"] is None
 
-    async def test_a_put_replaces_rather_than_patches(
-        self, client, cleanup_orgs
-    ) -> None:
+    async def test_a_put_replaces_rather_than_patches(self, client, cleanup_orgs) -> None:
         """A statement is replaced entire. A field left out is one the customer
         is no longer claiming, and anything else leaves nobody able to say what
         the declaration currently says without diffing it."""
@@ -145,9 +141,7 @@ class TestDeclaringContext:
         assert got.json()["data"]["environment"] is None
         assert got.json()["data"]["criticality"] == "HIGH"
 
-    async def test_declaring_nothing_withdraws_the_declaration(
-        self, client, cleanup_orgs
-    ) -> None:
+    async def test_declaring_nothing_withdraws_the_declaration(self, client, cleanup_orgs) -> None:
         """Cleared rather than kept as a row of NULLs.
 
         "Go back to what you can work out yourself" is a different answer from
@@ -214,10 +208,7 @@ async def _declaration_rows(account_id: uuid.UUID) -> list:
         return list(
             (
                 await session.execute(
-                    text(
-                        "SELECT id FROM context_declarations "
-                        "WHERE cloud_account_id = :a"
-                    ),
+                    text("SELECT id FROM context_declarations WHERE cloud_account_id = :a"),
                     {"a": account_id},
                 )
             ).all()

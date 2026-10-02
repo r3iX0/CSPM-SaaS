@@ -140,9 +140,7 @@ class RiskHistory(UUIDPrimaryKey, TenantOwned, Base):
     """
 
     __tablename__ = "risk_history"
-    __table_args__ = (
-        Index("ix_risk_history_timeline", "organization_id", "observed_at"),
-    )
+    __table_args__ = (Index("ix_risk_history_timeline", "organization_id", "observed_at"),)
 
     # SET NULL rather than CASCADE: pruning an execution log must not rewrite
     # history, exactly as deleting a scan leaves the findings it raised alone.
@@ -152,15 +150,11 @@ class RiskHistory(UUIDPrimaryKey, TenantOwned, Base):
     # When the provider was read, not when this row was written. A replay
     # carries its capture's own time, and a history plotted on write time would
     # put month-old evidence at today's date.
-    observed_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     security_score: Mapped[int] = mapped_column(Integer, nullable=False)
     open_finding_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    findings_by_severity: Mapped[dict] = mapped_column(
-        JSONB, nullable=False, default=dict
-    )
+    findings_by_severity: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     risk_bands: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     # Routes open at that moment. "Did a new attack path appear" is answerable
     # from the risks table; this is what makes "are there more than last week"

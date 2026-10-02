@@ -298,9 +298,7 @@ def test_serialized_boxes_carry_the_same_counts_whatever_they_hold() -> None:
     into_b = next(e for e in body["edges"] if e["target"] == scope_box("sub-b"))
     assert into_b["source"] == scope_box(DIRECTORY_SCOPE)
     assert "on_route" not in into_b
-    assert into_b["links"] == [
-        {"relationship": "grants_role", "count": 1, "label": "can act over"}
-    ]
+    assert into_b["links"] == [{"relationship": "grants_role", "count": 1, "label": "can act over"}]
 
 
 def test_serialized_asset_boxes_link_to_their_page() -> None:

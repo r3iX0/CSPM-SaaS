@@ -95,9 +95,7 @@ async def test_a_renewal_is_conditional_on_the_claim_it_was_made_under() -> None
 # ------------------------------------------------------------------ settling
 async def test_a_settle_lands_while_the_step_is_still_ours() -> None:
     session = FencedSession(matched=True)
-    settled = await orchestrator.finish(
-        session, step(), ScanStepStatus.SUCCEEDED, attempt=1
-    )
+    settled = await orchestrator.finish(session, step(), ScanStepStatus.SUCCEEDED, attempt=1)
     assert settled is True
 
 
@@ -105,9 +103,7 @@ async def test_a_settle_is_refused_once_the_step_has_been_reclaimed() -> None:
     """The case that corrupted a scan: a slow worker returning to mark SUCCEEDED
     a step another worker had already been given."""
     session = FencedSession(matched=False)
-    settled = await orchestrator.finish(
-        session, step(), ScanStepStatus.SUCCEEDED, attempt=1
-    )
+    settled = await orchestrator.finish(session, step(), ScanStepStatus.SUCCEEDED, attempt=1)
     assert settled is False
 
 
@@ -123,25 +119,19 @@ async def test_a_retry_of_a_reclaimed_step_decides_nothing() -> None:
     """None rather than PENDING, and the difference matters: a late failure that
     put the step back would spend an attempt on the run that replaced it."""
     session = FencedSession(matched=False)
-    outcome = await orchestrator.fail_or_retry(
-        session, step(attempt=1), "timed out", attempt=1
-    )
+    outcome = await orchestrator.fail_or_retry(session, step(attempt=1), "timed out", attempt=1)
     assert outcome is None
 
 
 async def test_a_retry_within_the_claim_returns_the_step_to_the_queue() -> None:
     session = FencedSession(matched=True)
-    outcome = await orchestrator.fail_or_retry(
-        session, step(attempt=1), "timed out", attempt=1
-    )
+    outcome = await orchestrator.fail_or_retry(session, step(attempt=1), "timed out", attempt=1)
     assert outcome == ScanStepStatus.PENDING
 
 
 async def test_the_last_attempt_fails_rather_than_retrying() -> None:
     session = FencedSession(matched=True)
-    outcome = await orchestrator.fail_or_retry(
-        session, step(attempt=3), "timed out", attempt=3
-    )
+    outcome = await orchestrator.fail_or_retry(session, step(attempt=3), "timed out", attempt=3)
     assert outcome == ScanStepStatus.FAILED
 
 

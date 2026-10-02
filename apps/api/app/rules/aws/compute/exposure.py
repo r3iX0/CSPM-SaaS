@@ -26,9 +26,7 @@ class AwsInstanceMetadataRule(SecurityRule):
     # complete -- the role's credentials, usable from anywhere.
     exploitability = 3
     applies_to: ClassVar[list[ResourceType]] = [ResourceType.VIRTUAL_MACHINE]
-    requires_evidence: ClassVar[tuple[AwsEvidence, ...]] = (
-        AwsEvidence.EC2_INSTANCES,
-    )
+    requires_evidence: ClassVar[tuple[AwsEvidence, ...]] = (AwsEvidence.EC2_INSTANCES,)
     estimated_effort_minutes = 15
     rationale = (
         "IMDSv1 answers any request that reaches it. IMDSv2 requires a PUT to "
