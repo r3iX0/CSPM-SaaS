@@ -7545,6 +7545,7 @@
           "risks"
         ],
         "summary": "List Risks",
+        "description": "The live risks, worst first; ask for a status by name to reach the settled ones.\n\nA risk is live unless its findings say it is over (``service.list_risks`` holds the rule and\nwhy it is \"settled\" rather than \"strict\").",
         "operationId": "risks_list_risks",
         "security": [
           {
@@ -7801,6 +7802,7 @@
           "risks"
         ],
         "summary": "Set Risk Status",
+        "description": "One decision about one risk: open it, start work on it, or accept it with a reason.",
         "operationId": "risks_set_risk_status",
         "security": [
           {
@@ -7905,6 +7907,7 @@
           "risks"
         ],
         "summary": "Get Risk",
+        "description": "One risk with the findings it covers and when its route was last seen.",
         "operationId": "risks_get_risk",
         "security": [
           {
