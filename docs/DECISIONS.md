@@ -10371,7 +10371,7 @@ as "(serviceprincipal)". CamelCase is split into words: "service principal",
 Four more from the §184 walk.
 
 **The overview's severity strip says what each figure counts.** "Critical 2"
-sat under the score and above five critical *risks* at 100, and nothing said
+sat under the score and above five critical _risks_ at 100, and nothing said
 the strip counts findings. Each tile now carries a line: "open findings", or
 "checks, not findings" under no verdict. The strip is otherwise as §178 left
 it -- one measurement split four ways, with the unanswered beside it.
@@ -10448,7 +10448,7 @@ started a scan. `initialFocus` now focuses the popup, which its title names;
 setup keeps the default.
 
 Not changed, because the walk misread them. A traced route on the attack-path
-canvas *is* framed (`RouteMapCanvas` fits its boxes); a route from the first
+canvas _is_ framed (`RouteMapCanvas` fits its boxes); a route from the first
 column to the last spans the whole drawing, so framing it barely changes the
 zoom. The asset page's neighbourhood looked drawn low, but it is centred in a
 canvas taller than the part of it above the fold.
@@ -10550,6 +10550,7 @@ mark, in each theme's foreground and primary.
 Not done from the walk's list: the overview's "link to cut" panel keeps its
 height beside the priority risks -- it is one of a pair of panels sharing a
 row, and shrinking it would leave the row ragged instead.
+
 ## 190. A fix is written into the customer's own Terraform only by changing one value that is already there
 
 Fix-as-Code (`docs/FIX_AS_CODE.md`) turns a failing finding into an edit of the
@@ -10669,6 +10670,44 @@ reason, and the list only shrinks, as with `i18n/overBudget.ts` and the
 pip-audit ignores. Ruff's security, async and pytest rules, mypy `strict`,
 type-aware ESLint, markdownlint, yamllint, actionlint, zizmor, djLint and
 CodeQL come next, in that order.
+
+## 192. Markdown is held to markdownlint at 100 columns, checked and never auto-fixed
+
+The documentation is most of what a reader meets first and much of what this
+log is, and nothing checked it: list markers, emphasis, fences and line lengths
+varied file to file, and one fence in `DEPLOYMENT.md` had text after its closing
+backticks, so it never closed and the Railway section below it rendered as code.
+`docs/MARKDOWN_GUIDELINES.md` condenses Google's, Microsoft's and IBM's guides;
+`.markdownlint-cli2.jsonc` holds what a tool can see, run by the commit hook and
+CI's `repo` job (§191).
+
+**Every rule on, styles chosen.** `-` bullets, ATX headings, `_italic_` and
+`**bold**`, fenced code with a language on every fence (`text` for output and
+ASCII diagrams), no trailing spaces, 100 columns for prose with tables, code and
+headings exempt. HTML is refused but for what Markdown has no form for:
+`<details>`, `<summary>`, `<b>` inside it, and `<br>` in a table cell. Table
+pipe spacing (MD060) is off: consistency within a table is enough.
+
+**The existing docs were brought to zero, rendering unchanged.** Autofixes,
+a reflow of 717 prose lines, and a language on 68 fences, verified by rendering
+every file with markdown-it before and after and comparing the HTML. Three
+changes are deliberate: the broken `DEPLOYMENT.md` fence now closes, README's
+second heading is an H2, and two indented code blocks in this file are fenced.
+Hard line breaks that were trailing spaces are now a trailing `\`. Two
+formulas too long to wrap carry a one-line exception with its reason.
+`RULE_CATALOG.md` is generated and excluded, as are the design handoff and
+developers' local `.claude/*.local.md` rules.
+
+**Checked, never fixed by the hook.** `markdownlint-cli2 --fix` inserted blank
+lines inside a fence nested in a list, which is how the Railway section came to
+render as code a second time. A fix is made in the editor, where the extension
+shows it, and reviewed. Relative links across files are not yet checked; that is
+the next step, with lychee in offline mode.
+
+**Claude Code reads the guidelines.** `.claude/rules/markdown.md` and
+`.claude/rules/python.md` are path-scoped rules, loaded when a matching file is
+in play. The `@path` import does not expand inside a rule, so each says to read
+its guideline in full and carries the rules most often missed.
 
 ## Open items carried forward
 

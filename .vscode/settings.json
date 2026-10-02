@@ -11,6 +11,10 @@
   "[typescript][typescriptreact][javascript][json][css]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
+  "[markdown]": {
+    "editor.rulers": [100],
+    "editor.formatOnSave": false
+  },
   "prettier.requireConfig": true,
   "eslint.workingDirectories": ["apps/web"],
   "python.defaultInterpreterPath": "apps/api/.venv/bin/python",

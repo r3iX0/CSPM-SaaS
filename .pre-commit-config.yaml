@@ -53,6 +53,13 @@ repos:
     hooks:
       - id: gitleaks
 
+  # --- Markdown -----------------------------------------------------------------
+  # Rules and ignores: .markdownlint-cli2.jsonc. Why: docs/MARKDOWN_GUIDELINES.md.
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: 916ad0aaa108c64d294101002066f530ea170b10 # frozen: v0.23.3
+    hooks:
+      - id: markdownlint-cli2
+
   # --- Python -------------------------------------------------------------------
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: a56c0b927e6465d37cae3e97d35d4d18ab2b96cd # frozen: v0.16.9

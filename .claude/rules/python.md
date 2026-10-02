@@ -7,12 +7,9 @@ paths:
 
 # Python
 
-Before writing or reviewing Python in this repository, follow
-`docs/PYTHON_GUIDELINES.md` (imported below). It condenses PEP 8, the Google
-Python Style Guide and the Hitchhiker's Guide, and records where this codebase
-departs from them and why.
-
-@../../docs/PYTHON_GUIDELINES.md
+Before writing or reviewing Python in this repository, read `docs/PYTHON_GUIDELINES.md` in
+full, once per session, and follow it. It condenses PEP 8, the Google Python Style Guide and the
+Hitchhiker's Guide, and records where this codebase departs from them and why.
 
 The ones most often missed:
 
