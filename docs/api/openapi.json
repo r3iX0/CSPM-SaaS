@@ -10180,14 +10180,14 @@
         "properties": {
           "file": {
             "type": "string",
-            "format": "binary",
+            "contentMediaType": "application/octet-stream",
             "title": "File"
           },
           "lockfile": {
             "anyOf": [
               {
                 "type": "string",
-                "format": "binary"
+                "contentMediaType": "application/octet-stream"
               },
               {
                 "type": "null"

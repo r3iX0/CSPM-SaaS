@@ -294,7 +294,10 @@ below are where each is answered.
   (`app/core/security.py`).
 - **Tokens travel only in `Authorization: Bearer`.** Never in a query string, which ends up in
   logs and browser history. A single-use link token goes in the URL fragment, which servers never
-  see (§162).
+  see (§162). Two routes cannot follow this, because a cloud provider or a portal button cannot
+  send a header: the event receivers and the signed template and consent links. Their query
+  credentials are redacted from the access log and from Sentry (`app/core/redaction.py`), and
+  a new route that must take one adds its key to `SENSITIVE_QUERY_KEYS`. **In place** (§195).
 - **The tenant comes from the token.** `Tenant` (`app/core/deps.py`) derives the organization
   from the verified user's membership; a body or query field never decides it. **In place**.
 - **Object-level authorization on every lookup** (OWASP API1, BOLA): every query is filtered by
@@ -318,7 +321,8 @@ below are where each is answered.
 - **HTTPS only**, with HSTS. **In place** (`SecurityHeadersMiddleware`).
 - **Security headers on every response**, including errors and preflights: CSP,
   `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`. **In place**.
-- **CORS lists origins explicitly**, never `*` with credentials, names the methods and request
+- **CORS lists origins explicitly**, is not credentialed (the API uses no cookies, so
+  `allow_credentials` stays off), names the methods and request
   headers the web app sends rather than `*`, and exposes only the response headers a client
   reads (`X-Request-ID`, `X-RateLimit-*`, `Retry-After`, `Location`, `Content-Disposition`).
   **In place**.
@@ -414,7 +418,10 @@ app/
 - **Logs are structured** (structlog, JSON): a constant event name (`ratelimit.refused`), fields
   for the values, never an f-string message. Never log a token, a secret or a customer's cloud
   payloads. **In place**.
-- **Unhandled errors go to Sentry**; the client sees only the envelope.
+- **Unhandled errors go to Sentry**; the client sees only the envelope. Sentry is started by
+  `init_sentry` (`app/core/sentry.py`), which sends no request body, no local variables and no
+  personal data, and redacts query credentials: a frame's `webhook_url` is a secret that Sentry's
+  key-name scrubbing cannot recognise. **In place** (§195).
 - **Two health endpoints**, both unauthenticated and both saying nothing about the deployment:
   `GET /health` (liveness: the process answers) and `GET /health/ready` (readiness: the database
   and the task broker both answer, or a `503` in the envelope names the one that does not,
