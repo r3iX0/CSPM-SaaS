@@ -4,9 +4,16 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.core.enums import Role
+from app.schemas.common import RequestModel
 
 
-class OrganizationCreate(BaseModel):
+class OrganizationCreate(RequestModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [{"name": "Contoso Security", "industry": "Finance", "country": "AL"}]
+        }
+    )
+
     name: str = Field(min_length=2, max_length=200)
     industry: str | None = Field(default=None, max_length=120)
     country: str | None = Field(default=None, min_length=2, max_length=2)
@@ -17,7 +24,7 @@ class OrganizationCreate(BaseModel):
         return v.upper() if v else v
 
 
-class OrganizationUpdate(BaseModel):
+class OrganizationUpdate(RequestModel):
     """A correction to how an organization describes itself.
 
     Every field optional and applied only when present, which is the opposite

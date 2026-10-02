@@ -635,6 +635,32 @@ requests, and 20 of the costly ones -- starting or replaying a scan, a report,
 what-if and simulate, and the connection checks that call the provider. A
 refusal is 429 `RATE_LIMITED` with `Retry-After` (DECISIONS.md §161).
 
+**Headers a client can read.** `X-RateLimit-Limit`, `X-RateLimit-Remaining` and
+`X-RateLimit-Reset` (seconds since the epoch) ride on every counted response,
+for the counter nearest to refusing it. A `201` carries `Location`, the path of
+what was created. A `202` carries `Location` for what tracks the work (a scan's
+`/detail`) and `Retry-After`, the seconds to wait before asking. Everything under
+`/api/` is `Cache-Control: private, no-store` unless a route says otherwise, as
+the event stream and the downloads do. A route that is going away will carry
+`Deprecation`, `Sunset` and a `Link` to its replacement
+([API guidelines](API_GUIDELINES.md#8-versioning-and-evolution)); none is
+deprecated yet (DECISIONS.md §194).
+
+**Request bodies refuse what they do not know.** A field the model does not
+declare answers `422` `VALIDATION_FAILED`, with the field named in `meta.errors`
+as type `extra_forbidden`. A misspelt optional field, or one the server owns such
+as `organization_id`, is no longer dropped without a word.
+
+**Health.** `GET /health` is liveness and says nothing else. `GET /health/ready`
+answers `200` with `{status, database, queue}` when the database and the task
+broker both answer, and otherwise `503` `DATABASE_UNAVAILABLE` or
+`QUEUE_UNAVAILABLE` with a fixed sentence and never the dependency's own error.
+It is rate limited, and it is not the platform's probe.
+
+**Operation ids.** The `operationId` of an operation is its tag and its handler,
+such as `findings_list_findings`, so it changes when a handler is renamed and not
+when a URL moves.
+
 ---
 
 ## 3. Authentication
@@ -646,3 +672,11 @@ React → Supabase Auth → JWT → FastAPI → Validate JWT → Get user ID
 
 The frontend may use the Supabase publishable key. **Never** expose the Supabase service-role/secret
 key in the browser. See `SECURITY.md`.
+
+Send the token as `Authorization: Bearer <token>`. The OpenAPI document declares
+this as the `bearerAuth` scheme and every route that needs a signed-in person
+carries it. Three routes do not: `/health`, `/health/ready` and
+`/cloud-accounts/azure/permissions`, which shows what Cleave will be able to see
+before anyone consents. A client acting in more than one organization names the
+one in `X-Organization-Id`; the server honours it only if the caller's membership
+confirms it, and never takes an organization from a path or a body.

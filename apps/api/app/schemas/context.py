@@ -4,9 +4,10 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.core.enums import Level
+from app.schemas.common import RequestModel
 
 
-class ContextDeclarationIn(BaseModel):
+class ContextDeclarationIn(RequestModel):
     """What a customer says about a subscription.
 
     Every field optional, and omitting one is not the same as clearing it --

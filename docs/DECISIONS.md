@@ -10753,6 +10753,134 @@ config was applied by hand from a reviewed proposal. `no-eval`, `no-new-func`,
 `no-new-wrappers`, `no-object-constructor` and `no-extend-native` are in the
 guidelines as review items until they are added to it.
 
+## 194. The API review pass: bodies refuse what they do not know, responses say where to look, and routes stop querying
+
+`docs/API_GUIDELINES.md` marked each practice as in place, to adopt, or not
+here. This pass, on 1 October 2026, held the code against it, closed what the
+September review (`docs/API_REVIEW_2026-09-20.md`) had left open (findings 6, 14
+and 15) and adopted every item that needed no new table. What it left is below.
+
+**A request body refuses a field it does not know.** Pydantic drops one by
+default, so a misspelt optional field was a `200` that did something other than
+what was asked, and `organization_id` in a body was ignored instead of refused.
+Every request model derives from `RequestModel` (`extra="forbid"`) and the
+answer is `422` naming the field. `tests/unit/test_request_models.py` reads the
+published schema, so a new endpoint with a plain `BaseModel` fails there. One
+integration test had asserted the opposite on purpose, that a tenant id and a
+client secret in a connection's body are ignored; it now asserts they are
+refused.
+
+**The document says how to authenticate and names its operations.**
+`get_current_user` takes `HTTPBearer(auto_error=False)` credentials, so the
+OpenAPI document declares `bearerAuth` and each route that needs a person
+carries it, while a missing token is still the envelope's `NOT_AUTHENTICATED`.
+Three routes are open and a test lists them. Operation ids are the tag and the
+handler (`findings_list_findings`) rather than FastAPI's path-derived default,
+every tag is described, and request models carry examples that a test validates
+against their own models. A `deprecation()` dependency sends `Deprecation`,
+`Sunset` and a `Link` to the replacement; no route is deprecated yet.
+
+**A response tells the client what to do next.** A `201` and a `202` carry
+`Location`, built from the route's own name so it follows a URL that moves, and
+a `202` carries `Retry-After`. Every counted response carries `X-RateLimit-*`
+for the tightest counter that spoke: the address, the person and the costly
+allowance each report into the request's context, because for a signed-in caller
+the per-person 300 is the limit they hit, not the address's 1,200. Everything
+under `/api/` is `Cache-Control: private, no-store` unless a route chose its own.
+CORS lists the methods and request headers the web app sends and exposes the
+headers a client now reads, instead of `*`.
+
+**Readiness names the dependency that is down.** `/health/ready` checks the task
+broker as well as the database, and answers `503` in the envelope with
+`DATABASE_UNAVAILABLE` or `QUEUE_UNAVAILABLE` and a fixed sentence. The
+dependency's own error went to the log only: it can carry an address or a
+credential, and the endpoint is unauthenticated. Before, a database that did not
+answer was an unhandled `500`.
+
+**Routes stop querying, and the request's transaction stays the route's.**
+Eleven route modules built statements or called the session. Their queries moved
+into `app/services/`, behaviour unchanged, with `services/assets.py`,
+`remediation.py`, `rules.py`, `changes.py` and `rescan.py` new (the rescan has
+its own module because `findings` cannot import `scans` without a cycle through
+`risks`). `tests/unit/test_thin_routes.py` fails when a route module queries,
+through a list of exceptions that only shrinks and is now empty. The guideline
+had said a service commits once at the end; `tests/unit/test_request_transaction.py`
+says the opposite and is right, because `rls_session` keeps the caller's claims
+in the transaction and a commit inside a service tears them down for whatever the
+route does next. Services flush, the route commits, and the guideline now says so.
+
+**Breaking, and why now.** Unknown request fields and the operation ids are
+breaking changes. `apps/web` is the only consumer, and it sends only the fields
+the models declare (read call site by call site) and generates nothing from the
+operation ids.
+
+**Not done.** `Idempotency-Key` and `ETag` with `If-Match`, each needing a table or
+a version column and a migration; cursor paging for the audit log and the event
+feeds; metrics and trace context. Response models carry no examples yet.
+`Provider` serialises lowercase (`azure`) where every other enumeration is upper
+case; it is an existing contract and stays.
+
+**Found, cause not established.** `test_a_claim_in_another_subscription_is_left_alone`
+failed twice in three isolated runs while this pass was being made, with an
+`IndexError` from the test's own lookup of a finding in the second subscription,
+and then passed six runs in a row; four runs on the commit before it all passed.
+The lookup raises whenever that subscription has no finding, so the test depends
+on which account sorts second. Nothing in this pass touches what it reads, but
+the evidence does not rule one out; watch it in CI.
+
+## 195. Security review of the API: advisories closed, credentials kept out of logs, reports fetch nothing
+
+A review of the API on 1 October 2026 found no critical or high issue and six smaller ones. Four
+are fixed here; two need a decision and are recorded below.
+
+**The dependency pins moved, and one cap was hiding in a transitive package.** Starlette 0.41.3,
+held by `fastapi==0.115.6`, carried seven advisories, all fixed by 1.3.1. FastAPI 0.133.0 is the
+first release that accepts Starlette 1.x; 0.142.x moves routing to a lazy structure that
+`app.routes` no longer lists, which this code's route-walking tests rely on, so the pin stops at
+0.133.0 and Starlette is pinned directly at 1.7.0. WeasyPrint 63.1 to 70.0 closes its SSRF
+advisory and the one where two `write_pdf` channels ignored the document's fetcher. `msal==1.31.1`
+required `cryptography<46`, so the production image, unlike the local environment, resolved to
+45.0.7 with seven advisories; 1.39.0 lifts the cap and `cryptography` is pinned beside it. None of
+the Starlette advisories was reachable (no `FileResponse`, `StaticFiles`, `Form` or
+`HTTPEndpoint`; the one multipart route is capped at the 1 MiB body limit), so this is hygiene,
+not an incident. Verified by building the image and running the whole suite inside it, the PDF
+path included. `pytest` 8.3.4 still has an advisory and is dev-only.
+
+**Reports are printed with a fetcher that allows no protocol.** The claim that a customer's
+resource name can never cause an outbound request rested on the templates and on Jinja's escaping.
+`render_pdf` now passes `URLFetcher(allowed_protocols=frozenset(), allow_redirects=False)`, so a
+URL that ever reached the document is refused instead of fetched from inside the network.
+
+**A credential in a URL is not written down.** The event receivers take `?token=`, valid for a
+year and reusable, and the signed links take `?token=` and `?state=`, because the caller cannot
+send a header. Uvicorn's access log wrote the whole target. `app/core/redaction.py` replaces the
+value of any credential-carrying key, and a filter on `uvicorn.access` and Sentry's `before_send`
+and `before_breadcrumb` use it. The tokens' lifetime is unchanged: shortening it would invalidate
+every subscription a customer has already wired.
+
+**Sentry sends the traceback and the route, not the data.** Its defaults send the request body and
+the local variables of each frame, which here are webhook URLs (a Slack URL is itself the
+credential), signing secrets and tenant ids, and its key-name scrubbing cannot know a variable
+called `url` is one. `app/core/sentry.py` turns off bodies, locals and personal data.
+
+**CORS is no longer credentialed.** The API uses no cookies, so `allow_credentials=True` only
+asked browsers to attach ones it never reads.
+
+**Not done: webhook credentials are plaintext at rest.** `webhook_endpoints.url` and `.secret` are
+readable by anyone with the database or a backup. The signing secret must be recoverable to sign,
+so it cannot be hashed. The recommended fix is envelope encryption: a key held outside the
+database (Railway variable now, a KMS later), Fernet or AES-GCM over each value with the
+organization id as associated data so a copied ciphertext does not decrypt under another tenant,
+a key id stored beside it so keys can rotate, and a backfill migration that encrypts in place and
+then drops the plaintext. `url_preview` already means the screen never needs the whole URL back.
+
+**Not done: the Python dependency set has no lockfile.** Only direct dependencies are pinned and
+the image runs `pip install -e`, so a transitive package resolves to whatever the cap allows on
+build day, and nothing audits what was actually deployed. The recommended fix is a hash-locked
+file generated from `pyproject.toml` (`uv lock`, or `pip-compile --generate-hashes`), installed
+with `--require-hashes` in the image and CI, `pip-audit` against that file as a CI job, and
+Dependabot kept to refresh it.
+
 ## Open items carried forward
 
 **Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read

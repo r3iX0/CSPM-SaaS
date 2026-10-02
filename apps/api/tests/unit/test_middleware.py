@@ -8,19 +8,27 @@ arrangement this file exists to check.
 """
 
 import re
+import time
 from typing import Any
 
 import httpx
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 
 from app.core import middleware as mw
 from app.core.middleware import (
     SECURITY_HEADERS,
     RateLimitMiddleware,
+    RequestContextMiddleware,
     RequestSizeLimitMiddleware,
     SecurityHeadersMiddleware,
     client_address,
+)
+from app.core.request_context import (
+    RateLimitReading,
+    bound,
+    note_rate_limit,
+    tightest_rate_limit,
 )
 
 
@@ -121,6 +129,25 @@ async def test_an_error_response_is_stamped_too() -> None:
 
     assert response.status_code == 404
     assert response.headers["X-Content-Type-Options"] == "nosniff"
+
+
+async def test_tenant_data_is_not_cached_and_a_route_may_choose_its_own_policy() -> None:
+    """Under ``/api/`` is one organization's data: ``private, no-store`` unless a route says so."""
+    app = app_with((SecurityHeadersMiddleware, {}))
+
+    @app.get("/api/v1/own-policy")
+    async def own_policy(response: Response) -> dict:
+        response.headers["Cache-Control"] = "no-cache"
+        return {"ok": True}
+
+    async with client_for(app) as client:
+        api = await client.get("/api/v1/cloud-connections/abc/template")
+        own = await client.get("/api/v1/own-policy")
+        outside = await client.get("/thing")
+
+    assert api.headers["Cache-Control"] == "private, no-store"
+    assert own.headers["Cache-Control"] == "no-cache"
+    assert "Cache-Control" not in outside.headers
 
 
 # ------------------------------------------------------------------ body limit
@@ -258,6 +285,54 @@ async def test_a_trailing_slash_is_not_a_second_path(counter: _Counter) -> None:
     async with client_for(app) as client:
         for _ in range(5):
             assert (await client.get("/health/")).status_code != 429
+
+
+async def test_every_counted_response_says_what_is_left(counter: _Counter) -> None:
+    """A client can slow down before it is refused, if the response tells it how much is left."""
+    app = app_with((RateLimitMiddleware, LIMITS), (RequestContextMiddleware, {}))
+    headers = {"authorization": "Bearer token"}
+
+    async with client_for(app) as client:
+        seen = [await client.get("/thing", headers=headers) for _ in range(3)]
+
+    assert [r.headers["X-RateLimit-Remaining"] for r in seen] == ["2", "1", "0"]
+    assert {r.headers["X-RateLimit-Limit"] for r in seen} == {"3"}
+    assert int(seen[0].headers["X-RateLimit-Reset"]) > time.time() - 1
+
+
+async def test_a_refusal_carries_the_allowance_too(counter: _Counter) -> None:
+    app = app_with((RateLimitMiddleware, LIMITS), (RequestContextMiddleware, {}))
+
+    async with client_for(app) as client:
+        await client.get("/thing")
+        refused = await client.get("/thing")
+
+    assert refused.status_code == 429
+    assert refused.headers["X-RateLimit-Limit"] == "1"
+    assert refused.headers["X-RateLimit-Remaining"] == "0"
+    assert refused.headers["Retry-After"] == "60"
+
+
+async def test_the_health_probe_reports_no_allowance(counter: _Counter) -> None:
+    app = app_with((RateLimitMiddleware, LIMITS), (RequestContextMiddleware, {}))
+
+    async with client_for(app) as client:
+        response = await client.get("/health")
+
+    assert "X-RateLimit-Limit" not in response.headers
+
+
+def test_the_tightest_reading_is_the_one_reported() -> None:
+    """Address, person and costly counters all speak; the one nearest refusing is the answer."""
+    with bound("request", None):
+        note_rate_limit(RateLimitReading(limit=1200, remaining=1100, reset=10))
+        note_rate_limit(RateLimitReading(limit=300, remaining=5, reset=10))
+        note_rate_limit(RateLimitReading(limit=20, remaining=15, reset=10))
+        reading = tightest_rate_limit()
+
+    assert reading is not None
+    assert (reading.limit, reading.remaining) == (300, 5)
+    assert tightest_rate_limit() is None, "a reading outlived its request"
 
 
 # ------------------------------------------------------------- which ceiling

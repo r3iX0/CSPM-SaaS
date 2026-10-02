@@ -34,7 +34,7 @@ from app.connectors.evidence import EvidenceCategory
 from app.connectors.onboarding import DeploymentArtifact, ProviderOnboarding
 from app.connectors.registry import get_onboarding
 from app.core.config import settings
-from app.core.db import commit_unless_externally_managed
+from app.core.db import commit_unless_externally_managed, service_session
 from app.core.deps import TenantContext
 from app.core.enums import (
     CloudAccountStatus,
@@ -608,6 +608,20 @@ def render_artifact(connection: CloudConnection) -> DeploymentArtifact:
     a button that could be pressed forever without changing anything.
     """
     return flow(connection).artifact(connection)
+
+
+async def render_connection_artifact(connection_id: UUID) -> DeploymentArtifact:
+    """The artefact for a connection named by a signed link, read without a signed-in user.
+
+    The caller has already verified the link's token, which is what authorizes this read, so it
+    runs under the service session rather than a person's: there is no organization in the
+    request to scope it by.
+    """
+    async with service_session() as session:
+        connection = await session.get(CloudConnection, connection_id)
+        if connection is None:
+            raise CloudAccountNotFound("Connection not found")
+        return render_artifact(connection)
 
 
 def deployment_url(connection: CloudConnection) -> str | None:

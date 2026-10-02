@@ -8,17 +8,13 @@ nothing different contributes nothing here, so an empty week reads as an empty
 week rather than as a wall of rows saying everything is still where it was.
 """
 
-from datetime import UTC, datetime, timedelta
-
 from fastapi import APIRouter, Query
-from sqlalchemy import select
 
 from app.core.deps import DbSession, Tenant
 from app.core.enums import AssetChange
-from app.models.history import AssetChangeEvent
-from app.models.resource import ResourceRecord
 from app.schemas.change import ChangedAssetOut, ChangeOut, ChangesMeta
 from app.schemas.common import ERROR_RESPONSES, Envelope
+from app.services import changes as service
 
 router = APIRouter(prefix="/changes", tags=["changes"], responses=ERROR_RESPONSES)
 
@@ -42,26 +38,9 @@ async def list_changes(
     would be technically complete and would make the reader look up every line
     to find out whether it mattered.
     """
-    since = datetime.now(UTC) - timedelta(days=days)
-
-    stmt = (
-        select(AssetChangeEvent, ResourceRecord)
-        .join(ResourceRecord, ResourceRecord.id == AssetChangeEvent.resource_id)
-        .where(
-            AssetChangeEvent.organization_id == tenant.organization_id,
-            AssetChangeEvent.observed_at >= since,
-        )
+    rows = await service.list_changes(
+        session, tenant, days=days, change=change, limit=limit, offset=offset
     )
-    if change is not None:
-        stmt = stmt.where(AssetChangeEvent.change == change)
-
-    rows = (
-        await session.execute(
-            stmt.order_by(AssetChangeEvent.observed_at.desc(), AssetChangeEvent.id)
-            .limit(limit)
-            .offset(offset)
-        )
-    ).all()
 
     return Envelope(
         data=[

@@ -11,6 +11,7 @@ import uuid
 
 import jwt
 import pytest
+from fastapi.security import HTTPAuthorizationCredentials
 
 from app.core import deps
 from app.core import middleware as mw
@@ -47,13 +48,13 @@ def counter(monkeypatch: pytest.MonkeyPatch) -> _Counter:
     return fake
 
 
-def bearer(user_id: uuid.UUID) -> str:
+def bearer(user_id: uuid.UUID) -> HTTPAuthorizationCredentials:
     token = jwt.encode(
         {"sub": str(user_id), "aud": "authenticated", "exp": int(time.time()) + 60},
         settings.supabase_jwt_secret,
         algorithm="HS256",
     )
-    return f"Bearer {token}"
+    return HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
 
 
 async def test_each_person_has_their_own_allowance(counter: _Counter) -> None:
@@ -75,7 +76,9 @@ async def test_a_token_that_fails_to_verify_is_not_counted(counter: _Counter) ->
     victim = uuid.uuid4()
     forged = jwt.encode({"sub": str(victim), "aud": "authenticated"}, "wrong", algorithm="HS256")
     with pytest.raises(Exception, match="Invalid"):
-        await deps.get_current_user(f"Bearer {forged}")
+        await deps.get_current_user(
+            HTTPAuthorizationCredentials(scheme="Bearer", credentials=forged)
+        )
     assert counter.counts == {}
 
 

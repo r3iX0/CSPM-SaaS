@@ -29,6 +29,19 @@ class ClosedModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class RequestModel(BaseModel):
+    """A request body: what a client may send, and nothing else.
+
+    Pydantic ignores an unknown key by default, so a client that misspells an
+    optional field (``severty``) or sends one the server owns (``organization_id``)
+    gets a ``200`` that did something other than what it asked. This one answers
+    ``422`` and names the field, which is the answer a client can act on
+    (API_GUIDELINES.md section 4).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class NoMeta(BaseModel):
     """``meta`` on a response with nothing to say beside its data: always ``{}``."""
 

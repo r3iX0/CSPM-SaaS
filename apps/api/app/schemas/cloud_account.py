@@ -4,10 +4,10 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.enums import CloudAccountStatus, ConsentStatus, Provider
-from app.schemas.common import ClosedModel
+from app.schemas.common import ClosedModel, RequestModel
 
 
-class CloudAccountCreate(BaseModel):
+class CloudAccountCreate(RequestModel):
     """Starting a connection needs only what identifies the tenant.
 
     Note what is absent: no client id, no client secret, no certificate. The

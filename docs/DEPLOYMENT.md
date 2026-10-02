@@ -540,8 +540,11 @@ file (`index.html`); `/findings/<id>` only exists inside React Router.
 
 ```bash
 curl https://<your-railway-api-domain>/health/ready
-# {"data":{"status":"ready","database":"ok"},"error":null,"meta":{}}
+# {"data":{"status":"ready","database":"ok","queue":"ok"},"error":null,"meta":{}}
 ```
+
+A dependency that does not answer is a `503` that names it, `DATABASE_UNAVAILABLE`
+or `QUEUE_UNAVAILABLE`; the cause is in the API service's log, not in the response.
 
 Then open the Vercel URL, sign in with your real email (check your inbox for
 the magic link — Supabase's default email provider is rate-limited and fine
