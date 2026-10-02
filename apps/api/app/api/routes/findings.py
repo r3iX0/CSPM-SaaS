@@ -4,18 +4,12 @@ from uuid import UUID
 
 import anyio
 from fastapi import APIRouter, Query, Request, Response, UploadFile, status
-from sqlalchemy import case, func, or_, select
-from sqlalchemy.sql.elements import UnaryExpression
 
 from app.api.links import accepted
 from app.core.deps import Costly, DbSession, Tenant
 from app.core.enums import FindingStatus, ScanStatus, Severity
-from app.core.errors import ConflictError, QueueUnavailable, ValidationFailed
-from app.core.vocabulary import words
+from app.core.errors import QueueUnavailable
 from app.graph import Path
-from app.models.finding import Finding, FindingEvidence
-from app.models.resource import ResourceRecord
-from app.models.scan import Scan
 from app.remediation.iac.terraform import MAX_BYTES as IAC_MAX_BYTES
 from app.rules.registry import get_rule
 from app.schemas.common import (
@@ -41,43 +35,15 @@ from app.schemas.finding import (
     RiskOut,
     VerificationOut,
 )
-from app.services import cloud_accounts as accounts_service
 from app.services import findings as service
 from app.services import graph as graph_service
 from app.services import iac as iac_service
+from app.services import rescan as rescan_service
 from app.services import scans as scans_service
 from app.services.graph import serialize_path
 from app.workers.scan_tasks import run_scan
 
 router = APIRouter(prefix="/findings", tags=["findings"], responses=ERROR_RESPONSES)
-
-SEVERITY_ORDER = {
-    Severity.CRITICAL: 0,
-    Severity.HIGH: 1,
-    Severity.MEDIUM: 2,
-    Severity.LOW: 3,
-}
-
-# The same ranking expressed for the database, so "worst first" survives
-# pagination. Sorting severity in Python could only ever order the page it was
-# handed, which puts the CRITICAL on page four below the LOW on page one.
-SEVERITY_SORT = case(SEVERITY_ORDER, value=Finding.severity, else_=9)
-
-# Every ordering ends on the id. Scores and detection times tie constantly --
-# one scan stamps every finding it raises -- and PostgreSQL orders ties however
-# the plan happens to, so without it the same offset can return a different
-# row on the next request and a page can repeat or skip a finding.
-SORTS: dict[str, tuple[UnaryExpression[Any], ...]] = {
-    # Risk first by default: the product's claim is that it tells you what
-    # matters here, not what the rulebook says in the abstract.
-    "risk": (
-        Finding.risk_score.desc().nullslast(),
-        Finding.last_detected_at.desc(),
-        Finding.id.asc(),
-    ),
-    "severity": (SEVERITY_SORT.asc(), Finding.risk_score.desc().nullslast(), Finding.id.asc()),
-    "recent": (Finding.last_detected_at.desc(), Finding.id.asc()),
-}
 
 
 @router.get("")
@@ -103,54 +69,20 @@ async def list_findings(
     a false negative wearing an answer's clothes, in the one product where that
     is least acceptable.
     """
-    stmt = (
-        select(Finding, ResourceRecord)
-        .outerjoin(ResourceRecord, ResourceRecord.id == Finding.resource_id)
-        .where(Finding.organization_id == tenant.organization_id)
+    rows, total = await service.list_findings(
+        session,
+        tenant,
+        severity=severity,
+        status=finding_status,
+        rule_id=rule_id,
+        resource_id=resource_id,
+        evidence_id=evidence_id,
+        environment=environment,
+        search=search,
+        sort=sort,
+        limit=limit,
+        offset=offset,
     )
-
-    if severity:
-        stmt = stmt.where(Finding.severity == severity)
-    if finding_status:
-        stmt = stmt.where(Finding.status == finding_status)
-    if rule_id:
-        stmt = stmt.where(Finding.rule_id == rule_id)
-    if resource_id:
-        stmt = stmt.where(Finding.resource_id == resource_id)
-    if evidence_id:
-        # "What rests on this reading" -- the citation chain walked from the
-        # evidence end, which is what a person looking at a failed or stale
-        # listing on the scans page is actually asking.
-        #
-        # Filtered on the reading rather than on its key, because a key spans
-        # every subscription and every scan that read it: the count offered
-        # beside a reading and the rows this returns have to be the same set,
-        # or the link is a number that does not survive being clicked.
-        stmt = stmt.where(
-            Finding.id.in_(
-                select(FindingEvidence.finding_id).where(
-                    FindingEvidence.organization_id == tenant.organization_id,
-                    FindingEvidence.evidence_id == evidence_id,
-                )
-            )
-        )
-    if environment:
-        stmt = stmt.where(ResourceRecord.environment == environment)
-    if search:
-        # Three ways a person names the same finding: what it is called, the
-        # rule that raised it, and the resource it was found on.
-        needle = f"%{search}%"
-        stmt = stmt.where(
-            or_(
-                Finding.title.ilike(needle),
-                Finding.rule_id.ilike(needle),
-                ResourceRecord.name.ilike(needle),
-            )
-        )
-
-    total = (await session.execute(select(func.count()).select_from(stmt.subquery()))).scalar_one()
-
-    rows = (await session.execute(stmt.order_by(*SORTS[sort]).limit(limit).offset(offset))).all()
 
     payload = []
     for finding, resource in rows:
@@ -183,11 +115,7 @@ async def finding_attack_paths(
     # A tenant-wide finding has no asset, so it cannot be on a route. Answered
     # as an empty list rather than a 404: "this finding is on no path" is a
     # true and useful answer, and the page renders it as one.
-    resource = (
-        await session.get(ResourceRecord, finding.resource_id)
-        if finding.resource_id is not None
-        else None
-    )
+    resource = await service.resource_of(session, finding)
     if resource is None:
         return Envelope(data=[], meta=FindingAttackPathsMeta(total=0, asset=None))
 
@@ -331,64 +259,7 @@ async def rescan_finding(
     """
     tenant.require_write()
     finding = await service.get_finding(session, tenant, finding_id)
-
-    resource = (
-        await session.get(ResourceRecord, finding.resource_id) if finding.resource_id else None
-    )
-    if resource is None:
-        raise ValidationFailed(
-            "This finding is not tied to a single resource. Run a full scan instead."
-        )
-
-    # A directory asset lives in the tenant and in no subscription, so there is
-    # no account id on it to rescan. Any scannable subscription under the same
-    # connection does the job: a scan resolves its connection from whichever
-    # account it covers and reads the directory once through that, so the
-    # cheapest scan available still re-reads the thing this finding is about.
-    if resource.cloud_account_id is None:
-        account = await accounts_service.first_scannable_account(
-            session, tenant, resource.connection_id
-        )
-        if account is None:
-            scope_words = words(resource.provider)
-            raise ValidationFailed(
-                f"This finding is about the {scope_words.directory}, and the "
-                f"connection it came from has no {scope_words.account} ready to "
-                "scan. Validate the connection, then try again."
-            )
-    else:
-        account = await accounts_service.get_cloud_account(
-            session, tenant, resource.cloud_account_id
-        )
-    if not account.is_scannable:
-        raise ValidationFailed("This connection is not ready to scan")
-
-    await scans_service.lock_scan_target(
-        session, tenant.organization_id, account.connection_id, account.id
-    )
-    if await scans_service.scan_in_flight(
-        session, tenant.organization_id, account.connection_id, account.id
-    ):
-        raise ConflictError("A scan is already running for this connection")
-
-    # Deliberately narrowed to the one subscription this finding lives in, even
-    # when the connection spans several. Re-reading a whole tenant to verify one
-    # fix is a cost the customer did not ask for, and the auto-resolve path only
-    # needs the subscription that holds the resource.
-    scan = Scan(
-        organization_id=tenant.organization_id,
-        cloud_account_id=account.id,
-        status=ScanStatus.QUEUED,
-    )
-    session.add(scan)
-    await service.record_audit(
-        session,
-        tenant,
-        action="finding.rescan_requested",
-        resource_type="finding",
-        resource_id=finding.id,
-        metadata={"rule_id": finding.rule_id},
-    )
+    scan = await rescan_service.request_rescan(session, tenant, finding)
     await session.commit()
 
     await scans_service.enqueue_or_fail(run_scan.delay, scan, tenant.user.id)
@@ -432,9 +303,7 @@ async def finding_iac_diff(
     lock = await lockfile.read(IAC_MAX_BYTES + 1) if lockfile is not None else None
 
     finding = await service.get_finding(session, tenant, finding_id)
-    resource = (
-        await session.get(ResourceRecord, finding.resource_id) if finding.resource_id else None
-    )
+    resource = await service.resource_of(session, finding)
     rule = get_rule(finding.rule_id)
     resource_name = resource.name if resource is not None else None
     # Everything the edit needs is in hand, so the connection goes back to the
