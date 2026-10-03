@@ -71,7 +71,7 @@ class TestTheyAreMappingsRatherThanEngines:
         assert set(mfa.compliance_mappings) >= {
             "CIS_AZURE_2.0",
             "ISO_27001",
-            "NIST_CSF",
+            "NIST_CSF_2.0",
             "GDPR",
             *ADDED,
         }

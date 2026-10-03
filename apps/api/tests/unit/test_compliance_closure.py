@@ -72,7 +72,22 @@ def one(resources: list[CloudResource], resource_type: ResourceType) -> CloudRes
 
 
 # ---------------------------------------------------------------- the invariant
-FULLY_COVERED = ("CIS_AZURE_6.0", "NIS2", "MITRE_ATTACK", "HIPAA", "GDPR", "NIST_CSF", "PCI_DSS_4")
+FULLY_COVERED = (
+    "CIS_AZURE_6.0",
+    "NIS2",
+    "MITRE_ATTACK",
+    "HIPAA",
+    "GDPR",
+    "PCI_DSS_4",
+)
+
+# NIST CSF 2.0 lists 106 subcategories in full (DECISIONS.md section 209), so unlike the shorter
+# list section 204 was written against, four it calls observable no rule answers. Each is a
+# practice CloudGuard performs itself or that no setting in a customer's estate states: the
+# hardware and software inventories are the asset inventory CloudGuard builds, data in use is
+# confidential computing, which no rule reads, and application allow-listing is not read either.
+# A fifth gap closed by mapping rules to it (section 209), so this set may only shrink.
+NIST_CSF_2_UNANSWERED = {"ID.AM-01", "ID.AM-02", "PR.DS-10", "PR.PS-05"}
 
 # What no API exposes, or what Azure retired: SSPR's settings, the legacy
 # "remember MFA" toggle and four portal-only Entra switches have no Graph or ARM
@@ -112,6 +127,14 @@ def test_every_observable_control_is_answered_by_a_rule(framework_id: str) -> No
     covered = _covered()[framework_id]
     gaps = [c.id for c in framework.controls if c.technically_assessable and c.id not in covered]
     assert gaps == [], f"{framework_id} has observable controls no rule answers: {gaps}"
+
+
+def test_nist_csf_2_leaves_only_what_no_rule_can_answer() -> None:
+    framework = get_framework("NIST_CSF_2.0")
+    assert framework is not None
+    covered = _covered()["NIST_CSF_2.0"]
+    gaps = {c.id for c in framework.controls if c.technically_assessable and c.id not in covered}
+    assert gaps == NIST_CSF_2_UNANSWERED
 
 
 def test_cis_azure_2_leaves_only_what_no_api_exposes() -> None:

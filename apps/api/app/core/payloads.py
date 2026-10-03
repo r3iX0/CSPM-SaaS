@@ -58,6 +58,16 @@ def compress(payload: dict) -> bytes:
     return zlib.compress(canonical(payload), COMPRESSION_LEVEL)
 
 
+def inflate(stored: bytes) -> bytes:
+    """The canonical bytes back out of a stored payload, without parsing them.
+
+    What an archive writes and a hash is checked against: ``decompress`` would
+    parse and re-serialize, and the string it returned would be one a reader
+    could not assume was the one hashed.
+    """
+    return zlib.decompress(stored)
+
+
 def decompress(stored: bytes) -> dict:
     """The payload back out of its stored bytes.
 

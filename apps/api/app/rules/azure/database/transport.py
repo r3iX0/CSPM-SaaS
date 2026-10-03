@@ -68,7 +68,7 @@ class AzureSqlTlsRule(SecurityRule):
     # No CIS mapping: CIS Azure 2.0 has no control for SQL's minimum TLS version.
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.24"],
-        "NIST_CSF": ["PR.DS-2"],
+        "NIST_CSF_2.0": ["PR.DS-02"],
         "GDPR": ["32(1)(a)"],
         "NIST_800_53": ["SC-8"],
         "SOC2": ["CC6.7"],
@@ -171,7 +171,7 @@ class AzureSqlEntraAdminRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["4.1.4"],
         "ISO_27001": ["A.5.16", "A.5.17", "A.8.2"],
-        "NIST_CSF": ["PR.AC-1", "PR.AC-7"],
+        "NIST_CSF_2.0": ["PR.AA-01", "PR.AA-03"],
         "GDPR": ["32(1)(b)"],
         "NIST_800_53": ["IA-2", "AC-2"],
         "SOC2": ["CC6.1", "CC6.2"],
@@ -265,7 +265,7 @@ class AzurePostgresTlsRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["4.3.1"],
         "ISO_27001": ["A.8.24"],
-        "NIST_CSF": ["PR.DS-2"],
+        "NIST_CSF_2.0": ["PR.DS-02"],
         "GDPR": ["32(1)(a)"],
         "NIST_800_53": ["SC-8"],
         "SOC2": ["CC6.7"],
@@ -311,7 +311,7 @@ class _MySqlRule(SecurityRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.24"],
-        "NIST_CSF": ["PR.DS-2"],
+        "NIST_CSF_2.0": ["PR.DS-02"],
         "GDPR": ["32(1)(a)"],
         "NIST_800_53": ["SC-8"],
         "SOC2": ["CC6.7"],

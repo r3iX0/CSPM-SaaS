@@ -18,7 +18,7 @@ _BLOBS = (AzureEvidence.STORAGE_ACCOUNTS, AzureEvidence.STORAGE_BLOB_SERVICES)
 
 _ENCRYPTION = {
     "ISO_27001": ["A.8.24"],
-    "NIST_CSF": ["PR.DS-1"],
+    "NIST_CSF_2.0": ["PR.DS-01"],
     "GDPR": ["32(1)(a)"],
     "NIST_800_53": ["SC-12", "SC-28"],
     "SOC2": ["CC6.1"],
@@ -26,7 +26,7 @@ _ENCRYPTION = {
 }
 _NETWORK = {
     "ISO_27001": ["A.8.20", "A.8.22"],
-    "NIST_CSF": ["PR.AC-5"],
+    "NIST_CSF_2.0": ["PR.IR-01"],
     "GDPR": ["32(1)(b)"],
     "NIST_800_53": ["SC-7"],
     "SOC2": ["CC6.6"],
@@ -77,7 +77,7 @@ SPECS = (
         failure="keeps no earlier versions of overwritten blobs",
         mappings={
             "ISO_27001": ["A.8.13"],
-            "NIST_CSF": ["PR.IP-4"],
+            "NIST_CSF_2.0": ["PR.DS-11"],
             "GDPR": ["32(1)(c)"],
             "NIST_800_53": ["CP-9"],
             "SOC2": ["A1.2"],
@@ -191,7 +191,7 @@ SPECS = (
         failure="lets the portal read its data with its access keys by default",
         mappings={
             "ISO_27001": ["A.5.15"],
-            "NIST_CSF": ["PR.AC-4"],
+            "NIST_CSF_2.0": ["PR.AA-05"],
             "GDPR": ["32(1)(b)"],
             "NIST_800_53": ["AC-3", "AC-6"],
             "SOC2": ["CC6.1"],
@@ -279,7 +279,7 @@ _FILES = (AzureEvidence.STORAGE_ACCOUNTS, AzureEvidence.STORAGE_FILE_SERVICES)
 _HAS_FILES = (("has_file_service", "true"),)
 _RECOVERY = {
     "ISO_27001": ["A.8.13"],
-    "NIST_CSF": ["PR.IP-4", "RC.RP-1"],
+    "NIST_CSF_2.0": ["PR.DS-11", "RC.RP-01"],
     "GDPR": ["32(1)(c)"],
     "NIST_800_53": ["CP-9"],
     "SOC2": ["A1.2"],
@@ -287,7 +287,7 @@ _RECOVERY = {
 }
 _TRANSPORT = {
     "ISO_27001": ["A.8.24"],
-    "NIST_CSF": ["PR.DS-2"],
+    "NIST_CSF_2.0": ["PR.DS-02"],
     "GDPR": ["32(1)(a)"],
     "NIST_800_53": ["SC-8"],
     "SOC2": ["CC6.7"],
@@ -452,7 +452,7 @@ FILE_SPECS = (
         failure="sets no access key expiry of 90 days or less",
         mappings={
             "ISO_27001": ["A.5.17"],
-            "NIST_CSF": ["PR.AC-1"],
+            "NIST_CSF_2.0": ["PR.AA-01"],
             "GDPR": ["32(1)(b)"],
             "NIST_800_53": ["IA-5"],
             "SOC2": ["CC6.1"],

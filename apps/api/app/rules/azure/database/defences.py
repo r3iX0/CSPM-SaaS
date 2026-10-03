@@ -23,7 +23,7 @@ from app.rules.property import PropertySpec, property_rule
 
 _VULNERABILITY = {
     "ISO_27001": ["A.8.8"],
-    "NIST_CSF": ["ID.RA-1", "DE.CM-1"],
+    "NIST_CSF_2.0": ["ID.RA-01", "DE.CM-01"],
     "GDPR": ["32(1)(d)"],
     "NIST_800_53": ["RA-5"],
     "SOC2": ["CC7.1"],
@@ -76,7 +76,7 @@ SPECS = (
         failure="protects its encryption with a service-managed key",
         mappings={
             "ISO_27001": ["A.8.24"],
-            "NIST_CSF": ["PR.DS-1"],
+            "NIST_CSF_2.0": ["PR.DS-01"],
             "GDPR": ["32(1)(a)"],
             "NIST_800_53": ["SC-12", "SC-28"],
             "SOC2": ["CC6.1"],
@@ -168,7 +168,7 @@ class AzureSqlDefenderRule(SecurityRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.16"],
-        "NIST_CSF": ["DE.CM-1"],
+        "NIST_CSF_2.0": ["DE.CM-01"],
         "GDPR": ["32(1)(d)"],
         "NIST_800_53": ["SI-4"],
         "SOC2": ["CC7.2"],

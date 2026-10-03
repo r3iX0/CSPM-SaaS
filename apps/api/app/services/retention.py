@@ -33,6 +33,7 @@ from uuid import UUID
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.audit_package import AuditPackageItem
 from app.models.scan import CloudSnapshot, EvidenceBlob
 
 
@@ -222,6 +223,27 @@ async def prune_blobs(session: AsyncSession, organization_id: UUID, *, keep_days
         ).all()
         for content_hash in (hashes or {}).values()
     }
+
+    # **The second interlock: a sealed package.** An auditor was promised these
+    # bytes by a hash that is now in a document they hold, and "the payload aged
+    # out" is a poor answer to "show me the reading behind this control". A hash
+    # any package item names is kept for as long as the package exists, which is
+    # as long as its organization does (DECISIONS.md section 208). The citation
+    # would survive the loss either way; the evidence would not.
+    spoken_for |= set(
+        (
+            await session.execute(
+                select(AuditPackageItem.content_hash)
+                .where(
+                    AuditPackageItem.organization_id == organization_id,
+                    AuditPackageItem.content_hash.is_not(None),
+                )
+                .distinct()
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     doomed = (
         (

@@ -123,7 +123,7 @@ class AzureManagementMfaRule(_MfaForAppRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.17"],
-        "NIST_CSF": ["PR.AC-7"],
+        "NIST_CSF_2.0": ["PR.AA-03"],
         "GDPR": ["32(1)(b)"],
         "NIST_800_53": ["IA-2"],
         "SOC2": ["CC6.1"],
@@ -164,7 +164,7 @@ class AzureAdminPortalMfaRule(_MfaForAppRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.17", "A.8.2"],
-        "NIST_CSF": ["PR.AC-7"],
+        "NIST_CSF_2.0": ["PR.AA-03"],
         "GDPR": ["32(1)(b)"],
         "NIST_800_53": ["IA-2"],
         "SOC2": ["CC6.1"],
@@ -221,7 +221,7 @@ class AzureUserConsentRule(_AuthorizationRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.15", "A.8.2"],
-        "NIST_CSF": ["PR.AC-4"],
+        "NIST_CSF_2.0": ["PR.AA-05"],
         "GDPR": ["5(1)(f)", "32(1)(b)"],
         "NIST_800_53": ["AC-3", "AC-6"],
         "SOC2": ["CC6.1", "CC6.3"],
@@ -272,7 +272,7 @@ class AzureUsersRegisterAppsRule(_AuthorizationRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.15", "A.5.16"],
-        "NIST_CSF": ["PR.AC-1", "PR.AC-4"],
+        "NIST_CSF_2.0": ["PR.AA-01", "PR.AA-05"],
         "GDPR": ["32(1)(b)"],
         "NIST_800_53": ["AC-2", "AC-6"],
         "SOC2": ["CC6.2"],
@@ -321,7 +321,7 @@ class AzureGuestInviteRule(_AuthorizationRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.16", "A.5.18"],
-        "NIST_CSF": ["PR.AC-1"],
+        "NIST_CSF_2.0": ["PR.AA-01"],
         "GDPR": ["32(1)(b)"],
         "NIST_800_53": ["AC-2"],
         "SOC2": ["CC6.2"],
@@ -373,7 +373,7 @@ class AzureGuestDirectoryAccessRule(_AuthorizationRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.15", "A.8.3"],
-        "NIST_CSF": ["PR.AC-4"],
+        "NIST_CSF_2.0": ["PR.AA-05"],
         "GDPR": ["5(1)(f)", "32(1)(b)"],
         "NIST_800_53": ["AC-3", "AC-6"],
         "SOC2": ["CC6.1"],
@@ -438,7 +438,7 @@ class AzureUserCreationRightsRule(_AuthorizationRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.15"],
-        "NIST_CSF": ["PR.AC-4"],
+        "NIST_CSF_2.0": ["PR.AA-05"],
         "GDPR": ["32(1)(b)"],
         "NIST_800_53": ["AC-6", "CM-7"],
         "SOC2": ["CC6.2"],
@@ -509,7 +509,7 @@ class AzureStrongAuthenticationRule(_TenantRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.17"],
-        "NIST_CSF": ["PR.AC-7"],
+        "NIST_CSF_2.0": ["PR.AA-03"],
         "GDPR": ["32(1)(b)"],
         "NIST_800_53": ["IA-2", "IA-5"],
         "SOC2": ["CC6.1"],
@@ -567,7 +567,7 @@ class AzureM365GroupCreationRule(_TenantRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.15"],
-        "NIST_CSF": ["PR.AC-4"],
+        "NIST_CSF_2.0": ["PR.AA-05"],
         "GDPR": ["32(1)(b)"],
         "NIST_800_53": ["AC-6", "CM-7"],
         "SOC2": ["CC6.2"],
@@ -629,7 +629,7 @@ class AzureTrustedLocationRule(_TenantRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.20"],
-        "NIST_CSF": ["PR.AC-3"],
+        "NIST_CSF_2.0": ["PR.IR-01"],
         "GDPR": ["32(1)(b)"],
         "NIST_800_53": ["AC-17"],
         "SOC2": ["CC6.6"],
