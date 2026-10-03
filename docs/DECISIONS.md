@@ -11535,6 +11535,24 @@ memberships. "Allow users without an email" stays off (`DEPLOYMENT.md` §1, step
 invitation joins only the address on the caller's token (§162). A button pressed before the
 provider is switched on in Supabase says so in words rather than showing Supabase's error.
 
+## 211. No magic link
+
+The sign-in page offered a one-time emailed link beside Microsoft, Google and a password. With
+two identity providers on the page, the link was a fourth way to do the same thing, and the one
+that fails most quietly: a corporate mail scanner that opens links spends it before the person
+sees it, and they are left with an expired link and no word of why. It is removed from the page
+(the `magic` mode and sent notice), from `lib/supabase.ts` (`signInWithMagicLink`), and from the
+strings that drew it.
+
+Emailed links remain for what has no other route: confirming a new account, which an invitation
+depends on (§162), and resetting a password. The note under the sign-in buttons used to show
+only one assurance per mode, and the providers' one was drawn only in the magic-link mode, so it
+would never have shown again; both now show together, the providers' first.
+
+Supabase's email provider has no switch for magic links apart from passwords, so its OTP
+endpoint still answers a client that calls it directly. That is not a way around anything: the
+link proves ownership of the address exactly as a confirmation does, and ends in the same JWT.
+
 ## Open items carried forward
 
 **Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read

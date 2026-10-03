@@ -3,7 +3,6 @@ import { Navigate } from "react-router-dom";
 import {
   sendPasswordReset,
   signInWithGoogle,
-  signInWithMagicLink,
   signInWithMicrosoft,
   signInWithPassword,
   signUpWithPassword,
@@ -20,14 +19,13 @@ import { cn } from "@/lib/utils";
  *
  * CloudGuard's own backend never authenticates anyone — Supabase does, and the
  * API only ever *verifies* the JWT that comes back
- * (app/core/security.py::decode_token). Five routes in, one token out:
+ * (app/core/security.py::decode_token). Four routes in, one token out:
  *
  *   Microsoft (Entra ID)  the front door for an Azure-first product — the same
  *                         directory account that will later grant consent
  *   Google                for teams whose work accounts are Google Workspace
  *   Email + password      familiar, and works where corporate mail scanners
  *                         eat one-time links before the user sees them
- *   Magic link            no password to choose, forget, or have stolen
  *   Password reset        because a password flow without recovery is a trap
  *
  * A password typed here goes from the browser straight to Supabase over TLS.
@@ -39,11 +37,11 @@ import { cn } from "@/lib/utils";
  */
 
 /** Which form is showing. `sent` states are tracked separately, below. */
-type Mode = "signin" | "signup" | "magic" | "reset";
+type Mode = "signin" | "signup" | "reset";
 
 /** A "we emailed you something" confirmation, and which something it was. */
 interface Sent {
-  kind: "magic" | "confirm" | "reset";
+  kind: "confirm" | "reset";
   email: string;
 }
 
@@ -90,9 +88,6 @@ export function SignInPage() {
       } else if (mode === "signup") {
         const { needsEmailConfirmation } = await signUpWithPassword(email, password);
         if (needsEmailConfirmation) setSent({ kind: "confirm", email });
-      } else if (mode === "magic") {
-        await signInWithMagicLink(email);
-        setSent({ kind: "magic", email });
       } else {
         await sendPasswordReset(email);
         setSent({ kind: "reset", email });
@@ -118,7 +113,7 @@ export function SignInPage() {
     }
   }
 
-  // Returning from a magic link, a confirmation, Microsoft or Google lands here first.
+  // Returning from a confirmation, Microsoft or Google lands here first.
   // Once the session is parsed, move on rather than showing a sign-in form to
   // someone who is already signed in.
   if (token) return <Navigate to="/" replace />;
@@ -156,9 +151,7 @@ export function SignInPage() {
                   ? "Start with your work email. You can connect Azure once you're in."
                   : mode === "reset"
                     ? t.auth.resetIntro
-                    : mode === "magic"
-                      ? "We'll email you a one-time link. No password to choose, forget, or have stolen."
-                      : "Use your Microsoft or Google account, or the email and password you signed up with."}
+                    : "Use your Microsoft or Google account, or the email and password you signed up with."}
               </p>
 
               {/* Microsoft first: for an Azure-first product it is the account
@@ -253,13 +246,14 @@ export function SignInPage() {
 
               <AlternateRoutes mode={mode} onSwitch={switchTo} />
 
-              {/* Whichever assurance the mode has actually earned. Reset gets
-                  none: there is no password typed here yet and no provider
-                  button on screen to qualify. */}
+              {/* What each route on screen does and does not hand over. Reset
+                  gets none: there is no password typed here yet and no
+                  provider button on screen to qualify. */}
               {mode !== "reset" && (
-                <p className="mt-6 border-t border-border pt-5 text-caption leading-[1.7] text-muted-foreground">
-                  {needsPassword ? t.auth.passwordNotice : t.auth.providerHint}
-                </p>
+                <div className="mt-6 space-y-2 border-t border-border pt-5 text-caption leading-[1.7] text-muted-foreground">
+                  <p>{t.auth.providerHint}</p>
+                  <p>{t.auth.passwordNotice}</p>
+                </div>
               )}
             </>
           )}
@@ -280,7 +274,6 @@ function submitLabel(mode: Mode, busy: boolean, t: ReturnType<typeof useT>): str
   }
   if (mode === "signup") return t.auth.signUp;
   if (mode === "signin") return t.auth.signIn;
-  if (mode === "magic") return t.auth.sendLink;
   return t.auth.sendReset;
 }
 
@@ -480,12 +473,7 @@ function AlternateRoutes({ mode, onSwitch }: { mode: Mode; onSwitch: (mode: Mode
   }
 
   return (
-    <div className="mt-6 space-y-3 text-center text-body">
-      <p>
-        <TextLink onClick={() => onSwitch(mode === "magic" ? "signin" : "magic")}>
-          {mode === "magic" ? t.auth.passwordInstead : t.auth.magicLinkInstead}
-        </TextLink>
-      </p>
+    <div className="mt-6 text-center text-body">
       <p className="text-muted-foreground">
         {mode === "signup" ? t.auth.haveAccount : t.auth.noAccount}{" "}
         <TextLink onClick={() => onSwitch(mode === "signup" ? "signin" : "signup")}>
@@ -621,17 +609,12 @@ function Assurance({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * "We emailed you something." One screen for all three, because from the
+ * "We emailed you something." One screen for both, because from the
  * user's side the next action is identical: go to your inbox, click the link.
  */
 function SentNotice({ sent, onUseAnother }: { sent: Sent; onUseAnother: () => void }) {
   const t = useT();
-  const lead =
-    sent.kind === "confirm"
-      ? t.auth.confirmSentTo
-      : sent.kind === "reset"
-        ? t.auth.resetSentTo
-        : t.auth.linkSentTo;
+  const lead = sent.kind === "confirm" ? t.auth.confirmSentTo : t.auth.resetSentTo;
 
   return (
     <div>

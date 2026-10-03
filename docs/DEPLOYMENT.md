@@ -107,8 +107,8 @@ Node installed on your machine.
 
 6. **Enable email sign-in.** Authentication → Providers → **Email** is on by
    default. Leave both **Confirm email** and the email provider's password
-   support enabled: the sign-in screen offers magic links _and_ email +
-   password, and sign-up shows a "check your email" screen when confirmation
+   support enabled: the sign-in screen offers email + password (there is no
+   magic link, `DECISIONS.md` §211), and sign-up shows a "check your email" screen when confirmation
    is on (`apps/web/src/lib/supabase.ts`).
 
    **Confirm email is also a security setting now.** An invitation joins only
@@ -533,7 +533,7 @@ Two likely causes, and the app tells you which:
   on Railway does not match the Vercel domain exactly. It needs the scheme and
   no trailing slash: `https://your-app.vercel.app`.
 
-### The magic link lands on Supabase's own domain, or a dead page
+### An emailed link lands on Supabase's own domain, or a dead page
 
 If the URL after clicking looks like
 `https://<ref>.supabase.co/yourapp.vercel.app#access_token=...`, then **Site URL
@@ -565,9 +565,9 @@ curl https://<your-railway-api-domain>/health/ready
 A dependency that does not answer is a `503` that names it, `DATABASE_UNAVAILABLE`
 or `QUEUE_UNAVAILABLE`; the cause is in the API service's log, not in the response.
 
-Then open the Vercel URL, sign in with your real email (check your inbox for
-the magic link — Supabase's default email provider is rate-limited and fine
-for testing, not for real traffic), create an organization, and go to
+Then open the Vercel URL, sign up with your real email (check your inbox for
+the confirmation link — Supabase's default email provider is rate-limited and
+fine for testing, not for real traffic), create an organization, and go to
 **Connections**. Scanning a real Azure environment additionally needs the
 Entra app registration in `AZURE_INTEGRATION.md` §2.1 — that's a separate
 setup, not a hosting one. Without it the app works fully up to the point of
@@ -609,8 +609,8 @@ their CLI) and run:
 python /srv/database/seed/demo_environment.py --email you@example.com
 ```
 
-Sign in through the app **first** — Supabase creates your account when you use
-the magic link, and the demo organization attaches to that real account. Then
+Sign in through the app **first** — Supabase creates your account when you sign
+up, and the demo organization attaches to that real account. Then
 run it again with `--fix` to watch three findings auto-resolve and the score
 move.
 

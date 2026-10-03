@@ -8,9 +8,8 @@
  * the app never has to know whether a session came from Supabase or from the
  * local dev-token route.
  *
- * Five ways in, all of them ending in the same Supabase-issued JWT: a magic
- * link, an email + password pair, a password reset, Microsoft (Entra ID) and
- * Google.
+ * Four ways in, all of them ending in the same Supabase-issued JWT: an email +
+ * password pair, a password reset, Microsoft (Entra ID) and Google.
  * The backend cannot tell them apart and does not need to — it verifies the
  * token's signature and reads the user id, nothing more.
  *
@@ -38,7 +37,7 @@ if (url && key) {
 export const supabase = clientOrNull;
 
 /**
- * Resolves once the initial session check (including parsing a magic-link
+ * Resolves once the initial session check (including parsing a sign-in
  * redirect's URL fragment) has completed. The router waits on this before
  * deciding whether to redirect to /sign-in — without it, a page load that
  * lands mid-redirect would see `auth.token` still null and bounce the user
@@ -56,15 +55,6 @@ export const authReady: Promise<void> = supabase
       });
     })
   : Promise.resolve();
-
-export async function signInWithMagicLink(email: string): Promise<void> {
-  if (!supabase) throw new Error("Supabase is not configured");
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: { emailRedirectTo: window.location.origin },
-  });
-  if (error) throw error;
-}
 
 /**
  * Password sign-in.

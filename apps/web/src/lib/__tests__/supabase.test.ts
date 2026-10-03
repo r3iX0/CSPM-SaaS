@@ -3,7 +3,6 @@ import {
   authReady,
   sendPasswordReset,
   signInWithGoogle,
-  signInWithMagicLink,
   signInWithMicrosoft,
   signInWithPassword,
   signUpWithPassword,
@@ -27,10 +26,6 @@ describe("supabase auth bridge, unconfigured", () => {
 
   it("resolves authReady immediately rather than hanging forever", async () => {
     await expect(authReady).resolves.toBeUndefined();
-  });
-
-  it("refuses to send a magic link instead of silently no-op'ing", async () => {
-    await expect(signInWithMagicLink("a@b.com")).rejects.toThrow("not configured");
   });
 
   it("treats sign-out as a no-op rather than throwing", async () => {

@@ -87,7 +87,7 @@ function RequireAuth({ children }: { children: JSX.Element }) {
 
 /**
  * Waits for the initial Supabase session check before the router decides
- * anything. Without this, a page load mid-magic-link-redirect would see
+ * anything. Without this, a page load mid-sign-in-redirect would see
  * `auth.token` still null (the session hasn't finished parsing out of the URL
  * fragment yet) and bounce straight back to /sign-in.
  */
