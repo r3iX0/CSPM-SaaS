@@ -5,7 +5,7 @@ Revises: 0048
 
 An auditor asks what the estate looked like on a date, and a live assessment
 cannot answer that: it reads the latest scan, and retention prunes the payloads
-a citation points at (DECISIONS.md section 197).
+a citation points at (DECISIONS.md section 204).
 
 * ``audit_packages`` -- one sealed assessment of one or more frameworks. Its
   ``controls`` are the verdicts as they were, and ``manifest_sha256`` is the

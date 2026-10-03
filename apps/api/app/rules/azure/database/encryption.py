@@ -82,7 +82,7 @@ class AzureDatabaseEncryptionRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["4.1.5"],
         "ISO_27001": ["A.8.24", "A.5.10"],
-        "NIST_CSF": ["PR.DS-1"],
+        "NIST_CSF_2.0": ["PR.DS-01"],
         "GDPR": ["32(1)(a)", "5(1)(f)"],
         "NIST_800_53": ["SC-28", "SC-12"],
         "SOC2": ["CC6.1", "CC6.7"],

@@ -144,7 +144,7 @@ class AzureExposedVulnerableMachineRule(_DefenderRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["2.1.13"],
         "ISO_27001": ["A.8.8"],
-        "NIST_CSF": ["PR.AC-5", "DE.CM-1"],
+        "NIST_CSF_2.0": ["PR.IR-01", "DE.CM-09"],
         "GDPR": ["32(1)(b)"],
         "NIST_800_53": ["RA-5", "SI-2"],
         "SOC2": ["CC7.1"],
@@ -240,7 +240,7 @@ class AzureMissingEndpointProtectionRule(_DefenderRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["7.6"],
         "ISO_27001": ["A.8.8"],
-        "NIST_CSF": ["DE.CM-1"],
+        "NIST_CSF_2.0": ["DE.CM-09"],
         "NIST_800_53": ["SI-2"],
         "SOC2": ["CC6.8"],
         "PCI_DSS_4": ["5.2.1"],
@@ -304,7 +304,7 @@ class AzureMissingVulnerabilityAssessmentRule(_DefenderRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.8"],
-        "NIST_CSF": ["ID.RA-1", "DE.CM-1"],
+        "NIST_CSF_2.0": ["ID.RA-01", "DE.CM-09"],
         "GDPR": ["32(1)(d)"],
         "NIST_800_53": ["RA-5"],
         "SOC2": ["CC7.1"],

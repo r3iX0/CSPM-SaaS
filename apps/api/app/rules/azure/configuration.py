@@ -17,7 +17,7 @@ from app.rules.property import PropertySpec, property_rule
 
 _LOGGING = {
     "ISO_27001": ["A.8.15", "A.8.16"],
-    "NIST_CSF": ["PR.PT-1", "DE.AE-3"],
+    "NIST_CSF_2.0": ["PR.PS-04", "DE.AE-03"],
     "GDPR": ["32(1)(b)"],
     "NIST_800_53": ["AU-2", "SI-4"],
     "SOC2": ["CC7.2"],
@@ -25,7 +25,7 @@ _LOGGING = {
 }
 _HARDENING = {
     "ISO_27001": ["A.8.8"],
-    "NIST_CSF": ["ID.RA-1"],
+    "NIST_CSF_2.0": ["ID.RA-01"],
     "GDPR": ["32(1)(b)"],
     "NIST_800_53": ["CM-6", "SI-2"],
     "SOC2": ["CC7.1"],
@@ -33,7 +33,7 @@ _HARDENING = {
 }
 _ENCRYPTION = {
     "ISO_27001": ["A.8.24"],
-    "NIST_CSF": ["PR.DS-1"],
+    "NIST_CSF_2.0": ["PR.DS-01"],
     "GDPR": ["32(1)(a)"],
     "NIST_800_53": ["SC-12", "SC-28"],
     "SOC2": ["CC6.1"],
@@ -41,7 +41,7 @@ _ENCRYPTION = {
 }
 _IDENTITY = {
     "ISO_27001": ["A.5.16", "A.5.17"],
-    "NIST_CSF": ["PR.AC-1"],
+    "NIST_CSF_2.0": ["PR.AA-01"],
     "GDPR": ["32(1)(b)"],
     "NIST_800_53": ["IA-2", "AC-2"],
     "SOC2": ["CC6.1"],
@@ -49,7 +49,7 @@ _IDENTITY = {
 }
 _NETWORK = {
     "ISO_27001": ["A.8.20", "A.8.22"],
-    "NIST_CSF": ["PR.AC-5"],
+    "NIST_CSF_2.0": ["PR.IR-01"],
     "GDPR": ["32(1)(b)"],
     "NIST_800_53": ["SC-7"],
     "SOC2": ["CC6.6"],
@@ -461,7 +461,7 @@ SPECS = (
 # reads role v11 added (and the site configuration read held since v7).
 _BACKUP = {
     "ISO_27001": ["A.8.13"],
-    "NIST_CSF": ["PR.IP-4", "RC.RP-1"],
+    "NIST_CSF_2.0": ["PR.DS-11", "RC.RP-01"],
     "GDPR": ["32(1)(c)"],
     "NIST_800_53": ["CP-9"],
     "SOC2": ["A1.2"],
@@ -469,7 +469,7 @@ _BACKUP = {
 }
 _ADMIN_ACCESS = {
     "ISO_27001": ["A.8.20", "A.5.15"],
-    "NIST_CSF": ["PR.AC-3", "PR.AC-5"],
+    "NIST_CSF_2.0": ["PR.IR-01"],
     "GDPR": ["32(1)(b)"],
     "NIST_800_53": ["AC-17", "SC-7"],
     "SOC2": ["CC6.6"],

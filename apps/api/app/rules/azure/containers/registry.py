@@ -69,7 +69,7 @@ class AzureRegistryAdminUserRule(_RegistryRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.16", "A.5.17"],
-        "NIST_CSF": ["PR.AC-1"],
+        "NIST_CSF_2.0": ["PR.AA-01"],
         "GDPR": ["32(1)(b)"],
         "NIST_800_53": ["IA-2", "IA-5"],
         "SOC2": ["CC6.1"],
@@ -135,7 +135,7 @@ class AzureRegistryPublicNetworkRule(_RegistryRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.20", "A.8.22"],
-        "NIST_CSF": ["PR.AC-5"],
+        "NIST_CSF_2.0": ["PR.IR-01"],
         "GDPR": ["32(1)(b)"],
         "NIST_800_53": ["SC-7"],
         "SOC2": ["CC6.6"],
@@ -211,7 +211,7 @@ class AzureRegistryPrivateEndpointRule(_RegistryRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.20", "A.8.22"],
-        "NIST_CSF": ["PR.AC-5"],
+        "NIST_CSF_2.0": ["PR.IR-01"],
         "GDPR": ["32(1)(b)"],
         "NIST_800_53": ["SC-7"],
         "SOC2": ["CC6.6"],

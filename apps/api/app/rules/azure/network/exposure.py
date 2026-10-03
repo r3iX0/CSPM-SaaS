@@ -261,7 +261,7 @@ class AzurePublicRdpRule(_PublicPortRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["6.1"],
         "ISO_27001": ["A.8.20", "A.8.23"],
-        "NIST_CSF": ["PR.AC-5"],
+        "NIST_CSF_2.0": ["PR.IR-01"],
         "GDPR": ["5(1)(f)", "32(1)(b)"],
         "NIST_800_53": ["AC-17", "SC-7"],
         "SOC2": ["CC6.6"],
@@ -298,7 +298,7 @@ class AzurePublicSshRule(_PublicPortRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["6.2"],
         "ISO_27001": ["A.8.20"],
-        "NIST_CSF": ["PR.AC-5"],
+        "NIST_CSF_2.0": ["PR.IR-01"],
         "GDPR": ["5(1)(f)", "32(1)(b)"],
         "NIST_800_53": ["AC-17", "SC-7"],
         "SOC2": ["CC6.6"],
@@ -347,7 +347,7 @@ class AzurePublicWinRmRule(_PublicPortRule):
     remediation_spec: ClassVar[RemediationSpec | None] = None  # set below
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.20", "A.8.23"],
-        "NIST_CSF": ["PR.AC-5", "PR.PT-4"],
+        "NIST_CSF_2.0": ["PR.IR-01"],
         "GDPR": ["5(1)(f)", "32(1)(b)"],
         "NIST_800_53": ["AC-17", "SC-7"],
         "SOC2": ["CC6.6"],
@@ -425,7 +425,7 @@ class AzureOpenNsgRule(SecurityRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.20", "A.8.22"],
-        "NIST_CSF": ["PR.AC-5", "PR.PT-4"],
+        "NIST_CSF_2.0": ["PR.IR-01"],
         "GDPR": ["5(1)(f)", "32(1)(b)"],
         "NIST_800_53": ["SC-7", "CM-7"],
         "SOC2": ["CC6.6"],
@@ -552,7 +552,7 @@ class AzurePublicSqlPortRule(_PublicPortRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.20", "A.8.22", "A.8.23"],
-        "NIST_CSF": ["PR.AC-3", "PR.AC-5", "PR.DS-5"],
+        "NIST_CSF_2.0": ["PR.IR-01", "PR.DS-01"],
         "GDPR": ["5(1)(f)", "32(1)(b)"],
         "NIST_800_53": ["SC-7", "AC-17"],
         "SOC2": ["CC6.1", "CC6.6"],
@@ -592,7 +592,7 @@ class AzurePublicSmbRule(_PublicPortRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.20", "A.8.22"],
-        "NIST_CSF": ["PR.AC-3", "PR.AC-5"],
+        "NIST_CSF_2.0": ["PR.IR-01"],
         "GDPR": ["5(1)(f)", "32(1)(b)"],
         "NIST_800_53": ["SC-7", "CM-7"],
         "SOC2": ["CC6.1", "CC6.6"],
@@ -664,7 +664,7 @@ class AzureSensitivePublicAddressRule(SecurityRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.20", "A.8.22", "A.5.10"],
-        "NIST_CSF": ["PR.AC-3", "PR.AC-5", "PR.DS-5"],
+        "NIST_CSF_2.0": ["PR.IR-01", "PR.DS-01"],
         "GDPR": ["5(1)(f)", "25", "32(1)(b)"],
         "NIST_800_53": ["SC-7", "AC-3"],
         "SOC2": ["CC6.1", "CC6.6"],
@@ -790,7 +790,7 @@ class AzurePublicUdpRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["6.3"],
         "ISO_27001": ["A.8.20", "A.8.22"],
-        "NIST_CSF": ["PR.AC-5"],
+        "NIST_CSF_2.0": ["PR.IR-01"],
         "GDPR": ["32(1)(b)"],
         "NIST_800_53": ["SC-7", "CM-7"],
         "SOC2": ["CC6.6"],

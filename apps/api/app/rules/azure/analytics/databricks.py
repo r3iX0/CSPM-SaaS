@@ -21,7 +21,7 @@ from app.rules.base import RuleContext, RuleResult, SecurityRule
 
 _NETWORK_MAPPINGS: dict[str, list[str]] = {
     "ISO_27001": ["A.8.20", "A.8.22"],
-    "NIST_CSF": ["PR.AC-5"],
+    "NIST_CSF_2.0": ["PR.IR-01"],
     "GDPR": ["32(1)(b)"],
     "NIST_800_53": ["SC-7"],
     "SOC2": ["CC6.6"],
@@ -267,7 +267,7 @@ class AzureDatabricksManagedServicesKeyRule(_WorkspaceRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.24"],
-        "NIST_CSF": ["PR.DS-1"],
+        "NIST_CSF_2.0": ["PR.DS-01"],
         "GDPR": ["32(1)(a)"],
         "NIST_800_53": ["SC-12", "SC-28"],
         "SOC2": ["CC6.1"],

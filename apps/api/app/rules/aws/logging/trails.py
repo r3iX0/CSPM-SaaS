@@ -71,7 +71,7 @@ class AwsCloudTrailCoverageRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AWS_3.0": ["3.1"],
         "ISO_27001": ["A.8.15", "A.8.16"],
-        "NIST_CSF": ["DE.CM-1", "PR.PT-1"],
+        "NIST_CSF_2.0": ["DE.CM-01", "PR.PS-04"],
         "NIST_800_53": ["AU-2", "AU-6"],
         "SOC2": ["CC7.2"],
         "PCI_DSS_4": ["10.2.1"],
@@ -154,7 +154,7 @@ class AwsEbsDefaultEncryptionRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AWS_3.0": ["2.2.1"],
         "ISO_27001": ["A.8.24"],
-        "NIST_CSF": ["PR.DS-1"],
+        "NIST_CSF_2.0": ["PR.DS-01"],
         "GDPR": ["32(1)(a)"],
         "NIST_800_53": ["SC-28"],
         "SOC2": ["CC6.1"],
@@ -224,7 +224,7 @@ class AwsTrailValidationRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AWS_3.0": ["3.2"],
         "ISO_27001": ["A.8.15"],
-        "NIST_CSF": ["PR.PT-1"],
+        "NIST_CSF_2.0": ["PR.PS-04"],
         "NIST_800_53": ["AU-9"],
         "SOC2": ["CC7.2"],
         "PCI_DSS_4": ["10.3.2"],
@@ -296,7 +296,7 @@ class AwsTrailEncryptionRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AWS_3.0": ["3.5"],
         "ISO_27001": ["A.8.24"],
-        "NIST_CSF": ["PR.DS-1"],
+        "NIST_CSF_2.0": ["PR.DS-01"],
         "NIST_800_53": ["AU-9", "SC-28"],
         "SOC2": ["CC6.1"],
         "PCI_DSS_4": ["10.3.2"],
@@ -373,7 +373,7 @@ class AwsTrailBucketLoggingRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AWS_3.0": ["3.4"],
         "ISO_27001": ["A.8.15"],
-        "NIST_CSF": ["PR.PT-1"],
+        "NIST_CSF_2.0": ["PR.PS-04"],
         "NIST_800_53": ["AU-9"],
         "SOC2": ["CC7.2"],
         "PCI_DSS_4": ["10.3.2"],
@@ -472,7 +472,7 @@ class AwsConfigRecorderRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AWS_3.0": ["3.3"],
         "ISO_27001": ["A.8.15"],
-        "NIST_CSF": ["DE.CM-1"],
+        "NIST_CSF_2.0": ["DE.CM-01"],
         "NIST_800_53": ["CM-6", "AU-2"],
         "SOC2": ["CC7.1"],
         "PCI_DSS_4": ["10.2.1"],
@@ -557,7 +557,7 @@ class AwsFlowLogRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AWS_3.0": ["3.7"],
         "ISO_27001": ["A.8.15", "A.8.16"],
-        "NIST_CSF": ["DE.CM-1", "DE.AE-3"],
+        "NIST_CSF_2.0": ["DE.CM-01", "DE.AE-03"],
         "NIST_800_53": ["AU-2", "SI-4"],
         "SOC2": ["CC7.2"],
         "PCI_DSS_4": ["10.2.1"],
@@ -894,7 +894,7 @@ class AwsUnauthorizedApiMonitoringRule(_MonitoredEventRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AWS_3.0": ["4.1"],
         "ISO_27001": ["A.8.16"],
-        "NIST_CSF": ["DE.CM-1", "DE.AE-3"],
+        "NIST_CSF_2.0": ["DE.CM-01", "DE.AE-03"],
         "NIST_800_53": ["AU-6", "SI-4"],
         "SOC2": ["CC7.2"],
         "PCI_DSS_4": ["10.5.1"],
@@ -967,7 +967,7 @@ class AwsRootUsageMonitoringRule(_MonitoredEventRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AWS_3.0": ["4.3"],
         "ISO_27001": ["A.8.15", "A.8.16"],
-        "NIST_CSF": ["DE.CM-1", "PR.AC-4"],
+        "NIST_CSF_2.0": ["DE.CM-01", "PR.AA-05"],
         "NIST_800_53": ["AU-6", "AC-6"],
         "SOC2": ["CC7.2"],
         "PCI_DSS_4": ["10.2.1"],
@@ -1051,7 +1051,7 @@ def _monitoring_spec(name: str, pattern: str, note: str) -> RemediationSpec:
 
 _MONITORING_MAPPINGS: dict[str, list[str]] = {
     "ISO_27001": ["A.8.16"],
-    "NIST_CSF": ["DE.CM-1", "DE.AE-3"],
+    "NIST_CSF_2.0": ["DE.CM-01", "DE.AE-03"],
     "NIST_800_53": ["AU-6", "SI-4"],
     "SOC2": ["CC7.2"],
     "PCI_DSS_4": ["10.5.1"],

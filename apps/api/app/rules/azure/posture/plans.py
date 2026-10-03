@@ -86,7 +86,7 @@ class AzureDefenderPlansRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["2.1.3", *sorted({control for _, control in PLANS.values()})],
         "ISO_27001": ["A.8.16", "A.8.8"],
-        "NIST_CSF": ["DE.CM-1", "DE.AE-3"],
+        "NIST_CSF_2.0": ["DE.CM-01", "DE.AE-03"],
         "GDPR": ["32(1)(b)", "32(1)(d)"],
         "NIST_800_53": ["SI-4", "RA-5"],
         "SOC2": ["CC7.2"],

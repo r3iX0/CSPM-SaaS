@@ -18,7 +18,7 @@ from app.rules.property import PropertySpec, property_rule
 
 _MONITORING = {
     "ISO_27001": ["A.8.16"],
-    "NIST_CSF": ["DE.CM-1", "DE.AE-3"],
+    "NIST_CSF_2.0": ["DE.CM-01", "DE.AE-03"],
     "GDPR": ["32(1)(d)", "33"],
     "NIST_800_53": ["SI-4", "IR-4"],
     "SOC2": ["CC7.2", "CC7.3"],
@@ -26,7 +26,7 @@ _MONITORING = {
 }
 _VULNERABILITY = {
     "ISO_27001": ["A.8.8"],
-    "NIST_CSF": ["ID.RA-1", "DE.CM-1"],
+    "NIST_CSF_2.0": ["ID.RA-01", "DE.CM-01"],
     "GDPR": ["32(1)(d)"],
     "NIST_800_53": ["RA-5", "SI-2"],
     "SOC2": ["CC7.1"],
@@ -34,7 +34,7 @@ _VULNERABILITY = {
 }
 _GOVERNANCE = {
     "ISO_27001": ["A.8.8"],
-    "NIST_CSF": ["ID.GV-1"],
+    "NIST_CSF_2.0": ["GV.PO-01"],
     "GDPR": ["25"],
     "NIST_800_53": ["CM-6"],
     "SOC2": ["CC5.2"],

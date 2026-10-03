@@ -3,7 +3,7 @@
 Owners and admins seal; nobody changes a package afterwards. A package is the
 latest completed scan's assessment of the chosen frameworks, with every control's
 verdict and every reading those verdicts rest on copied out of the tables that
-retention and re-scans keep rewriting (DECISIONS.md section 197).
+retention and re-scans keep rewriting (DECISIONS.md section 204).
 
 Services flush and the route commits, because the row-level-security claims live
 in the request's transaction (DECISIONS.md section 194). The audit entry is

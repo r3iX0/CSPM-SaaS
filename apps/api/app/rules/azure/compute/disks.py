@@ -65,7 +65,7 @@ class AzureUnmanagedDiskRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["7.2"],
         "ISO_27001": ["A.8.24", "A.8.3"],
-        "NIST_CSF": ["PR.DS-1"],
+        "NIST_CSF_2.0": ["PR.DS-01"],
         "GDPR": ["32(1)(a)"],
         "NIST_800_53": ["SC-28", "AC-3"],
         "SOC2": ["CC6.1"],

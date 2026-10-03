@@ -1,4 +1,4 @@
-"""Sealed audit packages against the real database (DECISIONS.md section 197).
+"""Sealed audit packages against the real database (DECISIONS.md section 204).
 
 What only a database can hold shut:
 
@@ -208,6 +208,41 @@ async def test_a_sealed_package_keeps_what_was_read_and_verifies_after_a_round_t
     assert package.framework_ids == [FRAMEWORK]
     assert {control["framework_id"] for control in package.controls} == {FRAMEWORK}
     assert len(package.controls) == len(get_framework(FRAMEWORK).controls)
+
+
+@pytest.mark.parametrize(
+    "standards",
+    [
+        ["SOC2", "ISO_27001", "PCI_DSS_4", "NIST_CSF_2.0", "CIS_CONTROLS_8.1"],
+        ["CSA_CCM_4.1", "NIST_800_171_R2", "DORA"],
+    ],
+)
+async def test_the_named_standards_seal_together_and_carry_every_control(
+    estate, standards: list[str]
+) -> None:
+    """What an auditor names (DECISIONS.md sections 205 and 206). A package of several holds each
+    standard whole -- the controls no rule reaches too -- and still verifies."""
+    async with rls_session(OWNER) as session:
+        package = await audit_packages.seal(
+            session,
+            tenant_of(OWNER, estate),
+            name="Standards audit",
+            framework_ids=standards,
+        )
+        await session.commit()
+        package_id = package.id
+
+    async with rls_session(OWNER) as session:
+        package, _items = await audit_packages.get_package(
+            session, tenant_of(OWNER, estate), package_id
+        )
+        assert await audit_packages.verify_package(session, tenant_of(OWNER, estate), package_id)
+
+    assert package.framework_ids == standards
+    for framework_id in standards:
+        sealed = [c for c in package.controls if c["framework_id"] == framework_id]
+        assert len(sealed) == len(get_framework(framework_id).controls)
+        assert "NOT_COVERED" in {c["status"] for c in sealed}
 
 
 async def test_sealing_is_on_the_audit_trail(estate) -> None:

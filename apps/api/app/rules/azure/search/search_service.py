@@ -59,7 +59,7 @@ class AzureSearchPublicNetworkRule(SecurityRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.20", "A.8.22"],
-        "NIST_CSF": ["PR.AC-3", "PR.AC-5", "PR.DS-5"],
+        "NIST_CSF_2.0": ["PR.IR-01", "PR.DS-01"],
         "GDPR": ["5(1)(f)", "32(1)(b)"],
         "NIST_800_53": ["SC-7", "AC-3"],
         "SOC2": ["CC6.1", "CC6.6"],

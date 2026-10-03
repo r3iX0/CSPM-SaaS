@@ -86,7 +86,7 @@ class AzureLoggingRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["5.4"],
         "ISO_27001": ["A.8.15", "A.8.16"],
-        "NIST_CSF": ["DE.AE-3", "PR.PT-1"],
+        "NIST_CSF_2.0": ["DE.AE-03", "PR.PS-04"],
         "GDPR": ["5(2)", "32(1)(d)", "33"],
         "NIST_800_53": ["AU-2", "SI-4"],
         "SOC2": ["CC7.2"],
@@ -210,7 +210,7 @@ class AzureActivityLogExportRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["5.1.1"],
         "ISO_27001": ["A.8.15", "A.8.16"],
-        "NIST_CSF": ["PR.PT-1", "DE.AE-3"],
+        "NIST_CSF_2.0": ["PR.PS-04", "DE.AE-03"],
         "GDPR": ["5(1)(f)", "32(1)(b)"],
         "NIST_800_53": ["AU-2", "AU-11", "SI-4"],
         "SOC2": ["CC7.1", "CC7.2"],
@@ -337,7 +337,7 @@ class AzureCriticalResourceLoggingRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["5.1.5", "5.4"],
         "ISO_27001": ["A.8.15", "A.8.16"],
-        "NIST_CSF": ["PR.PT-1", "DE.AE-3", "DE.CM-1"],
+        "NIST_CSF_2.0": ["PR.PS-04", "DE.AE-03", "DE.CM-01"],
         "GDPR": ["30", "32(1)(d)", "33"],
         "NIST_800_53": ["AU-2", "AU-6"],
         "SOC2": ["CC7.2", "CC7.3"],

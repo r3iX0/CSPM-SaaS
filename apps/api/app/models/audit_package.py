@@ -1,4 +1,4 @@
-"""A sealed assessment, and the readings it rests on (DECISIONS.md section 197)."""
+"""A sealed assessment, and the readings it rests on (DECISIONS.md section 204)."""
 
 import uuid
 from datetime import date, datetime

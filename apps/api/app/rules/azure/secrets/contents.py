@@ -18,7 +18,7 @@ from app.rules.property import PropertySpec, property_rule
 
 _KEY_LIFECYCLE = {
     "ISO_27001": ["A.8.24"],
-    "NIST_CSF": ["PR.DS-1", "PR.AC-1"],
+    "NIST_CSF_2.0": ["PR.DS-01", "PR.AA-01"],
     "GDPR": ["32(1)(a)"],
     "NIST_800_53": ["SC-12", "IA-5"],
     "SOC2": ["CC6.1"],
