@@ -10485,7 +10485,8 @@ That row now says "The last owner stays" in their place.
 
 **Settings links to its sections.** The page is seven topics and 2,600 pixels
 long; a row of links under the heading names what is on it -- only the
-sections this reader is shown -- and jumps to each.
+sections this reader is shown -- and jumps to each. Superseded by §207, which made
+each topic its own page.
 
 **Risks: an untriaged count equal to the whole says so, and the counts
 filter.** "Live risks 77" beside "Needs triage 77" read as a mistake; they are
@@ -11299,6 +11300,118 @@ verdict filter within it -- the framework's totals over one section's rows promi
 and showed five. A section the catalogue does not have narrows nothing.
 
 The `Bars` chart drew only this section and is deleted. No API changed.
+
+A row is three columns -- name, bar, figures -- only from the `lg` breakpoint, with the figures in a
+fixed 13rem that never wraps; below it the three stack. Checked at first only without the app's
+sidebar, an 11rem column broke "· 16 failing" across two lines beside the sidebar.
+
+## 207. Settings is one page per topic, and risk context is a table worked through
+
+Settings was one page of seven topics, 2,600 pixels long. Forms edited once a year (the
+organization's name) sat between lists that only grow (members, the activity log), and the one
+irreversible action in the product, deleting the organization, was a text box lying open at the
+bottom. The row of anchor links from §188 helped a reader jump, but it scrolled away with the page
+and never said where the reader was. Each topic also saved its own way: the profile saved on a
+button that stayed off until something changed, each subscription's declaration on a button that
+was always on, a member's role the moment it was picked from a menu with no confirmation and no
+undo, and an integration's switch at once, with "Saved" shown as text that vanished after two
+seconds.
+
+The topic with the most at stake was in the worst shape. The risk engine multiplies every finding
+by a subscription's declared criticality and data sensitivity, which makes those the most valuable
+answers a customer can give. The page asked for them as one full form per subscription, stacked,
+each with its own Save. Thirty subscriptions meant thirty forms, no count of how many were left,
+and thirty requests on arrival, one per subscription. A viewer was shown those forms too, and the
+API refused every save they tried.
+
+**One page per topic.** `/settings/general`, `/members`, `/context`, `/integrations`,
+`/activity` and `/preferences`, with the topics listed beside the page on a wide screen and above
+it on a narrow one (`SettingsNav`, links marked `aria-current`, not tabs, because each topic is a
+page with its own address and title). General holds the profile and, at its foot, deletion.
+`SettingsPage` routes them itself under `/settings/*`, so the lazy chunk stays one. A topic this
+reader may not open is not listed, and its address goes back to General: members are not shown in
+the demo, and integrations and activity are for owners and admins, as the API allows
+(`components/settings/sections.ts`). `/settings` lands on General, and an anchor from the single
+page (`/settings#context`, `#danger`) lands on the page that now holds that section, so links
+written before the split keep working. Each page has its own document title ("Members ·
+Settings").
+
+**One way to save.** A form holds its edits until Save, with Discard beside it and "Unsaved
+changes" said while there is something to lose. Leaving asks first (`LeaveGuard`). React Router's
+`useBlocker` needs a data router, and this app has none (`App.tsx`). So
+closing the tab is caught by `beforeunload`, and following a link inside the app by a capturing
+click listener on the document. That listener runs before React's own listener at the root, so a
+`Link` never hears the click. The browser's Back button is not caught; it reaches no click. An
+instant control stays instant (an integration's switch, a member's role), and every result is a
+toast. A role change offers Undo, except on the reader's own role, where an undo from a role that
+can no longer change roles would be refused. Lowering one's own role below admin, removing a
+member and removing an integration each ask in a dialog first.
+
+**Risk context is a table.** One row per subscription with its environment, two levels and
+whether it is declared. Undeclared rows keep the dashed unknown style. "4 of 12 subscriptions
+declared" with a bar leads the page. A filter (All, Not declared, Declared, `?show=`) and, past
+eight subscriptions, a search (`?q=`) narrow it, and the count line is spoken through
+`LiveStatus`. A subscription opens in a sheet (`?account=`). The sheet asks for each level as a
+choice that says what it means ("Customer-facing, or it carries revenue"; "Regulated data:
+payment cards, health records, secrets"), because "High" alone does not say what makes a
+subscription high. The sheet asks before closing over an unsaved edit. `?account=` takes either
+the record's id or the provider's subscription id, so an asset page, which knows where an asset
+sits but not CloudGuard's record of it, opens that subscription's sheet directly.
+
+Rows can be selected, and one field set across them: environment, criticality or data
+sensitivity, or every declaration withdrawn after a confirmation. A declaration is replaced whole
+(`ContextDeclarationIn`), so the page sends each subscription its own full statement with
+the one field changed. Each write is its own audit entry, which is what a declaration is: one
+person's statement about one subscription. No batch endpoint was added. Atomicity across
+subscriptions is not something anyone needs, and a partial result is reported as one ("Updated 3
+of 5. The rest are unchanged."). Writes go four at a time. A viewer sees the table read-only, as
+`require_write` allows, with no checkboxes and a sheet that only reads.
+
+**One request for every declaration.** `GET /context-declarations` lists the organization's
+declarations, one per subscription that has one. The table and the getting-started checklist read
+it under one key (`DECLARATIONS_KEY`), where the checklist used to probe up to twenty
+subscriptions one by one. It is not paged, as `/cloud-accounts` is not.
+
+**Members.** Each role says what it may do, both when it is chosen in the invite dialog and
+behind a question mark on the Role column. The roles are read from the API's own checks:
+security analyst, IT admin and advisor have the same access today, and the page says so rather
+than implying three tiers. Inviting is a dialog opened from the heading, and the link it makes
+replaces the form in the same place. An expired invitation offers "Invite again", which withdraws
+it and makes a new one for the same address and role, because the old link was stored only as a
+hash and cannot be shown twice. Members have initials avatars, and a search box past eight
+members.
+
+**Integrations.** Each row says in one word whether it is delivering (Delivering, Failing, Not
+sent yet, Paused), read from its last success and failure, so a channel that started refusing at
+night reads "Failing" before anyone opens it. Adding one is a dialog, where the kind is a choice
+that says what each does. A generic webhook's signing secret is shown once, and the dialog
+holding it cannot be dismissed until the reader ticks that it is stored.
+
+**Activity.** The kind of change (`?action=`, a family such as `member.`) and the person
+(`?actor=`) narrow the list through the API's own filters, which it always had and the page never
+offered. Entries sit under the day they happened. Paging has no ceiling; the list used to stop
+at two hundred entries without saying so. "Download CSV" reads the whole filtered trail two
+hundred at a time and saves it. A cell a spreadsheet would read as a formula is prefixed with an
+apostrophe, because entries carry what people typed. The changes to context, findings, risks and
+remediation, which the API recorded and the page could only spell out as "context declared",
+now have words.
+
+**General.** The country is chosen by name from a searchable list and stored as its code. The
+names come from the browser's `Intl.DisplayNames`, so there is no table to keep. The industry
+suggests common answers and stays free text. The identifier is read-only rather than disabled,
+so it can be copied at full contrast, and has a copy button. A reader who cannot edit sees the
+profile as text, not as disabled boxes. Deleting opens a dialog that says what goes, counted from
+what is already known (the subscriptions, the members, and every scan, finding and report), then
+asks for the name.
+
+**Preferences.** The theme and the single-key shortcuts were settable only where they act: a
+menu in the header and a switch inside the shortcuts sheet. A reader looking for them looked in
+Settings first. They are now here as well, writing the same browser stores, and the page says
+nothing on it is shared.
+
+The radio cards that say what each choice means (`OptionCard`) are one component across roles,
+integration kinds, levels and themes. The §188 row of anchor links is gone with the single page
+it served.
 
 ## Open items carried forward
 

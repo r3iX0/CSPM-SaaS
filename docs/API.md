@@ -58,6 +58,7 @@ GET    /cloud-accounts/azure/permissions
 GET    /cloud-accounts/{id}/context
 PUT    /cloud-accounts/{id}/context
 DELETE /cloud-accounts/{id}/context
+GET    /context-declarations
 
 POST   /scans                              GET    /scans
 GET    /scans/{id}                         DELETE /scans/{id}
@@ -143,6 +144,12 @@ customer is no longer claiming, and a body claiming nothing withdraws the
 declaration entirely, exactly as DELETE does. `UNKNOWN` is rejected for either
 level: it is Cleave's own answer for "nothing said anything", so declaring
 it would be asserting an absence that leaving the field out already asserts.
+
+`GET /context-declarations` lists every declaration in the organization, one
+entry per subscription that has one, so the settings page's table of
+subscriptions asks once rather than once per subscription (DECISIONS.md §207).
+It is not paged, as `/cloud-accounts` is not: there is at most one declaration
+per subscription. A subscription with no entry is one nobody has described.
 
 A declaration is applied by the next evaluation of the subscription — the next
 scan, or a replay of its latest capture — and never rescores stored findings on

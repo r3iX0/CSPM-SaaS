@@ -63,9 +63,9 @@ function mount(
   }: { connections?: CloudConnection[]; declared?: boolean; variant?: "full" | "compact" } = {},
 ) {
   vi.spyOn(api, "get").mockImplementation((path: string) => {
-    if (path.includes("/context")) {
+    if (path.includes("/context-declarations")) {
       return Promise.resolve({
-        data: declared ? { cloud_account_id: "a-1" } : null,
+        data: declared ? [{ cloud_account_id: "a-1" }] : [],
         meta: {},
       });
     }

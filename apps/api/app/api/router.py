@@ -10,6 +10,7 @@ from app.api.routes import (
     cloud_accounts,
     cloud_connections,
     compliance,
+    context_declarations,
     dashboard,
     events,
     findings,
@@ -31,6 +32,7 @@ api_router.include_router(team.router)
 api_router.include_router(audit_log.router)
 api_router.include_router(webhooks.router)
 api_router.include_router(cloud_accounts.router)
+api_router.include_router(context_declarations.router)
 api_router.include_router(cloud_connections.router)
 api_router.include_router(scans.router)
 api_router.include_router(assets.router)

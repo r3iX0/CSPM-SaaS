@@ -417,6 +417,11 @@ so the shell's own `<main>` is the page's only one (§155).
   queue for the worst untracked findings, through one `useTrack` (§205)
 - Coverage by domain shows one framework at a time (`?domains=`), each section a row drawn by
   status with its counts, linking to the framework page narrowed to it (`?section=`) (§206)
+- Settings is one page per topic under `/settings/*` (General, Members, Risk context,
+  Integrations, Activity, Preferences); a form holds edits until Save and asks before they are
+  left (`LeaveGuard`), an instant control answers in a toast; risk context is a table read from
+  `GET /context-declarations`, edited in a sheet (`?account=`) and settable across many
+  subscriptions, each a whole statement of its own (§207)
 - The queue draws a rule's tasks as one row, and its fix as one sheet (`?rule=`) with the commands as
   one script over every asset; no batch endpoint and no group rescan -- marking done verifies (§203)
 - Every observable control of CIS Azure 6.0, NIS2, ATT&CK, HIPAA, GDPR, NIST CSF and PCI DSS is
