@@ -92,6 +92,10 @@ GET    /rules                              GET    /rules/{rule_id}
 GET    /compliance                         GET    /compliance/{framework_id}
 GET    /compliance/{framework_id}/export?format=csv|json
 
+POST   /audit-packages                     GET    /audit-packages?limit=1..200&offset=
+GET    /audit-packages/{id}                GET    /audit-packages/{id}/verification
+GET    /audit-packages/{id}/archive        (a zip)
+
 GET    /notifications                      POST   /notifications/read
 DELETE /notifications                      DELETE /notifications/{id}
 
@@ -163,6 +167,19 @@ repeats the framework, its version and when the assessment was read, because the
 thing that happens to every export is that fifteen rows are copied into a larger
 sheet — where a row that no longer says which reading it came from is a
 compliance claim with no date on it.
+
+`/audit-packages` seals the latest completed scan's assessment of chosen frameworks and keeps it as
+it was, for owners and administrators only (DECISIONS.md §204). There is no `PATCH` and no
+`DELETE`: a wrong package is sealed again and the old one stays what it was. `GET /{id}` gives the
+header, how each framework's controls came out and what they rest on, with how many payloads are
+still stored counted live. `/{id}/verification` rebuilds the manifest from the stored rows and
+returns both digests, so `verified: false` can be checked and not only believed. `/{id}/archive`
+answers with a zip rather than the envelope, as the export above does: a manifest that hashes to
+the sealed value, a CSV of controls per framework, the gaps, the readings, the captured payloads
+named by their own hash, and a `SHA256SUMS` that `sha256sum -c` accepts. It is a `GET` that
+writes an audit entry, because evidence leaving the system belongs on the trail; the build runs
+one at a time off the event loop, and a package whose evidence is over 256 MB answers `409`
+`ARCHIVE_TOO_LARGE`.
 
 Three endpoints are unauthenticated by necessity, all protected by an
 HMAC-signed token rather than a session: `/cloud-connections/azure/consent/callback`,

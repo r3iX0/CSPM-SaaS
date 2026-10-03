@@ -31,6 +31,7 @@ from app.core.enums import (
     TaskOutcome,
 )
 from app.core.errors import ConflictError, NotFound, PermissionDenied, ValidationFailed
+from app.core.payloads import digest
 from app.core.security import AuthenticatedUser
 from app.models.cloud_account import CloudAccount
 from app.models.cloud_connection import CloudConnection
@@ -47,7 +48,8 @@ OTHER = uuid.UUID("22222222-0000-0000-0000-00000000000b")
 TENANT = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
 FRAMEWORK = "NIS2"
 PAYLOAD = {"resources": [{"id": "/x/vm-1"}]}
-HELD_HASH = "c" * 64
+# The real digest of the payload, so an archive built from it checks out.
+HELD_HASH = digest(PAYLOAD)[0]
 UNPINNED_HASH = "d" * 64
 NOW = datetime.now(UTC)
 
@@ -141,7 +143,7 @@ async def read_estate(org_id: uuid.UUID, keys: list[str]) -> None:
                 organization_id=org_id,
                 payload=PAYLOAD,
                 content_hash=HELD_HASH,
-                byte_size=40,
+                byte_size=digest(PAYLOAD)[1],
                 observed_at=NOW,
             )
         )
@@ -164,7 +166,7 @@ async def read_estate(org_id: uuid.UUID, keys: list[str]) -> None:
                     permissions=["Microsoft.Resources/subscriptions/read"],
                     endpoints=[{"path": "/subscriptions/x/resources", "api_version": "2023-07-01"}],
                     content_hash=content_hash,
-                    byte_size=40 if content_hash else 0,
+                    byte_size=digest(PAYLOAD)[1] if content_hash else 0,
                 )
             )
         await session.commit()
@@ -199,7 +201,9 @@ async def test_a_sealed_package_keeps_what_was_read_and_verifies_after_a_round_t
         package, items = await audit_packages.get_package(
             session, tenant_of(OWNER, estate), package_id
         )
-        assert await audit_packages.verify_package(session, tenant_of(OWNER, estate), package_id)
+        assert (
+            await audit_packages.verify_package(session, tenant_of(OWNER, estate), package_id)
+        ).matches
 
     by_outcome = {item.outcome: item for item in items}
     assert by_outcome[TaskOutcome.COMPLETE].content_hash == HELD_HASH
@@ -236,7 +240,9 @@ async def test_the_named_standards_seal_together_and_carry_every_control(
         package, _items = await audit_packages.get_package(
             session, tenant_of(OWNER, estate), package_id
         )
-        assert await audit_packages.verify_package(session, tenant_of(OWNER, estate), package_id)
+        assert (
+            await audit_packages.verify_package(session, tenant_of(OWNER, estate), package_id)
+        ).matches
 
     assert package.framework_ids == standards
     for framework_id in standards:
@@ -299,9 +305,9 @@ async def test_a_row_edited_behind_the_applications_back_no_longer_verifies(esta
         await session.commit()
 
     async with rls_session(OWNER) as session:
-        assert not await audit_packages.verify_package(
-            session, tenant_of(OWNER, estate), package_id
-        )
+        assert not (
+            await audit_packages.verify_package(session, tenant_of(OWNER, estate), package_id)
+        ).matches
 
 
 async def test_another_organization_cannot_read_a_package(estate, cleanup_orgs) -> None:
@@ -311,7 +317,7 @@ async def test_another_organization_cannot_read_a_package(estate, cleanup_orgs) 
 
     async with rls_session(OTHER) as session:
         tenant = tenant_of(OTHER, other_org)
-        assert await audit_packages.list_packages(session, tenant) == []
+        assert await audit_packages.list_packages(session, tenant) == ([], 0)
         with pytest.raises(NotFound):
             await audit_packages.get_package(session, tenant, package_id)
         # Asked for under no organization's name at all, the database still says no.

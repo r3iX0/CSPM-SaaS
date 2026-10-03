@@ -6,6 +6,7 @@ from app.api.routes import (
     assets,
     attack_paths,
     audit_log,
+    audit_packages,
     changes,
     cloud_accounts,
     cloud_connections,
@@ -29,6 +30,7 @@ api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(organizations.router)
 api_router.include_router(team.router)
 api_router.include_router(audit_log.router)
+api_router.include_router(audit_packages.router)
 api_router.include_router(webhooks.router)
 api_router.include_router(cloud_accounts.router)
 api_router.include_router(cloud_connections.router)

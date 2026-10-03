@@ -24,6 +24,7 @@ from enum import Enum
 from typing import Any
 from uuid import UUID
 
+from app.compliance.coverage import ControlStatus
 from app.core.payloads import digest
 from app.models.audit_package import AuditPackage, AuditPackageItem
 from app.models.scan import Evidence
@@ -177,6 +178,26 @@ def manifest_digest(document: dict[str, Any]) -> str:
     return digest(document)[0]
 
 
+def recompute(package: AuditPackage, items: Sequence[AuditPackageItem]) -> str:
+    """The digest these rows give now, to set beside the one the package was sealed under."""
+    return manifest_digest(manifest(package, items))
+
+
 def verify(package: AuditPackage, items: Sequence[AuditPackageItem]) -> bool:
     """Whether these rows still describe the package that was sealed."""
-    return manifest_digest(manifest(package, items)) == package.manifest_sha256
+    return recompute(package, items) == package.manifest_sha256
+
+
+def control_status_counts(controls: Iterable[Mapping[str, Any]]) -> dict[str, dict[str, int]]:
+    """How many of each framework's sealed controls hold each status.
+
+    Every status is a key, zeroes included, as ``coverage.status_counts`` does for the live
+    view: a legend that drops the absent ones is a legend that moves between packages.
+    """
+    counts: dict[str, dict[str, int]] = {}
+    for control in controls:
+        per_framework = counts.setdefault(
+            control["framework_id"], {status.value: 0 for status in ControlStatus}
+        )
+        per_framework[control["status"]] += 1
+    return counts

@@ -133,6 +133,12 @@ class ConflictError(AppError):
     status_code_default = status.HTTP_409_CONFLICT
 
 
+class ArchiveTooLarge(ConflictError):
+    """The evidence a package names is more than one archive will hold"""
+
+    code = "ARCHIVE_TOO_LARGE"
+
+
 class CloudConnectionError(AppError):
     """Could not reach the cloud provider"""
 

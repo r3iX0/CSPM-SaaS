@@ -30,6 +30,13 @@ TAGS: list[dict[str, Any]] = [
     {"name": "team", "description": "Members, roles and invitations to an organization."},
     {"name": "audit", "description": "The append-only record of every change a person made."},
     {
+        "name": "audit-packages",
+        "description": (
+            "Sealed assessments of chosen frameworks, kept as they were, with the evidence "
+            "they rest on as a zip an auditor can check."
+        ),
+    },
+    {
         "name": "webhooks",
         "description": "Endpoints that receive notifications, and their deliveries.",
     },

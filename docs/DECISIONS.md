@@ -11152,12 +11152,42 @@ Only a catalogued framework can be sealed: a package must not imply an assessmen
 framework CloudGuard has no controls for. The declared audit period is informational; the
 evidence is the closing scan's, and a per-scan timeline for a Type II period is not built.
 
+**The archive, and the routes that give it.** An owner or administrator seals, lists, reads,
+verifies and downloads a package at `/audit-packages` (`docs/API.md`). The download is a zip
+built by `compliance/archive.py`, and every claim in it can be tested without Cleave:
+`manifest.json` is the canonical manifest byte for byte, so `sha256sum manifest.json` is the
+hash sealed in the audit trail; each payload is written as the exact bytes it was captured as,
+named by their SHA-256; and `SHA256SUMS` lists the rest for `sha256sum -c`. A payload whose bytes
+no longer hash to their name is left out and named in `gaps.csv`, not shipped under a name it does
+not earn. The archive holds no PDF and nothing recomputed today: a report rendered at download
+time would describe the estate now in a file that claims to describe it on the sealing date. It
+is deterministic, so a download can be compared with the one before.
+
+**Gaps are listed beside the passes.** `gaps.csv` carries the controls that are inconclusive,
+not assessed, not covered, or not observable by a scanner at all, and the readings that failed,
+were partial, were never taken, or whose bytes are gone. A package of green rows only is the one
+document where that omission is expensive, so it is not an option.
+
+**Three deliberate departures from the usual route shape.** The archive is a `GET` that writes an
+audit entry (`audit_package.exported`): evidence leaving the system belongs on the trail, and an
+append-only entry is a record rather than state a repeat changes. The entry records access and not
+success. Verification is a `GET` sub-resource and not a `POST` action, because it changes nothing
+and is idempotent. The listing is paged, and the detail answers with counts and not the controls,
+which the archive carries: hundreds of rows of verdicts, rules and readings are a download and
+not a screen. Reading is for owners and administrators and says `403` to anyone else, as well as
+being refused by row-level security, so a viewer is told why and is not shown an empty list.
+
+**Bounded.** One archive carries at most 256 MB of uncompressed payloads, and a larger package
+answers `409 ARCHIVE_TOO_LARGE` before any of it is read. The build runs in a thread, one at a
+time, into a spooled file, after the connection has gone back to the pool (§158), and holds one
+payload in memory at a time. A package larger than that wants a background export, which is not
+built.
+
 **Planned, not built.** An auditor is not an organization member, so a grant is bound to the
 auditor's verified email and read through `SECURITY DEFINER` functions, as invitations are
 (§162), rather than through a new bypass session. The token is stored only as its hash and
-carried in a URL fragment. The archive is a zip whose payload files are the canonical bytes, so
-`sha256sum -c` checks them, and the manifest signature (Ed25519) is a later step. Until those
-land, a package is sealed and verifiable but only an owner or admin can read it.
+carried in a URL fragment, and the manifest signature (Ed25519) is a later step. Until grants
+land, only an owner or administrator can read a package.
 
 ## 205. The standards a customer is audited against are listed in full, and only the latest of a version is offered
 
