@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { api } from "@/lib/api";
-import type { FindingDetail, RemediationTask } from "@/lib/types";
+import { api, ApiError } from "@/lib/api";
+import type { FindingDetail, FindingStatus, RemediationTask } from "@/lib/types";
 
 /** The URL parameter that holds a fix open on the remediation page (DECISIONS.md §202). */
 export const FIX_PARAM = "fix";
@@ -45,6 +45,47 @@ export function taskFor(
   return (Array.isArray(tasks) ? tasks : []).find(
     (row) => row.finding_id === findingId && row.status !== "CANCELLED",
   );
+}
+
+/**
+ * Whether a finding's fix can still be put in the queue.
+ *
+ * A verified fix has no work left in it, and an accepted risk or a false
+ * positive is a decision not to do the work -- offering to queue any of them
+ * would ask the reader to undo a conclusion the product has already recorded.
+ */
+export function isTrackable(status: FindingStatus): boolean {
+  return status === "OPEN" || status === "IN_PROGRESS";
+}
+
+/**
+ * Putting a finding's fix in the queue.
+ *
+ * One mutation for every place that offers it -- the finding's fix card, the
+ * fix sheet's header, and the queue's list of findings nobody has tracked
+ * (DECISIONS.md §205) -- so each says the same thing about what tracking does
+ * and does not do. `variables` names the finding being tracked, for a list
+ * that spins one row's button only.
+ */
+export function useTrack() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (findingId: string) =>
+      api.post<RemediationTask>("/api/v1/remediation", { finding_id: findingId }),
+    onSuccess: (_result, findingId) => {
+      void queryClient.invalidateQueries({ queryKey: ["remediation"] });
+      void queryClient.invalidateQueries({ queryKey: ["finding", findingId] });
+      void queryClient.invalidateQueries({ queryKey: ["findings"] });
+      toast.success("Added to the remediation queue", {
+        description:
+          "Prioritised by impact against effort. The finding stays open until a scan observes the fix.",
+      });
+    },
+    onError: (err) =>
+      toast.error("Could not track this fix", {
+        description: err instanceof ApiError ? err.message : "The API rejected the request.",
+      }),
+  });
 }
 
 /**

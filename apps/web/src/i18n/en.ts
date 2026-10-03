@@ -990,6 +990,24 @@ export const en = {
       "That scan could not read part of the estate, so this assessment has a gap in it.",
     empty: "No frameworks in the catalogue.",
     backToFrameworks: "All frameworks",
+    // One framework's sections, each a row with its status bar (DECISIONS.md §206).
+    domainsTitle: "Coverage by domain",
+    domainsIntro: "Each section of a framework: what fails in it, and what nothing checks.",
+    domainsFramework: "Framework",
+    domainsOrderLabel: "Order the sections",
+    domainsCatalogue: "Framework order",
+    domainsWorst: "Most failing",
+    domainsFailed: "Could not load this framework's sections.",
+    domainsSummary: (n: number, failing: number, unchecked: number) =>
+      `${n} ${n === 1 ? "section" : "sections"} · ${failing} with a failing control` +
+      (unchecked > 0 ? ` · ${unchecked} nothing checks` : ""),
+    domainVerdicts: (verdicts: number, total: number) => `${verdicts}/${total} with a verdict`,
+    domainFailing: (n: number) => `${n} failing`,
+    domainUnchecked: (n: number) => `${n} ${n === 1 ? "control" : "controls"}, nothing checks`,
+    domainsAll: (name: string) => `Every ${name} control`,
+    // The framework page narrowed to one section, from a domain row.
+    sectionOnly: (name: string) => `Showing one section: ${name}`,
+    allSections: "Show every section",
     statusHelp: {
       FAILING: "At least one mapped rule is currently failing.",
       INCONCLUSIVE: "Nothing failing, but a mapped rule could not be evaluated. Not a pass.",
@@ -1283,6 +1301,14 @@ export const en = {
     openFix: "Open fix",
     openFinding: "Open finding",
     openFixFor: (title: string) => `Open the fix for ${title}`,
+    // Offered on the finding's card, in the sheet's header, and beside every
+    // finding nobody has tracked (DECISIONS.md §205).
+    trackThisFix: "Track this fix",
+    track: "Track",
+    trackFor: (title: string) => `Track the fix for ${title}`,
+    whereToStart: "Where to start",
+    notTracked: "Not in the queue yet",
+    allOpenFindings: "All open findings",
     fixFailed: "Could not load this fix",
     tenantWide: "Tenant-wide — no single asset carries this",
     trackedSince: (date: string) => `In the remediation queue since ${date}`,

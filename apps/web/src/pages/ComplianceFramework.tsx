@@ -44,9 +44,10 @@ import { usePageTitle } from "@/lib/pageTitle";
 export function ComplianceFrameworkPage() {
   const t = useT();
   const { frameworkId } = useParams<{ frameworkId: string }>();
-  // Which verdicts to list. Filtering keeps the catalogue order within each
-  // section -- it hides rows, it never reorders them.
-  const [filters, update] = useUrlFilters({ verdict: "all" });
+  // Which verdicts to list, and which section, when a domain row on the
+  // overview led here (DECISIONS.md §206). Filtering keeps the catalogue order
+  // within each section -- it hides rows, it never reorders them.
+  const [filters, update] = useUrlFilters({ verdict: "all", section: "" });
   const verdict = filters.verdict as "all" | ControlStatus;
   const setVerdict = (value: string) => update({ verdict: value });
 
@@ -75,14 +76,31 @@ export function ComplianceFrameworkPage() {
     );
   }
 
+  // A section the catalogue no longer has narrows nothing, rather than
+  // emptying the page under a filter nobody can see the reason for.
+  const section = data.controls.some((control) => control.group === filters.section)
+    ? filters.section
+    : "";
   const groups = groupBySection(
-    verdict === "all"
-      ? data.controls
-      : data.controls.filter((control) => control.status === verdict),
+    data.controls.filter(
+      (control) =>
+        (verdict === "all" || control.status === verdict) &&
+        (section === "" || control.group === section),
+    ),
   );
-  const counts = data.status_counts;
+  // Narrowed to a section, the filter counts that section: the framework's
+  // totals over one section's rows promised fifteen failing and showed five.
+  const inScope =
+    section === "" ? data.controls : data.controls.filter((control) => control.group === section);
+  const counts =
+    section === ""
+      ? data.status_counts
+      : inScope.reduce<Partial<Record<ControlStatus, number>>>(
+          (tally, control) => ({ ...tally, [control.status]: (tally[control.status] ?? 0) + 1 }),
+          {},
+        );
   const verdicts: { value: "all" | ControlStatus; label: string }[] = [
-    { value: "all", label: `All · ${data.control_count}` },
+    { value: "all", label: `All · ${section === "" ? data.control_count : inScope.length}` },
     { value: "FAILING", label: `Failing · ${counts.FAILING ?? 0}` },
     { value: "INCONCLUSIVE", label: `Inconclusive · ${counts.INCONCLUSIVE ?? 0}` },
     { value: "PASSING", label: `Passing · ${counts.PASSING ?? 0}` },
@@ -183,6 +201,19 @@ export function ComplianceFrameworkPage() {
         segments={verdicts}
         className="self-start"
       />
+
+      {section && (
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-body text-muted-foreground">
+          {t.compliance.sectionOnly(section)}
+          <button
+            type="button"
+            onClick={() => update({ section: null })}
+            className="rounded-sm font-medium text-foreground underline underline-offset-2 outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring"
+          >
+            {t.compliance.allSections}
+          </button>
+        </p>
+      )}
 
       {groups.length === 0 && (
         <p className="rounded-xl border border-dashed border-border px-5 py-8 text-center text-sm text-muted-foreground">

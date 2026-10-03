@@ -11048,7 +11048,8 @@ tracked or not; the demo reads every fix and is offered no button.
 §41 and §98 still hold, in their new place. Tracking sits under the fix it commits to (§41), and
 proving a fix sits at the end of the fix (§98), both in the sheet. §187's one verify also holds:
 the finding header's "Rescan to verify" appears only where the fix has no "Verify it now" of its
-own -- a finding on no asset, or one already resolved.
+own -- a finding on no asset, or one already resolved. (Tracking moved to the sheet's header and
+the finding's card in §205, because at the foot of the fix nobody found it.)
 
 No API changed. The sheet reads the finding under `["finding", id]`, which each queue row has
 already filled (§29), so opening a row's fix costs no request; the asset is read only when there
@@ -11229,6 +11230,75 @@ CIS Azure 2.0's gaps are exactly those twelve.
 **Nothing here has been read from a live tenant.** The fixtures are shaped after the published
 references. The demo's payments vault gains the private endpoint a vault with public access off
 would have. The first redeployed v13 connection, consented again, is the check.
+
+## 205. Tracking a fix is offered where somebody decides to do it
+
+§202 moved the whole fix -- steps, CLI, Terraform, policy, tracking, marking done, verifying -- into
+a sheet on the remediation page, and left the finding page a short card with **Open fix**. Tracking
+went with it, to the foot of the sheet. Asked how a finding gets into the queue, the answer was
+"there is no track button", and on the live site that was what a reader saw: the finding page had
+none, the sheet had one below a screen of steps and commands that nobody scrolled past, and the
+remediation page's list of findings to start with (§187) was drawn only while the queue was empty,
+so it disappeared with the first task anybody tracked. Three places could add work and none of them
+was in view.
+
+Tracking is now offered in three places, each where the decision is made:
+
+- **On the finding's fix card**, **Track this fix** sits beside **Open fix**. Reading the fix in
+  full is still a click away, as §202 decided; deciding to do it is not a reason to leave the page.
+  Once the finding is tracked the card says since when, as it did, and offers nothing to press.
+- **In the fix sheet's header**, under the title and the link to the finding, rather than at the
+  foot of the fix. Marking done moves with it, because it is the same control in its tracked
+  state. "Verify it now" stays at the end of the fix (§98): proving a fix follows applying it, and
+  applying it means reading the steps above.
+- **Under the queue**, the five worst open findings that no task tracks are listed for as long as
+  there are any, headed "Where to start" while the queue is empty and "Not in the queue yet" once it
+  is not, with a link to every open finding. A finding with a task is left out even if it is still
+  OPEN, which a cancelled task leaves it.
+
+All three send the same `POST /remediation` through one mutation (`useTrack` in
+`lib/remediation.ts`), so each says the same thing in its toast about what tracking does not do:
+the finding stays open until a scan observes the fix. None is offered in the demo, where the API
+refuses every write, nor on a finding that is resolved, accepted or a false positive
+(`isTrackable`). A false positive used to be offered tracking in the sheet; it is a conclusion not
+to do the work, as an accepted risk is, and is now treated as one.
+
+No API changed. §41's reason for tracking sitting under the fix -- that it is a statement about
+doing what the fix says -- is answered differently now: the card and the header both sit beside the
+way to read the fix, rather than below it.
+
+## 206. Coverage by domain is one framework's sections, each drawn by status
+
+The compliance overview ended in "Coverage by domain": a grid of every framework at once, eleven of
+them, each section a teal bar whose length was the share of its controls that reached a verdict.
+Read on the live estate it said the opposite of the page above it. CIS Azure's Microsoft Defender
+section drew a teal bar at 96% while seventeen of its twenty-three controls failed; teal, long and
+labelled with a percentage, it read as a grade, which is the reading §185 removed from the cards.
+Section names were cut to fifteen letters ("Identity and Ac..."), a percentage carried no count
+("Miscellaneous 100%" was one control), a section nothing checks was an empty bar at 0% that looked
+like a failure, nothing in it led anywhere, and the page fetched all eleven frameworks' controls on
+arrival to draw it.
+
+**One framework at a time.** A tab per framework, held in the URL (`?domains=`, absent for the
+first), and only the chosen framework's controls are read -- under `["compliance", id]`, the key the
+framework page shares, so following a row costs no request.
+
+**A section is a row, drawn as its controls by status.** Its full name; the same bar the framework
+page draws (`StatusBar` in `components/compliance.tsx`: failing, inconclusive, passing, not assessed,
+not covered, worst first); "23/33 with a verdict" and "16 failing" in words; and, for a section no
+rule maps, "3 controls, nothing checks" instead of an empty bar. One legend over the rows says
+every colour. Not covered is now a visible grey rather than the colour of the empty track, on the
+framework page's bar as well.
+
+**Two orders.** The framework's own, which is the order an auditor's spreadsheet is in, and "Most
+failing" (`?domainOrder=failing`): most failing controls first, then most without a verdict.
+
+**A row leads to its section.** Each row links to the framework page with `?section=<name>`, which
+narrows the controls to that section, says so with a way back to every section, and counts the
+verdict filter within it -- the framework's totals over one section's rows promised fifteen failing
+and showed five. A section the catalogue does not have narrows nothing.
+
+The `Bars` chart drew only this section and is deleted. No API changed.
 
 ## Open items carried forward
 

@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import { CheckIcon, ChevronDownIcon, WrenchIcon } from "lucide-react";
-import { toast } from "sonner";
 
 import { api } from "@/lib/api";
 import type { Finding, FindingDetail, RemediationTask } from "@/lib/types";
@@ -11,9 +10,11 @@ import {
   RULE_PARAM,
   groupByRule,
   isOpenTask,
+  taskFor,
   useMarkAllDone,
   useMarkDone,
   useRemediationQueue,
+  useTrack,
 } from "@/lib/remediation";
 import { useT } from "@/i18n";
 import { StatusPill } from "@/components/security/StatusPill";
@@ -132,7 +133,7 @@ export function RemediationPage() {
               </Link>
             }
           />
-          <WhereToStart onOpen={openFix} />
+          <WhereToStart tasks={data} onOpen={openFix} />
         </>
       )}
 
@@ -186,6 +187,9 @@ export function RemediationPage() {
           </p>
         </div>
       )}
+
+      {/* A queue with work in it still says what is not in it (§205). */}
+      {data && data.length > 0 && <WhereToStart tasks={data} onOpen={openFix} />}
 
       <FixSheet findingId={fixId} onClose={() => openFix(null)} />
       <RuleFixSheet
@@ -455,54 +459,67 @@ function QueueSummary({ tasks }: { tasks: RemediationTask[] }) {
   );
 }
 
-/** How many findings the empty queue offers to start with. */
+/** How many untracked findings the queue offers. */
 const STARTERS = 5;
 
 /**
- * The worst open findings, each a press away from the queue.
+ * The worst open findings nobody has tracked, each a press away from the queue.
  *
  * An empty queue said "track a finding from its detail page" to somebody with
  * fifty-eight open ones, which is a page away from the answer. The findings
  * list's own first page -- worst risk first -- is the answer, and each row
  * queues its fix in place, the same `POST /remediation` the fix sheet sends
  * (DECISIONS.md §187); its title opens that sheet, to read the fix before
- * tracking it (§202). Not in the demo, where the API refuses it.
+ * tracking it (§202).
+ *
+ * It stays under a queue that has work in it, headed "Not in the queue yet":
+ * offered only while the queue was empty, it vanished with the first task
+ * tracked, and the page that ranks the work had no way left to add any
+ * (§205). Tracking moves a finding out of OPEN, so the list refills from the
+ * next worst; a finding with a task is left out even so, as a cancelled task
+ * leaves its finding where it was. Not in the demo, where the API refuses it.
  */
-function WhereToStart({ onOpen }: { onOpen: (findingId: string) => void }) {
-  const queryClient = useQueryClient();
+function WhereToStart({
+  tasks,
+  onOpen,
+}: {
+  tasks: RemediationTask[];
+  onOpen: (findingId: string) => void;
+}) {
+  const t = useT();
   const isDemo = useIsDemo();
   const open = useQuery({
     queryKey: ["findings", "starters"],
     queryFn: () =>
       api
-        .get<Finding[]>(`/api/v1/findings?status=OPEN&sort=risk&limit=${STARTERS}&offset=0`)
+        .get<Finding[]>(`/api/v1/findings?status=OPEN&sort=risk&limit=${STARTERS * 2}&offset=0`)
         .then((r) => r.data),
     retry: false,
   });
-  const track = useMutation({
-    mutationFn: (findingId: string) =>
-      api.post<RemediationTask>("/api/v1/remediation", { finding_id: findingId }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["remediation"] });
-      queryClient.invalidateQueries({ queryKey: ["findings"] });
-    },
-    onError: (err) =>
-      toast.error("Could not track this fix", {
-        description: err instanceof Error ? err.message : "The API rejected the request.",
-      }),
-  });
+  const track = useTrack();
 
-  const rows = Array.isArray(open.data) ? open.data : [];
+  const rows = (Array.isArray(open.data) ? open.data : [])
+    .filter((finding) => taskFor(tasks, finding.id) === undefined)
+    .slice(0, STARTERS);
   if (isDemo || rows.length === 0) return null;
 
+  const heading = tasks.length === 0 ? t.remediation.whereToStart : t.remediation.notTracked;
   return (
     <section
       aria-labelledby="where-to-start"
       className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10"
     >
-      <h2 id="where-to-start" className="px-5 pt-4 pb-3 text-body font-semibold">
-        Where to start
-      </h2>
+      <div className="flex items-baseline justify-between gap-3 px-5 pt-4 pb-3">
+        <h2 id="where-to-start" className="text-body font-semibold">
+          {heading}
+        </h2>
+        <Link
+          to="/findings"
+          className="rounded-sm text-xs text-muted-foreground underline underline-offset-2 outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring"
+        >
+          {t.remediation.allOpenFindings}
+        </Link>
+      </div>
       <ul className="divide-y border-t">
         {rows.map((finding) => (
           <li key={finding.id} className="flex items-center gap-3 px-5 py-2.5">
@@ -520,14 +537,14 @@ function WhereToStart({ onOpen }: { onOpen: (findingId: string) => void }) {
               variant="outline"
               disabled={track.isPending}
               onClick={() => track.mutate(finding.id)}
-              aria-label={`Track the fix for ${finding.title}`}
+              aria-label={t.remediation.trackFor(finding.title)}
             >
               {track.isPending && track.variables === finding.id ? (
                 <Spinner data-icon="inline-start" />
               ) : (
                 <WrenchIcon data-icon="inline-start" aria-hidden />
               )}
-              Track
+              {t.remediation.track}
             </Button>
           </li>
         ))}
