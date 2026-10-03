@@ -59,6 +59,7 @@ export const en = {
     passwordNotice:
       "Your password goes from this browser straight to the identity provider. Cleave's API never receives it, and stores no cloud credential of yours at all.",
     continueWithMicrosoft: "Continue with Microsoft",
+    continueWithGoogle: "Continue with Google",
     orDivider: "or",
     forgotPassword: "Forgot password",
     magicLinkInstead: "Email me a one-time link instead",
@@ -80,8 +81,7 @@ export const en = {
     sending: "Sending\u2026",
     backToSignIn: "Back to sign in",
     useAnotherAddress: "Use a different address",
-    microsoftHint:
-      "Signing in with Microsoft does not give Cleave access to your Azure resources \u2014 that is a separate consent step.",
+    providerHint: "Signing in with Microsoft or Google gives Cleave no access to your cloud.",
   },
   // The dashboard's getting-started checklist. Every step is read off state
   // the server already holds, so the list is right on any device and for any

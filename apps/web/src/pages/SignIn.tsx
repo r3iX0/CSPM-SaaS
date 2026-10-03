@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Navigate } from "react-router-dom";
 import {
   sendPasswordReset,
+  signInWithGoogle,
   signInWithMagicLink,
   signInWithMicrosoft,
   signInWithPassword,
@@ -19,10 +20,11 @@ import { cn } from "@/lib/utils";
  *
  * CloudGuard's own backend never authenticates anyone — Supabase does, and the
  * API only ever *verifies* the JWT that comes back
- * (app/core/security.py::decode_token). Four routes in, one token out:
+ * (app/core/security.py::decode_token). Five routes in, one token out:
  *
  *   Microsoft (Entra ID)  the front door for an Azure-first product — the same
  *                         directory account that will later grant consent
+ *   Google                for teams whose work accounts are Google Workspace
  *   Email + password      familiar, and works where corporate mail scanners
  *                         eat one-time links before the user sees them
  *   Magic link            no password to choose, forget, or have stolen
@@ -102,21 +104,21 @@ export function SignInPage() {
     }
   }
 
-  async function microsoft() {
+  async function withProvider(signIn: () => Promise<void>) {
     setBusy(true);
     setError(null);
     try {
-      // Navigates away to Microsoft and does not come back here, so `busy`
-      // is deliberately left set — the button should stay disabled for the
+      // Navigates away to the provider and does not come back here, so `busy`
+      // is deliberately left set — the buttons should stay disabled for the
       // moment the browser spends unloading the page.
-      await signInWithMicrosoft();
+      await signIn();
     } catch (err) {
       setError(authErrorMessage(err));
       setBusy(false);
     }
   }
 
-  // Returning from a magic link, a confirmation, or Microsoft lands here first.
+  // Returning from a magic link, a confirmation, Microsoft or Google lands here first.
   // Once the session is parsed, move on rather than showing a sign-in form to
   // someone who is already signed in.
   if (token) return <Navigate to="/" replace />;
@@ -156,18 +158,27 @@ export function SignInPage() {
                     ? t.auth.resetIntro
                     : mode === "magic"
                       ? "We'll email you a one-time link. No password to choose, forget, or have stolen."
-                      : "Use your Microsoft account, or the email and password you signed up with."}
+                      : "Use your Microsoft or Google account, or the email and password you signed up with."}
               </p>
 
               {/* Microsoft first: for an Azure-first product it is the account
                   most users already have, and the one they will consent with. */}
               {mode !== "reset" && (
                 <>
-                  <MicrosoftButton
-                    onClick={microsoft}
-                    disabled={busy}
-                    label={t.auth.continueWithMicrosoft}
-                  />
+                  <div className="mt-7 flex flex-col gap-3">
+                    <ProviderButton
+                      onClick={() => void withProvider(signInWithMicrosoft)}
+                      disabled={busy}
+                      mark={<MicrosoftMark />}
+                      label={t.auth.continueWithMicrosoft}
+                    />
+                    <ProviderButton
+                      onClick={() => void withProvider(signInWithGoogle)}
+                      disabled={busy}
+                      mark={<GoogleMark />}
+                      label={t.auth.continueWithGoogle}
+                    />
+                  </div>
                   <Divider label={t.auth.orDivider} />
                 </>
               )}
@@ -243,11 +254,11 @@ export function SignInPage() {
               <AlternateRoutes mode={mode} onSwitch={switchTo} />
 
               {/* Whichever assurance the mode has actually earned. Reset gets
-                  none: there is no password typed here yet and no Microsoft
+                  none: there is no password typed here yet and no provider
                   button on screen to qualify. */}
               {mode !== "reset" && (
                 <p className="mt-6 border-t border-border pt-5 text-caption leading-[1.7] text-muted-foreground">
-                  {needsPassword ? t.auth.passwordNotice : t.auth.microsoftHint}
+                  {needsPassword ? t.auth.passwordNotice : t.auth.providerHint}
                 </p>
               )}
             </>
@@ -299,6 +310,11 @@ function authErrorMessage(err: unknown): string {
   if (text.includes("rate limit") || text.includes("too many")) {
     return "Too many attempts. Wait a minute and try again.";
   }
+  // Supabase's answer when a provider button is pressed before the provider
+  // is switched on in the project (docs/DEPLOYMENT.md §1).
+  if (text.includes("provider is not enabled")) {
+    return "That sign-in option is not switched on for this deployment yet.";
+  }
   if (text.includes("not configured")) {
     return "This deployment has no Supabase project configured, so sign-in is unavailable.";
   }
@@ -315,13 +331,15 @@ function Divider({ label }: { label: string }) {
   );
 }
 
-function MicrosoftButton({
+function ProviderButton({
   onClick,
   disabled,
+  mark,
   label,
 }: {
   onClick: () => void;
   disabled: boolean;
+  mark: React.ReactNode;
   label: string;
 }) {
   return (
@@ -329,9 +347,9 @@ function MicrosoftButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="mt-7 flex h-10 w-full items-center justify-center gap-2.5 rounded-lg border border-border bg-card px-4 text-body font-medium text-foreground transition-colors hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring disabled:cursor-not-allowed disabled:text-muted-foreground"
+      className="flex h-10 w-full items-center justify-center gap-2.5 rounded-lg border border-border bg-card px-4 text-body font-medium text-foreground transition-colors hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring disabled:cursor-not-allowed disabled:text-muted-foreground"
     >
-      <MicrosoftMark />
+      {mark}
       {label}
     </button>
   );
@@ -345,6 +363,30 @@ function MicrosoftMark() {
       <path fill="#7fba00" d="M8.4 0H16v7.6H8.4z" />
       <path fill="#00a4ef" d="M0 8.4h7.6V16H0z" />
       <path fill="#ffb900" d="M8.4 8.4H16V16H8.4z" />
+    </svg>
+  );
+}
+
+/** Google's "G" mark, at its published brand colors. */
+function GoogleMark() {
+  return (
+    <svg viewBox="0 0 48 48" className="size-[15px] shrink-0" aria-hidden="true">
+      <path
+        fill="#ea4335"
+        d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
+      />
+      <path
+        fill="#4285f4"
+        d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
+      />
+      <path
+        fill="#fbbc05"
+        d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
+      />
+      <path
+        fill="#34a853"
+        d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
+      />
     </svg>
   );
 }

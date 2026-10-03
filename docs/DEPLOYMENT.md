@@ -137,6 +137,25 @@ Node installed on your machine.
    to `https://login.microsoftonline.com/<tenant-id>` to restrict sign-in to a
    single directory.
 
+8. **Enable Google sign-in.** In the
+   [Google Cloud console](https://console.cloud.google.com/apis/credentials),
+   configure the OAuth consent screen (scopes `openid`, `email`, `profile`
+   only), then **Create credentials → OAuth client ID**, type _Web
+   application_. Under **Authorized JavaScript origins** add your Vercel URL;
+   under **Authorized redirect URIs** add the callback Supabase shows on
+   Authentication → Providers → **Google**
+   (`https://<project-ref>.supabase.co/auth/v1/callback`).
+
+   On that Supabase page, switch **Enable Sign in with Google** on, paste the
+   client ID into **Client IDs** and the secret into **Client Secret (for
+   OAuth)**, and save. Leave **Skip nonce checks** and **Allow users without an
+   email** off: the web flow has the nonce, and an invitation is accepted only
+   by the address on the caller's token (`DECISIONS.md` §162), so an identity
+   without one could never join anything.
+
+   Until this step is done the button answers that the option is not switched
+   on for this deployment, rather than failing silently.
+
 ---
 
 ## 2. Railway — API, worker, Redis

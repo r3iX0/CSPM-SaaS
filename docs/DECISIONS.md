@@ -11512,6 +11512,29 @@ setup wizard has always sent `provider`, and a v2 route served beside v1 would k
 default alive for the only caller it could still mislead. The guideline stands for any change a
 client outside this repository could depend on.
 
+## 210. Google is a way in, beside Microsoft
+
+The sign-in page offered Microsoft, a password and a magic link. A team whose work accounts are
+Google Workspace had to fall back to a password or an emailed link, the two routes that need the
+most from the person signing in. `signInWithGoogle` (`apps/web/src/lib/supabase.ts`) adds Google
+through the same Supabase OAuth flow as Microsoft, and the page draws both as one
+`ProviderButton` each, Microsoft first: for an Azure-first product it is still the account most
+users have and the one they will consent with.
+
+Google is an identity here and nothing more. It is not a scanned cloud and asks only for
+`openid`, `email` and `profile`, so the hint under the buttons now says that neither provider
+gives Cleave any access to a cloud. The hint was over the copy budget (§166); it is one line
+now, renamed `providerHint`, and leaves `overBudget.ts`. The flow asks Google to show its account
+chooser (`prompt=select_account`), so someone signed in to a personal and a work account picks
+which becomes their identity rather than getting whichever was used last.
+
+The backend is unchanged: it verifies a Supabase JWT whatever provider issued the session.
+Supabase links a Google identity to an existing user with the same verified address, so a person
+who signed up with a password and later presses Google stays one user and keeps their
+memberships. "Allow users without an email" stays off (`DEPLOYMENT.md` §1, step 8): an
+invitation joins only the address on the caller's token (§162). A button pressed before the
+provider is switched on in Supabase says so in words rather than showing Supabase's error.
+
 ## Open items carried forward
 
 **Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read

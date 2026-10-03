@@ -8,8 +8,9 @@
  * the app never has to know whether a session came from Supabase or from the
  * local dev-token route.
  *
- * Four ways in, all of them ending in the same Supabase-issued JWT: a magic
- * link, an email + password pair, a password reset, and Microsoft (Entra ID).
+ * Five ways in, all of them ending in the same Supabase-issued JWT: a magic
+ * link, an email + password pair, a password reset, Microsoft (Entra ID) and
+ * Google.
  * The backend cannot tell them apart and does not need to — it verifies the
  * token's signature and reads the user id, nothing more.
  *
@@ -141,6 +142,31 @@ export async function signInWithMicrosoft(): Promise<void> {
       // (docs/AZURE_INTEGRATION.md), not this sign-in.
       scopes: "openid profile email",
       redirectTo: window.location.origin,
+    },
+  });
+  if (error) throw error;
+}
+
+/**
+ * Sign in with Google.
+ *
+ * For the people whose work account is Google Workspace rather than Entra ID.
+ * Like Microsoft above, it navigates away and the session comes back on the
+ * redirect through `onAuthStateChange`. It grants nothing in any cloud: Google
+ * is an identity here, never a scanned provider.
+ */
+export async function signInWithGoogle(): Promise<void> {
+  if (!supabase) throw new Error("Supabase is not configured");
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      // Supabase asks Google for openid, email and profile by default, which
+      // is all an identity needs.
+      redirectTo: window.location.origin,
+      // Someone signed in to a personal and a work Google account at once
+      // should choose which one becomes their Cleave identity, rather than
+      // have Google pick whichever was used last.
+      queryParams: { prompt: "select_account" },
     },
   });
   if (error) throw error;

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   authReady,
   sendPasswordReset,
+  signInWithGoogle,
   signInWithMagicLink,
   signInWithMicrosoft,
   signInWithPassword,
@@ -45,6 +46,7 @@ describe("supabase auth bridge, unconfigured", () => {
     ["password reset", () => sendPasswordReset("a@b.com")],
     ["password update", () => updatePassword("correct horse battery")],
     ["Microsoft sign-in", () => signInWithMicrosoft()],
+    ["Google sign-in", () => signInWithGoogle()],
   ])("refuses %s instead of silently no-op'ing", async (_name, call) => {
     await expect(call()).rejects.toThrow("not configured");
   });
