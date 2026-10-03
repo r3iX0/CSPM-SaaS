@@ -11413,6 +11413,17 @@ The radio cards that say what each choice means (`OptionCard`) are one component
 integration kinds, levels and themes. The §188 row of anchor links is gone with the single page
 it served.
 
+**Checked in a browser on production.** The cards rendered as wide as their text, because
+`FieldLabel` is `w-fit`; they now fill their row. The invite dialog was taller than a short
+window and pinned to its top, so the dialogs on these pages scroll inside a height of the
+viewport less a margin. The danger card repeated the organization's name beside the button, and
+now says what the button does. The same check found a fault older than this change: the Geist
+fonts never reached production. `index.css` pulled them in with `@import`, Tailwind's PostCSS
+plugin inlined that without rebasing the package's relative `./files/*.woff2` URLs, Vite could
+not resolve them ("didn't resolve at build time") and emitted no files, and Vercel's fallback
+answered each font request with the app's HTML, so every page drew in the system font. The fonts
+are imported from `main.tsx` instead, where Vite rebases and fingerprints them.
+
 ## Open items carried forward
 
 **Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read

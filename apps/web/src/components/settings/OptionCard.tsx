@@ -29,7 +29,7 @@ export function OptionCard({
     <FieldLabel
       htmlFor={id}
       className={cn(
-        "flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2.5 font-normal transition-colors",
+        "flex w-full cursor-pointer items-start gap-3 rounded-lg border px-3 py-2.5 font-normal transition-colors",
         checked ? "border-foreground bg-muted/40" : "hover:border-input",
       )}
     >

@@ -77,7 +77,7 @@ function DangerZone({ organization }: { organization: Organization }) {
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-critical-border bg-card p-5">
         {owner ? (
           <>
-            <p className="text-body text-muted-foreground">{organization.name}</p>
+            <p className="text-body text-muted-foreground">{t.settings.dangerOpenHelp}</p>
             <Button
               variant="outline"
               className="border-critical-border bg-critical-bg text-critical hover:bg-critical-bg hover:text-critical"

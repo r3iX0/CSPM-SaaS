@@ -329,7 +329,10 @@ function AddWebhookDialog({
         else if (secret === null || stored) close();
       }}
     >
-      <DialogContent className="sm:max-w-lg" showCloseButton={secret === null}>
+      <DialogContent
+        className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg"
+        showCloseButton={secret === null}
+      >
         <DialogHeader>
           <DialogTitle>{t.webhooks.dialogTitle}</DialogTitle>
           <DialogDescription>{t.webhooks.help}</DialogDescription>
