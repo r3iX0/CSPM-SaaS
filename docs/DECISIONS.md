@@ -11300,6 +11300,10 @@ and showed five. A section the catalogue does not have narrows nothing.
 
 The `Bars` chart drew only this section and is deleted. No API changed.
 
+A row is three columns -- name, bar, figures -- only from the `lg` breakpoint, with the figures in a
+fixed 13rem that never wraps; below it the three stack. Checked at first only without the app's
+sidebar, an 11rem column broke "· 16 failing" across two lines beside the sidebar.
+
 ## Open items carried forward
 
 **Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read

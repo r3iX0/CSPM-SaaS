@@ -291,11 +291,11 @@ function FrameworkDomains({
           <li key={domain.name}>
             <Link
               to={`${base}?section=${encodeURIComponent(domain.name)}`}
-              className="grid grid-cols-1 gap-x-4 gap-y-1.5 px-5 py-2.5 outline-none hover:bg-muted/40 focus-visible:bg-muted/40 focus-ring-inset sm:grid-cols-[minmax(0,16rem)_minmax(0,1fr)_11rem] sm:items-center"
+              className="grid grid-cols-1 gap-x-4 gap-y-1.5 px-5 py-2.5 outline-none hover:bg-muted/40 focus-visible:bg-muted/40 focus-ring-inset lg:grid-cols-[minmax(0,16rem)_minmax(0,1fr)_13rem] lg:items-center"
             >
               <span className="text-body text-foreground">{domain.name}</span>
               <StatusBar counts={domain.counts} total={domain.total} />
-              <span className="text-xs text-muted-foreground tabular-nums sm:text-right">
+              <span className="text-xs whitespace-nowrap text-muted-foreground tabular-nums lg:text-right">
                 {domain.verdicts === 0 && domain.counts.NOT_COVERED === domain.total ? (
                   t.compliance.domainUnchecked(domain.total)
                 ) : (
