@@ -170,7 +170,7 @@ describe("Settings pages", () => {
     const names = within(nav)
       .getAllByRole("link")
       .map((link) => link.textContent);
-    expect(names).toEqual(["General", "Members", "Risk context", "Preferences"]);
+    expect(names).toEqual(["General", "Members", "Risk context", "Security", "Preferences"]);
     expect(within(nav).getByRole("link", { name: "Risk context" })).toHaveAttribute(
       "aria-current",
       "page",

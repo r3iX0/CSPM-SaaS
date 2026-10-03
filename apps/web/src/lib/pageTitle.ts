@@ -34,6 +34,7 @@ const ROUTES: [pattern: string, title: string][] = [
   ["/settings/context", "Risk context · Settings"],
   ["/settings/integrations", "Integrations · Settings"],
   ["/settings/activity", "Activity · Settings"],
+  ["/settings/security", "Security · Settings"],
   ["/settings/preferences", "Preferences · Settings"],
   ["/connections/:connectionId/setup", "Environment setup"],
 ];

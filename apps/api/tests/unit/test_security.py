@@ -119,6 +119,22 @@ class TestAcceptsValidTokens:
         assert (await _hs256_project.decode_token(token)).id == user_id
 
 
+class TestSecondFactorClaim:
+    """Supabase's ``aal`` claim says whether the session passed a second factor."""
+
+    async def test_aal2_is_a_second_factor(self, _hs256_project) -> None:
+        user = await _hs256_project.decode_token(make_token(aal="aal2"))
+        assert user.second_factor is True
+
+    async def test_aal1_is_one_factor(self, _hs256_project) -> None:
+        user = await _hs256_project.decode_token(make_token(aal="aal1"))
+        assert user.second_factor is False
+
+    async def test_a_token_without_the_claim_is_one_factor(self, _hs256_project) -> None:
+        user = await _hs256_project.decode_token(make_token())
+        assert user.second_factor is False
+
+
 class TestRejectsBadTokens:
     async def test_a_forged_signature_is_rejected(self, _hs256_project) -> None:
         token = make_token(secret="not-the-real-secret")

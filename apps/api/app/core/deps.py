@@ -29,6 +29,7 @@ from app.core.errors import (
     OrganizationNotFound,
     PermissionDenied,
     RateLimited,
+    SecondFactorRequired,
 )
 from app.core.middleware import over_limit
 from app.core.security import AuthenticatedUser, decode_token
@@ -84,9 +85,27 @@ Costly = Depends(limit_costly)
 
 
 async def get_session(user: CurrentUser) -> AsyncIterator[AsyncSession]:
-    """A database session PostgreSQL will constrain to this user's tenants."""
+    """A database session PostgreSQL will constrain to this user's tenants.
+
+    Refused to a session that skipped a second factor its user has set up. The
+    sign-in page asks for the code, but a password alone is enough to get a
+    one-factor token straight from Supabase's API, so the check that counts is
+    this one (DECISIONS.md section 213).
+    """
     async with rls_session(user.id, user.email) as session:
+        if not user.second_factor:
+            await refuse_a_skipped_second_factor(session)
         yield session
+
+
+async def refuse_a_skipped_second_factor(session: AsyncSession) -> None:
+    """Raise if the caller has a verified second factor this session did not use.
+
+    Only asked of one-factor sessions: an ``aal2`` token has already passed it.
+    """
+    enrolled = (await session.execute(text("SELECT app.has_verified_factor()"))).scalar_one()
+    if enrolled:
+        raise SecondFactorRequired()
 
 
 DbSession = Annotated[AsyncSession, Depends(get_session)]

@@ -169,6 +169,18 @@ Node installed on your machine.
    Until this step is done the button answers that the option is not switched
    on for this deployment, rather than failing silently.
 
+9. **Check two-factor authentication is on.** Authentication → Multi-Factor →
+   **TOTP (App Authenticator)** is enabled by default; leave it enabled.
+   People turn it on for themselves under Settings → Security, and from then on
+   the API refuses their sessions until a code is entered (`DECISIONS.md`
+   §213). Migration `0049` adds the function that reads Supabase's
+   `auth.mfa_factors` for it, owned by the migration role, which on Supabase
+   can read the `auth` schema.
+
+   Someone who has lost the device asks you to remove it: Authentication →
+   Users → the user → remove their MFA factor. Confirm who is asking first,
+   because removing the factor lets in anyone who has that person's password.
+
 ---
 
 ## 2. Railway — API, worker, Redis

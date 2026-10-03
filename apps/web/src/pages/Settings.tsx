@@ -10,6 +10,7 @@ import { ContextSettings } from "@/components/settings/ContextSettings";
 import { GeneralSettings } from "@/components/settings/GeneralSettings";
 import { MembersSection } from "@/components/settings/Members";
 import { PreferencesSection } from "@/components/settings/Preferences";
+import { SecuritySection } from "@/components/settings/Security";
 import { WebhooksSection } from "@/components/settings/Webhooks";
 import {
   LEGACY_ANCHORS,
@@ -103,6 +104,7 @@ export function SettingsPage() {
             {shown.has("activity") && (
               <Route path="activity" element={<ActivitySection organizationId={current.id} />} />
             )}
+            <Route path="security" element={<SecuritySection />} />
             <Route path="preferences" element={<PreferencesSection />} />
             {/* A page this reader may not see, or one that does not exist. */}
             <Route path="*" element={<Navigate to="/settings/general" replace />} />

@@ -162,6 +162,90 @@ export async function signInWithGoogle(): Promise<void> {
   if (error) throw error;
 }
 
+/** An authenticator app the signed-in user has confirmed with a code. */
+export interface SecondFactor {
+  readonly id: string;
+  readonly createdAt: string;
+}
+
+/** An authenticator app added but not yet confirmed with its first code. */
+export interface PendingSecondFactor {
+  readonly id: string;
+  /** The code to scan, as the SVG data URL Supabase draws. */
+  readonly qrCode: string;
+  /** The same key as text, for an app that cannot scan. */
+  readonly secret: string;
+}
+
+/**
+ * Whether this session still owes a code from an authenticator app.
+ *
+ * True when the user has a confirmed authenticator and the session was opened
+ * with one factor only -- a password, Microsoft, Google, or an emailed link.
+ * Read from the session Supabase holds in this browser, without a request.
+ * The API refuses such a session whatever this says (DECISIONS.md §213).
+ */
+export async function secondFactorNeeded(): Promise<boolean> {
+  if (!supabase) return false;
+  const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (error) throw error;
+  return data.nextLevel === "aal2" && data.currentLevel !== "aal2";
+}
+
+/** The TanStack Query key holding the signed-in user's authenticator apps. */
+export const SECOND_FACTORS_KEY = ["second-factors"] as const;
+
+/** The user's confirmed authenticator apps, read fresh from Supabase. */
+export async function listSecondFactors(): Promise<SecondFactor[]> {
+  if (!supabase) throw new Error("Supabase is not configured");
+  const { data, error } = await supabase.auth.mfa.listFactors();
+  if (error) throw error;
+  return data.totp.map((factor) => ({ id: factor.id, createdAt: factor.created_at }));
+}
+
+/**
+ * Adds an authenticator app, to be confirmed with `confirmSecondFactor`.
+ *
+ * One left unconfirmed -- a set-up closed halfway -- is removed first, so they
+ * do not pile up on the account.
+ */
+export async function startSecondFactor(): Promise<PendingSecondFactor> {
+  if (!supabase) throw new Error("Supabase is not configured");
+  const client = supabase;
+  const listed = await client.auth.mfa.listFactors();
+  if (listed.error) throw listed.error;
+  await Promise.all(
+    listed.data.all
+      .filter((factor) => factor.status === "unverified")
+      .map(async (factor) => {
+        const { error } = await client.auth.mfa.unenroll({ factorId: factor.id });
+        if (error) throw error;
+      }),
+  );
+
+  const { data, error } = await client.auth.mfa.enroll({ factorType: "totp", issuer: "Cleave" });
+  if (error) throw error;
+  return { id: data.id, qrCode: data.totp.qr_code, secret: data.totp.secret };
+}
+
+/**
+ * Checks a code against an authenticator app: the first one confirms a new
+ * app, and any one passes a session's second factor. Either way the session
+ * Supabase hands back is two-factor, and `onAuthStateChange` stores it.
+ */
+export async function confirmSecondFactor(factorId: string, code: string): Promise<void> {
+  if (!supabase) throw new Error("Supabase is not configured");
+  const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId, code });
+  if (error) throw error;
+}
+
+/** Removes an authenticator app. Supabase allows it only to a two-factor session. */
+export async function removeSecondFactor(factorId: string): Promise<void> {
+  if (!supabase) throw new Error("Supabase is not configured");
+  const { error } = await supabase.auth.mfa.unenroll({ factorId });
+  if (error) throw error;
+}
+
 export async function supabaseSignOut(): Promise<void> {
   if (!supabase) return;
   await supabase.auth.signOut();

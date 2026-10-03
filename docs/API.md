@@ -786,3 +786,9 @@ carries it. Three routes do not: `/health`, `/health/ready` and
 before anyone consents. A client acting in more than one organization names the
 one in `X-Organization-Id`; the server honours it only if the caller's membership
 confirms it, and never takes an organization from a path or a body.
+
+**Second factor.** Once a person has confirmed an authenticator app, every
+route that reads data refuses a token whose `aal` claim is not `aal2` with
+`403 MFA_REQUIRED`: a password alone, or Microsoft or Google alone, is not
+enough for that account. The client answers by asking for the code and retrying
+with the two-factor token Supabase issues (DECISIONS.md §213).

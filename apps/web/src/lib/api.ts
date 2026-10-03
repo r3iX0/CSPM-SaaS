@@ -123,6 +123,15 @@ function handleUnauthorized(): void {
   if (auth.token) auth.signOut();
 }
 
+/**
+ * Fired when the API refuses a session that skipped its user's second factor
+ * (`MFA_REQUIRED`, DECISIONS.md §213). The sign-in page asks for the code
+ * before this can happen; this covers an authenticator added on another
+ * device after this session began, which the session here cannot know of.
+ * `SecondFactorGate` answers it by asking for the code.
+ */
+export const SECOND_FACTOR_REQUIRED_EVENT = "cleave:second-factor-required";
+
 async function send(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
   // A caller's own signal is honoured alongside the timeout -- TanStack passes
   // one when a query is cancelled, and dropping it would leave abandoned
@@ -190,6 +199,8 @@ async function request<T>(
 
   if (!response.ok || body.error) {
     const error = body.error ?? { code: "UNKNOWN", message: "Request failed" };
+    if (error.code === "MFA_REQUIRED")
+      window.dispatchEvent(new Event(SECOND_FACTOR_REQUIRED_EVENT));
     throw new ApiError(error.code, error.message, response.status);
   }
 

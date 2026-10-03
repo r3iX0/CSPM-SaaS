@@ -11579,10 +11579,48 @@ heading, no arrow in the button, no tagline in the footer, which says only why t
 Radii follow one rule: the card 12px, everything inside it 8px. Muted text is the app's
 `--muted-foreground` (`#696969`), which keeps 4.5:1 on the grey page as well as the card. "This
 link expires in 1 hour and can be used once" is Supabase's default expiry (`mailer_otp_exp`, 3600
-seconds); a project that changes it changes the script. The magic-link email is designed although the page no longer offers
-one (§211), because the endpoint still answers a direct call, and an email that arrives should look
-like it came from Cleave. Colleagues are invited by Cleave's own link (§162), not Supabase's invite,
-so the invite email is sent only by someone inviting from the dashboard.
+seconds); a project that changes it changes the script. The magic-link email is designed
+although the page no longer offers one (§211), because the endpoint still answers a direct call,
+and an email that arrives should look like it came from Cleave. Colleagues are invited by
+Cleave's own link (§162), not Supabase's invite, so the invite email is sent only by someone
+inviting from the dashboard.
+
+## 213. Two-factor authentication, enforced by the API
+
+A product that holds a read of a customer's whole cloud estate was one stolen password away
+from showing it to someone else. A person can now add an authenticator app (TOTP) under
+Settings → Security, and from then on every sign-in -- password, Microsoft or Google -- asks for
+a code from it.
+
+**The API is what enforces it.** Supabase's token says whether its own session passed a second
+factor (the `aal` claim), and `decode_token` reads it into `AuthenticatedUser.second_factor`. A
+code prompt in the browser alone would protect nothing: a password gets a one-factor token from
+Supabase's API directly, without ever loading the sign-in page. So `get_session` asks the
+database, for a one-factor session only, whether the caller has a verified factor, and refuses
+with `403 MFA_REQUIRED` if so. The answer comes from `app.has_verified_factor()` (migration
+0049), a SECURITY DEFINER function that reads Supabase's `auth.mfa_factors` for the user named
+by the verified claims -- never for a user passed in. A two-factor session costs nothing extra;
+a one-factor one costs one indexed lookup per request. Every route that reads data opens that
+session, so the shared `ERROR_RESPONSES` now documents 403 on them all.
+
+The function answers false where there is no `auth.mfa_factors` table at all, so a plain
+PostgreSQL still runs the API; CI creates a stub of the table so the refusal is tested against
+a real database. On Supabase, if the migration role could not read it, the function would raise
+and every one-factor request would fail -- loudly, never open.
+
+**The browser asks before the API has to.** `SecondFactorGate` wraps every route, the invitation
+and the password reset included, so nothing runs on a session that owes a code. It decides
+once per Supabase session (`session_id`), from the session Supabase holds locally; a `403
+MFA_REQUIRED` from the API asks too, which covers an app added on another device after this
+session began. The prompt offers sign-out, and says what to do about a lost device.
+
+**Kept small on purpose.** One authenticator app per account, which is all the prompt asks
+for. No recovery codes: Supabase's are not in the stable client yet, and a lost device is
+handled by an operator removing the factor in the Supabase dashboard (`DEPLOYMENT.md` §1, step
+9) after confirming who is asking. Adding and removing an app is done with Supabase directly,
+so the audit trail (§163) does not record it; Supabase's own auth log does. Nothing lets an
+organization require two-factor authentication of its members yet -- the API already knows a
+session's level, so that is a setting and a check in `get_tenant`, left for its own decision.
 
 ## Open items carried forward
 

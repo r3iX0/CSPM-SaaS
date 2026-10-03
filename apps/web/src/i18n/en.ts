@@ -1086,6 +1086,7 @@ export const en = {
       context: "Risk context",
       integrations: "Integrations",
       activity: "Activity",
+      security: "Security",
       preferences: "Preferences",
     },
 
@@ -1240,6 +1241,44 @@ export const en = {
     singleKey: "Single-key shortcuts",
     singleKeyHelp: "g then a letter moves between pages, / searches, ? lists every shortcut.",
     allShortcuts: "See every shortcut",
+  },
+
+  // A code from an authenticator app on top of however someone signs in
+  // (DECISIONS.md §213): asked for after sign-in, and set up under Settings.
+  secondFactor: {
+    promptTitle: "Enter your code",
+    promptIntro: "Open your authenticator app and enter the 6-digit code it shows for Cleave.",
+    codeLabel: "Code",
+    verify: "Verify",
+    verifying: "Checking\u2026",
+    wrongCode: "That code did not match. Codes change every 30 seconds, so try the current one.",
+    noFactor: "This account no longer has an authenticator app. Sign out and sign in again.",
+    lostDevice: "Lost the device? Contact support to have the app removed from your account.",
+    signOut: "Sign out",
+    title: "Two-factor authentication",
+    help: "A code from an authenticator app every time you sign in, however you sign in.",
+    app: "Authenticator app",
+    on: "On",
+    off: "Off",
+    addedOn: (date: string) => `Added ${date}`,
+    offDetail:
+      "Anyone with your password, or your Microsoft or Google account, can sign in as you.",
+    setUp: "Set up",
+    scanStep: "Scan this with an authenticator app, such as Google Authenticator or 1Password.",
+    qrAlt: "QR code that adds Cleave to an authenticator app",
+    secretLabel: "Can't scan it? Enter this key instead",
+    copySecret: "Copy key",
+    confirmStep: "Then enter the 6-digit code the app shows.",
+    turnOn: "Turn on",
+    turningOn: "Turning on\u2026",
+    cancel: "Cancel",
+    turnedOn: "Two-factor authentication is on",
+    remove: "Remove",
+    removeTitle: "Turn off two-factor authentication?",
+    removeDetail: "Signing in will need only your password, or your Microsoft or Google account.",
+    removing: "Removing\u2026",
+    turnedOff: "Two-factor authentication is off",
+    failed: "Could not change two-factor authentication. Try again.",
   },
 
   // Members and invitations (DECISIONS.md §162).
