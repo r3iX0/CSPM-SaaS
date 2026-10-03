@@ -22,6 +22,7 @@ from app.schemas.dashboard import CoverageCategoryOut
 # name, so a new one is a decision somebody writes down.
 NOT_ENVELOPED = {
     ("GET", "/api/v1/audit-packages/{package_id}/archive"),
+    ("GET", "/api/v1/auditor/grants/{grant_id}/archive"),
     ("GET", "/api/v1/compliance/{framework_id}/export"),
     ("GET", "/api/v1/reports/{kind}"),
     ("GET", "/api/v1/scans/{scan_id}/events"),

@@ -97,6 +97,15 @@ POST   /audit-packages                     GET    /audit-packages?limit=1..200&o
 GET    /audit-packages/{id}                GET    /audit-packages/{id}/verification
 GET    /audit-packages/{id}/archive        (a zip)
 
+POST   /audit-grants                       GET    /audit-grants?package_id=&limit=1..200&offset=
+GET    /audit-grants/{id}                  DELETE /audit-grants/{id}
+GET    /audit-grants/{id}/events?limit=1..200&offset=
+
+POST   /auditor/grants/open                { token }
+GET    /auditor/grants                     GET    /auditor/grants/{id}
+GET    /auditor/grants/{id}/package        GET    /auditor/grants/{id}/verification
+GET    /auditor/grants/{id}/archive        (a zip)
+
 GET    /notifications                      POST   /notifications/read
 DELETE /notifications                      DELETE /notifications/{id}
 
@@ -187,6 +196,22 @@ named by their own hash, and a `SHA256SUMS` that `sha256sum -c` accepts. It is a
 writes an audit entry, because evidence leaving the system belongs on the trail; the build runs
 one at a time off the event loop, and a package whose evidence is over 256 MB answers `409`
 `ARCHIVE_TOO_LARGE`.
+
+An auditor reads a package through a grant and not as a member (DECISIONS.md §211).
+`POST /audit-grants` names a package and an address and returns the link once, with `expires_in_days`
+defaulting to 30 and at most 90; the token is stored only as its hash and travels in the URL
+fragment. Granting an address that already holds a live grant replaces it. `DELETE` revokes, keeps
+the row as history and answers `409` the second time; there is no `PATCH`. The auditor signs up,
+verifies the address, and sends the token in the body of `POST /auditor/grants/open`, which binds
+the grant to that account and works only for the address it was made for: `403` for another
+address, `409` for a grant that was withdrawn, has expired or was opened by another account, `404`
+for a link that is not valid. After that the grant's id is the handle, and every request checks the
+grant again, so a revoke or a changed address takes effect on the next one. `/auditor/*` takes no
+organization and answers `404` to a caller who asks for a tenant route. `/package` and
+`/verification` are the owner's views of the same package, and `/archive` is the same zip, a `GET`
+that records an entry in the grant's event log and shares its one-at-a-time build with the owner's.
+`GET /audit-grants/{id}/events` is the only trail of an auditor's reading, shown to owners and
+administrators: `OPENED` and `ARCHIVE_DOWNLOADED`, and no event for a refused attempt.
 
 Three endpoints are unauthenticated by necessity, all protected by an
 HMAC-signed token rather than a session: `/cloud-connections/azure/consent/callback`,

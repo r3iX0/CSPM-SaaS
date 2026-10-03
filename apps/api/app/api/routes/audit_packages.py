@@ -10,16 +10,13 @@ document. It is built in a worker thread, one at a time, into a spooled file aft
 has gone back to the pool, and streamed from there (DECISIONS.md section 158).
 """
 
-from collections.abc import Iterator
 from datetime import UTC, datetime
-from typing import IO
 from uuid import UUID
 
-import anyio
 from fastapi import APIRouter, Query, Request, Response, status
 from fastapi.responses import StreamingResponse
-from starlette.background import BackgroundTask
 
+from app.api.archives import archive_response
 from app.api.links import created
 from app.compliance import package as manifest_module
 from app.core.deps import Costly, DbSession, Tenant
@@ -40,14 +37,8 @@ router = APIRouter(prefix="/audit-packages", tags=["audit-packages"], responses=
 
 ADMIN_ONLY = error_responses(403)
 
-# Archives are built one at a time. The build is CPU-bound and holds one payload in memory at a
-# time, and one at a time bounds both however many owners press download together.
-_ARCHIVE_BUILDS = anyio.CapacityLimiter(1)
 
-_CHUNK = 64 * 1024
-
-
-def _out(package: AuditPackage) -> AuditPackageOut:
+def package_out(package: AuditPackage) -> AuditPackageOut:
     return AuditPackageOut(
         id=package.id,
         name=package.name,
@@ -63,7 +54,7 @@ def _out(package: AuditPackage) -> AuditPackageOut:
     )
 
 
-def _detail(
+def package_detail(
     package: AuditPackage,
     items: list[AuditPackageItem],
     payloads: tuple[int, int],
@@ -73,7 +64,7 @@ def _detail(
     for item in items:
         outcomes[item.outcome.value] = outcomes.get(item.outcome.value, 0) + 1
     return AuditPackageDetailOut(
-        **_out(package).model_dump(),
+        **package_out(package).model_dump(),
         assessment=[
             FrameworkAssessmentOut(
                 framework_id=framework_id,
@@ -119,7 +110,7 @@ async def seal_audit_package(
         period_end=payload.period_end,
     )
     created(request, response, "get_audit_package", package_id=package.id)
-    return Envelope(data=_out(package), meta=NoMeta())
+    return Envelope(data=package_out(package), meta=NoMeta())
 
 
 @router.get("", responses=ADMIN_ONLY)
@@ -132,7 +123,7 @@ async def list_audit_packages(
     """This organization's sealed packages, newest first."""
     packages, total = await service.list_packages(session, tenant, limit=limit, offset=offset)
     return Envelope(
-        data=[_out(package) for package in packages],
+        data=[package_out(package) for package in packages],
         meta=PageMeta(total=total, limit=limit, offset=offset),
     )
 
@@ -148,7 +139,7 @@ async def get_audit_package(
     """
     package, items = await service.get_package(session, tenant, package_id)
     payloads = await service.payload_availability(session, tenant, items)
-    return Envelope(data=_detail(package, items, payloads), meta=NoMeta())
+    return Envelope(data=package_detail(package, items, payloads), meta=NoMeta())
 
 
 @router.get("/{package_id}/verification", responses=ADMIN_ONLY)
@@ -198,26 +189,4 @@ async def download_audit_package_archive(
     holds.
     """
     inputs = await service.archive_inputs(session, tenant, package_id)
-    # The entry is committed before the build, and the connection goes back to the pool: the
-    # build is slow, and held, the connection would idle through it and through the wait for its
-    # turn while every other request queued for one (DECISIONS.md section 158).
-    await session.commit()
-    await session.close()
-
-    spool, size = await anyio.to_thread.run_sync(
-        service.build_archive, inputs, limiter=_ARCHIVE_BUILDS
-    )
-    return StreamingResponse(
-        _chunks(spool),
-        media_type="application/zip",
-        headers={
-            "Content-Length": str(size),
-            "Content-Disposition": f'attachment; filename="{service.archive_filename(inputs)}"',
-        },
-        background=BackgroundTask(spool.close),
-    )
-
-
-def _chunks(spool: IO[bytes]) -> Iterator[bytes]:
-    while chunk := spool.read(_CHUNK):
-        yield chunk
+    return await archive_response(session, inputs)

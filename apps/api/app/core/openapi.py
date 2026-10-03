@@ -37,6 +37,20 @@ TAGS: list[dict[str, Any]] = [
         ),
     },
     {
+        "name": "audit-grants",
+        "description": (
+            "Who may read a sealed package: grants made to an address, withdrawn, and the "
+            "trail of what was done through them."
+        ),
+    },
+    {
+        "name": "auditor",
+        "description": (
+            "What an auditor reads through a grant: one sealed package, checked on every call "
+            "against the address on their verified token."
+        ),
+    },
+    {
         "name": "webhooks",
         "description": "Endpoints that receive notifications, and their deliveries.",
     },

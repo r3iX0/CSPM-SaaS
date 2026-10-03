@@ -5,8 +5,10 @@ from fastapi import APIRouter
 from app.api.routes import (
     assets,
     attack_paths,
+    audit_grants,
     audit_log,
     audit_packages,
+    auditor,
     changes,
     cloud_accounts,
     cloud_connections,
@@ -32,6 +34,9 @@ api_router.include_router(organizations.router)
 api_router.include_router(team.router)
 api_router.include_router(audit_log.router)
 api_router.include_router(audit_packages.router)
+api_router.include_router(audit_grants.router)
+# An auditor has no organization, so these take no tenant (DECISIONS.md section 211).
+api_router.include_router(auditor.router)
 api_router.include_router(webhooks.router)
 api_router.include_router(cloud_accounts.router)
 api_router.include_router(context_declarations.router)

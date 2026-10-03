@@ -11500,11 +11500,10 @@ time, into a spooled file, after the connection has gone back to the pool (§158
 payload in memory at a time. A package larger than that wants a background export, which is not
 built.
 
-**Planned, not built.** An auditor is not an organization member, so a grant is bound to the
-auditor's verified email and read through `SECURITY DEFINER` functions, as invitations are
-(§162), rather than through a new bypass session. The token is stored only as its hash and
-carried in a URL fragment, and the manifest signature (Ed25519) is a later step. Until grants
-land, only an owner or administrator can read a package.
+**Auditors read through a grant (§211).** An auditor is not an organization member, so a grant
+is bound to their verified email and read through `SECURITY DEFINER` functions, as invitations
+are (§162), rather than through a new bypass session. The manifest signature (Ed25519) is a
+later step.
 
 ## 209. The standards a customer is audited against are listed in full, and only the latest of a version is offered
 
@@ -11584,6 +11583,73 @@ benchmarks). The 17 domains and the per-domain counts are held by a test.
 the 46 technically assessable ones, 199 to 800-171 reaching 34 of 44, and 206 to DORA reaching
 all 6. That is a judgement made rule by rule, as for the CIS Controls (§209), and is reviewed like
 code.
+
+## 211. An auditor reads one sealed package through a grant bound to their verified email
+
+An auditor is not a member of the organization, and should not become one. A membership, even a
+`VIEWER`, is read through `app.is_member` by the policy of nearly every tenant table, so the
+auditor would see findings, assets and connections that no package names. What they were sent is
+one sealed package (§208), and what they may read is that package and nothing else.
+
+**A grant, not a role.** `audit_grants` names one package, one email address and one expiry. The
+policies on `audit_packages`, `audit_package_items` and `evidence_blobs` are not touched, and none
+of them mentions an auditor: the auditor reads through `SECURITY DEFINER` functions that each
+check the grant, as invitations do (§162), and a bug in the application's session handling cannot
+widen what a grant reaches. Owners and administrators create, list and revoke grants; a grant is
+never deleted, and only `revoked_at` and `revoked_by` can change, by column grant, as the package
+tables are immutable by grant (§208).
+
+**The auditor has a Cleave account.** They sign up, verify an address, and open the link. The
+function checks the grant against the address on the caller's own verified token, read from the
+request's claims and never taken as an argument (`app.user_email()`, §162), so a forwarded link is
+useless to anybody else. The alternative, a bearer link that needs no account, was declined:
+anyone holding it would read the evidence, and the trail could say only that somebody did.
+
+**The link is spent once, and the grant is a handle afterwards.** The token is 32 random bytes,
+stored only as its SHA-256, shown once, and carried in the URL fragment, which servers never see
+(§162). `app.open_audit_grant(token_hash)` checks that the grant is open, unexpired and addressed
+to the caller, binds it to the caller's user id on the first open, and refuses any other user
+after that. Every later read names the grant's id and not the token, and the internal check
+repeats all of it on every call: bound to this user, this address, not revoked, not expired. An
+auditor whose address changes loses access, and a revoke takes effect on the next request. A
+download already streaming finishes.
+
+**What an auditor may read.** The package's header and how its controls came out, whether the
+stored rows still give the hash it was sealed under, and the archive. They are the owner's three
+reads (§208) over the same builder, and the archive carries what an auditor tests without Cleave.
+The payload function answers only for hashes that the granted package's items name, so a grant
+never reaches another package's evidence, or the same organization's other readings. The controls
+as a screen are a later need, with the web page.
+
+**Grants are bounded.** A grant lasts 30 days unless the owner says otherwise, and at most 90: an
+audit has an end, and a link nobody remembers is an open door. Granting again to the same address
+revokes the old grant first, so a package has at most one open grant per address and the newest
+link is the only one. No grant is made on the demo organization, where every write is refused
+(§99).
+
+**The trail is the grant's own event log, shown to owners and administrators.**
+`audit_grant_events` records `OPENED` and `ARCHIVE_DOWNLOADED`, each written by the function that
+gave the access, in the same transaction, so an auditor cannot read and leave no entry. Nothing
+else can insert one. An auditor has no tenant, so their reads are not rows in the organization's
+audit log (§163) and are not added to it: the owner's own actions (granting, revoking) are, and
+the grant's events are one request away. Reading a package is a `GET` and records nothing, as a
+`GET` changes no state. The archive records, as the owner's does and for the same reason (§208).
+
+**What it does not record.** A refused attempt is not an event, because the function that refuses
+raises, and a raise rolls its own writes back. A wrong address, an expired link or a revoked
+grant is a structured log line (`auditor.refused`) and a `4xx`, and no more. An owner who wants
+to know whether somebody tried reads the log, not the grant.
+
+**Routes.** The owner's are a collection of their own at `/audit-grants`, naming the package in
+the body or the filter, because a grant's revoke and its events would sit four segments deep under
+the package (`docs/API_GUIDELINES.md` §2). The auditor's are under `/auditor/grants`, opened
+by `POST /auditor/grants/open` as an invitation is accepted. An auditor route depends on
+`CurrentUser` and `DbSession` and never on `get_tenant`, which answers `404` to a caller with no
+membership. The archive keeps `Costly` and the one-at-a-time build limit of §208, shared with the
+owner's.
+
+**Not built.** A grant for a whole organization's packages, an auditor who comments or asks for
+more evidence, an expiry reminder, and the Ed25519 manifest signature (§208).
 
 ## Open items carried forward
 

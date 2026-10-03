@@ -12,7 +12,7 @@ entry claiming it exists.
 """
 
 import uuid
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from tempfile import SpooledTemporaryFile
@@ -51,7 +51,7 @@ MAX_FRAMEWORKS = 6
 # to disk, so this bounds the time a download can take and the evidence read into memory at once
 # (compressed, about a tenth of it), not the zip.
 MAX_ARCHIVE_PAYLOAD_BYTES = 256 * 1_000_000
-_BLOB_BATCH = 100
+BLOB_BATCH = 100
 _SPOOL_BYTES = 16 * 1024 * 1024
 
 
@@ -317,6 +317,40 @@ def _payload_bytes(items: Sequence[AuditPackageItem]) -> int:
     return sum(sizes.values())
 
 
+def guard_archive_size(items: Sequence[AuditPackageItem]) -> None:
+    """Refuse a package whose evidence is more than one archive holds, before any is read.
+
+    Shared with the auditor's download (DECISIONS.md section 211): both answer a ``409`` naming
+    the limit and not a worker out of memory.
+    """
+    total = _payload_bytes(items)
+    if total > MAX_ARCHIVE_PAYLOAD_BYTES:
+        raise ArchiveTooLarge(
+            f"This package names {total // 1_000_000} MB of evidence and one archive holds "
+            f"{MAX_ARCHIVE_PAYLOAD_BYTES // 1_000_000} MB. Seal fewer frameworks, or ask for "
+            "the evidence in parts."
+        )
+
+
+def payload_hashes(items: Sequence[AuditPackageItem]) -> list[str]:
+    """The distinct payload hashes a package's readings name, in a fixed order."""
+    return sorted({item.content_hash for item in items if item.content_hash})
+
+
+def keep_stored(stored: dict[str, bytes], rows: Iterable[Sequence[Any]]) -> None:
+    """Add each ``(hash, compressed, legacy)`` row's payload to ``stored``, as stored bytes.
+
+    Rows written before compression hold the payload as JSON, and are stored the way the archive
+    reads them. The archive hashes what it inflates, so a legacy row whose serialization differs
+    is reported as corrupt and not shipped under a hash it lacks.
+    """
+    for content_hash, compressed, legacy in rows:
+        if compressed is not None:
+            stored[content_hash] = bytes(compressed)
+        elif legacy is not None:
+            stored[content_hash] = compress(legacy)
+
+
 async def archive_inputs(
     session: AsyncSession, tenant: TenantContext, package_id: UUID
 ) -> ArchiveInputs:
@@ -331,33 +365,20 @@ async def archive_inputs(
     leaves the entry -- because evidence leaving the system should err toward being on the trail.
     """
     package, items = await get_package(session, tenant, package_id)
-    total = _payload_bytes(items)
-    if total > MAX_ARCHIVE_PAYLOAD_BYTES:
-        raise ArchiveTooLarge(
-            f"This package names {total // 1_000_000} MB of evidence and one archive holds "
-            f"{MAX_ARCHIVE_PAYLOAD_BYTES // 1_000_000} MB. Seal fewer frameworks, or ask for "
-            "the evidence in parts."
-        )
+    guard_archive_size(items)
 
-    hashes = sorted({item.content_hash for item in items if item.content_hash})
+    hashes = payload_hashes(items)
     stored: dict[str, bytes] = {}
-    for start in range(0, len(hashes), _BLOB_BATCH):
+    for start in range(0, len(hashes), BLOB_BATCH):
         rows = await session.execute(
             select(
                 EvidenceBlob.content_hash, EvidenceBlob.payload_compressed, EvidenceBlob.payload
             ).where(
                 EvidenceBlob.organization_id == tenant.organization_id,
-                EvidenceBlob.content_hash.in_(hashes[start : start + _BLOB_BATCH]),
+                EvidenceBlob.content_hash.in_(hashes[start : start + BLOB_BATCH]),
             )
         )
-        for content_hash, compressed, legacy in rows.all():
-            # Rows written before compression hold the payload as JSON, and are stored the way
-            # the archive reads them. The archive hashes what it inflates, so a legacy row whose
-            # serialization differs is reported as corrupt and not shipped under a hash it lacks.
-            if compressed is not None:
-                stored[content_hash] = compressed
-            elif legacy is not None:
-                stored[content_hash] = compress(legacy)
+        keep_stored(stored, rows.all())
 
     await audit.record(
         session,
