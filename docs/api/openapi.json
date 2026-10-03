@@ -10751,8 +10751,7 @@
             "title": "Name"
           },
           "provider": {
-            "$ref": "#/components/schemas/Provider",
-            "default": "azure"
+            "$ref": "#/components/schemas/Provider"
           },
           "scope_type": {
             "$ref": "#/components/schemas/ConnectionScope",
@@ -10774,7 +10773,8 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "name"
+          "name",
+          "provider"
         ],
         "title": "CloudConnectionCreate",
         "description": "Starting a connection needs a name and a decision about scope.\n\nNote what is absent: no tenant id, no subscription id, no client id, no\nsecret. The tenant comes from Entra's consent callback, subscriptions come\nfrom discovery, and CloudGuard never holds a customer credential at all\n(AZURE_INTEGRATION.md 2).",

@@ -11424,6 +11424,94 @@ not resolve them ("didn't resolve at build time") and emitted no files, and Verc
 answered each font request with the app's HTML, so every page drew in the system font. The fonts
 are imported from `main.tsx` instead, where Vite rebases and fingerprints them.
 
+## 208. A tracked fix is worked in the queue, and says one thing about where it has got to
+
+Tested in a browser on production, the remediation page had seven faults and three gaps.
+
+**What was broken.**
+
+- **The fix sheet cut off its own cards.** The sheet's body is a scrolling flex column, and a
+  `Card` clips its overflow, so its minimum height resolved to zero and the cards shrank to the
+  window instead of the body scrolling. On a done task the verification card showed its title and
+  hid its verdict ("Checked, and the environment does not show the fix yet"); the fix card lost
+  half its steps. The cards in `FixSheet` and `RuleFixSheet` no longer shrink (`*:shrink-0`).
+- **On a phone a queue row lost its title.** The title column was `flex-1`, a zero basis, in a
+  wrapping row: when the effort, the date and the button fitted on one line, the title gave them
+  its width and was drawn 0px wide. It now has a basis of 16rem, so the figures wrap under it.
+- **A row and its sheet named two severities.** The row drew the task's `priority` (impact
+  against effort, so a High finding on three attack paths reads Critical) in the same badge the
+  sheet used for the finding's `severity`. Every badge now says the finding's severity, and a
+  group's says the worst of its findings (`worstSeverity`); priority still orders the queue.
+- **A row and its sheet named two statuses.** The row drew the task's status and the sheet drew
+  the finding's, so a task to do read "In progress" in its sheet (tracking moves the finding to
+  IN_PROGRESS), and a task marked done read "In progress" beside "Done 3 Oct". Both now draw one
+  `workState` in a `WorkPill`: to do, in progress, then -- once claimed -- what the checks have
+  found: checking, not fixed yet, still failing, could not verify, fixed.
+- **A check that had looked and failed still said "Checking".** A pending verification with
+  attempts behind it and `last_state` FAIL pulsed "Checking", and its row said "Waiting on a
+  scan". It is "Not fixed yet" in both, neutral and still, because the scheduler will look again
+  and two checks are not a verdict.
+- **The steps disagreed with the CLI beside them.** The Steps tab printed the rule's prose with
+  `<account>` and `<rg>` in its commands while the CLI tab had them filled; it is now filled from
+  the same observed values (`fillPlaceholders`). Its `backticked` names were printed with the
+  backticks, and are set as code. "This finding closes when" drew a green tick beside each
+  condition, which read as met on a finding that was open; it is a plain bullet.
+- **A user was named a service principal** ("User 70f01f3e · Service principal"). Not changed
+  here: the subscription's stand-in for a principal the directory capture did not read is typed
+  `SERVICE_PRINCIPAL` whatever its `principalType`, and typing a user's stand-in `USER` would put
+  it in front of the five rules that judge directory users (MFA, sign-in activity, guests,
+  disabled accounts) with none of the directory fields they read. It needs its own decision.
+
+**What could not be done.** `PATCH /remediation/{id}` took a status, an owner, a due date and
+notes from the start, and nothing in the app sent any but DONE. So "In progress" and "Overdue"
+above the queue could only read 0, nobody could say who had the work, and a task marked done by
+mistake stayed done. The fix sheet's header (`TrackFix`) now starts a task, marks it done, reopens
+it, hands it to a member (`GET /members`), gives it a due date, and stops tracking it; the row
+names who has it. Marking done offers **Undo** in its toast.
+
+The API needed three changes to make those honest:
+
+- **A field sent as null clears it.** `None` was read as "not sent", so an owner or a due date,
+  once set, could never come off. `update_task` now reads `model_fields_set`.
+- **Reopening withdraws the claim.** Moving a DONE task back clears `completed_at` and abandons
+  the pending verification, rather than leaving the scheduler checking a fix nobody claims.
+- **Stopping tracking gives the finding back.** Cancelling abandoned the verification but left
+  the finding IN_PROGRESS, where nothing listed it: the untracked list reads OPEN findings. A
+  cancelled task now returns an IN_PROGRESS finding to OPEN, and a cancelled task is not reopened
+  -- the finding is tracked again with a new task, since reopening the old one beside it would
+  give the finding two.
+
+**The untracked list said too little.** It showed five findings of a hundred and fifty-six and
+said neither number, and four of the five were one rule. It now reads a page of 25, draws one
+rule's findings as one line tracked together (`groupUntracked`, the same `useTrackAll` as the
+rule's sheet), and says how many open findings the lines are drawn from.
+
+**"Mark done" and "Verify it now" were two answers to one question.** At the foot of the fix, a
+tracked task still open is offered **Mark done and check now**, which claims the fix and starts
+the rescan in one press; a claimed one is offered **Check it now**, and an untracked finding keeps
+**Verify it now**. Marking done alone stays in the header.
+
+## 209. A connection names its cloud
+
+`CloudConnectionCreate.provider` defaulted to `azure`, from before there was a second cloud. A
+client that left the field out got an Azure connection whatever it meant to connect, and nothing
+said so: the setup that followed asked for Entra consent, and an AWS onboarding attempt failed two
+steps later for a reason that pointed nowhere near the request. Traced from the knowledge graph,
+where `Provider` is the most-crossed node in the estate, the default was the one place a request
+could choose a cloud by omission. Every `CloudResource` in `app/` already passes its provider
+explicitly, and every caller of the change-event helpers passes the route's cloud, so no other
+default is reached from outside.
+
+The field is now required on `CloudConnectionCreate`, and on `CloudAccountCreate` beside it,
+which no route reads today but which would carry the same fault into the first one that did.
+A body without it answers `422 VALIDATION_FAILED`, naming the field.
+
+**Departure from API_GUIDELINES.md §8.** Tightening validation is a breaking change there, and
+breaking changes go to `/api/v2`. This one does not: the API's one client is the web app, whose
+setup wizard has always sent `provider`, and a v2 route served beside v1 would keep the silent
+default alive for the only caller it could still mislead. The guideline stands for any change a
+client outside this repository could depend on.
+
 ## Open items carried forward
 
 **Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read

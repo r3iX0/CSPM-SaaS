@@ -5,7 +5,13 @@ import { CheckIcon, WrenchIcon } from "lucide-react";
 import { api } from "@/lib/api";
 import type { Finding, FindingDetail, RemediationTask } from "@/lib/types";
 import { useT } from "@/i18n";
-import { isOpenTask, useMarkAllDone, useTrackAll } from "@/lib/remediation";
+import {
+  isOpenTask,
+  useMarkAllDone,
+  useTrackAll,
+  workState,
+  worstSeverity,
+} from "@/lib/remediation";
 import { placeholderValues } from "@/lib/remediationFill";
 import { useIsDemo } from "@/lib/useDemo";
 import { cn, resourceTypeLabel } from "@/lib/format";
@@ -138,13 +144,15 @@ function RuleFixBody({
       : [],
   );
   const effort = open.reduce((sum, member) => sum + member.task.estimated_effort_minutes, 0);
-  const priority = (open[0] ?? members[0])?.task.priority ?? lead.severity;
+  // The findings' own severity, as every other badge on a finding says it;
+  // the task's priority orders the queue and is not a second severity (§208).
+  const severity = worstSeverity(members.map((member) => member.finding.severity));
 
   return (
     <>
       <SheetHeader className="gap-2 border-b px-6 pt-6 pr-12 pb-4">
         <div className="flex flex-wrap items-center gap-2">
-          <SeverityBadge level={priority} />
+          <SeverityBadge level={severity} />
           <span className="font-mono text-caption text-muted-foreground">{ruleId}</span>
         </div>
         <SheetTitle className="text-heading font-semibold">
@@ -153,7 +161,8 @@ function RuleFixBody({
         <SheetDescription>{t.remediation.groupCount(members.length, open.length)}</SheetDescription>
       </SheetHeader>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6">
+      {/* Cards keep their height and the body scrolls (as `FixSheet`, §208). */}
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6 *:shrink-0">
         <section aria-labelledby="rule-fix-assets">
           <h3 id="rule-fix-assets" className="text-caption font-medium text-muted-foreground">
             {t.remediation.groupAssetsHeading}
@@ -174,7 +183,7 @@ function RuleFixBody({
                     : t.remediation.tenantWide}
                 </button>
                 <span className="shrink-0 text-caption text-muted-foreground">
-                  {isOpenTask(task) ? t.remediation.toDo : t.remediation.waitingOnScan}
+                  {t.remediation.work[workState(task, finding)]}
                 </span>
               </li>
             ))}

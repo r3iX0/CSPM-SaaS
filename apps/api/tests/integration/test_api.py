@@ -226,7 +226,7 @@ class TestConnectionListing:
 
         await client.post(
             "/api/v1/cloud-connections",
-            json={"name": "Prod", "scope_type": "TENANT_ROOT"},
+            json={"name": "Prod", "provider": "azure", "scope_type": "TENANT_ROOT"},
             headers=auth_header(user),
         )
 
@@ -344,6 +344,7 @@ class TestCloudConnections:
             "/api/v1/cloud-connections",
             json={
                 "name": "Production",
+                "provider": "azure",
                 "scope_type": "TENANT_ROOT",
                 "tenant_id": "someone-elses-tenant",
                 "client_secret": "hunter2",
@@ -361,7 +362,7 @@ class TestCloudConnections:
 
         response = await client.post(
             "/api/v1/cloud-connections",
-            json={"name": "Production", "scope_type": "TENANT_ROOT"},
+            json={"name": "Production", "provider": "azure", "scope_type": "TENANT_ROOT"},
             headers=auth_header(user),
         )
         assert response.status_code == 201
@@ -381,7 +382,7 @@ class TestCloudConnections:
 
         response = await client.post(
             "/api/v1/cloud-connections",
-            json={"name": "Prod", "scope_type": "TENANT_ROOT"},
+            json={"name": "Prod", "provider": "azure", "scope_type": "TENANT_ROOT"},
             headers=auth_header(user),
         )
         assert response.status_code == 201
@@ -399,10 +400,25 @@ class TestCloudConnections:
 
         response = await client.post(
             "/api/v1/cloud-connections",
-            json={"name": "One sub", "scope_type": "SUBSCRIPTION"},
+            json={"name": "One sub", "provider": "azure", "scope_type": "SUBSCRIPTION"},
             headers=auth_header(user),
         )
         assert response.status_code == 422
+
+    async def test_a_connection_names_its_cloud(self, client, cleanup_orgs) -> None:
+        """Leaving the provider out was an Azure connection; it is now refused (§209)."""
+        user = uuid.uuid4()
+        org = await make_org(client, user, "Unnamed Cloud Ltd")
+        cleanup_orgs.append(uuid.UUID(org))
+
+        response = await client.post(
+            "/api/v1/cloud-connections",
+            json={"name": "Prod", "scope_type": "TENANT_ROOT"},
+            headers=auth_header(user),
+        )
+        assert response.status_code == 422, response.text
+        assert response.json()["error"]["code"] == "VALIDATION_FAILED"
+        assert "provider" in str(response.json()["meta"]["errors"])
 
     async def test_the_template_is_readable_from_any_origin(self, client) -> None:
         """Azure Portal fetches this from the customer's browser.
@@ -436,7 +452,7 @@ class TestCloudConnections:
 
         created = await client.post(
             "/api/v1/cloud-connections",
-            json={"name": "Prod", "scope_type": "TENANT_ROOT"},
+            json={"name": "Prod", "provider": "azure", "scope_type": "TENANT_ROOT"},
             headers=auth_header(user_a),
         )
         connection_id = created.json()["data"]["id"]
@@ -770,7 +786,7 @@ class TestChangeEventWebhook:
 
         created = await client.post(
             "/api/v1/cloud-connections",
-            json={"name": "Prod", "scope_type": "TENANT_ROOT"},
+            json={"name": "Prod", "provider": "azure", "scope_type": "TENANT_ROOT"},
             headers=auth_header(user),
         )
         connection_id = created.json()["data"]["id"]
@@ -3287,3 +3303,50 @@ class TestRemediationAssignee:
             headers=auth_header(owner),
         )
         assert reassigned.status_code == 422, reassigned.text
+
+    async def test_an_owner_comes_off_and_a_cancelled_finding_is_open_again(
+        self, client, cleanup_orgs
+    ) -> None:
+        """Null clears a field, and cancelling hands the finding back (DECISIONS.md §208)."""
+        owner, colleague = uuid.uuid4(), uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, owner, "Handback Ltd"))
+        cleanup_orgs.append(org_id)
+        await self._add_member(org_id, colleague)
+        finding_id = str(await self._finding(org_id))
+
+        created = await client.post(
+            "/api/v1/remediation",
+            json={
+                "finding_id": finding_id,
+                "assigned_to": str(colleague),
+                "due_date": "2026-10-09",
+            },
+            headers=auth_header(owner),
+        )
+        assert created.status_code == 201, created.text
+        task_id = created.json()["data"]["id"]
+
+        cleared = await client.patch(
+            f"/api/v1/remediation/{task_id}",
+            json={"assigned_to": None, "due_date": None},
+            headers=auth_header(owner),
+        )
+        assert cleared.status_code == 200, cleared.text
+        assert cleared.json()["data"]["assigned_to"] is None
+        assert cleared.json()["data"]["due_date"] is None
+
+        cancelled = await client.patch(
+            f"/api/v1/remediation/{task_id}",
+            json={"status": "CANCELLED"},
+            headers=auth_header(owner),
+        )
+        assert cancelled.status_code == 200, cancelled.text
+        finding = await client.get(f"/api/v1/findings/{finding_id}", headers=auth_header(owner))
+        assert finding.json()["data"]["status"] == "OPEN"
+
+        reopened = await client.patch(
+            f"/api/v1/remediation/{task_id}",
+            json={"status": "TODO"},
+            headers=auth_header(owner),
+        )
+        assert reopened.status_code == 422, reopened.text

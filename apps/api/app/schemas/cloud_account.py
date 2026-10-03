@@ -15,7 +15,8 @@ class CloudAccountCreate(RequestModel):
     """
 
     account_name: str = Field(min_length=1, max_length=200)
-    provider: Provider = Provider.AZURE
+    # Required, as on a connection (DECISIONS.md section 209).
+    provider: Provider
     tenant_id: str = Field(min_length=1, max_length=64)
     subscription_id: str | None = Field(default=None, max_length=64)
 

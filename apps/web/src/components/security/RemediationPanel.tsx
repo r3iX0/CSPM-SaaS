@@ -1,4 +1,4 @@
-import { CheckIcon, InfoIcon } from "lucide-react";
+import { InfoIcon } from "lucide-react";
 
 import type { RemediationSpec } from "@/lib/types";
 import { formatEffort } from "@/lib/format";
@@ -68,6 +68,9 @@ export function RemediationPanel({
     fill ? fillPlaceholders(command, fill.values) : { text: command, filled: [] },
   );
   const anyFilled = commands.some((command) => command.filled.length > 0);
+  // The steps quote the same commands, and were left with `<account>` in them
+  // while the CLI tab beside them was filled in (§208).
+  const steps = fill ? fillPlaceholders(remediation, fill.values).text : remediation;
   // One script for the whole batch, each asset's commands under its name.
   const script = batch
     ? batch
@@ -95,9 +98,14 @@ export function RemediationPanel({
           <div className="rounded-lg border bg-muted/40 p-3">
             <p className="text-xs font-medium text-muted-foreground">This finding closes when</p>
             <ul className="mt-1.5 flex flex-col gap-1">
+              {/* A plain bullet: a green tick beside a condition read as if it
+                  were already met, on a finding that is open (§208). */}
               {spec.expected_state.map((state) => (
                 <li key={state.field} className="flex items-start gap-2 text-sm">
-                  <CheckIcon className="mt-0.5 size-3.5 shrink-0 text-ok" aria-hidden />
+                  <span
+                    className="mt-2 size-1 shrink-0 rounded-full bg-muted-foreground"
+                    aria-hidden
+                  />
                   <span>{state.describes}</span>
                 </li>
               ))}
@@ -115,7 +123,7 @@ export function RemediationPanel({
 
           <TabsContent value="steps">
             <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-              {remediation}
+              <Prose text={steps} />
             </p>
           </TabsContent>
 
@@ -172,5 +180,32 @@ export function RemediationPanel({
         {footer && <div className="border-t pt-4">{footer}</div>}
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * A rule's prose, with its `backticked` names set as code.
+ *
+ * The remediation text is written with Markdown's inline code and was printed
+ * as it stands, backticks and all (§208). Only that one mark is read: the
+ * text is otherwise plain, and its indented commands stay as they are.
+ */
+function Prose({ text }: { text: string }) {
+  // Keyed by position: the parts of one fixed string, which never reorder.
+  return (
+    <>
+      {text.split(/(`[^`\n]+`)/).map((part, index) =>
+        part.length > 2 && part.startsWith("`") && part.endsWith("`") ? (
+          <code
+            key={index}
+            className="rounded bg-muted px-1 font-mono text-caption text-foreground"
+          >
+            {part.slice(1, -1)}
+          </code>
+        ) : (
+          <span key={index}>{part}</span>
+        ),
+      )}
+    </>
   );
 }

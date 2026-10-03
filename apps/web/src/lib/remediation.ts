@@ -2,7 +2,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { api, ApiError } from "@/lib/api";
-import type { FindingDetail, FindingStatus, RemediationTask } from "@/lib/types";
+import type {
+  Finding,
+  FindingDetail,
+  FindingStatus,
+  Member,
+  RemediationTask,
+  Severity,
+} from "@/lib/types";
 
 /** The URL parameter that holds a fix open on the remediation page (DECISIONS.md §202). */
 export const FIX_PARAM = "fix";
@@ -98,6 +105,7 @@ export function useTrack() {
  */
 export function useMarkDone() {
   const queryClient = useQueryClient();
+  const reopen = useUpdateTask();
   return useMutation({
     mutationFn: (id: string) =>
       api.patch<RemediationTask & { note?: string | null }>(`/api/v1/remediation/${id}`, {
@@ -110,6 +118,12 @@ export function useMarkDone() {
         description:
           task.note ??
           "Cleave will check the environment and close the finding once the change appears.",
+        // A press in the wrong row is put right in place, and the claim it
+        // opened is withdrawn with it (DECISIONS.md §208).
+        action: {
+          label: "Undo",
+          onClick: () => reopen.mutate({ id: task.id, change: { status: "TODO" } }),
+        },
       });
     },
     onError: (err) =>
@@ -117,6 +131,120 @@ export function useMarkDone() {
         description: err instanceof Error ? err.message : "The API rejected the change.",
       }),
   });
+}
+
+/** What a task can be changed to: a field sent as `null` is cleared (§208). */
+export interface TaskChange {
+  status?: "TODO" | "IN_PROGRESS" | "CANCELLED";
+  assigned_to?: string | null;
+  due_date?: string | null;
+}
+
+/** What each change is said as, once it has gone through. */
+function changeSaid(change: TaskChange): { title: string; description?: string } {
+  if (change.status === "IN_PROGRESS") return { title: "Started" };
+  if (change.status === "TODO") {
+    return { title: "Reopened", description: "Cleave stopped checking for the fix." };
+  }
+  if (change.status === "CANCELLED") {
+    return {
+      title: "No longer tracked",
+      description: "The finding is open again, and offered with the work nobody tracked.",
+    };
+  }
+  if ("assigned_to" in change) {
+    return { title: change.assigned_to === null ? "Owner removed" : "Owner set" };
+  }
+  return { title: change.due_date === null ? "Due date removed" : "Due date set" };
+}
+
+/**
+ * Everything but marking done: starting the work, handing it to somebody,
+ * giving it a date, reopening it, and calling it off (DECISIONS.md §208).
+ *
+ * `PATCH /remediation/{id}` took all of these from the start, and nothing in
+ * the app sent any of them, so "In progress" and "Overdue" above the queue
+ * could only ever read 0, and a task marked done by mistake stayed done.
+ */
+export function useUpdateTask() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, change }: { id: string; change: TaskChange }) =>
+      api.patch<RemediationTask>(`/api/v1/remediation/${id}`, change),
+    onSuccess: ({ data: task }, { change }) => {
+      void queryClient.invalidateQueries({ queryKey: ["remediation"] });
+      void queryClient.invalidateQueries({ queryKey: ["finding", task.finding_id] });
+      if (change.status === "CANCELLED") {
+        void queryClient.invalidateQueries({ queryKey: ["findings"] });
+      }
+      const said = changeSaid(change);
+      toast.success(said.title, said.description ? { description: said.description } : {});
+    },
+    onError: (err) =>
+      toast.error("Could not update this task", {
+        description: err instanceof Error ? err.message : "The API rejected the change.",
+      }),
+  });
+}
+
+/** The organization's members, who work can be handed to (§208). */
+export function useAssignees() {
+  return useQuery({
+    queryKey: ["members", "assignees"],
+    queryFn: () => api.get<Member[]>("/api/v1/members").then((r) => r.data),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+}
+
+/** How a member is named on a task: their address, or a stand-in until they sign in. */
+export function memberName(member: Member | undefined): string {
+  if (!member) return "A former member";
+  if (member.is_you) return "You";
+  return member.email ?? "A member yet to sign in";
+}
+
+/**
+ * Where a tracked fix has got to, said one way wherever the task is shown.
+ *
+ * The queue drew the task's own status and the fix sheet drew the finding's,
+ * so one task read "Waiting on a scan" in its row and "In progress" in its
+ * sheet -- and a task marked done read "In progress" beside "Done 3 Oct"
+ * (DECISIONS.md §208). Once work is claimed, what matters is what the checks
+ * found, so the verification decides: a check that has looked and not seen the
+ * fix is "not fixed yet", never a spinner saying "checking".
+ */
+export type WorkState =
+  | "todo"
+  | "in_progress"
+  | "checking"
+  | "not_yet"
+  | "still_failing"
+  | "unverified"
+  | "fixed"
+  | "stopped";
+
+export function workState(task: RemediationTask, finding?: FindingDetail): WorkState {
+  if (finding?.status === "RESOLVED") return "fixed";
+  if (task.status === "TODO") return "todo";
+  if (task.status === "IN_PROGRESS") return "in_progress";
+  if (task.status === "CANCELLED") return "stopped";
+  const verification = finding?.verification;
+  switch (verification?.status) {
+    case "VERIFIED":
+      return "fixed";
+    case "STILL_FAILING":
+      return "still_failing";
+    case "INSUFFICIENT_EVIDENCE":
+    case "ABANDONED":
+      return "unverified";
+    case "PENDING":
+      return verification.attempts > 0 && verification.last_state === "FAIL"
+        ? "not_yet"
+        : "checking";
+    case undefined:
+      return "checking";
+  }
 }
 
 /** One line of the queue: a task on its own, or every task one rule's fix closes. */
@@ -235,4 +363,65 @@ export function useTrackAll() {
       });
     },
   });
+}
+
+const SEVERITY_RANK: Record<Severity, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+
+/**
+ * The worst of several findings' severities, for a row standing for all of them.
+ *
+ * A row's badge is the severity of what is wrong, as on every other finding.
+ * The queue drew the task's priority in the same badge -- impact against
+ * effort, so a High finding on three attack paths read Critical in its row and
+ * High in its own sheet (DECISIONS.md §208). Priority still orders the queue.
+ */
+export function worstSeverity(severities: readonly Severity[]): Severity {
+  return severities.reduce<Severity>(
+    (worst, next) => (SEVERITY_RANK[next] < SEVERITY_RANK[worst] ? next : worst),
+    "LOW",
+  );
+}
+
+/**
+ * What one rule finds, said without the asset: a finding's title with its
+ * asset's name taken off the end.
+ *
+ * The findings list carries no rule name, and a title is the rule's statement
+ * followed by " — " and the asset ("Identity can grant itself any role — User
+ * 70f01f3e"). A title in any other shape is kept whole rather than guessed at.
+ */
+export function ruleTitle(finding: Pick<Finding, "title" | "resource">): string {
+  const suffix = finding.resource ? ` — ${finding.resource.name}` : null;
+  return suffix && finding.title.endsWith(suffix)
+    ? finding.title.slice(0, -suffix.length)
+    : finding.title;
+}
+
+/** One line of the findings nobody tracked: one finding, or several of one rule. */
+export interface UntrackedItem {
+  ruleId: string;
+  findings: Finding[];
+}
+
+/**
+ * The untracked findings, the ones of one rule drawn as one line.
+ *
+ * Four rows of "Identity can grant itself any role" filled the list under the
+ * queue, which groups the same work as one row (§203, §208). The list's order
+ * -- worst risk first -- decides where each line sits, as in the queue.
+ */
+export function groupUntracked(findings: readonly Finding[]): UntrackedItem[] {
+  const items: UntrackedItem[] = [];
+  const byRule = new Map<string, UntrackedItem>();
+  for (const finding of findings) {
+    const existing = byRule.get(finding.rule_id);
+    if (existing) {
+      existing.findings.push(finding);
+      continue;
+    }
+    const item: UntrackedItem = { ruleId: finding.rule_id, findings: [finding] };
+    byRule.set(finding.rule_id, item);
+    items.push(item);
+  }
+  return items;
 }

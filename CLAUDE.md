@@ -415,6 +415,10 @@ so the shell's own `<main>` is the page's only one (§155).
   opens too (`?fix=`); the finding page says the fix in brief and links there (§202)
 - Tracking a fix is offered on the finding's fix card, in the fix sheet's header and under the
   queue for the worst untracked findings, through one `useTrack` (§205)
+- A tracked fix says one thing about where it has got to (`workState`, `WorkPill`) in its row and
+  its sheet, and every badge is the finding's severity, never the task's priority; a task is
+  started, owned, dated, reopened and dropped from its sheet, a `PATCH` null clears a field, and
+  cancelling hands the finding back to OPEN (§208)
 - Coverage by domain shows one framework at a time (`?domains=`), each section a row drawn by
   status with its counts, linking to the framework page narrowed to it (`?section=`) (§206)
 - Settings is one page per topic under `/settings/*` (General, Members, Risk context,

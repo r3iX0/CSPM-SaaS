@@ -209,6 +209,10 @@ reason rather than left out, so a picker never answers "does this support AWS?"
 with silence: AWS reads `available: false` until the deployment sets
 `AWS_ENABLED` and an AWS identity.
 
+`POST /cloud-connections` requires `provider` (`azure` or `aws`). It used to default to `azure`,
+so a client that left it out got an Azure connection whatever it meant to connect; it now answers
+`422 VALIDATION_FAILED` naming the field (DECISIONS.md §209).
+
 A rule's `compliance_mappings` on `/rules` and `/findings/{id}` include, beside
 the rule's own, the controls `app/compliance/data/crosswalk.json` adds for
 frameworks the rule does not map itself (DECISIONS.md §168).
@@ -452,6 +456,13 @@ route map.
 `assigned_to` on `POST /remediation` and `PATCH /remediation/{id}` must name a
 member of the organization. Anyone else gets 422 `VALIDATION_FAILED`
 (DECISIONS.md §159).
+
+On `PATCH /remediation/{id}` a field sent as `null` clears it (`assigned_to`,
+`due_date`, `notes`), and a field left out is left alone. Moving a `DONE` task
+back to `TODO` or `IN_PROGRESS` clears `completed_at` and abandons its pending
+verification. `CANCELLED` abandons the verification and returns an
+`IN_PROGRESS` finding to `OPEN`; a cancelled task cannot be moved again (422) --
+track the finding with a new task instead (DECISIONS.md §208).
 
 `/attack-paths/access/{id}` answers who holds access to an asset and what an
 identity holds (DECISIONS.md §125). `data.holders` lists every role assigned on

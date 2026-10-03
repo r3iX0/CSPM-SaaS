@@ -4,20 +4,28 @@ import { Link, useSearchParams } from "react-router-dom";
 import { CheckIcon, ChevronDownIcon, WrenchIcon } from "lucide-react";
 
 import { api } from "@/lib/api";
-import type { Finding, FindingDetail, RemediationTask } from "@/lib/types";
+import type { Finding, FindingDetail, Member, RemediationTask } from "@/lib/types";
 import {
   FIX_PARAM,
   RULE_PARAM,
   groupByRule,
+  groupUntracked,
   isOpenTask,
+  memberName,
+  ruleTitle,
   taskFor,
+  useAssignees,
   useMarkAllDone,
   useMarkDone,
   useRemediationQueue,
   useTrack,
+  useTrackAll,
+  workState,
+  worstSeverity,
+  type UntrackedItem,
 } from "@/lib/remediation";
 import { useT } from "@/i18n";
-import { StatusPill } from "@/components/security/StatusPill";
+import { WorkPill } from "@/components/security/WorkPill";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { FixSheet } from "@/components/security/FixSheet";
 import { RuleFixSheet, type RuleFixMember } from "@/components/security/RuleFixSheet";
@@ -47,6 +55,8 @@ export function RemediationPage() {
   const markDone = useMarkDone();
 
   const markAllDone = useMarkAllDone();
+  const assignees = useAssignees();
+  const owners = new Map((assignees.data ?? []).map((member) => [member.user_id, member]));
 
   /**
    * The fix the sheet is open on, in the URL: one finding's (`?fix=`,
@@ -149,6 +159,7 @@ export function RemediationPage() {
                 key={item.task.id}
                 task={item.task}
                 finding={byFinding.get(item.task.finding_id)}
+                owners={owners}
                 marking={markDone.isPending && markDone.variables === item.task.id}
                 onDone={() => markDone.mutate(item.task.id)}
                 onOpen={() => openFix(item.task.finding_id)}
@@ -171,6 +182,7 @@ export function RemediationPage() {
                     key={task.id}
                     task={task}
                     finding={byFinding.get(task.finding_id)}
+                    owners={owners}
                     marking={markDone.isPending && markDone.variables === task.id}
                     onDone={() => markDone.mutate(task.id)}
                     onOpen={() => openFix(task.finding_id)}
@@ -215,6 +227,7 @@ export function RemediationPage() {
 function TaskCard({
   task,
   finding,
+  owners,
   marking,
   onDone,
   onOpen,
@@ -222,6 +235,8 @@ function TaskCard({
 }: {
   task: RemediationTask;
   finding: FindingDetail | undefined;
+  /** The organization's members by user id, to name who has the work (§208). */
+  owners: ReadonlyMap<string, Member>;
   marking: boolean;
   onDone: () => void;
   onOpen: () => void;
@@ -232,6 +247,7 @@ function TaskCard({
   const done = task.status === "DONE" || task.status === "CANCELLED";
   const isDemo = useIsDemo();
   const overdue = !done && task.due_date !== null && new Date(task.due_date) < new Date();
+  const state = workState(task, finding);
 
   return (
     <div
@@ -241,10 +257,15 @@ function TaskCard({
         done && "opacity-70",
       )}
     >
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        {/* A fixed column, so titles line up whatever the badge says. */}
+      {/* A basis, not `flex-1`: at zero basis the title gave its width to
+          the figures beside it on a phone and was drawn 0px wide, where with
+          one it wraps them onto their own line (DECISIONS.md §208). */}
+      <div className="flex min-w-0 flex-[1_1_16rem] items-center gap-3">
+        {/* A fixed column, so titles line up whatever the badge says. The
+            finding's severity, as everywhere else; priority orders the queue
+            and was drawn here as a second, disagreeing severity (§208). */}
         <span className="w-[4.5rem] shrink-0">
-          <SeverityBadge level={task.priority} />
+          {finding ? <SeverityBadge level={finding.severity} /> : <Skeleton className="h-5 w-16" />}
         </span>
         <div className="min-w-0">
           {finding ? (
@@ -280,24 +301,22 @@ function TaskCard({
                 {t.remediation.onRoutes(task.on_routes ?? 0)}
               </span>
             )}
+            {finding && task.assigned_to && (
+              <>
+                {" · "}
+                {t.remediation.ownedBy(memberName(owners.get(task.assigned_to)))}
+              </>
+            )}
           </p>
           {task.notes && <p className="mt-1 text-xs text-muted-foreground">{task.notes}</p>}
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
-        {/* Only a state a person put it in is a pill here; to do is the
-            queue itself. Done is work claimed, and says what it waits on:
-            the finding closes when a scan sees the fix, or not at all. */}
-        {task.status === "IN_PROGRESS" && <StatusPill status={task.status} />}
-        {done &&
-          (finding?.status === "RESOLVED" ? (
-            <StatusPill status="RESOLVED" />
-          ) : (
-            <span className="inline-flex rounded-full border border-border bg-muted px-2 py-px text-caption font-medium">
-              {t.remediation.waitingOnScan}
-            </span>
-          ))}
+        {/* To do is the queue itself and needs no pill. Anything further
+            says where the work has got to, as its sheet does: started, or
+            claimed and what the checks have found since (§208). */}
+        {state !== "todo" && <WorkPill state={state} />}
         <span className="w-14 tabular-nums">{formatEffort(task.estimated_effort_minutes)}</span>
         <span className={cn("w-[130px] tabular-nums", overdue && "font-medium text-critical")}>
           {done && task.completed_at
@@ -362,7 +381,12 @@ function TaskGroup({
     .filter((date): date is string => date !== null)
     .sort()[0];
   const overdue = due !== undefined && new Date(due) < new Date();
-  const priority = (open[0] ?? tasks[0])?.priority ?? "LOW";
+  const severity = worstSeverity(
+    tasks.flatMap((task) => {
+      const finding = findings.get(task.finding_id);
+      return finding ? [finding.severity] : [];
+    }),
+  );
 
   return (
     <Collapsible open={expanded} onOpenChange={setExpanded}>
@@ -372,9 +396,9 @@ function TaskGroup({
           open.length === 0 && "opacity-70",
         )}
       >
-        <div className="flex min-w-0 flex-1 items-center gap-3">
+        <div className="flex min-w-0 flex-[1_1_16rem] items-center gap-3">
           <span className="w-[4.5rem] shrink-0">
-            <SeverityBadge level={priority} />
+            <SeverityBadge level={severity} />
           </span>
           <div className="min-w-0">
             <button
@@ -459,8 +483,11 @@ function QueueSummary({ tasks }: { tasks: RemediationTask[] }) {
   );
 }
 
-/** How many untracked findings the queue offers. */
+/** How many lines of untracked work the queue offers. */
 const STARTERS = 5;
+
+/** How many open findings are read to fill them: one rule's findings share a line. */
+const STARTER_PAGE = 25;
 
 /**
  * The worst open findings nobody has tracked, each a press away from the queue.
@@ -478,6 +505,11 @@ const STARTERS = 5;
  * (§205). Tracking moves a finding out of OPEN, so the list refills from the
  * next worst; a finding with a task is left out even so, as a cancelled task
  * leaves its finding where it was. Not in the demo, where the API refuses it.
+ *
+ * Findings of one rule share a line and are tracked together, as the queue
+ * groups them, and the header says how many open findings the five lines are
+ * drawn from -- it showed five of a hundred and fifty-six and said neither
+ * (§208).
  */
 function WhereToStart({
   tasks,
@@ -491,28 +523,39 @@ function WhereToStart({
   const open = useQuery({
     queryKey: ["findings", "starters"],
     queryFn: () =>
-      api
-        .get<Finding[]>(`/api/v1/findings?status=OPEN&sort=risk&limit=${STARTERS * 2}&offset=0`)
-        .then((r) => r.data),
+      api.get<Finding[]>(`/api/v1/findings?status=OPEN&sort=risk&limit=${STARTER_PAGE}&offset=0`),
     retry: false,
   });
   const track = useTrack();
+  const trackAll = useTrackAll();
 
-  const rows = (Array.isArray(open.data) ? open.data : [])
-    .filter((finding) => taskFor(tasks, finding.id) === undefined)
-    .slice(0, STARTERS);
-  if (isDemo || rows.length === 0) return null;
+  const page = open.data;
+  const untracked = (Array.isArray(page?.data) ? page.data : []).filter(
+    (finding) => taskFor(tasks, finding.id) === undefined,
+  );
+  const items = groupUntracked(untracked).slice(0, STARTERS);
+  if (isDemo || items.length === 0) return null;
 
+  const shown = items.reduce((sum, item) => sum + item.findings.length, 0);
+  const total = typeof page?.meta.total === "number" ? page.meta.total : undefined;
+  const busy = track.isPending || trackAll.isPending;
   const heading = tasks.length === 0 ? t.remediation.whereToStart : t.remediation.notTracked;
   return (
     <section
       aria-labelledby="where-to-start"
       className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10"
     >
-      <div className="flex items-baseline justify-between gap-3 px-5 pt-4 pb-3">
-        <h2 id="where-to-start" className="text-body font-semibold">
-          {heading}
-        </h2>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-5 pt-4 pb-3">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <h2 id="where-to-start" className="text-body font-semibold">
+            {heading}
+          </h2>
+          {total !== undefined && total > shown && (
+            <span className="text-caption text-muted-foreground">
+              {t.remediation.shownOf(shown, total)}
+            </span>
+          )}
+        </div>
         <Link
           to="/findings"
           className="rounded-sm text-xs text-muted-foreground underline underline-offset-2 outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring"
@@ -521,34 +564,85 @@ function WhereToStart({
         </Link>
       </div>
       <ul className="divide-y border-t">
-        {rows.map((finding) => (
-          <li key={finding.id} className="flex items-center gap-3 px-5 py-2.5">
-            <SeverityBadge level={finding.severity} />
-            <button
-              type="button"
-              aria-haspopup="dialog"
-              onClick={() => onOpen(finding.id)}
-              className="min-w-0 flex-1 truncate rounded-sm text-left text-body outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring"
-            >
-              {finding.title}
-            </button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={track.isPending}
-              onClick={() => track.mutate(finding.id)}
-              aria-label={t.remediation.trackFor(finding.title)}
-            >
-              {track.isPending && track.variables === finding.id ? (
-                <Spinner data-icon="inline-start" />
-              ) : (
-                <WrenchIcon data-icon="inline-start" aria-hidden />
-              )}
-              {t.remediation.track}
-            </Button>
-          </li>
+        {items.map((item) => (
+          <UntrackedRow
+            key={item.ruleId}
+            item={item}
+            busy={busy}
+            spinning={
+              (track.isPending &&
+                item.findings.some((finding) => finding.id === track.variables)) ||
+              (trackAll.isPending &&
+                item.findings.some((finding) => trackAll.variables?.includes(finding.id)))
+            }
+            onOpen={onOpen}
+            onTrack={() =>
+              item.findings.length === 1
+                ? track.mutate(item.findings[0]?.id ?? "")
+                : trackAll.mutate(item.findings.map((finding) => finding.id))
+            }
+          />
         ))}
       </ul>
     </section>
+  );
+}
+
+/** One line of untracked work: a finding, or every listed finding of one rule. */
+function UntrackedRow({
+  item,
+  busy,
+  spinning,
+  onOpen,
+  onTrack,
+}: {
+  item: UntrackedItem;
+  busy: boolean;
+  spinning: boolean;
+  onOpen: (findingId: string) => void;
+  onTrack: () => void;
+}) {
+  const t = useT();
+  const lead = item.findings[0];
+  if (!lead) return null;
+  const count = item.findings.length;
+  const title = count === 1 ? lead.title : ruleTitle(lead);
+  const names = item.findings.map((finding) => finding.resource?.name ?? t.remediation.tenantWide);
+
+  return (
+    <li className="flex items-center gap-3 px-5 py-2.5">
+      <SeverityBadge level={worstSeverity(item.findings.map((finding) => finding.severity))} />
+      <div className="min-w-0 flex-1">
+        <button
+          type="button"
+          aria-haspopup="dialog"
+          onClick={() => onOpen(lead.id)}
+          className="block max-w-full truncate rounded-sm text-left text-body outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring"
+        >
+          {title}
+        </button>
+        {count > 1 && (
+          <p className="truncate text-caption text-muted-foreground">
+            {t.remediation.untrackedLine(count, names)}
+          </p>
+        )}
+      </div>
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={busy}
+        onClick={onTrack}
+        aria-label={
+          count === 1 ? t.remediation.trackFor(title) : t.remediation.trackGroupFor(title, count)
+        }
+      >
+        {spinning ? (
+          <Spinner data-icon="inline-start" />
+        ) : (
+          <WrenchIcon data-icon="inline-start" aria-hidden />
+        )}
+        {count === 1 ? t.remediation.track : t.remediation.trackGroup(count)}
+      </Button>
+    </li>
   );
 }

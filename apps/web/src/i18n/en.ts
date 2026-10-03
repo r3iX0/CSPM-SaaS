@@ -1481,7 +1481,6 @@ export const en = {
     // which each row says, rather than the intro.
     description: "Ordered by impact against effort.",
     onRoutes: (n: number) => `on ${n} attack ${n === 1 ? "path" : "paths"}`,
-    waitingOnScan: "Waiting on a scan",
     doneOn: (date: string) => `Done ${date}`,
     // The fix, read in full in the queue's sheet (DECISIONS.md §202).
     openFix: "Open fix",
@@ -1509,12 +1508,38 @@ export const en = {
     markAllDoneShort: "Mark all done",
     groupShow: (n: number) => `Show the ${n} assets`,
     groupHide: "Hide the assets",
-    toDo: "To do",
     ruleEmpty: "Nothing of this rule is in the queue",
     markAllDone: (n: number) => `Mark all ${n} done`,
     trackRest: (n: number) => `Track ${n} more`,
     trackRestNote: (n: number) =>
       `${n} more open ${n === 1 ? "finding" : "findings"} of this rule ${n === 1 ? "is" : "are"} in no task yet.`,
+    // Where a tracked fix has got to, said one way in the row and the sheet (§208).
+    work: {
+      todo: "To do",
+      in_progress: "In progress",
+      checking: "Checking the fix",
+      not_yet: "Not fixed yet",
+      still_failing: "Still failing",
+      unverified: "Could not verify",
+      fixed: "Fixed",
+      stopped: "Not tracked",
+    },
+    start: "Start",
+    reopen: "Reopen",
+    stopTracking: "Stop tracking",
+    owner: "Owner",
+    unassigned: "Unassigned",
+    due: "Due",
+    ownedBy: (name: string) => `with ${name}`,
+    appliedIt: "Applied the fix?",
+    markDoneAndCheck: "Mark done and check now",
+    checkNow: "Check it now",
+    verifyNow: "Verify it now",
+    shownOf: (shown: number, total: number) => `${shown} of ${total} open findings`,
+    untrackedLine: (n: number, names: readonly string[]) =>
+      `${n} findings: ${names.slice(0, 3).join(", ")}${n > 3 ? ` and ${n - 3} more` : ""}`,
+    trackGroup: (n: number) => `Track ${n}`,
+    trackGroupFor: (title: string, n: number) => `Track all ${n} fixes for ${title}`,
     verification: {
       PENDING: "Fix claimed — Cleave is checking",
       VERIFIED: "Fix verified by a scan",
