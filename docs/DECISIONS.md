@@ -11553,6 +11553,37 @@ Supabase's email provider has no switch for magic links apart from passwords, so
 endpoint still answers a client that calls it directly. That is not a way around anything: the
 link proves ownership of the address exactly as a confirmation does, and ends in the same JWT.
 
+## 212. Supabase's emails are Cleave's, built from one layout
+
+Confirming an account and resetting a password are the first two things Cleave sends anyone, and
+they went out as Supabase's defaults: a bare heading, a bare link, no name on them. The six auth
+emails Supabase sends -- confirmation, recovery, magic link, email change, invite and
+reauthentication -- are now written in `tools/supabase/email_templates.py` over one
+`infrastructure/supabase/email/layout.html`, and built into `infrastructure/supabase/email/built/`.
+The built files are checked in because they are what is pasted into the dashboard; `push` sets all
+six on a project through the Management API instead. Edit the script and the layout, never the
+built files.
+
+An email cannot read the stylesheet or run the type scale, so it is held to what every client
+keeps: tables, inline styles, the light theme's tokens written out as hex, and the dark theme's
+under `prefers-color-scheme` for the clients that honour it. The cut mark (§144) is a PNG served
+from the site (`apps/web/public/email/cleave-mark.png`), because Gmail drops SVG, drawn on its own
+dark tile with a hairline edge so it reads on a light page, a dark page and a client that inverts
+one into the other. The word "cleave" beside it is text, so an inbox that blocks images still
+names the sender.
+
+Each email is a plain heading, a sentence or two, one button and when it expires. Below a rule
+comes what to do if it was not expected, and last and smallest, the link written out for a client
+that will not follow the button, so nothing competes with the button. No label sits over the
+heading, no arrow in the button, no tagline in the footer, which says only why the email came.
+Radii follow one rule: the card 12px, everything inside it 8px. Muted text is the app's
+`--muted-foreground` (`#696969`), which keeps 4.5:1 on the grey page as well as the card. "This
+link expires in 1 hour and can be used once" is Supabase's default expiry (`mailer_otp_exp`, 3600
+seconds); a project that changes it changes the script. The magic-link email is designed although the page no longer offers
+one (§211), because the endpoint still answers a direct call, and an email that arrives should look
+like it came from Cleave. Colleagues are invited by Cleave's own link (§162), not Supabase's invite,
+so the invite email is sent only by someone inviting from the dashboard.
+
 ## Open items carried forward
 
 **Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read

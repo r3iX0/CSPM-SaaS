@@ -123,6 +123,19 @@ Node installed on your machine.
    Supabase refuses to redirect a link click anywhere not on that list, and the
    password-reset email lands on that second path.
 
+   **Set the email templates.** Authentication → Emails holds Supabase's plain
+   defaults until Cleave's are set (`DECISIONS.md` §212). Either paste each
+   file in `infrastructure/supabase/email/built/` into its template (subjects
+   are in `tools/supabase/email_templates.py`), or set all six at once with a
+   personal access token:
+
+   ```bash
+   SUPABASE_ACCESS_TOKEN=<token> python3 tools/supabase/email_templates.py push <project-ref>
+   ```
+
+   The emails load the mark from `<Site URL>/email/cleave-mark.png`, so Site URL
+   must be the deployed site.
+
 7. **Enable Microsoft (Entra ID) sign-in.** Authentication → Providers →
    **Azure**. This is a _second, separate_ Entra app registration from the one
    that scans subscriptions — do not reuse the scanning app's credentials here.
