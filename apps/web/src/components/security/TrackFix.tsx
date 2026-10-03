@@ -1,11 +1,14 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckIcon, WrenchIcon } from "lucide-react";
-import { toast } from "sonner";
 
-import { api, ApiError } from "@/lib/api";
-import type { FindingStatus, RemediationTask } from "@/lib/types";
+import type { FindingStatus } from "@/lib/types";
 import { useT } from "@/i18n";
-import { taskFor, useMarkDone, useRemediationQueue } from "@/lib/remediation";
+import {
+  isTrackable,
+  taskFor,
+  useMarkDone,
+  useRemediationQueue,
+  useTrack,
+} from "@/lib/remediation";
 import { useIsDemo } from "@/lib/useDemo";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,16 +16,17 @@ import { Spinner } from "@/components/ui/spinner";
 import { formatDate, formatEffort } from "@/lib/format";
 
 /**
- * The work, at the foot of the fix: track it, then say it is done.
+ * The work on a fix: track it, then say it is done.
  *
  * `POST /remediation` existed from the start and nothing called it, so the
- * queue could only ever be empty (DECISIONS.md §41). It sits under the fix,
- * because tracking work is a statement about who is going to do what is
- * written above it -- and since the fix moved into the remediation page's sheet
- * (§202), marking that work done sits here too, the one place the fix is read
- * in full. Neither closes the finding: tracking moves it to IN_PROGRESS, done
- * starts the verification (§18), and only a scan observing the fix resolves it.
- * The caption says so where the button is.
+ * queue could only ever be empty (DECISIONS.md §41). Since the fix moved into
+ * the remediation page's sheet (§202), marking that work done sits here too.
+ * It heads the sheet rather than ending it: at the foot of the steps, the CLI
+ * and the Terraform it was a scroll nobody made, and a reader looking for the
+ * way to queue a fix concluded there was none (§205). Neither closes the
+ * finding: tracking moves it to IN_PROGRESS, done starts the verification
+ * (§18), and only a scan observing the fix resolves it. The caption says so
+ * where the button is.
  */
 export function TrackFix({
   findingId,
@@ -34,31 +38,11 @@ export function TrackFix({
   effortMinutes?: number;
 }) {
   const t = useT();
-  const queryClient = useQueryClient();
   const isDemo = useIsDemo();
   const tasks = useRemediationQueue();
   const task = taskFor(tasks.data, findingId);
   const markDone = useMarkDone();
-
-  const track = useMutation({
-    mutationFn: () =>
-      api.post<RemediationTask>("/api/v1/remediation", {
-        finding_id: findingId,
-      }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["remediation"] });
-      void queryClient.invalidateQueries({ queryKey: ["finding", findingId] });
-      void queryClient.invalidateQueries({ queryKey: ["findings"] });
-      toast.success("Added to the remediation queue", {
-        description:
-          "Prioritised by impact against effort. The finding stays open until a scan observes the fix.",
-      });
-    },
-    onError: (err) =>
-      toast.error("Could not track this fix", {
-        description: err instanceof ApiError ? err.message : "The API rejected the request.",
-      }),
-  });
+  const track = useTrack();
 
   if (tasks.isLoading) return <Skeleton className="h-9 w-48" />;
 
@@ -93,21 +77,23 @@ export function TrackFix({
     );
   }
 
-  // Nothing to schedule. A verified fix has no work left in it, and an accepted
-  // risk is a decision not to do the work -- offering to queue either would ask
-  // the reader to undo a conclusion the product has already recorded. The demo
-  // refuses every write, so it is offered nothing to press.
-  if (status === "RESOLVED" || status === "ACCEPTED_RISK" || isDemo) return null;
+  // Nothing to schedule (`isTrackable`). The demo refuses every write, so it is
+  // offered nothing to press.
+  if (!isTrackable(status) || isDemo) return null;
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <Button variant="secondary" disabled={track.isPending} onClick={() => track.mutate()}>
+      <Button
+        variant="secondary"
+        disabled={track.isPending}
+        onClick={() => track.mutate(findingId)}
+      >
         {track.isPending ? (
           <Spinner data-icon="inline-start" />
         ) : (
           <WrenchIcon data-icon="inline-start" aria-hidden />
         )}
-        Track this fix
+        {t.remediation.trackThisFix}
       </Button>
       <p className="text-xs text-muted-foreground">
         Puts it in the remediation queue

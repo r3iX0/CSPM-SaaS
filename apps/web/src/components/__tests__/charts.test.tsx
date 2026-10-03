@@ -11,7 +11,6 @@ import { describe, expect, it } from "vitest";
 
 import { Sparkline } from "@/components/charts/Sparkline";
 import { SeverityStrip } from "@/components/dashboard/SeverityStrip";
-import { Bars } from "@/components/charts/Bars";
 import { Donut } from "@/components/charts/Donut";
 import { CIRCUMFERENCE, ringArcs } from "@/components/charts/ring";
 
@@ -40,29 +39,6 @@ describe("Sparkline", () => {
     const path = container.querySelector("path")?.getAttribute("d") ?? "";
     expect(path).not.toContain("NaN");
     expect(screen.getByRole("img", { name: /held from 2 to 2/ })).toBeInTheDocument();
-  });
-});
-
-describe("Bars", () => {
-  it("measures every bar against the same scale", () => {
-    const { container } = render(
-      <MemoryRouter>
-        <Bars
-          ariaLabel="Risk bands"
-          bars={[
-            { key: "a", label: "Critical", value: 5, tone: "var(--sev-critical)" },
-            { key: "b", label: "Low", value: 1, tone: "var(--sev-low)" },
-          ]}
-        />
-      </MemoryRouter>,
-    );
-
-    const widths = [...container.querySelectorAll("span[style*='width']")].map(
-      (node) => (node as HTMLElement).style.width,
-    );
-    // The largest fills the track and the rest are proportional to it, so two
-    // bars can be compared by length rather than by reading their numbers.
-    expect(widths).toEqual(["100%", "20%"]);
   });
 });
 

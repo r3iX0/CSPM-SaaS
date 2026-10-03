@@ -413,6 +413,10 @@ so the shell's own `<main>` is the page's only one (§155).
   URL (`?scan=`) (§154)
 - A fix is read and worked in a sheet on the remediation page, keyed by finding so an untracked one
   opens too (`?fix=`); the finding page says the fix in brief and links there (§202)
+- Tracking a fix is offered on the finding's fix card, in the fix sheet's header and under the
+  queue for the worst untracked findings, through one `useTrack` (§205)
+- Coverage by domain shows one framework at a time (`?domains=`), each section a row drawn by
+  status with its counts, linking to the framework page narrowed to it (`?section=`) (§206)
 - The queue draws a rule's tasks as one row, and its fix as one sheet (`?rule=`) with the commands as
   one script over every asset; no batch endpoint and no group rescan -- marking done verifies (§203)
 - Every observable control of CIS Azure 6.0, NIS2, ATT&CK, HIPAA, GDPR, NIST CSF and PCI DSS is

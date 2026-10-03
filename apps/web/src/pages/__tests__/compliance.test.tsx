@@ -3,7 +3,7 @@
  * domain by domain.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -47,13 +47,18 @@ const DETAIL = {
   ],
 };
 
+let frameworks: object[] = [FRAMEWORK];
+let detail: typeof DETAIL = DETAIL;
+
 describe("the compliance overview", () => {
   beforeEach(() => {
+    frameworks = [FRAMEWORK];
+    detail = DETAIL;
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
         const url = String(input);
-        const data = url.endsWith("/compliance") ? [FRAMEWORK] : DETAIL;
+        const data = url.endsWith("/compliance") ? frameworks : detail;
         return {
           ok: true,
           status: 200,
@@ -93,11 +98,65 @@ describe("the compliance overview", () => {
     expect(screen.queryByText("50%")).not.toBeInTheDocument();
   });
 
-  it("measures each domain by what reached a conclusion, not by what passed", async () => {
+  it("draws each domain as its controls by status, never one bar that reads as a grade", async () => {
+    // Teal at 100% over a section whose every control failed read as a pass
+    // (DECISIONS.md §206). The row says what concluded, and what failed.
     mount();
-    const domains = await screen.findByRole("list", { name: /CIS Azure 2\.0: share of controls/ });
-    // Identity: a pass and a fail both concluded. Logging: neither did.
-    expect(domains).toHaveTextContent(/Identity\s*100/);
-    expect(domains).toHaveTextContent(/Logging\s*0/);
+    const coverage = await screen.findByRole("region", { name: "Coverage by domain" });
+    const identity = await within(coverage).findByRole("link", { name: /^Identity/ });
+    expect(identity).toHaveTextContent("2/2 with a verdict · 1 failing");
+    expect(identity).toHaveAttribute("href", "/compliance/cis-azure?section=Identity");
+    const logging = within(coverage).getByRole("link", { name: /^Logging/ });
+    expect(logging).toHaveTextContent("0/2 with a verdict");
+    expect(logging).not.toHaveTextContent("failing");
+  });
+
+  it("says a section nothing checks in words, not as an empty bar", async () => {
+    detail = {
+      ...DETAIL,
+      controls: [...DETAIL.controls, control("9.1", "People", "NOT_COVERED")],
+    };
+    mount();
+    const coverage = await screen.findByRole("region", { name: "Coverage by domain" });
+    expect(await within(coverage).findByRole("link", { name: /^People/ })).toHaveTextContent(
+      "1 control, nothing checks",
+    );
+  });
+
+  it("puts the worst section first when asked, and keeps the framework's order otherwise", async () => {
+    detail = {
+      ...DETAIL,
+      controls: [
+        ...DETAIL.controls,
+        control("6.1", "Networking", "FAILING"),
+        control("6.2", "Networking", "FAILING"),
+      ],
+    };
+    mount();
+    const coverage = await screen.findByRole("region", { name: "Coverage by domain" });
+    await within(coverage).findByRole("link", { name: /^Networking/ });
+    const names = () =>
+      within(coverage)
+        .getAllByRole("listitem")
+        .map((row) => row.textContent?.split(/\d/)[0]);
+    expect(names()).toEqual(["Identity", "Logging", "Networking"]);
+
+    fireEvent.click(within(coverage).getByRole("button", { name: "Most failing" }));
+    expect(names()).toEqual(["Networking", "Identity", "Logging"]);
+  });
+
+  it("shows one framework at a time, and switches between them", async () => {
+    frameworks = [FRAMEWORK, { ...FRAMEWORK, id: "gdpr", short_name: "GDPR" }];
+    mount();
+    const coverage = await screen.findByRole("region", { name: "Coverage by domain" });
+    expect(within(coverage).getByRole("tab", { name: "CIS Azure 2.0" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+
+    fireEvent.click(within(coverage).getByRole("tab", { name: "GDPR" }));
+    expect(
+      await within(coverage).findByRole("link", { name: "Every GDPR control" }),
+    ).toHaveAttribute("href", "/compliance/gdpr");
   });
 });

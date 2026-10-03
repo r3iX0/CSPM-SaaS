@@ -68,10 +68,12 @@ function renderPage(entry = "/remediation") {
 }
 
 let tasks: Record<string, unknown>[] = [TASK];
+let openFindings: Record<string, unknown>[] = [{ ...FINDING, status: "OPEN" }];
 
 describe("the remediation queue", () => {
   beforeEach(() => {
     tasks = [TASK];
+    openFindings = [{ ...FINDING, status: "OPEN" }];
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
@@ -79,7 +81,7 @@ describe("the remediation queue", () => {
         const body = url.includes("/findings/")
           ? FINDING
           : url.includes("/findings?")
-            ? [{ ...FINDING, status: "OPEN" }]
+            ? openFindings
             : tasks;
         return {
           ok: true,
@@ -135,13 +137,33 @@ describe("the remediation queue", () => {
     renderPage("/remediation?fix=finding-1");
 
     const sheet = await screen.findByRole("dialog");
-    expect(
-      await within(sheet).findByRole("button", { name: /Track this fix/ }),
-    ).toBeInTheDocument();
+    const track = await within(sheet).findByRole("button", { name: /Track this fix/ });
+    // Under the title, not below the steps and every form of them (§205).
+    expect(track.closest('[data-slot="sheet-header"]')).not.toBeNull();
     expect(within(sheet).getByRole("button", { name: /Verify it now/ })).toBeInTheDocument();
   });
 
-  it("finishes tracked work at the foot of its fix", async () => {
+  it("keeps offering what is not in the queue once something is (§205)", async () => {
+    // Offered only to an empty queue, the list went with the first task
+    // tracked, and the page had no way left to add any.
+    openFindings = [
+      { ...FINDING, status: "OPEN" },
+      { ...FINDING, id: "finding-2", status: "OPEN", title: "Key vault purge protection off" },
+    ];
+    renderPage();
+
+    const rest = await screen.findByRole("region", { name: "Not in the queue yet" });
+    expect(rest).toHaveTextContent("Key vault purge protection off");
+    // finding-1 is the queued task: it is offered once, in the queue.
+    expect(within(rest).queryByText("Storage account allows public blob access")).toBeNull();
+    expect(
+      within(rest).getByRole("button", {
+        name: "Track the fix for Key vault purge protection off",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("finishes tracked work in the header of its fix", async () => {
     renderPage("/remediation?fix=finding-1");
 
     const sheet = await screen.findByRole("dialog");
@@ -237,9 +259,12 @@ describe("the queue, grouped by rule (DECISIONS.md §203)", () => {
 
     expect(await screen.findByRole("button", { name: "Public blob access" })).toBeInTheDocument();
     expect(screen.getByText(/2 assets: prodstorage, devstorage/)).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Storage account allows public blob access" }),
-    ).toBeNull();
+    // No queue row of its own; finding-3, untracked, is offered below the queue.
+    const rest = await screen.findByRole("region", { name: "Not in the queue yet" });
+    const titles = screen.queryAllByRole("button", {
+      name: "Storage account allows public blob access",
+    });
+    expect(titles.every((title) => rest.contains(title))).toBe(true);
   });
 
   it("opens the rule's fix as one script over every asset, with the work done together", async () => {

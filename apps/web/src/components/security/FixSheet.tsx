@@ -32,14 +32,15 @@ import { Spinner } from "@/components/ui/spinner";
  * A finding's fix, read in full and worked from the queue.
  *
  * The finding page answers what is wrong and why it matters; this answers how
- * to fix it and whether the fix took (DECISIONS.md §202). Everything about the
- * work is here and nowhere else: the steps and every form of them, tracking
- * the work, marking it done, proving it with a rescan, and what the
- * verification concluded.
+ * to fix it and whether the fix took (DECISIONS.md §202). The fix is read in
+ * full here and nowhere else: the steps and every form of them, marking the
+ * work done, proving it with a rescan, and what the verification concluded.
+ * Tracking is offered here too, under the title, and on the finding's card
+ * beside the way here (§205).
  *
  * Keyed by finding, not by task, so a fix is read before anybody commits to
- * doing it -- an untracked finding opens here with "Track this fix" at its
- * foot, and the demo, which refuses every write, still reads every fix.
+ * doing it -- an untracked finding opens here with "Track this fix" in its
+ * header, and the demo, which refuses every write, still reads every fix.
  */
 export function FixSheet({
   findingId,
@@ -171,6 +172,13 @@ function FixSheetBody({ findingId }: { findingId: string }) {
           {t.remediation.openFinding}
           <ArrowRightIcon className="size-3.5" aria-hidden />
         </Link>
+        {/* The work heads the fix, not its foot: below the steps, the CLI and
+            the Terraform it was a scroll nobody made (§205). */}
+        <TrackFix
+          findingId={data.id}
+          status={data.status}
+          effortMinutes={data.estimated_effort_minutes}
+        />
       </SheetHeader>
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6">
@@ -204,32 +212,25 @@ function FixSheetBody({ findingId }: { findingId: string }) {
               : undefined
           }
           footer={
-            <div className="flex flex-col gap-4">
-              <TrackFix
-                findingId={data.id}
-                status={data.status}
-                effortMinutes={data.estimated_effort_minutes}
-              />
-              {/* The end of the fix, where the fix is: applying it and
-                  proving it are one motion, not two places (§98). */}
-              {canVerify && (
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
-                  <p className="text-sm text-foreground">Applied the fix?</p>
-                  <Button
-                    size="sm"
-                    onClick={() => rescan.mutate()}
-                    disabled={rescan.isPending || verifyScanId !== null}
-                  >
-                    {rescan.isPending ? (
-                      <Spinner data-icon="inline-start" />
-                    ) : (
-                      <RotateCcwIcon data-icon="inline-start" aria-hidden />
-                    )}
-                    Verify it now
-                  </Button>
-                </div>
-              )}
-            </div>
+            // The end of the fix, where the fix is: applying it and proving
+            // it are one motion, not two places (§98).
+            canVerify ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
+                <p className="text-sm text-foreground">Applied the fix?</p>
+                <Button
+                  size="sm"
+                  onClick={() => rescan.mutate()}
+                  disabled={rescan.isPending || verifyScanId !== null}
+                >
+                  {rescan.isPending ? (
+                    <Spinner data-icon="inline-start" />
+                  ) : (
+                    <RotateCcwIcon data-icon="inline-start" aria-hidden />
+                  )}
+                  Verify it now
+                </Button>
+              </div>
+            ) : undefined
           }
         />
       </div>
