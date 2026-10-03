@@ -17,7 +17,7 @@ from app.rules.property import PropertySpec, property_rule
 
 _RESILIENCE = {
     "ISO_27001": ["A.8.13"],
-    "NIST_CSF_2.0": ["PR.DS-11", "RC.RP-01"],
+    "NIST_CSF_2.0": ["PR.DS-11", "RC.RP-01", "PR.IR-03"],
     "GDPR": ["32(1)(c)"],
     "NIST_800_53": ["CP-9"],
     "SOC2": ["A1.2"],

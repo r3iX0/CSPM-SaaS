@@ -1,5 +1,5 @@
 {
- "$comment": "Controls a native rule answers in frameworks it does not map itself, kept apart from the rule classes because they were derived rather than written: each entry was carried over from the Prowler checks that asked the same question as the rule, and pairs known to ask slightly different questions passed nothing on. A framework a rule maps in its own compliance_mappings never takes an entry from here (DECISIONS.md section 168). Edit by hand. CIS_CONTROLS_8.1, CSA_CCM_4.1, NIST_800_171_R2 and DORA are the exception to the Prowler provenance: they were written by hand, rule by rule, from what each rule's evidence shows (DECISIONS.md sections 205 and 206).",
+ "$comment": "Controls a native rule answers in frameworks it does not map itself, kept apart from the rule classes because they were derived rather than written: each entry was carried over from the Prowler checks that asked the same question as the rule, and pairs known to ask slightly different questions passed nothing on. A framework a rule maps in its own compliance_mappings never takes an entry from here (DECISIONS.md section 168). Edit by hand. CIS_CONTROLS_8.1, CSA_CCM_4.1, NIST_800_171_R2 and DORA are the exception to the Prowler provenance: they were written by hand, rule by rule, from what each rule's evidence shows (DECISIONS.md sections 209 and 210).",
  "mappings": {
   "AWS-CMP-001": {
    "AWS_FSBP": [
@@ -1689,6 +1689,64 @@
     "3.13.5"
    ]
   },
+  "AZ-AGW-001": {
+   "CIS_CONTROLS_8.1": [
+    "13.10"
+   ],
+   "CSA_CCM_4.1": [
+    "I&S-09"
+   ],
+   "DORA": [
+    "Art.9"
+   ],
+   "NIST_800_171_R2": [
+    "3.13.1"
+   ]
+  },
+  "AZ-AGW-002": {
+   "CIS_CONTROLS_8.1": [
+    "3.10"
+   ],
+   "CSA_CCM_4.1": [
+    "CEK-03",
+    "CEK-04",
+    "DSP-10"
+   ],
+   "DORA": [
+    "Art.9"
+   ],
+   "NIST_800_171_R2": [
+    "3.13.8"
+   ]
+  },
+  "AZ-AGW-004": {
+   "CIS_CONTROLS_8.1": [
+    "13.10"
+   ],
+   "CSA_CCM_4.1": [
+    "I&S-09"
+   ],
+   "DORA": [
+    "Art.9"
+   ],
+   "NIST_800_171_R2": [
+    "3.13.1"
+   ]
+  },
+  "AZ-AGW-005": {
+   "CIS_CONTROLS_8.1": [
+    "13.10"
+   ],
+   "CSA_CCM_4.1": [
+    "I&S-09"
+   ],
+   "DORA": [
+    "Art.9"
+   ],
+   "NIST_800_171_R2": [
+    "3.13.1"
+   ]
+  },
   "AZ-AKS-001": {
    "CIS_CONTROLS_8.1": [
     "12.2",
@@ -2100,6 +2158,23 @@
     "BCR-11"
    ]
   },
+  "AZ-CMP-014": {
+   "CIS_CONTROLS_8.1": [
+    "7.3",
+    "7.5"
+   ],
+   "CSA_CCM_4.1": [
+    "TVM-03",
+    "TVM-08"
+   ],
+   "DORA": [
+    "Art.7"
+   ],
+   "NIST_800_171_R2": [
+    "3.14.1",
+    "3.11.2"
+   ]
+  },
   "AZ-COS-001": {
    "CIS_AZURE_2.0": [
     "4.5.1"
@@ -2219,6 +2294,9 @@
    ],
    "HIPAA": [
     "164_308_a_7_ii_a"
+   ],
+   "MITRE_ATTACK": [
+    "T1490"
    ]
   },
   "AZ-DB-001": {
@@ -2756,6 +2834,25 @@
     "BCR-11"
    ]
   },
+  "AZ-DB-025": {
+   "CIS_CONTROLS_8.1": [
+    "3.3",
+    "12.2",
+    "13.4"
+   ],
+   "CSA_CCM_4.1": [
+    "I&S-06",
+    "DSP-17"
+   ],
+   "DORA": [
+    "Art.9"
+   ],
+   "NIST_800_171_R2": [
+    "3.13.1",
+    "3.13.5",
+    "3.13.6"
+   ]
+  },
   "AZ-DBW-001": {
    "CIS_AZURE_6.0": [
     "2.1.10"
@@ -2838,6 +2935,55 @@
    ],
    "NIST_800_171_R2": [
     "3.13.16"
+   ]
+  },
+  "AZ-DBW-005": {
+   "CIS_CONTROLS_8.1": [
+    "12.2",
+    "13.4"
+   ],
+   "CSA_CCM_4.1": [
+    "I&S-06"
+   ],
+   "DORA": [
+    "Art.9"
+   ],
+   "NIST_800_171_R2": [
+    "3.13.1",
+    "3.13.5"
+   ]
+  },
+  "AZ-DBW-006": {
+   "CIS_CONTROLS_8.1": [
+    "12.2",
+    "13.4"
+   ],
+   "CSA_CCM_4.1": [
+    "I&S-03",
+    "I&S-06"
+   ],
+   "DORA": [
+    "Art.9"
+   ],
+   "NIST_800_171_R2": [
+    "3.13.1",
+    "3.13.6"
+   ]
+  },
+  "AZ-DBW-007": {
+   "CIS_CONTROLS_8.1": [
+    "8.2",
+    "8.5"
+   ],
+   "CSA_CCM_4.1": [
+    "LOG-07",
+    "LOG-09"
+   ],
+   "DORA": [
+    "Art.10"
+   ],
+   "NIST_800_171_R2": [
+    "3.3.1"
    ]
   },
   "AZ-DEF-001": {
@@ -3193,6 +3339,67 @@
     "3.14.6"
    ]
   },
+  "AZ-DEF-012": {
+   "CIS_CONTROLS_8.1": [
+    "7.5"
+   ],
+   "CSA_CCM_4.1": [
+    "TVM-03"
+   ],
+   "DORA": [
+    "Art.25"
+   ],
+   "NIST_800_171_R2": [
+    "3.11.2"
+   ]
+  },
+  "AZ-DEF-013": {
+   "CIS_CONTROLS_8.1": [
+    "13.2"
+   ],
+   "CSA_CCM_4.1": [
+    "CCC-07",
+    "LOG-03"
+   ],
+   "DORA": [
+    "Art.10"
+   ],
+   "NIST_800_171_R2": [
+    "3.14.6",
+    "3.14.7"
+   ]
+  },
+  "AZ-DEF-014": {
+   "CIS_CONTROLS_8.1": [
+    "13.1",
+    "13.2"
+   ],
+   "CSA_CCM_4.1": [
+    "LOG-03",
+    "LOG-14"
+   ],
+   "DORA": [
+    "Art.10"
+   ],
+   "NIST_800_171_R2": [
+    "3.3.5",
+    "3.14.6"
+   ]
+  },
+  "AZ-DEF-015": {
+   "CIS_CONTROLS_8.1": [
+    "13.1"
+   ],
+   "CSA_CCM_4.1": [
+    "LOG-03"
+   ],
+   "DORA": [
+    "Art.10"
+   ],
+   "NIST_800_171_R2": [
+    "3.14.6"
+   ]
+  },
   "AZ-IAM-001": {
    "CIS_CONTROLS_8.1": [
     "5.4",
@@ -3204,6 +3411,9 @@
    ],
    "DORA": [
     "Art.9"
+   ],
+   "MITRE_ATTACK": [
+    "T1651"
    ],
    "NIST_800_171_R2": [
     "3.1.5"
@@ -3220,6 +3430,9 @@
    ],
    "DORA": [
     "Art.9"
+   ],
+   "MITRE_ATTACK": [
+    "T1651"
    ],
    "NIS2": [
     "2.1.2.g",
@@ -3271,6 +3484,9 @@
    ]
   },
   "AZ-IAM-005": {
+   "CIS_AZURE_6.0": [
+    "5.7"
+   ],
    "CIS_CONTROLS_8.1": [
     "6.8"
    ],
@@ -3327,6 +3543,32 @@
    "NIST_800_171_R2": [
     "3.1.5",
     "3.1.2"
+   ]
+  },
+  "AZ-IAM-011": {
+   "CIS_CONTROLS_8.1": [
+    "6.8"
+   ],
+   "CSA_CCM_4.1": [
+    "IAM-05",
+    "IAM-09"
+   ],
+   "DORA": [
+    "Art.9"
+   ],
+   "NIST_800_171_R2": [
+    "3.1.5"
+   ]
+  },
+  "AZ-IAM-012": {
+   "CIS_CONTROLS_8.1": [
+    "6.8"
+   ],
+   "CSA_CCM_4.1": [
+    "IAM-10"
+   ],
+   "DORA": [
+    "Art.9"
    ]
   },
   "AZ-ID-001": {
@@ -3440,6 +3682,9 @@
    ]
   },
   "AZ-ID-005": {
+   "CIS_AZURE_6.0": [
+    "5.1.1"
+   ],
    "CIS_CONTROLS_8.1": [
     "6.3"
    ],
@@ -3501,6 +3746,9 @@
    ]
   },
   "AZ-ID-013": {
+   "CIS_AZURE_2.0": [
+    "1.2.6"
+   ],
    "CIS_CONTROLS_8.1": [
     "6.5"
    ],
@@ -3808,6 +4056,125 @@
     "3.1.12"
    ]
   },
+  "AZ-ID-023": {
+   "CIS_CONTROLS_8.1": [
+    "6.5"
+   ],
+   "CSA_CCM_4.1": [
+    "IAM-13"
+   ],
+   "DORA": [
+    "Art.9"
+   ],
+   "NIST_800_171_R2": [
+    "3.5.3"
+   ]
+  },
+  "AZ-ID-024": {
+   "CIS_CONTROLS_8.1": [
+    "6.3"
+   ],
+   "CSA_CCM_4.1": [
+    "IAM-13"
+   ],
+   "DORA": [
+    "Art.9"
+   ],
+   "NIST_800_171_R2": [
+    "3.5.3",
+    "3.14.7"
+   ]
+  },
+  "AZ-ID-025": {
+   "CIS_CONTROLS_8.1": [
+    "13.5"
+   ],
+   "CSA_CCM_4.1": [
+    "IAM-15"
+   ],
+   "DORA": [
+    "Art.9"
+   ],
+   "NIST_800_171_R2": [
+    "3.1.12"
+   ]
+  },
+  "AZ-ID-026": {
+   "CIS_CONTROLS_8.1": [
+    "5.2"
+   ],
+   "CSA_CCM_4.1": [
+    "IAM-14"
+   ],
+   "DORA": [
+    "Art.9"
+   ],
+   "NIST_800_171_R2": [
+    "3.5.7"
+   ]
+  },
+  "AZ-ID-027": {
+   "CSA_CCM_4.1": [
+    "IAM-14"
+   ]
+  },
+  "AZ-ID-028": {
+   "CIS_CONTROLS_8.1": [
+    "6.3"
+   ],
+   "CSA_CCM_4.1": [
+    "IAM-13"
+   ],
+   "DORA": [
+    "Art.9"
+   ],
+   "NIST_800_171_R2": [
+    "3.5.3"
+   ]
+  },
+  "AZ-ID-029": {
+   "CIS_CONTROLS_8.1": [
+    "6.3"
+   ],
+   "CSA_CCM_4.1": [
+    "IAM-13"
+   ],
+   "DORA": [
+    "Art.9"
+   ],
+   "NIST_800_171_R2": [
+    "3.5.3"
+   ]
+  },
+  "AZ-ID-030": {
+   "CIS_CONTROLS_8.1": [
+    "6.8"
+   ],
+   "CSA_CCM_4.1": [
+    "IAM-15"
+   ],
+   "DORA": [
+    "Art.9"
+   ],
+   "NIST_800_171_R2": [
+    "3.1.1"
+   ]
+  },
+  "AZ-ID-031": {
+   "CIS_CONTROLS_8.1": [
+    "5.1",
+    "6.2"
+   ],
+   "CSA_CCM_4.1": [
+    "IAM-08"
+   ],
+   "DORA": [
+    "Art.9"
+   ],
+   "NIST_800_171_R2": [
+    "3.1.1"
+   ]
+  },
   "AZ-KV-001": {
    "CIS_AZURE_6.0": [
     "8.3.5"
@@ -4009,6 +4376,65 @@
    ],
    "NIST_800_171_R2": [
     "3.13.10"
+   ]
+  },
+  "AZ-KV-007": {
+   "CIS_CONTROLS_8.1": [
+    "3.3",
+    "12.2"
+   ],
+   "CSA_CCM_4.1": [
+    "I&S-06",
+    "DSP-17"
+   ],
+   "DORA": [
+    "Art.9"
+   ],
+   "NIST_800_171_R2": [
+    "3.13.1",
+    "3.13.5"
+   ]
+  },
+  "AZ-KV-008": {
+   "CIS_CONTROLS_8.1": [
+    "3.3",
+    "12.2"
+   ],
+   "CSA_CCM_4.1": [
+    "I&S-06",
+    "DSP-17"
+   ],
+   "DORA": [
+    "Art.9"
+   ],
+   "NIST_800_171_R2": [
+    "3.13.1",
+    "3.13.5"
+   ]
+  },
+  "AZ-KV-009": {
+   "CSA_CCM_4.1": [
+    "CEK-12"
+   ],
+   "DORA": [
+    "Art.9"
+   ],
+   "NIST_800_171_R2": [
+    "3.13.10"
+   ]
+  },
+  "AZ-LCK-001": {
+   "CIS_CONTROLS_8.1": [
+    "4.1"
+   ],
+   "CSA_CCM_4.1": [
+    "CCC-04"
+   ],
+   "DORA": [
+    "Art.9"
+   ],
+   "NIST_800_171_R2": [
+    "3.4.2"
    ]
   },
   "AZ-LOG-001": {
@@ -5274,6 +5700,56 @@
     "3.13.6"
    ]
   },
+  "AZ-NET-016": {
+   "CIS_CONTROLS_8.1": [
+    "12.2",
+    "13.4"
+   ],
+   "CSA_CCM_4.1": [
+    "I&S-03",
+    "I&S-06"
+   ],
+   "DORA": [
+    "Art.9"
+   ],
+   "NIST_800_171_R2": [
+    "3.13.1",
+    "3.13.6"
+   ]
+  },
+  "AZ-NET-017": {
+   "CIS_CONTROLS_8.1": [
+    "4.4",
+    "12.2",
+    "13.4"
+   ],
+   "CSA_CCM_4.1": [
+    "I&S-03"
+   ],
+   "DORA": [
+    "Art.9"
+   ],
+   "NIST_800_171_R2": [
+    "3.13.1",
+    "3.13.6"
+   ]
+  },
+  "AZ-NET-018": {
+   "CIS_CONTROLS_8.1": [
+    "12.1"
+   ],
+   "CSA_CCM_4.1": [
+    "I&S-03"
+   ],
+   "DORA": [
+    "Art.7"
+   ]
+  },
+  "AZ-POL-001": {
+   "CSA_CCM_4.1": [
+    "DSP-19"
+   ]
+  },
   "AZ-SRCH-001": {
    "CIS_CONTROLS_8.1": [
     "3.3",
@@ -5470,9 +5946,6 @@
   "AZ-STO-007": {
    "CIS_AZURE_2.0": [
     "3.2"
-   ],
-   "CIS_AZURE_6.0": [
-    "9.3.1.1"
    ],
    "CIS_CONTROLS_8.1": [
     "3.11"
@@ -5694,7 +6167,7 @@
     "3.3"
    ],
    "CIS_AZURE_6.0": [
-    "9.3.1.2"
+    "9.3.1.1"
    ],
    "CSA_CCM_4.1": [
     "IAM-14"
@@ -5730,6 +6203,74 @@
     "164_308_a_7_ii_b",
     "164_308_a_7_ii_c",
     "164_312_a_2_ii"
+   ]
+  },
+  "AZ-STO-017": {
+   "CIS_CONTROLS_8.1": [
+    "6.7"
+   ],
+   "CSA_CCM_4.1": [
+    "IAM-12",
+    "IAM-15"
+   ],
+   "DORA": [
+    "Art.9"
+   ],
+   "NIST_800_171_R2": [
+    "3.5.2",
+    "3.1.1"
+   ]
+  },
+  "AZ-STO-018": {
+   "CSA_CCM_4.1": [
+    "IAM-14"
+   ]
+  },
+  "AZ-STO-019": {
+   "CIS_CONTROLS_8.1": [
+    "4.1"
+   ],
+   "CSA_CCM_4.1": [
+    "CCC-04"
+   ],
+   "DORA": [
+    "Art.9"
+   ],
+   "NIST_800_171_R2": [
+    "3.4.2"
+   ]
+  },
+  "AZ-STO-020": {
+   "CIS_CONTROLS_8.1": [
+    "3.14",
+    "8.5"
+   ],
+   "CSA_CCM_4.1": [
+    "LOG-07",
+    "LOG-09",
+    "LOG-12"
+   ],
+   "DORA": [
+    "Art.10"
+   ],
+   "NIST_800_171_R2": [
+    "3.3.1"
+   ]
+  },
+  "AZ-VPN-001": {
+   "CIS_CONTROLS_8.1": [
+    "6.4",
+    "13.5"
+   ],
+   "CSA_CCM_4.1": [
+    "IAM-13"
+   ],
+   "DORA": [
+    "Art.9"
+   ],
+   "NIST_800_171_R2": [
+    "3.5.3",
+    "3.1.12"
    ]
   },
   "AZ-VULN-001": {
@@ -6123,6 +6664,17 @@
    ],
    "NIST_800_171_R2": [
     "3.14.1"
+   ]
+  },
+  "AZ-WEB-014": {
+   "CSA_CCM_4.1": [
+    "IAM-13"
+   ],
+   "DORA": [
+    "Art.9"
+   ],
+   "NIST_800_171_R2": [
+    "3.5.2"
    ]
   }
  }

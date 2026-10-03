@@ -68,7 +68,7 @@ SPECS = (
         why_no_expected_state=_NAMES,
         describes="Every enabled key has an expiration date",
         failure="holds enabled keys with no expiration date",
-        mappings=_KEY_LIFECYCLE,
+        mappings={**_KEY_LIFECYCLE, "PCI_DSS_4": ["3.6.1", "3.7"]},
     ),
     PropertySpec(
         rule_id="AZ-KV-005",
@@ -101,7 +101,7 @@ SPECS = (
         why_no_expected_state=_NAMES,
         describes="Every enabled secret has an expiration date",
         failure="holds enabled secrets with no expiration date",
-        mappings=_KEY_LIFECYCLE,
+        mappings={**_KEY_LIFECYCLE, "PCI_DSS_4": ["3.6.1", "8.6"]},
     ),
     PropertySpec(
         rule_id="AZ-KV-006",
@@ -135,7 +135,7 @@ SPECS = (
         why_no_expected_state=_NAMES,
         describes="Every enabled key has a rotation policy that rotates it",
         failure="holds enabled keys that never rotate",
-        mappings=_KEY_LIFECYCLE,
+        mappings={**_KEY_LIFECYCLE, "PCI_DSS_4": ["3.6.1", "3.7"]},
     ),
 )
 

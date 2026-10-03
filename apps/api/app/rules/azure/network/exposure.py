@@ -887,7 +887,7 @@ class AzurePublicWebRule(_PublicPortRule):
         "CIS_AZURE_2.0": ["6.4"],
         "CIS_AZURE_6.0": ["7.4"],
         "ISO_27001": ["A.8.20"],
-        "NIST_CSF": ["PR.AC-5"],
+        "NIST_CSF_2.0": ["PR.IR-01"],
         "GDPR": ["32(1)(b)"],
         "NIST_800_53": ["SC-7"],
         "SOC2": ["CC6.6"],

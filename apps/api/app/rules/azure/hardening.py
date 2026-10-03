@@ -23,7 +23,7 @@ from app.rules.property import PropertySpec, property_rule
 
 _NETWORK = {
     "ISO_27001": ["A.8.20", "A.8.22"],
-    "NIST_CSF": ["PR.AC-5"],
+    "NIST_CSF_2.0": ["PR.IR-01"],
     "GDPR": ["32(1)(b)"],
     "NIST_800_53": ["SC-7"],
     "SOC2": ["CC6.6"],
@@ -31,7 +31,7 @@ _NETWORK = {
 }
 _TRANSPORT = {
     "ISO_27001": ["A.8.24"],
-    "NIST_CSF": ["PR.DS-2"],
+    "NIST_CSF_2.0": ["PR.DS-02"],
     "GDPR": ["32(1)(a)"],
     "NIST_800_53": ["SC-8"],
     "SOC2": ["CC6.7"],
@@ -39,15 +39,15 @@ _TRANSPORT = {
 }
 _MONITORING = {
     "ISO_27001": ["A.8.16"],
-    "NIST_CSF": ["DE.CM-1", "DE.AE-3"],
+    "NIST_CSF_2.0": ["DE.CM-01", "DE.AE-03"],
     "GDPR": ["32(1)(d)"],
     "NIST_800_53": ["SI-4"],
     "SOC2": ["CC7.2"],
-    "PCI_DSS_4": ["11.4.1"],
+    "PCI_DSS_4": ["11.5"],
 }
 _LOGGING = {
     "ISO_27001": ["A.8.15"],
-    "NIST_CSF": ["PR.PT-1", "DE.AE-3"],
+    "NIST_CSF_2.0": ["PR.PS-04", "DE.AE-03"],
     "GDPR": ["30", "32(1)(d)"],
     "NIST_800_53": ["AU-2", "AU-6"],
     "SOC2": ["CC7.2"],
@@ -55,7 +55,7 @@ _LOGGING = {
 }
 _VULNERABILITY = {
     "ISO_27001": ["A.8.8"],
-    "NIST_CSF": ["ID.RA-1"],
+    "NIST_CSF_2.0": ["ID.RA-01"],
     "GDPR": ["32(1)(d)"],
     "NIST_800_53": ["RA-5", "SI-2"],
     "SOC2": ["CC7.1"],
@@ -63,7 +63,7 @@ _VULNERABILITY = {
 }
 _AUTHENTICATION = {
     "ISO_27001": ["A.5.17"],
-    "NIST_CSF": ["PR.AC-7"],
+    "NIST_CSF_2.0": ["PR.AA-03"],
     "GDPR": ["32(1)(b)"],
     "NIST_800_53": ["IA-2"],
     "SOC2": ["CC6.1"],
@@ -71,7 +71,7 @@ _AUTHENTICATION = {
 }
 _RESILIENCE = {
     "ISO_27001": ["A.8.13"],
-    "NIST_CSF": ["PR.IP-4"],
+    "NIST_CSF_2.0": ["PR.DS-11"],
     "GDPR": ["32(1)(c)"],
     "NIST_800_53": ["CP-9", "CM-6"],
     "SOC2": ["A1.2"],
@@ -211,11 +211,11 @@ VAULT_SPECS = (
         failure="holds certificates valid for more than twelve months",
         mappings={
             "ISO_27001": ["A.8.24"],
-            "NIST_CSF": ["PR.DS-2"],
+            "NIST_CSF_2.0": ["PR.DS-02"],
             "GDPR": ["32(1)(a)"],
             "NIST_800_53": ["SC-12"],
             "SOC2": ["CC6.1"],
-            "PCI_DSS_4": ["3.6.1"],
+            "PCI_DSS_4": ["3.6.1", "3.7"],
             "CIS_AZURE_6.0": ["8.3.11"],
         },
         applies_when=(("holds_certificates", "true"),),
@@ -445,7 +445,12 @@ GATEWAY_SPECS = (
         safe=True,
         describes="A web application firewall inspects the gateway's traffic",
         failure="forwards traffic no web application firewall inspects",
-        mappings={**_NETWORK, "CIS_AZURE_6.0": ["7.10"], "MITRE_ATTACK": ["T1190"]},
+        mappings={
+            **_NETWORK,
+            "PCI_DSS_4": ["1.3.1", "6.4"],
+            "CIS_AZURE_6.0": ["7.10"],
+            "MITRE_ATTACK": ["T1190"],
+        },
         effort_minutes=120,
     ),
     PropertySpec(
@@ -548,7 +553,7 @@ GATEWAY_SPECS = (
         safe=True,
         describes="The web application firewall inspects request bodies",
         failure="has a firewall that does not inspect request bodies",
-        mappings={**_NETWORK, "CIS_AZURE_6.0": ["7.14"]},
+        mappings={**_NETWORK, "PCI_DSS_4": ["1.3.1", "6.4"], "CIS_AZURE_6.0": ["7.14"]},
         applies_when=_ON_WAF,
         effort_minutes=10,
     ),
@@ -586,7 +591,7 @@ GATEWAY_SPECS = (
         safe=True,
         describes="The WAF policy includes the bot manager rule set",
         failure="has a firewall with no bot protection",
-        mappings={**_NETWORK, "CIS_AZURE_6.0": ["7.15"]},
+        mappings={**_NETWORK, "PCI_DSS_4": ["1.3.1", "6.4"], "CIS_AZURE_6.0": ["7.15"]},
         applies_when=_ON_WAF,
         effort_minutes=15,
     ),
@@ -666,7 +671,11 @@ WORKLOAD_SPECS = (
         safe="AutomaticByPlatform",
         describes="Azure assesses the machine for missing updates every 24 hours",
         failure="is not assessed for missing updates on a schedule",
-        mappings={**_VULNERABILITY, "CIS_AZURE_6.0": ["8.1.10"]},
+        mappings={
+            **_VULNERABILITY,
+            "NIST_CSF_2.0": ["ID.RA-01", "PR.PS-02"],
+            "CIS_AZURE_6.0": ["8.1.10"],
+        },
         effort_minutes=10,
     ),
     PropertySpec(
@@ -914,7 +923,7 @@ SUBSCRIPTION_SPECS = (
         describes="An enforced Allowed locations policy applies",
         failure="lets resources be created in any region",
         mappings={
-            "NIST_CSF": ["ID.GV-1"],
+            "NIST_CSF_2.0": ["GV.PO-01"],
             "GDPR": ["44"],
             "NIST_800_53": ["CM-7"],
             "SOC2": ["CC5.2"],

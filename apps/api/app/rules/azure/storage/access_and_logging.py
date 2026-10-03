@@ -16,7 +16,7 @@ _ACCOUNT = (AzureEvidence.STORAGE_ACCOUNTS,)
 
 _KEYS = {
     "ISO_27001": ["A.5.17"],
-    "NIST_CSF": ["PR.AC-1"],
+    "NIST_CSF_2.0": ["PR.AA-01"],
     "GDPR": ["32(1)(b)"],
     "NIST_800_53": ["IA-5"],
     "SOC2": ["CC6.1"],
@@ -110,7 +110,12 @@ SPECS = (
         ),
         describes="Both access keys were regenerated within 90 days",
         failure="has an access key not regenerated in over 90 days",
-        mappings={**_KEYS, "CIS_AZURE_2.0": ["3.4"], "CIS_AZURE_6.0": ["9.3.1.2"]},
+        mappings={
+            **_KEYS,
+            "PCI_DSS_4": ["8.3.1", "8.6"],
+            "CIS_AZURE_2.0": ["3.4"],
+            "CIS_AZURE_6.0": ["9.3.1.2"],
+        },
         effort_minutes=30,
     ),
     PropertySpec(
@@ -147,7 +152,7 @@ SPECS = (
         failure="has no lock stopping its deletion",
         mappings={
             "ISO_27001": ["A.8.13"],
-            "NIST_CSF": ["PR.IP-4"],
+            "NIST_CSF_2.0": ["PR.DS-11"],
             "GDPR": ["32(1)(c)"],
             "NIST_800_53": ["CP-9", "CM-6"],
             "SOC2": ["A1.2"],
@@ -197,7 +202,7 @@ SPECS = (
         failure="has services that log nothing of what is done to their data",
         mappings={
             "ISO_27001": ["A.8.15"],
-            "NIST_CSF": ["PR.PT-1", "DE.AE-3"],
+            "NIST_CSF_2.0": ["PR.PS-04", "DE.AE-03"],
             "GDPR": ["30", "32(1)(d)"],
             "NIST_800_53": ["AU-2", "AU-6"],
             "SOC2": ["CC7.2"],

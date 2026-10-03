@@ -145,7 +145,7 @@ SPECS = (
         absent="fail",
         describes="An automatic upgrade channel is set",
         failure="has no automatic upgrade channel",
-        mappings=_HARDENING,
+        mappings={**_HARDENING, "NIST_CSF_2.0": ["ID.RA-01", "PR.PS-02"]},
     ),
     PropertySpec(
         rule_id="AZ-AKS-007",
@@ -700,7 +700,7 @@ def _runtime(rule_id: str, language: str, label: str, *prefixes: str) -> Propert
         ),
         describes=f"The app runs a {label} version still in community support",
         failure=f"runs a {label} version past end of support",
-        mappings=_HARDENING,
+        mappings={**_HARDENING, "NIST_CSF_2.0": ["ID.RA-01", "PR.PS-02"]},
         applies_when=(("runtime_languages", language),),
     )
 

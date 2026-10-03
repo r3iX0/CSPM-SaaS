@@ -11538,9 +11538,23 @@ branches on a framework.
 
 **CIS Controls are mapped by hand.** Rules' own mappings name the frameworks they were written
 against, so the CIS Controls arrive through the crosswalk, written rule by rule from what the
-rule's evidence shows: 211 of 219 rules, with availability and credential-lifetime rules left
+rule's evidence shows: 244 of 258 rules, with availability and credential-lifetime rules left
 unmapped rather than stretched to a safeguard that asks something else. That is a judgement and
 the crosswalk's comment says so; it is reviewed like code.
+
+**Rules written against the shorter lists are carried across, not left behind.** Section 204's
+thirty-nine rules were written when NIST CSF was 1.1 and PCI DSS was twenty-three
+sub-requirements. Their CSF ids are converted to 2.0 by the same map the older rules were
+(`PR.AC-1` to `PR.AA-01`, `PR.AC-5` to `PR.IR-01`, `PR.IP-4` to `PR.DS-11`, and so on, from NIST's
+own back-references), and each got hand-written entries in the four crosswalk frameworks, a few
+left unmapped where no control asks what the rule asks (HTTP/2, the region policy). PCI DSS lists
+every principal requirement here, so seven more are observable (3.7, 5.3, 6.4, 7.3, 8.5, 8.6 and
+11.5) and each is answered by the rules whose evidence shows it: key and secret lifetimes, endpoint
+protection, the web application firewall rules, Kubernetes RBAC, MFA prompt context, the shared
+registry login and storage keys, and the Defender detection rules. Those last were mapped to 11.4.1,
+penetration testing, and are now on 11.5, intrusion and file-change detection. Four CSF 2.0
+subcategories are observable and answered by no rule (`ID.AM-01`, `ID.AM-02`, `PR.DS-10`,
+`PR.PS-05`), held as an exact set by `tests/unit/test_compliance_closure.py` so it can only shrink.
 
 **Keeping them current** is `docs/FRAMEWORKS.md`: where each standard is published, what changes
 it, and the steps for a new version. A new version is a new id and a remap, never an edit in
@@ -11579,10 +11593,10 @@ commercial product that lists every control is on the line the notice draws. **A
 licence before CCM is offered to customers** (§168 has the same open question for the CIS
 benchmarks). The 17 domains and the per-domain counts are held by a test.
 
-**Coverage is what the evidence supports.** Of 219 rules, 217 map to CCM controls reaching 45 of
-the 46 technically assessable ones, 199 to 800-171 reaching 34 of 44, and 206 to DORA reaching
-all 6. That is a judgement made rule by rule, as for the CIS Controls (§209), and is reviewed like
-code.
+**Coverage is what the evidence supports.** Of 258 rules, 255 map to CCM controls reaching 43 of
+the 46 technically assessable ones (key inventory, identity inventory and separation of duties are
+not reached), 232 to 800-171 reaching 33 of 44, and 241 to DORA reaching all 6. That is a judgement
+made rule by rule, as for the CIS Controls (§209), and is reviewed like code.
 
 ## 211. An auditor reads one sealed package through a grant bound to their verified email
 

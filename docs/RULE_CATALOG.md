@@ -317,7 +317,7 @@ must possess to exploit the worst-case instance:
 - **Severity**: `HIGH` | **Exploitability**: `3/5` | **Effort**: `~60 min`
 - **Scope**: `per_resource`
 - **Applies to**: `container_registry`
-- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.16, A.5.17` &bull; `NIST_800_53: IA-2, IA-5` &bull; `NIST_CSF_2.0: PR.AA-01` &bull; `PCI_DSS_4: 8.2.1, 8.3.1` &bull; `SOC2: CC6.1`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.16, A.5.17` &bull; `NIST_800_53: IA-2, IA-5` &bull; `NIST_CSF_2.0: PR.AA-01` &bull; `PCI_DSS_4: 8.2.1, 8.3.1, 8.6` &bull; `SOC2: CC6.1`
 
 **Description**: The registry's admin user is on: one shared username and password that can push and pull every image, outside the directory and without an owner.
 
@@ -419,7 +419,7 @@ Azure CLI:
 - **Severity**: `HIGH` | **Exploitability**: `4/5` | **Effort**: `~240 min`
 - **Scope**: `per_resource`
 - **Applies to**: `kubernetes_cluster`
-- **Compliance Mappings**: `GDPR: 25, 32(1)(b)` &bull; `ISO_27001: A.5.15, A.8.2` &bull; `NIST_800_53: AC-3, AC-6` &bull; `NIST_CSF_2.0: PR.AA-05` &bull; `PCI_DSS_4: 7.2.1, 7.2.2` &bull; `SOC2: CC6.1, CC6.3`
+- **Compliance Mappings**: `GDPR: 25, 32(1)(b)` &bull; `ISO_27001: A.5.15, A.8.2` &bull; `NIST_800_53: AC-3, AC-6` &bull; `NIST_CSF_2.0: PR.AA-05` &bull; `PCI_DSS_4: 7.2.1, 7.2.2, 7.3` &bull; `SOC2: CC6.1, CC6.3`
 
 **Description**: The cluster runs without Kubernetes role-based access control, so anyone who can authenticate to it can do anything inside it.
 
@@ -478,7 +478,7 @@ Azure CLI:
 - **Severity**: `MEDIUM` | **Exploitability**: `1/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `kubernetes_cluster`
-- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: CM-6, SI-2` &bull; `NIST_CSF_2.0: ID.RA-01` &bull; `PCI_DSS_4: 6.3.3` &bull; `SOC2: CC7.1`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: CM-6, SI-2` &bull; `NIST_CSF_2.0: ID.RA-01, PR.PS-02` &bull; `PCI_DSS_4: 6.3.3` &bull; `SOC2: CC7.1`
 
 **Description**: The cluster has no automatic upgrade channel, so it stays on whatever Kubernetes version and node image it has until someone upgrades it by hand.
 
@@ -530,7 +530,7 @@ Azure CLI:
 - **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `backup_vault`
-- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF_2.0: PR.DS-11, RC.RP-01` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
+- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF_2.0: PR.DS-11, RC.RP-01, PR.IR-03` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
 
 **Description**: The vault holds no protected item, so whatever it was created to back up is not being backed up by it.
 
@@ -550,7 +550,7 @@ Azure CLI:
 - **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `backup_vault`
-- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF_2.0: PR.DS-11, RC.RP-01` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
+- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF_2.0: PR.DS-11, RC.RP-01, PR.IR-03` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
 
 **Description**: A backup policy in the vault keeps daily recovery points for less than 30 days, shorter than intrusions and silent corruption usually go unnoticed.
 
@@ -615,7 +615,7 @@ Use NSG flow logs first if you are unsure what currently talks to this machine.
 - **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~120 min`
 - **Scope**: `per_resource`
 - **Applies to**: `virtual_machine`
-- **Compliance Mappings**: `CIS_AZURE_2.0: 7.2` &bull; `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24, A.8.3` &bull; `NIST_800_53: SC-28, AC-3` &bull; `NIST_CSF_2.0: PR.DS-01` &bull; `PCI_DSS_4: 3.5.1` &bull; `SOC2: CC6.1`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 7.2, 7.7` &bull; `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24, A.8.3` &bull; `NIST_800_53: SC-28, AC-3` &bull; `NIST_CSF_2.0: PR.DS-01` &bull; `PCI_DSS_4: 3.5.1` &bull; `SOC2: CC6.1`
 
 **Description**: A virtual machine has disks stored as VHD blobs in a storage account rather than as managed disks. The machine's data is then as safe as that storage account -- its keys, its network rules and whoever can list its containers.
 
@@ -759,7 +759,7 @@ Azure CLI:
 - **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `virtual_machine`
-- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF_2.0: PR.DS-11, RC.RP-01` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
+- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF_2.0: PR.DS-11, RC.RP-01, PR.IR-03` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
 
 **Description**: The backup policy protecting this machine keeps daily recovery points for less than a week.
 
@@ -779,7 +779,7 @@ Azure CLI:
 - **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `scale_set`
-- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF_2.0: PR.DS-11, RC.RP-01` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
+- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF_2.0: PR.DS-11, RC.RP-01, PR.IR-03` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
 
 **Description**: The scale set's instances are in no load balancer or application gateway backend pool, so nothing spreads traffic across them or stops sending it to one that failed.
 
@@ -799,7 +799,7 @@ Azure CLI:
 - **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `scale_set`
-- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF_2.0: PR.DS-11, RC.RP-01` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
+- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF_2.0: PR.DS-11, RC.RP-01, PR.IR-03` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
 
 **Description**: The scale set's capacity is zero, so it serves nothing.
 
@@ -818,7 +818,7 @@ Azure CLI:
 - **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~10 min`
 - **Scope**: `per_resource`
 - **Applies to**: `virtual_machine`
-- **Compliance Mappings**: `CIS_AZURE_6.0: 8.1.10` &bull; `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: RA-5, SI-2` &bull; `NIST_CSF: ID.RA-1` &bull; `PCI_DSS_4: 6.3.3, 11.3.1` &bull; `SOC2: CC7.1`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 8.1.10` &bull; `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: RA-5, SI-2` &bull; `NIST_CSF_2.0: ID.RA-01, PR.PS-02` &bull; `PCI_DSS_4: 6.3.3, 11.3.1` &bull; `SOC2: CC7.1`
 
 **Description**: The machine's patch settings leave update assessment at ImageDefault, so Azure checks it for missing updates only when somebody asks rather than every 24 hours.
 
@@ -1081,7 +1081,7 @@ Azure CLI:
 - **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `app_service`
-- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: CM-6, SI-2` &bull; `NIST_CSF_2.0: ID.RA-01` &bull; `PCI_DSS_4: 6.3.3` &bull; `SOC2: CC7.1`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: CM-6, SI-2` &bull; `NIST_CSF_2.0: ID.RA-01, PR.PS-02` &bull; `PCI_DSS_4: 6.3.3` &bull; `SOC2: CC7.1`
 
 **Description**: The app runs a Python version whose community support has ended, so App Service no longer patches it.
 
@@ -1101,7 +1101,7 @@ Azure CLI:
 - **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `app_service`
-- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: CM-6, SI-2` &bull; `NIST_CSF_2.0: ID.RA-01` &bull; `PCI_DSS_4: 6.3.3` &bull; `SOC2: CC7.1`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: CM-6, SI-2` &bull; `NIST_CSF_2.0: ID.RA-01, PR.PS-02` &bull; `PCI_DSS_4: 6.3.3` &bull; `SOC2: CC7.1`
 
 **Description**: The app runs a PHP version whose community support has ended, so App Service no longer patches it.
 
@@ -1121,7 +1121,7 @@ Azure CLI:
 - **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `app_service`
-- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: CM-6, SI-2` &bull; `NIST_CSF_2.0: ID.RA-01` &bull; `PCI_DSS_4: 6.3.3` &bull; `SOC2: CC7.1`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: CM-6, SI-2` &bull; `NIST_CSF_2.0: ID.RA-01, PR.PS-02` &bull; `PCI_DSS_4: 6.3.3` &bull; `SOC2: CC7.1`
 
 **Description**: The app runs a Java version whose community support has ended, so App Service no longer patches it.
 
@@ -1141,7 +1141,7 @@ Azure CLI:
 - **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `app_service`
-- **Compliance Mappings**: `CIS_AZURE_2.0: 9.4` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17` &bull; `NIST_800_53: IA-2` &bull; `NIST_CSF: PR.AC-7` &bull; `PCI_DSS_4: 8.4.2` &bull; `SOC2: CC6.1`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 9.4` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17` &bull; `NIST_800_53: IA-2` &bull; `NIST_CSF_2.0: PR.AA-03` &bull; `PCI_DSS_4: 8.4.2` &bull; `SOC2: CC6.1`
 
 **Description**: The web app does not ask callers for a client certificate, so any client that reaches it is served without proving which client it is.
 
@@ -1243,7 +1243,7 @@ Azure CLI:
 - **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `document_database`
-- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF_2.0: PR.DS-11, RC.RP-01` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
+- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF_2.0: PR.DS-11, RC.RP-01, PR.IR-03` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
 
 **Description**: Automatic failover is off, so a regional outage leaves a multi-region account's writes down until someone fails it over by hand.
 
@@ -1261,7 +1261,7 @@ Azure CLI:
 - **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `document_database`
-- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF_2.0: PR.DS-11, RC.RP-01` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
+- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF_2.0: PR.DS-11, RC.RP-01, PR.IR-03` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
 
 **Description**: The account takes periodic backups only, so data can be restored to a backup's moment rather than to any point before a bad write.
 
@@ -1693,7 +1693,7 @@ Azure Portal: select the server > Microsoft Defender for Cloud > Vulnerability a
 - **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `postgresql_server`
-- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF_2.0: PR.DS-11, RC.RP-01` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
+- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF_2.0: PR.DS-11, RC.RP-01, PR.IR-03` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
 
 **Description**: The server's backups stay in its own region, so losing the region loses them with the server.
 
@@ -1713,7 +1713,7 @@ Azure CLI:
 - **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `postgresql_server`
-- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF_2.0: PR.DS-11, RC.RP-01` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
+- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF_2.0: PR.DS-11, RC.RP-01, PR.IR-03` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
 
 **Description**: The server runs without a standby, so a zone or host failure takes it down until Azure restores it.
 
@@ -1731,7 +1731,7 @@ Azure CLI:
 - **Severity**: `MEDIUM` | **Exploitability**: `3/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `postgresql_server`
-- **Compliance Mappings**: `CIS_AZURE_2.0: 4.3.7` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF: PR.AC-5` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 4.3.7` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF_2.0: PR.IR-01` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
 
 **Description**: The server's firewall holds the 0.0.0.0 rule the portal calls 'Allow public access from any Azure service', which admits any address inside Azure -- other customers' machines included.
 
@@ -1827,7 +1827,7 @@ Azure CLI:
 - **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `mysql_server`
-- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF_2.0: PR.DS-11, RC.RP-01` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
+- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF_2.0: PR.DS-11, RC.RP-01, PR.IR-03` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
 
 **Description**: The server's backups stay in its own region, so losing the region loses them with the server.
 
@@ -1847,7 +1847,7 @@ Azure CLI:
 - **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `mysql_server`
-- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF_2.0: PR.DS-11, RC.RP-01` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
+- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF_2.0: PR.DS-11, RC.RP-01, PR.IR-03` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
 
 **Description**: The server runs without a standby, so a zone or host failure takes it down until Azure restores it.
 
@@ -2055,7 +2055,7 @@ Where the role genuinely needs to manage access, say so explicitly by assigning 
 - **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `subscription`
-- **Compliance Mappings**: `CIS_AZURE_2.0: 1.24` &bull; `CIS_AZURE_6.0: 5.5` &bull; `ISO_27001: A.5.15, A.8.2` &bull; `NIST_800_53: AC-6` &bull; `NIST_CSF: PR.AC-4` &bull; `PCI_DSS_4: 7.2.1` &bull; `SOC2: CC6.3`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 1.24` &bull; `CIS_AZURE_6.0: 5.5` &bull; `ISO_27001: A.5.15, A.8.2` &bull; `NIST_800_53: AC-6` &bull; `NIST_CSF_2.0: PR.AA-05` &bull; `PCI_DSS_4: 7.2.1` &bull; `SOC2: CC6.3`
 
 **Description**: No role this tenant wrote grants creating and removing resource locks without granting everything, so only Owner and User Access Administrator holders can manage them.
 
@@ -2074,7 +2074,7 @@ Azure CLI:
 - **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~20 min`
 - **Scope**: `aggregate`
 - **Applies to**: Aggregate (Tenant-wide)
-- **Compliance Mappings**: `CIS_AZURE_6.0: 5.7` &bull; `ISO_27001: A.5.18` &bull; `NIST_800_53: AC-2` &bull; `NIST_CSF: PR.AC-4` &bull; `PCI_DSS_4: 7.2.1` &bull; `SOC2: CC6.2`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 5.7` &bull; `ISO_27001: A.5.18` &bull; `NIST_800_53: AC-2` &bull; `NIST_CSF_2.0: PR.AA-05` &bull; `PCI_DSS_4: 7.2.1` &bull; `SOC2: CC6.2`
 
 **Description**: At most one identity holds Owner over the subscription, so losing that account leaves nobody able to manage access to it.
 
@@ -2436,7 +2436,7 @@ Microsoft Entra admin center: Protection > Conditional Access > Named locations 
 - **Severity**: `HIGH` | **Exploitability**: `4/5` | **Effort**: `~30 min`
 - **Scope**: `aggregate`
 - **Applies to**: Aggregate (Tenant-wide)
-- **Compliance Mappings**: `CIS_AZURE_2.0: 1.2.3` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17` &bull; `NIST_800_53: IA-2` &bull; `NIST_CSF: PR.AC-7` &bull; `PCI_DSS_4: 8.4.2` &bull; `SOC2: CC6.1`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 1.2.3` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17` &bull; `NIST_800_53: IA-2` &bull; `NIST_CSF_2.0: PR.AA-03` &bull; `PCI_DSS_4: 8.4.2` &bull; `SOC2: CC6.1`
 
 **Description**: No security default and no enabled Conditional Access policy requires a second factor of every user or of the Global Administrator role for every application.
 
@@ -2452,7 +2452,7 @@ Create a Conditional Access policy: Users: Directory roles (Global Administrator
 - **Severity**: `MEDIUM` | **Exploitability**: `3/5` | **Effort**: `~30 min`
 - **Scope**: `aggregate`
 - **Applies to**: Aggregate (Tenant-wide)
-- **Compliance Mappings**: `CIS_AZURE_2.0: 1.2.5` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17` &bull; `NIST_800_53: IA-2` &bull; `NIST_CSF: PR.AC-7` &bull; `PCI_DSS_4: 8.4.2` &bull; `SOC2: CC6.1`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 1.2.5` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17` &bull; `NIST_800_53: IA-2` &bull; `NIST_CSF_2.0: PR.AA-03` &bull; `PCI_DSS_4: 8.4.2` &bull; `SOC2: CC6.1`
 
 **Description**: No enabled Conditional Access policy requires a second factor of, or blocks, every user's sign-ins that Entra ID Protection rates medium risk or higher.
 
@@ -2468,7 +2468,7 @@ Create a Conditional Access policy: Users: All users (exclude break-glass) > Con
 - **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~45 min`
 - **Scope**: `aggregate`
 - **Applies to**: Aggregate (Tenant-wide)
-- **Compliance Mappings**: `CIS_AZURE_2.0: 1.2.2` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.15, A.5.18` &bull; `NIST_800_53: AC-2` &bull; `NIST_CSF: PR.AC-1, PR.AC-4` &bull; `PCI_DSS_4: 7.2.1` &bull; `SOC2: CC6.2`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 1.2.2` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.15, A.5.18` &bull; `NIST_800_53: AC-2` &bull; `NIST_CSF_2.0: PR.AA-01, PR.AA-05` &bull; `PCI_DSS_4: 7.2.1` &bull; `SOC2: CC6.2`
 
 **Description**: No enabled Conditional Access policy includes a location condition, so a sign-in from a country the organization never works from is treated like any other.
 
@@ -2484,7 +2484,7 @@ Define named locations for the countries or networks in use and create a Conditi
 - **Severity**: `LOW` | **Exploitability**: `2/5` | **Effort**: `~20 min`
 - **Scope**: `aggregate`
 - **Applies to**: Aggregate (Tenant-wide)
-- **Compliance Mappings**: `CIS_AZURE_2.0: 1.7` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17` &bull; `NIST_800_53: IA-5` &bull; `NIST_CSF: PR.AC-1` &bull; `PCI_DSS_4: 8.3.1` &bull; `SOC2: CC6.1`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 1.7` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17` &bull; `NIST_800_53: IA-5` &bull; `NIST_CSF_2.0: PR.AA-01` &bull; `PCI_DSS_4: 8.3.1` &bull; `SOC2: CC6.1`
 
 **Description**: Password protection does not enforce a custom list of banned passwords, so passwords built on the organization's own name, products or city are accepted.
 
@@ -2500,7 +2500,7 @@ Entra admin centre > Protection > Authentication methods > Password protection >
 - **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~20 min`
 - **Scope**: `aggregate`
 - **Applies to**: Aggregate (Tenant-wide)
-- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.15, A.5.18` &bull; `NIS2: 11.6.2.e` &bull; `NIST_800_53: AC-2` &bull; `NIST_CSF: PR.AC-1, PR.AC-4` &bull; `PCI_DSS_4: 7.2.1` &bull; `SOC2: CC6.2`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.15, A.5.18` &bull; `NIS2: 11.6.2.e` &bull; `NIST_800_53: AC-2` &bull; `NIST_CSF_2.0: PR.AA-01, PR.AA-05` &bull; `PCI_DSS_4: 7.2.1` &bull; `SOC2: CC6.2`
 
 **Description**: No enabled Conditional Access policy sets a sign-in frequency, so a session lasts as long as its refresh token keeps being used -- up to 90 days.
 
@@ -2516,7 +2516,7 @@ Create a Conditional Access policy for administrators and unmanaged devices > Se
 - **Severity**: `LOW` | **Exploitability**: `2/5` | **Effort**: `~15 min`
 - **Scope**: `aggregate`
 - **Applies to**: Aggregate (Tenant-wide)
-- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17` &bull; `MITRE_ATTACK: T1621` &bull; `NIST_800_53: IA-2` &bull; `NIST_CSF: PR.AC-7` &bull; `PCI_DSS_4: 8.4.2` &bull; `SOC2: CC6.1`
+- **Compliance Mappings**: `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17` &bull; `MITRE_ATTACK: T1621` &bull; `NIST_800_53: IA-2` &bull; `NIST_CSF_2.0: PR.AA-03` &bull; `PCI_DSS_4: 8.4.2, 8.5` &bull; `SOC2: CC6.1`
 
 **Description**: Microsoft Authenticator is enabled with its push notifications set not to show which application is asking or where the sign-in is from.
 
@@ -2532,7 +2532,7 @@ Entra admin centre > Protection > Authentication methods > Microsoft Authenticat
 - **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~20 min`
 - **Scope**: `aggregate`
 - **Applies to**: Aggregate (Tenant-wide)
-- **Compliance Mappings**: `CIS_AZURE_2.0: 1.22` &bull; `CIS_AZURE_6.0: 5.1.2` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17` &bull; `NIST_800_53: IA-2` &bull; `NIST_CSF: PR.AC-7` &bull; `PCI_DSS_4: 8.4.2` &bull; `SOC2: CC6.1`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 1.22` &bull; `CIS_AZURE_6.0: 5.1.2` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17` &bull; `NIST_800_53: IA-2` &bull; `NIST_CSF_2.0: PR.AA-03` &bull; `PCI_DSS_4: 8.4.2` &bull; `SOC2: CC6.1`
 
 **Description**: Neither the device registration policy nor a Conditional Access policy on the 'Register or join devices' action requires a second factor to join or register a device.
 
@@ -2548,7 +2548,7 @@ Create a Conditional Access policy: User actions: Register or join devices > Gra
 - **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~15 min`
 - **Scope**: `aggregate`
 - **Applies to**: Aggregate (Tenant-wide)
-- **Compliance Mappings**: `CIS_AZURE_2.0: 1.25` &bull; `CIS_AZURE_6.0: 5.6` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.15, A.5.18` &bull; `NIST_800_53: AC-2` &bull; `NIST_CSF: PR.AC-1, PR.AC-4` &bull; `PCI_DSS_4: 7.2.1` &bull; `SOC2: CC6.2`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 1.25` &bull; `CIS_AZURE_6.0: 5.6` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.15, A.5.18` &bull; `NIST_800_53: AC-2` &bull; `NIST_CSF_2.0: PR.AA-01, PR.AA-05` &bull; `PCI_DSS_4: 7.2.1` &bull; `SOC2: CC6.2`
 
 **Description**: The tenant's subscription policy lets users move subscriptions out of the directory, or bring subscriptions in from another one.
 
@@ -2564,7 +2564,7 @@ Azure portal > Subscriptions > Manage policies > Subscription leaving Microsoft 
 - **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~60 min`
 - **Scope**: `aggregate`
 - **Applies to**: Aggregate (Tenant-wide)
-- **Compliance Mappings**: `CIS_AZURE_2.0: 1.4` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.15, A.5.18` &bull; `NIST_800_53: AC-2` &bull; `NIST_CSF: PR.AC-1, PR.AC-4` &bull; `PCI_DSS_4: 7.2.1` &bull; `SOC2: CC6.2`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 1.4` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.15, A.5.18` &bull; `NIST_800_53: AC-2` &bull; `NIST_CSF_2.0: PR.AA-01, PR.AA-05` &bull; `PCI_DSS_4: 7.2.1` &bull; `SOC2: CC6.2`
 
 **Description**: No active access review has guests in its scope, so a guest keeps whatever access it was given until somebody remembers to remove it.
 
@@ -2582,7 +2582,7 @@ Entra admin centre > Identity governance > Access reviews > New access review > 
 - **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `analytics_workspace`
-- **Compliance Mappings**: `CIS_AZURE_6.0: 2.1.7` &bull; `GDPR: 30, 32(1)(d)` &bull; `ISO_27001: A.8.15` &bull; `NIST_800_53: AU-2, AU-6` &bull; `NIST_CSF: PR.PT-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 2.1.7` &bull; `GDPR: 30, 32(1)(d)` &bull; `ISO_27001: A.8.15` &bull; `NIST_800_53: AU-2, AU-6` &bull; `NIST_CSF_2.0: PR.PS-04, DE.AE-03` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
 
 **Description**: No diagnostic setting sends the workspace's audit and cluster logs to a workspace, storage account or event hub.
 
@@ -2993,7 +2993,7 @@ Azure CLI:
 - **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~20 min`
 - **Scope**: `per_resource`
 - **Applies to**: `storage_account`
-- **Compliance Mappings**: `CIS_AZURE_2.0: 3.5, 3.13, 3.14` &bull; `GDPR: 30, 32(1)(d)` &bull; `ISO_27001: A.8.15` &bull; `NIST_800_53: AU-2, AU-6` &bull; `NIST_CSF: PR.PT-1, DE.AE-3` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 3.5, 3.13, 3.14` &bull; `GDPR: 30, 32(1)(d)` &bull; `ISO_27001: A.8.15` &bull; `NIST_800_53: AU-2, AU-6` &bull; `NIST_CSF_2.0: PR.PS-04, DE.AE-03` &bull; `PCI_DSS_4: 10.2.1` &bull; `SOC2: CC7.2`
 
 **Description**: The blob, queue or table service beneath the account has no diagnostic setting sending StorageRead, StorageWrite and StorageDelete logs anywhere.
 
@@ -3017,7 +3017,7 @@ Azure CLI (repeat for queueServices and tableServices):
 - **Severity**: `MEDIUM` | **Exploitability**: `3/5` | **Effort**: `~120 min`
 - **Scope**: `per_resource`
 - **Applies to**: `application_gateway`
-- **Compliance Mappings**: `CIS_AZURE_6.0: 7.10` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `MITRE_ATTACK: T1190` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF: PR.AC-5` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 7.10` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `MITRE_ATTACK: T1190` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF_2.0: PR.IR-01` &bull; `PCI_DSS_4: 1.3.1, 6.4` &bull; `SOC2: CC6.6`
 
 **Description**: Neither a WAF policy nor the gateway's own firewall configuration inspects the traffic it forwards.
 
@@ -3039,7 +3039,7 @@ Azure CLI:
 - **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `application_gateway`
-- **Compliance Mappings**: `CIS_AZURE_6.0: 7.12` &bull; `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-8` &bull; `NIST_CSF: PR.DS-2` &bull; `PCI_DSS_4: 4.2.1` &bull; `SOC2: CC6.7`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 7.12` &bull; `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-8` &bull; `NIST_CSF_2.0: PR.DS-02` &bull; `PCI_DSS_4: 4.2.1` &bull; `SOC2: CC6.7`
 
 **Description**: The gateway's TLS policy lets a client negotiate TLS 1.0 or 1.1. A gateway that states no policy is not judged: its default depends on when it was created.
 
@@ -3060,7 +3060,7 @@ Azure CLI:
 - **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~10 min`
 - **Scope**: `per_resource`
 - **Applies to**: `application_gateway`
-- **Compliance Mappings**: `CIS_AZURE_6.0: 7.13` &bull; `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-8` &bull; `NIST_CSF: PR.DS-2` &bull; `PCI_DSS_4: 4.2.1` &bull; `SOC2: CC6.7`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 7.13` &bull; `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-8` &bull; `NIST_CSF_2.0: PR.DS-02` &bull; `PCI_DSS_4: 4.2.1` &bull; `SOC2: CC6.7`
 
 **Description**: HTTP/2 is off on the gateway's listeners.
 
@@ -3080,7 +3080,7 @@ Azure CLI:
 - **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~10 min`
 - **Scope**: `per_resource`
 - **Applies to**: `application_gateway`
-- **Compliance Mappings**: `CIS_AZURE_6.0: 7.14` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF: PR.AC-5` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 7.14` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF_2.0: PR.IR-01` &bull; `PCI_DSS_4: 1.3.1, 6.4` &bull; `SOC2: CC6.6`
 
 **Description**: The gateway's web application firewall has request body inspection switched off, so it never sees what is posted to the application.
 
@@ -3101,7 +3101,7 @@ Azure CLI:
 - **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~15 min`
 - **Scope**: `per_resource`
 - **Applies to**: `application_gateway`
-- **Compliance Mappings**: `CIS_AZURE_6.0: 7.15` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF: PR.AC-5` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 7.15` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF_2.0: PR.IR-01` &bull; `PCI_DSS_4: 1.3.1, 6.4` &bull; `SOC2: CC6.6`
 
 **Description**: The gateway's WAF policy does not include Microsoft's bot manager rule set, so known malicious bots are not blocked. A firewall configured on the gateway itself, rather than as a policy, cannot carry the rule set.
 
@@ -3122,7 +3122,7 @@ Azure CLI:
 - **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~90 min`
 - **Scope**: `per_resource`
 - **Applies to**: `analytics_workspace`
-- **Compliance Mappings**: `CIS_AZURE_6.0: 2.1.11` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF: PR.AC-5` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 2.1.11` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF_2.0: PR.IR-01` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
 
 **Description**: No approved private endpoint serves the workspace, so its users and clusters reach the control plane over the public internet.
 
@@ -3138,7 +3138,7 @@ Create a private endpoint for the workspace (sub-resource databricks_ui_api). Pr
 - **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `analytics_workspace`
-- **Compliance Mappings**: `CIS_AZURE_6.0: 2.1.2` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF: PR.AC-5` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 2.1.2` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF_2.0: PR.IR-01` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
 
 **Description**: One of the two subnets a workspace in a customer-managed network runs its clusters in has no network security group.
 
@@ -3444,7 +3444,7 @@ Reach it through Azure Bastion for administration, a load balancer or Applicatio
 - **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `virtual_network`
-- **Compliance Mappings**: `CIS_AZURE_6.0: 7.11` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF: PR.AC-5` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 7.11` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF_2.0: PR.IR-01` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
 
 **Description**: A subnet of the network has no network security group, so nothing filters traffic to the machines and services placed in it. Subnets Azure reserves for gateways, firewalls and route servers are left out.
 
@@ -3464,7 +3464,7 @@ Azure CLI:
 - **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~15 min`
 - **Scope**: `per_resource`
 - **Applies to**: `network_security_group`
-- **Compliance Mappings**: `CIS_AZURE_2.0: 6.4` &bull; `CIS_AZURE_6.0: 7.4` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF: PR.AC-5` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 6.4` &bull; `CIS_AZURE_6.0: 7.4` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF_2.0: PR.IR-01` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
 
 **Description**: A network security group permits inbound HTTP (TCP/80) or HTTPS (TCP/443) from any source address. Often intended; worth confirming for anything that is not a public website.
 
@@ -3484,7 +3484,7 @@ Azure CLI:
 - **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `subscription`
-- **Compliance Mappings**: `CIS_AZURE_2.0: 5.5` &bull; `CIS_AZURE_6.0: 6.1.5` &bull; `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `MITRE_ATTACK: T1485` &bull; `NIST_800_53: CP-9, CM-6` &bull; `NIST_CSF: PR.IP-4` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 5.5` &bull; `CIS_AZURE_6.0: 6.1.5` &bull; `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `MITRE_ATTACK: T1485` &bull; `NIST_800_53: CP-9, CM-6` &bull; `NIST_CSF_2.0: PR.DS-11` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
 
 **Description**: The subscription holds public IP addresses on the Basic SKU, which Azure retired on 30 September 2025: no SLA, no availability zones, and open to the internet unless a group says otherwise.
 
@@ -3502,7 +3502,7 @@ Upgrade each Basic public IP address to Standard. Azure CLI:
 - **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~120 min`
 - **Scope**: `per_resource`
 - **Applies to**: `vpn_gateway`
-- **Compliance Mappings**: `CIS_AZURE_6.0: 7.9` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17` &bull; `NIST_800_53: IA-2` &bull; `NIST_CSF: PR.AC-7` &bull; `PCI_DSS_4: 8.4.2` &bull; `SOC2: CC6.1`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 7.9` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17` &bull; `NIST_800_53: IA-2` &bull; `NIST_CSF_2.0: PR.AA-03` &bull; `PCI_DSS_4: 8.4.2` &bull; `SOC2: CC6.1`
 
 **Description**: The gateway's point-to-site configuration accepts certificate or RADIUS authentication, so a VPN client can connect without signing in to Entra ID and meeting its Conditional Access policies.
 
@@ -3522,7 +3522,7 @@ Azure Portal: Virtual network gateway > Point-to-site configuration > Authentica
 - **Severity**: `MEDIUM` | **Exploitability**: `1/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `subscription`
-- **Compliance Mappings**: `CIS_AZURE_2.0: 2.1.3, 2.1.1, 2.1.10, 2.1.12, 2.1.2, 2.1.4, 2.1.5, 2.1.6, 2.1.7, 2.1.8, 2.1.9` &bull; `GDPR: 32(1)(b), 32(1)(d)` &bull; `ISO_27001: A.8.16, A.8.8` &bull; `NIST_800_53: SI-4, RA-5` &bull; `NIST_CSF_2.0: DE.CM-01, DE.AE-03` &bull; `PCI_DSS_4: 11.4.1, 5.2.1` &bull; `SOC2: CC7.2`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 2.1.3, 2.1.1, 2.1.10, 2.1.12, 2.1.2, 2.1.4, 2.1.5, 2.1.6, 2.1.7, 2.1.8, 2.1.9` &bull; `GDPR: 32(1)(b), 32(1)(d)` &bull; `ISO_27001: A.8.16, A.8.8` &bull; `NIST_800_53: SI-4, RA-5` &bull; `NIST_CSF_2.0: DE.CM-01, DE.AE-03, DE.AE-02` &bull; `PCI_DSS_4: 11.5, 5.2.1` &bull; `SOC2: CC7.2`
 
 **Description**: One or more Microsoft Defender for Cloud plans are on the free tier for this subscription. The workloads those plans cover get no threat detection, no vulnerability assessment and no alerts.
 
@@ -3691,7 +3691,7 @@ Azure Portal: select the IoT hub > Defender for IoT > Overview > Secure your IoT
 - **Severity**: `MEDIUM` | **Exploitability**: `1/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `subscription`
-- **Compliance Mappings**: `GDPR: 25` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: CM-6` &bull; `NIST_CSF_2.0: GV.PO-01` &bull; `PCI_DSS_4: 12.1.1` &bull; `SOC2: CC5.2`
+- **Compliance Mappings**: `GDPR: 25` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: CM-6` &bull; `NIST_CSF_2.0: GV.PO-01, PR.PS-01` &bull; `PCI_DSS_4: 12.1.1, 2.2.1` &bull; `SOC2: CC5.2`
 
 **Description**: The Microsoft cloud security benchmark -- the policy initiative Defender for Cloud's recommendations come from -- is unassigned here, or assigned with enforcement turned off.
 
@@ -3728,7 +3728,7 @@ Azure CLI:
 - **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~10 min`
 - **Scope**: `per_resource`
 - **Applies to**: `subscription`
-- **Compliance Mappings**: `CIS_AZURE_6.0: 8.1.3.4` &bull; `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: RA-5, SI-2` &bull; `NIST_CSF: ID.RA-1` &bull; `PCI_DSS_4: 6.3.3, 11.3.1` &bull; `SOC2: CC7.1`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 8.1.3.4` &bull; `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: RA-5, SI-2` &bull; `NIST_CSF_2.0: ID.RA-01` &bull; `PCI_DSS_4: 6.3.3, 11.3.1` &bull; `SOC2: CC7.1`
 
 **Description**: Defender for Servers is off, or on without agentless scanning, so machines are not scanned from disk snapshots for vulnerabilities, secrets and malware.
 
@@ -3744,7 +3744,7 @@ Microsoft Defender for Cloud > Environment settings > the subscription > Defende
 - **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~15 min`
 - **Scope**: `per_resource`
 - **Applies to**: `subscription`
-- **Compliance Mappings**: `CIS_AZURE_6.0: 8.1.3.5` &bull; `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.16` &bull; `NIST_800_53: SI-4` &bull; `NIST_CSF: DE.CM-1, DE.AE-3` &bull; `PCI_DSS_4: 11.4.1` &bull; `SOC2: CC7.2`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 8.1.3.5` &bull; `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.16` &bull; `NIST_800_53: SI-4` &bull; `NIST_CSF_2.0: DE.CM-01, DE.AE-03` &bull; `PCI_DSS_4: 11.5` &bull; `SOC2: CC7.2`
 
 **Description**: Defender for Servers Plan 2 is off, or on without file integrity monitoring, so changes to operating-system files and the registry go unrecorded.
 
@@ -3760,7 +3760,7 @@ Microsoft Defender for Cloud > Environment settings > the subscription > Defende
 - **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~10 min`
 - **Scope**: `per_resource`
 - **Applies to**: `subscription`
-- **Compliance Mappings**: `CIS_AZURE_2.0: 2.1.17` &bull; `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.16` &bull; `NIST_800_53: SI-4` &bull; `NIST_CSF: DE.CM-1, DE.AE-3` &bull; `PCI_DSS_4: 11.4.1` &bull; `SOC2: CC7.2`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 2.1.17` &bull; `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.16` &bull; `NIST_800_53: SI-4` &bull; `NIST_CSF_2.0: DE.CM-01, DE.AE-03` &bull; `PCI_DSS_4: 11.5` &bull; `SOC2: CC7.2`
 
 **Description**: Defender for Containers is off, or on without its sensor, so clusters are not watched at runtime and their components are not provisioned automatically.
 
@@ -3776,7 +3776,7 @@ Microsoft Defender for Cloud > Environment settings > the subscription > Defende
 - **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~10 min`
 - **Scope**: `per_resource`
 - **Applies to**: `subscription`
-- **Compliance Mappings**: `CIS_AZURE_2.0: 2.1.11` &bull; `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.16` &bull; `NIST_800_53: SI-4` &bull; `NIST_CSF: DE.CM-1, DE.AE-3` &bull; `PCI_DSS_4: 11.4.1` &bull; `SOC2: CC7.2`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 2.1.11` &bull; `GDPR: 32(1)(d)` &bull; `ISO_27001: A.8.16` &bull; `NIST_800_53: SI-4` &bull; `NIST_CSF_2.0: DE.CM-01, DE.AE-03` &bull; `PCI_DSS_4: 11.5` &bull; `SOC2: CC7.2`
 
 **Description**: Neither the retired Defender for DNS plan nor Defender for Servers Plan 2, which absorbed it in 2023, is on, so queries to known malicious domains go unnoticed.
 
@@ -3796,7 +3796,7 @@ Azure CLI:
 - **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~10 min`
 - **Scope**: `per_resource`
 - **Applies to**: `virtual_machine`, `storage_account`, `sql_server`, `postgresql_server`, `mysql_server`, `document_database`, `key_vault`, `app_service`, `kubernetes_cluster`, `container_registry`, `virtual_network`, `backup_vault`, `application_gateway`
-- **Compliance Mappings**: `CIS_AZURE_2.0: 10.1` &bull; `CIS_AZURE_6.0: 6.2` &bull; `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `MITRE_ATTACK: T1485` &bull; `NIST_800_53: CP-9, CM-6` &bull; `NIST_CSF: PR.IP-4` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 10.1` &bull; `CIS_AZURE_6.0: 6.2` &bull; `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `MITRE_ATTACK: T1485` &bull; `NIST_800_53: CP-9, CM-6` &bull; `NIST_CSF_2.0: PR.DS-11` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
 
 **Description**: An asset tagged or inferred as high or critical has no CanNotDelete or ReadOnly lock on itself, its resource group or its subscription.
 
@@ -3816,7 +3816,7 @@ Azure CLI:
 - **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~60 min`
 - **Scope**: `per_resource`
 - **Applies to**: `virtual_machine`
-- **Compliance Mappings**: `CIS_AZURE_2.0: 7.6` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: SI-2` &bull; `NIST_CSF_2.0: DE.CM-09` &bull; `PCI_DSS_4: 5.2.1` &bull; `SOC2: CC6.8`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 7.6` &bull; `ISO_27001: A.8.8` &bull; `NIST_800_53: SI-2` &bull; `NIST_CSF_2.0: DE.CM-09` &bull; `PCI_DSS_4: 5.2.1, 5.3` &bull; `SOC2: CC6.8`
 
 **Description**: Microsoft Defender for Cloud reports that this machine has no endpoint protection installed, or that what is installed is not reporting healthy.
 
@@ -3834,7 +3834,7 @@ Azure Portal: Defender for Cloud > Recommendations > 'Endpoint protection should
 - **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~20 min`
 - **Scope**: `per_resource`
 - **Applies to**: `subscription`
-- **Compliance Mappings**: `GDPR: 44` &bull; `MITRE_ATTACK: T1535` &bull; `NIST_800_53: CM-7` &bull; `NIST_CSF: ID.GV-1` &bull; `PCI_DSS_4: 2.2.1` &bull; `SOC2: CC5.2`
+- **Compliance Mappings**: `GDPR: 44` &bull; `MITRE_ATTACK: T1535` &bull; `NIST_800_53: CM-7` &bull; `NIST_CSF_2.0: GV.PO-01` &bull; `PCI_DSS_4: 2.2.1` &bull; `SOC2: CC5.2`
 
 **Description**: No enforced assignment of the built-in Allowed locations policy applies to the subscription, so resources can be created in any Azure region.
 
@@ -3967,7 +3967,7 @@ Azure CLI:
 - **Severity**: `MEDIUM` | **Exploitability**: `1/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `key_vault`
-- **Compliance Mappings**: `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-12, IA-5` &bull; `NIST_CSF_2.0: PR.DS-01, PR.AA-01` &bull; `PCI_DSS_4: 3.6.1` &bull; `SOC2: CC6.1`
+- **Compliance Mappings**: `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-12, IA-5` &bull; `NIST_CSF_2.0: PR.DS-01, PR.AA-01` &bull; `PCI_DSS_4: 3.6.1, 3.7` &bull; `SOC2: CC6.1`
 
 **Description**: An enabled key in the vault has no expiration date, so it stays usable indefinitely however long ago it was meant to be replaced.
 
@@ -3987,7 +3987,7 @@ Azure CLI:
 - **Severity**: `MEDIUM` | **Exploitability**: `1/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `key_vault`
-- **Compliance Mappings**: `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-12, IA-5` &bull; `NIST_CSF_2.0: PR.DS-01, PR.AA-01` &bull; `PCI_DSS_4: 3.6.1` &bull; `SOC2: CC6.1`
+- **Compliance Mappings**: `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-12, IA-5` &bull; `NIST_CSF_2.0: PR.DS-01, PR.AA-01` &bull; `PCI_DSS_4: 3.6.1, 8.6` &bull; `SOC2: CC6.1`
 
 **Description**: An enabled secret in the vault has no expiration date, so a password or connection string stored there is never forced to change.
 
@@ -4007,7 +4007,7 @@ Azure CLI:
 - **Severity**: `MEDIUM` | **Exploitability**: `1/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `key_vault`
-- **Compliance Mappings**: `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-12, IA-5` &bull; `NIST_CSF_2.0: PR.DS-01, PR.AA-01` &bull; `PCI_DSS_4: 3.6.1` &bull; `SOC2: CC6.1`
+- **Compliance Mappings**: `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-12, IA-5` &bull; `NIST_CSF_2.0: PR.DS-01, PR.AA-01` &bull; `PCI_DSS_4: 3.6.1, 3.7` &bull; `SOC2: CC6.1`
 
 **Description**: An enabled key's rotation policy has no rotate action, so Key Vault never issues a new version of it.
 
@@ -4027,7 +4027,7 @@ Azure CLI:
 - **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `key_vault`
-- **Compliance Mappings**: `CIS_AZURE_6.0: 8.3.7` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF: PR.AC-5` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 8.3.7` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF_2.0: PR.IR-01` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
 
 **Description**: The vault's firewall denies by default, but its public endpoint is still on: named networks and addresses reach it over the internet rather than through a private endpoint only.
 
@@ -4047,7 +4047,7 @@ Azure CLI:
 - **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~60 min`
 - **Scope**: `per_resource`
 - **Applies to**: `key_vault`
-- **Compliance Mappings**: `CIS_AZURE_2.0: 8.7` &bull; `CIS_AZURE_6.0: 8.3.8` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF: PR.AC-5` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 8.7` &bull; `CIS_AZURE_6.0: 8.3.8` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.8.20, A.8.22` &bull; `NIST_800_53: SC-7` &bull; `NIST_CSF_2.0: PR.IR-01` &bull; `PCI_DSS_4: 1.3.1` &bull; `SOC2: CC6.6`
 
 **Description**: No approved private endpoint serves the vault, so every workload reaching it does so over its public endpoint.
 
@@ -4069,7 +4069,7 @@ Azure CLI:
 - **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `key_vault`
-- **Compliance Mappings**: `CIS_AZURE_6.0: 8.3.11` &bull; `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-12` &bull; `NIST_CSF: PR.DS-2` &bull; `PCI_DSS_4: 3.6.1` &bull; `SOC2: CC6.1`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 8.3.11` &bull; `GDPR: 32(1)(a)` &bull; `ISO_27001: A.8.24` &bull; `NIST_800_53: SC-12` &bull; `NIST_CSF_2.0: PR.DS-02` &bull; `PCI_DSS_4: 3.6.1, 3.7` &bull; `SOC2: CC6.1`
 
 **Description**: A certificate in the vault is valid for more than twelve months, read from the validity window on the secret that holds its key pair.
 
@@ -4412,7 +4412,7 @@ Azure CLI:
 - **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `storage_account`
-- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF_2.0: PR.DS-11, RC.RP-01` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
+- **Compliance Mappings**: `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `NIST_800_53: CP-9` &bull; `NIST_CSF_2.0: PR.DS-11, RC.RP-01, PR.IR-03` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
 
 **Description**: The account keeps its data in one region (LRS or ZRS), so a regional disaster loses it.
 
@@ -4430,7 +4430,7 @@ Azure CLI:
 - **Severity**: `MEDIUM` | **Exploitability**: `2/5` | **Effort**: `~120 min`
 - **Scope**: `per_resource`
 - **Applies to**: `storage_account`
-- **Compliance Mappings**: `CIS_AZURE_6.0: 9.3.1.3` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17` &bull; `NIST_800_53: IA-5` &bull; `NIST_CSF: PR.AC-1` &bull; `PCI_DSS_4: 8.3.1` &bull; `SOC2: CC6.1`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 9.3.1.3` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17` &bull; `NIST_800_53: IA-5` &bull; `NIST_CSF_2.0: PR.AA-01` &bull; `PCI_DSS_4: 8.3.1` &bull; `SOC2: CC6.1`
 
 **Description**: The account accepts requests signed with its access keys, and the shared access signatures made from them, as well as Entra ID. An unset setting accepts them.
 
@@ -4452,7 +4452,7 @@ Check the account's StorageRead and StorageWrite logs for requests authenticated
 - **Severity**: `LOW` | **Exploitability**: `1/5` | **Effort**: `~30 min`
 - **Scope**: `per_resource`
 - **Applies to**: `storage_account`
-- **Compliance Mappings**: `CIS_AZURE_2.0: 3.4` &bull; `CIS_AZURE_6.0: 9.3.1.2` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17` &bull; `NIST_800_53: IA-5` &bull; `NIST_CSF: PR.AC-1` &bull; `PCI_DSS_4: 8.3.1` &bull; `SOC2: CC6.1`
+- **Compliance Mappings**: `CIS_AZURE_2.0: 3.4` &bull; `CIS_AZURE_6.0: 9.3.1.2` &bull; `GDPR: 32(1)(b)` &bull; `ISO_27001: A.5.17` &bull; `NIST_800_53: IA-5` &bull; `NIST_CSF_2.0: PR.AA-01` &bull; `PCI_DSS_4: 8.3.1, 8.6` &bull; `SOC2: CC6.1`
 
 **Description**: One of the account's access keys was created or last regenerated more than 90 days before this scan read the account.
 
@@ -4472,7 +4472,7 @@ Azure CLI:
 - **Severity**: `LOW` | **Exploitability**: `0/5` | **Effort**: `~10 min`
 - **Scope**: `per_resource`
 - **Applies to**: `storage_account`
-- **Compliance Mappings**: `CIS_AZURE_6.0: 9.3.9` &bull; `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `MITRE_ATTACK: T1485` &bull; `NIST_800_53: CP-9, CM-6` &bull; `NIST_CSF: PR.IP-4` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
+- **Compliance Mappings**: `CIS_AZURE_6.0: 9.3.9` &bull; `GDPR: 32(1)(c)` &bull; `ISO_27001: A.8.13` &bull; `MITRE_ATTACK: T1485` &bull; `NIST_800_53: CP-9, CM-6` &bull; `NIST_CSF_2.0: PR.DS-11` &bull; `PCI_DSS_4: 12.10.1` &bull; `SOC2: A1.2`
 
 **Description**: No CanNotDelete or ReadOnly lock on the account, its resource group or its subscription stops it being deleted.
 

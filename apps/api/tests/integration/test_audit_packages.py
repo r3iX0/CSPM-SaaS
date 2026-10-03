@@ -224,7 +224,7 @@ async def test_a_sealed_package_keeps_what_was_read_and_verifies_after_a_round_t
 async def test_the_named_standards_seal_together_and_carry_every_control(
     estate, standards: list[str]
 ) -> None:
-    """What an auditor names (DECISIONS.md sections 205 and 206). A package of several holds each
+    """What an auditor names (DECISIONS.md sections 209 and 210). A package of several holds each
     standard whole -- the controls no rule reaches too -- and still verifies."""
     async with rls_session(OWNER) as session:
         package = await audit_packages.seal(

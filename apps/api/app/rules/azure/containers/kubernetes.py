@@ -239,7 +239,7 @@ class AzureClusterRbacRule(_ClusterRule):
         "GDPR": ["25", "32(1)(b)"],
         "NIST_800_53": ["AC-3", "AC-6"],
         "SOC2": ["CC6.1", "CC6.3"],
-        "PCI_DSS_4": ["7.2.1", "7.2.2"],
+        "PCI_DSS_4": ["7.2.1", "7.2.2", "7.3"],
     }
 
     def evaluate(

@@ -243,7 +243,7 @@ class AzureMissingEndpointProtectionRule(_DefenderRule):
         "NIST_CSF_2.0": ["DE.CM-09"],
         "NIST_800_53": ["SI-2"],
         "SOC2": ["CC6.8"],
-        "PCI_DSS_4": ["5.2.1"],
+        "PCI_DSS_4": ["5.2.1", "5.3"],
     }
 
     def evaluate(

@@ -44,7 +44,7 @@ FRAMEWORKS_PATH = Path(__file__).resolve().parent / "data" / "frameworks.json"
 
 # The standards a customer is audited against by name -- ISO 27001, SOC 2, PCI DSS,
 # NIST CSF 2.0, CIS Controls v8.1, CSA CCM v4.1, NIST 800-171 and DORA -- kept as data
-# because each is listed in full (DECISIONS.md sections 205 and 206). Each entry carries
+# because each is listed in full (DECISIONS.md sections 209 and 210). Each entry carries
 # its own summary and scope note, which the six above do not.
 STANDARDS_PATH = Path(__file__).resolve().parent / "data" / "standards.json"
 

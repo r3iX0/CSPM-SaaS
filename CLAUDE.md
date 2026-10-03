@@ -424,10 +424,10 @@ so the shell's own `<main>` is the page's only one (§155).
   subscriptions, each a whole statement of its own (§207)
 - The queue draws a rule's tasks as one row, and its fix as one sheet (`?rule=`) with the commands as
   one script over every asset; no batch endpoint and no group rescan -- marking done verifies (§203)
-- Every observable control of CIS Azure 6.0, NIS2, ATT&CK, HIPAA, GDPR, NIST CSF and PCI DSS is
-  answered by a rule; CIS Azure 2.0 leaves exactly twelve no API exposes
-  (`tests/unit/test_compliance_closure.py`). Role v13 reads application and VPN gateways, locks and
-  PostgreSQL firewall rules; consent adds `Policy.Read.DeviceConfiguration` and
+- Every observable control of CIS Azure 6.0, NIS2, ATT&CK, HIPAA, GDPR and PCI DSS is answered by a
+  rule; CIS Azure 2.0 leaves exactly twelve no API exposes and NIST CSF 2.0 exactly four
+  (`tests/unit/test_compliance_closure.py`, §209). Role v13 reads application and VPN gateways,
+  locks and PostgreSQL firewall rules; consent adds `Policy.Read.DeviceConfiguration` and
   `AccessReview.Read.All`; HTTP(S) exposure, client certificates and a lock role are asked at LOW
   after all (§204)
 - An auditor reads one sealed audit package (§208) through a grant bound to their verified email,

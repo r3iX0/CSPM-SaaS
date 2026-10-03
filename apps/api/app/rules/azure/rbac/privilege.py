@@ -773,7 +773,7 @@ class AzureLockAdministratorRoleRule(SecurityRule):
         "CIS_AZURE_2.0": ["1.24"],
         "CIS_AZURE_6.0": ["5.5"],
         "ISO_27001": ["A.5.15", "A.8.2"],
-        "NIST_CSF": ["PR.AC-4"],
+        "NIST_CSF_2.0": ["PR.AA-05"],
         "NIST_800_53": ["AC-6"],
         "SOC2": ["CC6.3"],
         "PCI_DSS_4": ["7.2.1"],
@@ -866,7 +866,7 @@ class AzureSingleOwnerRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_6.0": ["5.7"],
         "ISO_27001": ["A.5.18"],
-        "NIST_CSF": ["PR.AC-4"],
+        "NIST_CSF_2.0": ["PR.AA-05"],
         "NIST_800_53": ["AC-2"],
         "SOC2": ["CC6.2"],
         "PCI_DSS_4": ["7.2.1"],

@@ -73,7 +73,7 @@ class AzureRegistryAdminUserRule(_RegistryRule):
         "GDPR": ["32(1)(b)"],
         "NIST_800_53": ["IA-2", "IA-5"],
         "SOC2": ["CC6.1"],
-        "PCI_DSS_4": ["8.2.1", "8.3.1"],
+        "PCI_DSS_4": ["8.2.1", "8.3.1", "8.6"],
     }
 
     def evaluate(
