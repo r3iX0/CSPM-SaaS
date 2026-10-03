@@ -15,6 +15,8 @@ Go template variables, so they open in a browser.
 ``push`` sets every subject and body on a project through the Management API
 (``PATCH /v1/projects/{ref}/config/auth``), with a personal access token from
 supabase.com/dashboard/account/tokens. It replaces what the dashboard holds.
+It does not switch the security notices on: each ``*_notification`` template
+is sent only once its toggle under Authentication -> Emails -> Security is on.
 
 An email is a table layout with inline styles because that is all Outlook and
 Gmail keep. The mark is a hosted PNG (``apps/web/public/email/``), not an SVG,
@@ -72,9 +74,9 @@ def strong(text: str) -> str:
     return f'<strong class="cg-fg" style="font-weight:600;color:{FG};">{text}</strong>'
 
 
-def small(text: str, bottom: int = 0) -> str:
+def small(text: str, bottom: int = 0, top: int = 0) -> str:
     return (
-        f'<p class="cg-muted" style="margin:0 0 {bottom}px;font-size:13px;line-height:20px;'
+        f'<p class="cg-muted" style="margin:{top}px 0 {bottom}px;font-size:13px;line-height:20px;'
         f'color:{MUTED};">{text}</p>'
     )
 
@@ -104,10 +106,11 @@ def code() -> str:
 {small(CODE_EXPIRY, 28)}"""  # noqa: E501
 
 
-def change() -> str:
-    """The address as it is and as it will be, the new one in the brand."""
+def details(*rows: tuple[str, str], accent_last: bool = False) -> str:
+    """Labelled values in a well; with ``accent_last``, the last value is the new one."""
 
-    def row(label: str, colour: str, cls: str, value: str) -> str:
+    def row(label: str, value: str, accent: bool) -> str:
+        colour, cls = (PRIMARY, "cg-accent") if accent else (FG, "cg-fg")
         return (
             f'<tr><td class="cg-muted" style="padding:3px 16px 3px 0;font-size:13px;'
             f'line-height:20px;color:{MUTED};white-space:nowrap;vertical-align:top;">{label}</td>'
@@ -115,16 +118,60 @@ def change() -> str:
             f'line-height:20px;color:{colour};word-break:break-all;">{value}</td></tr>'
         )
 
-    rows = row("Current", FG, "cg-fg", "{{ .Email }}") + row(
-        "New", PRIMARY, "cg-accent", "{{ .NewEmail }}"
+    body = "".join(
+        row(label, value, accent_last and i == len(rows) - 1)
+        for i, (label, value) in enumerate(rows)
     )
     return f"""<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0 0;">
   <tr>
     <td class="cg-well" style="background:{WELL};border:1px solid {BORDER};border-radius:{INNER_RADIUS};padding:12px 16px;">
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0">{rows}</table>
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0">{body}</table>
     </td>
   </tr>
 </table>"""  # noqa: E501
+
+
+def change() -> str:
+    """The address as it is and as it will be, the new one in the brand."""
+    return details(("Current", "{{ .Email }}"), ("New", "{{ .NewEmail }}"), accent_last=True)
+
+
+# Supabase hands a notice its raw identifiers; these Go template expressions
+# name them as a person would. An unknown value falls through as itself.
+PROVIDER = (
+    '{{ if eq .Provider "azure" }}Microsoft'
+    '{{ else if eq .Provider "google" }}Google'
+    '{{ else if eq .Provider "email" }}Email and password'
+    "{{ else }}{{ .Provider }}{{ end }}"
+)
+FACTOR = (
+    '{{ if eq .FactorType "totp" }}Authenticator app'
+    '{{ else if eq .FactorType "phone" }}Text message'
+    '{{ else if eq .FactorType "webauthn" }}Passkey or security key'
+    "{{ else }}{{ .FactorType }}{{ end }}"
+)
+
+NOTICE_DONE = "If this was you, there&rsquo;s nothing else to do."
+
+
+def notice(heading: str, text: str) -> str:
+    """A notice's close: nothing to do if it was you, and where to go if it was not.
+
+    A notice asks nothing of someone who made the change, so it has no button;
+    the way back in is a plain link to the sign-in page, whose "Forgot
+    password" sends a reset.
+    """
+    return (
+        small(NOTICE_DONE, 28, 16)
+        + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">'
+        f'<tr><td class="cg-rule" style="border-top:1px solid {BORDER};font-size:0;'
+        'line-height:0;padding-top:24px;">&nbsp;</td></tr></table>'
+        + small(
+            f"{strong(heading)} {text} "
+            f'<a class="cg-accent" href="{{{{ .SiteURL }}}}/sign-in" style="color:{PRIMARY};'
+            'font-weight:600;text-decoration:none;">Go to sign-in</a>'
+        )
+    )
 
 
 def closing(heading: str, text: str, *, link: bool = True) -> str:
@@ -253,10 +300,117 @@ TEMPLATES = [
             link=False,
         ),
     ),
+    # Security notices: sent after the fact, only where the project turns each
+    # one on (Authentication -> Emails -> Security).
+    Template(
+        key="password_changed_notification",
+        subject="Your Cleave password was changed",
+        preheader="The password for your Cleave account was just changed.",
+        reason="You received this because the password for {{ .Email }} was changed.",
+        content=title("Your password was changed")
+        + para(f"The password for {strong('{{ .Email }}')} was just changed.")
+        + notice(
+            "Wasn&rsquo;t you?",
+            "Someone may have your password. Reset it now with &ldquo;Forgot password&rdquo;.",
+        ),
+    ),
+    Template(
+        key="email_changed_notification",
+        subject="Your Cleave email address was changed",
+        preheader="The sign-in address for your Cleave account was just changed.",
+        reason="You received this because the sign-in address of a Cleave account changed.",
+        content=title("Your email address was changed")
+        + para("Your Cleave account now signs in with a new address.")
+        + details(("Previous", "{{ .OldEmail }}"), ("New", "{{ .Email }}"), accent_last=True)
+        + notice(
+            "Wasn&rsquo;t you?",
+            "Someone may have access to your account. Ask your Cleave administrator to "
+            "remove it from your organization, then reset your password.",
+        ),
+    ),
+    Template(
+        key="phone_changed_notification",
+        subject="Your Cleave phone number was changed",
+        preheader="The phone number on your Cleave account was just changed.",
+        reason="You received this because the phone number on a Cleave account changed.",
+        content=title("Your phone number was changed")
+        + para("The phone number on your Cleave account was just changed.")
+        + details(("Previous", "{{ .OldPhone }}"), ("New", "{{ .Phone }}"), accent_last=True)
+        + notice(
+            "Wasn&rsquo;t you?",
+            "Someone may have access to your account. Reset your password now with "
+            "&ldquo;Forgot password&rdquo;.",
+        ),
+    ),
+    Template(
+        key="identity_linked_notification",
+        subject="A sign-in method was added to your Cleave account",
+        preheader="A new way to sign in was linked to your Cleave account.",
+        reason="You received this because a sign-in method was linked to {{ .Email }}.",
+        content=title("A sign-in method was added")
+        + para(f"A new way to sign in was linked to {strong('{{ .Email }}')}.")
+        + details(("Method", PROVIDER))
+        + notice(
+            "Wasn&rsquo;t you?",
+            "Someone can now sign in as you. Reset your password and ask your Cleave "
+            "administrator to review your account.",
+        ),
+    ),
+    Template(
+        key="identity_unlinked_notification",
+        subject="A sign-in method was removed from your Cleave account",
+        preheader="A way to sign in was removed from your Cleave account.",
+        reason="You received this because a sign-in method was removed from {{ .Email }}.",
+        content=title("A sign-in method was removed")
+        + para(f"A way to sign in was removed from {strong('{{ .Email }}')}.")
+        + details(("Method", PROVIDER))
+        + notice(
+            "Wasn&rsquo;t you?",
+            "Someone may have access to your account. Reset your password now with "
+            "&ldquo;Forgot password&rdquo;.",
+        ),
+    ),
+    Template(
+        key="mfa_factor_enrolled_notification",
+        subject="A verification method was added to your Cleave account",
+        preheader="A new two-step verification method was added to your Cleave account.",
+        reason="You received this because a verification method was added to a Cleave account.",
+        content=title("A verification method was added")
+        + para("A new two-step verification method was added to your Cleave account.")
+        + details(("Method", FACTOR))
+        + notice(
+            "Wasn&rsquo;t you?",
+            "Someone may have your password. Reset it now with &ldquo;Forgot password&rdquo;, "
+            "and ask your Cleave administrator to review your account.",
+        ),
+    ),
+    Template(
+        key="mfa_factor_unenrolled_notification",
+        subject="A verification method was removed from your Cleave account",
+        preheader="A two-step verification method was removed from your Cleave account.",
+        reason="You received this because a verification method was removed from a Cleave account.",
+        content=title("A verification method was removed")
+        + para(
+            "A two-step verification method was removed from your Cleave account. Signing in "
+            "may now need only your password."
+        )
+        + details(("Method", FACTOR))
+        + notice(
+            "Wasn&rsquo;t you?",
+            "Someone may have your password. Reset it now with &ldquo;Forgot password&rdquo;, "
+            "and ask your Cleave administrator to review your account.",
+        ),
+    ),
 ]
 
 # What ``preview`` puts where Supabase would; the site is the local public dir.
 SAMPLE = {
+    # The Go expressions first, before their variables are replaced inside them.
+    PROVIDER: "Google",
+    FACTOR: "Authenticator app",
+    "{{ .OldEmail }}": "a.lovelace@fabrikam.com",
+    "{{ .OldPhone }}": "+44 7700 900461",
+    "{{ .Phone }}": "+44 7700 900982",
     "{{ .ConfirmationURL }}": (
         "https://example.supabase.co/auth/v1/verify?token=pkce_3f9a1c7e&type=signup"
         "&redirect_to=https://cleave.example"

@@ -126,12 +126,16 @@ Node installed on your machine.
    **Set the email templates.** Authentication → Emails holds Supabase's plain
    defaults until Cleave's are set (`DECISIONS.md` §212). Either paste each
    file in `infrastructure/supabase/email/built/` into its template (subjects
-   are in `tools/supabase/email_templates.py`), or set all six at once with a
-   personal access token:
+   are in `tools/supabase/email_templates.py`), or set all thirteen at once
+   with a personal access token:
 
    ```bash
    SUPABASE_ACCESS_TOKEN=<token> python3 tools/supabase/email_templates.py push <project-ref>
    ```
+
+   The seven `*_notification` templates are the Security section's notices.
+   Each is sent only once its toggle there is on; turn on all seven, since the
+   verification-method ones tell a user their second factor changed (§213).
 
    The emails load the mark from `<Site URL>/email/cleave-mark.png`, so Site URL
    must be the deployed site.

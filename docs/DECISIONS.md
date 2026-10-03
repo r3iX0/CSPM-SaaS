@@ -11585,6 +11585,18 @@ and an email that arrives should look like it came from Cleave. Colleagues are i
 Cleave's own link (§162), not Supabase's invite, so the invite email is sent only by someone
 inviting from the dashboard.
 
+The seven security notices Supabase sends after the fact -- password, email address and phone
+number changed, a sign-in method linked or removed, a verification method added or removed --
+are built the same way, as `*_notification` templates. A notice asks nothing of someone who made
+the change, so it has no button: it says what changed, shows the values in a well where there
+are any, says there is nothing else to do if it was you, and under the rule links to sign-in,
+whose "Forgot password" sends a reset; there is no page with its own URL for that step.
+Supabase hands a notice raw identifiers (`azure`, `totp`), so the template names them with Go
+`if eq` branches (Microsoft, Authenticator app) and lets an unknown one through as itself. A
+notice is sent only once its toggle under Authentication -> Emails -> Security is on, which
+`push` does not change; the two verification-method notices are the ones §213's authenticator
+app sends from Settings -> Security.
+
 ## 213. Two-factor authentication, enforced by the API
 
 A product that holds a read of a customer's whole cloud estate was one stolen password away
