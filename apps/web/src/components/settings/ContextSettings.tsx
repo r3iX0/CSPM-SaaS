@@ -451,7 +451,10 @@ function AccountRow({
             <span className="truncate font-medium text-foreground group-hover:underline">
               {account.account_name}
             </span>
-            <span className="truncate font-mono text-caption text-muted-foreground">
+            <span
+              className="truncate font-mono text-caption text-muted-foreground"
+              title={account.subscription_id ?? undefined}
+            >
               {account.subscription_id}
             </span>
             {/* The columns a narrow screen drops, said in one line instead. */}

@@ -452,7 +452,7 @@ function InviteDialog({
         if (!next) setError(null);
       }}
     >
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t.team.inviteTitle}</DialogTitle>
           <DialogDescription>{t.team.inviteHelp}</DialogDescription>

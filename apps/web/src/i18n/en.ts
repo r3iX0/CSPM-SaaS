@@ -1210,6 +1210,7 @@ export const en = {
     dangerHelp:
       "Removes the organization and everything under it: connections, discovered accounts, assets, scans, findings, risks and audit history. There is no soft delete and no undo.",
     dangerOpen: "Delete organization…",
+    dangerOpenHelp: "Lists what goes and asks for the name before anything is deleted.",
     dangerConfirmTitle: (name: string) => `Delete ${name}?`,
     dangerWillGo: "This removes, with no undo:",
     dangerSubscriptions: (count: number) =>
@@ -1393,7 +1394,7 @@ export const en = {
   webhooks: {
     title: "Integrations",
     help: "Send notifications where your team already talks. Only owners and admins see this.",
-    empty: "Nothing is connected yet. Notifications arrive only in the bell.",
+    empty: "Notifications arrive only in the bell until one is added.",
     emptyTitle: "No integrations yet",
     open: "New integration",
     dialogTitle: "Add an integration",

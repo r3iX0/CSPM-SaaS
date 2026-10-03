@@ -16,8 +16,6 @@
 */
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "@fontsource-variable/geist";
-@import "@fontsource-variable/geist-mono";
 
 /* The theme is a class on <html>, set before React exists (see index.html), not
    a media query -- "system" is a real third choice and the store resolves it. */
