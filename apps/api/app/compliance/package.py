@@ -11,7 +11,7 @@ manifest no longer matches. A reading's own ``content_hash`` proves that the
 stored payload is the bytes CloudGuard captured. Neither proves the provider
 said it -- that rests on CloudGuard having been the one to ask, which is why a
 reading carries the permissions and api-version it was made under, and why the
-archive's README says this in as many words (DECISIONS.md section 204).
+archive's README says this in as many words (DECISIONS.md section 208).
 
 Pure functions. Nothing here touches the database, so the whole document is
 testable without a scan, and it is deterministic: the same rows always give the

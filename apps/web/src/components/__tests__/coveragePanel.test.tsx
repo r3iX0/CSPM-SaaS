@@ -80,7 +80,7 @@ describe("assets Cleave could not classify", () => {
     expect(screen.getByText("9 of 12 open risks")).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /Tell Cleave what these subscriptions hold/ }),
-    ).toHaveAttribute("href", "/settings");
+    ).toHaveAttribute("href", "/settings/context?show=undeclared");
   });
 
   it("says nothing when every open risk sits on a classified asset", () => {

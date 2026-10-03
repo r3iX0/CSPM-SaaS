@@ -47,6 +47,8 @@ const OWN_NAME: Record<string, string[]> = {
   disk: ["disk"],
   backup_vault: ["vault"],
   scale_set: ["scale-set"],
+  application_gateway: ["gateway"],
+  vpn_gateway: ["gateway"],
 };
 
 /** `/subscriptions/{id}/resourceGroups/{rg}/...`, read case-insensitively as ARM does. */

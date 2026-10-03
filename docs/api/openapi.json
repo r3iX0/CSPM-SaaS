@@ -2904,6 +2904,81 @@
         }
       }
     },
+    "/api/v1/context-declarations": {
+      "get": {
+        "tags": [
+          "cloud-accounts"
+        ],
+        "summary": "List Context Declarations",
+        "description": "What has been declared about each subscription that has a declaration.\n\nNot paged: there is at most one per subscription, and the subscriptions\nthemselves (``GET /cloud-accounts``) are not paged either.",
+        "operationId": "cloud_accounts_list_context_declarations",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_list_ContextDeclarationOut__NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
     "/api/v1/cloud-connections/providers": {
       "get": {
         "tags": [
@@ -14046,6 +14121,30 @@
         ],
         "title": "Envelope[list[CloudConnectionOut], NoMeta]"
       },
+      "Envelope_list_ContextDeclarationOut__NoMeta_": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ContextDeclarationOut"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[list[ContextDeclarationOut], NoMeta]"
+      },
       "Envelope_list_DiscoveredSubscription__NoMeta_": {
         "properties": {
           "data": {
@@ -18180,6 +18279,8 @@
           "backup_vault",
           "scale_set",
           "user_pool",
+          "application_gateway",
+          "vpn_gateway",
           "unknown"
         ],
         "title": "ResourceType",

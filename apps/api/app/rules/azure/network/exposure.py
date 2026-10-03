@@ -843,6 +843,59 @@ class AzurePublicUdpRule(SecurityRule):
         )
 
 
+class AzurePublicWebRule(_PublicPortRule):
+    """HTTP or HTTPS open to the whole internet.
+
+    AZ-NET-003 leaves 80 and 443 out on purpose (DECISIONS.md section 171):
+    serving the web is usually the point of a workload. CIS asks for the
+    exposure to be evaluated all the same, so section 204 reports it here, at
+    LOW and exploitability 1 -- a prompt to confirm the exposure is meant,
+    which a customer serving the public dismisses -- rather than in the
+    catch-all, where it would bury the ports that are never meant to be open.
+    """
+
+    rule_id = "AZ-NET-017"
+    name = "HTTP or HTTPS exposed to the internet"
+    description = (
+        "A network security group permits inbound HTTP (TCP/80) or HTTPS (TCP/443) from "
+        "any source address. Often intended; worth confirming for anything that is not "
+        "a public website."
+    )
+    category = "network"
+    severity = Severity.LOW
+    exploitability = 1
+    port = 80
+    also_ports: ClassVar[tuple[int, ...]] = (443,)
+    service = "HTTP/HTTPS"
+    estimated_effort_minutes = 15
+    rationale = (
+        "An internal application published on 80 or 443 by mistake is reachable by every "
+        "scanner on the internet. A public website is meant to be; this asks which one "
+        "the rule is for, and a web application firewall or Front Door in front is the "
+        "better place for the public kind."
+    )
+    remediation = (
+        "If the workload is not meant to be public, narrow the rule's source to the "
+        "networks that use it. If it is, put an Application Gateway with a web "
+        "application firewall or Azure Front Door in front and admit only that.\n\n"
+        "Azure CLI:\n"
+        "  az network nsg rule update --resource-group <rg> --nsg-name <nsg> \\\n"
+        "    --name <rule> --source-address-prefixes <your.ip.range/24>"
+    )
+    remediation_spec: ClassVar[RemediationSpec | None] = None  # set below
+    compliance_mappings: ClassVar[dict[str, list[str]]] = {
+        "CIS_AZURE_2.0": ["6.4"],
+        "CIS_AZURE_6.0": ["7.4"],
+        "ISO_27001": ["A.8.20"],
+        "NIST_CSF": ["PR.AC-5"],
+        "GDPR": ["32(1)(b)"],
+        "NIST_800_53": ["SC-7"],
+        "SOC2": ["CC6.6"],
+        "PCI_DSS_4": ["1.3.1"],
+    }
+
+
 # Bound after the classes exist, exactly as the three above are.
 AzurePublicSqlPortRule.remediation_spec = AzurePublicSqlPortRule._spec()
 AzurePublicSmbRule.remediation_spec = AzurePublicSmbRule._spec()
+AzurePublicWebRule.remediation_spec = AzurePublicWebRule._spec()

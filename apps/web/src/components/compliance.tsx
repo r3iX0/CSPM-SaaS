@@ -14,8 +14,8 @@ const SEGMENTS: { status: ControlStatus; className: string }[] = [
   { status: "FAILING", className: "bg-critical" },
   { status: "INCONCLUSIVE", className: "bg-unknown" },
   { status: "PASSING", className: "bg-ok" },
-  { status: "NOT_ASSESSED", className: "bg-muted-foreground/40" },
-  { status: "NOT_COVERED", className: "bg-muted" },
+  { status: "NOT_ASSESSED", className: "bg-muted-foreground/50" },
+  { status: "NOT_COVERED", className: "bg-muted-foreground/20" },
 ];
 
 export function CoverageBar({
@@ -25,41 +25,85 @@ export function CoverageBar({
   counts: Record<ControlStatus, number>;
   total: number;
 }) {
-  const t = useT();
   if (total === 0) return null;
 
   return (
     <div>
-      <div className="flex h-2 w-full overflow-hidden rounded-full bg-muted">
-        {SEGMENTS.map(({ status, className }) => {
-          const count = counts[status] ?? 0;
-          if (count === 0) return null;
-          return (
-            <div
-              key={status}
-              className={className}
-              style={{ width: `${(count / total) * 100}%` }}
-              title={`${label(status)}: ${count}`}
-            />
-          );
-        })}
-      </div>
-      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-        {SEGMENTS.map(({ status, className }) => {
-          const count = counts[status] ?? 0;
-          if (count === 0) return null;
-          return (
-            <span
-              key={status}
-              className="flex items-center gap-1.5 text-caption text-muted-foreground"
-              title={t.compliance.statusHelp[status]}
-            >
-              <span className={cn("h-2 w-2 rounded-full", className)} aria-hidden="true" />
-              {count} {label(status).toLowerCase()}
-            </span>
-          );
-        })}
-      </div>
+      <StatusBar counts={counts} total={total} />
+      <StatusLegend counts={counts} className="mt-2" />
+    </div>
+  );
+}
+
+/**
+ * A set of controls divided by status, worst first, as one bar.
+ *
+ * Drawn the same for a framework and for one of its sections, so a section's
+ * row and the framework's own bar read in one vocabulary (DECISIONS.md §206).
+ * The bar is a picture of the counts said beside it, never their only
+ * statement, so it is hidden from assistive technology.
+ */
+export function StatusBar({
+  counts,
+  total,
+  className,
+}: {
+  counts: Partial<Record<ControlStatus, number>>;
+  total: number;
+  className?: string;
+}) {
+  if (total === 0) return null;
+  return (
+    <div
+      className={cn("flex h-2 w-full overflow-hidden rounded-full bg-muted", className)}
+      aria-hidden="true"
+    >
+      {SEGMENTS.map(({ status, className: tone }) => {
+        const count = counts[status] ?? 0;
+        if (count === 0) return null;
+        return (
+          <div
+            key={status}
+            className={tone}
+            style={{ width: `${(count / total) * 100}%` }}
+            title={`${label(status)}: ${count}`}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * What each colour of a `StatusBar` is, with its count where one is given.
+ *
+ * Without counts it is the key to a set of bars -- every status, so a colour
+ * never has to be guessed from a row that happens to lack it.
+ */
+export function StatusLegend({
+  counts,
+  className,
+}: {
+  counts?: Partial<Record<ControlStatus, number>>;
+  className?: string;
+}) {
+  const t = useT();
+  return (
+    <div className={cn("flex flex-wrap gap-x-4 gap-y-1", className)}>
+      {SEGMENTS.map(({ status, className: tone }) => {
+        const count = counts?.[status];
+        if (counts && !count) return null;
+        return (
+          <span
+            key={status}
+            className="flex items-center gap-1.5 text-caption text-muted-foreground"
+            title={t.compliance.statusHelp[status]}
+          >
+            <span className={cn("h-2 w-2 rounded-full", tone)} aria-hidden="true" />
+            {count === undefined ? label(status) : `${count} ${label(status).toLowerCase()}`}
+          </span>
+        );
+      })}
     </div>
   );
 }

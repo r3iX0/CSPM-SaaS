@@ -20,12 +20,14 @@ import {
   CylinderIcon,
   DatabaseIcon,
   DatabaseZapIcon,
+  DoorOpenIcon,
   EthernetPortIcon,
   ExternalLinkIcon,
   FolderIcon,
   FlaskConicalIcon,
   FolderTreeIcon,
   GlobeIcon,
+  GlobeLockIcon,
   HardDriveIcon,
   KeyRoundIcon,
   UserRoundKeyIcon,
@@ -121,6 +123,9 @@ const RESOURCE_TYPE_ICONS: Record<string, LucideIcon> = {
   backup_vault: ArchiveRestoreIcon,
   scale_set: ServerIcon,
   user_pool: UserRoundCheckIcon,
+  // Role v13 (DECISIONS.md §204): the web front door, and the VPN endpoint.
+  application_gateway: DoorOpenIcon,
+  vpn_gateway: GlobeLockIcon,
   unknown: BoxIcon,
 };
 

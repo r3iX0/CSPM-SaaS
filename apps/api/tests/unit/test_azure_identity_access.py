@@ -109,6 +109,26 @@ class FakeGraph:
         self._check("list_sign_in_activity")
         return [{"id": "u1", "signInActivity": {"lastSignInDateTime": "2026-08-01T00:00:00Z"}}]
 
+    # Section 204.
+    async def get_device_registration_policy(self) -> dict:
+        self._check("get_device_registration_policy")
+        return {"multiFactorAuthConfiguration": "notRequired"}
+
+    async def list_access_review_definitions(self) -> list[dict]:
+        self._check("list_access_review_definitions")
+        return []
+
+
+class FakeArm:
+    """The one ARM read the directory plan makes: the tenant's subscription
+    policy (section 204)."""
+
+    def __init__(self, tokens: object = None, http: object = None, limiter: object = None) -> None:
+        self.truncated: set[str] = set()
+
+    async def get_subscription_policy(self) -> dict:
+        return {"properties": {"blockSubscriptionsLeavingTenant": True}}
+
 
 async def run_identity(monkeypatch: pytest.MonkeyPatch, denied: set[str]):
     """Execute just the identity tasks, with Graph faked out."""
@@ -120,6 +140,7 @@ async def run_identity(monkeypatch: pytest.MonkeyPatch, denied: set[str]):
 
     monkeypatch.setattr(FakeGraph, "denied", denied)
     monkeypatch.setattr(plan_module, "GraphClient", FakeGraph)
+    monkeypatch.setattr(plan_module, "ArmClient", FakeArm)
 
     builder = AzurePlanBuilder(
         tokens=object(), subscription_id=None, http_client=httpx.AsyncClient()

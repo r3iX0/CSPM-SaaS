@@ -75,7 +75,7 @@ async function expand(id = "4.1.1") {
   fireEvent.click(await screen.findByRole("button", { name: new RegExp(id) }));
 }
 
-function mount(controls: object[]) {
+function mount(controls: object[], entry = "/compliance/CIS_AZURE_2.0") {
   vi.stubGlobal(
     "fetch",
     vi.fn(async () => ({
@@ -118,7 +118,7 @@ function mount(controls: object[]) {
   });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={["/compliance/CIS_AZURE_2.0"]}>
+      <MemoryRouter initialEntries={[entry]}>
         <Routes>
           <Route path="/compliance/:frameworkId" element={<ComplianceFrameworkPage />} />
         </Routes>
@@ -257,5 +257,31 @@ describe("what a control's verdict rests on", () => {
 
     expect(await screen.findByRole("button", { name: /spreadsheet \(csv\)/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /machine-readable \(json\)/i })).toBeInTheDocument();
+  });
+
+  it("narrows to the section a domain row led here from, and says so (§206)", async () => {
+    mount(
+      [
+        control({ id: "4.1.1" }),
+        control({ id: "1.1", group: "Identity", title: "MFA for admins" }),
+      ],
+      "/compliance/CIS_AZURE_2.0?section=Identity",
+    );
+
+    expect(await screen.findByText("Showing one section: Identity")).toBeInTheDocument();
+    // The verdict filter counts the section, not the framework.
+    expect(screen.getByRole("button", { name: "All · 1" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: /Identity/ })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 2, name: /Database/ })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show every section" }));
+    expect(await screen.findByRole("heading", { level: 2, name: /Database/ })).toBeInTheDocument();
+  });
+
+  it("ignores a section the catalogue does not have", async () => {
+    mount([control()], "/compliance/CIS_AZURE_2.0?section=Gone");
+
+    expect(await screen.findByRole("heading", { level: 2, name: /Database/ })).toBeInTheDocument();
+    expect(screen.queryByText(/Showing one section/)).toBeNull();
   });
 });

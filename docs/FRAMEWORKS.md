@@ -3,13 +3,13 @@
 Which frameworks Cleave measures an organization against, which standards customers are asked
 for, and how each one is kept current. It is for whoever edits the catalogue or decides which
 framework comes next. How a verdict is computed is in `app/compliance/coverage.py`; why the
-catalogue lists a standard in full is [DECISIONS.md §205](DECISIONS.md).
+catalogue lists a standard in full is [DECISIONS.md §209](DECISIONS.md).
 
 ## What is offered
 
 Eighteen catalogue entries are offered, counting each version of a CIS benchmark. A framework about
 one cloud is shown only to organizations connected to it, and the rest are shown to everyone
-(`services/compliance.frameworks_for`). Every one can be sealed into an audit package (§204).
+(`services/compliance.frameworks_for`). Every one can be sealed into an audit package (§208).
 
 | Framework | Id | Version | Controls | Assessable | Reached by a rule |
 |---|---|---|---|---|---|
@@ -88,11 +88,11 @@ mandatory.
 ### Recommended next
 
 The cloud, defence and financial-sector entries the first version of this page recommended are
-built (§206). What remains, each as a new entry in `standards.json` with its own tests:
+built (§210). What remains, each as a new entry in `standards.json` with its own tests:
 
 1. **NIST SP 800-171 Rev. 3** (97 requirements), when the Department of Defense moves CMMC to it.
    NIST has withdrawn Rev. 2, but CMMC Level 2 assesses Rev. 2, which is why Rev. 2 is offered.
-   Following the one-version rule (§205), Rev. 3 replaces Rev. 2 on that day and does not sit
+   Following the one-version rule (§209), Rev. 3 replaces Rev. 2 on that day and does not sit
    beside it.
 2. **ISO/IEC 27017 and 27018**, the cloud and personal-data extensions of ISO 27002, and
    **FedRAMP** baselines on the 800-53 catalogue if US federal work is a target. The 800-53
@@ -126,7 +126,7 @@ on this page.
 ### Taking in a new version
 
 A new version is a new id and a remap. It is never an edit in place, because a sealed package
-names its framework by id (§204) and must not be reinterpreted.
+names its framework by id (§208) and must not be reinterpreted.
 
 1. Read the publisher's change notes, and decide whether controls were added, withdrawn, renumbered
    or only reworded. Rewording alone is an edit to a title.
@@ -159,8 +159,8 @@ read. That check is not built.
 
 ## See also
 
-- [DECISIONS.md §205](DECISIONS.md), why the standards are listed in full, and
-  [§206](DECISIONS.md), the cloud, defence and financial-sector additions.
+- [DECISIONS.md §209](DECISIONS.md), why the standards are listed in full, and
+  [§210](DECISIONS.md), the cloud, defence and financial-sector additions.
 - [DECISIONS.md §168](DECISIONS.md), why the older frameworks are data and the engine is one.
 - [Native coverage backlog](NATIVE_COVERAGE_BACKLOG.md), what no rule checks yet.
 

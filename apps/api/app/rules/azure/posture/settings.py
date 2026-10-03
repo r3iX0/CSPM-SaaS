@@ -326,7 +326,9 @@ SPECS = (
         ),
         describes="The Microsoft cloud security benchmark is assigned with enforcement on",
         failure="does not enforce the Microsoft cloud security benchmark",
-        mappings=_GOVERNANCE,
+        # An enforced benchmark is a hardened configuration standard in force
+        # (PCI DSS 2.2.1; DECISIONS.md section 204).
+        mappings={**_GOVERNANCE, "PCI_DSS_4": ["12.1.1", "2.2.1"]},
     ),
     # Section 177: filed as reading activity, and answerable from the plan
     # listing read since v7 all along.

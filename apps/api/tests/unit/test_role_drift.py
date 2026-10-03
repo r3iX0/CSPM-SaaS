@@ -142,6 +142,18 @@ V12_READS = {
     "Microsoft.Compute/virtualMachineScaleSets/read",
 }
 V12_CATEGORIES = frozenset({EvidenceCategory.COMPUTE})
+# Section 204: application gateways and their WAF policies, virtual network
+# gateways, resource locks and PostgreSQL firewall rules.
+V13_READS = {
+    "Microsoft.Network/applicationGateways/read",
+    "Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies/read",
+    "Microsoft.Network/virtualNetworkGateways/read",
+    "Microsoft.Authorization/locks/read",
+    "Microsoft.DBforPostgreSQL/flexibleServers/firewallRules/read",
+}
+V13_CATEGORIES = frozenset(
+    {EvidenceCategory.NETWORK, EvidenceCategory.DATABASE, EvidenceCategory.POSTURE}
+)
 BEHIND_SINCE_V7 = V7_CATEGORIES | V8_CATEGORIES | V9_CATEGORIES | V10_CATEGORIES | V11_CATEGORIES
 
 
@@ -320,24 +332,30 @@ class TestRoleUpgrades:
     redeploy, the rules behind it report UNKNOWN rather than PASS.
     """
 
-    def test_the_current_role_is_v12(self) -> None:
-        assert rbac.ROLE_VERSION == "v12"
-        assert rbac.role_is_current("v12")
+    def test_the_current_role_is_v13(self) -> None:
+        assert rbac.ROLE_VERSION == "v13"
+        assert rbac.role_is_current("v13")
+
+    def test_a_v12_role_lacks_exactly_the_compliance_reads(self) -> None:
+        """Network, databases and posture are behind, and nothing else: a v12
+        customer keeps every verdict and route they had (section 204)."""
+        assert set(rbac.actions_missing_from("v12")) == V13_READS
+        assert rbac.categories_behind("v12") == V13_CATEGORIES
 
     def test_a_v11_role_lacks_exactly_the_tier_three_reads(self) -> None:
-        """Compute alone is behind: backup policies and scale sets."""
-        assert set(rbac.actions_missing_from("v11")) == V12_READS
-        assert rbac.categories_behind("v11") == V12_CATEGORIES
+        """Backup policies and scale sets, and v13's reads."""
+        assert set(rbac.actions_missing_from("v11")) == V12_READS | V13_READS
+        assert rbac.categories_behind("v11") == V12_CATEGORIES | V13_CATEGORIES
 
     def test_a_v10_role_lacks_exactly_the_tier_two_reads(self) -> None:
         """Every category the reads touch is behind, and resources, authorization
         and identity are not: a v10 customer keeps every verdict and route they
         had."""
-        assert set(rbac.actions_missing_from("v10")) == V11_READS | V12_READS
+        assert set(rbac.actions_missing_from("v10")) == V11_READS | V12_READS | V13_READS
         assert rbac.categories_behind("v10") == V11_CATEGORIES
 
     def test_a_v9_role_lacks_exactly_the_mysql_parameter_read(self) -> None:
-        assert set(rbac.actions_missing_from("v9")) == V10_READS | V11_READS | V12_READS
+        assert set(rbac.actions_missing_from("v9")) == V10_READS | V11_READS | V12_READS | V13_READS
         assert rbac.categories_behind("v9") == V10_CATEGORIES | V11_CATEGORIES
 
     def test_a_v8_role_lacks_exactly_the_six_type_reads(self) -> None:
@@ -345,7 +363,7 @@ class TestRoleUpgrades:
         keeps every verdict and route they had, and the six types stay listed
         as unchecked inventory until the redeploy."""
         assert set(rbac.actions_missing_from("v8")) == (
-            V9_READS | V10_READS | V11_READS | V12_READS
+            V9_READS | V10_READS | V11_READS | V12_READS | V13_READS
         )
         assert rbac.categories_behind("v8") == V9_CATEGORIES | V11_CATEGORIES
 
@@ -354,7 +372,7 @@ class TestRoleUpgrades:
         verdict, and the access view cannot list who is eligible until the
         redeploy -- and v9's six."""
         assert set(rbac.actions_missing_from("v7")) == (
-            V8_READS | V9_READS | V10_READS | V11_READS | V12_READS
+            V8_READS | V9_READS | V10_READS | V11_READS | V12_READS | V13_READS
         )
         assert rbac.categories_behind("v7") == V8_CATEGORIES | V9_CATEGORIES | V11_CATEGORIES
 
@@ -363,7 +381,7 @@ class TestRoleUpgrades:
         administrator, one PostgreSQL parameter, and App Service -- and v8's
         eligibility read."""
         assert set(rbac.actions_missing_from("v6")) == (
-            V7_READS | V8_READS | V9_READS | V10_READS | V11_READS | V12_READS
+            V7_READS | V8_READS | V9_READS | V10_READS | V11_READS | V12_READS | V13_READS
         )
         assert rbac.categories_behind("v6") == BEHIND_SINCE_V7
 
@@ -379,7 +397,7 @@ class TestRoleUpgrades:
         # Only v7's own reads: v11 touches network, logging and secrets too,
         # and that is a later upgrade's cost, not this one's.
         v7_only = set(rbac.actions_missing_from("v6")) - V8_READS - V9_READS
-        v7_only -= V10_READS | V11_READS | V12_READS
+        v7_only -= V10_READS | V11_READS | V12_READS | V13_READS
         assert v7_only == V7_READS
         touched = {
             category
@@ -398,6 +416,7 @@ class TestRoleUpgrades:
             *V10_READS,
             *V11_READS,
             *V12_READS,
+            *V13_READS,
         }
         assert rbac.categories_behind("v5") == BEHIND_SINCE_V7
 
@@ -412,6 +431,7 @@ class TestRoleUpgrades:
             *V10_READS,
             *V11_READS,
             *V12_READS,
+            *V13_READS,
         }
         assert rbac.categories_behind("v4") == BEHIND_SINCE_V7
 
@@ -427,6 +447,7 @@ class TestRoleUpgrades:
             *V10_READS,
             *V11_READS,
             *V12_READS,
+            *V13_READS,
         }
         assert not rbac.role_is_current("v3")
 
@@ -451,7 +472,21 @@ class TestRoleUpgrades:
         believed to grant, and ``actions_missing_from`` would stop reporting a
         gap that is still real.
         """
-        versions = ["v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12"]
+        versions = [
+            "v1",
+            "v2",
+            "v3",
+            "v4",
+            "v5",
+            "v6",
+            "v7",
+            "v8",
+            "v9",
+            "v10",
+            "v11",
+            "v12",
+            "v13",
+        ]
         for older, newer in itertools.pairwise(versions):
             assert set(rbac.ROLE_HISTORY[older]) <= set(rbac.ROLE_HISTORY[newer]), (
                 f"{newer} dropped an action {older} granted"
@@ -568,7 +603,9 @@ class TestTheConnectionPayloadExplainsTheGap:
         # identity, so every older role is behind in those seven.
         since_v11 = sorted(category.value for category in V11_CATEGORIES)
         since_v7 = sorted({*since_v11, "authorization"})
-        assert self._payload("v11")["degraded_categories"] == ["compute"]
+        since_v13 = sorted(category.value for category in V13_CATEGORIES)
+        assert self._payload("v12")["degraded_categories"] == since_v13
+        assert self._payload("v11")["degraded_categories"] == sorted({*since_v13, "compute"})
         assert self._payload("v10")["degraded_categories"] == since_v11
         assert self._payload("v9")["degraded_categories"] == since_v11
         assert self._payload("v8")["degraded_categories"] == since_v11

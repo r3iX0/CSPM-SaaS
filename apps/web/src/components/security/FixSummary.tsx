@@ -1,10 +1,12 @@
 import { Link } from "react-router-dom";
-import { ArrowRightIcon } from "lucide-react";
+import { ArrowRightIcon, WrenchIcon } from "lucide-react";
 
 import type { FindingDetail } from "@/lib/types";
 import { useT } from "@/i18n";
-import { fixPath, taskFor, useRemediationQueue } from "@/lib/remediation";
-import { buttonVariants } from "@/components/ui/button";
+import { fixPath, isTrackable, taskFor, useRemediationQueue, useTrack } from "@/lib/remediation";
+import { useIsDemo } from "@/lib/useDemo";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate, formatEffort } from "@/lib/format";
 
@@ -17,11 +19,20 @@ import { formatDate, formatEffort } from "@/lib/format";
  * steps, which forms the full fix comes in, and where the work stands. A
  * reader who came for the attack paths no longer scrolls past a page of CLI to
  * reach them.
+ *
+ * Tracking is the one piece of the work offered here as well. Reading the fix
+ * is a click away, but deciding to do it is not a reason to leave the page:
+ * with the button only in the sheet, a reader on the finding saw no way to
+ * queue it at all (DECISIONS.md §205).
  */
 export function FixSummary({ finding }: { finding: FindingDetail }) {
   const t = useT();
+  const isDemo = useIsDemo();
   const tasks = useRemediationQueue();
   const task = taskFor(tasks.data, finding.id);
+  const track = useTrack();
+  // Once the queue has answered, so a tracked finding never flashes the button.
+  const canTrack = tasks.isSuccess && !task && isTrackable(finding.status) && !isDemo;
   const spec = finding.remediation_spec;
 
   // Only the forms this rule actually has, as the sheet's tabs are (§202).
@@ -61,10 +72,26 @@ export function FixSummary({ finding }: { finding: FindingDetail }) {
         {lead && <p className="text-sm leading-relaxed text-foreground">{lead}</p>}
         <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
           <p className="text-xs text-muted-foreground">{facts.join(" · ")}</p>
-          <Link to={fixPath(finding.id)} className={buttonVariants({ variant: "secondary" })}>
-            {t.remediation.openFix}
-            <ArrowRightIcon data-icon="inline-end" aria-hidden />
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            {canTrack && (
+              <Button
+                variant="outline"
+                disabled={track.isPending}
+                onClick={() => track.mutate(finding.id)}
+              >
+                {track.isPending ? (
+                  <Spinner data-icon="inline-start" />
+                ) : (
+                  <WrenchIcon data-icon="inline-start" aria-hidden />
+                )}
+                {t.remediation.trackThisFix}
+              </Button>
+            )}
+            <Link to={fixPath(finding.id)} className={buttonVariants({ variant: "secondary" })}>
+              {t.remediation.openFix}
+              <ArrowRightIcon data-icon="inline-end" aria-hidden />
+            </Link>
+          </div>
         </div>
       </CardContent>
     </Card>

@@ -46,6 +46,11 @@ REQUIRED_GRAPH_PERMISSIONS = [
     "Group.Read.All",
     "IdentityRiskyUser.Read.All",
     "AuditLog.Read.All",
+    # Section 204: whether joining a device asks for a second factor, and which
+    # access reviews exist. The first permissions added since onboarding began,
+    # so every connected tenant consents again before these checks can run.
+    "Policy.Read.DeviceConfiguration",
+    "AccessReview.Read.All",
 ]
 
 # Which collector call exercises each permission above, by name on
@@ -87,6 +92,8 @@ GRAPH_PERMISSION_USE: dict[str, tuple[str, ...]] = {
     ),
     "Group.Read.All": ("list_group_members", "list_groups_by_id", "list_group_transitive_members"),
     "AuditLog.Read.All": ("list_sign_in_activity",),
+    "Policy.Read.DeviceConfiguration": ("get_device_registration_policy",),
+    "AccessReview.Read.All": ("list_access_review_definitions",),
 }
 
 # Requested, granted, and deliberately not used yet.
@@ -124,6 +131,11 @@ GRAPH_APP_ROLES: dict[str, str] = {
     "Group.Read.All": "5b567255-7703-4780-807c-7be8301ae99b",
     "IdentityRiskyUser.Read.All": "dc5007c0-2d7d-4c42-879c-2dab87571379",
     "AuditLog.Read.All": "b0afded3-3588-46d8-8b3d-9842eff778da",
+    # Both read on 2026-10-02 from Microsoft Graph's published permissions
+    # reference, the application column. A third-party catalogue gave the
+    # delegated id for the first, which is the mistake this rule exists for.
+    "Policy.Read.DeviceConfiguration": "bdba4817-6ba1-4a7c-8a01-be9bc7c242dd",
+    "AccessReview.Read.All": "d07a8cc0-3d51-4b77-b3b0-32704d1f69fa",  # gitleaks:allow
 }
 
 
@@ -160,14 +172,14 @@ def missing_permissions(graph_token: str) -> tuple[str, ...]:
     """Required permissions this tenant's consent did not grant, in order.
 
     Empty when the token could not be read at all: an unreadable token is not
-    evidence of a missing grant, and reporting nine phantom gaps would send an
+    evidence of a missing grant, and reporting eleven phantom gaps would send an
     administrator to fix something that is not broken.
 
     A token that reads fine and carries no ``roles`` at all is the opposite
     case, and reporting *that* as nothing missing is what let a tenant whose
     consent granted nothing look fully consented. It is the commonest failure
     of the two -- a registration whose permissions are declared as delegated
-    rather than application produces exactly it -- so it returns all nine.
+    rather than application produces exactly it -- so it returns all eleven.
     """
     granted = granted_permissions(graph_token)
     if granted is None:

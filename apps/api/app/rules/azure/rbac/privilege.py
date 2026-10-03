@@ -717,3 +717,186 @@ class AzureDangerousCustomRoleRule(SecurityRule):
                 "self-granting permissions: " + ", ".join(sorted(str(r["role"]) for r in dangerous))
             ),
         )
+
+
+# What a role must grant to administer locks: creating one and removing one.
+_LOCK_ACTIONS = (
+    "Microsoft.Authorization/locks/write",
+    "Microsoft.Authorization/locks/delete",
+)
+
+
+class AzureLockAdministratorRoleRule(SecurityRule):
+    """No custom role is written for administering resource locks.
+
+    Section 175 declined this as an organizational arrangement. Section 204
+    reverses it because CIS asks it in both editions and the answer is a fact
+    of the role definitions the scanner already reads: a role whose only
+    business is locks lets the people who protect resources from deletion do
+    so without holding Owner, which is the only built-in role that can.
+    """
+
+    rule_id = "AZ-IAM-011"
+    name = "No custom role administers resource locks"
+    description = (
+        "No role this tenant wrote grants creating and removing resource locks without "
+        "granting everything, so only Owner and User Access Administrator holders can "
+        "manage them."
+    )
+    category = "identity"
+    severity = Severity.LOW
+    exploitability = 0
+    scope = RuleScope.PER_RESOURCE
+    applies_to: ClassVar[list[ResourceType]] = [ResourceType.SUBSCRIPTION]
+    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (AzureEvidence.ROLE_DEFINITIONS,)
+    estimated_effort_minutes = 30
+    rationale = (
+        "Locks only protect anything if the people managing them do not also hold the "
+        "right to do everything else. A narrow role keeps lock administration from "
+        "being another reason to hand out Owner."
+    )
+    remediation = (
+        "Create a custom role granting Microsoft.Authorization/locks/* and the read "
+        "actions it needs, and assign it to whoever manages locks.\n\n"
+        "Azure CLI:\n"
+        "  az role definition create --role-definition @resource-lock-administrator.json"
+    )
+    remediation_spec: ClassVar[RemediationSpec | None] = RemediationSpec(
+        expected=(),
+        cli=("az role definition create --role-definition @resource-lock-administrator.json",),
+        notes=(
+            "Fixed by writing a role definition rather than by changing a setting, so "
+            "no expected state or policy is generated."
+        ),
+    )
+    compliance_mappings: ClassVar[dict[str, list[str]]] = {
+        "CIS_AZURE_2.0": ["1.24"],
+        "CIS_AZURE_6.0": ["5.5"],
+        "ISO_27001": ["A.5.15", "A.8.2"],
+        "NIST_CSF": ["PR.AC-4"],
+        "NIST_800_53": ["AC-6"],
+        "SOC2": ["CC6.3"],
+        "PCI_DSS_4": ["7.2.1"],
+    }
+
+    def evaluate(
+        self, resource: CloudResource | None, context: RuleContext
+    ) -> RuleResult | list[RuleResult]:
+        if resource is None:
+            return RuleResult.not_applicable("Rule is per-resource")
+        failure = context.has_collection_error(*self.requires_evidence)
+        if failure:
+            return RuleResult.unknown(f"Role definitions unavailable: {failure}")
+        roles = resource.get("custom_roles")
+        if roles is None:
+            return RuleResult.unknown("Role definitions missing from snapshot")
+
+        lock_roles = sorted(
+            str(role.get("name"))
+            for role in roles
+            if all(
+                _granted(
+                    [str(a) for a in role.get("actions") or []],
+                    [str(a) for a in role.get("not_actions") or []],
+                    action,
+                )
+                for action in _LOCK_ACTIONS
+            )
+            # A role that grants everything administers locks too, and is the
+            # thing a narrow role exists to avoid.
+            and not _granted(
+                [str(a) for a in role.get("actions") or []],
+                [str(a) for a in role.get("not_actions") or []],
+                "Microsoft.Authorization/roleAssignments/write",
+            )
+        )
+        evidence = {"custom_role_count": len(roles), "lock_roles": lock_roles}
+        if lock_roles:
+            return RuleResult.passed(evidence)
+        return RuleResult.failed(
+            evidence=evidence,
+            message="No custom role is written for administering resource locks",
+        )
+
+
+class AzureSingleOwnerRule(SecurityRule):
+    """Fewer than two Owners on the subscription.
+
+    AZ-IAM-005 is the upper half of CIS's "between two and three Owners"; this is
+    the lower. One Owner is a subscription that loses its only administrator to
+    a departure, a lost phone or a locked account.
+    """
+
+    rule_id = "AZ-IAM-012"
+    name = "Subscription has fewer than two Owners"
+    description = (
+        "At most one identity holds Owner over the subscription, so losing that account "
+        "leaves nobody able to manage access to it."
+    )
+    category = "identity"
+    severity = Severity.LOW
+    exploitability = 0
+    scope = RuleScope.AGGREGATE
+    applies_to: ClassVar[list[ResourceType]] = []
+    requires_evidence: ClassVar[tuple[AzureEvidence, ...]] = (
+        AzureEvidence.ROLE_ASSIGNMENTS,
+        AzureEvidence.ROLE_DEFINITIONS,
+    )
+    estimated_effort_minutes = 20
+    rationale = (
+        "Recovering a subscription whose only Owner is gone means a Global Administrator "
+        "elevating access at the tenant root -- the most privileged act in the tenant, "
+        "done in a hurry."
+    )
+    remediation = (
+        "Assign Owner to a second administrator, preferably as an eligible assignment in "
+        "Privileged Identity Management, or to the tenant's break-glass account.\n\n"
+        "Azure CLI:\n"
+        "  az role assignment create --role Owner --assignee <object-id> \\\n"
+        "    --scope /subscriptions/<id>"
+    )
+    remediation_spec: ClassVar[RemediationSpec | None] = RemediationSpec(
+        expected=(),
+        cli=(
+            "az role assignment create --role Owner --assignee <object-id> "
+            "--scope /subscriptions/<id>",
+        ),
+        notes="Fixed by adding an assignment rather than by changing a setting.",
+    )
+    compliance_mappings: ClassVar[dict[str, list[str]]] = {
+        "CIS_AZURE_6.0": ["5.7"],
+        "ISO_27001": ["A.5.18"],
+        "NIST_CSF": ["PR.AC-4"],
+        "NIST_800_53": ["AC-2"],
+        "SOC2": ["CC6.2"],
+        "PCI_DSS_4": ["7.2.1"],
+    }
+
+    def evaluate(
+        self, resource: CloudResource | None, context: RuleContext
+    ) -> RuleResult | list[RuleResult]:
+        failure = context.has_collection_error(*self.requires_evidence)
+        if failure:
+            return RuleResult.unknown(f"Role assignments unavailable: {failure}")
+        if not any(_roles(identity) is not None for identity in context.resources):
+            return RuleResult.unknown("No role assignments were collected")
+        owners = [
+            identity
+            for identity in context.resources
+            if any(
+                str(role.get("role", "")).lower() == "owner"
+                and _is_subscription_scope(role.get("scope"))
+                for role in _roles(identity) or []
+            )
+        ]
+        evidence = {"owner_count": len(owners)}
+        if len(owners) >= 2:
+            return RuleResult.passed(evidence)
+        return RuleResult.failed(
+            evidence=evidence,
+            message=(
+                "Nobody holds Owner over the subscription"
+                if not owners
+                else "Only one identity holds Owner over the subscription"
+            ),
+        )

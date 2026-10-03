@@ -10,6 +10,12 @@ import { configProblems } from "@/lib/config";
 import { ConfigError } from "@/components/ConfigError";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { initTheme } from "@/lib/theme";
+// The fonts are imported here rather than with `@import` in index.css. Tailwind's
+// PostCSS plugin inlines an `@import` without rebasing the package's relative
+// `./files/*.woff2` URLs, so Vite could not resolve them, never emitted the
+// files, and production served the SPA's HTML in their place (DECISIONS.md §207).
+import "@fontsource-variable/geist";
+import "@fontsource-variable/geist-mono";
 import "./index.css";
 
 const queryClient = createQueryClient();

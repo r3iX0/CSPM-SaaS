@@ -1,4 +1,4 @@
-"""Sealed audit packages against the real database (DECISIONS.md section 204).
+"""Sealed audit packages against the real database (DECISIONS.md section 208).
 
 What only a database can hold shut:
 

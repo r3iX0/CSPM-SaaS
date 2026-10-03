@@ -9553,7 +9553,7 @@ alone: its TLS questions are server parameters, which need
 The backlog now holds twenty-two Tier 1 checks, and states why each group is
 left.
 
-## 171. The rest of Tier 1 that needs no new read: five rules, two already answered, one declined
+## 171. The rest of Tier 1 that needs no new read: five rules, two already answered, one declined — **the decline reversed by §204**
 
 §170 closed fifteen Tier 1 checks. Of the twenty-two left, eight needed nothing
 the scanner does not already read. Each was weighed against what the native
@@ -9739,7 +9739,7 @@ The crosswalk carries each counterpart's mappings. The storage checks that need
 the file service (file-share soft delete, SMB) or a key-rotation reading are
 left for a batch that adds those reads.
 
-## 175. The rest of Tier 2 that needs no new permission
+## 175. The rest of Tier 2 that needs no new permission — **two declines reversed by §204**
 
 Fourteen more property specs (section 174), each reading a field the scanner
 already collects or a server parameter under a configuration read the role
@@ -10485,7 +10485,8 @@ That row now says "The last owner stays" in their place.
 
 **Settings links to its sections.** The page is seven topics and 2,600 pixels
 long; a row of links under the heading names what is on it -- only the
-sections this reader is shown -- and jumps to each.
+sections this reader is shown -- and jumps to each. Superseded by §207, which made
+each topic its own page.
 
 **Risks: an untriaged count equal to the whole says so, and the counts
 filter.** "Live risks 77" beside "Needs triage 77" read as a mistake; they are
@@ -11048,7 +11049,8 @@ tracked or not; the demo reads every fix and is offered no button.
 §41 and §98 still hold, in their new place. Tracking sits under the fix it commits to (§41), and
 proving a fix sits at the end of the fix (§98), both in the sheet. §187's one verify also holds:
 the finding header's "Rescan to verify" appears only where the fix has no "Verify it now" of its
-own -- a finding on no asset, or one already resolved.
+own -- a finding on no asset, or one already resolved. (Tracking moved to the sheet's header and
+the finding's card in §205, because at the foot of the fix nobody found it.)
 
 No API changed. The sheet reads the finding under `["finding", id]`, which each queue row has
 already filled (§29), so opening a row's fix costs no request; the asset is read only when there
@@ -11107,7 +11109,322 @@ The effort shown for a group is the sum of its open tasks' estimates. That overs
 one script, but the estimate is the rule's per asset, and a smaller number the product cannot
 justify would be worse than a larger one it can.
 
-## 204. An audit package is a sealed assessment, and an auditor is given a grant to read it
+## 204. Every control a scanner can observe is answered by a rule
+
+The compliance page measured each framework against its whole catalogue, and section 168 kept it that
+way on purpose: a requirement no rule reaches reads not covered. Measured on 2026-10-02, the Azure
+and organization frameworks still had observable controls nothing answered: 34 of CIS Azure 2.0, 18
+of CIS Azure 6.0, 23 of NIS2, 10 of ATT&CK, and one each of NIST CSF and PCI DSS. Some were rules
+nobody had mapped, some were procedural clauses the catalogue called observable, and the rest were
+settings no rule read. This closes all of them that can be closed, and names the twelve that cannot.
+AWS is unchanged: section 168's position stands, and AWS is not ported for breadth while it has
+never run against a live account.
+
+**Mappings that were missing or wrong.** Rules already answered controls nobody had mapped:
+AZ-ID-013 is CIS Azure 2.0 1.2.6, AZ-ID-005 is CIS Azure 6.0 5.1.1 (security defaults, or the
+Conditional Access that replaces them), AZ-IAM-005 is the upper half of 6.0 5.7, AZ-CMP-003 is 2.0
+7.7 (legacy VHDs, fixed by moving to managed disks), AZ-DEF-010 is PCI DSS 2.2.1 (an enforced
+benchmark is a hardened configuration standard in force), six backup and recovery rules are ATT&CK
+T1490, and AZ-IAM-001 and AZ-IAM-002 are T1651 (Owner and Contributor can run commands on any
+machine). One crosswalk entry was wrong: CIS Azure 6.0 9.3.1.1 is key rotation reminders, and it sat
+on the infrastructure encryption rule. It moves to AZ-STO-015, the key expiry policy, which is that
+reminder, and AZ-STO-015's 2.0 mapping moves from 3.4 to 3.3 for the same reason. The crosswalk's
+added entries are hand-written, and its comment now says so.
+
+**Controls no scanner can observe say so.** Twenty-two NIS2 clauses (annual policy review,
+crisis management, who reports to the board, the risk treatment plan) and six ATT&CK techniques
+(system and software discovery, data staging, information repositories, event-triggered execution)
+were marked observable because the catalogue they came from marked everything that way. They are
+not, and NIST CSF ID.AM-1 asks about physical devices. Marking them is not shrinking the denominator
+to flatter the number: section 168's page shows them as beyond a scanner, which is what they are.
+Eight CIS Azure 6.0 controls the benchmark files as manual are read by a rule now, and are marked
+observable.
+
+**Thirty-nine rules, most reading what was already collected.**
+
+- Storage: AZ-STO-017 shared key access allowed (unset allows it, as Azure documents), AZ-STO-018 an
+  access key not regenerated in 90 days -- judged against the capture's own time, as runtime
+  support is (section 177) -- AZ-STO-019 no delete lock, and AZ-STO-020 the blob, queue or table
+  service logging no reads, writes and deletes. That last reads diagnostic settings beneath each
+  service in a task of its own: the shared diagnostics task depends on every listing it draws ids
+  from, so a refused listing would have skipped it and cost every logging rule its verdict.
+- Key vaults: AZ-KV-007 public network access not disabled, not applicable where the vault answers
+  every network, which AZ-KV-002 reports; AZ-KV-008 no private endpoint; AZ-KV-009 a certificate
+  valid for more than twelve months. The management plane does not list certificates, but each one
+  is stored beside a secret holding its key pair, carrying its content type and validity window, so
+  the lifetime is read without a data-plane permission. Whether ARM's secret listing includes those
+  secrets is the first thing a live v13 read will show; until it does, a vault with none listed is
+  not applicable rather than passing.
+- Databricks: AZ-DBW-005 no private endpoint and AZ-DBW-007 logs sent nowhere, both on Premium
+  workspaces only, since neither exists below it; AZ-DBW-006 a workspace subnet without a network
+  security group, joined against the virtual networks read since v11.
+- Networks: AZ-NET-016 a subnet without a network security group, leaving out the four subnets Azure
+  reserves for gateways, firewalls and route servers; AZ-NET-017 HTTP or HTTPS open to the internet;
+  AZ-NET-018 public addresses on the Basic SKU Azure retired in September 2025.
+- Application gateways, a new `ResourceType.APPLICATION_GATEWAY`: AZ-AGW-001 no web application
+  firewall, AZ-AGW-002 TLS below 1.2 (a gateway stating no TLS policy is not judged, since its
+  default depends on the API version it was created under), AZ-AGW-003 no HTTP/2, AZ-AGW-004 request
+  bodies not inspected and AZ-AGW-005 no bot protection, the last two only where a firewall is on.
+- VPN gateways, a new `ResourceType.VPN_GATEWAY`: AZ-VPN-001 point-to-site clients admitted without
+  an Entra ID sign-in.
+- Workloads: AZ-CMP-014 a machine not assessed for missing updates every 24 hours (ImageDefault, the
+  documented default), AZ-WEB-014 a web app not requiring client certificates, AZ-DB-025 a
+  PostgreSQL server admitting every Azure service through the 0.0.0.0 rule.
+- Defender: AZ-DEF-012 agentless scanning for machines off, AZ-DEF-013 file integrity monitoring
+  off, AZ-DEF-014 the Containers sensor off, AZ-DEF-015 DNS not watched. The standalone DNS plan was
+  folded into Servers Plan 2 in 2023, so either one passes. Extension names were checked against the
+  pricing API's reference.
+- Governance: AZ-POL-001 no enforced Allowed locations policy, read from the policy assignments
+  already collected; AZ-LCK-001 an asset marked high or critical with no delete lock; AZ-IAM-011 no
+  custom role for administering locks; AZ-IAM-012 fewer than two Owners, the lower half of CIS 6.0
+  5.7.
+- Tenant: AZ-ID-023 administrators not required to use MFA, AZ-ID-024 risky sign-ins not
+  challenged at medium risk or higher, AZ-ID-025 no policy by location, AZ-ID-026 no custom
+  banned-password list (the `Password Rule Settings` directory setting, read under the consent
+  already held), AZ-ID-027 no sign-in frequency, AZ-ID-028 Authenticator notifications hiding the
+  application or location (only an explicit `disabled` fails, since Microsoft has shown both by
+  default since 2023), AZ-ID-029 joining a device without MFA, AZ-ID-030 subscriptions free to
+  move in or out of the directory, and AZ-ID-031 no access review covering guests.
+
+**Three declines reversed.** Section 171 left HTTP on 80 and 443 unflagged because a finding on
+every web server would bury the ones that matter, and section 175 declined client certificates and
+a lock-administration role as design choices rather than settings. CIS asks all three in both
+editions, and a compliance view that cannot answer a benchmark's own question reads as a gap the
+product chose to hide. So they are asked, at LOW: AZ-NET-017 is its own rule rather than part of
+AZ-NET-003's catch-all, so it buries nothing, and a public website or an app built for anonymous
+callers dismisses the finding with a reason. The reasoning of the earlier sections still holds for
+severity; it no longer holds for silence.
+
+**Role v13: five reads.** `Microsoft.Network/applicationGateways/read`,
+`Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies/read`,
+`Microsoft.Network/virtualNetworkGateways/read`, `Microsoft.Authorization/locks/read` and
+`Microsoft.DBforPostgreSQL/flexibleServers/firewallRules/read`, each checked on 2026-10-02 against
+the published operations reference. ARM lists virtual network gateways only per resource group, so
+each is read by id from the inventory, and the client spells the path out from the id's parts so it
+can only ever name a gateway. The role holds sixty-one actions and the ceiling test moves to
+sixty-five. A v12 connection keeps every verdict and route and is prompted to redeploy with
+Network, Databases and Posture named; the checks on these reads report UNKNOWN until then. The
+tenant's subscription policy is read from ARM at the tenant scope, which Microsoft documents as
+readable by every user, so it costs no role action; an unset field reads as blocked, the default
+Microsoft documents since 1 May 2026.
+
+**Two Graph permissions, the first added since onboarding.** `Policy.Read.DeviceConfiguration`
+(`bdba4817-...`) reads the device registration policy and `AccessReview.Read.All` (`d07a8cc0-...`)
+the access reviews, both ids read from Microsoft Graph's published reference -- a third-party
+catalogue gave the first permission's delegated id, which is exactly the near miss `auth.py`'s rule
+about recalled identifiers exists for. Every connected tenant must consent again before AZ-ID-029
+and AZ-ID-031 can run. Until then they report UNKNOWN and the connection names the missing
+permissions, as section 63 arranged. AZ-ID-029 passes on a Conditional Access policy on the
+"Register or join devices" action whether or not the policy read worked, since either answer is
+enough on its own. Access reviews need Entra ID P2 or Governance, and a tenant without it records
+the reading as UNAVAILABLE (section 196).
+
+**What cannot be answered.** Twelve CIS Azure 2.0 controls stay not covered, listed with their
+reasons in `docs/NATIVE_COVERAGE_BACKLOG.md`: self-service password reset's four settings and the
+legacy "remember MFA" toggle have no Graph or ARM read, four Entra switches exist only in the
+portal, the Log Analytics agent and PostgreSQL single server are retired, and whether key vaults
+hold application secrets needs the application settings behind `config/list`, which also returns
+secrets. `tests/unit/test_compliance_closure.py` holds the invariant both ways: every observable
+control of CIS Azure 6.0, NIS2, ATT&CK, HIPAA, GDPR, NIST CSF and PCI DSS is mapped by a rule, and
+CIS Azure 2.0's gaps are exactly those twelve.
+
+**Nothing here has been read from a live tenant.** The fixtures are shaped after the published
+references. The demo's payments vault gains the private endpoint a vault with public access off
+would have. The first redeployed v13 connection, consented again, is the check.
+
+## 205. Tracking a fix is offered where somebody decides to do it
+
+§202 moved the whole fix -- steps, CLI, Terraform, policy, tracking, marking done, verifying -- into
+a sheet on the remediation page, and left the finding page a short card with **Open fix**. Tracking
+went with it, to the foot of the sheet. Asked how a finding gets into the queue, the answer was
+"there is no track button", and on the live site that was what a reader saw: the finding page had
+none, the sheet had one below a screen of steps and commands that nobody scrolled past, and the
+remediation page's list of findings to start with (§187) was drawn only while the queue was empty,
+so it disappeared with the first task anybody tracked. Three places could add work and none of them
+was in view.
+
+Tracking is now offered in three places, each where the decision is made:
+
+- **On the finding's fix card**, **Track this fix** sits beside **Open fix**. Reading the fix in
+  full is still a click away, as §202 decided; deciding to do it is not a reason to leave the page.
+  Once the finding is tracked the card says since when, as it did, and offers nothing to press.
+- **In the fix sheet's header**, under the title and the link to the finding, rather than at the
+  foot of the fix. Marking done moves with it, because it is the same control in its tracked
+  state. "Verify it now" stays at the end of the fix (§98): proving a fix follows applying it, and
+  applying it means reading the steps above.
+- **Under the queue**, the five worst open findings that no task tracks are listed for as long as
+  there are any, headed "Where to start" while the queue is empty and "Not in the queue yet" once it
+  is not, with a link to every open finding. A finding with a task is left out even if it is still
+  OPEN, which a cancelled task leaves it.
+
+All three send the same `POST /remediation` through one mutation (`useTrack` in
+`lib/remediation.ts`), so each says the same thing in its toast about what tracking does not do:
+the finding stays open until a scan observes the fix. None is offered in the demo, where the API
+refuses every write, nor on a finding that is resolved, accepted or a false positive
+(`isTrackable`). A false positive used to be offered tracking in the sheet; it is a conclusion not
+to do the work, as an accepted risk is, and is now treated as one.
+
+No API changed. §41's reason for tracking sitting under the fix -- that it is a statement about
+doing what the fix says -- is answered differently now: the card and the header both sit beside the
+way to read the fix, rather than below it.
+
+## 206. Coverage by domain is one framework's sections, each drawn by status
+
+The compliance overview ended in "Coverage by domain": a grid of every framework at once, eleven of
+them, each section a teal bar whose length was the share of its controls that reached a verdict.
+Read on the live estate it said the opposite of the page above it. CIS Azure's Microsoft Defender
+section drew a teal bar at 96% while seventeen of its twenty-three controls failed; teal, long and
+labelled with a percentage, it read as a grade, which is the reading §185 removed from the cards.
+Section names were cut to fifteen letters ("Identity and Ac..."), a percentage carried no count
+("Miscellaneous 100%" was one control), a section nothing checks was an empty bar at 0% that looked
+like a failure, nothing in it led anywhere, and the page fetched all eleven frameworks' controls on
+arrival to draw it.
+
+**One framework at a time.** A tab per framework, held in the URL (`?domains=`, absent for the
+first), and only the chosen framework's controls are read -- under `["compliance", id]`, the key the
+framework page shares, so following a row costs no request.
+
+**A section is a row, drawn as its controls by status.** Its full name; the same bar the framework
+page draws (`StatusBar` in `components/compliance.tsx`: failing, inconclusive, passing, not assessed,
+not covered, worst first); "23/33 with a verdict" and "16 failing" in words; and, for a section no
+rule maps, "3 controls, nothing checks" instead of an empty bar. One legend over the rows says
+every colour. Not covered is now a visible grey rather than the colour of the empty track, on the
+framework page's bar as well.
+
+**Two orders.** The framework's own, which is the order an auditor's spreadsheet is in, and "Most
+failing" (`?domainOrder=failing`): most failing controls first, then most without a verdict.
+
+**A row leads to its section.** Each row links to the framework page with `?section=<name>`, which
+narrows the controls to that section, says so with a way back to every section, and counts the
+verdict filter within it -- the framework's totals over one section's rows promised fifteen failing
+and showed five. A section the catalogue does not have narrows nothing.
+
+The `Bars` chart drew only this section and is deleted. No API changed.
+
+A row is three columns -- name, bar, figures -- only from the `lg` breakpoint, with the figures in a
+fixed 13rem that never wraps; below it the three stack. Checked at first only without the app's
+sidebar, an 11rem column broke "· 16 failing" across two lines beside the sidebar.
+
+## 207. Settings is one page per topic, and risk context is a table worked through
+
+Settings was one page of seven topics, 2,600 pixels long. Forms edited once a year (the
+organization's name) sat between lists that only grow (members, the activity log), and the one
+irreversible action in the product, deleting the organization, was a text box lying open at the
+bottom. The row of anchor links from §188 helped a reader jump, but it scrolled away with the page
+and never said where the reader was. Each topic also saved its own way: the profile saved on a
+button that stayed off until something changed, each subscription's declaration on a button that
+was always on, a member's role the moment it was picked from a menu with no confirmation and no
+undo, and an integration's switch at once, with "Saved" shown as text that vanished after two
+seconds.
+
+The topic with the most at stake was in the worst shape. The risk engine multiplies every finding
+by a subscription's declared criticality and data sensitivity, which makes those the most valuable
+answers a customer can give. The page asked for them as one full form per subscription, stacked,
+each with its own Save. Thirty subscriptions meant thirty forms, no count of how many were left,
+and thirty requests on arrival, one per subscription. A viewer was shown those forms too, and the
+API refused every save they tried.
+
+**One page per topic.** `/settings/general`, `/members`, `/context`, `/integrations`,
+`/activity` and `/preferences`, with the topics listed beside the page on a wide screen and above
+it on a narrow one (`SettingsNav`, links marked `aria-current`, not tabs, because each topic is a
+page with its own address and title). General holds the profile and, at its foot, deletion.
+`SettingsPage` routes them itself under `/settings/*`, so the lazy chunk stays one. A topic this
+reader may not open is not listed, and its address goes back to General: members are not shown in
+the demo, and integrations and activity are for owners and admins, as the API allows
+(`components/settings/sections.ts`). `/settings` lands on General, and an anchor from the single
+page (`/settings#context`, `#danger`) lands on the page that now holds that section, so links
+written before the split keep working. Each page has its own document title ("Members ·
+Settings").
+
+**One way to save.** A form holds its edits until Save, with Discard beside it and "Unsaved
+changes" said while there is something to lose. Leaving asks first (`LeaveGuard`). React Router's
+`useBlocker` needs a data router, and this app has none (`App.tsx`). So
+closing the tab is caught by `beforeunload`, and following a link inside the app by a capturing
+click listener on the document. That listener runs before React's own listener at the root, so a
+`Link` never hears the click. The browser's Back button is not caught; it reaches no click. An
+instant control stays instant (an integration's switch, a member's role), and every result is a
+toast. A role change offers Undo, except on the reader's own role, where an undo from a role that
+can no longer change roles would be refused. Lowering one's own role below admin, removing a
+member and removing an integration each ask in a dialog first.
+
+**Risk context is a table.** One row per subscription with its environment, two levels and
+whether it is declared. Undeclared rows keep the dashed unknown style. "4 of 12 subscriptions
+declared" with a bar leads the page. A filter (All, Not declared, Declared, `?show=`) and, past
+eight subscriptions, a search (`?q=`) narrow it, and the count line is spoken through
+`LiveStatus`. A subscription opens in a sheet (`?account=`). The sheet asks for each level as a
+choice that says what it means ("Customer-facing, or it carries revenue"; "Regulated data:
+payment cards, health records, secrets"), because "High" alone does not say what makes a
+subscription high. The sheet asks before closing over an unsaved edit. `?account=` takes either
+the record's id or the provider's subscription id, so an asset page, which knows where an asset
+sits but not CloudGuard's record of it, opens that subscription's sheet directly.
+
+Rows can be selected, and one field set across them: environment, criticality or data
+sensitivity, or every declaration withdrawn after a confirmation. A declaration is replaced whole
+(`ContextDeclarationIn`), so the page sends each subscription its own full statement with
+the one field changed. Each write is its own audit entry, which is what a declaration is: one
+person's statement about one subscription. No batch endpoint was added. Atomicity across
+subscriptions is not something anyone needs, and a partial result is reported as one ("Updated 3
+of 5. The rest are unchanged."). Writes go four at a time. A viewer sees the table read-only, as
+`require_write` allows, with no checkboxes and a sheet that only reads.
+
+**One request for every declaration.** `GET /context-declarations` lists the organization's
+declarations, one per subscription that has one. The table and the getting-started checklist read
+it under one key (`DECLARATIONS_KEY`), where the checklist used to probe up to twenty
+subscriptions one by one. It is not paged, as `/cloud-accounts` is not.
+
+**Members.** Each role says what it may do, both when it is chosen in the invite dialog and
+behind a question mark on the Role column. The roles are read from the API's own checks:
+security analyst, IT admin and advisor have the same access today, and the page says so rather
+than implying three tiers. Inviting is a dialog opened from the heading, and the link it makes
+replaces the form in the same place. An expired invitation offers "Invite again", which withdraws
+it and makes a new one for the same address and role, because the old link was stored only as a
+hash and cannot be shown twice. Members have initials avatars, and a search box past eight
+members.
+
+**Integrations.** Each row says in one word whether it is delivering (Delivering, Failing, Not
+sent yet, Paused), read from its last success and failure, so a channel that started refusing at
+night reads "Failing" before anyone opens it. Adding one is a dialog, where the kind is a choice
+that says what each does. A generic webhook's signing secret is shown once, and the dialog
+holding it cannot be dismissed until the reader ticks that it is stored.
+
+**Activity.** The kind of change (`?action=`, a family such as `member.`) and the person
+(`?actor=`) narrow the list through the API's own filters, which it always had and the page never
+offered. Entries sit under the day they happened. Paging has no ceiling; the list used to stop
+at two hundred entries without saying so. "Download CSV" reads the whole filtered trail two
+hundred at a time and saves it. A cell a spreadsheet would read as a formula is prefixed with an
+apostrophe, because entries carry what people typed. The changes to context, findings, risks and
+remediation, which the API recorded and the page could only spell out as "context declared",
+now have words.
+
+**General.** The country is chosen by name from a searchable list and stored as its code. The
+names come from the browser's `Intl.DisplayNames`, so there is no table to keep. The industry
+suggests common answers and stays free text. The identifier is read-only rather than disabled,
+so it can be copied at full contrast, and has a copy button. A reader who cannot edit sees the
+profile as text, not as disabled boxes. Deleting opens a dialog that says what goes, counted from
+what is already known (the subscriptions, the members, and every scan, finding and report), then
+asks for the name.
+
+**Preferences.** The theme and the single-key shortcuts were settable only where they act: a
+menu in the header and a switch inside the shortcuts sheet. A reader looking for them looked in
+Settings first. They are now here as well, writing the same browser stores, and the page says
+nothing on it is shared.
+
+The radio cards that say what each choice means (`OptionCard`) are one component across roles,
+integration kinds, levels and themes. The §188 row of anchor links is gone with the single page
+it served.
+
+**Checked in a browser on production.** The cards rendered as wide as their text, because
+`FieldLabel` is `w-fit`; they now fill their row. The invite dialog was taller than a short
+window and pinned to its top, so the dialogs on these pages scroll inside a height of the
+viewport less a margin. The danger card repeated the organization's name beside the button, and
+now says what the button does. The same check found a fault older than this change: the Geist
+fonts never reached production. `index.css` pulled them in with `@import`, Tailwind's PostCSS
+plugin inlined that without rebasing the package's relative `./files/*.woff2` URLs, Vite could
+not resolve them ("didn't resolve at build time") and emitted no files, and Vercel's fallback
+answered each font request with the app's HTML, so every page drew in the system font. The fonts
+are imported from `main.tsx` instead, where Vite rebases and fingerprints them.
+
+## 208. An audit package is a sealed assessment, and an auditor is given a grant to read it
 
 An external audit asks what the estate looked like on a date, and weeks of console screenshots
 are how that is answered today. CloudGuard already holds the answer -- readings, timestamps,
@@ -11147,7 +11464,7 @@ a document they hold, and find the payload aged out.
 
 **Frameworks.** A package seals any framework the organization is offered
 (`compliance.frameworks_for`), so ISO 27001, SOC 2, PCI DSS v4, NIST CSF 2.0 and CIS Controls
-v8.1 (§205) are sealable beside the benchmarks, and nothing in sealing branches on a framework.
+v8.1 (§209) are sealable beside the benchmarks, and nothing in sealing branches on a framework.
 Only a catalogued framework can be sealed: a package must not imply an assessment against a
 framework CloudGuard has no controls for. The declared audit period is informational; the
 evidence is the closing scan's, and a per-scan timeline for a Type II period is not built.
@@ -11189,10 +11506,10 @@ auditor's verified email and read through `SECURITY DEFINER` functions, as invit
 carried in a URL fragment, and the manifest signature (Ed25519) is a later step. Until grants
 land, only an owner or administrator can read a package.
 
-## 205. The standards a customer is audited against are listed in full, and only the latest of a version is offered
+## 209. The standards a customer is audited against are listed in full, and only the latest of a version is offered
 
 Customers are asked for SOC 2, ISO 27001, PCI DSS, the NIST CSF and the CIS Controls by name,
-and a sealed audit package (§204) is only as honest as the list it measures against. ISO 27001,
+and a sealed audit package (§208) is only as honest as the list it measures against. ISO 27001,
 SOC 2 and PCI DSS were already offered, but as a subset each (17, 27 and 23 controls), so a
 coverage figure had a denominator the standard does not have. NIST CSF was version 1.1, which
 NIST superseded in February 2024, and the CIS Controls were absent.
@@ -11203,7 +11520,7 @@ safeguards. PCI DSS lists every one of the 64 principal requirements, each as a 
 through a sub-requirement listed beneath it; its sub-requirements are listed only where a
 configuration reading reaches them, and its scope note says so. What no rule reaches resolves to
 `NOT_COVERED`, and what no scanner can see is marked not technically assessable, so a package
-carries both beside the passes (§204).
+carries both beside the passes (§208).
 
 **One version of a standard.** CSF 1.1 is replaced by `NIST_CSF_2.0`, not kept beside it, and
 there is no CIS Controls v8. The same name for two versions would split one rule's evidence across
@@ -11230,17 +11547,17 @@ the crosswalk's comment says so; it is reviewed like code.
 it, and the steps for a new version. A new version is a new id and a remap, never an edit in
 place, so a sealed package is never reinterpreted.
 
-## 206. CSA CCM v4.1, NIST SP 800-171 Revision 2 and DORA are offered
+## 210. CSA CCM v4.1, NIST SP 800-171 Revision 2 and DORA are offered
 
 Three standards that a customer's buyer or regulator names, rather than a customer's auditor:
 the Cloud Controls Matrix because a SaaS vendor publishes to CSA STAR and STAR accepts only v4.1
 from March 2026 (Level 1) and December 2027 (Level 2); NIST SP 800-171 because CMMC Level 2
 assesses it and the first phase began on 10 November 2025; DORA because it has applied to EU
-financial entities since 17 January 2025. They follow the rules of §205: listed in full, one
+financial entities since 17 January 2025. They follow the rules of §209: listed in full, one
 version, data in `standards.json`, mapped by hand through the crosswalk.
 
 **800-171 is Revision 2, not 3.** NIST withdrew Revision 2 for Revision 3 (97 requirements), and
-§205 offers only the latest of a standard. The exception is deliberate: the standard is wanted
+§209 offers only the latest of a standard. The exception is deliberate: the standard is wanted
 for CMMC, CMMC Level 2 assesses Revision 2, and offering Revision 3 would measure a supplier
 against a document its assessor will not use. The scope note says so. Revision 3 replaces
 Revision 2 when the Department of Defense moves CMMC, not before.
@@ -11265,7 +11582,7 @@ benchmarks). The 17 domains and the per-domain counts are held by a test.
 
 **Coverage is what the evidence supports.** Of 219 rules, 217 map to CCM controls reaching 45 of
 the 46 technically assessable ones, 199 to 800-171 reaching 34 of 44, and 206 to DORA reaching
-all 6. That is a judgement made rule by rule, as for the CIS Controls (§205), and is reviewed like
+all 6. That is a judgement made rule by rule, as for the CIS Controls (§209), and is reviewed like
 code.
 
 ## Open items carried forward

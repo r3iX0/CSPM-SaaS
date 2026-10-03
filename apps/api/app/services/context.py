@@ -128,3 +128,24 @@ async def declare(
         data_sensitivity=data_sensitivity.value if data_sensitivity else None,
     )
     return existing
+
+
+async def list_declarations(
+    session: AsyncSession, tenant: TenantContext
+) -> list[ContextDeclarationRecord]:
+    """Every declaration in the organization, one per subscription that has one.
+
+    The settings page draws every subscription with what has been said about it,
+    and asking once per subscription made that page as many requests as the
+    estate has subscriptions. A subscription with no row is one nobody has
+    described; the caller lists the subscriptions themselves to find those.
+    """
+    return list(
+        (
+            await session.execute(
+                select(ContextDeclarationRecord)
+                .where(ContextDeclarationRecord.organization_id == tenant.organization_id)
+                .order_by(ContextDeclarationRecord.cloud_account_id)
+            )
+        ).scalars()
+    )

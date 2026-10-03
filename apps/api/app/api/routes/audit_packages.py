@@ -2,7 +2,7 @@
 
 Owners and administrators only. A package is the assessment of chosen frameworks as it stood on
 the latest completed scan, copied out of the tables retention and re-scans keep rewriting, and
-never changed afterwards (DECISIONS.md section 204). So there is no ``PATCH`` and no ``DELETE``
+never changed afterwards (DECISIONS.md section 208). So there is no ``PATCH`` and no ``DELETE``
 here: a wrong package is sealed again, and the old one stays what it was.
 
 The archive is a file and not an envelope, for the reason a report is: the caller is saving a

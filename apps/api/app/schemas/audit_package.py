@@ -1,4 +1,4 @@
-"""Audit packages as the API takes and hands them out (DECISIONS.md section 204).
+"""Audit packages as the API takes and hands them out (DECISIONS.md section 208).
 
 A package is a sealed record, so it has a create model and output models and no update model:
 nothing about one changes after it is sealed. The controls themselves are not in these answers.

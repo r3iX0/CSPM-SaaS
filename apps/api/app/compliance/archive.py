@@ -6,7 +6,7 @@ was hashed over, so ``sha256sum manifest.json`` is the ``manifest_sha256`` seale
 trail. Each payload is written as the exact bytes it was captured as and named by their hash, so
 the file name is the claim and ``sha256sum -c SHA256SUMS`` is the check. A payload that no longer
 hashes to its name is left out and listed as a gap rather than shipped under a name it does not
-earn (DECISIONS.md section 204).
+earn (DECISIONS.md section 208).
 
 **Nothing in the archive is live.** It carries no PDF and no assessment recomputed today: a report
 rendered at download time would describe the estate now, in a file that claims to describe it on

@@ -8,7 +8,7 @@ answers the same question, or when it is decided the question is not worth askin
 Titles are Prowler's. The CIS column is the CIS Microsoft Azure Foundations Benchmark 6.0 control
 each check was mapped to, which is what a native rule answering it should map to as well.
 
-## Azure (7 checks)
+## Azure (4 checks)
 
 ### Tier 1 — new exposure and identity surface (0)
 
@@ -27,11 +27,11 @@ Network Watchers and their flow logs, Bastion hosts, the file service beneath st
 keys and secrets in each vault, and three SQL server settings -- plus Entra's named locations under
 consent already held. Forty-eight native rules answer fifty checks; two moved to Tier 3.
 
-### Tier 3 — deferred (7)
+### Tier 3 — deferred (4)
 
 Section 177 ported the other seventeen: runtime versions against a dated end-of-support table judged
 as of each capture, and the availability and backup checks at LOW severity, under scanner role v12.
-What remains cannot be asked, or was decided against.
+What remains cannot be asked, or is kept as evidence rather than a finding.
 
 **Unreadable without a secret, or about a retired agent (DECISIONS.md sections 176 and 177).** A
 function app's host runtime version and its Application Insights connection are written only in its
@@ -46,27 +46,41 @@ about it is not in the published operations reference.
 - `defender_auto_provisioning_log_analytics_agent_vms_on` — Defender auto-provisioning of Log
   Analytics agent for Azure VMs is enabled
 
-**Already decided against: AZ-NET-003 excludes ports 80 and 443 on purpose, because serving HTTP is
-usually the whole point of the workload, and a finding on every web server would bury the ones that
-matter (DECISIONS.md section 171).**
-
-- `network_http_internet_access_restricted` — Network security group does not allow HTTP (TCP 80)
-  from the Internet
-
-**A design choice rather than a setting to correct (DECISIONS.md section 175).** Mutual TLS is how
-an application authenticates its callers, not hygiene every app should have; and a custom role for
-administering resource locks is an organizational arrangement, which the absence of says nothing
-about how locks are managed.
-
-- `app_client_certificates_on` — Web app requires incoming client certificates
-- `iam_custom_role_has_permissions_to_administer_resource_locks` — Custom role has permission to
-  administer resource locks
+**Ported after all (DECISIONS.md section 204).** Three checks earlier sections declined on purpose
+are native rules now, because CIS asks them and the answer is a setting the scanner reads: HTTP and
+HTTPS open to the internet is AZ-NET-017, at LOW so a public website can dismiss it; client
+certificates are AZ-WEB-014, LOW for the same reason; and a custom role for administering locks is
+AZ-IAM-011.
 
 **A vulnerability verdict: kept as evidence paired with exposure rather than a finding of its own
 (DECISIONS.md section 62).**
 
 - `defender_container_images_resolved_vulnerabilities` — All Azure running container images in the
   subscription have no unresolved vulnerabilities
+
+## Compliance controls no rule can answer (12)
+
+Section 204 mapped or wrote a rule for every observable control of CIS Azure 6.0, NIS2, ATT&CK,
+HIPAA, GDPR, NIST CSF and PCI DSS. Twelve controls of CIS Azure 2.0 remain not covered, each for a
+reason a rule cannot fix:
+
+| Control | Question | Why no rule answers it |
+|---|---|---|
+| 1.1.4 | Users cannot skip MFA by remembering a trusted device | The legacy per-user MFA service settings have no Graph or ARM read |
+| 1.6 | Password reset requires two methods | Self-service password reset's settings are not exposed in Graph |
+| 1.8 | Users re-confirm authentication information periodically | Self-service password reset's settings are not exposed in Graph |
+| 1.9 | Users notified of password resets | Self-service password reset's settings are not exposed in Graph |
+| 1.10 | Administrators notified when another administrator resets a password | Self-service password reset's settings are not exposed in Graph |
+| 1.13 | Users cannot add gallery apps to My Apps | A portal-only setting with no public API |
+| 1.17 | Entra administration portal restricted to administrators | A portal-only setting with no public API |
+| 1.18 | Group features in the access pane restricted | A portal-only setting with no public API |
+| 1.20 | Group owners cannot manage membership requests in the access pane | A portal-only setting with no public API |
+| 2.1.15 | Log Analytics agent auto-provisioned to virtual machines | Microsoft retired the agent in August 2024 |
+| 4.3.8 | PostgreSQL infrastructure double encryption on | Only single server offered it, and single server is retired |
+| 9.11 | Key vaults hold application secrets | Answering it reads application settings behind `config/list`, which also returns secrets |
+
+`tests/unit/test_compliance_closure.py` holds this list: a control leaving it, or joining it, fails
+the build until this table and the test agree.
 
 ## AWS (575 checks)
 

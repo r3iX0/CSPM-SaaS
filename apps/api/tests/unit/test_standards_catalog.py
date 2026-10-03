@@ -2,7 +2,7 @@
 
 The catalogue lists a standard completely so a coverage figure has the whole standard as its
 denominator, and a sealed audit package can say which controls a scan did not reach as well as
-which it did (DECISIONS.md section 205). These tests hold the counts the published standards
+which it did (DECISIONS.md section 209). These tests hold the counts the published standards
 have, and the rule that keeps a superseded version from being offered beside its successor.
 """
 

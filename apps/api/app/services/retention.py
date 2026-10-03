@@ -228,7 +228,7 @@ async def prune_blobs(session: AsyncSession, organization_id: UUID, *, keep_days
     # bytes by a hash that is now in a document they hold, and "the payload aged
     # out" is a poor answer to "show me the reading behind this control". A hash
     # any package item names is kept for as long as the package exists, which is
-    # as long as its organization does (DECISIONS.md section 204). The citation
+    # as long as its organization does (DECISIONS.md section 208). The citation
     # would survive the loss either way; the evidence would not.
     spoken_for |= set(
         (
