@@ -391,7 +391,7 @@ function Summary({
               fallback={<SeverityBadge level={asset.criticality} size="sm" />}
             />
           </dl>
-          <DeclareLink fact={asset.context?.criticality} />
+          <DeclareLink fact={asset.context?.criticality} placement={asset.placement} />
         </Cell>
         <Cell icon={FACTOR_ICONS.dataSensitivity} label="Data sensitivity">
           <dl className="w-full text-sm">
@@ -401,7 +401,7 @@ function Summary({
               fallback={<SeverityBadge level={asset.data_sensitivity} size="sm" />}
             />
           </dl>
-          <DeclareLink fact={asset.context?.data_sensitivity} />
+          <DeclareLink fact={asset.context?.data_sensitivity} placement={asset.placement} />
         </Cell>
         {/* Exposure has no provenance and needs none: it is read off the
             configuration in the capture -- a public IP is attached or it is
@@ -433,11 +433,24 @@ function factOrigin(fact: ContextFact | undefined): string {
  * whose criticality read "Unknown" offered nothing to do about it, while the
  * form that settles it sat unannounced in Settings (§189).
  */
-function DeclareLink({ fact }: { fact: ContextFact | undefined }) {
+function DeclareLink({
+  fact,
+  placement,
+}: {
+  fact: ContextFact | undefined;
+  placement: AssetDetail["placement"];
+}) {
   if (fact && (fact.source === "customer" || fact.source === "inherited")) return null;
+  // Straight to the subscription's declaration where the asset sits in one
+  // (DECISIONS.md §207); the directory has no subscription to declare.
+  const subscription = placement && placement.scope_id !== "directory" ? placement.scope_id : null;
   return (
     <Link
-      to="/settings#context"
+      to={
+        subscription
+          ? `/settings/context?account=${encodeURIComponent(subscription)}`
+          : "/settings/context"
+      }
       className="rounded-sm text-xs text-muted-foreground underline underline-offset-2 outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring"
     >
       Declare it for the subscription

@@ -27,6 +27,14 @@ const ROUTES: [pattern: string, title: string][] = [
   ["/risks/:riskId", "Risk"],
   ["/compliance/:frameworkId", "Compliance framework"],
   ["/connections/new", "Connect an environment"],
+  // Each settings page under the one name, so ten tabs on Settings say which
+  // page each is (DECISIONS.md §207).
+  ["/settings/general", "General · Settings"],
+  ["/settings/members", "Members · Settings"],
+  ["/settings/context", "Risk context · Settings"],
+  ["/settings/integrations", "Integrations · Settings"],
+  ["/settings/activity", "Activity · Settings"],
+  ["/settings/preferences", "Preferences · Settings"],
   ["/connections/:connectionId/setup", "Environment setup"],
 ];
 

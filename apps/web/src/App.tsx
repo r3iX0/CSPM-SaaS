@@ -160,7 +160,7 @@ export function App() {
               load. A dialog over the list could not survive either trip. */}
             <Route path="/connections/new" element={<ConnectionSetupPage />} />
             <Route path="/connections/:connectionId/setup" element={<ConnectionSetupPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/settings/*" element={<SettingsPage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

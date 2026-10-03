@@ -137,7 +137,7 @@ export function CoveragePanel({
             </span>{" "}
             sit on assets Cleave could not classify.{" "}
             <Link
-              to="/settings"
+              to="/settings/context?show=undeclared"
               className="font-medium text-foreground underline underline-offset-2"
             >
               Tell Cleave what these subscriptions hold

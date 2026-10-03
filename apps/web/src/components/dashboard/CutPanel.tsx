@@ -68,7 +68,7 @@ export function CutPanel({
           <p className="text-body leading-relaxed text-muted-foreground">
             No route from an internet-facing asset to a sensitive one. What counts as sensitive is
             something you declare —{" "}
-            <Link to="/settings" className="underline underline-offset-2">
+            <Link to="/settings/context" className="underline underline-offset-2">
               declare what a subscription is worth
             </Link>
             .

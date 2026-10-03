@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { m } from "motion/react";
 import { CheckIcon, XIcon } from "lucide-react";
 
 import { api, auth } from "@/lib/api";
-import type { CloudAccount, CloudConnection, ContextDeclaration, Dashboard } from "@/lib/types";
+import type { CloudAccount, CloudConnection, Dashboard } from "@/lib/types";
+import { DECLARATIONS_KEY, fetchDeclarations } from "@/lib/contextDeclarations";
 import { useT } from "@/i18n";
 import { setupPath } from "@/lib/connectionStage";
 import { DEMO_ICON } from "@/lib/icons";
@@ -14,9 +15,6 @@ import { DURATION, EASE_OUT } from "@/lib/motion";
 import { cn } from "@/lib/format";
 import { useScanWizard } from "@/components/scans/ScanWizardProvider";
 import { Button, buttonVariants } from "@/components/ui/button";
-
-/** Declarations are read per subscription; past this many, the first answers. */
-const CONTEXT_PROBE_LIMIT = 20;
 
 interface Step {
   key: string;
@@ -78,18 +76,14 @@ export function GettingStarted({
     retry: false,
   });
 
-  // The same cache key the settings form reads, so declaring there ticks the
-  // step here without a request of its own.
-  const contexts = useQueries({
-    queries: accounts.slice(0, CONTEXT_PROBE_LIMIT).map((account) => ({
-      queryKey: ["account-context", account.id],
-      queryFn: () =>
-        api
-          .get<ContextDeclaration | null>(`/api/v1/cloud-accounts/${account.id}/context`)
-          .then((r) => r.data),
-      retry: false,
-      staleTime: 60_000,
-    })),
+  // The same query the Risk context page reads, so declaring there ticks the
+  // step here without a request of its own -- one request for the whole
+  // estate, where this used to ask once per subscription (DECISIONS.md §207).
+  const declarations = useQuery({
+    queryKey: DECLARATIONS_KEY,
+    queryFn: fetchDeclarations,
+    retry: false,
+    staleTime: 60_000,
   });
 
   const rows = Array.isArray(connections.data) ? connections.data : [];
@@ -100,7 +94,11 @@ export function GettingStarted({
     (dashboard.findings_by_status?.RESOLVED ?? 0) > 0 ||
     dashboard.verified_resolved_last_30_days > 0;
   const scheduled = rows.some((connection) => connection.scan_interval_hours !== null);
-  const declared = contexts.some((query) => query.data != null && typeof query.data === "object");
+  // Guarded as `connections` is: the checklist sits on the dashboard, and an
+  // answer of the wrong shape must not take the page down with it.
+  const declared = (Array.isArray(declarations.data) ? declarations.data : []).some((declaration) =>
+    accounts.some((account) => account.id === declaration.cloud_account_id),
+  );
   const topRisk = dashboard.top_risks?.[0];
 
   const steps: Step[] = [
@@ -173,7 +171,7 @@ export function GettingStarted({
       // Subscriptions are only known once a scan has discovered them.
       requires: "scan",
       action: (primary) => (
-        <Link to="/settings" className={actionClass(primary)}>
+        <Link to="/settings/context?show=undeclared" className={actionClass(primary)}>
           {copy.contextAction}
         </Link>
       ),

@@ -36,7 +36,9 @@ async def client():
         yield c
 
 
-async def discovered_subscription(org_id: uuid.UUID) -> uuid.UUID:
+async def discovered_subscription(
+    org_id: uuid.UUID, subscription_id: str = "00000000-0000-0000-0000-000000000001"
+) -> uuid.UUID:
     """A subscription as discovery leaves one.
 
     Inserted rather than posted, because there is no endpoint that creates one:
@@ -63,7 +65,7 @@ async def discovered_subscription(org_id: uuid.UUID) -> uuid.UUID:
             provider=Provider.AZURE,
             account_name="Production Subscription",
             tenant_id=TENANT,
-            subscription_id="00000000-0000-0000-0000-000000000001",
+            subscription_id=subscription_id,
             consent_status=ConsentStatus.GRANTED,
             status=CloudAccountStatus.ACTIVE,
         )
@@ -201,6 +203,52 @@ class TestDeclaringContext:
         )
         assert response.status_code == 404
         assert await _declaration_rows(account_id) == []
+
+
+class TestListingDeclarations:
+    async def test_lists_what_was_declared_and_only_that(self, client, cleanup_orgs) -> None:
+        """One request for the settings page's table (DECISIONS.md section 207).
+
+        A subscription nobody described has no entry rather than an empty one:
+        the page finds those by listing the subscriptions themselves.
+        """
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Listing Ltd"))
+        cleanup_orgs.append(org_id)
+        declared = await discovered_subscription(org_id)
+        await discovered_subscription(org_id, "00000000-0000-0000-0000-000000000002")
+
+        await client.put(
+            f"/api/v1/cloud-accounts/{declared}/context",
+            json={"environment": "production", "criticality": "HIGH"},
+            headers=auth_header(user),
+        )
+
+        response = await client.get("/api/v1/context-declarations", headers=auth_header(user))
+        assert response.status_code == 200, response.text
+        rows = response.json()["data"]
+        assert [row["cloud_account_id"] for row in rows] == [str(declared)]
+        assert rows[0]["criticality"] == "HIGH"
+
+    async def test_another_tenants_declarations_are_not_listed(self, client, cleanup_orgs) -> None:
+        owner, outsider = uuid.uuid4(), uuid.uuid4()
+        org_a = uuid.UUID(await make_org(client, owner, "Declared Ltd"))
+        org_b = uuid.UUID(await make_org(client, outsider, "Nosy Ltd"))
+        cleanup_orgs.extend([org_a, org_b])
+        account_id = await discovered_subscription(org_a)
+        await client.put(
+            f"/api/v1/cloud-accounts/{account_id}/context",
+            json={"criticality": "CRITICAL"},
+            headers=auth_header(owner),
+        )
+
+        response = await client.get("/api/v1/context-declarations", headers=auth_header(outsider))
+        assert response.status_code == 200
+        assert response.json()["data"] == []
+
+    async def test_needs_a_token(self, client) -> None:
+        response = await client.get("/api/v1/context-declarations")
+        assert response.status_code == 401
 
 
 async def _declaration_rows(account_id: uuid.UUID) -> list:

@@ -111,7 +111,8 @@ describe("the asset page", () => {
     // Only the undeclared one offers the way to declare it.
     const links = screen.getAllByRole("link", { name: "Declare it for the subscription" });
     expect(links).toHaveLength(1);
-    expect(links[0]).toHaveAttribute("href", "/settings#context");
+    // Straight to the sheet for the subscription the asset sits in (§207).
+    expect(links[0]).toHaveAttribute("href", "/settings/context?account=sub-1");
   });
 
   it("goes back to the list exactly as it was left", async () => {
