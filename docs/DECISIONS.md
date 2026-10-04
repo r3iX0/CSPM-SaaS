@@ -11923,6 +11923,11 @@ patch redeployed both, from the settings alone: the API answered
 `/health/ready` with the database and the broker ok, and the worker's log shows
 Celery's banner and `beat: Starting`.
 
+**The queue test reads the file.** `test_every_queue_a_step_is_routed_to_is_actually_consumed`
+read the worker's `--queues` from `worker.json`, and failed once it was deleted. It now finds the
+one Celery worker start command in `.railway/railway.ts`, so a step routed to a queue the
+deployed worker does not consume still fails the build.
+
 ## 219. A visitor opens the demo as a guest, with no account and no organization
 
 The demo (§99) needed an account: a visitor from the marketing site signed up, confirmed an
