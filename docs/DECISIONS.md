@@ -8205,7 +8205,7 @@ here rather than implied away. The larger exposure is not the database at all:
 the scanner holds Cleave's multi-tenant Entra secret and its AWS identity, which
 reach every customer who has granted access. See the open items.
 
-## 152. No Railway config at the repo root
+## 152. No Railway config at the repo root — **the config files superseded by §218**
 
 The first scanner deploy started the API. Railway reads `railway.json` at the
 repo root for every service built from the repo that names no config file of its
@@ -11875,13 +11875,55 @@ so the audit trail (§163) does not record it; Supabase's own auth log does. Not
 organization require two-factor authentication of its members yet -- the API already knows a
 session's level, so that is a setting and a check in `get_tenant`, left for its own decision.
 
-## Open items carried forward
+## 218. The Railway project is `.railway/railway.ts`, applied by hand
 
-**Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read
-`infrastructure/railway/api.json` and `worker.json`. Both have to move to
-`.railway/railway.ts` (`railway config
-pull`, then edit, `railway config plan`, `railway config apply`) before that
-date, or the API and worker lose their start commands.
+Railway stops reading Config as Code on 2026-12-01 (§152), and the API and
+worker took their Dockerfile, start command, health check and restart limit
+from `infrastructure/railway/api.json` and `worker.json`. A deploy after that
+date would have built each service with Railpack and no start command. Both
+files are deleted, and their settings are in `.railway/railway.ts`, Railway's
+infrastructure-as-code file, which describes the whole project: the API
+(`humorous-passion`), the worker (`CSPM-SaaS`), Redis and its volume.
+
+**Pulled, then edited.** `railway config migrate` finds only files named
+`railway.json` or `railway.toml`, so it found nothing here. The file started as
+`railway config pull` of the live project, which already planned to no change,
+and gained the two services' build and deploy settings, copied from the JSON
+files. The plan was then four changes, all additions and none destroyed, and
+it was applied. Two settings were left out on purpose:
+
+- **No restart policy type.** `ON_FAILURE` is Railway's default, and Railway
+  stores the default as no setting, so naming it left the plan proposing the
+  same change after every apply. The retry limit of 3 is not a default and
+  stays.
+- **No domain.** The API's Railway domain is not something the file manages:
+  a pull leaves it out, and the plan without it destroys nothing.
+
+**Every variable is `preserve()`.** The file names each variable a service
+has, so that applying it does not delete one, and holds no value; the values
+stay on Railway. A variable added on Railway and not here is one the next apply
+removes, so adding one means adding its name here too.
+
+**Applying it is a step of its own.** Railway does not read `.railway/` on
+deploy. A push builds what is set on the service, and the file reaches the
+service only through `railway config apply`. There is no CI job for it: apply
+deletes whatever the file leaves out, and a change to the production project
+is one a person reads the plan for first. `docs/DEPLOYMENT.md` §2 step 6 has the
+commands. The SDK the file imports, `railway` on npm, is pinned in
+`.railway/package.json` with its lockfile, so a plan run next month evaluates
+the file the same way.
+
+**The services' config-file setting is cleared.** Each service still named its
+JSON file, and the setting outlives the file; what a deploy does with a file
+that is gone is not something to find out in production. The IaC SDK drops an
+empty `configFile`, and `serviceInstanceUpdate` with `railwayConfigFile: null`
+answered `true` and changed nothing, so the setting was removed with an
+`environmentPatchCommit` setting `configFile` to null on both services. That
+patch redeployed both, from the settings alone: the API answered
+`/health/ready` with the database and the broker ok, and the worker's log shows
+Celery's banner and `beat: Starting`.
+
+## Open items carried forward
 
 **Data residency is not built (§113).** An organization setting for allowed
 regions, a rule over `CloudResource.region` per provider (never one rule that

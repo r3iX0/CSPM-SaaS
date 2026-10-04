@@ -285,6 +285,9 @@ so the shell's own `<main>` is the page's only one (§155).
 
 - **API**: Railway (Docker, `infrastructure/docker/api.Dockerfile`). Start: `alembic upgrade head &&
   uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}`.
+- **Railway settings** (API, worker, Redis) are `.railway/railway.ts`, which a push does not apply:
+  `railway config plan`, then `railway config apply`, since apply deletes what the file omits;
+  every variable in it is `preserve()`, never a value (DECISIONS.md §218).
 - **Frontend**: Vercel (auto-deploy from `apps/web`).
 - **Database**: Supabase PostgreSQL. RLS role setup in `infrastructure/supabase/roles.sql`.
 - CI checks that `infrastructure/supabase/roles.sql` retains the placeholder password — never commit

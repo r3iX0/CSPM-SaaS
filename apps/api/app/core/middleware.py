@@ -351,7 +351,7 @@ class RateLimitMiddleware:
         # prefix match exempted an unauthenticated caller from the one control
         # standing between them and the request path's connection pool. Railway
         # probes ``/health``, which is the one that answers without touching
-        # anything (infrastructure/railway/api.json, docs/DEPLOYMENT.md section 2).
+        # anything (.railway/railway.ts, docs/DEPLOYMENT.md section 2).
         if path in self.exempt_paths:
             await self.app(scope, receive, send)
             return

@@ -205,17 +205,10 @@ Node installed on your machine.
    to `apps/api` makes `COPY apps/api/...` fail, because relative to that
    context there is no `apps/api` folder.
 
-   Then set its **Config-as-code** field to `infrastructure/railway/api.json`,
-   which declares the Dockerfile path, the start command (including the
-   migration) and the health check. It used to sit at the repo root, where
-   Railway read it for every service built from this repo that named no file of
-   its own -- including the scanner, which then started the API (DECISIONS.md
-   §152). With the CLI:
-
-   ```bash
-   railway api 'mutation($s:String!,$e:String!){serviceInstanceUpdate(serviceId:$s,environmentId:$e,input:{railwayConfigFile:"/infrastructure/railway/api.json"})}' \
-     --raw-var s=<api service id> --raw-var e=<environment id>
-   ```
+   Its Dockerfile path, start command (including the migration) and health
+   check come from `.railway/railway.ts` (step 6), which names this service
+   `humorous-passion`, as it is called in production. Either give the new
+   service that name or change it in the file.
 
    Then **Networking** → generate a public domain; that's your `API_URL`.
 
@@ -233,13 +226,10 @@ Node installed on your machine.
    time, Root Directory again empty.
 
    The worker runs Celery rather than the web server, so it needs a different
-   start command than `infrastructure/railway/api.json` provides.
+   start command from the API's. `.railway/railway.ts` carries it, under the
+   service name `CSPM-SaaS`; name the service that or change the file.
 
-   **Preferred:** set its **Config-as-code** field to
-   `infrastructure/railway/worker.json`. That file already carries the right
-   start command, and nothing has to be retyped.
-
-   Otherwise set **Custom Start Command** — the _Start_ one, in the Deploy
+   By hand, it is **Custom Start Command** — the _Start_ one, in the Deploy
    section:
 
    ```bash
@@ -379,10 +369,28 @@ Node installed on your machine.
    There is no sign-in path other than Supabase — the API has no token-minting
    code of its own, only verification.
 
-6. Push to `main` (or click **Deploy**) — Railway builds both services from the
+6. **Apply `.railway/railway.ts`.** The file holds both services' build and
+   deploy settings and the names of their variables, never a value (every one
+   is `preserve()`). Railway does not read it on deploy; it reaches the
+   services only when it is applied, and apply deletes whatever the file leaves
+   out of the project, so read the plan before applying it (DECISIONS.md §218):
+
+   ```bash
+   railway link                                  # the project and environment
+   npm ci --prefix .railway                      # the pinned SDK the file imports
+   railway config plan                           # changes nothing
+   railway config apply                          # asks before it applies
+   ```
+
+   The same three commands apply any later change to the file. A plan that
+   proposes to destroy something the file never meant to drop -- a service, the
+   Redis volume, a variable -- means the file is out of date with the project:
+   `railway config pull` shows what is there now.
+
+7. Push to `main` (or click **Deploy**) — Railway builds both services from the
    same Dockerfile and redeploys automatically on every push from here on.
 
-7. **If a scanner service was deployed for the extended checks, delete it.**
+8. **If a scanner service was deployed for the extended checks, delete it.**
    Prowler no longer runs (DECISIONS.md §168). Delete the Railway service built
    from `infrastructure/docker/scanner.Dockerfile`, and unset `ASSESS_ENABLED`,
    `ASSESS_QUEUE_SECONDS`, `SCANNER_DATABASE_URL`, `SCANNER_RUN_BUDGET` and
@@ -491,13 +499,13 @@ of likelihood:
    immediately.
 2. **Railway fell back to Nixpacks.** If it cannot find a Dockerfile it tries
    to auto-detect the project, and the repo root has no `package.json` or
-   `requirements.txt` for it to recognise, so it gives up fast. The
-   service's config file (`infrastructure/railway/api.json`) prevents this — confirm the build logs
-   say it is using the
-   Dockerfile builder.
-3. **A stale service config** from an earlier attempt overriding the file. A
-   value typed into the dashboard wins over `api.json`; clear the Dockerfile
-   Path and Build Command fields so the file applies.
+   `requirements.txt` for it to recognise, so it gives up fast. The builder
+   is set from `.railway/railway.ts`; `railway config plan` shows whether the
+   service has drifted from it, and the build logs say which builder ran.
+3. **A value changed in the dashboard since the file was applied.** The
+   dashboard and the file set the same fields, and the last one written wins.
+   `railway config plan` lists the difference; `railway config apply` puts the
+   file's value back.
 
 The **Build Logs** tab shows which of these it was — the Details tab only says
 that the step failed.
@@ -533,8 +541,8 @@ a healthy API.
 
 Check, in order:
 
-1. The worker's **Deploy → Custom Start Command** contains `celery`, or its
-   **Config-as-code** field points at `infrastructure/railway/worker.json`.
+1. The worker's **Deploy → Custom Start Command** contains `celery`, as
+   `.railway/railway.ts` sets it (`railway config plan` shows any drift).
    Clear the build command if the celery line ended up there.
 2. Its logs show Celery's startup banner and then `scan.task_received` when a
    scan is queued. An API access log instead means it is running uvicorn.
@@ -611,8 +619,8 @@ minutes in that state means nothing is listening — and the scans page now says
 so rather than showing a progress bar indefinitely.
 
 Almost always: **the Celery worker is not deployed.** It is a _second_ Railway
-service, built from the same image but started with
-`infrastructure/railway/worker.json`:
+service, built from the same image but started with the command
+`.railway/railway.ts` gives it:
 
 ```bash
 celery -A app.workers.celery_app.celery_app worker --beat --schedule=/tmp/celerybeat-schedule --queues=celery,collect,analyze --loglevel=INFO --concurrency=2
@@ -675,7 +683,8 @@ available.
 
 Both Railway and Vercel auto-deploy on push to `main`. Nothing else to do —
 this is the entire point of connecting them to GitHub rather than uploading
-builds by hand.
+builds by hand. A change to `.railway/railway.ts` is the exception: a push does
+not apply it, `railway config apply` does (section 2, step 6).
 
 ## 7. Rolling back
 
