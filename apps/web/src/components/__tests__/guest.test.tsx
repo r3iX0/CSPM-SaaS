@@ -79,8 +79,9 @@ describe("a guest", () => {
   });
 
   it("opens the demo in one visit, with no account and no organization", async () => {
-    signInAsGuest.mockImplementation(async () => {
+    signInAsGuest.mockImplementation(() => {
       auth.token = GUEST_TOKEN;
+      return Promise.resolve();
     });
     const post = vi.spyOn(api, "post").mockResolvedValue({ data: DEMO, meta: {} });
     mount(<DemoPage />, "/demo");
