@@ -1,0 +1,144 @@
+---
+import Base from "../layouts/Base.astro";
+
+// Every statement here is something the product does today; the DECISIONS.md
+// entry behind each is noted beside it so a change there can be found here.
+const sections = [
+  {
+    id: "access",
+    title: "Access is read-only, and granted by you",
+    points: [
+      // §147, the consent callback binds the tenant
+      "An admin in your tenant consents to Cleave's Entra application. The tenant is taken from that consent, never typed in, so a connection cannot point at someone else's directory.",
+      "Cleave reads through a custom role that lists read actions only. It cannot change a setting, start a resource or move data.",
+      // §147
+      "A consent link carries a one-time value, spent before any call to Microsoft, so a link cannot be replayed.",
+      "Nothing is installed in your cloud. There are no agents.",
+    ],
+  },
+  {
+    id: "data",
+    title: "What is stored, and what is never asked for",
+    points: [
+      "Each scan stores what Azure returned, verbatim, so a new rule can judge an old capture without reading your cloud again.",
+      // §176, backlog Tier 3
+      "Key Vault keys and secrets are read as management metadata only. Their values are never requested, and neither is the action that returns application settings and connection strings.",
+      "A setting Cleave could not read is recorded as unread, with the reason. It is never stored as a pass.",
+    ],
+  },
+  {
+    id: "isolation",
+    title: "Each organization's data is isolated twice",
+    points: [
+      "The API derives your organization from your verified sign-in on every request.",
+      "The database enforces the same boundary with row-level security, under a role that cannot read another organization's rows even if a query asked for them.",
+    ],
+  },
+  {
+    id: "accounts",
+    title: "Accounts and people",
+    points: [
+      // §214, §217
+      "Sign in with Microsoft, Google or a password. Two-factor authentication is enforced by the API, not only by the sign-in screen.",
+      // §162
+      "Colleagues join by invitation. The invitation token is single-use and stored only as a hash.",
+      // §163
+      "Every change a person makes is written to an append-only audit log that owners and admins can read.",
+      // §211
+      "An auditor reads a sealed package through a grant bound to their verified email. It expires, it can be revoked, and each read is logged.",
+    ],
+  },
+  {
+    id: "outbound",
+    title: "What leaves Cleave",
+    points: [
+      // §164
+      "Webhooks go only to public HTTPS addresses. Each delivery is signed, pinned to the address that was checked, and never follows a redirect.",
+      "The site you are reading sets no cookies and runs no analytics.",
+    ],
+  },
+];
+
+const processors = [
+  ["Vercel", "Hosts the web application"],
+  ["Railway", "Runs the API and scan workers"],
+  ["Supabase", "PostgreSQL database and authentication"],
+  ["Microsoft, Google", "Sign-in, when you choose them"],
+];
+---
+
+<Base
+  title="Security · Cleave"
+  description="How Cleave reaches your Azure estate, what it stores, what it never asks for, and how each organization's data is isolated."
+>
+  <section class="mx-auto max-w-6xl px-4 pt-14 sm:px-6 lg:pt-20">
+    <h1
+      class="rise max-w-3xl text-[2.5rem] leading-[1.05] font-semibold tracking-[-0.04em] text-balance sm:text-6xl"
+    >
+      How Cleave touches your cloud.
+    </h1>
+    <p class="rise mt-6 max-w-[56ch] text-lg leading-relaxed text-muted" style="--i:1">
+      A security product asks for access to everything you run. Here is exactly what it does with
+      it.
+    </p>
+  </section>
+
+  <div
+    class="mx-auto grid max-w-6xl gap-12 px-4 py-16 sm:px-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,9fr)] lg:py-24"
+  >
+    <nav aria-label="On this page" class="hidden lg:block">
+      <ul class="sticky top-28 space-y-2.5 border-l border-line text-[15px]">
+        {
+          sections.map((s) => (
+            <li>
+              <a href={`#${s.id}`} class="-ml-px block border-l border-transparent pl-4 text-muted hover:border-fg hover:text-fg">
+                {s.title.split(",")[0]}
+              </a>
+            </li>
+          ))
+        }
+        <li>
+          <a href="#processors" class="-ml-px block border-l border-transparent pl-4 text-muted hover:border-fg hover:text-fg">
+            Who processes data
+          </a>
+        </li>
+      </ul>
+    </nav>
+
+    <div class="space-y-16">
+      {
+        sections.map((s) => (
+          <section id={s.id} aria-labelledby={`${s.id}-t`} class="reveal">
+            <h2 id={`${s.id}-t`} class="text-2xl font-semibold tracking-[-0.025em] text-balance">
+              {s.title}
+            </h2>
+            <ul class="mt-6 space-y-4">
+              {s.points.map((p) => (
+                <li class="relative max-w-[68ch] pl-5 text-[16px] leading-relaxed text-muted">
+                  <span class="absolute top-[0.7em] left-0 h-px w-2.5 bg-brand" aria-hidden="true" />
+                  {p}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))
+      }
+
+      <section id="processors" aria-labelledby="processors-t" class="reveal">
+        <h2 id="processors-t" class="text-2xl font-semibold tracking-[-0.025em]">
+          Who processes data for Cleave
+        </h2>
+        <dl class="mt-6 grid gap-px overflow-hidden rounded-[14px] border border-line bg-line sm:grid-cols-2">
+          {
+            processors.map(([name, role]) => (
+              <div class="bg-surface p-5">
+                <dt class="font-medium">{name}</dt>
+                <dd class="mt-1 text-[15px] text-muted">{role}</dd>
+              </div>
+            ))
+          }
+        </dl>
+      </section>
+    </div>
+  </div>
+</Base>

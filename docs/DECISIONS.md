@@ -11979,6 +11979,33 @@ on anonymous sign-ins and the API's per-address flood guard (§161) bound how fa
 minted. A script that rotates addresses can still mint guests, and each gets its own costly-route
 allowance; the cost is reads of a recording, since a guest can start no scan.
 
+## 220. The marketing site is its own static app, `apps/site`
+
+Selling the product needs pages that load fast, index cleanly and read without an account: what
+Cleave does, what it costs, how it treats a customer's cloud. The product is an SPA behind
+sign-in (§84), so those pages live beside it in `apps/site`, deployed as their own Vercel project.
+
+**Astro, static.** Every page is HTML at build time, with no client JavaScript but a `<details>`
+menu, so it reads and indexes without scripts. Tailwind 4 and Geist as in the app, and Lucide
+for icons (`@lucide/astro`), so no second UI kit arrives (the CLAUDE.md rule). The theme is the
+product's own -- the neutral ramp, the one teal accent and the cut mark -- following the reader's
+light or dark setting, with no toggle and no cookie. Motion is CSS only and stops for a reader who
+asks for less.
+
+**Real screens, not drawings.** The product shots are crops of the design prototype in
+`docs/design_handoff_cleave_redesign`, captured in both themes; a phone zooms each into its key
+region rather than shrinking the whole screen past reading.
+
+**Three pages and what each may claim.** Home, Pricing and Security. Every statement on Security
+is something the product does today, with the section behind it noted in the source. Nothing
+says AWS, SSO or ticketing, which are not offered. Pricing is per connected Azure subscription
+(Free, Team at EUR 39, Business at EUR 79, Enterprise by contact) and is a proposal: no plan is
+enforced by the API yet. "Open the demo" links to `/demo`, the guest entry (§219).
+
+**Before it ships:** the domain (canonical links and the app's URL in `src/site.ts`), the sales
+address there, and the legal pages -- privacy, terms, a DPA and an imprint -- which need a lawyer
+rather than generated text.
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,

@@ -1,0 +1,321 @@
+---
+import Base from "../layouts/Base.astro";
+import Shot from "../components/Shot.astro";
+import { ArrowRight, Plug, ScanSearch, Scissors, BadgeCheck, FileArchive, Webhook } from "@lucide/astro";
+import { DEMO_URL, SIGN_UP_URL } from "../site";
+
+// Frameworks a connected Azure organization is offered (DECISIONS.md §209, §210).
+const frameworks = [
+  "CIS Azure 6.0",
+  "ISO 27001",
+  "SOC 2",
+  "PCI DSS 4.0.1",
+  "NIST CSF 2.0",
+  "NIST SP 800-53",
+  "NIST SP 800-171",
+  "NIS2",
+  "DORA",
+  "GDPR",
+  "HIPAA",
+  "CSA CCM 4.1",
+  "MITRE ATT&CK",
+];
+
+const steps = [
+  {
+    icon: Plug,
+    title: "Connect",
+    body: "An admin consents once and grants a read-only role. No agents, nothing installed in your cloud.",
+  },
+  {
+    icon: ScanSearch,
+    title: "Read",
+    body: "Each scan keeps what Azure returned, verbatim, and judges it with 200+ deterministic rules.",
+  },
+  {
+    icon: Scissors,
+    title: "Cut",
+    body: "Risks are ranked by what an attacker can reach. The graph names the link that closes the most routes.",
+  },
+  {
+    icon: BadgeCheck,
+    title: "Verify",
+    body: "Marking a fix done records the work. The next scan closes the finding, or leaves it open.",
+  },
+];
+
+const refusals = [
+  ["Write to your cloud.", "The role Cleave asks for reads configuration. It cannot change a setting."],
+  [
+    "Count an unread setting as a pass.",
+    "When a reading fails, the check shows no verdict and says why.",
+  ],
+  [
+    "Close a finding because someone said so.",
+    "Only a scan that reads the fixed setting closes it.",
+  ],
+  [
+    "Read your secrets.",
+    "Vault keys and secrets are read as metadata. Their values are never requested.",
+  ],
+];
+---
+
+<Base
+  title="Cleave · Close attack paths in Azure, not alert queues"
+  description="Cleave reads your Azure estate read-only, draws every route to sensitive data, and names the one link to cut. Then a scan proves the fix."
+>
+  <!-- Hero -->
+  <section class="overflow-x-clip">
+    <div class="mx-auto max-w-6xl px-4 pt-14 sm:px-6 lg:pt-20">
+      <div class="max-w-3xl">
+        <p class="rise text-sm font-medium text-brand" style="--i:0">Cloud security posture for Azure</p>
+        <h1
+          class="rise mt-4 text-[2.5rem] leading-[1.04] font-semibold tracking-[-0.04em] text-balance sm:text-6xl lg:text-[4.25rem]"
+          style="--i:1"
+        >
+          Close attack paths, not alert queues.
+        </h1>
+        <p class="rise mt-6 max-w-[46ch] text-lg leading-relaxed text-muted sm:text-xl" style="--i:2">
+          Cleave reads your Azure estate read-only, draws every route to sensitive data, and names
+          the one link to cut.
+        </p>
+        <div class="rise mt-8 flex flex-wrap gap-3" style="--i:3">
+          <a href={SIGN_UP_URL} class="btn btn-primary">Start free</a>
+          <a href={DEMO_URL} class="btn btn-ghost">Open the demo</a>
+        </div>
+      </div>
+
+      <div class="rise relative mt-14 lg:mt-16" style="--i:4">
+        <div
+          class="overflow-hidden rounded-t-[14px] border border-b-0 border-line bg-surface shadow-[var(--shadow)]"
+        >
+          <Shot
+            name="attack-paths"
+            eager
+            width={2372}
+            height={1224}
+            alt="The attack-path map in Cleave: three internet-facing assets reach a storage account and a payments database through a jump box and a service principal. The thickest line, from the jump box to storage, closes the most routes if cut."
+          />
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Frameworks -->
+  <section aria-labelledby="fw-title" class="border-y border-line bg-sunken">
+    <div class="mx-auto flex max-w-6xl flex-col gap-5 px-4 py-8 sm:px-6 lg:flex-row lg:items-center lg:gap-10">
+      <h2 id="fw-title" class="shrink-0 text-[15px] text-muted">
+        Evidence toward the standards you are audited against
+      </h2>
+      <ul class="flex flex-wrap gap-2">
+        {
+          frameworks.map((f) => (
+            <li class="rounded-[8px] border border-line bg-surface px-2.5 py-1 font-mono text-[13px]">
+              {f}
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <!-- Product: risks, not alerts -->
+  <section id="product" class="mx-auto max-w-6xl px-4 pt-24 sm:px-6 lg:pt-32">
+    <div class="reveal max-w-2xl">
+      <h2 class="text-3xl font-semibold tracking-[-0.03em] text-balance sm:text-4xl">
+        Ranked by what it would cost you, not by how many alerts fired.
+      </h2>
+      <p class="mt-5 text-lg leading-relaxed text-muted">
+        Findings become risks scored by severity, how critical the asset is, the data on it and
+        whether the internet can reach it. The overview opens with the sentence that matters.
+      </p>
+    </div>
+    <div
+      class="reveal mt-12 overflow-hidden rounded-[14px] border border-line bg-surface shadow-[var(--shadow)]"
+    >
+      <Shot
+        name="overview"
+        zoom="lg"
+        width={2372}
+        height={760}
+        alt="The Cleave overview: a security score of 71 out of 100, the sentence '8 risks. Three are reachable from the internet. One link closes three of the four routes.', and counts by severity, including 6 with no verdict."
+      />
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section id="how" class="mx-auto max-w-6xl px-4 pt-24 sm:px-6 lg:pt-32">
+    <h2 class="reveal max-w-xl text-3xl font-semibold tracking-[-0.03em] text-balance sm:text-4xl">
+      From consent to a verified fix.
+    </h2>
+    <ol class="mt-12 grid gap-10 sm:grid-cols-2 lg:grid-cols-4 lg:gap-8">
+      {
+        steps.map(({ icon: Icon, title, body }) => (
+          <li class="reveal relative border-t border-line pt-6">
+            <span class="absolute -top-px left-0 h-px w-10 bg-brand" aria-hidden="true" />
+            <Icon size={22} stroke-width={1.5} class="text-brand" aria-hidden="true" />
+            <h3 class="mt-4 text-lg font-semibold tracking-[-0.01em]">{title}</h3>
+            <p class="mt-2 text-[15px] leading-relaxed text-muted">{body}</p>
+          </li>
+        ))
+      }
+    </ol>
+  </section>
+
+  <!-- What else it does -->
+  <section aria-labelledby="more-title" class="mx-auto max-w-6xl px-4 pt-24 sm:px-6 lg:pt-32">
+    <h2
+      id="more-title"
+      class="reveal max-w-xl text-3xl font-semibold tracking-[-0.03em] text-balance sm:text-4xl"
+    >
+      Everything after the finding.
+    </h2>
+
+    <div class="mt-12 grid gap-4 lg:grid-cols-6 [&>*]:min-w-0">
+      <!-- Remediation -->
+      <article
+        class="reveal flex flex-col overflow-hidden rounded-[14px] border border-line bg-surface lg:col-span-4"
+      >
+        <div class="p-7 pb-6">
+          <h3 class="text-lg font-semibold tracking-[-0.01em]">A queue ordered by impact</h3>
+          <p class="mt-2 max-w-[52ch] text-[15px] leading-relaxed text-muted">
+            Each fix says what it costs in minutes and how many attack paths it sits on. One rule's
+            fix runs as one script over every asset.
+          </p>
+        </div>
+        <div class="mt-auto border-t border-line">
+          <Shot
+            name="remediation"
+            width={2372}
+            height={680}
+            alt="The remediation queue: restrict RDP to the VPN range, critical, 10 minutes, overdue; remove Owner from a service principal, high, 30 minutes; a done item waiting on a scan to close it."
+          />
+        </div>
+      </article>
+
+      <!-- No verdict -->
+      <article
+        class="reveal flex flex-col justify-between gap-10 rounded-[14px] border border-brand-line bg-brand-soft p-7 lg:col-span-2"
+      >
+        <span
+          class="w-fit rounded-full border border-dashed border-muted px-2.5 py-0.5 text-sm text-muted"
+          >No verdict</span
+        >
+        <div>
+          <h3 class="text-lg font-semibold tracking-[-0.01em]">Unknown is never a pass</h3>
+          <p class="mt-2 text-[15px] leading-relaxed text-muted">
+            If Cleave could not read a setting, the check says so and names the permission or
+            licence it lacked.
+          </p>
+        </div>
+      </article>
+
+      <!-- Fix as code -->
+      <article
+        class="reveal flex flex-col gap-6 rounded-[14px] border border-line bg-sunken p-7 lg:col-span-3"
+      >
+        <div>
+          <h3 class="text-lg font-semibold tracking-[-0.01em]">The fix, as a Terraform diff</h3>
+          <p class="mt-2 text-[15px] leading-relaxed text-muted">
+            Upload the file that declares the resource. Cleave returns the change to review.
+          </p>
+        </div>
+        <pre
+          class="mt-auto overflow-x-auto rounded-[8px] border border-line bg-surface p-4 font-mono text-[12px] leading-6 sm:text-[12.5px]"
+          tabindex="0"
+          aria-label="Example Terraform diff"><code><span class="text-muted"> resource "azurerm_key_vault" "payments" &#123;</span>
+<span class="text-critical">-  public_network_access_enabled = true</span>
+<span class="text-brand">+  public_network_access_enabled = false</span>
+<span class="text-muted"> &#125;</span></code></pre>
+      </article>
+
+      <!-- Audit packages -->
+      <article class="reveal rounded-[14px] border border-line bg-surface p-7 lg:col-span-3">
+        <FileArchive size={22} stroke-width={1.5} class="text-brand" aria-hidden="true" />
+        <h3 class="mt-4 text-lg font-semibold tracking-[-0.01em]">Sealed audit packages</h3>
+        <p class="mt-2 max-w-[48ch] text-[15px] leading-relaxed text-muted">
+          Seal an assessment and give your auditor read access bound to their email. It expires, it
+          can be revoked, and every read is logged.
+        </p>
+      </article>
+
+      <!-- Reports and webhooks -->
+      <article class="reveal rounded-[14px] border border-line bg-surface p-7 lg:col-span-2">
+        <Webhook size={22} stroke-width={1.5} class="text-brand" aria-hidden="true" />
+        <h3 class="mt-4 text-lg font-semibold tracking-[-0.01em]">Reports and webhooks</h3>
+        <p class="mt-2 text-[15px] leading-relaxed text-muted">
+          A PDF for the board that prints its own caveats. Signed webhooks for the tools your team
+          already watches.
+        </p>
+      </article>
+      <!-- Compliance -->
+      <article
+        class="reveal flex flex-col overflow-hidden rounded-[14px] border border-line bg-surface lg:col-span-4"
+      >
+        <div class="p-7 pb-6">
+          <h3 class="text-lg font-semibold tracking-[-0.01em]">Compliance as evidence, not a score</h3>
+          <p class="mt-2 max-w-[52ch] text-[15px] leading-relaxed text-muted">
+            Every control is passing, failing, inconclusive or not covered, and each verdict carries
+            the readings it rests on.
+          </p>
+        </div>
+        <div class="mt-auto border-t border-line">
+          <Shot
+            name="compliance"
+            zoom="lg"
+            width={2372}
+            height={472}
+            alt="Compliance in Cleave: CIS Azure 2.0 at 82% assessable with 31 passing, 13 failing, 5 inconclusive and 11 not covered; ISO 27001 at 64% assessable."
+          />
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- Refusals -->
+  <section aria-labelledby="refuse-title" class="mx-auto max-w-6xl px-4 pt-24 sm:px-6 lg:pt-32">
+    <div class="grid gap-12 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)]">
+      <h2
+        id="refuse-title"
+        class="reveal text-3xl font-semibold tracking-[-0.03em] text-balance sm:text-4xl lg:sticky lg:top-28 lg:self-start"
+      >
+        What Cleave will not do.
+      </h2>
+      <dl class="grid gap-x-10 gap-y-10 sm:grid-cols-2">
+        {
+          refusals.map(([title, body]) => (
+            <div class="reveal">
+              <dt class="text-xl font-semibold tracking-[-0.02em]">{title}</dt>
+              <dd class="mt-2 text-[15px] leading-relaxed text-muted">{body}</dd>
+            </div>
+          ))
+        }
+      </dl>
+    </div>
+    <a
+      href="/security"
+      class="reveal mt-12 inline-flex min-h-11 items-center gap-1.5 text-[15px] font-medium text-brand hover:underline"
+    >
+      How access and data are handled <ArrowRight size={16} stroke-width={1.75} aria-hidden="true" />
+    </a>
+  </section>
+
+  <!-- Closing call -->
+  <section class="mx-auto max-w-6xl px-4 py-24 sm:px-6 lg:py-32">
+    <div
+      class="reveal flex flex-col items-start justify-between gap-8 rounded-[14px] border border-brand-line bg-brand-soft p-8 sm:p-12 md:flex-row md:items-center"
+    >
+      <div class="max-w-xl">
+        <h2 class="text-2xl font-semibold tracking-[-0.03em] text-balance sm:text-3xl">
+          Explore a sample estate before you connect yours.
+        </h2>
+        <p class="mt-3 text-[15px] leading-relaxed text-muted">
+          No account needed. Real findings, routes and fixes from a recorded Azure estate, read-only.
+        </p>
+      </div>
+      <a href={DEMO_URL} class="btn btn-primary shrink-0">Open the demo</a>
+    </div>
+  </section>
+</Base>

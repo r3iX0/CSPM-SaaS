@@ -1,0 +1,35 @@
+---
+/**
+ * A product screen, in the reader's theme. Both files are crops of the same
+ * screen; the browser picks one, so only one is downloaded.
+ */
+interface Props {
+  name: string;
+  alt: string;
+  width: number;
+  height: number;
+  eager?: boolean;
+  /**
+   * How far the screen is enlarged below 640px, where the whole screen would be
+   * too small to read: the frame then shows its left part at this zoom.
+   */
+  zoom?: "none" | "md" | "lg";
+  class?: string;
+}
+const { name, alt, width, height, eager = false, zoom = "md", class: className = "" } = Astro.props;
+const zoomClass = { none: "w-full", md: "max-w-none w-[165%] sm:w-full", lg: "max-w-none w-[210%] sm:w-full" }[zoom];
+---
+
+<picture>
+  <source srcset={`/shots/${name}-dark.webp`} media="(prefers-color-scheme: dark)" />
+  <img
+    src={`/shots/${name}-light.webp`}
+    alt={alt}
+    width={width}
+    height={height}
+    loading={eager ? "eager" : "lazy"}
+    fetchpriority={eager ? "high" : "auto"}
+    decoding="async"
+    class:list={["block h-auto", zoomClass, className]}
+  />
+</picture>

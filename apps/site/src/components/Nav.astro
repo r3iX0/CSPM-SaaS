@@ -1,0 +1,72 @@
+---
+import Wordmark from "./Wordmark.astro";
+import { Menu } from "@lucide/astro";
+import { NAV, APP_URL, SIGN_UP_URL } from "../site";
+
+const path = Astro.url.pathname;
+---
+
+<header
+  class="sticky top-0 z-40 border-b border-line bg-bg/85 backdrop-blur-md supports-[not(backdrop-filter:blur(1px))]:bg-bg"
+>
+  <nav
+    aria-label="Main"
+    class="mx-auto flex h-16 max-w-6xl items-center justify-between gap-6 px-4 sm:px-6"
+  >
+    <a href="/" class="-m-1 rounded-md p-1" aria-label="Cleave home">
+      <Wordmark animate={path === "/"} />
+    </a>
+
+    <ul class="hidden items-center gap-1 md:flex">
+      {
+        NAV.map((item) => (
+          <li>
+            <a
+              href={item.href}
+              aria-current={path === item.href ? "page" : undefined}
+              class="rounded-md px-3 py-2 text-[15px] text-muted transition-colors hover:text-fg aria-[current=page]:text-fg"
+            >
+              {item.label}
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+
+    <div class="flex items-center gap-2">
+      <a
+        href={`${APP_URL}/sign-in`}
+        class="hidden rounded-md px-3 py-2 text-[15px] text-muted hover:text-fg sm:inline-block"
+        >Sign in</a
+      >
+      <a href={SIGN_UP_URL} class="btn btn-primary min-h-10 px-4 text-sm">Start free</a>
+      <details class="group relative md:hidden">
+        <summary
+          class="flex size-10 cursor-pointer list-none items-center justify-center rounded-md border border-line [&::-webkit-details-marker]:hidden"
+          aria-label="Menu"
+        >
+          <Menu size={20} stroke-width={1.75} aria-hidden="true" />
+        </summary>
+        <ul
+          class="absolute right-0 mt-2 w-56 rounded-[14px] border border-line bg-surface p-2 shadow-[var(--shadow)]"
+        >
+          {
+            NAV.map((item) => (
+              <li>
+                <a href={item.href} class="block rounded-md px-3 py-2.5 text-[15px] hover:bg-sunken">
+                  {item.label}
+                </a>
+              </li>
+            ))
+          }
+          <li>
+            <a
+              href={`${APP_URL}/sign-in`}
+              class="block rounded-md px-3 py-2.5 text-[15px] hover:bg-sunken">Sign in</a
+            >
+          </li>
+        </ul>
+      </details>
+    </div>
+  </nav>
+</header>
