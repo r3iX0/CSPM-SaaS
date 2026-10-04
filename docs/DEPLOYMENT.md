@@ -107,8 +107,8 @@ Node installed on your machine.
 
 6. **Enable email sign-in.** Authentication → Providers → **Email** is on by
    default. Leave both **Confirm email** and the email provider's password
-   support enabled: the sign-in screen offers magic links _and_ email +
-   password, and sign-up shows a "check your email" screen when confirmation
+   support enabled: the sign-in screen offers email + password (there is no
+   magic link, `DECISIONS.md` §215), and sign-up shows a "check your email" screen when confirmation
    is on (`apps/web/src/lib/supabase.ts`).
 
    **Confirm email is also a security setting now.** An invitation joins only
@@ -123,6 +123,23 @@ Node installed on your machine.
    Supabase refuses to redirect a link click anywhere not on that list, and the
    password-reset email lands on that second path.
 
+   **Set the email templates.** Authentication → Emails holds Supabase's plain
+   defaults until Cleave's are set (`DECISIONS.md` §216). Either paste each
+   file in `infrastructure/supabase/email/built/` into its template (subjects
+   are in `tools/supabase/email_templates.py`), or set all thirteen at once
+   with a personal access token:
+
+   ```bash
+   SUPABASE_ACCESS_TOKEN=<token> python3 tools/supabase/email_templates.py push <project-ref>
+   ```
+
+   The seven `*_notification` templates are the Security section's notices.
+   Each is sent only once its toggle there is on; turn on all seven, since the
+   verification-method ones tell a user their second factor changed (§217).
+
+   The emails load the mark from `<Site URL>/email/cleave-mark.png`, so Site URL
+   must be the deployed site.
+
 7. **Enable Microsoft (Entra ID) sign-in.** Authentication → Providers →
    **Azure**. This is a _second, separate_ Entra app registration from the one
    that scans subscriptions — do not reuse the scanning app's credentials here.
@@ -136,6 +153,37 @@ Node installed on your machine.
    Leave **Azure Tenant URL** blank to accept any Microsoft account, or set it
    to `https://login.microsoftonline.com/<tenant-id>` to restrict sign-in to a
    single directory.
+
+8. **Enable Google sign-in.** In the
+   [Google Cloud console](https://console.cloud.google.com/apis/credentials),
+   configure the OAuth consent screen (scopes `openid`, `email`, `profile`
+   only), then **Create credentials → OAuth client ID**, type _Web
+   application_. Under **Authorized JavaScript origins** add your Vercel URL;
+   under **Authorized redirect URIs** add the callback Supabase shows on
+   Authentication → Providers → **Google**
+   (`https://<project-ref>.supabase.co/auth/v1/callback`).
+
+   On that Supabase page, switch **Enable Sign in with Google** on, paste the
+   client ID into **Client IDs** and the secret into **Client Secret (for
+   OAuth)**, and save. Leave **Skip nonce checks** and **Allow users without an
+   email** off: the web flow has the nonce, and an invitation is accepted only
+   by the address on the caller's token (`DECISIONS.md` §162), so an identity
+   without one could never join anything.
+
+   Until this step is done the button answers that the option is not switched
+   on for this deployment, rather than failing silently.
+
+9. **Check two-factor authentication is on.** Authentication → Multi-Factor →
+   **TOTP (App Authenticator)** is enabled by default; leave it enabled.
+   People turn it on for themselves under Settings → Security, and from then on
+   the API refuses their sessions until a code is entered (`DECISIONS.md`
+   §217). Migration `0051` adds the function that reads Supabase's
+   `auth.mfa_factors` for it, owned by the migration role, which on Supabase
+   can read the `auth` schema.
+
+   Someone who has lost the device asks you to remove it: Authentication →
+   Users → the user → remove their MFA factor. Confirm who is asking first,
+   because removing the factor lets in anyone who has that person's password.
 
 ---
 
@@ -514,7 +562,7 @@ Two likely causes, and the app tells you which:
   on Railway does not match the Vercel domain exactly. It needs the scheme and
   no trailing slash: `https://your-app.vercel.app`.
 
-### The magic link lands on Supabase's own domain, or a dead page
+### An emailed link lands on Supabase's own domain, or a dead page
 
 If the URL after clicking looks like
 `https://<ref>.supabase.co/yourapp.vercel.app#access_token=...`, then **Site URL
@@ -546,9 +594,9 @@ curl https://<your-railway-api-domain>/health/ready
 A dependency that does not answer is a `503` that names it, `DATABASE_UNAVAILABLE`
 or `QUEUE_UNAVAILABLE`; the cause is in the API service's log, not in the response.
 
-Then open the Vercel URL, sign in with your real email (check your inbox for
-the magic link — Supabase's default email provider is rate-limited and fine
-for testing, not for real traffic), create an organization, and go to
+Then open the Vercel URL, sign up with your real email (check your inbox for
+the confirmation link — Supabase's default email provider is rate-limited and
+fine for testing, not for real traffic), create an organization, and go to
 **Connections**. Scanning a real Azure environment additionally needs the
 Entra app registration in `AZURE_INTEGRATION.md` §2.1 — that's a separate
 setup, not a hosting one. Without it the app works fully up to the point of
@@ -590,8 +638,8 @@ their CLI) and run:
 python /srv/database/seed/demo_environment.py --email you@example.com
 ```
 
-Sign in through the app **first** — Supabase creates your account when you use
-the magic link, and the demo organization attaches to that real account. Then
+Sign in through the app **first** — Supabase creates your account when you sign
+up, and the demo organization attaches to that real account. Then
 run it again with `--fix` to watch three findings auto-resolve and the score
 move.
 

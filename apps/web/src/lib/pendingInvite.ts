@@ -2,14 +2,14 @@
  * An invitation link opened before its reader was signed in.
  *
  * The token arrives in the URL fragment of `/invite`, and every way of signing
- * in -- a magic link, Microsoft, a confirmation email -- lands back on the
+ * in -- Microsoft, Google, a confirmation email -- lands back on the
  * site's root, so the fragment is gone by the time the reader is somebody.
  * Held here until then, and the shell sends a signed-in reader holding one to
  * `/invite` before anything else, including the empty-organization onboarding
  * an invitee would otherwise be dropped into (DECISIONS.md §162).
  *
- * localStorage rather than sessionStorage, because a magic link opens in a new
- * tab. Kept for a day: the invitation itself lasts a week, and a token found
+ * localStorage rather than sessionStorage, because an emailed link opens in a
+ * new tab. Kept for a day: the invitation itself lasts a week, and a token found
  * much later than it was stored is more likely forgotten than wanted.
  */
 const KEY = "cleave.pendingInvite";

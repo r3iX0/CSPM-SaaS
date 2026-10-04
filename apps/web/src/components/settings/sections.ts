@@ -3,6 +3,7 @@ import {
   CrosshairIcon,
   HistoryIcon,
   PlugIcon,
+  ShieldCheckIcon,
   SlidersHorizontalIcon,
   UsersIcon,
   type LucideIcon,
@@ -12,7 +13,7 @@ import type { Organization } from "@/lib/types";
 import type { Strings } from "@/i18n/en";
 
 export type SettingsSectionId =
-  "general" | "members" | "context" | "integrations" | "activity" | "preferences";
+  "general" | "members" | "context" | "integrations" | "activity" | "security" | "preferences";
 
 export interface SettingsSectionLink {
   readonly id: SettingsSectionId;
@@ -30,8 +31,8 @@ export function managesOrganization(organization: Organization): boolean {
  *
  * A page the API would refuse is not offered: the demo has no members to list
  * (its visitors are strangers to one another), and integrations and the
- * activity log are for owners and admins, as the API allows. Preferences are
- * this browser's, so everyone has them.
+ * activity log are for owners and admins, as the API allows. Security is the
+ * reader's own sign-in and Preferences this browser's, so everyone has them.
  */
 export function settingsSections(organization: Organization, t: Strings): SettingsSectionLink[] {
   const manages = managesOrganization(organization);
@@ -51,6 +52,7 @@ export function settingsSections(organization: Organization, t: Strings): Settin
       shown: manages,
     },
     { id: "activity", label: t.settings.nav.activity, icon: HistoryIcon, shown: manages },
+    { id: "security", label: t.settings.nav.security, icon: ShieldCheckIcon, shown: true },
     {
       id: "preferences",
       label: t.settings.nav.preferences,

@@ -11,7 +11,6 @@
 export const OVER_BUDGET: readonly string[] = [
   "account.removeOrgDetail",
   "audit.help",
-  "auth.microsoftHint",
   "auth.passwordNotice",
   "changes.emptyDetail",
   "changes.emptyFilteredDetail",

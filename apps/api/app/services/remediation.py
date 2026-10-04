@@ -175,36 +175,16 @@ async def update_task(
         raise NotFound("Remediation task not found")
 
     if payload.status is not None:
-        task.status = payload.status
-        if payload.status == RemediationStatus.DONE:
-            task.completed_at = datetime.now(UTC)
-            # The claim, written down. Until this existed, marking work done
-            # left the expectation in the customer's head: nothing recorded what
-            # CloudGuard should now see, nothing looked again on its own, and
-            # every way of not being verified came out as the same silence.
-            finding = await findings_service.get_finding(session, tenant, task.finding_id)
-            await verification_service.open_verification(
-                session,
-                organization_id=tenant.organization_id,
-                finding=finding,
-                task=task,
-                claimed_by_user_id=tenant.user.id,
-            )
-        elif payload.status == RemediationStatus.CANCELLED:
-            # Work called off is not a fix that failed to verify, and leaving
-            # the question open would have the scheduler starting scans to
-            # settle something nobody is waiting on.
-            await verification_service.abandon(
-                session,
-                tenant.organization_id,
-                task.finding_id,
-                reason="The remediation task was cancelled.",
-            )
-    if payload.assigned_to is not None:
+        await _change_status(session, tenant, task, payload.status)
+    # A field sent as null clears it; a field left out is left alone. Reading
+    # `None` as "not sent" meant an owner or a due date, once set, could never
+    # be taken off a task again (DECISIONS.md section 212).
+    sent = payload.model_fields_set
+    if "assigned_to" in sent:
         task.assigned_to = payload.assigned_to
-    if payload.due_date is not None:
+    if "due_date" in sent:
         task.due_date = payload.due_date
-    if payload.notes is not None:
+    if "notes" in sent:
         task.notes = payload.notes
 
     await findings_service.record_audit(
@@ -213,6 +193,69 @@ async def update_task(
         action="remediation.updated",
         resource_type="remediation_task",
         resource_id=task.id,
-        metadata={"status": task.status.value},
+        metadata={
+            "status": task.status.value,
+            **{
+                field: None if getattr(task, field) is None else str(getattr(task, field))
+                for field in sent & {"assigned_to", "due_date"}
+            },
+        },
     )
     return task
+
+
+async def _change_status(
+    session: AsyncSession,
+    tenant: TenantContext,
+    task: RemediationTask,
+    status: RemediationStatus,
+) -> None:
+    """Move a task, and settle what the move says about its finding.
+
+    A cancelled task stays cancelled: the finding is tracked again with a new
+    task, and reopening the old one beside it would give the finding two.
+    """
+    previous = task.status
+    if previous == RemediationStatus.CANCELLED and status != previous:
+        raise ValidationFailed("A cancelled task is not reopened; track the finding again")
+    task.status = status
+
+    if status == RemediationStatus.DONE:
+        task.completed_at = datetime.now(UTC)
+        # The claim, written down. Until this existed, marking work done
+        # left the expectation in the customer's head: nothing recorded what
+        # CloudGuard should now see, nothing looked again on its own, and
+        # every way of not being verified came out as the same silence.
+        finding = await findings_service.get_finding(session, tenant, task.finding_id)
+        await verification_service.open_verification(
+            session,
+            organization_id=tenant.organization_id,
+            finding=finding,
+            task=task,
+            claimed_by_user_id=tenant.user.id,
+        )
+    elif status == RemediationStatus.CANCELLED and previous != status:
+        # Work called off is not a fix that failed to verify, and leaving
+        # the question open would have the scheduler starting scans to
+        # settle something nobody is waiting on.
+        await verification_service.abandon(
+            session,
+            tenant.organization_id,
+            task.finding_id,
+            reason="The remediation task was cancelled.",
+        )
+        # Tracking moved the finding to IN_PROGRESS; nobody is working it now,
+        # so it is open again, and offered again with the work nobody tracked.
+        finding = await findings_service.get_finding(session, tenant, task.finding_id)
+        if finding.status == FindingStatus.IN_PROGRESS:
+            finding.status = FindingStatus.OPEN
+    elif previous == RemediationStatus.DONE:
+        # Reopened: the work was not finished after all, so the claim that it
+        # was is withdrawn rather than left for the scheduler to keep checking.
+        task.completed_at = None
+        await verification_service.abandon(
+            session,
+            tenant.organization_id,
+            task.finding_id,
+            reason="The remediation task was reopened.",
+        )

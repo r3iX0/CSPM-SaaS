@@ -251,6 +251,10 @@ reason rather than left out, so a picker never answers "does this support AWS?"
 with silence: AWS reads `available: false` until the deployment sets
 `AWS_ENABLED` and an AWS identity.
 
+`POST /cloud-connections` requires `provider` (`azure` or `aws`). It used to default to `azure`,
+so a client that left it out got an Azure connection whatever it meant to connect; it now answers
+`422 VALIDATION_FAILED` naming the field (DECISIONS.md §213).
+
 A rule's `compliance_mappings` on `/rules` and `/findings/{id}` include, beside
 the rule's own, the controls `app/compliance/data/crosswalk.json` adds for
 frameworks the rule does not map itself (DECISIONS.md §168).
@@ -494,6 +498,13 @@ route map.
 `assigned_to` on `POST /remediation` and `PATCH /remediation/{id}` must name a
 member of the organization. Anyone else gets 422 `VALIDATION_FAILED`
 (DECISIONS.md §159).
+
+On `PATCH /remediation/{id}` a field sent as `null` clears it (`assigned_to`,
+`due_date`, `notes`), and a field left out is left alone. Moving a `DONE` task
+back to `TODO` or `IN_PROGRESS` clears `completed_at` and abandons its pending
+verification. `CANCELLED` abandons the verification and returns an
+`IN_PROGRESS` finding to `OPEN`; a cancelled task cannot be moved again (422) --
+track the finding with a new task instead (DECISIONS.md §212).
 
 `/attack-paths/access/{id}` answers who holds access to an asset and what an
 identity holds (DECISIONS.md §125). `data.holders` lists every role assigned on
@@ -817,3 +828,9 @@ carries it. Three routes do not: `/health`, `/health/ready` and
 before anyone consents. A client acting in more than one organization names the
 one in `X-Organization-Id`; the server honours it only if the caller's membership
 confirms it, and never takes an organization from a path or a body.
+
+**Second factor.** Once a person has confirmed an authenticator app, every
+route that reads data refuses a token whose `aal` claim is not `aal2` with
+`403 MFA_REQUIRED`: a password alone, or Microsoft or Google alone, is not
+enough for that account. The client answers by asking for the code and retrying
+with the two-factor token Supabase issues (DECISIONS.md §217).

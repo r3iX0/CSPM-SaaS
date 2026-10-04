@@ -214,7 +214,7 @@ permission, whether the bytes are still stored — for the controls that _passed
 that failed, and the whole assessment exports as CSV or JSON.
 
 **The API never handles a password or a customer credential.** Sign-in is Supabase Auth —
-Microsoft (Entra ID), email and password, or a magic link. Whichever route someone takes, a
+Microsoft (Entra ID), Google, or email and password. Whichever route someone takes, a
 password goes from their browser straight to Supabase and the API only ever verifies the JWT that
 comes back. Azure access is separately a multi-tenant Entra app plus admin consent, so there is no
 per-customer cloud secret to store or leak.

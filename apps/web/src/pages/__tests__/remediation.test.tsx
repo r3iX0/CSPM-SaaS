@@ -20,6 +20,7 @@ const TASK = {
   risk_id: null,
   status: "TODO",
   priority: "CRITICAL",
+  assigned_to: null,
   due_date: null,
   estimated_effort_minutes: 15,
   notes: null,
@@ -69,24 +70,34 @@ function renderPage(entry = "/remediation") {
 
 let tasks: Record<string, unknown>[] = [TASK];
 let openFindings: Record<string, unknown>[] = [{ ...FINDING, status: "OPEN" }];
+let finding: Record<string, unknown> = FINDING;
+let members: Record<string, unknown>[] = [];
 
 describe("the remediation queue", () => {
   beforeEach(() => {
     tasks = [TASK];
     openFindings = [{ ...FINDING, status: "OPEN" }];
+    finding = FINDING;
+    members = [];
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
         const url = String(input);
-        const body = url.includes("/findings/")
-          ? FINDING
-          : url.includes("/findings?")
-            ? openFindings
-            : tasks;
+        const body = url.includes("/members")
+          ? members
+          : url.includes("/findings/")
+            ? finding
+            : url.includes("/findings?")
+              ? openFindings
+              : tasks;
         return {
           ok: true,
           status: 200,
-          json: async () => ({ data: body, error: null, meta: {} }),
+          json: async () => ({
+            data: body,
+            error: null,
+            meta: url.includes("/findings?") ? { total: 156 } : {},
+          }),
         } as Response;
       }),
     );
@@ -167,7 +178,7 @@ describe("the remediation queue", () => {
     renderPage("/remediation?fix=finding-1");
 
     const sheet = await screen.findByRole("dialog");
-    expect(await within(sheet).findByRole("button", { name: /Mark done/ })).toBeInTheDocument();
+    expect(await within(sheet).findByRole("button", { name: "Mark done" })).toBeInTheDocument();
     expect(within(sheet).queryByRole("button", { name: /Track this fix/ })).toBeNull();
   });
 
@@ -186,14 +197,90 @@ describe("the remediation queue", () => {
     expect(screen.queryByText(/on \d+ attack path/)).toBeNull();
   });
 
-  it("says work marked done waits on a scan, and never that the finding closed", async () => {
+  it("says work marked done waits on a check, and never that the finding closed", async () => {
     tasks = [{ ...TASK, status: "DONE", completed_at: "2026-09-21T10:00:00Z" }];
     renderPage();
 
-    expect(await screen.findByText("Waiting on a scan")).toBeInTheDocument();
+    expect(await screen.findByText("Checking the fix")).toBeInTheDocument();
     expect(screen.queryByText("Verified fixed")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Mark done/ })).not.toBeInTheDocument();
     expect(screen.getByText(/Marked done does not close a finding/)).toBeInTheDocument();
+  });
+
+  it("says a claimed fix the checks have not seen yet is not fixed, in the row and the sheet", async () => {
+    // "Waiting on a scan" in the row and a pulsing "Checking" in the sheet,
+    // after two checks had looked and seen the problem still there (§212).
+    tasks = [{ ...TASK, status: "DONE", completed_at: "2026-10-03T16:55:00Z" }];
+    finding = {
+      ...FINDING,
+      verification: {
+        status: "PENDING",
+        claimed_at: "2026-10-03T16:55:00Z",
+        expected_state: [],
+        attempts: 2,
+        last_state: "FAIL",
+        next_attempt_at: "2026-10-03T18:13:00Z",
+        settled_at: null,
+        detail: "Checked, and the environment does not show the fix yet.",
+      },
+    };
+    renderPage("/remediation?fix=finding-1");
+
+    const sheet = await screen.findByRole("dialog");
+    expect(await within(sheet).findAllByText("Not fixed yet")).toHaveLength(2);
+    expect(within(sheet).queryByText("Checking")).toBeNull();
+    expect(within(sheet).queryByText("In progress")).toBeNull();
+    expect(within(sheet).getByRole("button", { name: "Reopen" })).toBeInTheDocument();
+  });
+
+  it("draws the finding's severity, not the task's priority (§212)", async () => {
+    tasks = [{ ...TASK, priority: "CRITICAL" }];
+    finding = { ...FINDING, severity: "HIGH" };
+    renderPage();
+
+    await screen.findByText(/prodstorage/);
+    expect(screen.getByText("High")).toBeInTheDocument();
+    expect(screen.queryByText("Critical")).toBeNull();
+  });
+
+  it("names who has the work", async () => {
+    tasks = [{ ...TASK, assigned_to: "user-2" }];
+    members = [
+      {
+        id: "m-2",
+        user_id: "user-2",
+        email: "sam@example.com",
+        role: "IT_ADMIN",
+        joined_at: "2026-09-01T00:00:00Z",
+        is_you: false,
+      },
+    ];
+    renderPage();
+
+    expect(await screen.findByText(/with sam@example.com/)).toBeInTheDocument();
+  });
+
+  it("draws untracked findings of one rule as one line, tracked together, and counts the rest", async () => {
+    tasks = [];
+    openFindings = [
+      { ...FINDING, id: "f-a", status: "OPEN", title: "Public blob access — prodstorage" },
+      {
+        ...FINDING,
+        id: "f-b",
+        status: "OPEN",
+        title: "Public blob access — devstorage",
+        resource: { ...FINDING.resource, id: "asset-2", name: "devstorage" },
+      },
+    ];
+    renderPage();
+
+    const start = await screen.findByRole("region", { name: "Where to start" });
+    expect(within(start).getByRole("button", { name: "Public blob access" })).toBeInTheDocument();
+    expect(start).toHaveTextContent("2 findings: prodstorage, devstorage");
+    expect(start).toHaveTextContent("2 of 156 open findings");
+    expect(
+      within(start).getByRole("button", { name: "Track all 2 fixes for Public blob access" }),
+    ).toBeInTheDocument();
   });
 });
 
@@ -227,18 +314,20 @@ describe("the queue, grouped by rule (DECISIONS.md §203)", () => {
       const body =
         init?.method === "PATCH"
           ? { ...TASK, status: "DONE" }
-          : id
-            ? BY_ID[id]
-            : url.includes("/findings?")
-              ? // The rule's open findings: the two tracked, and one nobody has.
-                [
-                  { ...RULE_FINDING, status: "OPEN" },
-                  { ...BY_ID["finding-2"], status: "OPEN" },
-                  { ...RULE_FINDING, id: "finding-3", status: "OPEN" },
-                ]
-              : url.includes("/assets/")
-                ? { provider_resource_id: "/subscriptions/s1/resourceGroups/rg/x" }
-                : [TASK, { ...TASK, id: "task-2", finding_id: "finding-2" }];
+          : url.includes("/members")
+            ? []
+            : id
+              ? BY_ID[id]
+              : url.includes("/findings?")
+                ? // The rule's open findings: the two tracked, and one nobody has.
+                  [
+                    { ...RULE_FINDING, status: "OPEN" },
+                    { ...BY_ID["finding-2"], status: "OPEN" },
+                    { ...RULE_FINDING, id: "finding-3", status: "OPEN" },
+                  ]
+                : url.includes("/assets/")
+                  ? { provider_resource_id: "/subscriptions/s1/resourceGroups/rg/x" }
+                  : [TASK, { ...TASK, id: "task-2", finding_id: "finding-2" }];
       const response: Pick<Response, "ok" | "status" | "json"> = {
         ok: true,
         status: 200,

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>A sign-in method was removed from your Cleave account</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; padding: 0; -webkit-text-size-adjust: 100%; }
+  @media (max-width: 560px) {
+    .cg-card { padding: 28px 24px !important; }
+    .cg-title { font-size: 22px !important; line-height: 30px !important; }
+  }
+  @media (prefers-color-scheme: dark) {
+    body, .cg-page { background: #0a0a0a !important; }
+    .cg-card { background: #171717 !important; border-color: #2e2e2e !important; }
+    .cg-fg { color: #fafafa !important; }
+    .cg-body { color: #d4d4d4 !important; }
+    .cg-muted, .cg-muted a { color: #a1a1a1 !important; }
+    .cg-accent, .cg-accent a, .cg-muted a.cg-accent { color: #67bbba !important; }
+    .cg-rule { border-color: #2e2e2e !important; }
+    .cg-well { background: #0a0a0a !important; border-color: #2e2e2e !important; }
+    .cg-button { background: #67bbba !important; }
+    .cg-button a { color: #061414 !important; }
+  }
+</style>
+</head>
+<body style="margin:0;padding:0;background:#f5f5f5;">
+<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">A way to sign in was removed from your Cleave account.&#8199;&#65279;&#847;&#8199;&#65279;&#847;&#8199;&#65279;&#847;&#8199;&#65279;&#847;&#8199;&#65279;&#847;&#8199;&#65279;&#847;</div>
+<table role="presentation" class="cg-page" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f5f5f5;">
+  <tr>
+    <td align="center" style="padding:40px 16px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;">
+        <tr>
+          <td style="padding:0 4px 24px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="vertical-align:middle;padding-right:10px;">
+                  <img src="{{ .SiteURL }}/email/cleave-mark.png" width="28" height="28" alt="" style="display:block;border:0;">
+                </td>
+                <td class="cg-fg" style="vertical-align:middle;font-family:Geist,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;font-size:19px;font-weight:600;letter-spacing:-0.8px;color:#0a0a0a;">cleave</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td class="cg-card" style="background:#ffffff;border:1px solid #e5e5e5;border-radius:12px;padding:40px 40px 36px;font-family:Geist,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;">
+<h1 class="cg-title cg-fg" style="margin:0 0 12px;font-size:24px;line-height:32px;font-weight:600;letter-spacing:-0.4px;color:#0a0a0a;">A sign-in method was removed</h1><p class="cg-body" style="margin:0 0 12px;font-size:15px;line-height:24px;color:#404040;">A way to sign in was removed from <strong class="cg-fg" style="font-weight:600;color:#0a0a0a;">{{ .Email }}</strong>.</p><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0 0;">
+  <tr>
+    <td class="cg-well" style="background:#fafafa;border:1px solid #e5e5e5;border-radius:8px;padding:12px 16px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td class="cg-muted" style="padding:3px 16px 3px 0;font-size:13px;line-height:20px;color:#696969;white-space:nowrap;vertical-align:top;">Method</td><td class="cg-fg" style="padding:3px 0;font-size:14px;font-weight:500;line-height:20px;color:#0a0a0a;word-break:break-all;">{{ if eq .Provider "azure" }}Microsoft{{ else if eq .Provider "google" }}Google{{ else if eq .Provider "email" }}Email and password{{ else }}{{ .Provider }}{{ end }}</td></tr></table>
+    </td>
+  </tr>
+</table><p class="cg-muted" style="margin:16px 0 28px;font-size:13px;line-height:20px;color:#696969;">If this was you, there&rsquo;s nothing else to do.</p><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td class="cg-rule" style="border-top:1px solid #e5e5e5;font-size:0;line-height:0;padding-top:24px;">&nbsp;</td></tr></table><p class="cg-muted" style="margin:0px 0 0px;font-size:13px;line-height:20px;color:#696969;"><strong class="cg-fg" style="font-weight:600;color:#0a0a0a;">Wasn&rsquo;t you?</strong> Someone may have access to your account. Reset your password now with &ldquo;Forgot password&rdquo;. <a class="cg-accent" href="{{ .SiteURL }}/sign-in" style="color:#106162;font-weight:600;text-decoration:none;">Go to sign-in</a></p>
+          </td>
+        </tr>
+        <tr>
+          <td class="cg-muted" style="padding:24px 4px 0;font-family:Geist,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#696969;">
+            <p style="margin:0 0 8px;">You received this because a sign-in method was removed from {{ .Email }}.</p>
+            <p style="margin:0;"><a href="{{ .SiteURL }}" style="color:#696969;text-decoration:underline;">Cleave</a> &middot; Cloud security posture management</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>

@@ -10,7 +10,12 @@ fails here rather than in a client's hands (API_GUIDELINES.md section 4).
 
 from typing import Any
 
+import pytest
+from pydantic import ValidationError
+
 from app.main import app
+from app.schemas.cloud_account import CloudAccountCreate
+from app.schemas.cloud_connection import CloudConnectionCreate
 from app.schemas.common import RequestModel
 
 JSON = "application/json"
@@ -83,3 +88,17 @@ def test_every_json_request_body_forbids_unknown_fields() -> None:
     for route, schema in bodies:
         for name, additional in _objects(spec, schema, set()):
             assert additional is False, f"{route}: {name} accepts and drops unknown fields"
+
+
+@pytest.mark.parametrize(
+    ("model", "body"),
+    [
+        (CloudConnectionCreate, {"name": "Prod", "scope_type": "TENANT_ROOT"}),
+        (CloudAccountCreate, {"account_name": "Prod", "tenant_id": "t-1"}),
+    ],
+)
+def test_a_create_names_its_cloud(model: type[RequestModel], body: dict[str, Any]) -> None:
+    # A body without a provider was read as Azure, whatever the client meant (DECISIONS.md 213).
+    with pytest.raises(ValidationError) as refused:
+        model.model_validate(body)
+    assert [error["loc"] for error in refused.value.errors()] == [("provider",)]

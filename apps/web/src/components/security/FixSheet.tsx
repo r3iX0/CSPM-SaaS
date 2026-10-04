@@ -8,6 +8,14 @@ import { api, ApiError } from "@/lib/api";
 import type { FindingDetail, FindingProvenance } from "@/lib/types";
 import { useT } from "@/i18n";
 import { placeholderValues } from "@/lib/remediationFill";
+import {
+  isOpenTask,
+  taskFor,
+  useMarkDone,
+  useRemediationQueue,
+  workState,
+} from "@/lib/remediation";
+import { WorkPill } from "@/components/security/WorkPill";
 import { useIsDemo } from "@/lib/useDemo";
 import { resourceTypeLabel } from "@/lib/format";
 import { ErrorState } from "@/components/common/states";
@@ -84,6 +92,8 @@ function FixSheetBody({ findingId }: { findingId: string }) {
     retry: false,
   });
   const data = finding.data;
+  const task = taskFor(useRemediationQueue().data, findingId);
+  const markDone = useMarkDone();
 
   // The provider id fills the command's placeholders; asked for only when
   // there is a command to fill, under the asset page's own key.
@@ -151,13 +161,29 @@ function FixSheetBody({ findingId }: { findingId: string }) {
 
   // Proving the fix is offered where the fix is, on an asset (§98, §187).
   const canVerify = data.status !== "RESOLVED" && Boolean(data.resource) && !isDemo;
+  const openTask = task !== undefined && isOpenTask(task);
+  const verify = async () => {
+    if (task && isOpenTask(task)) {
+      try {
+        await markDone.mutateAsync(task.id);
+      } catch {
+        // `useMarkDone` has said why in a toast; nothing was claimed, so
+        // there is nothing to check.
+        return;
+      }
+    }
+    rescan.mutate();
+  };
 
   return (
     <>
       <SheetHeader className="gap-2 border-b px-6 pt-6 pr-12 pb-4">
         <div className="flex flex-wrap items-center gap-2">
           <SeverityBadge level={data.severity} />
-          <StatusPill status={data.status} />
+          {/* Tracked work says where the work has got to, as its queue row
+              does; the finding's own status would read "In progress" beside
+              a task marked done (§212). */}
+          {task ? <WorkPill state={workState(task, data)} /> : <StatusPill status={data.status} />}
         </div>
         <SheetTitle className="text-heading font-semibold">{data.title}</SheetTitle>
         <SheetDescription>
@@ -181,7 +207,11 @@ function FixSheetBody({ findingId }: { findingId: string }) {
         />
       </SheetHeader>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6">
+      {/* Cards keep their height and the body scrolls: a card clips its own
+          overflow, so a shrinkable one in a column too short for it was cut
+          off rather than scrolled to -- the verification lost its verdict
+          (DECISIONS.md §212). */}
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6 *:shrink-0">
         {verifyScanId && (
           <FixVerification
             scanId={verifyScanId}
@@ -214,20 +244,27 @@ function FixSheetBody({ findingId }: { findingId: string }) {
           footer={
             // The end of the fix, where the fix is: applying it and proving
             // it are one motion, not two places (§98).
+            // Tracked work still open is marked done by the same press, so
+            // "Mark done" above and "Verify" here are not two answers to one
+            // question (§212); work already claimed is checked again.
             canVerify ? (
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
-                <p className="text-sm text-foreground">Applied the fix?</p>
+                <p className="text-sm text-foreground">{t.remediation.appliedIt}</p>
                 <Button
                   size="sm"
-                  onClick={() => rescan.mutate()}
-                  disabled={rescan.isPending || verifyScanId !== null}
+                  onClick={() => void verify()}
+                  disabled={rescan.isPending || markDone.isPending || verifyScanId !== null}
                 >
-                  {rescan.isPending ? (
+                  {rescan.isPending || markDone.isPending ? (
                     <Spinner data-icon="inline-start" />
                   ) : (
                     <RotateCcwIcon data-icon="inline-start" aria-hidden />
                   )}
-                  Verify it now
+                  {openTask
+                    ? t.remediation.markDoneAndCheck
+                    : task
+                      ? t.remediation.checkNow
+                      : t.remediation.verifyNow}
                 </Button>
               </div>
             ) : undefined

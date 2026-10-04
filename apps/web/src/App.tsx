@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { Shell } from "@/components/Shell";
+import { SecondFactorGate } from "@/components/auth/SecondFactorGate";
 import { DocumentTitle } from "@/components/layout/DocumentTitle";
 import { useAuthToken } from "@/lib/useAuth";
 import { authReady } from "@/lib/supabase";
@@ -87,7 +88,7 @@ function RequireAuth({ children }: { children: JSX.Element }) {
 
 /**
  * Waits for the initial Supabase session check before the router decides
- * anything. Without this, a page load mid-magic-link-redirect would see
+ * anything. Without this, a page load mid-sign-in-redirect would see
  * `auth.token` still null (the session hasn't finished parsing out of the URL
  * fragment yet) and bounce straight back to /sign-in.
  */
@@ -116,55 +117,60 @@ export function App() {
     // is the chrome they already had plus a spinner where the page will be.
     <DocumentTitle>
       <Suspense fallback={<PageLoading />}>
-        <Routes>
-          <Route path="/sign-in" element={<SignInPage />} />
-          {/* Not behind RequireAuth: a recovery link carries its own session, and
+        {/* Before any route, so no page -- the invitation and the password
+            reset included -- runs on a session that owes its second factor
+            (DECISIONS.md §216). */}
+        <SecondFactorGate>
+          <Routes>
+            <Route path="/sign-in" element={<SignInPage />} />
+            {/* Not behind RequireAuth: a recovery link carries its own session, and
           an expired one needs to say so rather than bounce to sign-in. */}
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
-          {/* Not behind RequireAuth either: whoever opens an invitation may not
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            {/* Not behind RequireAuth either: whoever opens an invitation may not
             have an account yet, and the page holds the link while they make one. */}
-          <Route path="/invite" element={<InvitePage />} />
-          <Route
-            path="/onboarding"
-            element={
-              <RequireAuth>
-                <OnboardingPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            element={
-              <RequireAuth>
-                <Shell />
-              </RequireAuth>
-            }
-          >
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/changes" element={<ChangesPage />} />
-            <Route path="/reports" element={<ReportsPage />} />
-            <Route path="/assets" element={<AssetsPage />} />
-            <Route path="/assets/:assetId" element={<AssetDetailPage />} />
-            <Route path="/findings" element={<FindingsPage />} />
-            <Route path="/findings/:findingId" element={<FindingDetailPage />} />
-            <Route path="/risks" element={<RisksPage />} />
-            <Route path="/risks/:riskId" element={<RiskDetailPage />} />
-            <Route path="/attack-paths" element={<AttackPathsPage />} />
-            <Route path="/remediation" element={<RemediationPage />} />
-            <Route path="/scans" element={<ScansPage />} />
-            <Route path="/rules" element={<RulesPage />} />
-            <Route path="/compliance" element={<CompliancePage />} />
-            <Route path="/compliance/:frameworkId" element={<ComplianceFrameworkPage />} />
-            <Route path="/connections" element={<ConnectPage />} />
-            {/* The wizard has its own URLs because setup leaves the browser for
+            <Route path="/invite" element={<InvitePage />} />
+            <Route
+              path="/onboarding"
+              element={
+                <RequireAuth>
+                  <OnboardingPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              element={
+                <RequireAuth>
+                  <Shell />
+                </RequireAuth>
+              }
+            >
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/changes" element={<ChangesPage />} />
+              <Route path="/reports" element={<ReportsPage />} />
+              <Route path="/assets" element={<AssetsPage />} />
+              <Route path="/assets/:assetId" element={<AssetDetailPage />} />
+              <Route path="/findings" element={<FindingsPage />} />
+              <Route path="/findings/:findingId" element={<FindingDetailPage />} />
+              <Route path="/risks" element={<RisksPage />} />
+              <Route path="/risks/:riskId" element={<RiskDetailPage />} />
+              <Route path="/attack-paths" element={<AttackPathsPage />} />
+              <Route path="/remediation" element={<RemediationPage />} />
+              <Route path="/scans" element={<ScansPage />} />
+              <Route path="/rules" element={<RulesPage />} />
+              <Route path="/compliance" element={<CompliancePage />} />
+              <Route path="/compliance/:frameworkId" element={<ComplianceFrameworkPage />} />
+              <Route path="/connections" element={<ConnectPage />} />
+              {/* The wizard has its own URLs because setup leaves the browser for
               Microsoft and for Azure Portal and comes back through a full page
               load. A dialog over the list could not survive either trip. */}
-            <Route path="/connections/new" element={<ConnectionSetupPage />} />
-            <Route path="/connections/:connectionId/setup" element={<ConnectionSetupPage />} />
-            <Route path="/settings/*" element={<SettingsPage />} />
-          </Route>
+              <Route path="/connections/new" element={<ConnectionSetupPage />} />
+              <Route path="/connections/:connectionId/setup" element={<ConnectionSetupPage />} />
+              <Route path="/settings/*" element={<SettingsPage />} />
+            </Route>
 
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </SecondFactorGate>
       </Suspense>
     </DocumentTitle>
   );

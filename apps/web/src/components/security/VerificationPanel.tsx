@@ -47,8 +47,27 @@ const PRESENTATION = {
   },
 } as const;
 
+/**
+ * A pending claim Cleave has already looked at and did not see fixed.
+ *
+ * Still neutral -- it will look again, and three checks are not yet a verdict
+ * -- but no longer a pulsing "Checking", which read as work under way while the
+ * answer so far was no (DECISIONS.md §212).
+ */
+const NOT_YET = {
+  icon: VERDICT_ICONS.pending,
+  tone: "border-border bg-muted text-muted-foreground",
+  heading: "Not fixed yet",
+} as const;
+
 export function VerificationPanel({ verification }: { verification: Verification }) {
-  const view = PRESENTATION[verification.status] ?? PRESENTATION.PENDING;
+  const lookedAndFailed =
+    verification.status === "PENDING" &&
+    verification.attempts > 0 &&
+    verification.last_state === "FAIL";
+  const view = lookedAndFailed
+    ? NOT_YET
+    : (PRESENTATION[verification.status] ?? PRESENTATION.PENDING);
   const Icon = view.icon;
 
   return (
@@ -62,7 +81,7 @@ export function VerificationPanel({ verification }: { verification: Verification
           <Icon
             className={cn(
               "mt-0.5 size-4 shrink-0",
-              verification.status === "PENDING" && "animate-pulse",
+              verification.status === "PENDING" && !lookedAndFailed && "animate-pulse",
             )}
             aria-hidden
           />

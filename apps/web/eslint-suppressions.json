@@ -602,7 +602,7 @@
   },
   "src/pages/SignIn.tsx": {
     "@typescript-eslint/no-misused-promises": {
-      "count": 2
+      "count": 1
     }
   },
   "src/pages/__tests__/assets.test.tsx": {

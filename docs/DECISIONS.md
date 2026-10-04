@@ -11665,6 +11665,216 @@ owner's.
 **Not built.** A grant for a whole organization's packages, an auditor who comments or asks for
 more evidence, an expiry reminder, and the Ed25519 manifest signature (§208).
 
+## 212. A tracked fix is worked in the queue, and says one thing about where it has got to
+
+Tested in a browser on production, the remediation page had seven faults and three gaps.
+
+**What was broken.**
+
+- **The fix sheet cut off its own cards.** The sheet's body is a scrolling flex column, and a
+  `Card` clips its overflow, so its minimum height resolved to zero and the cards shrank to the
+  window instead of the body scrolling. On a done task the verification card showed its title and
+  hid its verdict ("Checked, and the environment does not show the fix yet"); the fix card lost
+  half its steps. The cards in `FixSheet` and `RuleFixSheet` no longer shrink (`*:shrink-0`).
+- **On a phone a queue row lost its title.** The title column was `flex-1`, a zero basis, in a
+  wrapping row: when the effort, the date and the button fitted on one line, the title gave them
+  its width and was drawn 0px wide. It now has a basis of 16rem, so the figures wrap under it.
+- **A row and its sheet named two severities.** The row drew the task's `priority` (impact
+  against effort, so a High finding on three attack paths reads Critical) in the same badge the
+  sheet used for the finding's `severity`. Every badge now says the finding's severity, and a
+  group's says the worst of its findings (`worstSeverity`); priority still orders the queue.
+- **A row and its sheet named two statuses.** The row drew the task's status and the sheet drew
+  the finding's, so a task to do read "In progress" in its sheet (tracking moves the finding to
+  IN_PROGRESS), and a task marked done read "In progress" beside "Done 3 Oct". Both now draw one
+  `workState` in a `WorkPill`: to do, in progress, then -- once claimed -- what the checks have
+  found: checking, not fixed yet, still failing, could not verify, fixed.
+- **A check that had looked and failed still said "Checking".** A pending verification with
+  attempts behind it and `last_state` FAIL pulsed "Checking", and its row said "Waiting on a
+  scan". It is "Not fixed yet" in both, neutral and still, because the scheduler will look again
+  and two checks are not a verdict.
+- **The steps disagreed with the CLI beside them.** The Steps tab printed the rule's prose with
+  `<account>` and `<rg>` in its commands while the CLI tab had them filled; it is now filled from
+  the same observed values (`fillPlaceholders`). Its `backticked` names were printed with the
+  backticks, and are set as code. "This finding closes when" drew a green tick beside each
+  condition, which read as met on a finding that was open; it is a plain bullet.
+- **A user was named a service principal** ("User 70f01f3e · Service principal"). Not changed
+  here: the subscription's stand-in for a principal the directory capture did not read is typed
+  `SERVICE_PRINCIPAL` whatever its `principalType`, and typing a user's stand-in `USER` would put
+  it in front of the five rules that judge directory users (MFA, sign-in activity, guests,
+  disabled accounts) with none of the directory fields they read. It needs its own decision.
+
+**What could not be done.** `PATCH /remediation/{id}` took a status, an owner, a due date and
+notes from the start, and nothing in the app sent any but DONE. So "In progress" and "Overdue"
+above the queue could only read 0, nobody could say who had the work, and a task marked done by
+mistake stayed done. The fix sheet's header (`TrackFix`) now starts a task, marks it done, reopens
+it, hands it to a member (`GET /members`), gives it a due date, and stops tracking it; the row
+names who has it. Marking done offers **Undo** in its toast.
+
+The API needed three changes to make those honest:
+
+- **A field sent as null clears it.** `None` was read as "not sent", so an owner or a due date,
+  once set, could never come off. `update_task` now reads `model_fields_set`.
+- **Reopening withdraws the claim.** Moving a DONE task back clears `completed_at` and abandons
+  the pending verification, rather than leaving the scheduler checking a fix nobody claims.
+- **Stopping tracking gives the finding back.** Cancelling abandoned the verification but left
+  the finding IN_PROGRESS, where nothing listed it: the untracked list reads OPEN findings. A
+  cancelled task now returns an IN_PROGRESS finding to OPEN, and a cancelled task is not reopened
+  -- the finding is tracked again with a new task, since reopening the old one beside it would
+  give the finding two.
+
+**The untracked list said too little.** It showed five findings of a hundred and fifty-six and
+said neither number, and four of the five were one rule. It now reads a page of 25, draws one
+rule's findings as one line tracked together (`groupUntracked`, the same `useTrackAll` as the
+rule's sheet), and says how many open findings the lines are drawn from.
+
+**"Mark done" and "Verify it now" were two answers to one question.** At the foot of the fix, a
+tracked task still open is offered **Mark done and check now**, which claims the fix and starts
+the rescan in one press; a claimed one is offered **Check it now**, and an untracked finding keeps
+**Verify it now**. Marking done alone stays in the header.
+
+## 213. A connection names its cloud
+
+`CloudConnectionCreate.provider` defaulted to `azure`, from before there was a second cloud. A
+client that left the field out got an Azure connection whatever it meant to connect, and nothing
+said so: the setup that followed asked for Entra consent, and an AWS onboarding attempt failed two
+steps later for a reason that pointed nowhere near the request. Traced from the knowledge graph,
+where `Provider` is the most-crossed node in the estate, the default was the one place a request
+could choose a cloud by omission. Every `CloudResource` in `app/` already passes its provider
+explicitly, and every caller of the change-event helpers passes the route's cloud, so no other
+default is reached from outside.
+
+The field is now required on `CloudConnectionCreate`, and on `CloudAccountCreate` beside it,
+which no route reads today but which would carry the same fault into the first one that did.
+A body without it answers `422 VALIDATION_FAILED`, naming the field.
+
+**Departure from API_GUIDELINES.md §8.** Tightening validation is a breaking change there, and
+breaking changes go to `/api/v2`. This one does not: the API's one client is the web app, whose
+setup wizard has always sent `provider`, and a v2 route served beside v1 would keep the silent
+default alive for the only caller it could still mislead. The guideline stands for any change a
+client outside this repository could depend on.
+
+## 214. Google is a way in, beside Microsoft
+
+The sign-in page offered Microsoft, a password and a magic link. A team whose work accounts are
+Google Workspace had to fall back to a password or an emailed link, the two routes that need the
+most from the person signing in. `signInWithGoogle` (`apps/web/src/lib/supabase.ts`) adds Google
+through the same Supabase OAuth flow as Microsoft, and the page draws both as one
+`ProviderButton` each, Microsoft first: for an Azure-first product it is still the account most
+users have and the one they will consent with.
+
+Google is an identity here and nothing more. It is not a scanned cloud and asks only for
+`openid`, `email` and `profile`, so the hint under the buttons now says that neither provider
+gives Cleave any access to a cloud. The hint was over the copy budget (§166); it is one line
+now, renamed `providerHint`, and leaves `overBudget.ts`. The flow asks Google to show its account
+chooser (`prompt=select_account`), so someone signed in to a personal and a work account picks
+which becomes their identity rather than getting whichever was used last.
+
+The backend is unchanged: it verifies a Supabase JWT whatever provider issued the session.
+Supabase links a Google identity to an existing user with the same verified address, so a person
+who signed up with a password and later presses Google stays one user and keeps their
+memberships. "Allow users without an email" stays off (`DEPLOYMENT.md` §1, step 8): an
+invitation joins only the address on the caller's token (§162). A button pressed before the
+provider is switched on in Supabase says so in words rather than showing Supabase's error.
+
+## 215. No magic link
+
+The sign-in page offered a one-time emailed link beside Microsoft, Google and a password. With
+two identity providers on the page, the link was a fourth way to do the same thing, and the one
+that fails most quietly: a corporate mail scanner that opens links spends it before the person
+sees it, and they are left with an expired link and no word of why. It is removed from the page
+(the `magic` mode and sent notice), from `lib/supabase.ts` (`signInWithMagicLink`), and from the
+strings that drew it.
+
+Emailed links remain for what has no other route: confirming a new account, which an invitation
+depends on (§162), and resetting a password. The note under the sign-in buttons used to show
+only one assurance per mode, and the providers' one was drawn only in the magic-link mode, so it
+would never have shown again; both now show together, the providers' first.
+
+Supabase's email provider has no switch for magic links apart from passwords, so its OTP
+endpoint still answers a client that calls it directly. That is not a way around anything: the
+link proves ownership of the address exactly as a confirmation does, and ends in the same JWT.
+
+## 216. Supabase's emails are Cleave's, built from one layout
+
+Confirming an account and resetting a password are the first two things Cleave sends anyone, and
+they went out as Supabase's defaults: a bare heading, a bare link, no name on them. The six auth
+emails Supabase sends -- confirmation, recovery, magic link, email change, invite and
+reauthentication -- are now written in `tools/supabase/email_templates.py` over one
+`infrastructure/supabase/email/layout.html`, and built into `infrastructure/supabase/email/built/`.
+The built files are checked in because they are what is pasted into the dashboard; `push` sets all
+six on a project through the Management API instead. Edit the script and the layout, never the
+built files.
+
+An email cannot read the stylesheet or run the type scale, so it is held to what every client
+keeps: tables, inline styles, the light theme's tokens written out as hex, and the dark theme's
+under `prefers-color-scheme` for the clients that honour it. The cut mark (§144) is a PNG served
+from the site (`apps/web/public/email/cleave-mark.png`), because Gmail drops SVG, drawn on its own
+dark tile with a hairline edge so it reads on a light page, a dark page and a client that inverts
+one into the other. The word "cleave" beside it is text, so an inbox that blocks images still
+names the sender.
+
+Each email is a plain heading, a sentence or two, one button and when it expires. Below a rule
+comes what to do if it was not expected, and last and smallest, the link written out for a client
+that will not follow the button, so nothing competes with the button. No label sits over the
+heading, no arrow in the button, no tagline in the footer, which says only why the email came.
+Radii follow one rule: the card 12px, everything inside it 8px. Muted text is the app's
+`--muted-foreground` (`#696969`), which keeps 4.5:1 on the grey page as well as the card. "This
+link expires in 1 hour and can be used once" is Supabase's default expiry (`mailer_otp_exp`, 3600
+seconds); a project that changes it changes the script. The magic-link email is designed
+although the page no longer offers one (§215), because the endpoint still answers a direct call,
+and an email that arrives should look like it came from Cleave. Colleagues are invited by
+Cleave's own link (§162), not Supabase's invite, so the invite email is sent only by someone
+inviting from the dashboard.
+
+The seven security notices Supabase sends after the fact -- password, email address and phone
+number changed, a sign-in method linked or removed, a verification method added or removed --
+are built the same way, as `*_notification` templates. A notice asks nothing of someone who made
+the change, so it has no button: it says what changed, shows the values in a well where there
+are any, says there is nothing else to do if it was you, and under the rule links to sign-in,
+whose "Forgot password" sends a reset; there is no page with its own URL for that step.
+Supabase hands a notice raw identifiers (`azure`, `totp`), so the template names them with Go
+`if eq` branches (Microsoft, Authenticator app) and lets an unknown one through as itself. A
+notice is sent only once its toggle under Authentication -> Emails -> Security is on, which
+`push` does not change; the two verification-method notices are the ones §217's authenticator
+app sends from Settings -> Security.
+
+## 217. Two-factor authentication, enforced by the API
+
+A product that holds a read of a customer's whole cloud estate was one stolen password away
+from showing it to someone else. A person can now add an authenticator app (TOTP) under
+Settings → Security, and from then on every sign-in -- password, Microsoft or Google -- asks for
+a code from it.
+
+**The API is what enforces it.** Supabase's token says whether its own session passed a second
+factor (the `aal` claim), and `decode_token` reads it into `AuthenticatedUser.second_factor`. A
+code prompt in the browser alone would protect nothing: a password gets a one-factor token from
+Supabase's API directly, without ever loading the sign-in page. So `get_session` asks the
+database, for a one-factor session only, whether the caller has a verified factor, and refuses
+with `403 MFA_REQUIRED` if so. The answer comes from `app.has_verified_factor()` (migration
+0051), a SECURITY DEFINER function that reads Supabase's `auth.mfa_factors` for the user named
+by the verified claims -- never for a user passed in. A two-factor session costs nothing extra;
+a one-factor one costs one indexed lookup per request. Every route that reads data opens that
+session, so the shared `ERROR_RESPONSES` now documents 403 on them all.
+
+The function answers false where there is no `auth.mfa_factors` table at all, so a plain
+PostgreSQL still runs the API; CI creates a stub of the table so the refusal is tested against
+a real database. On Supabase, if the migration role could not read it, the function would raise
+and every one-factor request would fail -- loudly, never open.
+
+**The browser asks before the API has to.** `SecondFactorGate` wraps every route, the invitation
+and the password reset included, so nothing runs on a session that owes a code. It decides
+once per Supabase session (`session_id`), from the session Supabase holds locally; a `403
+MFA_REQUIRED` from the API asks too, which covers an app added on another device after this
+session began. The prompt offers sign-out, and says what to do about a lost device.
+
+**Kept small on purpose.** One authenticator app per account, which is all the prompt asks
+for. No recovery codes: Supabase's are not in the stable client yet, and a lost device is
+handled by an operator removing the factor in the Supabase dashboard (`DEPLOYMENT.md` §1, step
+9) after confirming who is asking. Adding and removing an app is done with Supabase directly,
+so the audit trail (§163) does not record it; Supabase's own auth log does. Nothing lets an
+organization require two-factor authentication of its members yet -- the API already knows a
+session's level, so that is a setting and a check in `get_tenant`, left for its own decision.
+
 ## Open items carried forward
 
 **Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read

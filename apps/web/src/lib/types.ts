@@ -477,6 +477,8 @@ export interface RemediationTask {
   risk_id: string | null;
   status: "TODO" | "IN_PROGRESS" | "DONE" | "CANCELLED";
   priority: Severity;
+  /** The member doing the work: a user id, from `GET /members` (DECISIONS.md §212). */
+  assigned_to: string | null;
   due_date: string | null;
   estimated_effort_minutes: number;
   notes: string | null;

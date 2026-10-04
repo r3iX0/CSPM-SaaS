@@ -59,6 +59,10 @@ JWKS_MIN_REFRESH_SECONDS = 30.0
 class AuthenticatedUser:
     id: UUID
     email: str | None = None
+    # Whether the session passed a second factor: Supabase's ``aal`` claim is
+    # ``aal2`` once a code from an authenticator app has been verified. A
+    # token without the claim is treated as one factor, never as two.
+    second_factor: bool = False
 
 
 async def _fetch_jwks(url: str) -> dict[str, Any]:
@@ -197,4 +201,6 @@ async def decode_token(token: str) -> AuthenticatedUser:
     except (KeyError, ValueError) as exc:
         raise NotAuthenticated("Token subject is not a valid user id") from exc
 
-    return AuthenticatedUser(id=user_id, email=claims.get("email"))
+    return AuthenticatedUser(
+        id=user_id, email=claims.get("email"), second_factor=claims.get("aal") == "aal2"
+    )

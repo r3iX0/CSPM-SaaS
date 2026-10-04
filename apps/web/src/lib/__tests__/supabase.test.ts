@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   authReady,
   sendPasswordReset,
-  signInWithMagicLink,
+  signInWithGoogle,
   signInWithMicrosoft,
   signInWithPassword,
   signUpWithPassword,
@@ -28,10 +28,6 @@ describe("supabase auth bridge, unconfigured", () => {
     await expect(authReady).resolves.toBeUndefined();
   });
 
-  it("refuses to send a magic link instead of silently no-op'ing", async () => {
-    await expect(signInWithMagicLink("a@b.com")).rejects.toThrow("not configured");
-  });
-
   it("treats sign-out as a no-op rather than throwing", async () => {
     await expect(supabaseSignOut()).resolves.toBeUndefined();
   });
@@ -45,6 +41,7 @@ describe("supabase auth bridge, unconfigured", () => {
     ["password reset", () => sendPasswordReset("a@b.com")],
     ["password update", () => updatePassword("correct horse battery")],
     ["Microsoft sign-in", () => signInWithMicrosoft()],
+    ["Google sign-in", () => signInWithGoogle()],
   ])("refuses %s instead of silently no-op'ing", async (_name, call) => {
     await expect(call()).rejects.toThrow("not configured");
   });

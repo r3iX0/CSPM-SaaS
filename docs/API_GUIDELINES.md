@@ -115,7 +115,7 @@ Each practice is marked with where this API stands:
 | `202 Accepted` | Work was queued; poll the returned resource | e.g. `POST /scans` |
 | `400 Bad Request` | The request is malformed in a way validation cannot name | rare; prefer `422` |
 | `401 Unauthorized` | No token, or an invalid or expired one | `NotAuthenticated` |
-| `403 Forbidden` | Authenticated, but not allowed (role, demo organization) | `PermissionDenied` |
+| `403 Forbidden` | Authenticated, but not allowed (role, demo organization), or the session skipped the user's second factor | `PermissionDenied`, `SecondFactorRequired` |
 | `404 Not Found` | No such resource **in this tenant** | `NotFound` and its subclasses |
 | `405 Method Not Allowed` | The URI exists; the method does not | FastAPI |
 | `409 Conflict` | Valid request, but the resource's state forbids it | `ConflictError` |

@@ -66,6 +66,13 @@ class PermissionDenied(AppError):
     status_code_default = status.HTTP_403_FORBIDDEN
 
 
+class SecondFactorRequired(AppError):
+    """Enter the code from your authenticator app to continue"""
+
+    code = "MFA_REQUIRED"
+    status_code_default = status.HTTP_403_FORBIDDEN
+
+
 class NotFound(AppError):
     """Resource not found"""
 

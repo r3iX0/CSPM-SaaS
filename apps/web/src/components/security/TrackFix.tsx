@@ -1,16 +1,24 @@
-import { CheckIcon, WrenchIcon } from "lucide-react";
+import { CheckIcon, PlayIcon, RotateCcwIcon, WrenchIcon, XIcon } from "lucide-react";
 
 import type { FindingStatus } from "@/lib/types";
 import { useT } from "@/i18n";
 import {
+  isOpenTask,
   isTrackable,
+  memberName,
   taskFor,
+  useAssignees,
   useMarkDone,
   useRemediationQueue,
   useTrack,
+  useUpdateTask,
+  type TaskChange,
 } from "@/lib/remediation";
 import { useIsDemo } from "@/lib/useDemo";
+import { SelectField } from "@/components/common/SelectField";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { formatDate, formatEffort } from "@/lib/format";
@@ -27,6 +35,11 @@ import { formatDate, formatEffort } from "@/lib/format";
  * finding: tracking moves it to IN_PROGRESS, done starts the verification
  * (§18), and only a scan observing the fix resolves it. The caption says so
  * where the button is.
+ *
+ * Tracked work is worked here too: started, handed to a member, given a due
+ * date, reopened when it was marked done too soon, and dropped from the queue
+ * when nobody will do it (§212). Each was a field the API always accepted and
+ * nothing in the app could send.
  */
 export function TrackFix({
   findingId,
@@ -42,14 +55,18 @@ export function TrackFix({
   const tasks = useRemediationQueue();
   const task = taskFor(tasks.data, findingId);
   const markDone = useMarkDone();
+  const update = useUpdateTask();
   const track = useTrack();
+  const assignees = useAssignees();
 
   if (tasks.isLoading) return <Skeleton className="h-9 w-48" />;
 
   if (task) {
-    const open = task.status === "TODO" || task.status === "IN_PROGRESS";
+    const open = isOpenTask(task);
+    const busy = markDone.isPending || update.isPending;
+    const change = (next: TaskChange) => update.mutate({ id: task.id, change: next });
     return (
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="flex items-center gap-2 text-sm text-foreground">
             <WrenchIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
@@ -57,21 +74,95 @@ export function TrackFix({
               ? t.remediation.trackedSince(formatDate(task.created_at))
               : t.remediation.doneOn(formatDate(task.completed_at))}
           </p>
-          {open && !isDemo && (
-            <Button
-              variant="secondary"
-              disabled={markDone.isPending}
-              onClick={() => markDone.mutate(task.id)}
-            >
-              {markDone.isPending ? (
-                <Spinner data-icon="inline-start" />
-              ) : (
-                <CheckIcon data-icon="inline-start" aria-hidden />
+          {!isDemo && (
+            <div className="flex flex-wrap items-center gap-2">
+              {task.status === "TODO" && (
+                <Button
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => change({ status: "IN_PROGRESS" })}
+                >
+                  <PlayIcon data-icon="inline-start" aria-hidden />
+                  {t.remediation.start}
+                </Button>
               )}
-              Mark done
-            </Button>
+              {open ? (
+                <Button
+                  variant="secondary"
+                  disabled={busy}
+                  onClick={() => markDone.mutate(task.id)}
+                >
+                  {markDone.isPending ? (
+                    <Spinner data-icon="inline-start" />
+                  ) : (
+                    <CheckIcon data-icon="inline-start" aria-hidden />
+                  )}
+                  Mark done
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => change({ status: "TODO" })}
+                >
+                  <RotateCcwIcon data-icon="inline-start" aria-hidden />
+                  {t.remediation.reopen}
+                </Button>
+              )}
+            </div>
           )}
         </div>
+        {open && (
+          <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor={`owner-${task.id}`} className="text-caption text-muted-foreground">
+                {t.remediation.owner}
+              </Label>
+              <SelectField
+                id={`owner-${task.id}`}
+                value={task.assigned_to ?? ""}
+                disabled={isDemo || busy}
+                onValueChange={(value) => change({ assigned_to: value === "" ? null : value })}
+                ariaLabel={t.remediation.owner}
+                size="default"
+                className="w-56"
+                fallbackLabel={() => memberName(undefined)}
+                options={[
+                  { value: "", label: t.remediation.unassigned },
+                  ...(assignees.data ?? []).map((member) => ({
+                    value: member.user_id,
+                    label: memberName(member),
+                  })),
+                ]}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor={`due-${task.id}`} className="text-caption text-muted-foreground">
+                {t.remediation.due}
+              </Label>
+              <Input
+                id={`due-${task.id}`}
+                type="date"
+                className="h-8 w-fit"
+                disabled={isDemo || busy}
+                value={task.due_date ?? ""}
+                onChange={(event) => change({ due_date: event.target.value || null })}
+              />
+            </div>
+            {!isDemo && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground"
+                disabled={busy}
+                onClick={() => change({ status: "CANCELLED" })}
+              >
+                <XIcon data-icon="inline-start" aria-hidden />
+                {t.remediation.stopTracking}
+              </Button>
+            )}
+          </div>
+        )}
         {open && <p className="text-xs text-muted-foreground">{t.remediation.doneNote}</p>}
       </div>
     );

@@ -36,4 +36,6 @@ temp/
 # Claude Code: per-developer settings and hookify rules
 .claude/settings*
 .claude/*.local.md
+
+# graphify: the local knowledge graph, rebuilt by its post-commit hook
 graphify-out/
