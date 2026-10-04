@@ -25,6 +25,15 @@ export function saveBlob(blob: Blob, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
+/** A file name for an audit package's archive, from what the package was called. */
+export function archiveFileName(name: string): string {
+  const slug = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return `${slug || "audit-package"}.zip`;
+}
+
 /** Open the blob in a new tab, for a document meant to be read rather than kept. */
 export function openBlob(blob: Blob): void {
   const url = URL.createObjectURL(blob);

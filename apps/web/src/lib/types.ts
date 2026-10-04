@@ -1525,3 +1525,99 @@ export interface WebhookTest {
   status: number | null;
   error: string | null;
 }
+
+/** A sealed assessment and who may read it (DECISIONS.md §208, §211). */
+export interface AuditPackageFramework {
+  id: string;
+  name: string;
+  short_name: string;
+  version: string;
+  authority: string;
+  url: string;
+  summary: string;
+  scope_note: string;
+}
+
+export interface AuditPackage {
+  id: string;
+  name: string;
+  frameworks: AuditPackageFramework[];
+  scan_id: string;
+  /** `PARTIAL` matters most: an assessment with a hole in it says so. */
+  scan_status: string;
+  scan_completed_at: string | null;
+  period_start: string | null;
+  period_end: string | null;
+  /** SHA-256 of the canonical manifest, as sealed. */
+  manifest_sha256: string;
+  sealed_by: string;
+  sealed_at: string;
+}
+
+export interface AuditPackageAssessment {
+  framework_id: string;
+  controls: number;
+  /** Every status as a key, zeroes included. */
+  statuses: Record<ControlStatus, number>;
+}
+
+export interface AuditPackageEvidence {
+  readings: number;
+  outcomes: Record<string, number>;
+  payloads_named: number;
+  payloads_stored: number;
+}
+
+export interface AuditPackageDetail extends AuditPackage {
+  assessment: AuditPackageAssessment[];
+  evidence: AuditPackageEvidence;
+}
+
+export interface AuditPackageVerification {
+  verified: boolean;
+  sealed_sha256: string;
+  recomputed_sha256: string;
+  checked_at: string;
+}
+
+export type AuditGrantStatus = "PENDING" | "OPENED" | "EXPIRED" | "REVOKED";
+
+export interface AuditGrant {
+  id: string;
+  package_id: string;
+  email: string;
+  status: AuditGrantStatus;
+  created_by: string;
+  created_at: string;
+  expires_at: string;
+  /** Null while nobody has opened the link. */
+  opened_at: string | null;
+  revoked_at: string | null;
+}
+
+/** A grant as it is made: the one time its link is shown. */
+export interface AuditGrantCreated extends AuditGrant {
+  link: string;
+}
+
+export type AuditGrantEventName = "OPENED" | "ARCHIVE_DOWNLOADED";
+
+export interface AuditGrantEvent {
+  id: string;
+  grant_id: string;
+  event: AuditGrantEventName;
+  user_id: string;
+  detail: Record<string, unknown>;
+  at: string;
+}
+
+/** A grant as the auditor it is for sees it. */
+export interface AuditorGrant {
+  id: string;
+  package_id: string;
+  package_name: string;
+  organization_name: string;
+  email: string;
+  opened_at: string;
+  expires_at: string;
+}
