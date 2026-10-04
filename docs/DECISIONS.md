@@ -11424,6 +11424,247 @@ not resolve them ("didn't resolve at build time") and emitted no files, and Verc
 answered each font request with the app's HTML, so every page drew in the system font. The fonts
 are imported from `main.tsx` instead, where Vite rebases and fingerprints them.
 
+## 208. An audit package is a sealed assessment, and an auditor is given a grant to read it
+
+An external audit asks what the estate looked like on a date, and weeks of console screenshots
+are how that is answered today. CloudGuard already holds the answer -- readings, timestamps,
+permissions and a SHA-256 of every payload -- but not in a form that stays put. The compliance
+assessment reads the latest scan, and retention prunes the payloads a citation points at.
+
+**A package is stored, and that is a deliberate exception.** Phase 9 chose to generate reports
+on request and never store them, because a stored assessment outlives the evidence behind it and
+leaves a question about which copy is current. An auditor needs the opposite: a fixed record of
+a date that nothing refreshes. So a package is named, dated, immutable and never claims to be
+current, and the exception stops there: reports and `GET /compliance/{id}/export` stay live.
+
+**Sealed from the latest completed scan.** `audit_packages` keeps every control's verdict and
+the rules behind it, minus what changes with the clock (age, whether a payload is still held).
+`audit_package_items` keeps one row per reading the controls rest on -- listing, time,
+permissions, api-version, and the payload's hash -- for the chosen frameworks only, so a package
+for one framework does not carry the whole estate's configuration. Owners and admins may read
+and insert; nobody is granted UPDATE or DELETE, and the cascade from the organization is the
+only way a package ends.
+
+**One manifest, hashed.** `compliance/package.py` defines the canonical manifest, built from the
+stored rows. Sealing stores its SHA-256 and verifying rebuilds it, so a row edited behind the
+application's back no longer matches. The organization is named by id, since its display name may
+change after an audit.
+
+**What the hash proves, and what it does not.** It proves the rows are those that were sealed,
+and that a payload is the bytes CloudGuard captured. It does not prove the provider said them:
+that rests on CloudGuard having asked, which is why each reading carries the permissions and
+api-version it was made under. The archive's README says so in as many words, and carries
+`UNKNOWN`, `NOT_READ` and `FAILED` readings and the technically-unassessable controls beside the
+passes, because an export that showed only green would be the one document where that omission
+is expensive.
+
+**Retention keeps what a package names.** `prune_blobs` keeps every hash an item names, as it
+does for a surviving capture manifest. Without it an auditor could be promised bytes by a hash in
+a document they hold, and find the payload aged out.
+
+**Frameworks.** A package seals any framework the organization is offered
+(`compliance.frameworks_for`), so ISO 27001, SOC 2, PCI DSS v4, NIST CSF 2.0 and CIS Controls
+v8.1 (§209) are sealable beside the benchmarks, and nothing in sealing branches on a framework.
+Only a catalogued framework can be sealed: a package must not imply an assessment against a
+framework CloudGuard has no controls for. The declared audit period is informational; the
+evidence is the closing scan's, and a per-scan timeline for a Type II period is not built.
+
+**The archive, and the routes that give it.** An owner or administrator seals, lists, reads,
+verifies and downloads a package at `/audit-packages` (`docs/API.md`). The download is a zip
+built by `compliance/archive.py`, and every claim in it can be tested without Cleave:
+`manifest.json` is the canonical manifest byte for byte, so `sha256sum manifest.json` is the
+hash sealed in the audit trail; each payload is written as the exact bytes it was captured as,
+named by their SHA-256; and `SHA256SUMS` lists the rest for `sha256sum -c`. A payload whose bytes
+no longer hash to their name is left out and named in `gaps.csv`, not shipped under a name it does
+not earn. The archive holds no PDF and nothing recomputed today: a report rendered at download
+time would describe the estate now in a file that claims to describe it on the sealing date. It
+is deterministic, so a download can be compared with the one before.
+
+**Gaps are listed beside the passes.** `gaps.csv` carries the controls that are inconclusive,
+not assessed, not covered, or not observable by a scanner at all, and the readings that failed,
+were partial, were never taken, or whose bytes are gone. A package of green rows only is the one
+document where that omission is expensive, so it is not an option.
+
+**Three deliberate departures from the usual route shape.** The archive is a `GET` that writes an
+audit entry (`audit_package.exported`): evidence leaving the system belongs on the trail, and an
+append-only entry is a record rather than state a repeat changes. The entry records access and not
+success. Verification is a `GET` sub-resource and not a `POST` action, because it changes nothing
+and is idempotent. The listing is paged, and the detail answers with counts and not the controls,
+which the archive carries: hundreds of rows of verdicts, rules and readings are a download and
+not a screen. Reading is for owners and administrators and says `403` to anyone else, as well as
+being refused by row-level security, so a viewer is told why and is not shown an empty list.
+
+**Bounded.** One archive carries at most 256 MB of uncompressed payloads, and a larger package
+answers `409 ARCHIVE_TOO_LARGE` before any of it is read. The build runs in a thread, one at a
+time, into a spooled file, after the connection has gone back to the pool (§158), and holds one
+payload in memory at a time. A package larger than that wants a background export, which is not
+built.
+
+**Auditors read through a grant (§211).** An auditor is not an organization member, so a grant
+is bound to their verified email and read through `SECURITY DEFINER` functions, as invitations
+are (§162), rather than through a new bypass session. The manifest signature (Ed25519) is a
+later step.
+
+## 209. The standards a customer is audited against are listed in full, and only the latest of a version is offered
+
+Customers are asked for SOC 2, ISO 27001, PCI DSS, the NIST CSF and the CIS Controls by name,
+and a sealed audit package (§208) is only as honest as the list it measures against. ISO 27001,
+SOC 2 and PCI DSS were already offered, but as a subset each (17, 27 and 23 controls), so a
+coverage figure had a denominator the standard does not have. NIST CSF was version 1.1, which
+NIST superseded in February 2024, and the CIS Controls were absent.
+
+**Listed in full.** ISO 27001 is all 93 Annex A controls, SOC 2 all 61 criteria of the 2017
+Trust Services Criteria, NIST CSF 2.0 all 106 subcategories, and CIS Controls v8.1 all 153
+safeguards. PCI DSS lists every one of the 64 principal requirements, each as a row of its own or
+through a sub-requirement listed beneath it; its sub-requirements are listed only where a
+configuration reading reaches them, and its scope note says so. What no rule reaches resolves to
+`NOT_COVERED`, and what no scanner can see is marked not technically assessable, so a package
+carries both beside the passes (§208).
+
+**One version of a standard.** CSF 1.1 is replaced by `NIST_CSF_2.0`, not kept beside it, and
+there is no CIS Controls v8. The same name for two versions would split one rule's evidence across
+both and give an auditor two numbers for one question. Every rule's own CSF mapping was rewritten
+to 2.0 from NIST's published 1.1 back-references, one subcategory per 1.1 subcategory rather than
+all that NIST lists, so a rule claims the subcategory it evidences and not its neighbours (an MFA
+rule is `PR.AA-03`, authentication, and not `PR.AA-05`, least privilege). A package sealed under
+`NIST_CSF` keeps its own stored controls and still verifies, because verification rebuilds from
+the package's rows and never from the catalogue.
+
+**Data, not code.** The five live in `data/standards.json`, beside `frameworks.json`, which the
+tests pin to the six kept from Prowler (§168). Titles are Cleave's own words except CSF 2.0, which
+quotes NIST's public text, and the CIS ones are short descriptors of the safeguard under its CIS
+number, since the Controls are licensed on terms that restrict redistributing their text. Nothing
+branches on a framework.
+
+**CIS Controls are mapped by hand.** Rules' own mappings name the frameworks they were written
+against, so the CIS Controls arrive through the crosswalk, written rule by rule from what the
+rule's evidence shows: 244 of 258 rules, with availability and credential-lifetime rules left
+unmapped rather than stretched to a safeguard that asks something else. That is a judgement and
+the crosswalk's comment says so; it is reviewed like code.
+
+**Rules written against the shorter lists are carried across, not left behind.** Section 204's
+thirty-nine rules were written when NIST CSF was 1.1 and PCI DSS was twenty-three
+sub-requirements. Their CSF ids are converted to 2.0 by the same map the older rules were
+(`PR.AC-1` to `PR.AA-01`, `PR.AC-5` to `PR.IR-01`, `PR.IP-4` to `PR.DS-11`, and so on, from NIST's
+own back-references), and each got hand-written entries in the four crosswalk frameworks, a few
+left unmapped where no control asks what the rule asks (HTTP/2, the region policy). PCI DSS lists
+every principal requirement here, so seven more are observable (3.7, 5.3, 6.4, 7.3, 8.5, 8.6 and
+11.5) and each is answered by the rules whose evidence shows it: key and secret lifetimes, endpoint
+protection, the web application firewall rules, Kubernetes RBAC, MFA prompt context, the shared
+registry login and storage keys, and the Defender detection rules. Those last were mapped to 11.4.1,
+penetration testing, and are now on 11.5, intrusion and file-change detection. Four CSF 2.0
+subcategories are observable and answered by no rule (`ID.AM-01`, `ID.AM-02`, `PR.DS-10`,
+`PR.PS-05`), held as an exact set by `tests/unit/test_compliance_closure.py` so it can only shrink.
+
+**Keeping them current** is `docs/FRAMEWORKS.md`: where each standard is published, what changes
+it, and the steps for a new version. A new version is a new id and a remap, never an edit in
+place, so a sealed package is never reinterpreted.
+
+## 210. CSA CCM v4.1, NIST SP 800-171 Revision 2 and DORA are offered
+
+Three standards that a customer's buyer or regulator names, rather than a customer's auditor:
+the Cloud Controls Matrix because a SaaS vendor publishes to CSA STAR and STAR accepts only v4.1
+from March 2026 (Level 1) and December 2027 (Level 2); NIST SP 800-171 because CMMC Level 2
+assesses it and the first phase began on 10 November 2025; DORA because it has applied to EU
+financial entities since 17 January 2025. They follow the rules of §209: listed in full, one
+version, data in `standards.json`, mapped by hand through the crosswalk.
+
+**800-171 is Revision 2, not 3.** NIST withdrew Revision 2 for Revision 3 (97 requirements), and
+§209 offers only the latest of a standard. The exception is deliberate: the standard is wanted
+for CMMC, CMMC Level 2 assesses Revision 2, and offering Revision 3 would measure a supplier
+against a document its assessor will not use. The scope note says so. Revision 3 replaces
+Revision 2 when the Department of Defense moves CMMC, not before.
+
+**DORA is listed by article.** The regulation's technical detail is in regulatory technical
+standards beneath it, which are not listed, so a row stands for its article and the scope note
+says so. Articles 31 to 44 concern the authorities' oversight of critical ICT third-party
+providers and bind no financial entity, and are left out. Twenty-seven rows, six of them
+technically assessable. A rule is mapped to an article only where its evidence is what the
+article asks for: redundancy and failover rules are not mapped to Article 11 (response and
+recovery plans), which is about plans, so they stay unmapped there.
+
+**The Cloud Controls Matrix uses CSA's control names and not its specifications, and needs a
+licence.** CSA's notice allows the matrix to be used for personal, informational, non-commercial
+purposes, forbids modifying or redistributing it, and permits quoting portions as fair use with
+attribution; a licence for other uses is by request. So each of the 207 controls carries its
+identifier and its name and none of the specification text, and the framework's scope note
+attributes them to the Cloud Security Alliance. That is a quotation, not a licence, and a
+commercial product that lists every control is on the line the notice draws. **Ask CSA for a
+licence before CCM is offered to customers** (§168 has the same open question for the CIS
+benchmarks). The 17 domains and the per-domain counts are held by a test.
+
+**Coverage is what the evidence supports.** Of 258 rules, 255 map to CCM controls reaching 43 of
+the 46 technically assessable ones (key inventory, identity inventory and separation of duties are
+not reached), 232 to 800-171 reaching 33 of 44, and 241 to DORA reaching all 6. That is a judgement
+made rule by rule, as for the CIS Controls (§209), and is reviewed like code.
+
+## 211. An auditor reads one sealed package through a grant bound to their verified email
+
+An auditor is not a member of the organization, and should not become one. A membership, even a
+`VIEWER`, is read through `app.is_member` by the policy of nearly every tenant table, so the
+auditor would see findings, assets and connections that no package names. What they were sent is
+one sealed package (§208), and what they may read is that package and nothing else.
+
+**A grant, not a role.** `audit_grants` names one package, one email address and one expiry. The
+policies on `audit_packages`, `audit_package_items` and `evidence_blobs` are not touched, and none
+of them mentions an auditor: the auditor reads through `SECURITY DEFINER` functions that each
+check the grant, as invitations do (§162), and a bug in the application's session handling cannot
+widen what a grant reaches. Owners and administrators create, list and revoke grants; a grant is
+never deleted, and only `revoked_at` and `revoked_by` can change, by column grant, as the package
+tables are immutable by grant (§208).
+
+**The auditor has a Cleave account.** They sign up, verify an address, and open the link. The
+function checks the grant against the address on the caller's own verified token, read from the
+request's claims and never taken as an argument (`app.user_email()`, §162), so a forwarded link is
+useless to anybody else. The alternative, a bearer link that needs no account, was declined:
+anyone holding it would read the evidence, and the trail could say only that somebody did.
+
+**The link is spent once, and the grant is a handle afterwards.** The token is 32 random bytes,
+stored only as its SHA-256, shown once, and carried in the URL fragment, which servers never see
+(§162). `app.open_audit_grant(token_hash)` checks that the grant is open, unexpired and addressed
+to the caller, binds it to the caller's user id on the first open, and refuses any other user
+after that. Every later read names the grant's id and not the token, and the internal check
+repeats all of it on every call: bound to this user, this address, not revoked, not expired. An
+auditor whose address changes loses access, and a revoke takes effect on the next request. A
+download already streaming finishes.
+
+**What an auditor may read.** The package's header and how its controls came out, whether the
+stored rows still give the hash it was sealed under, and the archive. They are the owner's three
+reads (§208) over the same builder, and the archive carries what an auditor tests without Cleave.
+The payload function answers only for hashes that the granted package's items name, so a grant
+never reaches another package's evidence, or the same organization's other readings. The controls
+as a screen are a later need, with the web page.
+
+**Grants are bounded.** A grant lasts 30 days unless the owner says otherwise, and at most 90: an
+audit has an end, and a link nobody remembers is an open door. Granting again to the same address
+revokes the old grant first, so a package has at most one open grant per address and the newest
+link is the only one. No grant is made on the demo organization, where every write is refused
+(§99).
+
+**The trail is the grant's own event log, shown to owners and administrators.**
+`audit_grant_events` records `OPENED` and `ARCHIVE_DOWNLOADED`, each written by the function that
+gave the access, in the same transaction, so an auditor cannot read and leave no entry. Nothing
+else can insert one. An auditor has no tenant, so their reads are not rows in the organization's
+audit log (§163) and are not added to it: the owner's own actions (granting, revoking) are, and
+the grant's events are one request away. Reading a package is a `GET` and records nothing, as a
+`GET` changes no state. The archive records, as the owner's does and for the same reason (§208).
+
+**What it does not record.** A refused attempt is not an event, because the function that refuses
+raises, and a raise rolls its own writes back. A wrong address, an expired link or a revoked
+grant is a structured log line (`auditor.refused`) and a `4xx`, and no more. An owner who wants
+to know whether somebody tried reads the log, not the grant.
+
+**Routes.** The owner's are a collection of their own at `/audit-grants`, naming the package in
+the body or the filter, because a grant's revoke and its events would sit four segments deep under
+the package (`docs/API_GUIDELINES.md` §2). The auditor's are under `/auditor/grants`, opened
+by `POST /auditor/grants/open` as an invitation is accepted. An auditor route depends on
+`CurrentUser` and `DbSession` and never on `get_tenant`, which answers `404` to a caller with no
+membership. The archive keeps `Costly` and the one-at-a-time build limit of §208, shared with the
+owner's.
+
+**Not built.** A grant for a whole organization's packages, an auditor who comments or asks for
+more evidence, an expiry reminder, and the Ed25519 manifest signature (§208).
+
 ## Open items carried forward
 
 **Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read

@@ -181,7 +181,7 @@ class AwsPublicSshRule(_OpenPortRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AWS_3.0": ["5.2"],
         "ISO_27001": ["A.8.20", "A.8.22"],
-        "NIST_CSF": ["PR.AC-5"],
+        "NIST_CSF_2.0": ["PR.IR-01"],
         "NIST_800_53": ["SC-7", "AC-17"],
         "SOC2": ["CC6.6"],
         "PCI_DSS_4": ["1.3.1"],
@@ -233,7 +233,7 @@ class AwsPublicRdpRule(_OpenPortRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AWS_3.0": ["5.2"],
         "ISO_27001": ["A.8.20", "A.8.22"],
-        "NIST_CSF": ["PR.AC-5"],
+        "NIST_CSF_2.0": ["PR.IR-01"],
         "NIST_800_53": ["SC-7", "AC-17"],
         "SOC2": ["CC6.6"],
         "PCI_DSS_4": ["1.3.1"],
@@ -290,7 +290,7 @@ class AwsPublicDatabasePortRule(_OpenPortRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AWS_3.0": ["5.2"],
         "ISO_27001": ["A.8.20"],
-        "NIST_CSF": ["PR.AC-5", "PR.DS-5"],
+        "NIST_CSF_2.0": ["PR.IR-01", "PR.DS-01"],
         "NIST_800_53": ["SC-7"],
         "SOC2": ["CC6.6"],
         "PCI_DSS_4": ["1.3.1"],
@@ -347,7 +347,7 @@ class AwsOpenNetworkAclRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AWS_3.0": ["5.1"],
         "ISO_27001": ["A.8.20", "A.8.22"],
-        "NIST_CSF": ["PR.AC-5"],
+        "NIST_CSF_2.0": ["PR.IR-01"],
         "NIST_800_53": ["SC-7"],
         "SOC2": ["CC6.6"],
         "PCI_DSS_4": ["1.3.1"],
@@ -465,7 +465,7 @@ class AwsDefaultSecurityGroupRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AWS_3.0": ["5.4"],
         "ISO_27001": ["A.8.20"],
-        "NIST_CSF": ["PR.AC-5"],
+        "NIST_CSF_2.0": ["PR.IR-01"],
         "NIST_800_53": ["SC-7", "CM-7"],
         "SOC2": ["CC6.6"],
         "PCI_DSS_4": ["1.3.1"],

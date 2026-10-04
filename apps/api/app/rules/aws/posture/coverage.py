@@ -111,7 +111,7 @@ class AwsGuardDutyRule(_RegionalServiceRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.16"],
-        "NIST_CSF": ["DE.CM-1", "DE.AE-3"],
+        "NIST_CSF_2.0": ["DE.CM-01", "DE.AE-03"],
         "NIST_800_53": ["SI-4"],
         "SOC2": ["CC7.2"],
         "PCI_DSS_4": ["10.2.1"],
@@ -158,7 +158,7 @@ class AwsSecurityHubRule(_RegionalServiceRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AWS_3.0": ["4.16"],
         "ISO_27001": ["A.8.16"],
-        "NIST_CSF": ["DE.AE-3"],
+        "NIST_CSF_2.0": ["DE.AE-03"],
         "NIST_800_53": ["SI-4"],
         "SOC2": ["CC7.2"],
         "PCI_DSS_4": ["10.5.1"],

@@ -89,7 +89,7 @@ class AwsPublicBucketRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AWS_3.0": ["2.1.4"],
         "ISO_27001": ["A.5.10", "A.8.3"],
-        "NIST_CSF": ["PR.AC-3", "PR.DS-5"],
+        "NIST_CSF_2.0": ["PR.IR-01", "PR.DS-01"],
         "GDPR": ["5(1)(f)", "25", "32(1)(b)"],
         "NIST_800_53": ["AC-3", "SC-7"],
         "SOC2": ["CC6.1", "CC6.6"],
@@ -201,7 +201,7 @@ class AwsBucketEncryptionRule(SecurityRule):
     # AWS-STO-003 (DECISIONS.md section 150).
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.24"],
-        "NIST_CSF": ["PR.DS-1"],
+        "NIST_CSF_2.0": ["PR.DS-01"],
         "GDPR": ["32(1)(a)"],
         "NIST_800_53": ["SC-28"],
         "SOC2": ["CC6.1"],
@@ -291,7 +291,7 @@ class AwsBucketTransportRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AWS_3.0": ["2.1.1"],
         "ISO_27001": ["A.8.24"],
-        "NIST_CSF": ["PR.DS-2"],
+        "NIST_CSF_2.0": ["PR.DS-02"],
         "GDPR": ["32(1)(a)"],
         "NIST_800_53": ["SC-8"],
         "SOC2": ["CC6.7"],

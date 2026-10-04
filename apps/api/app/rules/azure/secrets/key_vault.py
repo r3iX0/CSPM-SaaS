@@ -87,7 +87,7 @@ class AzureKeyVaultDeletionRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["8.5"],
         "ISO_27001": ["A.8.13", "A.8.24"],
-        "NIST_CSF": ["PR.DS-1", "PR.IP-4"],
+        "NIST_CSF_2.0": ["PR.DS-01", "PR.DS-11"],
         "GDPR": ["32(1)(c)"],
         "NIST_800_53": ["CP-9", "SC-12", "AU-9"],
         "SOC2": ["A1.2"],
@@ -205,7 +205,7 @@ class AzureKeyVaultNetworkRule(SecurityRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.20", "A.8.24"],
-        "NIST_CSF": ["PR.AC-5", "PR.DS-5"],
+        "NIST_CSF_2.0": ["PR.IR-01", "PR.DS-01"],
         "GDPR": ["5(1)(f)", "32(1)(b)"],
         "NIST_800_53": ["SC-7", "SC-12", "IA-5"],
         "SOC2": ["CC6.6", "CC6.1"],
@@ -316,7 +316,7 @@ class AzureKeyVaultAccessModelRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["8.6"],
         "ISO_27001": ["A.5.15", "A.5.18", "A.8.2"],
-        "NIST_CSF": ["PR.AC-4"],
+        "NIST_CSF_2.0": ["PR.AA-05"],
         "GDPR": ["32(1)(b)"],
         "NIST_800_53": ["AC-3", "AC-6"],
         "SOC2": ["CC6.1", "CC6.3"],

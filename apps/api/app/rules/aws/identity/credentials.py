@@ -80,7 +80,7 @@ class AwsUserWithoutMfaRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AWS_3.0": ["1.10"],
         "ISO_27001": ["A.5.17"],
-        "NIST_CSF": ["PR.AC-1", "PR.AC-7"],
+        "NIST_CSF_2.0": ["PR.AA-01", "PR.AA-03"],
         "NIST_800_53": ["IA-2"],
         "SOC2": ["CC6.1"],
         "PCI_DSS_4": ["8.4.2"],
@@ -177,7 +177,7 @@ class AwsStaleAccessKeyRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AWS_3.0": ["1.12", "1.14"],
         "ISO_27001": ["A.5.16", "A.5.18"],
-        "NIST_CSF": ["PR.AC-1"],
+        "NIST_CSF_2.0": ["PR.AA-01"],
         "NIST_800_53": ["AC-2"],
         "SOC2": ["CC6.2", "CC6.3"],
         "PCI_DSS_4": ["8.2.1"],
@@ -253,7 +253,7 @@ class AwsRootAccessKeyRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AWS_3.0": ["1.4"],
         "ISO_27001": ["A.5.15", "A.8.2"],
-        "NIST_CSF": ["PR.AC-4"],
+        "NIST_CSF_2.0": ["PR.AA-05"],
         "NIST_800_53": ["AC-6"],
         "SOC2": ["CC6.3"],
         "PCI_DSS_4": ["7.2.1"],
@@ -332,7 +332,7 @@ class AwsPasswordPolicyRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AWS_3.0": ["1.8"],
         "ISO_27001": ["A.5.17"],
-        "NIST_CSF": ["PR.AC-1"],
+        "NIST_CSF_2.0": ["PR.AA-01"],
         "NIST_800_53": ["IA-5"],
         "SOC2": ["CC6.1"],
         "PCI_DSS_4": ["8.3.1"],
@@ -411,7 +411,7 @@ class AwsRootMfaRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AWS_3.0": ["1.5"],
         "ISO_27001": ["A.5.17", "A.8.2"],
-        "NIST_CSF": ["PR.AC-1", "PR.AC-7"],
+        "NIST_CSF_2.0": ["PR.AA-01", "PR.AA-03"],
         "NIST_800_53": ["IA-2"],
         "SOC2": ["CC6.1"],
         "PCI_DSS_4": ["8.4.2"],
@@ -489,7 +489,7 @@ class AwsAdministratorPolicyRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AWS_3.0": ["1.16"],
         "ISO_27001": ["A.5.15", "A.8.2"],
-        "NIST_CSF": ["PR.AC-4"],
+        "NIST_CSF_2.0": ["PR.AA-05"],
         "NIST_800_53": ["AC-6"],
         "SOC2": ["CC6.3"],
         "PCI_DSS_4": ["7.2.1"],
@@ -599,7 +599,7 @@ class AwsExpiredCertificateRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AWS_3.0": ["1.19"],
         "ISO_27001": ["A.8.24"],
-        "NIST_CSF": ["PR.DS-2"],
+        "NIST_CSF_2.0": ["PR.DS-02"],
         "NIST_800_53": ["SC-12"],
         "SOC2": ["CC6.7"],
         "PCI_DSS_4": ["4.2.1"],
@@ -682,7 +682,7 @@ class AwsAccessAnalyzerRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AWS_3.0": ["1.20"],
         "ISO_27001": ["A.5.15"],
-        "NIST_CSF": ["PR.AC-4", "DE.CM-1"],
+        "NIST_CSF_2.0": ["PR.AA-05", "DE.CM-01"],
         "NIST_800_53": ["AC-6"],
         "SOC2": ["CC6.3"],
         "PCI_DSS_4": ["7.2.1"],
@@ -776,7 +776,7 @@ class AwsSupportRoleRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AWS_3.0": ["1.17"],
         "ISO_27001": ["A.5.30"],
-        "NIST_CSF": ["RS.RP-1"],
+        "NIST_CSF_2.0": ["RS.MA-01"],
         "NIST_800_53": ["IR-4"],
         "SOC2": ["CC7.4"],
         "PCI_DSS_4": ["12.10.1"],

@@ -64,7 +64,7 @@ class AwsPublicDatabaseRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AWS_3.0": ["2.3.3"],
         "ISO_27001": ["A.8.20", "A.8.23"],
-        "NIST_CSF": ["PR.AC-3", "PR.DS-5"],
+        "NIST_CSF_2.0": ["PR.IR-01", "PR.DS-01"],
         "GDPR": ["32(1)(b)"],
         "NIST_800_53": ["SC-7", "AC-3"],
         "SOC2": ["CC6.1", "CC6.6"],
@@ -160,7 +160,7 @@ class AwsDatabaseEncryptionRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AWS_3.0": ["2.3.1"],
         "ISO_27001": ["A.8.24"],
-        "NIST_CSF": ["PR.DS-1"],
+        "NIST_CSF_2.0": ["PR.DS-01"],
         "GDPR": ["32(1)(a)"],
         "NIST_800_53": ["SC-28"],
         "SOC2": ["CC6.1"],
@@ -248,7 +248,7 @@ class AwsDatabasePatchingRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AWS_3.0": ["2.3.2"],
         "ISO_27001": ["A.8.8"],
-        "NIST_CSF": ["ID.RA-1"],
+        "NIST_CSF_2.0": ["ID.RA-01"],
         "NIST_800_53": ["SI-2"],
         "SOC2": ["CC7.1"],
         "PCI_DSS_4": ["6.3.3"],

@@ -135,7 +135,7 @@ GRAPH_APP_ROLES: dict[str, str] = {
     # reference, the application column. A third-party catalogue gave the
     # delegated id for the first, which is the mistake this rule exists for.
     "Policy.Read.DeviceConfiguration": "bdba4817-6ba1-4a7c-8a01-be9bc7c242dd",
-    "AccessReview.Read.All": "d07a8cc0-3d51-4b77-b3b0-32704d1f69fa",
+    "AccessReview.Read.All": "d07a8cc0-3d51-4b77-b3b0-32704d1f69fa",  # gitleaks:allow
 }
 
 

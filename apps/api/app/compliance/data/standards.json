@@ -1,0 +1,5035 @@
+{
+  "$comment": "Standards kept as data beside the frameworks written out in catalog.py. Control titles are Cleave's own words, except CSF 2.0, which quotes NIST's public text. Edit by hand; nothing regenerates this file. docs/FRAMEWORKS.md says where each came from and how to bring it up to date.",
+  "frameworks": [
+    {
+      "id": "ISO_27001",
+      "name": "ISO/IEC 27001:2022 Annex A",
+      "short_name": "ISO 27001",
+      "version": "2022",
+      "authority": "ISO/IEC",
+      "url": "https://www.iso.org/standard/27001",
+      "provider": null,
+      "summary": "The control set an ISMS certification audits against. Most of it is about people and process; the technological controls in A.8 are where a cloud scanner has anything to say.",
+      "scope_note": "All 93 Annex A controls of ISO/IEC 27001:2022, which Amendment 1:2024 left unchanged. Most are organizational, people or physical controls and are listed as not technically assessable; the technological controls in A.8 are where a cloud scan produces evidence. The management-system clauses 4 to 10 are not listed. A certification body issues the certificate, not this product.",
+      "controls": [
+        {
+          "id": "A.5.1",
+          "title": "Policies for information security",
+          "group": "Organizational",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.5.2",
+          "title": "Information security roles and responsibilities",
+          "group": "Organizational",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.5.3",
+          "title": "Segregation of duties",
+          "group": "Organizational",
+          "technically_assessable": true
+        },
+        {
+          "id": "A.5.4",
+          "title": "Management responsibilities",
+          "group": "Organizational",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.5.5",
+          "title": "Contact with authorities",
+          "group": "Organizational",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.5.6",
+          "title": "Contact with special interest groups",
+          "group": "Organizational",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.5.7",
+          "title": "Threat intelligence",
+          "group": "Organizational",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.5.8",
+          "title": "Information security in project management",
+          "group": "Organizational",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.5.9",
+          "title": "Inventory of information and other associated assets",
+          "group": "Organizational",
+          "technically_assessable": true
+        },
+        {
+          "id": "A.5.10",
+          "title": "Acceptable use of information and associated assets",
+          "group": "Organizational",
+          "technically_assessable": true
+        },
+        {
+          "id": "A.5.11",
+          "title": "Return of assets",
+          "group": "Organizational",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.5.12",
+          "title": "Classification of information",
+          "group": "Organizational",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.5.13",
+          "title": "Labelling of information",
+          "group": "Organizational",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.5.14",
+          "title": "Information transfer",
+          "group": "Organizational",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.5.15",
+          "title": "Access control",
+          "group": "Organizational",
+          "technically_assessable": true
+        },
+        {
+          "id": "A.5.16",
+          "title": "Identity management",
+          "group": "Organizational",
+          "technically_assessable": true
+        },
+        {
+          "id": "A.5.17",
+          "title": "Authentication information",
+          "group": "Organizational",
+          "technically_assessable": true
+        },
+        {
+          "id": "A.5.18",
+          "title": "Access rights",
+          "group": "Organizational",
+          "technically_assessable": true
+        },
+        {
+          "id": "A.5.19",
+          "title": "Information security in supplier relationships",
+          "group": "Organizational",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.5.20",
+          "title": "Addressing information security within supplier agreements",
+          "group": "Organizational",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.5.21",
+          "title": "Managing information security in the ICT supply chain",
+          "group": "Organizational",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.5.22",
+          "title": "Monitoring, review and change management of supplier services",
+          "group": "Organizational",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.5.23",
+          "title": "Information security for use of cloud services",
+          "group": "Organizational",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.5.24",
+          "title": "Information security incident management planning and preparation",
+          "group": "Organizational",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.5.25",
+          "title": "Assessment and decision on information security events",
+          "group": "Organizational",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.5.26",
+          "title": "Response to information security incidents",
+          "group": "Organizational",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.5.27",
+          "title": "Learning from information security incidents",
+          "group": "Organizational",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.5.28",
+          "title": "Collection of evidence",
+          "group": "Organizational",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.5.29",
+          "title": "Information security during disruption",
+          "group": "Organizational",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.5.30",
+          "title": "ICT readiness for business continuity",
+          "group": "Organizational",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.5.31",
+          "title": "Legal, statutory, regulatory and contractual requirements",
+          "group": "Organizational",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.5.32",
+          "title": "Intellectual property rights",
+          "group": "Organizational",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.5.33",
+          "title": "Protection of records",
+          "group": "Organizational",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.5.34",
+          "title": "Privacy and protection of personal information",
+          "group": "Organizational",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.5.35",
+          "title": "Independent review of information security",
+          "group": "Organizational",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.5.36",
+          "title": "Compliance with policies, rules and standards for information security",
+          "group": "Organizational",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.5.37",
+          "title": "Documented operating procedures",
+          "group": "Organizational",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.6.1",
+          "title": "Screening",
+          "group": "People",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.6.2",
+          "title": "Terms and conditions of employment",
+          "group": "People",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.6.3",
+          "title": "Information security awareness and training",
+          "group": "People",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.6.4",
+          "title": "Disciplinary process",
+          "group": "People",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.6.5",
+          "title": "Responsibilities after termination or change of employment",
+          "group": "People",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.6.6",
+          "title": "Confidentiality or non-disclosure agreements",
+          "group": "People",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.6.7",
+          "title": "Remote working",
+          "group": "People",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.6.8",
+          "title": "Information security event reporting",
+          "group": "People",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.7.1",
+          "title": "Physical security perimeters",
+          "group": "Physical",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.7.2",
+          "title": "Physical entry",
+          "group": "Physical",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.7.3",
+          "title": "Securing offices, rooms and facilities",
+          "group": "Physical",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.7.4",
+          "title": "Physical security monitoring",
+          "group": "Physical",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.7.5",
+          "title": "Protecting against physical and environmental threats",
+          "group": "Physical",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.7.6",
+          "title": "Working in secure areas",
+          "group": "Physical",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.7.7",
+          "title": "Clear desk and clear screen",
+          "group": "Physical",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.7.8",
+          "title": "Equipment siting and protection",
+          "group": "Physical",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.7.9",
+          "title": "Security of assets off-premises",
+          "group": "Physical",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.7.10",
+          "title": "Storage media",
+          "group": "Physical",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.7.11",
+          "title": "Supporting utilities",
+          "group": "Physical",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.7.12",
+          "title": "Cabling security",
+          "group": "Physical",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.7.13",
+          "title": "Equipment maintenance",
+          "group": "Physical",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.7.14",
+          "title": "Secure disposal or re-use of equipment",
+          "group": "Physical",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.8.1",
+          "title": "User endpoint devices",
+          "group": "Technological",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.8.2",
+          "title": "Privileged access rights",
+          "group": "Technological",
+          "technically_assessable": true
+        },
+        {
+          "id": "A.8.3",
+          "title": "Information access restriction",
+          "group": "Technological",
+          "technically_assessable": true
+        },
+        {
+          "id": "A.8.4",
+          "title": "Access to source code",
+          "group": "Technological",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.8.5",
+          "title": "Secure authentication",
+          "group": "Technological",
+          "technically_assessable": true
+        },
+        {
+          "id": "A.8.6",
+          "title": "Capacity management",
+          "group": "Technological",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.8.7",
+          "title": "Protection against malware",
+          "group": "Technological",
+          "technically_assessable": true
+        },
+        {
+          "id": "A.8.8",
+          "title": "Management of technical vulnerabilities",
+          "group": "Technological",
+          "technically_assessable": true
+        },
+        {
+          "id": "A.8.9",
+          "title": "Configuration management",
+          "group": "Technological",
+          "technically_assessable": true
+        },
+        {
+          "id": "A.8.10",
+          "title": "Information deletion",
+          "group": "Technological",
+          "technically_assessable": true
+        },
+        {
+          "id": "A.8.11",
+          "title": "Data masking",
+          "group": "Technological",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.8.12",
+          "title": "Data leakage prevention",
+          "group": "Technological",
+          "technically_assessable": true
+        },
+        {
+          "id": "A.8.13",
+          "title": "Information backup",
+          "group": "Technological",
+          "technically_assessable": true
+        },
+        {
+          "id": "A.8.14",
+          "title": "Redundancy of information processing facilities",
+          "group": "Technological",
+          "technically_assessable": true
+        },
+        {
+          "id": "A.8.15",
+          "title": "Logging",
+          "group": "Technological",
+          "technically_assessable": true
+        },
+        {
+          "id": "A.8.16",
+          "title": "Monitoring activities",
+          "group": "Technological",
+          "technically_assessable": true
+        },
+        {
+          "id": "A.8.17",
+          "title": "Clock synchronization",
+          "group": "Technological",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.8.18",
+          "title": "Use of privileged utility programs",
+          "group": "Technological",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.8.19",
+          "title": "Installation of software on operational systems",
+          "group": "Technological",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.8.20",
+          "title": "Networks security",
+          "group": "Technological",
+          "technically_assessable": true
+        },
+        {
+          "id": "A.8.21",
+          "title": "Security of network services",
+          "group": "Technological",
+          "technically_assessable": true
+        },
+        {
+          "id": "A.8.22",
+          "title": "Segregation of networks",
+          "group": "Technological",
+          "technically_assessable": true
+        },
+        {
+          "id": "A.8.23",
+          "title": "Web filtering",
+          "group": "Technological",
+          "technically_assessable": true
+        },
+        {
+          "id": "A.8.24",
+          "title": "Use of cryptography",
+          "group": "Technological",
+          "technically_assessable": true
+        },
+        {
+          "id": "A.8.25",
+          "title": "Secure development life cycle",
+          "group": "Technological",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.8.26",
+          "title": "Application security requirements",
+          "group": "Technological",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.8.27",
+          "title": "Secure system architecture and engineering principles",
+          "group": "Technological",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.8.28",
+          "title": "Secure coding",
+          "group": "Technological",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.8.29",
+          "title": "Security testing in development and acceptance",
+          "group": "Technological",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.8.30",
+          "title": "Outsourced development",
+          "group": "Technological",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.8.31",
+          "title": "Separation of development, test and production environments",
+          "group": "Technological",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.8.32",
+          "title": "Change management",
+          "group": "Technological",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.8.33",
+          "title": "Test information",
+          "group": "Technological",
+          "technically_assessable": false
+        },
+        {
+          "id": "A.8.34",
+          "title": "Protection of information systems during audit testing",
+          "group": "Technological",
+          "technically_assessable": false
+        }
+      ]
+    },
+    {
+      "id": "NIST_CSF_2.0",
+      "name": "NIST Cybersecurity Framework 2.0",
+      "short_name": "NIST CSF 2.0",
+      "version": "2.0",
+      "authority": "National Institute of Standards and Technology",
+      "url": "https://www.nist.gov/cyberframework",
+      "provider": null,
+      "summary": "Outcome-based subcategories grouped into six functions, with Govern added in 2.0. Useful as a common vocabulary when an organization already reports against it. It replaces CSF 1.1, which is no longer offered.",
+      "scope_note": "All 106 subcategories of CSF 2.0, in NIST's own wording. Govern, Respond and Recover are largely organizational and are listed as not technically assessable; most of the evidence a cloud scan produces lands in Protect and Detect. Subcategories NIST withdrew in the 2.0 revision are not listed.",
+      "controls": [
+        {
+          "id": "GV.OC-01",
+          "title": "The organizational mission is understood and informs cybersecurity risk management.",
+          "group": "Govern - Organizational Context",
+          "technically_assessable": false
+        },
+        {
+          "id": "GV.OC-02",
+          "title": "Internal and external stakeholders are understood, and their needs and expectations regarding cybersecurity risk management are understood and considered.",
+          "group": "Govern - Organizational Context",
+          "technically_assessable": false
+        },
+        {
+          "id": "GV.OC-03",
+          "title": "Legal, regulatory, and contractual requirements regarding cybersecurity - including privacy and civil liberties obligations - are understood and managed.",
+          "group": "Govern - Organizational Context",
+          "technically_assessable": false
+        },
+        {
+          "id": "GV.OC-04",
+          "title": "Critical objectives, capabilities, and services that external stakeholders depend on or expect from the organization are understood and communicated.",
+          "group": "Govern - Organizational Context",
+          "technically_assessable": false
+        },
+        {
+          "id": "GV.OC-05",
+          "title": "Outcomes, capabilities, and services that the organization depends on are understood and communicated.",
+          "group": "Govern - Organizational Context",
+          "technically_assessable": false
+        },
+        {
+          "id": "GV.RM-01",
+          "title": "Risk management objectives are established and agreed to by organizational stakeholders.",
+          "group": "Govern - Risk Management Strategy",
+          "technically_assessable": false
+        },
+        {
+          "id": "GV.RM-02",
+          "title": "Risk appetite and risk tolerance statements are established, communicated, and maintained.",
+          "group": "Govern - Risk Management Strategy",
+          "technically_assessable": false
+        },
+        {
+          "id": "GV.RM-03",
+          "title": "Cybersecurity risk management activities and outcomes are included in enterprise risk management processes.",
+          "group": "Govern - Risk Management Strategy",
+          "technically_assessable": false
+        },
+        {
+          "id": "GV.RM-04",
+          "title": "Strategic direction that describes appropriate risk response options is established and communicated.",
+          "group": "Govern - Risk Management Strategy",
+          "technically_assessable": false
+        },
+        {
+          "id": "GV.RM-05",
+          "title": "Lines of communication across the organization are established for cybersecurity risks, including risks from suppliers and other third parties.",
+          "group": "Govern - Risk Management Strategy",
+          "technically_assessable": false
+        },
+        {
+          "id": "GV.RM-06",
+          "title": "A standardized method for calculating, documenting, categorizing, and prioritizing cybersecurity risks is established and communicated.",
+          "group": "Govern - Risk Management Strategy",
+          "technically_assessable": false
+        },
+        {
+          "id": "GV.RM-07",
+          "title": "Strategic opportunities (i.e., positive risks) are characterized and are included in organizational cybersecurity risk discussions.",
+          "group": "Govern - Risk Management Strategy",
+          "technically_assessable": false
+        },
+        {
+          "id": "GV.RR-01",
+          "title": "Organizational leadership is responsible and accountable for cybersecurity risk and fosters a culture that is risk-aware, ethical, and continually improving.",
+          "group": "Govern - Roles, Responsibilities, and Authorities",
+          "technically_assessable": false
+        },
+        {
+          "id": "GV.RR-02",
+          "title": "Roles, responsibilities, and authorities related to cybersecurity risk management are established, communicated, understood, and enforced.",
+          "group": "Govern - Roles, Responsibilities, and Authorities",
+          "technically_assessable": false
+        },
+        {
+          "id": "GV.RR-03",
+          "title": "Adequate resources are allocated commensurate with the cybersecurity risk strategy, roles, responsibilities, and policies.",
+          "group": "Govern - Roles, Responsibilities, and Authorities",
+          "technically_assessable": false
+        },
+        {
+          "id": "GV.RR-04",
+          "title": "Cybersecurity is included in human resources practices.",
+          "group": "Govern - Roles, Responsibilities, and Authorities",
+          "technically_assessable": false
+        },
+        {
+          "id": "GV.PO-01",
+          "title": "Policy for managing cybersecurity risks is established based on organizational context, cybersecurity strategy, and priorities and is communicated and enforced.",
+          "group": "Govern - Policy",
+          "technically_assessable": false
+        },
+        {
+          "id": "GV.PO-02",
+          "title": "Policy for managing cybersecurity risks is reviewed, updated, communicated, and enforced to reflect changes in requirements, threats, technology, and organizational mission.",
+          "group": "Govern - Policy",
+          "technically_assessable": false
+        },
+        {
+          "id": "GV.OV-01",
+          "title": "Cybersecurity risk management strategy outcomes are reviewed to inform and adjust strategy and direction.",
+          "group": "Govern - Oversight",
+          "technically_assessable": false
+        },
+        {
+          "id": "GV.OV-02",
+          "title": "The cybersecurity risk management strategy is reviewed and adjusted to ensure coverage of organizational requirements and risks.",
+          "group": "Govern - Oversight",
+          "technically_assessable": false
+        },
+        {
+          "id": "GV.OV-03",
+          "title": "Organizational cybersecurity risk management performance is evaluated and reviewed for adjustments needed.",
+          "group": "Govern - Oversight",
+          "technically_assessable": false
+        },
+        {
+          "id": "GV.SC-01",
+          "title": "A cybersecurity supply chain risk management program, strategy, objectives, policies, and processes are established and agreed to by organizational stakeholders.",
+          "group": "Govern - Cybersecurity Supply Chain Risk Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "GV.SC-02",
+          "title": "Cybersecurity roles and responsibilities for suppliers, customers, and partners are established, communicated, and coordinated internally and externally.",
+          "group": "Govern - Cybersecurity Supply Chain Risk Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "GV.SC-03",
+          "title": "Cybersecurity supply chain risk management is integrated into cybersecurity and enterprise risk management, risk assessment, and improvement processes.",
+          "group": "Govern - Cybersecurity Supply Chain Risk Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "GV.SC-04",
+          "title": "Suppliers are known and prioritized by criticality.",
+          "group": "Govern - Cybersecurity Supply Chain Risk Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "GV.SC-05",
+          "title": "Requirements to address cybersecurity risks in supply chains are established, prioritized, and integrated into contracts and other types of agreements with suppliers and other relevant third parties.",
+          "group": "Govern - Cybersecurity Supply Chain Risk Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "GV.SC-06",
+          "title": "Planning and due diligence are performed to reduce risks before entering into formal supplier or other third-party relationships.",
+          "group": "Govern - Cybersecurity Supply Chain Risk Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "GV.SC-07",
+          "title": "The risks posed by a supplier, their products and services, and other third parties are understood, recorded, prioritized, assessed, responded to, and monitored over the course of the relationship.",
+          "group": "Govern - Cybersecurity Supply Chain Risk Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "GV.SC-08",
+          "title": "Relevant suppliers and other third parties are included in incident planning, response, and recovery activities.",
+          "group": "Govern - Cybersecurity Supply Chain Risk Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "GV.SC-09",
+          "title": "Supply chain security practices are integrated into cybersecurity and enterprise risk management programs, and their performance is monitored throughout the technology product and service life cycle.",
+          "group": "Govern - Cybersecurity Supply Chain Risk Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "GV.SC-10",
+          "title": "Cybersecurity supply chain risk management plans include provisions for activities that occur after the conclusion of a partnership or service agreement.",
+          "group": "Govern - Cybersecurity Supply Chain Risk Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "ID.AM-01",
+          "title": "Inventories of hardware managed by the organization are maintained.",
+          "group": "Identify - Asset Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "ID.AM-02",
+          "title": "Inventories of software, services, and systems managed by the organization are maintained.",
+          "group": "Identify - Asset Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "ID.AM-03",
+          "title": "Representations of the organization's authorized network communication and internal and external network data flows are maintained.",
+          "group": "Identify - Asset Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "ID.AM-04",
+          "title": "Inventories of services provided by suppliers are maintained.",
+          "group": "Identify - Asset Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "ID.AM-05",
+          "title": "Assets are prioritized based on classification, criticality, resources, and impact on the mission.",
+          "group": "Identify - Asset Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "ID.AM-07",
+          "title": "Inventories of data and corresponding metadata for designated data types are maintained.",
+          "group": "Identify - Asset Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "ID.AM-08",
+          "title": "Systems, hardware, software, services, and data are managed throughout their life cycles.",
+          "group": "Identify - Asset Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "ID.RA-01",
+          "title": "Vulnerabilities in assets are identified, validated, and recorded.",
+          "group": "Identify - Risk Assessment",
+          "technically_assessable": true
+        },
+        {
+          "id": "ID.RA-02",
+          "title": "Cyber threat intelligence is received from information sharing forums and sources.",
+          "group": "Identify - Risk Assessment",
+          "technically_assessable": false
+        },
+        {
+          "id": "ID.RA-03",
+          "title": "Internal and external threats to the organization are identified and recorded.",
+          "group": "Identify - Risk Assessment",
+          "technically_assessable": false
+        },
+        {
+          "id": "ID.RA-04",
+          "title": "Potential impacts and likelihoods of threats exploiting vulnerabilities are identified and recorded.",
+          "group": "Identify - Risk Assessment",
+          "technically_assessable": false
+        },
+        {
+          "id": "ID.RA-05",
+          "title": "Threats, vulnerabilities, likelihoods, and impacts are used to understand inherent risk and inform risk response prioritization.",
+          "group": "Identify - Risk Assessment",
+          "technically_assessable": false
+        },
+        {
+          "id": "ID.RA-06",
+          "title": "Risk responses are chosen, prioritized, planned, tracked, and communicated.",
+          "group": "Identify - Risk Assessment",
+          "technically_assessable": false
+        },
+        {
+          "id": "ID.RA-07",
+          "title": "Changes and exceptions are managed, assessed for risk impact, recorded, and tracked.",
+          "group": "Identify - Risk Assessment",
+          "technically_assessable": false
+        },
+        {
+          "id": "ID.RA-08",
+          "title": "Processes for receiving, analyzing, and responding to vulnerability disclosures are established.",
+          "group": "Identify - Risk Assessment",
+          "technically_assessable": false
+        },
+        {
+          "id": "ID.RA-09",
+          "title": "The authenticity and integrity of hardware and software are assessed prior to acquisition and use.",
+          "group": "Identify - Risk Assessment",
+          "technically_assessable": false
+        },
+        {
+          "id": "ID.RA-10",
+          "title": "Critical suppliers are assessed prior to acquisition.",
+          "group": "Identify - Risk Assessment",
+          "technically_assessable": false
+        },
+        {
+          "id": "ID.IM-01",
+          "title": "Improvements are identified from evaluations.",
+          "group": "Identify - Improvement",
+          "technically_assessable": false
+        },
+        {
+          "id": "ID.IM-02",
+          "title": "Improvements are identified from security tests and exercises, including those done in coordination with suppliers and relevant third parties.",
+          "group": "Identify - Improvement",
+          "technically_assessable": false
+        },
+        {
+          "id": "ID.IM-03",
+          "title": "Improvements are identified from execution of operational processes, procedures, and activities.",
+          "group": "Identify - Improvement",
+          "technically_assessable": false
+        },
+        {
+          "id": "ID.IM-04",
+          "title": "Incident response plans and other cybersecurity plans that affect operations are established, communicated, maintained, and improved.",
+          "group": "Identify - Improvement",
+          "technically_assessable": false
+        },
+        {
+          "id": "PR.AA-01",
+          "title": "Identities and credentials for authorized users, services, and hardware are managed by the organization.",
+          "group": "Protect - Identity Management, Authentication, and Access Control",
+          "technically_assessable": true
+        },
+        {
+          "id": "PR.AA-02",
+          "title": "Identities are proofed and bound to credentials based on the context of interactions.",
+          "group": "Protect - Identity Management, Authentication, and Access Control",
+          "technically_assessable": false
+        },
+        {
+          "id": "PR.AA-03",
+          "title": "Users, services, and hardware are authenticated.",
+          "group": "Protect - Identity Management, Authentication, and Access Control",
+          "technically_assessable": true
+        },
+        {
+          "id": "PR.AA-04",
+          "title": "Identity assertions are protected, conveyed, and verified.",
+          "group": "Protect - Identity Management, Authentication, and Access Control",
+          "technically_assessable": false
+        },
+        {
+          "id": "PR.AA-05",
+          "title": "Access permissions, entitlements, and authorizations are defined in a policy, managed, enforced, and reviewed, and incorporate the principles of least privilege and separation of duties.",
+          "group": "Protect - Identity Management, Authentication, and Access Control",
+          "technically_assessable": true
+        },
+        {
+          "id": "PR.AA-06",
+          "title": "Physical access to assets is managed, monitored, and enforced commensurate with risk.",
+          "group": "Protect - Identity Management, Authentication, and Access Control",
+          "technically_assessable": false
+        },
+        {
+          "id": "PR.AT-01",
+          "title": "Personnel are provided with awareness and training so that they possess the knowledge and skills to perform general tasks with cybersecurity risks in mind.",
+          "group": "Protect - Awareness and Training",
+          "technically_assessable": false
+        },
+        {
+          "id": "PR.AT-02",
+          "title": "Individuals in specialized roles are provided with awareness and training so that they possess the knowledge and skills to perform relevant tasks with cybersecurity risks in mind.",
+          "group": "Protect - Awareness and Training",
+          "technically_assessable": false
+        },
+        {
+          "id": "PR.DS-01",
+          "title": "The confidentiality, integrity, and availability of data-at-rest are protected.",
+          "group": "Protect - Data Security",
+          "technically_assessable": true
+        },
+        {
+          "id": "PR.DS-02",
+          "title": "The confidentiality, integrity, and availability of data-in-transit are protected.",
+          "group": "Protect - Data Security",
+          "technically_assessable": true
+        },
+        {
+          "id": "PR.DS-10",
+          "title": "The confidentiality, integrity, and availability of data-in-use are protected.",
+          "group": "Protect - Data Security",
+          "technically_assessable": true
+        },
+        {
+          "id": "PR.DS-11",
+          "title": "Backups of data are created, protected, maintained, and tested.",
+          "group": "Protect - Data Security",
+          "technically_assessable": true
+        },
+        {
+          "id": "PR.PS-01",
+          "title": "Configuration management practices are established and applied.",
+          "group": "Protect - Platform Security",
+          "technically_assessable": true
+        },
+        {
+          "id": "PR.PS-02",
+          "title": "Software is maintained, replaced, and removed commensurate with risk.",
+          "group": "Protect - Platform Security",
+          "technically_assessable": true
+        },
+        {
+          "id": "PR.PS-03",
+          "title": "Hardware is maintained, replaced, and removed commensurate with risk.",
+          "group": "Protect - Platform Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "PR.PS-04",
+          "title": "Log records are generated and made available for continuous monitoring.",
+          "group": "Protect - Platform Security",
+          "technically_assessable": true
+        },
+        {
+          "id": "PR.PS-05",
+          "title": "Installation and execution of unauthorized software are prevented.",
+          "group": "Protect - Platform Security",
+          "technically_assessable": true
+        },
+        {
+          "id": "PR.PS-06",
+          "title": "Secure software development practices are integrated, and their performance is monitored throughout the software development life cycle.",
+          "group": "Protect - Platform Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "PR.IR-01",
+          "title": "Networks and environments are protected from unauthorized logical access and usage.",
+          "group": "Protect - Technology Infrastructure Resilience",
+          "technically_assessable": true
+        },
+        {
+          "id": "PR.IR-02",
+          "title": "The organization's technology assets are protected from environmental threats.",
+          "group": "Protect - Technology Infrastructure Resilience",
+          "technically_assessable": false
+        },
+        {
+          "id": "PR.IR-03",
+          "title": "Mechanisms are implemented to achieve resilience requirements in normal and adverse situations.",
+          "group": "Protect - Technology Infrastructure Resilience",
+          "technically_assessable": true
+        },
+        {
+          "id": "PR.IR-04",
+          "title": "Adequate resource capacity to ensure availability is maintained.",
+          "group": "Protect - Technology Infrastructure Resilience",
+          "technically_assessable": false
+        },
+        {
+          "id": "DE.CM-01",
+          "title": "Networks and network services are monitored to find potentially adverse events.",
+          "group": "Detect - Continuous Monitoring",
+          "technically_assessable": true
+        },
+        {
+          "id": "DE.CM-02",
+          "title": "The physical environment is monitored to find potentially adverse events.",
+          "group": "Detect - Continuous Monitoring",
+          "technically_assessable": false
+        },
+        {
+          "id": "DE.CM-03",
+          "title": "Personnel activity and technology usage are monitored to find potentially adverse events.",
+          "group": "Detect - Continuous Monitoring",
+          "technically_assessable": false
+        },
+        {
+          "id": "DE.CM-06",
+          "title": "External service provider activities and services are monitored to find potentially adverse events.",
+          "group": "Detect - Continuous Monitoring",
+          "technically_assessable": false
+        },
+        {
+          "id": "DE.CM-09",
+          "title": "Computing hardware and software, runtime environments, and their data are monitored to find potentially adverse events.",
+          "group": "Detect - Continuous Monitoring",
+          "technically_assessable": true
+        },
+        {
+          "id": "DE.AE-02",
+          "title": "Potentially adverse events are analyzed to better understand associated activities.",
+          "group": "Detect - Adverse Event Analysis",
+          "technically_assessable": true
+        },
+        {
+          "id": "DE.AE-03",
+          "title": "Information is correlated from multiple sources.",
+          "group": "Detect - Adverse Event Analysis",
+          "technically_assessable": true
+        },
+        {
+          "id": "DE.AE-04",
+          "title": "The estimated impact and scope of adverse events are understood.",
+          "group": "Detect - Adverse Event Analysis",
+          "technically_assessable": false
+        },
+        {
+          "id": "DE.AE-06",
+          "title": "Information on adverse events is provided to authorized staff and tools.",
+          "group": "Detect - Adverse Event Analysis",
+          "technically_assessable": false
+        },
+        {
+          "id": "DE.AE-07",
+          "title": "Cyber threat intelligence and other contextual information are integrated into the analysis.",
+          "group": "Detect - Adverse Event Analysis",
+          "technically_assessable": false
+        },
+        {
+          "id": "DE.AE-08",
+          "title": "Incidents are declared when adverse events meet the defined incident criteria.",
+          "group": "Detect - Adverse Event Analysis",
+          "technically_assessable": false
+        },
+        {
+          "id": "RS.MA-01",
+          "title": "The incident response plan is executed in coordination with relevant third parties once an incident is declared.",
+          "group": "Respond - Incident Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "RS.MA-02",
+          "title": "Incident reports are triaged and validated.",
+          "group": "Respond - Incident Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "RS.MA-03",
+          "title": "Incidents are categorized and prioritized.",
+          "group": "Respond - Incident Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "RS.MA-04",
+          "title": "Incidents are escalated or elevated as needed.",
+          "group": "Respond - Incident Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "RS.MA-05",
+          "title": "The criteria for initiating incident recovery are applied.",
+          "group": "Respond - Incident Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "RS.AN-03",
+          "title": "Analysis is performed to establish what has taken place during an incident and the root cause of the incident.",
+          "group": "Respond - Incident Analysis",
+          "technically_assessable": false
+        },
+        {
+          "id": "RS.AN-06",
+          "title": "Actions performed during an investigation are recorded, and the records' integrity and provenance are preserved.",
+          "group": "Respond - Incident Analysis",
+          "technically_assessable": false
+        },
+        {
+          "id": "RS.AN-07",
+          "title": "Incident data and metadata are collected, and their integrity and provenance are preserved.",
+          "group": "Respond - Incident Analysis",
+          "technically_assessable": false
+        },
+        {
+          "id": "RS.AN-08",
+          "title": "An incident's magnitude is estimated and validated.",
+          "group": "Respond - Incident Analysis",
+          "technically_assessable": false
+        },
+        {
+          "id": "RS.CO-02",
+          "title": "Internal and external stakeholders are notified of incidents.",
+          "group": "Respond - Incident Response Reporting and Communication",
+          "technically_assessable": false
+        },
+        {
+          "id": "RS.CO-03",
+          "title": "Information is shared with designated internal and external stakeholders.",
+          "group": "Respond - Incident Response Reporting and Communication",
+          "technically_assessable": false
+        },
+        {
+          "id": "RS.MI-01",
+          "title": "Incidents are contained.",
+          "group": "Respond - Incident Mitigation",
+          "technically_assessable": false
+        },
+        {
+          "id": "RS.MI-02",
+          "title": "Incidents are eradicated.",
+          "group": "Respond - Incident Mitigation",
+          "technically_assessable": false
+        },
+        {
+          "id": "RC.RP-01",
+          "title": "The recovery portion of the incident response plan is executed once initiated from the incident response process.",
+          "group": "Recover - Incident Recovery Plan Execution",
+          "technically_assessable": false
+        },
+        {
+          "id": "RC.RP-02",
+          "title": "Recovery actions are selected, scoped, prioritized, and performed.",
+          "group": "Recover - Incident Recovery Plan Execution",
+          "technically_assessable": false
+        },
+        {
+          "id": "RC.RP-03",
+          "title": "The integrity of backups and other restoration assets is verified before using them for restoration.",
+          "group": "Recover - Incident Recovery Plan Execution",
+          "technically_assessable": false
+        },
+        {
+          "id": "RC.RP-04",
+          "title": "Critical mission functions and cybersecurity risk management are considered to establish post-incident operational norms.",
+          "group": "Recover - Incident Recovery Plan Execution",
+          "technically_assessable": false
+        },
+        {
+          "id": "RC.RP-05",
+          "title": "The integrity of restored assets is verified, systems and services are restored, and normal operating status is confirmed.",
+          "group": "Recover - Incident Recovery Plan Execution",
+          "technically_assessable": false
+        },
+        {
+          "id": "RC.RP-06",
+          "title": "The end of incident recovery is declared based on criteria, and incident-related documentation is completed.",
+          "group": "Recover - Incident Recovery Plan Execution",
+          "technically_assessable": false
+        },
+        {
+          "id": "RC.CO-03",
+          "title": "Recovery activities and progress in restoring operational capabilities are communicated to designated internal and external stakeholders.",
+          "group": "Recover - Incident Recovery Communication",
+          "technically_assessable": false
+        },
+        {
+          "id": "RC.CO-04",
+          "title": "Public updates on incident recovery are shared using approved methods and messaging.",
+          "group": "Recover - Incident Recovery Communication",
+          "technically_assessable": false
+        }
+      ]
+    },
+    {
+      "id": "SOC2",
+      "name": "SOC 2 Trust Services Criteria",
+      "short_name": "SOC 2",
+      "version": "2017 (rev. 2022)",
+      "authority": "American Institute of Certified Public Accountants",
+      "url": "https://www.aicpa-cima.com/resources/landing/system-and-organization-controls-soc-suite-of-services",
+      "provider": null,
+      "summary": "What an auditor tests during a SOC 2 examination. Not a configuration standard: most criteria are about whether an organization has a control and operates it, and a scanner can only ever be evidence toward the subset that lands in a cloud configuration.",
+      "scope_note": "Every criterion of the 2017 Trust Services Criteria (revised points of focus 2022): the Common Criteria CC1 to CC9, then Availability, Confidentiality, Processing Integrity and Privacy. Most are about how an organization is run and are listed as not technically assessable rather than omitted; the points of focus beneath each criterion are not listed. Nothing on this page is an opinion about a SOC 2 examination, which only a licensed firm can issue.",
+      "controls": [
+        {
+          "id": "CC1.1",
+          "title": "The organization demonstrates a commitment to integrity",
+          "group": "Control Environment",
+          "technically_assessable": false
+        },
+        {
+          "id": "CC1.2",
+          "title": "The board oversees controls independently of management",
+          "group": "Control Environment",
+          "technically_assessable": false
+        },
+        {
+          "id": "CC1.3",
+          "title": "Structures, reporting lines and authorities are established",
+          "group": "Control Environment",
+          "technically_assessable": false
+        },
+        {
+          "id": "CC1.4",
+          "title": "The organization attracts and retains competent people",
+          "group": "Control Environment",
+          "technically_assessable": false
+        },
+        {
+          "id": "CC1.5",
+          "title": "People are held accountable for their control responsibilities",
+          "group": "Control Environment",
+          "technically_assessable": false
+        },
+        {
+          "id": "CC2.1",
+          "title": "Quality information is used to support the controls",
+          "group": "Communication",
+          "technically_assessable": false
+        },
+        {
+          "id": "CC2.2",
+          "title": "Responsibilities for security are communicated internally",
+          "group": "Communication",
+          "technically_assessable": false
+        },
+        {
+          "id": "CC2.3",
+          "title": "Security matters are communicated to outside parties",
+          "group": "Communication",
+          "technically_assessable": false
+        },
+        {
+          "id": "CC3.1",
+          "title": "Objectives are set clearly enough for risks to be judged against",
+          "group": "Risk Assessment",
+          "technically_assessable": false
+        },
+        {
+          "id": "CC3.2",
+          "title": "Risks to the objectives are identified and analysed",
+          "group": "Risk Assessment",
+          "technically_assessable": false
+        },
+        {
+          "id": "CC3.3",
+          "title": "The potential for fraud is considered when assessing risk",
+          "group": "Risk Assessment",
+          "technically_assessable": false
+        },
+        {
+          "id": "CC3.4",
+          "title": "Changes that could affect the controls are identified and assessed",
+          "group": "Risk Assessment",
+          "technically_assessable": false
+        },
+        {
+          "id": "CC4.1",
+          "title": "The controls are evaluated for whether they are working",
+          "group": "Monitoring",
+          "technically_assessable": false
+        },
+        {
+          "id": "CC4.2",
+          "title": "Control deficiencies are communicated to those who can act",
+          "group": "Monitoring",
+          "technically_assessable": false
+        },
+        {
+          "id": "CC5.1",
+          "title": "Control activities are selected to bring risks to an acceptable level",
+          "group": "Control Activities",
+          "technically_assessable": false
+        },
+        {
+          "id": "CC5.2",
+          "title": "Controls over technology are selected and developed",
+          "group": "Control Activities",
+          "technically_assessable": false
+        },
+        {
+          "id": "CC5.3",
+          "title": "Control activities are deployed through policies people follow",
+          "group": "Control Activities",
+          "technically_assessable": false
+        },
+        {
+          "id": "CC6.1",
+          "title": "Access to systems and data is restricted to those authorized",
+          "group": "Logical Access",
+          "technically_assessable": true
+        },
+        {
+          "id": "CC6.2",
+          "title": "Access is granted on authorization and removed when it ends",
+          "group": "Logical Access",
+          "technically_assessable": true
+        },
+        {
+          "id": "CC6.3",
+          "title": "Access rights follow least privilege and are reviewed",
+          "group": "Logical Access",
+          "technically_assessable": true
+        },
+        {
+          "id": "CC6.4",
+          "title": "Physical access to facilities and assets is restricted",
+          "group": "Logical Access",
+          "technically_assessable": false
+        },
+        {
+          "id": "CC6.5",
+          "title": "Assets are disposed of so that data cannot be recovered",
+          "group": "Logical Access",
+          "technically_assessable": false
+        },
+        {
+          "id": "CC6.6",
+          "title": "The system is protected against access from outside its boundary",
+          "group": "Logical Access",
+          "technically_assessable": true
+        },
+        {
+          "id": "CC6.7",
+          "title": "Information is protected as it moves and as it is stored",
+          "group": "Logical Access",
+          "technically_assessable": true
+        },
+        {
+          "id": "CC6.8",
+          "title": "Unauthorized or malicious software is prevented and detected",
+          "group": "Logical Access",
+          "technically_assessable": true
+        },
+        {
+          "id": "CC7.1",
+          "title": "Configuration is monitored for change and for vulnerability",
+          "group": "Operations",
+          "technically_assessable": true
+        },
+        {
+          "id": "CC7.2",
+          "title": "The system is monitored for anomalies that indicate an incident",
+          "group": "Operations",
+          "technically_assessable": true
+        },
+        {
+          "id": "CC7.3",
+          "title": "Detected events are evaluated to decide whether they are incidents",
+          "group": "Operations",
+          "technically_assessable": false
+        },
+        {
+          "id": "CC7.4",
+          "title": "Incidents are responded to and recovered from",
+          "group": "Operations",
+          "technically_assessable": false
+        },
+        {
+          "id": "CC7.5",
+          "title": "The organization recovers from identified incidents",
+          "group": "Operations",
+          "technically_assessable": false
+        },
+        {
+          "id": "CC8.1",
+          "title": "Changes are authorized, designed, tested and approved",
+          "group": "Change Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "CC9.1",
+          "title": "Risks from business disruption are identified and mitigated",
+          "group": "Risk Mitigation",
+          "technically_assessable": false
+        },
+        {
+          "id": "CC9.2",
+          "title": "Risks carried by vendors and business partners are managed",
+          "group": "Risk Mitigation",
+          "technically_assessable": false
+        },
+        {
+          "id": "A1.1",
+          "title": "Processing capacity is monitored and managed against demand",
+          "group": "Availability",
+          "technically_assessable": false
+        },
+        {
+          "id": "A1.2",
+          "title": "Recovery of the environment is provided for and tested",
+          "group": "Availability",
+          "technically_assessable": true
+        },
+        {
+          "id": "A1.3",
+          "title": "Recovery plan procedures are tested",
+          "group": "Availability",
+          "technically_assessable": false
+        },
+        {
+          "id": "C1.1",
+          "title": "Confidential information is identified and protected",
+          "group": "Confidentiality",
+          "technically_assessable": false
+        },
+        {
+          "id": "C1.2",
+          "title": "Confidential information is disposed of when no longer needed",
+          "group": "Confidentiality",
+          "technically_assessable": false
+        },
+        {
+          "id": "P1.1",
+          "title": "A privacy notice is provided to the people it concerns",
+          "group": "Privacy",
+          "technically_assessable": false
+        },
+        {
+          "id": "P2.1",
+          "title": "Choice and consent are obtained and recorded",
+          "group": "Privacy",
+          "technically_assessable": false
+        },
+        {
+          "id": "P3.1",
+          "title": "Personal information is collected only for stated purposes",
+          "group": "Privacy",
+          "technically_assessable": false
+        },
+        {
+          "id": "P3.2",
+          "title": "Explicit consent is obtained for sensitive personal information",
+          "group": "Privacy",
+          "technically_assessable": false
+        },
+        {
+          "id": "P4.1",
+          "title": "Personal information is used only as the notice describes",
+          "group": "Privacy",
+          "technically_assessable": false
+        },
+        {
+          "id": "P4.2",
+          "title": "Personal information is kept no longer than it is needed",
+          "group": "Privacy",
+          "technically_assessable": false
+        },
+        {
+          "id": "P4.3",
+          "title": "Personal information is securely disposed of when due",
+          "group": "Privacy",
+          "technically_assessable": false
+        },
+        {
+          "id": "P5.1",
+          "title": "People can access the personal information held about them",
+          "group": "Privacy",
+          "technically_assessable": false
+        },
+        {
+          "id": "P5.2",
+          "title": "Corrections to personal information are made and communicated",
+          "group": "Privacy",
+          "technically_assessable": false
+        },
+        {
+          "id": "P6.1",
+          "title": "Personal information is disclosed to third parties only with consent",
+          "group": "Privacy",
+          "technically_assessable": false
+        },
+        {
+          "id": "P6.2",
+          "title": "Authorized disclosures of personal information are recorded",
+          "group": "Privacy",
+          "technically_assessable": false
+        },
+        {
+          "id": "P6.3",
+          "title": "Unauthorized disclosures of personal information are recorded",
+          "group": "Privacy",
+          "technically_assessable": false
+        },
+        {
+          "id": "P6.4",
+          "title": "Privacy commitments are obtained from vendors and third parties",
+          "group": "Privacy",
+          "technically_assessable": false
+        },
+        {
+          "id": "P6.5",
+          "title": "Vendors commit to report unauthorized disclosures to the entity",
+          "group": "Privacy",
+          "technically_assessable": false
+        },
+        {
+          "id": "P6.6",
+          "title": "Affected people are notified of privacy breaches",
+          "group": "Privacy",
+          "technically_assessable": false
+        },
+        {
+          "id": "P6.7",
+          "title": "People are given an accounting of what is held and disclosed",
+          "group": "Privacy",
+          "technically_assessable": false
+        },
+        {
+          "id": "P7.1",
+          "title": "Personal information is kept accurate, complete and relevant",
+          "group": "Privacy",
+          "technically_assessable": false
+        },
+        {
+          "id": "P8.1",
+          "title": "Privacy complaints and compliance are monitored and enforced",
+          "group": "Privacy",
+          "technically_assessable": false
+        },
+        {
+          "id": "PI1.1",
+          "title": "Information about processing objectives and definitions is maintained",
+          "group": "Processing Integrity",
+          "technically_assessable": false
+        },
+        {
+          "id": "PI1.2",
+          "title": "System inputs are complete and accurate",
+          "group": "Processing Integrity",
+          "technically_assessable": false
+        },
+        {
+          "id": "PI1.3",
+          "title": "System processing is complete, accurate and timely",
+          "group": "Processing Integrity",
+          "technically_assessable": false
+        },
+        {
+          "id": "PI1.4",
+          "title": "System outputs are complete, accurate and distributed as intended",
+          "group": "Processing Integrity",
+          "technically_assessable": false
+        },
+        {
+          "id": "PI1.5",
+          "title": "Stored items are kept complete and accurate until needed",
+          "group": "Processing Integrity",
+          "technically_assessable": false
+        }
+      ]
+    },
+    {
+      "id": "PCI_DSS_4",
+      "name": "PCI DSS v4.0.1",
+      "short_name": "PCI DSS",
+      "version": "4.0.1",
+      "authority": "PCI Security Standards Council",
+      "url": "https://www.pcisecuritystandards.org/document_library/",
+      "provider": null,
+      "summary": "The card brands' requirements for anyone who stores, processes or transmits cardholder data. Unlike the frameworks above it is contractual rather than advisory: a merchant is assessed against it and can lose the ability to take payments.",
+      "scope_note": "PCI applies to the cardholder data environment, and Cleave does not know which of your resources are in it. That is the caveat that matters most on this page. Scope is a decision a QSA makes with you about network segmentation, data flows and where card data actually goes -- and every number here is computed over the whole subscription instead. A resource group holding no card data is counted the same as the one that does. Read these as configuration evidence you can hand to an assessor for the systems they have already scoped in, never as a position on requirements 3 or 4 for the environment as a whole. Every principal requirement of v4.0.1 is listed, as a row of its own where no sub-requirement below stands for it. Sub-requirements are listed only where a configuration reading reaches them, so the standard holds several hundred more than this page names.",
+      "controls": [
+        {
+          "id": "1.1",
+          "title": "Network security processes are defined, known and documented",
+          "group": "Network Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "1.2.1",
+          "title": "Network security controls are configured and enforced",
+          "group": "Network Security",
+          "technically_assessable": true
+        },
+        {
+          "id": "1.3.1",
+          "title": "Inbound traffic to the cardholder data environment is restricted",
+          "group": "Network Security",
+          "technically_assessable": true
+        },
+        {
+          "id": "1.4.1",
+          "title": "Connections between trusted and untrusted networks are controlled",
+          "group": "Network Security",
+          "technically_assessable": true
+        },
+        {
+          "id": "1.5",
+          "title": "Devices that reach both untrusted networks and the environment are secured",
+          "group": "Network Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "2.1",
+          "title": "Secure configuration processes are defined, known and documented",
+          "group": "Secure Configuration",
+          "technically_assessable": false
+        },
+        {
+          "id": "2.2.1",
+          "title": "System components are configured to a hardened standard",
+          "group": "Secure Configuration",
+          "technically_assessable": true
+        },
+        {
+          "id": "2.3",
+          "title": "Wireless environments are configured and managed securely",
+          "group": "Secure Configuration",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.1",
+          "title": "Account data protection processes are defined, known and documented",
+          "group": "Stored Data",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.2",
+          "title": "Storage of account data is kept to a minimum",
+          "group": "Stored Data",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.3",
+          "title": "Sensitive authentication data is not stored after authorization",
+          "group": "Stored Data",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.4",
+          "title": "Display and copying of the full card number is restricted",
+          "group": "Stored Data",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.5.1",
+          "title": "Stored account data is rendered unreadable",
+          "group": "Stored Data",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.6.1",
+          "title": "Cryptographic keys are protected against disclosure and misuse",
+          "group": "Stored Data",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.7",
+          "title": "Key management processes cover the whole key life cycle",
+          "group": "Stored Data",
+          "technically_assessable": true
+        },
+        {
+          "id": "4.1",
+          "title": "Transmission protection processes are defined, known and documented",
+          "group": "Data In Transit",
+          "technically_assessable": false
+        },
+        {
+          "id": "4.2.1",
+          "title": "Strong cryptography protects account data in transit",
+          "group": "Data In Transit",
+          "technically_assessable": true
+        },
+        {
+          "id": "5.1",
+          "title": "Anti-malware processes are defined, known and documented",
+          "group": "Malware",
+          "technically_assessable": false
+        },
+        {
+          "id": "5.2.1",
+          "title": "Systems are protected against malicious software",
+          "group": "Malware",
+          "technically_assessable": true
+        },
+        {
+          "id": "5.3",
+          "title": "Anti-malware mechanisms stay active, maintained and monitored",
+          "group": "Malware",
+          "technically_assessable": true
+        },
+        {
+          "id": "5.4",
+          "title": "Anti-phishing mechanisms protect users from phishing attacks",
+          "group": "Malware",
+          "technically_assessable": false
+        },
+        {
+          "id": "6.1",
+          "title": "Secure development processes are defined, known and documented",
+          "group": "Secure Software",
+          "technically_assessable": false
+        },
+        {
+          "id": "6.2",
+          "title": "Bespoke and custom software is developed securely",
+          "group": "Secure Software",
+          "technically_assessable": false
+        },
+        {
+          "id": "6.3.3",
+          "title": "Known vulnerabilities are corrected by applying security patches",
+          "group": "Secure Software",
+          "technically_assessable": true
+        },
+        {
+          "id": "6.4",
+          "title": "Public-facing web applications are protected against attacks",
+          "group": "Secure Software",
+          "technically_assessable": true
+        },
+        {
+          "id": "6.5.1",
+          "title": "Changes to system components follow a change control process",
+          "group": "Secure Software",
+          "technically_assessable": false
+        },
+        {
+          "id": "7.1",
+          "title": "Access control processes are defined, known and documented",
+          "group": "Access Control",
+          "technically_assessable": false
+        },
+        {
+          "id": "7.2.1",
+          "title": "Access is granted on business need and least privilege",
+          "group": "Access Control",
+          "technically_assessable": true
+        },
+        {
+          "id": "7.2.2",
+          "title": "Privileges assigned are the least the role requires",
+          "group": "Access Control",
+          "technically_assessable": true
+        },
+        {
+          "id": "7.3",
+          "title": "Access to systems and data is managed by an access control system",
+          "group": "Access Control",
+          "technically_assessable": true
+        },
+        {
+          "id": "8.1",
+          "title": "User identification processes are defined, known and documented",
+          "group": "Authentication",
+          "technically_assessable": false
+        },
+        {
+          "id": "8.2.1",
+          "title": "Every user is identified by a unique account",
+          "group": "Authentication",
+          "technically_assessable": true
+        },
+        {
+          "id": "8.3.1",
+          "title": "Access is authenticated by a strong factor",
+          "group": "Authentication",
+          "technically_assessable": true
+        },
+        {
+          "id": "8.4.2",
+          "title": "Multi-factor authentication is required for administrative access",
+          "group": "Authentication",
+          "technically_assessable": true
+        },
+        {
+          "id": "8.5",
+          "title": "Multi-factor authentication systems are configured to prevent misuse",
+          "group": "Authentication",
+          "technically_assessable": true
+        },
+        {
+          "id": "8.6",
+          "title": "Application and system accounts are strictly managed",
+          "group": "Authentication",
+          "technically_assessable": true
+        },
+        {
+          "id": "9.1.1",
+          "title": "Physical access to cardholder data is restricted",
+          "group": "Physical Access",
+          "technically_assessable": false
+        },
+        {
+          "id": "9.2",
+          "title": "Physical access controls manage entry into facilities",
+          "group": "Physical Access",
+          "technically_assessable": false
+        },
+        {
+          "id": "9.3",
+          "title": "Physical access for personnel and visitors is authorized and managed",
+          "group": "Physical Access",
+          "technically_assessable": false
+        },
+        {
+          "id": "9.4",
+          "title": "Media holding card data is securely stored and destroyed",
+          "group": "Physical Access",
+          "technically_assessable": false
+        },
+        {
+          "id": "9.5",
+          "title": "Payment terminals are protected from tampering and substitution",
+          "group": "Physical Access",
+          "technically_assessable": false
+        },
+        {
+          "id": "10.1",
+          "title": "Logging and monitoring processes are defined, known and documented",
+          "group": "Logging",
+          "technically_assessable": false
+        },
+        {
+          "id": "10.2.1",
+          "title": "Audit logs record access to system components and card data",
+          "group": "Logging",
+          "technically_assessable": true
+        },
+        {
+          "id": "10.3.2",
+          "title": "Audit logs are protected from alteration and destruction",
+          "group": "Logging",
+          "technically_assessable": true
+        },
+        {
+          "id": "10.4",
+          "title": "Audit logs are reviewed to find anomalies and suspicious activity",
+          "group": "Logging",
+          "technically_assessable": false
+        },
+        {
+          "id": "10.5.1",
+          "title": "Audit history is retained long enough to investigate",
+          "group": "Logging",
+          "technically_assessable": true
+        },
+        {
+          "id": "10.6",
+          "title": "Time synchronization mechanisms keep system clocks consistent",
+          "group": "Logging",
+          "technically_assessable": false
+        },
+        {
+          "id": "10.7",
+          "title": "Failures of critical security control systems are detected and reported",
+          "group": "Logging",
+          "technically_assessable": false
+        },
+        {
+          "id": "11.1",
+          "title": "Security testing processes are defined, known and documented",
+          "group": "Security Testing",
+          "technically_assessable": false
+        },
+        {
+          "id": "11.2",
+          "title": "Wireless access points are identified and unauthorized ones addressed",
+          "group": "Security Testing",
+          "technically_assessable": false
+        },
+        {
+          "id": "11.3.1",
+          "title": "Internal vulnerability scans are run and findings resolved",
+          "group": "Security Testing",
+          "technically_assessable": true
+        },
+        {
+          "id": "11.4.1",
+          "title": "Penetration testing is performed and findings addressed",
+          "group": "Security Testing",
+          "technically_assessable": false
+        },
+        {
+          "id": "11.5",
+          "title": "Network intrusions and unexpected file changes are detected",
+          "group": "Security Testing",
+          "technically_assessable": true
+        },
+        {
+          "id": "11.6",
+          "title": "Unauthorized changes to payment pages are detected",
+          "group": "Security Testing",
+          "technically_assessable": false
+        },
+        {
+          "id": "12.1.1",
+          "title": "An information security policy is established and maintained",
+          "group": "Policy",
+          "technically_assessable": false
+        },
+        {
+          "id": "12.2",
+          "title": "Acceptable use policies exist for end-user technologies",
+          "group": "Policy",
+          "technically_assessable": false
+        },
+        {
+          "id": "12.3",
+          "title": "Risks to the environment are formally identified and managed",
+          "group": "Policy",
+          "technically_assessable": false
+        },
+        {
+          "id": "12.4",
+          "title": "Service providers manage their own PCI DSS responsibilities",
+          "group": "Policy",
+          "technically_assessable": false
+        },
+        {
+          "id": "12.5",
+          "title": "The scope of the standard is documented and validated",
+          "group": "Policy",
+          "technically_assessable": false
+        },
+        {
+          "id": "12.6",
+          "title": "Security awareness education is ongoing",
+          "group": "Policy",
+          "technically_assessable": false
+        },
+        {
+          "id": "12.7",
+          "title": "Personnel are screened to reduce insider threat risk",
+          "group": "Policy",
+          "technically_assessable": false
+        },
+        {
+          "id": "12.8",
+          "title": "Risk from third-party service provider relationships is managed",
+          "group": "Policy",
+          "technically_assessable": false
+        },
+        {
+          "id": "12.9",
+          "title": "Service providers support their customers' compliance efforts",
+          "group": "Policy",
+          "technically_assessable": false
+        },
+        {
+          "id": "12.10.1",
+          "title": "An incident response plan exists and is exercised",
+          "group": "Policy",
+          "technically_assessable": false
+        }
+      ]
+    },
+    {
+      "id": "CIS_CONTROLS_8.1",
+      "name": "CIS Critical Security Controls",
+      "short_name": "CIS Controls v8.1",
+      "version": "8.1",
+      "authority": "Center for Internet Security",
+      "url": "https://www.cisecurity.org/controls",
+      "provider": null,
+      "summary": "Eighteen prioritized controls and 153 safeguards for defending an enterprise, grouped by how much capability an organization has. Technology-neutral, so it applies to Azure and AWS alike.",
+      "scope_note": "All 153 safeguards of CIS Controls v8.1, titled in this product's words; the identifiers are the CIS ones. Many safeguards concern endpoints, email, training and process and are listed as not technically assessable. The implementation groups are not shown.",
+      "controls": [
+        {
+          "id": "1.1",
+          "title": "Keep a detailed inventory of enterprise assets",
+          "group": "1 Inventory and Control of Enterprise Assets",
+          "technically_assessable": true
+        },
+        {
+          "id": "1.2",
+          "title": "Deal with unauthorized assets on the network",
+          "group": "1 Inventory and Control of Enterprise Assets",
+          "technically_assessable": false
+        },
+        {
+          "id": "1.3",
+          "title": "Discover assets with an active scanning tool",
+          "group": "1 Inventory and Control of Enterprise Assets",
+          "technically_assessable": false
+        },
+        {
+          "id": "1.4",
+          "title": "Update the asset inventory from DHCP logs",
+          "group": "1 Inventory and Control of Enterprise Assets",
+          "technically_assessable": false
+        },
+        {
+          "id": "1.5",
+          "title": "Discover assets with a passive monitoring tool",
+          "group": "1 Inventory and Control of Enterprise Assets",
+          "technically_assessable": false
+        },
+        {
+          "id": "2.1",
+          "title": "Keep an inventory of software",
+          "group": "2 Inventory and Control of Software Assets",
+          "technically_assessable": false
+        },
+        {
+          "id": "2.2",
+          "title": "Run only software that is still supported",
+          "group": "2 Inventory and Control of Software Assets",
+          "technically_assessable": true
+        },
+        {
+          "id": "2.3",
+          "title": "Deal with unauthorized software",
+          "group": "2 Inventory and Control of Software Assets",
+          "technically_assessable": false
+        },
+        {
+          "id": "2.4",
+          "title": "Inventory software with automated tools",
+          "group": "2 Inventory and Control of Software Assets",
+          "technically_assessable": false
+        },
+        {
+          "id": "2.5",
+          "title": "Allow only authorized software to run",
+          "group": "2 Inventory and Control of Software Assets",
+          "technically_assessable": false
+        },
+        {
+          "id": "2.6",
+          "title": "Allow only authorized libraries to load",
+          "group": "2 Inventory and Control of Software Assets",
+          "technically_assessable": false
+        },
+        {
+          "id": "2.7",
+          "title": "Allow only authorized scripts to run",
+          "group": "2 Inventory and Control of Software Assets",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.1",
+          "title": "Define a data management process",
+          "group": "3 Data Protection",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.2",
+          "title": "Keep an inventory of data",
+          "group": "3 Data Protection",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.3",
+          "title": "Restrict access to data with access control lists",
+          "group": "3 Data Protection",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.4",
+          "title": "Enforce data retention limits",
+          "group": "3 Data Protection",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.5",
+          "title": "Dispose of data securely",
+          "group": "3 Data Protection",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.6",
+          "title": "Encrypt data on end-user devices",
+          "group": "3 Data Protection",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.7",
+          "title": "Define a data classification scheme",
+          "group": "3 Data Protection",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.8",
+          "title": "Document data flows",
+          "group": "3 Data Protection",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.9",
+          "title": "Encrypt data on removable media",
+          "group": "3 Data Protection",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.10",
+          "title": "Encrypt sensitive data in transit",
+          "group": "3 Data Protection",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.11",
+          "title": "Encrypt sensitive data at rest",
+          "group": "3 Data Protection",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.12",
+          "title": "Separate data processing and storage by sensitivity",
+          "group": "3 Data Protection",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.13",
+          "title": "Deploy a data loss prevention solution",
+          "group": "3 Data Protection",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.14",
+          "title": "Log access to sensitive data",
+          "group": "3 Data Protection",
+          "technically_assessable": true
+        },
+        {
+          "id": "4.1",
+          "title": "Define a secure configuration process",
+          "group": "4 Secure Configuration of Enterprise Assets and Software",
+          "technically_assessable": true
+        },
+        {
+          "id": "4.2",
+          "title": "Define a secure configuration process for network devices",
+          "group": "4 Secure Configuration of Enterprise Assets and Software",
+          "technically_assessable": false
+        },
+        {
+          "id": "4.3",
+          "title": "Lock sessions automatically after inactivity",
+          "group": "4 Secure Configuration of Enterprise Assets and Software",
+          "technically_assessable": false
+        },
+        {
+          "id": "4.4",
+          "title": "Run a firewall on servers",
+          "group": "4 Secure Configuration of Enterprise Assets and Software",
+          "technically_assessable": true
+        },
+        {
+          "id": "4.5",
+          "title": "Run a firewall on end-user devices",
+          "group": "4 Secure Configuration of Enterprise Assets and Software",
+          "technically_assessable": false
+        },
+        {
+          "id": "4.6",
+          "title": "Manage assets and software over secure channels",
+          "group": "4 Secure Configuration of Enterprise Assets and Software",
+          "technically_assessable": true
+        },
+        {
+          "id": "4.7",
+          "title": "Manage default accounts on assets and software",
+          "group": "4 Secure Configuration of Enterprise Assets and Software",
+          "technically_assessable": true
+        },
+        {
+          "id": "4.8",
+          "title": "Remove or disable unnecessary services",
+          "group": "4 Secure Configuration of Enterprise Assets and Software",
+          "technically_assessable": true
+        },
+        {
+          "id": "4.9",
+          "title": "Configure trusted DNS servers",
+          "group": "4 Secure Configuration of Enterprise Assets and Software",
+          "technically_assessable": false
+        },
+        {
+          "id": "4.10",
+          "title": "Lock out portable devices after failed attempts",
+          "group": "4 Secure Configuration of Enterprise Assets and Software",
+          "technically_assessable": false
+        },
+        {
+          "id": "4.11",
+          "title": "Enable remote wipe on portable devices",
+          "group": "4 Secure Configuration of Enterprise Assets and Software",
+          "technically_assessable": false
+        },
+        {
+          "id": "4.12",
+          "title": "Separate work and personal workspaces on mobile devices",
+          "group": "4 Secure Configuration of Enterprise Assets and Software",
+          "technically_assessable": false
+        },
+        {
+          "id": "5.1",
+          "title": "Keep an inventory of accounts",
+          "group": "5 Account Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "5.2",
+          "title": "Use unique, strong passwords",
+          "group": "5 Account Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "5.3",
+          "title": "Disable dormant accounts",
+          "group": "5 Account Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "5.4",
+          "title": "Keep administrator privileges on dedicated accounts",
+          "group": "5 Account Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "5.5",
+          "title": "Keep an inventory of service accounts",
+          "group": "5 Account Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "5.6",
+          "title": "Centralize account management",
+          "group": "5 Account Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "6.1",
+          "title": "Define a process for granting access",
+          "group": "6 Access Control Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "6.2",
+          "title": "Define a process for revoking access",
+          "group": "6 Access Control Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "6.3",
+          "title": "Require MFA for externally exposed applications",
+          "group": "6 Access Control Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "6.4",
+          "title": "Require MFA for remote network access",
+          "group": "6 Access Control Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "6.5",
+          "title": "Require MFA for administrative access",
+          "group": "6 Access Control Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "6.6",
+          "title": "Keep an inventory of authentication and authorization systems",
+          "group": "6 Access Control Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "6.7",
+          "title": "Centralize access control",
+          "group": "6 Access Control Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "6.8",
+          "title": "Define and maintain role-based access control",
+          "group": "6 Access Control Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "7.1",
+          "title": "Define a vulnerability management process",
+          "group": "7 Continuous Vulnerability Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "7.2",
+          "title": "Define a remediation process",
+          "group": "7 Continuous Vulnerability Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "7.3",
+          "title": "Patch operating systems automatically",
+          "group": "7 Continuous Vulnerability Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "7.4",
+          "title": "Patch applications automatically",
+          "group": "7 Continuous Vulnerability Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "7.5",
+          "title": "Scan internal assets for vulnerabilities automatically",
+          "group": "7 Continuous Vulnerability Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "7.6",
+          "title": "Scan externally exposed assets for vulnerabilities automatically",
+          "group": "7 Continuous Vulnerability Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "7.7",
+          "title": "Remediate detected vulnerabilities",
+          "group": "7 Continuous Vulnerability Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "8.1",
+          "title": "Define an audit log management process",
+          "group": "8 Audit Log Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "8.2",
+          "title": "Collect audit logs",
+          "group": "8 Audit Log Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "8.3",
+          "title": "Provide adequate audit log storage",
+          "group": "8 Audit Log Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "8.4",
+          "title": "Synchronize time across systems",
+          "group": "8 Audit Log Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "8.5",
+          "title": "Collect detailed audit logs",
+          "group": "8 Audit Log Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "8.6",
+          "title": "Collect DNS query logs",
+          "group": "8 Audit Log Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "8.7",
+          "title": "Collect URL request logs",
+          "group": "8 Audit Log Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "8.8",
+          "title": "Collect command-line audit logs",
+          "group": "8 Audit Log Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "8.9",
+          "title": "Centralize audit logs",
+          "group": "8 Audit Log Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "8.10",
+          "title": "Retain audit logs",
+          "group": "8 Audit Log Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "8.11",
+          "title": "Review audit logs",
+          "group": "8 Audit Log Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "8.12",
+          "title": "Collect service provider logs",
+          "group": "8 Audit Log Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "9.1",
+          "title": "Use only supported browsers and email clients",
+          "group": "9 Email and Web Browser Protections",
+          "technically_assessable": false
+        },
+        {
+          "id": "9.2",
+          "title": "Use DNS filtering services",
+          "group": "9 Email and Web Browser Protections",
+          "technically_assessable": false
+        },
+        {
+          "id": "9.3",
+          "title": "Enforce network-based URL filters",
+          "group": "9 Email and Web Browser Protections",
+          "technically_assessable": false
+        },
+        {
+          "id": "9.4",
+          "title": "Restrict browser and email client extensions",
+          "group": "9 Email and Web Browser Protections",
+          "technically_assessable": false
+        },
+        {
+          "id": "9.5",
+          "title": "Implement DMARC",
+          "group": "9 Email and Web Browser Protections",
+          "technically_assessable": false
+        },
+        {
+          "id": "9.6",
+          "title": "Block unnecessary file types",
+          "group": "9 Email and Web Browser Protections",
+          "technically_assessable": false
+        },
+        {
+          "id": "9.7",
+          "title": "Deploy anti-malware protection on email servers",
+          "group": "9 Email and Web Browser Protections",
+          "technically_assessable": false
+        },
+        {
+          "id": "10.1",
+          "title": "Deploy anti-malware software",
+          "group": "10 Malware Defenses",
+          "technically_assessable": true
+        },
+        {
+          "id": "10.2",
+          "title": "Update anti-malware signatures automatically",
+          "group": "10 Malware Defenses",
+          "technically_assessable": false
+        },
+        {
+          "id": "10.3",
+          "title": "Disable autorun and autoplay for removable media",
+          "group": "10 Malware Defenses",
+          "technically_assessable": false
+        },
+        {
+          "id": "10.4",
+          "title": "Scan removable media for malware automatically",
+          "group": "10 Malware Defenses",
+          "technically_assessable": false
+        },
+        {
+          "id": "10.5",
+          "title": "Enable anti-exploitation features",
+          "group": "10 Malware Defenses",
+          "technically_assessable": false
+        },
+        {
+          "id": "10.6",
+          "title": "Manage anti-malware software centrally",
+          "group": "10 Malware Defenses",
+          "technically_assessable": true
+        },
+        {
+          "id": "10.7",
+          "title": "Use behavior-based anti-malware software",
+          "group": "10 Malware Defenses",
+          "technically_assessable": true
+        },
+        {
+          "id": "11.1",
+          "title": "Define a data recovery process",
+          "group": "11 Data Recovery",
+          "technically_assessable": false
+        },
+        {
+          "id": "11.2",
+          "title": "Back up data automatically",
+          "group": "11 Data Recovery",
+          "technically_assessable": true
+        },
+        {
+          "id": "11.3",
+          "title": "Protect recovery data",
+          "group": "11 Data Recovery",
+          "technically_assessable": true
+        },
+        {
+          "id": "11.4",
+          "title": "Keep an isolated instance of recovery data",
+          "group": "11 Data Recovery",
+          "technically_assessable": true
+        },
+        {
+          "id": "11.5",
+          "title": "Test data recovery",
+          "group": "11 Data Recovery",
+          "technically_assessable": false
+        },
+        {
+          "id": "12.1",
+          "title": "Keep network infrastructure up to date",
+          "group": "12 Network Infrastructure Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "12.2",
+          "title": "Design and maintain a secure network architecture",
+          "group": "12 Network Infrastructure Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "12.3",
+          "title": "Manage network infrastructure securely",
+          "group": "12 Network Infrastructure Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "12.4",
+          "title": "Keep architecture diagrams current",
+          "group": "12 Network Infrastructure Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "12.5",
+          "title": "Centralize network authentication, authorization and auditing",
+          "group": "12 Network Infrastructure Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "12.6",
+          "title": "Use secure network management and communication protocols",
+          "group": "12 Network Infrastructure Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "12.7",
+          "title": "Connect remote devices through a VPN to the enterprise's AAA",
+          "group": "12 Network Infrastructure Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "12.8",
+          "title": "Use dedicated computing resources for administrative work",
+          "group": "12 Network Infrastructure Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "13.1",
+          "title": "Centralize security event alerting",
+          "group": "13 Network Monitoring and Defense",
+          "technically_assessable": true
+        },
+        {
+          "id": "13.2",
+          "title": "Deploy a host-based intrusion detection solution",
+          "group": "13 Network Monitoring and Defense",
+          "technically_assessable": true
+        },
+        {
+          "id": "13.3",
+          "title": "Deploy a network intrusion detection solution",
+          "group": "13 Network Monitoring and Defense",
+          "technically_assessable": false
+        },
+        {
+          "id": "13.4",
+          "title": "Filter traffic between network segments",
+          "group": "13 Network Monitoring and Defense",
+          "technically_assessable": true
+        },
+        {
+          "id": "13.5",
+          "title": "Manage access control for remote assets",
+          "group": "13 Network Monitoring and Defense",
+          "technically_assessable": true
+        },
+        {
+          "id": "13.6",
+          "title": "Collect network traffic flow logs",
+          "group": "13 Network Monitoring and Defense",
+          "technically_assessable": true
+        },
+        {
+          "id": "13.7",
+          "title": "Deploy a host-based intrusion prevention solution",
+          "group": "13 Network Monitoring and Defense",
+          "technically_assessable": false
+        },
+        {
+          "id": "13.8",
+          "title": "Deploy a network intrusion prevention solution",
+          "group": "13 Network Monitoring and Defense",
+          "technically_assessable": false
+        },
+        {
+          "id": "13.9",
+          "title": "Control access at the network port level",
+          "group": "13 Network Monitoring and Defense",
+          "technically_assessable": false
+        },
+        {
+          "id": "13.10",
+          "title": "Filter traffic at the application layer",
+          "group": "13 Network Monitoring and Defense",
+          "technically_assessable": true
+        },
+        {
+          "id": "13.11",
+          "title": "Tune security event alerting thresholds",
+          "group": "13 Network Monitoring and Defense",
+          "technically_assessable": false
+        },
+        {
+          "id": "14.1",
+          "title": "Run a security awareness program",
+          "group": "14 Security Awareness and Skills Training",
+          "technically_assessable": false
+        },
+        {
+          "id": "14.2",
+          "title": "Train the workforce to recognize social engineering",
+          "group": "14 Security Awareness and Skills Training",
+          "technically_assessable": false
+        },
+        {
+          "id": "14.3",
+          "title": "Train the workforce on authentication best practices",
+          "group": "14 Security Awareness and Skills Training",
+          "technically_assessable": false
+        },
+        {
+          "id": "14.4",
+          "title": "Train the workforce on data handling",
+          "group": "14 Security Awareness and Skills Training",
+          "technically_assessable": false
+        },
+        {
+          "id": "14.5",
+          "title": "Train the workforce on causes of unintentional data exposure",
+          "group": "14 Security Awareness and Skills Training",
+          "technically_assessable": false
+        },
+        {
+          "id": "14.6",
+          "title": "Train the workforce to recognize and report incidents",
+          "group": "14 Security Awareness and Skills Training",
+          "technically_assessable": false
+        },
+        {
+          "id": "14.7",
+          "title": "Train the workforce to spot missing security updates",
+          "group": "14 Security Awareness and Skills Training",
+          "technically_assessable": false
+        },
+        {
+          "id": "14.8",
+          "title": "Train the workforce on the dangers of insecure networks",
+          "group": "14 Security Awareness and Skills Training",
+          "technically_assessable": false
+        },
+        {
+          "id": "14.9",
+          "title": "Give role-specific security training",
+          "group": "14 Security Awareness and Skills Training",
+          "technically_assessable": false
+        },
+        {
+          "id": "15.1",
+          "title": "Keep an inventory of service providers",
+          "group": "15 Service Provider Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "15.2",
+          "title": "Define a service provider management policy",
+          "group": "15 Service Provider Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "15.3",
+          "title": "Classify service providers",
+          "group": "15 Service Provider Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "15.4",
+          "title": "Require security terms in service provider contracts",
+          "group": "15 Service Provider Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "15.5",
+          "title": "Assess service providers",
+          "group": "15 Service Provider Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "15.6",
+          "title": "Monitor service providers",
+          "group": "15 Service Provider Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "15.7",
+          "title": "Decommission service providers securely",
+          "group": "15 Service Provider Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "16.1",
+          "title": "Define a secure application development process",
+          "group": "16 Application Software Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "16.2",
+          "title": "Accept and address reports of software vulnerabilities",
+          "group": "16 Application Software Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "16.3",
+          "title": "Analyze the root cause of security vulnerabilities",
+          "group": "16 Application Software Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "16.4",
+          "title": "Keep an inventory of third-party software components",
+          "group": "16 Application Software Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "16.5",
+          "title": "Use up-to-date and trusted third-party components",
+          "group": "16 Application Software Security",
+          "technically_assessable": true
+        },
+        {
+          "id": "16.6",
+          "title": "Rate the severity of application vulnerabilities",
+          "group": "16 Application Software Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "16.7",
+          "title": "Use hardened configuration templates for application infrastructure",
+          "group": "16 Application Software Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "16.8",
+          "title": "Separate production and non-production systems",
+          "group": "16 Application Software Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "16.9",
+          "title": "Train developers in secure coding",
+          "group": "16 Application Software Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "16.10",
+          "title": "Apply secure design principles to application architectures",
+          "group": "16 Application Software Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "16.11",
+          "title": "Use vetted modules or services for security components",
+          "group": "16 Application Software Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "16.12",
+          "title": "Run code-level security checks",
+          "group": "16 Application Software Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "16.13",
+          "title": "Test applications by penetration testing",
+          "group": "16 Application Software Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "16.14",
+          "title": "Threat-model applications",
+          "group": "16 Application Software Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "17.1",
+          "title": "Designate personnel to manage incident handling",
+          "group": "17 Incident Response Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "17.2",
+          "title": "Keep contact details for reporting security incidents",
+          "group": "17 Incident Response Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "17.3",
+          "title": "Define how the enterprise reports incidents",
+          "group": "17 Incident Response Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "17.4",
+          "title": "Define an incident response process",
+          "group": "17 Incident Response Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "17.5",
+          "title": "Assign key incident response roles",
+          "group": "17 Incident Response Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "17.6",
+          "title": "Define how to communicate during an incident",
+          "group": "17 Incident Response Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "17.7",
+          "title": "Run incident response exercises",
+          "group": "17 Incident Response Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "17.8",
+          "title": "Review incidents afterwards",
+          "group": "17 Incident Response Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "17.9",
+          "title": "Define security incident thresholds",
+          "group": "17 Incident Response Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "18.1",
+          "title": "Run a penetration testing program",
+          "group": "18 Penetration Testing",
+          "technically_assessable": false
+        },
+        {
+          "id": "18.2",
+          "title": "Perform periodic external penetration tests",
+          "group": "18 Penetration Testing",
+          "technically_assessable": false
+        },
+        {
+          "id": "18.3",
+          "title": "Remediate penetration test findings",
+          "group": "18 Penetration Testing",
+          "technically_assessable": false
+        },
+        {
+          "id": "18.4",
+          "title": "Validate that security measures work",
+          "group": "18 Penetration Testing",
+          "technically_assessable": false
+        },
+        {
+          "id": "18.5",
+          "title": "Perform periodic internal penetration tests",
+          "group": "18 Penetration Testing",
+          "technically_assessable": false
+        }
+      ]
+    },
+    {
+      "id": "CSA_CCM_4.1",
+      "name": "Cloud Security Alliance Cloud Controls Matrix",
+      "short_name": "CSA CCM v4.1",
+      "version": "4.1",
+      "authority": "Cloud Security Alliance",
+      "url": "https://cloudsecurityalliance.org/artifacts/cloud-controls-matrix-v4-1",
+      "provider": null,
+      "summary": "A control framework written for cloud services, and the basis of the CSA STAR registry a SaaS vendor publishes to. It speaks to providers and customers separately, so it reads as a shared-responsibility checklist.",
+      "scope_note": "All 207 controls of CCM v4.1 in its 17 domains, under the control names of the Cloud Security Alliance Cloud Controls Matrix Version 4.1.0, which is copyright Cloud Security Alliance and quoted here with attribution. The control specifications are not reproduced. Most controls concern how an organization is run and are listed as not technically assessable; the evidence a cloud scan produces lands in identity, cryptography, logging, network and vulnerability controls. A STAR listing is a statement by the vendor, and this page is not one.",
+      "controls": [
+        {
+          "id": "A&A-01",
+          "title": "Audit and Assurance Policy and Procedures",
+          "group": "Audit & Assurance",
+          "technically_assessable": false
+        },
+        {
+          "id": "A&A-02",
+          "title": "Independent Assessments",
+          "group": "Audit & Assurance",
+          "technically_assessable": false
+        },
+        {
+          "id": "A&A-03",
+          "title": "Risk Based Planning Assessment",
+          "group": "Audit & Assurance",
+          "technically_assessable": false
+        },
+        {
+          "id": "A&A-04",
+          "title": "Requirements Compliance",
+          "group": "Audit & Assurance",
+          "technically_assessable": false
+        },
+        {
+          "id": "A&A-05",
+          "title": "Audit Management Process",
+          "group": "Audit & Assurance",
+          "technically_assessable": false
+        },
+        {
+          "id": "A&A-06",
+          "title": "Remediation",
+          "group": "Audit & Assurance",
+          "technically_assessable": false
+        },
+        {
+          "id": "AIS-01",
+          "title": "Application and Interface Security Policy and Procedures",
+          "group": "Application & Interface Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "AIS-02",
+          "title": "Application Security Baseline Requirements",
+          "group": "Application & Interface Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "AIS-03",
+          "title": "Application Security Metrics",
+          "group": "Application & Interface Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "AIS-04",
+          "title": "Secure Application Development Lifecycle",
+          "group": "Application & Interface Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "AIS-05",
+          "title": "Application Security Testing",
+          "group": "Application & Interface Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "AIS-06",
+          "title": "Secure Application Deployment",
+          "group": "Application & Interface Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "AIS-07",
+          "title": "Application Vulnerability Remediation",
+          "group": "Application & Interface Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "AIS-08",
+          "title": "API Security",
+          "group": "Application & Interface Security",
+          "technically_assessable": true
+        },
+        {
+          "id": "BCR-01",
+          "title": "Business Continuity Management Policy and Procedures",
+          "group": "Business Continuity Management and Operational Resilience",
+          "technically_assessable": false
+        },
+        {
+          "id": "BCR-02",
+          "title": "Risk Assessment and Impact Analysis",
+          "group": "Business Continuity Management and Operational Resilience",
+          "technically_assessable": false
+        },
+        {
+          "id": "BCR-03",
+          "title": "Business Continuity Strategy",
+          "group": "Business Continuity Management and Operational Resilience",
+          "technically_assessable": false
+        },
+        {
+          "id": "BCR-04",
+          "title": "Business Continuity Planning",
+          "group": "Business Continuity Management and Operational Resilience",
+          "technically_assessable": false
+        },
+        {
+          "id": "BCR-05",
+          "title": "Documentation",
+          "group": "Business Continuity Management and Operational Resilience",
+          "technically_assessable": false
+        },
+        {
+          "id": "BCR-06",
+          "title": "Business Continuity Exercises",
+          "group": "Business Continuity Management and Operational Resilience",
+          "technically_assessable": false
+        },
+        {
+          "id": "BCR-07",
+          "title": "Communication",
+          "group": "Business Continuity Management and Operational Resilience",
+          "technically_assessable": false
+        },
+        {
+          "id": "BCR-08",
+          "title": "Backup",
+          "group": "Business Continuity Management and Operational Resilience",
+          "technically_assessable": true
+        },
+        {
+          "id": "BCR-09",
+          "title": "Disaster Response Plan",
+          "group": "Business Continuity Management and Operational Resilience",
+          "technically_assessable": false
+        },
+        {
+          "id": "BCR-10",
+          "title": "Response Plan Exercise",
+          "group": "Business Continuity Management and Operational Resilience",
+          "technically_assessable": false
+        },
+        {
+          "id": "BCR-11",
+          "title": "Equipment Redundancy",
+          "group": "Business Continuity Management and Operational Resilience",
+          "technically_assessable": true
+        },
+        {
+          "id": "CCC-01",
+          "title": "Change Management Policy and Procedures",
+          "group": "Change Control and Configuration Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "CCC-02",
+          "title": "Quality Testing",
+          "group": "Change Control and Configuration Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "CCC-03",
+          "title": "Change Management Technology",
+          "group": "Change Control and Configuration Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "CCC-04",
+          "title": "Unauthorized Change Protection",
+          "group": "Change Control and Configuration Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "CCC-05",
+          "title": "Change Agreements",
+          "group": "Change Control and Configuration Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "CCC-06",
+          "title": "Change Management Baseline",
+          "group": "Change Control and Configuration Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "CCC-07",
+          "title": "Detection of Baseline Deviation",
+          "group": "Change Control and Configuration Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "CCC-08",
+          "title": "Exception Management",
+          "group": "Change Control and Configuration Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "CCC-09",
+          "title": "Change Restoration",
+          "group": "Change Control and Configuration Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "CEK-01",
+          "title": "Encryption and Key Management Policy and Procedures",
+          "group": "Cryptography, Encryption & Key Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "CEK-02",
+          "title": "CEK Roles and Responsibilities",
+          "group": "Cryptography, Encryption & Key Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "CEK-03",
+          "title": "Data Protection",
+          "group": "Cryptography, Encryption & Key Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "CEK-04",
+          "title": "Encryption Algorithm",
+          "group": "Cryptography, Encryption & Key Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "CEK-05",
+          "title": "Encryption Change Management",
+          "group": "Cryptography, Encryption & Key Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "CEK-06",
+          "title": "Encryption Change Cost Benefit Analysis",
+          "group": "Cryptography, Encryption & Key Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "CEK-07",
+          "title": "Encryption Risk Management",
+          "group": "Cryptography, Encryption & Key Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "CEK-08",
+          "title": "Service Customer Key Management Capability",
+          "group": "Cryptography, Encryption & Key Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "CEK-09",
+          "title": "Encryption and Key Management Audit",
+          "group": "Cryptography, Encryption & Key Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "CEK-10",
+          "title": "Key Generation",
+          "group": "Cryptography, Encryption & Key Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "CEK-11",
+          "title": "Key Purpose",
+          "group": "Cryptography, Encryption & Key Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "CEK-12",
+          "title": "Key Rotation",
+          "group": "Cryptography, Encryption & Key Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "CEK-13",
+          "title": "Key Revocation",
+          "group": "Cryptography, Encryption & Key Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "CEK-14",
+          "title": "Key Destruction",
+          "group": "Cryptography, Encryption & Key Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "CEK-15",
+          "title": "Key Activation",
+          "group": "Cryptography, Encryption & Key Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "CEK-16",
+          "title": "Key Suspension",
+          "group": "Cryptography, Encryption & Key Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "CEK-17",
+          "title": "Key Deactivation",
+          "group": "Cryptography, Encryption & Key Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "CEK-18",
+          "title": "Key Archival",
+          "group": "Cryptography, Encryption & Key Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "CEK-19",
+          "title": "Key Compromise",
+          "group": "Cryptography, Encryption & Key Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "CEK-20",
+          "title": "Key Recovery",
+          "group": "Cryptography, Encryption & Key Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "CEK-21",
+          "title": "Key Inventory Management",
+          "group": "Cryptography, Encryption & Key Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "DCS-01",
+          "title": "Physical and Environmental Security Policy and Procedures",
+          "group": "Datacenter Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "DCS-02",
+          "title": "Off-Site Equipment Disposal Policy and Procedures",
+          "group": "Datacenter Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "DCS-03",
+          "title": "Off-Site Transfer Authorization Policy and Procedures",
+          "group": "Datacenter Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "DCS-04",
+          "title": "Secure Area Policy and Procedures",
+          "group": "Datacenter Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "DCS-05",
+          "title": "Secure Media Transportation Policy and Procedures",
+          "group": "Datacenter Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "DCS-06",
+          "title": "Assets Classification",
+          "group": "Datacenter Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "DCS-07",
+          "title": "Assets Cataloguing and Tracking",
+          "group": "Datacenter Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "DCS-08",
+          "title": "Controlled Physical Access Points",
+          "group": "Datacenter Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "DCS-09",
+          "title": "Equipment Identification",
+          "group": "Datacenter Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "DCS-10",
+          "title": "Secure Area Authorization",
+          "group": "Datacenter Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "DCS-11",
+          "title": "Surveillance System",
+          "group": "Datacenter Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "DCS-12",
+          "title": "Adverse Event Response Training",
+          "group": "Datacenter Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "DCS-13",
+          "title": "Cabling Security",
+          "group": "Datacenter Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "DCS-14",
+          "title": "Environmental Systems",
+          "group": "Datacenter Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "DCS-15",
+          "title": "Secure Utilities",
+          "group": "Datacenter Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "DCS-16",
+          "title": "Equipment Location",
+          "group": "Datacenter Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "DCS-17",
+          "title": "Datacenter Metrics",
+          "group": "Datacenter Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "DCS-18",
+          "title": "Datacenter Operations Resilience",
+          "group": "Datacenter Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "DSP-01",
+          "title": "Security and Privacy Policy and Procedures",
+          "group": "Data Security and Privacy Lifecycle Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "DSP-02",
+          "title": "Secure Disposal",
+          "group": "Data Security and Privacy Lifecycle Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "DSP-03",
+          "title": "Data Inventory",
+          "group": "Data Security and Privacy Lifecycle Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "DSP-04",
+          "title": "Data Classification",
+          "group": "Data Security and Privacy Lifecycle Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "DSP-05",
+          "title": "Data Flow Documentation",
+          "group": "Data Security and Privacy Lifecycle Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "DSP-06",
+          "title": "Data Ownership and Stewardship",
+          "group": "Data Security and Privacy Lifecycle Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "DSP-07",
+          "title": "Data Protection by Design and Default",
+          "group": "Data Security and Privacy Lifecycle Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "DSP-08",
+          "title": "Data Privacy by Design and Default",
+          "group": "Data Security and Privacy Lifecycle Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "DSP-09",
+          "title": "Data Protection Impact Assessment",
+          "group": "Data Security and Privacy Lifecycle Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "DSP-10",
+          "title": "Sensitive Data Transfer",
+          "group": "Data Security and Privacy Lifecycle Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "DSP-11",
+          "title": "Personal Data Access, Reversal, Rectification and Deletion",
+          "group": "Data Security and Privacy Lifecycle Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "DSP-12",
+          "title": "Limitation of Purpose in Personal Data Processing",
+          "group": "Data Security and Privacy Lifecycle Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "DSP-13",
+          "title": "Personal Data Sub-processing",
+          "group": "Data Security and Privacy Lifecycle Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "DSP-14",
+          "title": "Disclosure of Data Sub-processors",
+          "group": "Data Security and Privacy Lifecycle Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "DSP-15",
+          "title": "Limitation of Production Data Use",
+          "group": "Data Security and Privacy Lifecycle Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "DSP-16",
+          "title": "Data Retention and Deletion",
+          "group": "Data Security and Privacy Lifecycle Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "DSP-17",
+          "title": "Sensitive Data Protection",
+          "group": "Data Security and Privacy Lifecycle Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "DSP-18",
+          "title": "Disclosure Notification",
+          "group": "Data Security and Privacy Lifecycle Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "DSP-19",
+          "title": "Data Location",
+          "group": "Data Security and Privacy Lifecycle Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "GRC-01",
+          "title": "Governance Program Policy and Procedures",
+          "group": "Governance, Risk and Compliance",
+          "technically_assessable": false
+        },
+        {
+          "id": "GRC-02",
+          "title": "Risk Management Program",
+          "group": "Governance, Risk and Compliance",
+          "technically_assessable": false
+        },
+        {
+          "id": "GRC-03",
+          "title": "Organizational Policy Reviews",
+          "group": "Governance, Risk and Compliance",
+          "technically_assessable": false
+        },
+        {
+          "id": "GRC-04",
+          "title": "Policy Exception Process",
+          "group": "Governance, Risk and Compliance",
+          "technically_assessable": false
+        },
+        {
+          "id": "GRC-05",
+          "title": "Information Security Program",
+          "group": "Governance, Risk and Compliance",
+          "technically_assessable": false
+        },
+        {
+          "id": "GRC-06",
+          "title": "Governance Responsibility Model",
+          "group": "Governance, Risk and Compliance",
+          "technically_assessable": false
+        },
+        {
+          "id": "GRC-07",
+          "title": "Information System Regulatory Mapping",
+          "group": "Governance, Risk and Compliance",
+          "technically_assessable": false
+        },
+        {
+          "id": "GRC-08",
+          "title": "Special Interest Groups",
+          "group": "Governance, Risk and Compliance",
+          "technically_assessable": false
+        },
+        {
+          "id": "HRS-01",
+          "title": "Background Screening Policy and Procedures",
+          "group": "Human Resources",
+          "technically_assessable": false
+        },
+        {
+          "id": "HRS-02",
+          "title": "Acceptable Use of Technology Policy and Procedures",
+          "group": "Human Resources",
+          "technically_assessable": false
+        },
+        {
+          "id": "HRS-03",
+          "title": "Clean Desk Policy and Procedures",
+          "group": "Human Resources",
+          "technically_assessable": false
+        },
+        {
+          "id": "HRS-04",
+          "title": "Remote and Home Working Policy and Procedures",
+          "group": "Human Resources",
+          "technically_assessable": false
+        },
+        {
+          "id": "HRS-05",
+          "title": "Asset returns",
+          "group": "Human Resources",
+          "technically_assessable": false
+        },
+        {
+          "id": "HRS-06",
+          "title": "Employment Termination",
+          "group": "Human Resources",
+          "technically_assessable": false
+        },
+        {
+          "id": "HRS-07",
+          "title": "Employment Agreement Process",
+          "group": "Human Resources",
+          "technically_assessable": false
+        },
+        {
+          "id": "HRS-08",
+          "title": "Employment Agreement Content",
+          "group": "Human Resources",
+          "technically_assessable": false
+        },
+        {
+          "id": "HRS-09",
+          "title": "Personnel Roles and Responsibilities",
+          "group": "Human Resources",
+          "technically_assessable": false
+        },
+        {
+          "id": "HRS-10",
+          "title": "Non-Disclosure Agreements",
+          "group": "Human Resources",
+          "technically_assessable": false
+        },
+        {
+          "id": "HRS-11",
+          "title": "Security Awareness Training",
+          "group": "Human Resources",
+          "technically_assessable": false
+        },
+        {
+          "id": "HRS-12",
+          "title": "Personal and Sensitive Data Awareness and Training",
+          "group": "Human Resources",
+          "technically_assessable": false
+        },
+        {
+          "id": "HRS-13",
+          "title": "Compliance User Responsibility",
+          "group": "Human Resources",
+          "technically_assessable": false
+        },
+        {
+          "id": "IAM-01",
+          "title": "Identity and Access Management Policy and Procedures",
+          "group": "Identity & Access Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "IAM-02",
+          "title": "Credentials Management Policy and Procedures",
+          "group": "Identity & Access Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "IAM-03",
+          "title": "Identity Inventory",
+          "group": "Identity & Access Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "IAM-04",
+          "title": "Separation of Duties",
+          "group": "Identity & Access Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "IAM-05",
+          "title": "Least Privilege",
+          "group": "Identity & Access Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "IAM-06",
+          "title": "Access Provisioning",
+          "group": "Identity & Access Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "IAM-07",
+          "title": "Access Changes and Revocation",
+          "group": "Identity & Access Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "IAM-08",
+          "title": "Access Review",
+          "group": "Identity & Access Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "IAM-09",
+          "title": "Segregation of Privileged Access Roles",
+          "group": "Identity & Access Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "IAM-10",
+          "title": "Management of Privileged Access Roles",
+          "group": "Identity & Access Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "IAM-11",
+          "title": "Service Customers Approval for Agreed Privileged Access Roles",
+          "group": "Identity & Access Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "IAM-12",
+          "title": "Unique Identities",
+          "group": "Identity & Access Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "IAM-13",
+          "title": "Strong Authentication",
+          "group": "Identity & Access Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "IAM-14",
+          "title": "Credentials Management",
+          "group": "Identity & Access Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "IAM-15",
+          "title": "Authorization Mechanisms",
+          "group": "Identity & Access Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "IPY-01",
+          "title": "Interoperability and Portability Policy and Procedures",
+          "group": "Interoperability & Portability",
+          "technically_assessable": false
+        },
+        {
+          "id": "IPY-02",
+          "title": "Application Interface Availability",
+          "group": "Interoperability & Portability",
+          "technically_assessable": false
+        },
+        {
+          "id": "IPY-03",
+          "title": "Secure Interoperability and Portability Management",
+          "group": "Interoperability & Portability",
+          "technically_assessable": false
+        },
+        {
+          "id": "IPY-04",
+          "title": "Data Portability Contractual Obligations",
+          "group": "Interoperability & Portability",
+          "technically_assessable": false
+        },
+        {
+          "id": "I&S-01",
+          "title": "Infrastructure and Virtualization Security Policy and Procedures",
+          "group": "Infrastructure Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "I&S-02",
+          "title": "Capacity and Resource Planning",
+          "group": "Infrastructure Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "I&S-03",
+          "title": "Network Security",
+          "group": "Infrastructure Security",
+          "technically_assessable": true
+        },
+        {
+          "id": "I&S-04",
+          "title": "OS Hardening and Base Controls",
+          "group": "Infrastructure Security",
+          "technically_assessable": true
+        },
+        {
+          "id": "I&S-05",
+          "title": "Production and Non-Production Environments",
+          "group": "Infrastructure Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "I&S-06",
+          "title": "Segmentation and Segregation",
+          "group": "Infrastructure Security",
+          "technically_assessable": true
+        },
+        {
+          "id": "I&S-07",
+          "title": "Migration to Cloud Environments",
+          "group": "Infrastructure Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "I&S-08",
+          "title": "Network Architecture Documentation",
+          "group": "Infrastructure Security",
+          "technically_assessable": false
+        },
+        {
+          "id": "I&S-09",
+          "title": "Network Defense",
+          "group": "Infrastructure Security",
+          "technically_assessable": true
+        },
+        {
+          "id": "LOG-01",
+          "title": "Logging and Monitoring Policy and Procedures",
+          "group": "Logging and Monitoring",
+          "technically_assessable": false
+        },
+        {
+          "id": "LOG-02",
+          "title": "Audit Logs Protection",
+          "group": "Logging and Monitoring",
+          "technically_assessable": true
+        },
+        {
+          "id": "LOG-03",
+          "title": "Security Monitoring and Alerting",
+          "group": "Logging and Monitoring",
+          "technically_assessable": true
+        },
+        {
+          "id": "LOG-04",
+          "title": "Audit Logs Access and Accountability",
+          "group": "Logging and Monitoring",
+          "technically_assessable": true
+        },
+        {
+          "id": "LOG-05",
+          "title": "Audit Logs Monitoring and Response",
+          "group": "Logging and Monitoring",
+          "technically_assessable": true
+        },
+        {
+          "id": "LOG-06",
+          "title": "Clock Synchronization",
+          "group": "Logging and Monitoring",
+          "technically_assessable": false
+        },
+        {
+          "id": "LOG-07",
+          "title": "Logging Scope",
+          "group": "Logging and Monitoring",
+          "technically_assessable": true
+        },
+        {
+          "id": "LOG-08",
+          "title": "Audit Logs Sanitization",
+          "group": "Logging and Monitoring",
+          "technically_assessable": false
+        },
+        {
+          "id": "LOG-09",
+          "title": "Log Records",
+          "group": "Logging and Monitoring",
+          "technically_assessable": true
+        },
+        {
+          "id": "LOG-10",
+          "title": "Audit Records Protection",
+          "group": "Logging and Monitoring",
+          "technically_assessable": true
+        },
+        {
+          "id": "LOG-11",
+          "title": "Encryption Monitoring and Reporting",
+          "group": "Logging and Monitoring",
+          "technically_assessable": false
+        },
+        {
+          "id": "LOG-12",
+          "title": "Transaction/Activity Logging",
+          "group": "Logging and Monitoring",
+          "technically_assessable": true
+        },
+        {
+          "id": "LOG-13",
+          "title": "Access Control Logs",
+          "group": "Logging and Monitoring",
+          "technically_assessable": true
+        },
+        {
+          "id": "LOG-14",
+          "title": "Failures and Anomalies Reporting",
+          "group": "Logging and Monitoring",
+          "technically_assessable": true
+        },
+        {
+          "id": "SEF-01",
+          "title": "Security Incident Management Policy and Procedures",
+          "group": "Security Incident Management, E-Discovery, & Cloud Forensics",
+          "technically_assessable": false
+        },
+        {
+          "id": "SEF-02",
+          "title": "Service Management Policy and Procedures",
+          "group": "Security Incident Management, E-Discovery, & Cloud Forensics",
+          "technically_assessable": false
+        },
+        {
+          "id": "SEF-03",
+          "title": "Incident Response Plans",
+          "group": "Security Incident Management, E-Discovery, & Cloud Forensics",
+          "technically_assessable": false
+        },
+        {
+          "id": "SEF-04",
+          "title": "Incident Response Testing",
+          "group": "Security Incident Management, E-Discovery, & Cloud Forensics",
+          "technically_assessable": false
+        },
+        {
+          "id": "SEF-05",
+          "title": "Incident Response Metrics",
+          "group": "Security Incident Management, E-Discovery, & Cloud Forensics",
+          "technically_assessable": false
+        },
+        {
+          "id": "SEF-06",
+          "title": "Event Triage Processes",
+          "group": "Security Incident Management, E-Discovery, & Cloud Forensics",
+          "technically_assessable": false
+        },
+        {
+          "id": "SEF-07",
+          "title": "Incident Management and Response",
+          "group": "Security Incident Management, E-Discovery, & Cloud Forensics",
+          "technically_assessable": false
+        },
+        {
+          "id": "SEF-08",
+          "title": "Security Breach Notification",
+          "group": "Security Incident Management, E-Discovery, & Cloud Forensics",
+          "technically_assessable": false
+        },
+        {
+          "id": "SEF-09",
+          "title": "Incident Records Management",
+          "group": "Security Incident Management, E-Discovery, & Cloud Forensics",
+          "technically_assessable": false
+        },
+        {
+          "id": "SEF-10",
+          "title": "Points of Contact Maintenance",
+          "group": "Security Incident Management, E-Discovery, & Cloud Forensics",
+          "technically_assessable": false
+        },
+        {
+          "id": "STA-01",
+          "title": "Supply Chain Risk Management Policies and Procedures",
+          "group": "Supply Chain Management, Transparency, and Accountability",
+          "technically_assessable": false
+        },
+        {
+          "id": "STA-02",
+          "title": "SSRM Policy and Procedures",
+          "group": "Supply Chain Management, Transparency, and Accountability",
+          "technically_assessable": false
+        },
+        {
+          "id": "STA-03",
+          "title": "SSRM Supply Chain",
+          "group": "Supply Chain Management, Transparency, and Accountability",
+          "technically_assessable": false
+        },
+        {
+          "id": "STA-04",
+          "title": "SSRM Guidance",
+          "group": "Supply Chain Management, Transparency, and Accountability",
+          "technically_assessable": false
+        },
+        {
+          "id": "STA-05",
+          "title": "SSRM Control Ownership",
+          "group": "Supply Chain Management, Transparency, and Accountability",
+          "technically_assessable": false
+        },
+        {
+          "id": "STA-06",
+          "title": "SSRM Documentation Review",
+          "group": "Supply Chain Management, Transparency, and Accountability",
+          "technically_assessable": false
+        },
+        {
+          "id": "STA-07",
+          "title": "SSRM Control Implementation",
+          "group": "Supply Chain Management, Transparency, and Accountability",
+          "technically_assessable": false
+        },
+        {
+          "id": "STA-08",
+          "title": "Supply Chain Inventory",
+          "group": "Supply Chain Management, Transparency, and Accountability",
+          "technically_assessable": false
+        },
+        {
+          "id": "STA-09",
+          "title": "Service Bill of Material (BOM)",
+          "group": "Supply Chain Management, Transparency, and Accountability",
+          "technically_assessable": false
+        },
+        {
+          "id": "STA-10",
+          "title": "Supply Chain Risk Management",
+          "group": "Supply Chain Management, Transparency, and Accountability",
+          "technically_assessable": false
+        },
+        {
+          "id": "STA-11",
+          "title": "Primary Service and Contractual Agreement",
+          "group": "Supply Chain Management, Transparency, and Accountability",
+          "technically_assessable": false
+        },
+        {
+          "id": "STA-12",
+          "title": "Supply Chain Agreement Review",
+          "group": "Supply Chain Management, Transparency, and Accountability",
+          "technically_assessable": false
+        },
+        {
+          "id": "STA-13",
+          "title": "Supply Chain Compliance Assessment",
+          "group": "Supply Chain Management, Transparency, and Accountability",
+          "technically_assessable": false
+        },
+        {
+          "id": "STA-14",
+          "title": "Supply Chain Service Agreement Compliance",
+          "group": "Supply Chain Management, Transparency, and Accountability",
+          "technically_assessable": false
+        },
+        {
+          "id": "STA-15",
+          "title": "Supply Chain Governance Review",
+          "group": "Supply Chain Management, Transparency, and Accountability",
+          "technically_assessable": false
+        },
+        {
+          "id": "STA-16",
+          "title": "Supply Chain Data Security Assessment",
+          "group": "Supply Chain Management, Transparency, and Accountability",
+          "technically_assessable": false
+        },
+        {
+          "id": "TVM-01",
+          "title": "Threat and Vulnerability Management Policy and Procedures",
+          "group": "Threat & Vulnerability Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "TVM-02",
+          "title": "Malware and Malicious Instructions Protection Policy and Procedures",
+          "group": "Threat & Vulnerability Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "TVM-03",
+          "title": "Vulnerability Identification",
+          "group": "Threat & Vulnerability Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "TVM-04",
+          "title": "Threat Analysis and Modelling",
+          "group": "Threat & Vulnerability Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "TVM-05",
+          "title": "Detection Updates",
+          "group": "Threat & Vulnerability Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "TVM-06",
+          "title": "External Library Vulnerabilities",
+          "group": "Threat & Vulnerability Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "TVM-07",
+          "title": "Penetration Testing",
+          "group": "Threat & Vulnerability Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "TVM-08",
+          "title": "Vulnerability Remediation Schedule",
+          "group": "Threat & Vulnerability Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "TVM-09",
+          "title": "Vulnerability Prioritization",
+          "group": "Threat & Vulnerability Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "TVM-10",
+          "title": "Threat Response",
+          "group": "Threat & Vulnerability Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "TVM-11",
+          "title": "Vulnerability Management Reporting",
+          "group": "Threat & Vulnerability Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "TVM-12",
+          "title": "Vulnerability Management Metrics",
+          "group": "Threat & Vulnerability Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "UEM-01",
+          "title": "Endpoint Devices Policy and Procedures",
+          "group": "Universal Endpoint Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "UEM-02",
+          "title": "Application and Service Approval",
+          "group": "Universal Endpoint Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "UEM-03",
+          "title": "Compatibility",
+          "group": "Universal Endpoint Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "UEM-04",
+          "title": "Endpoint Inventory",
+          "group": "Universal Endpoint Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "UEM-05",
+          "title": "Endpoint Management",
+          "group": "Universal Endpoint Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "UEM-06",
+          "title": "Automatic Lock Screen",
+          "group": "Universal Endpoint Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "UEM-07",
+          "title": "Operating Systems",
+          "group": "Universal Endpoint Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "UEM-08",
+          "title": "Storage Encryption",
+          "group": "Universal Endpoint Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "UEM-09",
+          "title": "Anti-Malware Detection and Prevention",
+          "group": "Universal Endpoint Management",
+          "technically_assessable": true
+        },
+        {
+          "id": "UEM-10",
+          "title": "Software Firewall",
+          "group": "Universal Endpoint Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "UEM-11",
+          "title": "Data Loss Prevention",
+          "group": "Universal Endpoint Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "UEM-12",
+          "title": "Remote Locate",
+          "group": "Universal Endpoint Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "UEM-13",
+          "title": "Remote Wipe",
+          "group": "Universal Endpoint Management",
+          "technically_assessable": false
+        },
+        {
+          "id": "UEM-14",
+          "title": "Third-Party Endpoint Security Posture",
+          "group": "Universal Endpoint Management",
+          "technically_assessable": false
+        }
+      ]
+    },
+    {
+      "id": "NIST_800_171_R2",
+      "name": "NIST SP 800-171 Revision 2",
+      "short_name": "NIST 800-171 Rev 2",
+      "version": "Rev. 2",
+      "authority": "National Institute of Standards and Technology",
+      "url": "https://csrc.nist.gov/pubs/sp/800/171/r2/upd1/final",
+      "provider": null,
+      "summary": "The 110 security requirements for protecting controlled unclassified information in a contractor's systems. It is what CMMC Level 2 assesses, so a defence supplier is asked for it by name.",
+      "scope_note": "All 110 requirements of Revision 2, in NIST's own wording. NIST has since published Revision 3, but CMMC Level 2 still assesses Revision 2, which is why this is the version offered. The requirements concern controlled unclassified information, and Cleave does not know which resources hold it. Most are about people, physical sites and process and are listed as not technically assessable. Only an authorized third-party assessor grades a CMMC assessment.",
+      "controls": [
+        {
+          "id": "3.1.1",
+          "title": "Limit system access to authorized users, processes acting on behalf of authorized users, and devices (including other systems).",
+          "group": "3.1 Access control",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.1.2",
+          "title": "Limit system access to the types of transactions and functions that authorized users are permitted to execute.",
+          "group": "3.1 Access control",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.1.3",
+          "title": "Control the flow of CUI in accordance with approved authorizations.",
+          "group": "3.1 Access control",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.1.4",
+          "title": "Separate the duties of individuals to reduce the risk of malevolent activity without collusion.",
+          "group": "3.1 Access control",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.1.5",
+          "title": "Employ the principle of least privilege, including for specific security functions and privileged accounts.",
+          "group": "3.1 Access control",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.1.6",
+          "title": "Use non-privileged accounts or roles when accessing nonsecurity functions.",
+          "group": "3.1 Access control",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.1.7",
+          "title": "Prevent non-privileged users from executing privileged functions and capture the execution of such functions in audit logs.",
+          "group": "3.1 Access control",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.1.8",
+          "title": "Limit unsuccessful logon attempts.",
+          "group": "3.1 Access control",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.1.9",
+          "title": "Provide privacy and security notices consistent with applicable CUI rules.",
+          "group": "3.1 Access control",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.1.10",
+          "title": "Use session lock with pattern-hiding displays to prevent access and viewing of data after a period of inactivity.",
+          "group": "3.1 Access control",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.1.11",
+          "title": "Terminate (automatically) a user session after a defined condition.",
+          "group": "3.1 Access control",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.1.12",
+          "title": "Monitor and control remote access sessions.",
+          "group": "3.1 Access control",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.1.13",
+          "title": "Employ cryptographic mechanisms to protect the confidentiality of remote access sessions.",
+          "group": "3.1 Access control",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.1.14",
+          "title": "Route remote access via managed access control points.",
+          "group": "3.1 Access control",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.1.15",
+          "title": "Authorize remote execution of privileged commands and remote access to security-relevant information.",
+          "group": "3.1 Access control",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.1.16",
+          "title": "Authorize wireless access prior to allowing such connections.",
+          "group": "3.1 Access control",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.1.17",
+          "title": "Protect wireless access using authentication and encryption.",
+          "group": "3.1 Access control",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.1.18",
+          "title": "Control connection of mobile devices.",
+          "group": "3.1 Access control",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.1.19",
+          "title": "Encrypt CUI on mobile devices and mobile computing platforms.",
+          "group": "3.1 Access control",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.1.20",
+          "title": "Verify and control/limit connections to and use of external systems.",
+          "group": "3.1 Access control",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.1.21",
+          "title": "Limit use of portable storage devices on external systems.",
+          "group": "3.1 Access control",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.1.22",
+          "title": "Control CUI posted or processed on publicly accessible systems.",
+          "group": "3.1 Access control",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.2.1",
+          "title": "Ensure that managers, systems administrators, and users of organizational systems are made aware of the security risks associated with their activities and of the applicable policies, standards, and procedures related to the security of those systems.",
+          "group": "3.2 Awareness and training",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.2.2",
+          "title": "Ensure that personnel are trained to carry out their assigned information security-related duties and responsibilities.",
+          "group": "3.2 Awareness and training",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.2.3",
+          "title": "Provide security awareness training on recognizing and reporting potential indicators of insider threat.",
+          "group": "3.2 Awareness and training",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.3.1",
+          "title": "Create and retain system audit logs and records to the extent needed to enable the monitoring, analysis, investigation, and reporting of unlawful or unauthorized system activity.",
+          "group": "3.3 Audit and accountability",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.3.2",
+          "title": "Ensure that the actions of individual system users can be uniquely traced to those users, so they can be held accountable for their actions.",
+          "group": "3.3 Audit and accountability",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.3.3",
+          "title": "Review and update logged events.",
+          "group": "3.3 Audit and accountability",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.3.4",
+          "title": "Alert in the event of an audit logging process failure.",
+          "group": "3.3 Audit and accountability",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.3.5",
+          "title": "Correlate audit record review, analysis, and reporting processes for investigation and response to indications of unlawful, unauthorized, suspicious, or unusual activity.",
+          "group": "3.3 Audit and accountability",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.3.6",
+          "title": "Provide audit record reduction and report generation to support on-demand analysis and reporting.",
+          "group": "3.3 Audit and accountability",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.3.7",
+          "title": "Provide a system capability that compares and synchronizes internal system clocks with an authoritative source to generate time stamps for audit records.",
+          "group": "3.3 Audit and accountability",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.3.8",
+          "title": "Protect audit information and audit logging tools from unauthorized access, modification, and deletion.",
+          "group": "3.3 Audit and accountability",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.3.9",
+          "title": "Limit management of audit logging functionality to a subset of privileged users.",
+          "group": "3.3 Audit and accountability",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.4.1",
+          "title": "Establish and maintain baseline configurations and inventories of organizational systems (including hardware, software, firmware, and documentation) throughout the respective system development life cycles.",
+          "group": "3.4 Configuration management",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.4.2",
+          "title": "Establish and enforce security configuration settings for information technology products employed in organizational systems.",
+          "group": "3.4 Configuration management",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.4.3",
+          "title": "Track, review, approve or disapprove, and log changes to organizational systems.",
+          "group": "3.4 Configuration management",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.4.4",
+          "title": "Analyze the security impact of changes prior to implementation.",
+          "group": "3.4 Configuration management",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.4.5",
+          "title": "Define, document, approve, and enforce physical and logical access restrictions associated with changes to organizational systems.",
+          "group": "3.4 Configuration management",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.4.6",
+          "title": "Employ the principle of least functionality by configuring organizational systems to provide only essential capabilities.",
+          "group": "3.4 Configuration management",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.4.7",
+          "title": "Restrict, disable, or prevent the use of nonessential programs, functions, ports, protocols, and services.",
+          "group": "3.4 Configuration management",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.4.8",
+          "title": "Apply deny-by-exception (blacklisting) policy to prevent the use of unauthorized software or deny-all, permit-by-exception (whitelisting) policy to allow the execution of authorized software.",
+          "group": "3.4 Configuration management",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.4.9",
+          "title": "Control and monitor user-installed software.",
+          "group": "3.4 Configuration management",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.5.1",
+          "title": "Identify system users, processes acting on behalf of users, and devices.",
+          "group": "3.5 Identification and authentication",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.5.2",
+          "title": "Authenticate (or verify) the identities of users, processes, or devices, as a prerequisite to allowing access to organizational systems.",
+          "group": "3.5 Identification and authentication",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.5.3",
+          "title": "Use multifactor authentication for local and network access to privileged accounts and for network access to non-privileged accounts.",
+          "group": "3.5 Identification and authentication",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.5.4",
+          "title": "Employ replay-resistant authentication mechanisms for network access to privileged and nonprivileged accounts.",
+          "group": "3.5 Identification and authentication",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.5.5",
+          "title": "Prevent reuse of identifiers for a defined period.",
+          "group": "3.5 Identification and authentication",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.5.6",
+          "title": "Disable identifiers after a defined period of inactivity.",
+          "group": "3.5 Identification and authentication",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.5.7",
+          "title": "Enforce a minimum password complexity and change of characters when new passwords are created.",
+          "group": "3.5 Identification and authentication",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.5.8",
+          "title": "Prohibit password reuse for a specified number of generations.",
+          "group": "3.5 Identification and authentication",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.5.9",
+          "title": "Allow temporary password use for system logons with an immediate change to a permanent password.",
+          "group": "3.5 Identification and authentication",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.5.10",
+          "title": "Store and transmit only cryptographically-protected passwords.",
+          "group": "3.5 Identification and authentication",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.5.11",
+          "title": "Obscure feedback of authentication information.",
+          "group": "3.5 Identification and authentication",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.6.1",
+          "title": "Establish an operational incident-handling capability for organizational systems that includes preparation, detection, analysis, containment, recovery, and user response activities.",
+          "group": "3.6 Incident response",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.6.2",
+          "title": "Track, document, and report incidents to designated officials and/or authorities both internal and external to the organization.",
+          "group": "3.6 Incident response",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.6.3",
+          "title": "Test the organizational incident response capability.",
+          "group": "3.6 Incident response",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.7.1",
+          "title": "Perform maintenance on organizational systems.",
+          "group": "3.7 Maintenance",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.7.2",
+          "title": "Provide controls on the tools, techniques, mechanisms, and personnel used to conduct system maintenance.",
+          "group": "3.7 Maintenance",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.7.3",
+          "title": "Ensure equipment removed for off-site maintenance is sanitized of any CUI.",
+          "group": "3.7 Maintenance",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.7.4",
+          "title": "Check media containing diagnostic and test programs for malicious code before the media are used in organizational systems.",
+          "group": "3.7 Maintenance",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.7.5",
+          "title": "Require multifactor authentication to establish nonlocal maintenance sessions via external network connections and terminate such connections when nonlocal maintenance is complete.",
+          "group": "3.7 Maintenance",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.7.6",
+          "title": "Supervise the maintenance activities of maintenance personnel without required access authorization.",
+          "group": "3.7 Maintenance",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.8.1",
+          "title": "Protect (i.e., physically control and securely store) system media containing CUI, both paper and digital.",
+          "group": "3.8 Media protection",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.8.2",
+          "title": "Limit access to CUI on system media to authorized users.",
+          "group": "3.8 Media protection",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.8.3",
+          "title": "Sanitize or destroy system media containing CUI before disposal or release for reuse.",
+          "group": "3.8 Media protection",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.8.4",
+          "title": "Mark media with necessary CUI markings and distribution limitations.",
+          "group": "3.8 Media protection",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.8.5",
+          "title": "Control access to media containing CUI and maintain accountability for media during transport outside of controlled areas.",
+          "group": "3.8 Media protection",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.8.6",
+          "title": "Implement cryptographic mechanisms to protect the confidentiality of CUI stored on digital media during transport unless otherwise protected by alternative physical safeguards.",
+          "group": "3.8 Media protection",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.8.7",
+          "title": "Control the use of removable media on system components.",
+          "group": "3.8 Media protection",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.8.8",
+          "title": "Prohibit the use of portable storage devices when such devices have no identifiable owner.",
+          "group": "3.8 Media protection",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.8.9",
+          "title": "Protect the confidentiality of backup CUI at storage locations.",
+          "group": "3.8 Media protection",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.9.1",
+          "title": "Screen individuals prior to authorizing access to organizational systems containing CUI.",
+          "group": "3.9 Personnel security",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.9.2",
+          "title": "Ensure that organizational systems containing CUI are protected during and after personnel actions such as terminations and transfers.",
+          "group": "3.9 Personnel security",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.10.1",
+          "title": "Limit physical access to organizational systems, equipment, and the respective operating environments to authorized individuals.",
+          "group": "3.10 Physical protection",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.10.2",
+          "title": "Protect and monitor the physical facility and support infrastructure for organizational systems.",
+          "group": "3.10 Physical protection",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.10.3",
+          "title": "Escort visitors and monitor visitor activity.",
+          "group": "3.10 Physical protection",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.10.4",
+          "title": "Maintain audit logs of physical access.",
+          "group": "3.10 Physical protection",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.10.5",
+          "title": "Control and manage physical access devices.",
+          "group": "3.10 Physical protection",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.10.6",
+          "title": "Enforce safeguarding measures for CUI at alternate work sites.",
+          "group": "3.10 Physical protection",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.11.1",
+          "title": "Periodically assess the risk to organizational operations (including mission, functions, image, or reputation), organizational assets, and individuals, resulting from the operation of organizational systems and the associated processing, storage, or transmission of CUI.",
+          "group": "3.11 Risk assessment",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.11.2",
+          "title": "Scan for vulnerabilities in organizational systems and applications periodically and when new vulnerabilities affecting those systems and applications are identified.",
+          "group": "3.11 Risk assessment",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.11.3",
+          "title": "Remediate vulnerabilities in accordance with risk assessments.",
+          "group": "3.11 Risk assessment",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.12.1",
+          "title": "Periodically assess the security controls in organizational systems to determine if the controls are effective in their application.",
+          "group": "3.12 Security assessment",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.12.2",
+          "title": "Develop and implement plans of action designed to correct deficiencies and reduce or eliminate vulnerabilities in organizational systems.",
+          "group": "3.12 Security assessment",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.12.3",
+          "title": "Monitor security controls on an ongoing basis to ensure the continued effectiveness of the controls.",
+          "group": "3.12 Security assessment",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.12.4",
+          "title": "Develop, document, and periodically update system security plans that describe system boundaries, system environments of operation, how security requirements are implemented, and the relationships with or connections to other systems.",
+          "group": "3.12 Security assessment",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.13.1",
+          "title": "Monitor, control, and protect communications (i.e., information transmitted or received by organizational systems) at the external boundaries and key internal boundaries of organizational systems.",
+          "group": "3.13 System and communications protection",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.13.2",
+          "title": "Employ architectural designs, software development techniques, and systems engineering principles that promote effective information security within organizational systems.",
+          "group": "3.13 System and communications protection",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.13.3",
+          "title": "Separate user functionality from system management functionality.",
+          "group": "3.13 System and communications protection",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.13.4",
+          "title": "Prevent unauthorized and unintended information transfer via shared system resources.",
+          "group": "3.13 System and communications protection",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.13.5",
+          "title": "Implement subnetworks for publicly accessible system components that are physically or logically separated from internal networks.",
+          "group": "3.13 System and communications protection",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.13.6",
+          "title": "Deny network communications traffic by default and allow network communications traffic by exception (i.e., deny all, permit by exception).",
+          "group": "3.13 System and communications protection",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.13.7",
+          "title": "Prevent remote devices from simultaneously establishing non-remote connections with organizational systems and communicating via some other connection to resources in external networks (i.e., split tunneling).",
+          "group": "3.13 System and communications protection",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.13.8",
+          "title": "Implement cryptographic mechanisms to prevent unauthorized disclosure of CUI during transmission unless otherwise protected by alternative physical safeguards.",
+          "group": "3.13 System and communications protection",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.13.9",
+          "title": "Terminate network connections associated with communications sessions at the end of the sessions or after a defined period of inactivity.",
+          "group": "3.13 System and communications protection",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.13.10",
+          "title": "Establish and manage cryptographic keys for cryptography employed in organizational systems.",
+          "group": "3.13 System and communications protection",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.13.11",
+          "title": "Employ FIPS-validated cryptography when used to protect the confidentiality of CUI.",
+          "group": "3.13 System and communications protection",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.13.12",
+          "title": "Prohibit remote activation of collaborative computing devices and provide indication of devices in use to users present at the device.",
+          "group": "3.13 System and communications protection",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.13.13",
+          "title": "Control and monitor the use of mobile code.",
+          "group": "3.13 System and communications protection",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.13.14",
+          "title": "Control and monitor the use of Voice over Internet Protocol (VoIP) technologies.",
+          "group": "3.13 System and communications protection",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.13.15",
+          "title": "Protect the authenticity of communications sessions.",
+          "group": "3.13 System and communications protection",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.13.16",
+          "title": "Protect the confidentiality of CUI at rest.",
+          "group": "3.13 System and communications protection",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.14.1",
+          "title": "Identify, report, and correct system flaws in a timely manner.",
+          "group": "3.14 System and information integrity",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.14.2",
+          "title": "Provide protection from malicious code at designated locations within organizational systems.",
+          "group": "3.14 System and information integrity",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.14.3",
+          "title": "Monitor system security alerts and advisories and take action in response.",
+          "group": "3.14 System and information integrity",
+          "technically_assessable": false
+        },
+        {
+          "id": "3.14.4",
+          "title": "Update malicious code protection mechanisms when new releases are available.",
+          "group": "3.14 System and information integrity",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.14.5",
+          "title": "Perform periodic scans of organizational systems and real-time scans of files from external sources as files are downloaded, opened, or executed.",
+          "group": "3.14 System and information integrity",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.14.6",
+          "title": "Monitor organizational systems, including inbound and outbound communications traffic, to detect attacks and indicators of potential attacks.",
+          "group": "3.14 System and information integrity",
+          "technically_assessable": true
+        },
+        {
+          "id": "3.14.7",
+          "title": "Identify unauthorized use of organizational systems.",
+          "group": "3.14 System and information integrity",
+          "technically_assessable": true
+        }
+      ]
+    },
+    {
+      "id": "DORA",
+      "name": "Digital Operational Resilience Act",
+      "short_name": "DORA",
+      "version": "Regulation (EU) 2022/2554",
+      "authority": "European Union",
+      "url": "https://eur-lex.europa.eu/eli/reg/2022/2554/oj",
+      "provider": null,
+      "summary": "The EU regulation on the digital operational resilience of financial entities. It has applied since 17 January 2025 and puts the management body, not the IT team, in charge of ICT risk.",
+      "scope_note": "The articles that bind a financial entity: Chapters II to IV, Articles 28 to 30 of Chapter V, and Article 45. Articles 31 to 44, which concern the authorities' oversight of critical ICT third-party providers, are not listed. The technical detail sits in regulatory technical standards beneath the articles; a row here stands for its article, not for each of them. Most of the regulation is governance, reporting and contracts, so most rows are not technically assessable. Only a supervisor decides whether an entity meets it.",
+      "controls": [
+        {
+          "id": "Art.5",
+          "title": "The management body owns and oversees ICT risk",
+          "group": "Chapter II - ICT risk management",
+          "technically_assessable": false
+        },
+        {
+          "id": "Art.6",
+          "title": "An ICT risk management framework is documented and reviewed",
+          "group": "Chapter II - ICT risk management",
+          "technically_assessable": false
+        },
+        {
+          "id": "Art.7",
+          "title": "ICT systems, protocols and tools are current and resilient",
+          "group": "Chapter II - ICT risk management",
+          "technically_assessable": true
+        },
+        {
+          "id": "Art.8",
+          "title": "ICT assets, functions and dependencies are identified",
+          "group": "Chapter II - ICT risk management",
+          "technically_assessable": true
+        },
+        {
+          "id": "Art.9",
+          "title": "ICT systems are protected and attacks are prevented",
+          "group": "Chapter II - ICT risk management",
+          "technically_assessable": true
+        },
+        {
+          "id": "Art.10",
+          "title": "Anomalous activity is detected and detection is tested",
+          "group": "Chapter II - ICT risk management",
+          "technically_assessable": true
+        },
+        {
+          "id": "Art.11",
+          "title": "Response and recovery plans are in place and tested",
+          "group": "Chapter II - ICT risk management",
+          "technically_assessable": false
+        },
+        {
+          "id": "Art.12",
+          "title": "Data is backed up, and restoration and recovery are provided for",
+          "group": "Chapter II - ICT risk management",
+          "technically_assessable": true
+        },
+        {
+          "id": "Art.13",
+          "title": "Incidents and tests are learned from",
+          "group": "Chapter II - ICT risk management",
+          "technically_assessable": false
+        },
+        {
+          "id": "Art.14",
+          "title": "ICT risk is communicated inside and outside the entity",
+          "group": "Chapter II - ICT risk management",
+          "technically_assessable": false
+        },
+        {
+          "id": "Art.15",
+          "title": "ICT risk tooling follows the harmonised technical standards",
+          "group": "Chapter II - ICT risk management",
+          "technically_assessable": false
+        },
+        {
+          "id": "Art.16",
+          "title": "Smaller entities follow the simplified ICT risk framework",
+          "group": "Chapter II - ICT risk management",
+          "technically_assessable": false
+        },
+        {
+          "id": "Art.17",
+          "title": "An ICT incident management process is established",
+          "group": "Chapter III - ICT incident management",
+          "technically_assessable": false
+        },
+        {
+          "id": "Art.18",
+          "title": "Incidents and cyber threats are classified",
+          "group": "Chapter III - ICT incident management",
+          "technically_assessable": false
+        },
+        {
+          "id": "Art.19",
+          "title": "Major incidents are reported to the competent authority",
+          "group": "Chapter III - ICT incident management",
+          "technically_assessable": false
+        },
+        {
+          "id": "Art.20",
+          "title": "Incident reports follow the harmonised content and templates",
+          "group": "Chapter III - ICT incident management",
+          "technically_assessable": false
+        },
+        {
+          "id": "Art.21",
+          "title": "Incident reporting may be centralised across the Union",
+          "group": "Chapter III - ICT incident management",
+          "technically_assessable": false
+        },
+        {
+          "id": "Art.22",
+          "title": "Supervisory feedback on incident reports is handled",
+          "group": "Chapter III - ICT incident management",
+          "technically_assessable": false
+        },
+        {
+          "id": "Art.23",
+          "title": "Payment-related incidents are reported by the entities concerned",
+          "group": "Chapter III - ICT incident management",
+          "technically_assessable": false
+        },
+        {
+          "id": "Art.24",
+          "title": "A digital operational resilience testing programme exists",
+          "group": "Chapter IV - Resilience testing",
+          "technically_assessable": false
+        },
+        {
+          "id": "Art.25",
+          "title": "ICT tools and systems are tested, including scans and assessments",
+          "group": "Chapter IV - Resilience testing",
+          "technically_assessable": true
+        },
+        {
+          "id": "Art.26",
+          "title": "Threat-led penetration testing is carried out at set intervals",
+          "group": "Chapter IV - Resilience testing",
+          "technically_assessable": false
+        },
+        {
+          "id": "Art.27",
+          "title": "Testers meet the requirements for threat-led testing",
+          "group": "Chapter IV - Resilience testing",
+          "technically_assessable": false
+        },
+        {
+          "id": "Art.28",
+          "title": "Third-party ICT risk is managed as part of the framework",
+          "group": "Chapter V - ICT third-party risk",
+          "technically_assessable": false
+        },
+        {
+          "id": "Art.29",
+          "title": "ICT concentration risk is assessed before outsourcing",
+          "group": "Chapter V - ICT third-party risk",
+          "technically_assessable": false
+        },
+        {
+          "id": "Art.30",
+          "title": "ICT service contracts carry the required provisions",
+          "group": "Chapter V - ICT third-party risk",
+          "technically_assessable": false
+        },
+        {
+          "id": "Art.45",
+          "title": "Cyber threat information is shared in trusted communities",
+          "group": "Chapter VI - Information sharing",
+          "technically_assessable": false
+        }
+      ]
+    }
+  ]
+}

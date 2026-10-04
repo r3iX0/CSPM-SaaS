@@ -74,7 +74,7 @@ class AzureCosmosPublicNetworkRule(_CosmosRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.20", "A.8.22"],
-        "NIST_CSF": ["PR.AC-3", "PR.AC-5", "PR.DS-5"],
+        "NIST_CSF_2.0": ["PR.IR-01", "PR.DS-01"],
         "GDPR": ["5(1)(f)", "32(1)(b)"],
         "NIST_800_53": ["SC-7", "AC-3"],
         "SOC2": ["CC6.1", "CC6.6"],
@@ -145,7 +145,7 @@ class AzureCosmosLocalAuthRule(_CosmosRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.16", "A.5.17"],
-        "NIST_CSF": ["PR.AC-1", "PR.AC-7"],
+        "NIST_CSF_2.0": ["PR.AA-01", "PR.AA-03"],
         "GDPR": ["32(1)(b)"],
         "NIST_800_53": ["IA-2", "IA-5"],
         "SOC2": ["CC6.1"],
@@ -205,7 +205,7 @@ class AzureCosmosTlsRule(_CosmosRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.24"],
-        "NIST_CSF": ["PR.DS-2"],
+        "NIST_CSF_2.0": ["PR.DS-02"],
         "GDPR": ["32(1)(a)"],
         "NIST_800_53": ["SC-8"],
         "SOC2": ["CC6.7"],
@@ -272,7 +272,7 @@ class AzureCosmosPrivateEndpointRule(_CosmosRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.20", "A.8.22"],
-        "NIST_CSF": ["PR.AC-5"],
+        "NIST_CSF_2.0": ["PR.IR-01"],
         "GDPR": ["32(1)(b)"],
         "NIST_800_53": ["SC-7"],
         "SOC2": ["CC6.6"],

@@ -22,7 +22,7 @@ from app.rules.property import PropertySpec, property_rule
 
 _ALERTING = {
     "ISO_27001": ["A.8.16"],
-    "NIST_CSF": ["DE.CM-1", "DE.AE-3"],
+    "NIST_CSF_2.0": ["DE.CM-01", "DE.AE-03"],
     "GDPR": ["32(1)(d)"],
     "NIST_800_53": ["SI-4", "AU-6"],
     "SOC2": ["CC7.2"],
@@ -30,7 +30,7 @@ _ALERTING = {
 }
 _LOG_PROTECTION = {
     "ISO_27001": ["A.8.15"],
-    "NIST_CSF": ["PR.PT-1"],
+    "NIST_CSF_2.0": ["PR.PS-04"],
     "GDPR": ["32(1)(b)"],
     "NIST_800_53": ["AU-9"],
     "SOC2": ["CC7.2"],
@@ -252,7 +252,7 @@ SPECS = (
         failure="does not export every security category of its activity log",
         mappings={
             "ISO_27001": ["A.8.15"],
-            "NIST_CSF": ["PR.PT-1", "DE.AE-3"],
+            "NIST_CSF_2.0": ["PR.PS-04", "DE.AE-03"],
             "GDPR": ["5(2)"],
             "NIST_800_53": ["AU-2", "AU-11"],
             "SOC2": ["CC7.2"],
@@ -384,7 +384,7 @@ class AzureApplicationInsightsRule(SecurityRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.16"],
-        "NIST_CSF": ["DE.CM-1"],
+        "NIST_CSF_2.0": ["DE.CM-01"],
         "GDPR": ["32(1)(d)"],
         "NIST_800_53": ["SI-4"],
         "SOC2": ["CC7.2"],
