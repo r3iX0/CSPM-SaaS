@@ -19,6 +19,7 @@ const ROUTES: [pattern: string, title: string][] = [
     group.items.map((item): [string, string] => [item.to, item.label]),
   ),
   ["/sign-in", "Sign in"],
+  ["/demo", "Opening the demo"],
   ["/reset-password", "Set a new password"],
   ["/onboarding", "Get started"],
   ["/invite", "Join an organization"],

@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Request, Response, status
 
 from app.api.links import created
-from app.core.deps import CurrentUser, DbSession, Tenant
+from app.core.deps import AccountUser, DbSession, Tenant
 from app.models.organization import OrganizationInvitation, OrganizationMember
 from app.schemas.common import ERROR_RESPONSES, Envelope, NoMeta, error_responses
 from app.schemas.organization import OrganizationMembershipOut, OrganizationOut
@@ -120,9 +120,9 @@ async def revoke_invitation(
 # signed-in user rather than a tenant: there is no organization to resolve.
 
 
-@router.post("/invitations/preview")
+@router.post("/invitations/preview", responses=error_responses(403))
 async def preview_invitation(
-    payload: InvitationToken, user: CurrentUser, session: DbSession
+    payload: InvitationToken, user: AccountUser, session: DbSession
 ) -> Envelope[InvitationPreviewOut, NoMeta]:
     """What an invitation link offers, before it is used."""
     return Envelope(
@@ -133,7 +133,7 @@ async def preview_invitation(
 
 @router.post("/invitations/accept", responses=error_responses(403, 409))
 async def accept_invitation(
-    payload: InvitationToken, user: CurrentUser, session: DbSession
+    payload: InvitationToken, user: AccountUser, session: DbSession
 ) -> Envelope[OrganizationMembershipOut, NoMeta]:
     """Join the organization an invitation names, as the invited address."""
     organization, role = await service.accept(session, user, payload.token)

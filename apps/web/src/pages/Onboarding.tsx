@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { ArrowRightIcon } from "lucide-react";
 
 import { api, auth, ApiError } from "@/lib/api";
@@ -9,6 +9,7 @@ import { cn } from "@/lib/format";
 import { Wordmark } from "@/components/Brand";
 import { DEMO_ICON } from "@/lib/icons";
 import { useJoinDemo } from "@/lib/useDemo";
+import { useIsGuest } from "@/lib/useAuth";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -40,6 +41,7 @@ export function OnboardingPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const joinDemo = useJoinDemo();
+  const guest = useIsGuest();
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -58,6 +60,10 @@ export function OnboardingPage() {
       setBusy(false);
     }
   }
+
+  // An organization is owned by an account. A guest makes one first, on the
+  // page that keeps them the same user (DECISIONS.md §219).
+  if (guest) return <Navigate to="/sign-in" replace />;
 
   const steps = [t.onboarding.stepOrganization, t.onboarding.stepCloud];
 

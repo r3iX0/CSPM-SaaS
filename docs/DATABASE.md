@@ -364,6 +364,15 @@ shows a demo member only their own
 refuses every write in the demo regardless of role (`DECISIONS.md`
 §99).
 
+**A guest is kept to the demo by a trigger.** A guest is a session whose claims carry
+`is_anonymous` (Supabase's anonymous sign-in), read by `app.is_guest()`. The trigger
+`trg_organization_members_guests` (migration `0052`) refuses a guest any `organization_members`
+row whose organization is not the demo, which covers `app.create_organization`, invitations and
+any later path into an organization. `app.forget_guests(cutoff)` deletes the guests created
+before the cutoff that never became accounts, with their demo membership and notification
+reads and dismissals; it is granted to nobody and run by the owner from the worker's daily
+sweep (`DECISIONS.md` §219).
+
 **The audit trail is append-only** (migration
 `0045`). No application role may UPDATE or DELETE `audit_logs`, whatever its role in the
 organization; rows go only with their organization, by cascade. Owners and admins read the whole

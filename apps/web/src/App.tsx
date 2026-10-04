@@ -29,6 +29,7 @@ const ResetPasswordPage = lazy(() =>
   })),
 );
 const InvitePage = lazy(() => import("@/pages/Invite").then((m) => ({ default: m.InvitePage })));
+const DemoPage = lazy(() => import("@/pages/Demo").then((m) => ({ default: m.DemoPage })));
 const OnboardingPage = lazy(() =>
   import("@/pages/Onboarding").then((m) => ({ default: m.OnboardingPage })),
 );
@@ -129,6 +130,9 @@ export function App() {
             {/* Not behind RequireAuth either: whoever opens an invitation may not
             have an account yet, and the page holds the link while they make one. */}
             <Route path="/invite" element={<InvitePage />} />
+            {/* Not behind RequireAuth: this is where a visitor with no account
+            becomes a guest and opens the demo (DECISIONS.md §219). */}
+            <Route path="/demo" element={<DemoPage />} />
             <Route
               path="/onboarding"
               element={

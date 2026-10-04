@@ -12,6 +12,7 @@
           "organizations"
         ],
         "summary": "Create Organization",
+        "description": "Create an organization, with the caller as its owner. Refused to a guest.",
         "operationId": "organizations_create_organization",
         "security": [
           {
@@ -58,6 +59,16 @@
               }
             },
             "description": "Unprocessable Entity"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
           }
         }
       },

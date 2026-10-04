@@ -13,7 +13,7 @@ frame.
 
 import asyncio
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 from uuid import UUID
 
@@ -30,6 +30,7 @@ from app.models.organization import Organization
 from app.models.scan import Scan
 from app.services import acceptance as acceptance_service
 from app.services import change_events as change_service
+from app.services import guests as guests_service
 from app.services import notifications as notifications_service
 from app.services import orchestrator
 from app.services import retention as retention_service
@@ -232,6 +233,31 @@ def verify_due_remediations(self: object) -> dict:
     for scan_id in started:
         run_scan.delay(str(scan_id))
     return {"started": len(started)}
+
+
+@celery_app.task(name="cloudguard.forget_guests", bind=True, max_retries=0)
+def forget_guests(self: object) -> dict:
+    """Forget guests who opened the demo long ago and never made an account.
+
+    A guest is a row in ``auth.users`` and a membership in the demo, minted by one click on
+    the marketing site, so without this they only ever accumulate (DECISIONS.md section 219).
+    """
+    configure_logging()
+    forgotten = asyncio.run(_forget_stale_guests())
+    if forgotten:
+        log.info("guests.forgotten", count=forgotten)
+    return {"forgotten": forgotten}
+
+
+async def _forget_stale_guests() -> int:
+    before = datetime.now(UTC) - timedelta(days=settings.guest_retention_days)
+    try:
+        async with service_session() as session:
+            forgotten = await guests_service.forget_stale(session, before)
+            await session.commit()
+        return forgotten
+    finally:
+        await dispose_engines()
 
 
 @celery_app.task(name="cloudguard.prune_evidence", bind=True, max_retries=0)

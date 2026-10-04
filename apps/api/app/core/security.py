@@ -63,6 +63,10 @@ class AuthenticatedUser:
     # ``aal2`` once a code from an authenticator app has been verified. A
     # token without the claim is treated as one factor, never as two.
     second_factor: bool = False
+    # A visitor who opened the demo without an account: Supabase's anonymous
+    # sign-in, marked by the ``is_anonymous`` claim. A guest reads the demo and
+    # nothing else, and owns nothing (DECISIONS.md section 219).
+    guest: bool = False
 
 
 async def _fetch_jwks(url: str) -> dict[str, Any]:
@@ -202,5 +206,10 @@ async def decode_token(token: str) -> AuthenticatedUser:
         raise NotAuthenticated("Token subject is not a valid user id") from exc
 
     return AuthenticatedUser(
-        id=user_id, email=claims.get("email"), second_factor=claims.get("aal") == "aal2"
+        id=user_id,
+        email=claims.get("email"),
+        second_factor=claims.get("aal") == "aal2",
+        # Only a literal true: a missing or malformed claim is an account, and
+        # an account is what every check below already assumed.
+        guest=claims.get("is_anonymous") is True,
     )

@@ -185,6 +185,23 @@ Node installed on your machine.
    Users → the user → remove their MFA factor. Confirm who is asking first,
    because removing the factor lets in anyone who has that person's password.
 
+10. **Let visitors open the demo without an account.** Authentication → Sign In /
+    Providers → **Allow anonymous sign-ins** on, and **Allow manual linking** on.
+    The first lets `/demo` (the marketing site's "Open the demo") make a visitor
+    a guest; the second lets a guest keep their session as an account by linking
+    Microsoft or Google (`DECISIONS.md` §219). Leave Authentication → Rate
+    Limits → anonymous sign-ins at its per-address default: it is what bounds
+    how fast one address can mint guests.
+
+    Do **not** switch on Attack Protection → CAPTCHA for this alone. Supabase
+    applies it to every sign-in and sign-up, and the app's forms do not send a
+    CAPTCHA token yet, so turning it on would lock everybody out.
+
+    Guests are forgotten after `GUEST_RETENTION_DAYS` (default 30) by the
+    worker's daily `forget-guests` sweep, with their demo membership. With
+    anonymous sign-ins off, `/demo` says the demo is unavailable and offers
+    sign-in, and the demo is still open to signed-in users from onboarding.
+
 ---
 
 ## 2. Railway — API, worker, Redis

@@ -1,13 +1,15 @@
 import { useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import {
+  saveGuestWithEmail,
+  saveGuestWithProvider,
   sendPasswordReset,
   signInWithGoogle,
   signInWithMicrosoft,
   signInWithPassword,
   signUpWithPassword,
 } from "@/lib/supabase";
-import { useAuthToken } from "@/lib/useAuth";
+import { useAuthToken, useIsGuest } from "@/lib/useAuth";
 import { useT } from "@/i18n";
 import { Wordmark } from "@/components/Brand";
 import { ScoreTile } from "@/components/security/ScoreTile";
@@ -31,6 +33,12 @@ import { cn } from "@/lib/utils";
  * A password typed here goes from the browser straight to Supabase over TLS.
  * It is never sent to, logged by, or stored by CloudGuard's API.
  *
+ * A guest -- somebody exploring the demo without an account -- meets the same page
+ * as "keep this as an account": Microsoft and Google are linked to the guest
+ * rather than signed in to, and an email is confirmed on the guest, so the user
+ * stays the same one (DECISIONS.md §219). Signing in to an existing account
+ * instead simply replaces the guest session.
+ *
  * The left panel is not decoration. This is the screen where someone decides
  * whether to hand a product read access to their whole cloud estate, so it
  * states plainly what the access is and what it is not.
@@ -50,14 +58,18 @@ const MIN_PASSWORD_LENGTH = 8;
 export function SignInPage() {
   const t = useT();
   const token = useAuthToken();
-  const [mode, setMode] = useState<Mode>("signin");
+  const guest = useIsGuest();
+  const [mode, setMode] = useState<Mode>(guest ? "signup" : "signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState<Sent | null>(null);
 
-  const needsPassword = mode === "signin" || mode === "signup";
+  // A guest keeping their session confirms an address first; Supabase sets a
+  // password only once it is confirmed, on the page the link opens.
+  const saving = guest && mode === "signup";
+  const needsPassword = mode === "signin" || (mode === "signup" && !saving);
 
   function switchTo(next: Mode) {
     setMode(next);
@@ -81,7 +93,10 @@ export function SignInPage() {
     setBusy(true);
     setError(null);
     try {
-      if (mode === "signin") {
+      if (saving) {
+        await saveGuestWithEmail(email);
+        setSent({ kind: "confirm", email });
+      } else if (mode === "signin") {
         await signInWithPassword(email, password);
         // No navigation here. Supabase's onAuthStateChange writes the token,
         // useAuthToken re-renders this component, and the redirect below fires.
@@ -116,7 +131,7 @@ export function SignInPage() {
   // Returning from a confirmation, Microsoft or Google lands here first.
   // Once the session is parsed, move on rather than showing a sign-in form to
   // someone who is already signed in.
-  if (token) return <Navigate to="/" replace />;
+  if (token && !guest) return <Navigate to="/" replace />;
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -140,18 +155,22 @@ export function SignInPage() {
           ) : (
             <>
               <h1 className={PAGE_TITLE_CLASS}>
-                {mode === "signup"
-                  ? t.auth.signUp
-                  : mode === "reset"
-                    ? t.auth.resetTitle
-                    : t.auth.signIn}
+                {saving
+                  ? t.auth.saveGuestTitle
+                  : mode === "signup"
+                    ? t.auth.signUp
+                    : mode === "reset"
+                      ? t.auth.resetTitle
+                      : t.auth.signIn}
               </h1>
               <p className="mt-2 text-body leading-[1.65] text-muted-foreground">
-                {mode === "signup"
-                  ? "Start with your work email. You can connect Azure once you're in."
-                  : mode === "reset"
-                    ? t.auth.resetIntro
-                    : "Use your Microsoft or Google account, or the email and password you signed up with."}
+                {saving
+                  ? t.auth.saveGuestIntro
+                  : mode === "signup"
+                    ? "Start with your work email. You can connect Azure once you're in."
+                    : mode === "reset"
+                      ? t.auth.resetIntro
+                      : "Use your Microsoft or Google account, or the email and password you signed up with."}
               </p>
 
               {/* Microsoft first: for an Azure-first product it is the account
@@ -160,13 +179,21 @@ export function SignInPage() {
                 <>
                   <div className="mt-7 flex flex-col gap-3">
                     <ProviderButton
-                      onClick={() => void withProvider(signInWithMicrosoft)}
+                      onClick={() =>
+                        void withProvider(
+                          saving ? () => saveGuestWithProvider("azure") : signInWithMicrosoft,
+                        )
+                      }
                       disabled={busy}
                       mark={<MicrosoftMark />}
                       label={t.auth.continueWithMicrosoft}
                     />
                     <ProviderButton
-                      onClick={() => void withProvider(signInWithGoogle)}
+                      onClick={() =>
+                        void withProvider(
+                          saving ? () => saveGuestWithProvider("google") : signInWithGoogle,
+                        )
+                      }
                       disabled={busy}
                       mark={<GoogleMark />}
                       label={t.auth.continueWithGoogle}
@@ -240,11 +267,26 @@ export function SignInPage() {
                       className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current/30 border-t-current"
                     />
                   )}
-                  {submitLabel(mode, busy, t)}
+                  {saving
+                    ? busy
+                      ? t.auth.sending
+                      : t.auth.sendConfirmation
+                    : submitLabel(mode, busy, t)}
                 </button>
               </form>
 
               <AlternateRoutes mode={mode} onSwitch={switchTo} />
+
+              {guest && (
+                <p className="mt-3 text-center text-body">
+                  <Link
+                    to="/"
+                    className="rounded-sm text-muted-foreground underline underline-offset-[3px] transition-colors hover:text-foreground focus-ring"
+                  >
+                    {t.auth.backToDemo}
+                  </Link>
+                </p>
+              )}
 
               {/* What each route on screen does and does not hand over. Reset
                   gets none: there is no password typed here yet and no

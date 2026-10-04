@@ -11923,7 +11923,67 @@ patch redeployed both, from the settings alone: the API answered
 `/health/ready` with the database and the broker ok, and the worker's log shows
 Celery's banner and `beat: Starting`.
 
+## 219. A visitor opens the demo as a guest, with no account and no organization
+
+The demo (§99) needed an account: a visitor from the marketing site signed up, confirmed an
+email, perhaps set up an authenticator, and only then reached "Explore a demo environment" in
+onboarding. Every step of that is a reason to leave before seeing anything. `/demo` now opens it
+in one visit.
+
+**A guest is Supabase's anonymous user.** `/demo` calls `signInAnonymously()` for a visitor with
+no session, then the same `POST /organizations/demo/join` onboarding uses. The token is real --
+a user id, signed by Supabase, with no email and `is_anonymous` set -- so RLS, the demo's
+VIEWER-only membership and read-only flag (§99), the per-user rate limits (§161) and the request
+id all apply unchanged. `decode_token` reads the claim into `AuthenticatedUser.guest`, only for a
+literal `true`. A guest has no factor, so §217's lookup answers no and lets the session through.
+
+Three alternatives were rejected. Public, unauthenticated read routes for the demo would be a
+second copy of every read path without RLS. A static snapshot of the demo's answers inside the
+web app is a mock in production code (§2), drifts from the product, and cannot answer the cut
+simulation, which is a `POST`. One shared demo account signed in automatically puts its
+credentials in the bundle and every visitor on one rate limit, so one abuser locks out the rest.
+
+**A guest reads the demo and owns nothing, enforced twice.** In the API, `get_tenant` keeps only
+a guest's demo membership, and `get_account_user` (`AccountUser`, `RequireAccount`) answers
+`403 ACCOUNT_REQUIRED` on the routes that act on the person rather than inside an organization:
+creating an organization, previewing or accepting an invitation, and every auditor route. In the
+database, migration `0052` puts a trigger on `organization_members` that refuses a guest any row
+whose organization is not the demo. Every way into an organization ends in a membership row, so
+this one lock covers creation, invitations and anything added later, whichever function or
+policy the row comes through; `rls_session(..., guest=True)` carries `is_anonymous` into
+`request.jwt.claims` beside the email (§162), and `app.is_guest()` reads it there. Invitations
+and auditor grants also need a verified address, which a guest does not have, so they were
+already refused; the account check says why first.
+
+**The way out is an account, kept as the same user.** The demo banner offers a guest "Create an
+account" instead of leaving, which would leave them with nothing. The sign-in page, for a guest,
+links Microsoft or Google to the guest (`linkIdentity`, which needs manual linking on in
+Supabase) or confirms an email on it (`updateUser`), whose link opens `/reset-password` to
+choose a password, since Supabase sets one only once the address is confirmed. The user id does
+not change, so the demo membership carries over, and §99's "own organization wins" moves them
+into their estate once they make one. Onboarding sends a guest to make the account first; the
+Security settings page, for an authenticator, is not offered to a guest. Signing in to an
+existing account instead simply replaces the guest session.
+
+**Guests are forgotten.** One click mints one, so they would only accumulate.
+`app.forget_guests()` deletes the guests created before a cutoff that never became accounts,
+with their demo membership and their notification reads and dismissals -- named one by one,
+because `organization_members.user_id` has no foreign key to `auth.users` and nothing cascades.
+The worker runs it daily (`forget-guests`) for guests older than `GUEST_RETENTION_DAYS`, 30 by
+default, at most 5,000 a run. A converted guest is no longer anonymous and is never touched.
+
+**No CAPTCHA yet, on purpose.** Supabase's CAPTCHA protection applies to every sign-in and
+sign-up, not to anonymous sign-ins alone, and the app's forms send no token, so switching it on
+for guests would lock everyone out. Until the forms carry Turnstile, Supabase's per-address limit
+on anonymous sign-ins and the API's per-address flood guard (§161) bound how fast guests can be
+minted. A script that rotates addresses can still mint guests, and each gets its own costly-route
+allowance; the cost is reads of a recording, since a guest can start no scan.
+
 ## Open items carried forward
+
+**Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,
+password reset and anonymous sign-in together, so it can be switched on only once all of those
+forms, and `/demo`, send a token. Until then guests are bounded by rate limits alone.
 
 **Data residency is not built (§113).** An organization setting for allowed
 regions, a rule over `CloudResource.region` per provider (never one rule that

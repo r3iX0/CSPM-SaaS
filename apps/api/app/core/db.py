@@ -144,7 +144,9 @@ async def commit_unless_externally_managed(session: AsyncSession) -> None:
 
 
 @asynccontextmanager
-async def rls_session(user_id: UUID | str, email: str | None = None) -> AsyncIterator[AsyncSession]:
+async def rls_session(
+    user_id: UUID | str, email: str | None = None, *, guest: bool = False
+) -> AsyncIterator[AsyncSession]:
     """A session that PostgreSQL itself will constrain to ``user_id``'s tenants.
 
     ``SET LOCAL`` is transaction-scoped, so the role and claims are torn down on
@@ -155,10 +157,16 @@ async def rls_session(user_id: UUID | str, email: str | None = None) -> AsyncIte
     Supabase's own PostgREST carries it. ``app.user_email()`` reads it there, so
     accepting an invitation is checked against the token rather than against
     anything a caller passed as an argument (DECISIONS.md section 162).
+
+    ``guest`` carries Supabase's ``is_anonymous`` claim the same way, so the
+    database can refuse a guest any membership but the demo's on its own
+    account rather than trusting every route to have asked (section 219).
     """
-    payload: dict[str, str] = {"sub": str(user_id), "role": "authenticated"}
+    payload: dict[str, str | bool] = {"sub": str(user_id), "role": "authenticated"}
     if email:
         payload["email"] = email
+    if guest:
+        payload["is_anonymous"] = True
     claims = json.dumps(payload)
     session = _app_session_factory()()
     # Marks the transaction as this context manager's to finish. Service code

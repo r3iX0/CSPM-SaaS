@@ -40,7 +40,9 @@ class _Session:
 
 def _fake_rls_session(session: _Session):
     @asynccontextmanager
-    async def fake(_user_id: UUID, _email: str | None = None) -> AsyncIterator[_Session]:
+    async def fake(
+        _user_id: UUID, _email: str | None = None, *, guest: bool = False
+    ) -> AsyncIterator[_Session]:
         yield session
 
     return fake

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, auth } from "@/lib/api";
 import { supabaseSignOut } from "@/lib/supabase";
-import { useAuthEmail } from "@/lib/useAuth";
+import { useAuthEmail, useIsGuest } from "@/lib/useAuth";
 import type { Organization } from "@/lib/types";
 import { useT } from "@/i18n";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,7 @@ export function AccountMenu({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const email = useAuthEmail();
+  const guest = useIsGuest();
   const [open, setOpen] = useState(false);
   // The organization the menu is currently asking about deleting. Held here
   // rather than as a boolean so the confirmation can name it -- "remove
@@ -161,7 +162,7 @@ export function AccountMenu({
         >
           <Section label={t.account.signedInAs}>
             <p className="truncate px-3 pb-2 text-sm font-medium text-foreground">
-              {email ?? t.account.unknownUser}
+              {email ?? (guest ? t.account.guest : t.account.unknownUser)}
             </p>
           </Section>
 

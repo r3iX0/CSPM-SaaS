@@ -47,6 +47,7 @@ export function useSessionClaims(): {
   subject: string | null;
   sessionId: string | null;
   secondFactor: boolean;
+  guest: boolean;
 } {
   const token = useAuthToken();
   return useMemo(() => {
@@ -56,8 +57,17 @@ export function useSessionClaims(): {
       // Supabase's id for one sign-in, kept across the hourly token refresh.
       sessionId: typeof claims?.session_id === "string" ? claims.session_id : null,
       secondFactor: claims?.aal === "aal2",
+      guest: claims?.is_anonymous === true,
     };
   }, [token]);
+}
+
+/**
+ * Whether the reader is a guest: in the demo without an account (DECISIONS.md
+ * §219). Labels and routes only -- the API refuses a guest whatever this says.
+ */
+export function useIsGuest(): boolean {
+  return useSessionClaims().guest;
 }
 
 function emailFromToken(token: string | null): string | null {
