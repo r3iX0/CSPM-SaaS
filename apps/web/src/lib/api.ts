@@ -125,7 +125,7 @@ function handleUnauthorized(): void {
 
 /**
  * Fired when the API refuses a session that skipped its user's second factor
- * (`MFA_REQUIRED`, DECISIONS.md §213). The sign-in page asks for the code
+ * (`MFA_REQUIRED`, DECISIONS.md §217). The sign-in page asks for the code
  * before this can happen; this covers an authenticator added on another
  * device after this session began, which the session here cannot know of.
  * `SecondFactorGate` answers it by asking for the code.

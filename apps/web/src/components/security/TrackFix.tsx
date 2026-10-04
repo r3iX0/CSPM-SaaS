@@ -38,7 +38,7 @@ import { formatDate, formatEffort } from "@/lib/format";
  *
  * Tracked work is worked here too: started, handed to a member, given a due
  * date, reopened when it was marked done too soon, and dropped from the queue
- * when nobody will do it (§208). Each was a field the API always accepted and
+ * when nobody will do it (§212). Each was a field the API always accepted and
  * nothing in the app could send.
  */
 export function TrackFix({

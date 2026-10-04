@@ -145,7 +145,7 @@ function RuleFixBody({
   );
   const effort = open.reduce((sum, member) => sum + member.task.estimated_effort_minutes, 0);
   // The findings' own severity, as every other badge on a finding says it;
-  // the task's priority orders the queue and is not a second severity (§208).
+  // the task's priority orders the queue and is not a second severity (§212).
   const severity = worstSeverity(members.map((member) => member.finding.severity));
 
   return (
@@ -161,7 +161,7 @@ function RuleFixBody({
         <SheetDescription>{t.remediation.groupCount(members.length, open.length)}</SheetDescription>
       </SheetHeader>
 
-      {/* Cards keep their height and the body scrolls (as `FixSheet`, §208). */}
+      {/* Cards keep their height and the body scrolls (as `FixSheet`, §212). */}
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6 *:shrink-0">
         <section aria-labelledby="rule-fix-assets">
           <h3 id="rule-fix-assets" className="text-caption font-medium text-muted-foreground">

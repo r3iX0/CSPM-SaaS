@@ -1,12 +1,12 @@
 """Whether the caller has a verified second factor.
 
-Revision ID: 0049
-Revises: 0048
+Revision ID: 0051
+Revises: 0050
 
 Supabase records a user's authenticator apps in ``auth.mfa_factors``, and a
 token says only whether its own session passed one (the ``aal`` claim), not
 whether its user has one at all. The API needs the second to refuse a session
-that skipped a factor its user set up (DECISIONS.md section 213), because a
+that skipped a factor its user set up (DECISIONS.md section 217), because a
 password alone gets a one-factor token from Supabase's API without ever seeing
 the sign-in page's code prompt.
 
@@ -25,8 +25,8 @@ from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = "0049"
-down_revision: str | None = "0048"
+revision: str = "0051"
+down_revision: str | None = "0050"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

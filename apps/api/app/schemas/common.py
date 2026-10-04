@@ -96,7 +96,7 @@ def error_responses(*codes: int) -> dict[int | str, dict[str, Any]]:
 
 #: What any route behind the tenant dependency can answer besides its own
 #: success: no or a bad token, a session that skipped its user's second factor
-#: (403 ``MFA_REQUIRED``, DECISIONS.md section 213), no membership, and a
+#: (403 ``MFA_REQUIRED``, DECISIONS.md section 217), no membership, and a
 #: parameter that failed validation. A write's 403 is also a read-only role, or
 #: the demo.
 ERROR_RESPONSES = error_responses(401, 403, 404, 422)

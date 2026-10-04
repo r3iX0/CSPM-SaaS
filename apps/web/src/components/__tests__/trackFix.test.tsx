@@ -130,7 +130,7 @@ describe("tracking a fix", () => {
     });
   });
 
-  it("offers only reopening on work already marked done (§208)", async () => {
+  it("offers only reopening on work already marked done (§212)", async () => {
     const fetchMock = mount([{ ...TASK, status: "DONE", completed_at: "2026-09-21T10:00:00Z" }]);
     const user = userEvent.setup();
 
@@ -142,7 +142,7 @@ describe("tracking a fix", () => {
     await waitFor(() => expect(patches(fetchMock)).toEqual([{ status: "TODO" }]));
   });
 
-  it("starts the work, and drops it from the queue (§208)", async () => {
+  it("starts the work, and drops it from the queue (§212)", async () => {
     const fetchMock = mount([TASK]);
     const user = userEvent.setup();
 
@@ -154,7 +154,7 @@ describe("tracking a fix", () => {
     );
   });
 
-  it("gives the work a due date and takes it off again (§208)", async () => {
+  it("gives the work a due date and takes it off again (§212)", async () => {
     const fetchMock = mount([{ ...TASK, due_date: "2026-10-09" }]);
 
     const due = await screen.findByLabelText("Due");

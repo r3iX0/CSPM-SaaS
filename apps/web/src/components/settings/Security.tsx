@@ -31,7 +31,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
- * The reader's own two-factor authentication (DECISIONS.md §213).
+ * The reader's own two-factor authentication (DECISIONS.md §217).
  *
  * An authenticator app is added and removed with Supabase directly, as signing
  * in is: the API never sees the key or a code, and only learns that a factor

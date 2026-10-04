@@ -90,7 +90,7 @@ async def get_session(user: CurrentUser) -> AsyncIterator[AsyncSession]:
     Refused to a session that skipped a second factor its user has set up. The
     sign-in page asks for the code, but a password alone is enough to get a
     one-factor token straight from Supabase's API, so the check that counts is
-    this one (DECISIONS.md section 213).
+    this one (DECISIONS.md section 217).
     """
     async with rls_session(user.id, user.email) as session:
         if not user.second_factor:

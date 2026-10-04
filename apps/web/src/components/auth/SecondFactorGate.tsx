@@ -20,7 +20,7 @@ import { Spinner } from "@/components/ui/spinner";
 
 /**
  * Asks for a code from an authenticator app before anything else is shown,
- * when the session owes one (DECISIONS.md §213).
+ * when the session owes one (DECISIONS.md §217).
  *
  * A session owes one when its user has confirmed an authenticator app and it
  * was opened with one factor. That is decided once per Supabase session, from

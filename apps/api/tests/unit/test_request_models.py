@@ -98,7 +98,7 @@ def test_every_json_request_body_forbids_unknown_fields() -> None:
     ],
 )
 def test_a_create_names_its_cloud(model: type[RequestModel], body: dict[str, Any]) -> None:
-    # A body without a provider was read as Azure, whatever the client meant (DECISIONS.md 209).
+    # A body without a provider was read as Azure, whatever the client meant (DECISIONS.md 213).
     with pytest.raises(ValidationError) as refused:
         model.model_validate(body)
     assert [error["loc"] for error in refused.value.errors()] == [("provider",)]

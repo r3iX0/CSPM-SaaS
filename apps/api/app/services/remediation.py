@@ -178,7 +178,7 @@ async def update_task(
         await _change_status(session, tenant, task, payload.status)
     # A field sent as null clears it; a field left out is left alone. Reading
     # `None` as "not sent" meant an owner or a due date, once set, could never
-    # be taken off a task again (DECISIONS.md section 208).
+    # be taken off a task again (DECISIONS.md section 212).
     sent = payload.model_fields_set
     if "assigned_to" in sent:
         task.assigned_to = payload.assigned_to

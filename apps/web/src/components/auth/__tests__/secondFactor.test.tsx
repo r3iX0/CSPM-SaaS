@@ -1,5 +1,5 @@
 /**
- * Two-factor authentication (DECISIONS.md §213): the code asked for after
+ * Two-factor authentication (DECISIONS.md §217): the code asked for after
  * sign-in, and the authenticator app added and removed under Settings.
  *
  * Supabase is replaced at the module boundary; what is under test is when the

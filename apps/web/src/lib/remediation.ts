@@ -119,7 +119,7 @@ export function useMarkDone() {
           task.note ??
           "Cleave will check the environment and close the finding once the change appears.",
         // A press in the wrong row is put right in place, and the claim it
-        // opened is withdrawn with it (DECISIONS.md §208).
+        // opened is withdrawn with it (DECISIONS.md §212).
         action: {
           label: "Undo",
           onClick: () => reopen.mutate({ id: task.id, change: { status: "TODO" } }),
@@ -133,7 +133,7 @@ export function useMarkDone() {
   });
 }
 
-/** What a task can be changed to: a field sent as `null` is cleared (§208). */
+/** What a task can be changed to: a field sent as `null` is cleared (§212). */
 export interface TaskChange {
   status?: "TODO" | "IN_PROGRESS" | "CANCELLED";
   assigned_to?: string | null;
@@ -160,7 +160,7 @@ function changeSaid(change: TaskChange): { title: string; description?: string }
 
 /**
  * Everything but marking done: starting the work, handing it to somebody,
- * giving it a date, reopening it, and calling it off (DECISIONS.md §208).
+ * giving it a date, reopening it, and calling it off (DECISIONS.md §212).
  *
  * `PATCH /remediation/{id}` took all of these from the start, and nothing in
  * the app sent any of them, so "In progress" and "Overdue" above the queue
@@ -187,7 +187,7 @@ export function useUpdateTask() {
   });
 }
 
-/** The organization's members, who work can be handed to (§208). */
+/** The organization's members, who work can be handed to (§212). */
 export function useAssignees() {
   return useQuery({
     queryKey: ["members", "assignees"],
@@ -210,7 +210,7 @@ export function memberName(member: Member | undefined): string {
  * The queue drew the task's own status and the fix sheet drew the finding's,
  * so one task read "Waiting on a scan" in its row and "In progress" in its
  * sheet -- and a task marked done read "In progress" beside "Done 3 Oct"
- * (DECISIONS.md §208). Once work is claimed, what matters is what the checks
+ * (DECISIONS.md §212). Once work is claimed, what matters is what the checks
  * found, so the verification decides: a check that has looked and not seen the
  * fix is "not fixed yet", never a spinner saying "checking".
  */
@@ -373,7 +373,7 @@ const SEVERITY_RANK: Record<Severity, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 
  * A row's badge is the severity of what is wrong, as on every other finding.
  * The queue drew the task's priority in the same badge -- impact against
  * effort, so a High finding on three attack paths read Critical in its row and
- * High in its own sheet (DECISIONS.md §208). Priority still orders the queue.
+ * High in its own sheet (DECISIONS.md §212). Priority still orders the queue.
  */
 export function worstSeverity(severities: readonly Severity[]): Severity {
   return severities.reduce<Severity>(
@@ -407,7 +407,7 @@ export interface UntrackedItem {
  * The untracked findings, the ones of one rule drawn as one line.
  *
  * Four rows of "Identity can grant itself any role" filled the list under the
- * queue, which groups the same work as one row (§203, §208). The list's order
+ * queue, which groups the same work as one row (§203, §212). The list's order
  * -- worst risk first -- decides where each line sits, as in the queue.
  */
 export function groupUntracked(findings: readonly Finding[]): UntrackedItem[] {

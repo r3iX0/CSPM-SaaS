@@ -108,7 +108,7 @@ Node installed on your machine.
 6. **Enable email sign-in.** Authentication → Providers → **Email** is on by
    default. Leave both **Confirm email** and the email provider's password
    support enabled: the sign-in screen offers email + password (there is no
-   magic link, `DECISIONS.md` §211), and sign-up shows a "check your email" screen when confirmation
+   magic link, `DECISIONS.md` §215), and sign-up shows a "check your email" screen when confirmation
    is on (`apps/web/src/lib/supabase.ts`).
 
    **Confirm email is also a security setting now.** An invitation joins only
@@ -124,7 +124,7 @@ Node installed on your machine.
    password-reset email lands on that second path.
 
    **Set the email templates.** Authentication → Emails holds Supabase's plain
-   defaults until Cleave's are set (`DECISIONS.md` §212). Either paste each
+   defaults until Cleave's are set (`DECISIONS.md` §216). Either paste each
    file in `infrastructure/supabase/email/built/` into its template (subjects
    are in `tools/supabase/email_templates.py`), or set all thirteen at once
    with a personal access token:
@@ -135,7 +135,7 @@ Node installed on your machine.
 
    The seven `*_notification` templates are the Security section's notices.
    Each is sent only once its toggle there is on; turn on all seven, since the
-   verification-method ones tell a user their second factor changed (§213).
+   verification-method ones tell a user their second factor changed (§217).
 
    The emails load the mark from `<Site URL>/email/cleave-mark.png`, so Site URL
    must be the deployed site.
@@ -177,7 +177,7 @@ Node installed on your machine.
    **TOTP (App Authenticator)** is enabled by default; leave it enabled.
    People turn it on for themselves under Settings → Security, and from then on
    the API refuses their sessions until a code is entered (`DECISIONS.md`
-   §213). Migration `0049` adds the function that reads Supabase's
+   §217). Migration `0051` adds the function that reads Supabase's
    `auth.mfa_factors` for it, owned by the migration role, which on Supabase
    can read the `auth` schema.
 

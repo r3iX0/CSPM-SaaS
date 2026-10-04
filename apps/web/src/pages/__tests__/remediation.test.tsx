@@ -209,7 +209,7 @@ describe("the remediation queue", () => {
 
   it("says a claimed fix the checks have not seen yet is not fixed, in the row and the sheet", async () => {
     // "Waiting on a scan" in the row and a pulsing "Checking" in the sheet,
-    // after two checks had looked and seen the problem still there (§208).
+    // after two checks had looked and seen the problem still there (§212).
     tasks = [{ ...TASK, status: "DONE", completed_at: "2026-10-03T16:55:00Z" }];
     finding = {
       ...FINDING,
@@ -233,7 +233,7 @@ describe("the remediation queue", () => {
     expect(within(sheet).getByRole("button", { name: "Reopen" })).toBeInTheDocument();
   });
 
-  it("draws the finding's severity, not the task's priority (§208)", async () => {
+  it("draws the finding's severity, not the task's priority (§212)", async () => {
     tasks = [{ ...TASK, priority: "CRITICAL" }];
     finding = { ...FINDING, severity: "HIGH" };
     renderPage();

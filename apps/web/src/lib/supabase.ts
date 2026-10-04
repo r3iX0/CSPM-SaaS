@@ -183,7 +183,7 @@ export interface PendingSecondFactor {
  * True when the user has a confirmed authenticator and the session was opened
  * with one factor only -- a password, Microsoft, Google, or an emailed link.
  * Read from the session Supabase holds in this browser, without a request.
- * The API refuses such a session whatever this says (DECISIONS.md §213).
+ * The API refuses such a session whatever this says (DECISIONS.md §217).
  */
 export async function secondFactorNeeded(): Promise<boolean> {
   if (!supabase) return false;

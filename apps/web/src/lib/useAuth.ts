@@ -41,7 +41,7 @@ export function useAuthEmail(): string | null {
  * Who the session belongs to and whether it passed a second factor, read out
  * of the token like the email above and trusted no further: the gate this
  * feeds only decides whether to ask for a code, and the API checks the same
- * claims on the verified token (DECISIONS.md §213).
+ * claims on the verified token (DECISIONS.md §217).
  */
 export function useSessionClaims(): {
   subject: string | null;

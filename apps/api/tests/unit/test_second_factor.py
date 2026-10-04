@@ -1,4 +1,4 @@
-"""A session that skipped its user's second factor is refused (DECISIONS.md section 213).
+"""A session that skipped its user's second factor is refused (DECISIONS.md section 217).
 
 The database answers whether the caller has a verified factor; these tests pin
 what the API does with the answer, and that a two-factor session never asks.

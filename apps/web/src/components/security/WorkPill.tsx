@@ -3,7 +3,7 @@ import { useT } from "@/i18n";
 import { cn } from "@/lib/format";
 
 /**
- * Where a tracked fix has got to (`workState`, DECISIONS.md §208).
+ * Where a tracked fix has got to (`workState`, DECISIONS.md §212).
  *
  * Drawn like `StatusPill`, and coloured by the same rule: only a scan's
  * verdict gets a colour. Fixed is green because a scan saw it; still failing is

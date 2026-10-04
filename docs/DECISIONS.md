@@ -11424,7 +11424,7 @@ not resolve them ("didn't resolve at build time") and emitted no files, and Verc
 answered each font request with the app's HTML, so every page drew in the system font. The fonts
 are imported from `main.tsx` instead, where Vite rebases and fingerprints them.
 
-## 208. A tracked fix is worked in the queue, and says one thing about where it has got to
+## 212. A tracked fix is worked in the queue, and says one thing about where it has got to
 
 Tested in a browser on production, the remediation page had seven faults and three gaps.
 
@@ -11491,7 +11491,7 @@ tracked task still open is offered **Mark done and check now**, which claims the
 the rescan in one press; a claimed one is offered **Check it now**, and an untracked finding keeps
 **Verify it now**. Marking done alone stays in the header.
 
-## 209. A connection names its cloud
+## 213. A connection names its cloud
 
 `CloudConnectionCreate.provider` defaulted to `azure`, from before there was a second cloud. A
 client that left the field out got an Azure connection whatever it meant to connect, and nothing
@@ -11512,7 +11512,7 @@ setup wizard has always sent `provider`, and a v2 route served beside v1 would k
 default alive for the only caller it could still mislead. The guideline stands for any change a
 client outside this repository could depend on.
 
-## 210. Google is a way in, beside Microsoft
+## 214. Google is a way in, beside Microsoft
 
 The sign-in page offered Microsoft, a password and a magic link. A team whose work accounts are
 Google Workspace had to fall back to a password or an emailed link, the two routes that need the
@@ -11535,7 +11535,7 @@ memberships. "Allow users without an email" stays off (`DEPLOYMENT.md` §1, step
 invitation joins only the address on the caller's token (§162). A button pressed before the
 provider is switched on in Supabase says so in words rather than showing Supabase's error.
 
-## 211. No magic link
+## 215. No magic link
 
 The sign-in page offered a one-time emailed link beside Microsoft, Google and a password. With
 two identity providers on the page, the link was a fourth way to do the same thing, and the one
@@ -11553,7 +11553,7 @@ Supabase's email provider has no switch for magic links apart from passwords, so
 endpoint still answers a client that calls it directly. That is not a way around anything: the
 link proves ownership of the address exactly as a confirmation does, and ends in the same JWT.
 
-## 212. Supabase's emails are Cleave's, built from one layout
+## 216. Supabase's emails are Cleave's, built from one layout
 
 Confirming an account and resetting a password are the first two things Cleave sends anyone, and
 they went out as Supabase's defaults: a bare heading, a bare link, no name on them. The six auth
@@ -11580,7 +11580,7 @@ Radii follow one rule: the card 12px, everything inside it 8px. Muted text is th
 `--muted-foreground` (`#696969`), which keeps 4.5:1 on the grey page as well as the card. "This
 link expires in 1 hour and can be used once" is Supabase's default expiry (`mailer_otp_exp`, 3600
 seconds); a project that changes it changes the script. The magic-link email is designed
-although the page no longer offers one (§211), because the endpoint still answers a direct call,
+although the page no longer offers one (§215), because the endpoint still answers a direct call,
 and an email that arrives should look like it came from Cleave. Colleagues are invited by
 Cleave's own link (§162), not Supabase's invite, so the invite email is sent only by someone
 inviting from the dashboard.
@@ -11594,10 +11594,10 @@ whose "Forgot password" sends a reset; there is no page with its own URL for tha
 Supabase hands a notice raw identifiers (`azure`, `totp`), so the template names them with Go
 `if eq` branches (Microsoft, Authenticator app) and lets an unknown one through as itself. A
 notice is sent only once its toggle under Authentication -> Emails -> Security is on, which
-`push` does not change; the two verification-method notices are the ones §213's authenticator
+`push` does not change; the two verification-method notices are the ones §217's authenticator
 app sends from Settings -> Security.
 
-## 213. Two-factor authentication, enforced by the API
+## 217. Two-factor authentication, enforced by the API
 
 A product that holds a read of a customer's whole cloud estate was one stolen password away
 from showing it to someone else. A person can now add an authenticator app (TOTP) under
@@ -11610,7 +11610,7 @@ code prompt in the browser alone would protect nothing: a password gets a one-fa
 Supabase's API directly, without ever loading the sign-in page. So `get_session` asks the
 database, for a one-factor session only, whether the caller has a verified factor, and refuses
 with `403 MFA_REQUIRED` if so. The answer comes from `app.has_verified_factor()` (migration
-0049), a SECURITY DEFINER function that reads Supabase's `auth.mfa_factors` for the user named
+0051), a SECURITY DEFINER function that reads Supabase's `auth.mfa_factors` for the user named
 by the verified claims -- never for a user passed in. A two-factor session costs nothing extra;
 a one-factor one costs one indexed lookup per request. Every route that reads data opens that
 session, so the shared `ERROR_RESPONSES` now documents 403 on them all.

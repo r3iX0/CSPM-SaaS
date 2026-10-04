@@ -68,7 +68,7 @@ describe("grouping the queue by rule", () => {
   });
 });
 
-describe("where a tracked fix has got to (DECISIONS.md §208)", () => {
+describe("where a tracked fix has got to (DECISIONS.md §212)", () => {
   const done: RemediationTask = { ...task("t1", "f1"), status: "DONE" };
 
   function claimed(verification: Partial<Verification> | null, status = "IN_PROGRESS") {

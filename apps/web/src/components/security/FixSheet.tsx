@@ -182,7 +182,7 @@ function FixSheetBody({ findingId }: { findingId: string }) {
           <SeverityBadge level={data.severity} />
           {/* Tracked work says where the work has got to, as its queue row
               does; the finding's own status would read "In progress" beside
-              a task marked done (§208). */}
+              a task marked done (§212). */}
           {task ? <WorkPill state={workState(task, data)} /> : <StatusPill status={data.status} />}
         </div>
         <SheetTitle className="text-heading font-semibold">{data.title}</SheetTitle>
@@ -210,7 +210,7 @@ function FixSheetBody({ findingId }: { findingId: string }) {
       {/* Cards keep their height and the body scrolls: a card clips its own
           overflow, so a shrinkable one in a column too short for it was cut
           off rather than scrolled to -- the verification lost its verdict
-          (DECISIONS.md §208). */}
+          (DECISIONS.md §212). */}
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6 *:shrink-0">
         {verifyScanId && (
           <FixVerification
@@ -246,7 +246,7 @@ function FixSheetBody({ findingId }: { findingId: string }) {
             // it are one motion, not two places (§98).
             // Tracked work still open is marked done by the same press, so
             // "Mark done" above and "Verify" here are not two answers to one
-            // question (§208); work already claimed is checked again.
+            // question (§212); work already claimed is checked again.
             canVerify ? (
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
                 <p className="text-sm text-foreground">{t.remediation.appliedIt}</p>

@@ -52,7 +52,7 @@ const PRESENTATION = {
  *
  * Still neutral -- it will look again, and three checks are not yet a verdict
  * -- but no longer a pulsing "Checking", which read as work under way while the
- * answer so far was no (DECISIONS.md §208).
+ * answer so far was no (DECISIONS.md §212).
  */
 const NOT_YET = {
   icon: VERDICT_ICONS.pending,

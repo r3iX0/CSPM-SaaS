@@ -119,7 +119,7 @@ export function App() {
       <Suspense fallback={<PageLoading />}>
         {/* Before any route, so no page -- the invitation and the password
             reset included -- runs on a session that owes its second factor
-            (DECISIONS.md §212). */}
+            (DECISIONS.md §216). */}
         <SecondFactorGate>
           <Routes>
             <Route path="/sign-in" element={<SignInPage />} />

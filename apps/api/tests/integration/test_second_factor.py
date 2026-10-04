@@ -3,7 +3,7 @@
 Against the real database: ``app.has_verified_factor()`` reads Supabase's
 ``auth.mfa_factors`` (stubbed in CI by ``infrastructure/ci/postgres-roles.sql``)
 for the caller named by the verified token, and the API refuses a one-factor
-token for a user who has one (DECISIONS.md section 213).
+token for a user who has one (DECISIONS.md section 217).
 """
 
 import uuid

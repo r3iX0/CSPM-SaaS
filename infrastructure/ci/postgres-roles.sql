@@ -40,7 +40,7 @@ END $$;
 GRANT CONNECT ON DATABASE cloudguard TO cloudguard_worker;
 
 -- Supabase's record of each user's authenticator apps, reduced to the columns
--- `app.has_verified_factor()` reads (migration 0049, DECISIONS.md #213). On
+-- `app.has_verified_factor()` reads (migration 0051, DECISIONS.md #217). On
 -- Supabase the table already exists; here it lets the integration tests prove
 -- that a session which skipped a verified factor is refused.
 CREATE SCHEMA auth;

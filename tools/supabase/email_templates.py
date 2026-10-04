@@ -1,4 +1,4 @@
-"""Cleave's Supabase Auth emails, built from one layout (DECISIONS.md §212).
+"""Cleave's Supabase Auth emails, built from one layout (DECISIONS.md §216).
 
     python3 tools/supabase/email_templates.py build
     python3 tools/supabase/email_templates.py preview <dir>

@@ -31,7 +31,7 @@ class CloudConnectionCreate(RequestModel):
 
     name: str = Field(min_length=1, max_length=200)
     # Required: a client that left it out got an Azure connection whatever it
-    # meant to connect, with nothing said (DECISIONS.md section 209).
+    # meant to connect, with nothing said (DECISIONS.md section 213).
     provider: Provider
     scope_type: ConnectionScope = ConnectionScope.TENANT_ROOT
     # Required for MANAGEMENT_GROUP and SUBSCRIPTION; meaningless for

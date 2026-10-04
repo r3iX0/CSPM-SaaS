@@ -1244,7 +1244,7 @@ export const en = {
   },
 
   // A code from an authenticator app on top of however someone signs in
-  // (DECISIONS.md §213): asked for after sign-in, and set up under Settings.
+  // (DECISIONS.md §217): asked for after sign-in, and set up under Settings.
   secondFactor: {
     promptTitle: "Enter your code",
     promptIntro: "Open your authenticator app and enter the 6-digit code it shows for Cleave.",
@@ -1548,7 +1548,7 @@ export const en = {
     trackRest: (n: number) => `Track ${n} more`,
     trackRestNote: (n: number) =>
       `${n} more open ${n === 1 ? "finding" : "findings"} of this rule ${n === 1 ? "is" : "are"} in no task yet.`,
-    // Where a tracked fix has got to, said one way in the row and the sheet (§208).
+    // Where a tracked fix has got to, said one way in the row and the sheet (§212).
     work: {
       todo: "To do",
       in_progress: "In progress",

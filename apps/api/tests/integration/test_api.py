@@ -406,7 +406,7 @@ class TestCloudConnections:
         assert response.status_code == 422
 
     async def test_a_connection_names_its_cloud(self, client, cleanup_orgs) -> None:
-        """Leaving the provider out was an Azure connection; it is now refused (§209)."""
+        """Leaving the provider out was an Azure connection; it is now refused (§213)."""
         user = uuid.uuid4()
         org = await make_org(client, user, "Unnamed Cloud Ltd")
         cleanup_orgs.append(uuid.UUID(org))
@@ -3307,7 +3307,7 @@ class TestRemediationAssignee:
     async def test_an_owner_comes_off_and_a_cancelled_finding_is_open_again(
         self, client, cleanup_orgs
     ) -> None:
-        """Null clears a field, and cancelling hands the finding back (DECISIONS.md §208)."""
+        """Null clears a field, and cancelling hands the finding back (DECISIONS.md §212)."""
         owner, colleague = uuid.uuid4(), uuid.uuid4()
         org_id = uuid.UUID(await make_org(client, owner, "Handback Ltd"))
         cleanup_orgs.append(org_id)

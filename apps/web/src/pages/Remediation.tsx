@@ -235,7 +235,7 @@ function TaskCard({
 }: {
   task: RemediationTask;
   finding: FindingDetail | undefined;
-  /** The organization's members by user id, to name who has the work (§208). */
+  /** The organization's members by user id, to name who has the work (§212). */
   owners: ReadonlyMap<string, Member>;
   marking: boolean;
   onDone: () => void;
@@ -259,11 +259,11 @@ function TaskCard({
     >
       {/* A basis, not `flex-1`: at zero basis the title gave its width to
           the figures beside it on a phone and was drawn 0px wide, where with
-          one it wraps them onto their own line (DECISIONS.md §208). */}
+          one it wraps them onto their own line (DECISIONS.md §212). */}
       <div className="flex min-w-0 flex-[1_1_16rem] items-center gap-3">
         {/* A fixed column, so titles line up whatever the badge says. The
             finding's severity, as everywhere else; priority orders the queue
-            and was drawn here as a second, disagreeing severity (§208). */}
+            and was drawn here as a second, disagreeing severity (§212). */}
         <span className="w-[4.5rem] shrink-0">
           {finding ? <SeverityBadge level={finding.severity} /> : <Skeleton className="h-5 w-16" />}
         </span>
@@ -315,7 +315,7 @@ function TaskCard({
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
         {/* To do is the queue itself and needs no pill. Anything further
             says where the work has got to, as its sheet does: started, or
-            claimed and what the checks have found since (§208). */}
+            claimed and what the checks have found since (§212). */}
         {state !== "todo" && <WorkPill state={state} />}
         <span className="w-14 tabular-nums">{formatEffort(task.estimated_effort_minutes)}</span>
         <span className={cn("w-[130px] tabular-nums", overdue && "font-medium text-critical")}>
@@ -509,7 +509,7 @@ const STARTER_PAGE = 25;
  * Findings of one rule share a line and are tracked together, as the queue
  * groups them, and the header says how many open findings the five lines are
  * drawn from -- it showed five of a hundred and fifty-six and said neither
- * (§208).
+ * (§212).
  */
 function WhereToStart({
   tasks,

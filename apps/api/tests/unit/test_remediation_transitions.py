@@ -1,4 +1,4 @@
-"""What moving a remediation task says about its finding (DECISIONS.md section 208).
+"""What moving a remediation task says about its finding (DECISIONS.md section 212).
 
 The task is read through a stand-in session and the finding and verification
 services are stubbed, so each transition is proven without a database: a field

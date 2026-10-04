@@ -69,7 +69,7 @@ export function RemediationPanel({
   );
   const anyFilled = commands.some((command) => command.filled.length > 0);
   // The steps quote the same commands, and were left with `<account>` in them
-  // while the CLI tab beside them was filled in (§208).
+  // while the CLI tab beside them was filled in (§212).
   const steps = fill ? fillPlaceholders(remediation, fill.values).text : remediation;
   // One script for the whole batch, each asset's commands under its name.
   const script = batch
@@ -99,7 +99,7 @@ export function RemediationPanel({
             <p className="text-xs font-medium text-muted-foreground">This finding closes when</p>
             <ul className="mt-1.5 flex flex-col gap-1">
               {/* A plain bullet: a green tick beside a condition read as if it
-                  were already met, on a finding that is open (§208). */}
+                  were already met, on a finding that is open (§212). */}
               {spec.expected_state.map((state) => (
                 <li key={state.field} className="flex items-start gap-2 text-sm">
                   <span
@@ -187,7 +187,7 @@ export function RemediationPanel({
  * A rule's prose, with its `backticked` names set as code.
  *
  * The remediation text is written with Markdown's inline code and was printed
- * as it stands, backticks and all (§208). Only that one mark is read: the
+ * as it stands, backticks and all (§212). Only that one mark is read: the
  * text is otherwise plain, and its indented commands stay as they are.
  */
 function Prose({ text }: { text: string }) {
