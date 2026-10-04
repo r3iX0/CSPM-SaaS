@@ -1385,6 +1385,1548 @@
         }
       }
     },
+    "/api/v1/audit-packages": {
+      "post": {
+        "tags": [
+          "audit-packages"
+        ],
+        "summary": "Seal Audit Package",
+        "description": "Seal the latest completed scan's assessment of these frameworks as a package.\n\n``409`` when nothing has been assessed yet, or when a scan finished while the package was\nbeing sealed (seal again). ``422`` for a framework this organization is not measured by.",
+        "operationId": "audit_packages_seal_audit_package",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuditPackageCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AuditPackageOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "audit-packages"
+        ],
+        "summary": "List Audit Packages",
+        "description": "This organization's sealed packages, newest first.",
+        "operationId": "audit_packages_list_audit_packages",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_list_AuditPackageOut__PageMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/api/v1/audit-packages/{package_id}": {
+      "get": {
+        "tags": [
+          "audit-packages"
+        ],
+        "summary": "Get Audit Package",
+        "description": "A package's header, how each framework's controls came out, and what they rest on.\n\nThe controls themselves are in the archive. How many payloads are stored is answered live:\nretention prunes them, so it can only fall.",
+        "operationId": "audit_packages_get_audit_package",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "package_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Package Id"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AuditPackageDetailOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/api/v1/audit-packages/{package_id}/verification": {
+      "get": {
+        "tags": [
+          "audit-packages"
+        ],
+        "summary": "Verify Audit Package",
+        "description": "Whether the stored rows still give the hash the package was sealed under.\n\nA read, and idempotent. ``verified: false`` means a row was changed behind the application's\nback; the two digests are given so the answer can be checked rather than believed.",
+        "operationId": "audit_packages_verify_audit_package",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "package_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Package Id"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_VerificationOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/api/v1/audit-packages/{package_id}/archive": {
+      "get": {
+        "tags": [
+          "audit-packages"
+        ],
+        "summary": "Download Audit Package Archive",
+        "description": "The package, and the evidence it names, as files an auditor can check without Cleave.\n\nThe download is written to the audit trail, which makes this a ``GET`` that records an\nentry: evidence leaving the system belongs on the trail, and the entry is an append-only\nrecord and not state a repeat changes. ``409`` when the evidence is more than one archive\nholds.",
+        "operationId": "audit_packages_download_audit_package_archive",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "package_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Package Id"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The package as a zip: the manifest, one CSV of controls per framework, the gaps, the readings, the captured payloads and a SHA256SUMS that checks them.",
+            "content": {
+              "application/zip": {}
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/api/v1/audit-grants": {
+      "post": {
+        "tags": [
+          "audit-grants"
+        ],
+        "summary": "Create Audit Grant",
+        "description": "Let one address read one sealed package, and return the link -- this once.\n\nCleave sends no email: the link is handed to whoever made the grant, to pass on however the\nteam talks. It opens only for the address it was made for, after that address has signed up\nand verified it, so a link that travels further than meant reads nothing. Granting an\naddress that already holds a live grant on the package replaces it.",
+        "operationId": "audit_grants_create_audit_grant",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuditGrantCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AuditGrantCreatedOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "audit-grants"
+        ],
+        "summary": "List Audit Grants",
+        "description": "This organization's grants, newest first, ended ones included. Filter by package.",
+        "operationId": "audit_grants_list_audit_grants",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "package_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Package Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_list_AuditGrantOut__PageMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/api/v1/audit-grants/{grant_id}": {
+      "get": {
+        "tags": [
+          "audit-grants"
+        ],
+        "summary": "Get Audit Grant",
+        "description": "One grant: whom it is for, when it ends, and whether it has been opened.",
+        "operationId": "audit_grants_get_audit_grant",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "grant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Grant Id"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AuditGrantOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "audit-grants"
+        ],
+        "summary": "Revoke Audit Grant",
+        "description": "End a grant now, so its auditor reads nothing more. Kept as history; cannot be undone.\n\nTakes effect on the auditor's next request. A download that has already started finishes.\n``409`` for a grant already revoked.",
+        "operationId": "audit_grants_revoke_audit_grant",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "grant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Grant Id"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AuditGrantRevokedOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/api/v1/audit-grants/{grant_id}/events": {
+      "get": {
+        "tags": [
+          "audit-grants"
+        ],
+        "summary": "List Audit Grant Events",
+        "description": "What was done through a grant: when it was opened and when its archive was taken.\n\nThe only trail of an auditor's reading. They have no tenant, so their reads are not in the\norganization's audit log. A refused attempt leaves no event, and is in the server's log.",
+        "operationId": "audit_grants_list_audit_grant_events",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "grant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Grant Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_list_AuditGrantEventOut__PageMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/api/v1/auditor/grants/open": {
+      "post": {
+        "tags": [
+          "auditor"
+        ],
+        "summary": "Open Grant",
+        "description": "Open a grant link as the signed-in account, which must be the address it was made for.\n\nBinds the grant to this account the first time, and writes the first entry in its event log.\nOpening it again, as the same account, is fine. ``403`` for another address, ``409`` for a\ngrant that was withdrawn, has expired, or was opened by another account, and ``404`` for a\nlink that is not valid.",
+        "operationId": "auditor_open_grant",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrantToken"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AuditorGrantOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auditor/grants": {
+      "get": {
+        "tags": [
+          "auditor"
+        ],
+        "summary": "List My Grants",
+        "description": "The grants this account has opened and that are still live, newest first.",
+        "operationId": "auditor_list_my_grants",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_list_AuditorGrantOut__NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auditor/grants/{grant_id}": {
+      "get": {
+        "tags": [
+          "auditor"
+        ],
+        "summary": "Get My Grant",
+        "description": "One grant: which package, whose, and until when.",
+        "operationId": "auditor_get_my_grant",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "grant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Grant Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AuditorGrantOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/api/v1/auditor/grants/{grant_id}/package": {
+      "get": {
+        "tags": [
+          "auditor"
+        ],
+        "summary": "Get Granted Package",
+        "description": "The package's header, how each framework's controls came out, and what they rest on.\n\nThe owner's view of the same package (``GET /audit-packages/{id}``). The controls themselves\nare in the archive. How many payloads are still stored is answered live.",
+        "operationId": "auditor_get_granted_package",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "grant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Grant Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AuditPackageDetailOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/api/v1/auditor/grants/{grant_id}/verification": {
+      "get": {
+        "tags": [
+          "auditor"
+        ],
+        "summary": "Verify Granted Package",
+        "description": "Whether the stored rows still give the hash the package was sealed under.\n\nA read, and idempotent. Both digests are given so the answer can be checked and not only\nbelieved; the archive lets an auditor check it without trusting this endpoint at all.",
+        "operationId": "auditor_verify_granted_package",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "grant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Grant Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_VerificationOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/api/v1/auditor/grants/{grant_id}/archive": {
+      "get": {
+        "tags": [
+          "auditor"
+        ],
+        "summary": "Download Granted Archive",
+        "description": "The package, and the evidence it names, as files that can be checked without Cleave.\n\nThe same archive the owner downloads, sharing one build limit with it. The download is\nwritten to the grant's event log, which makes this a ``GET`` that records an entry: evidence\nleaving the system belongs on the trail, and the entry is an append-only record and not state\na repeat changes. ``409`` when the evidence is more than one archive holds.",
+        "operationId": "auditor_download_granted_archive",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "grant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Grant Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The package as a zip: the manifest, one CSV of controls per framework, the gaps, the readings, the captured payloads and a SHA256SUMS that checks them.",
+            "content": {
+              "application/zip": {}
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        }
+      }
+    },
     "/api/v1/webhooks": {
       "get": {
         "tags": [
@@ -10689,6 +12231,579 @@
         ],
         "title": "AuditEntryOut"
       },
+      "AuditGrantCreate": {
+        "properties": {
+          "package_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Package Id"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email",
+            "description": "The address the auditor will sign in with."
+          },
+          "expires_in_days": {
+            "type": "integer",
+            "maximum": 90.0,
+            "minimum": 1.0,
+            "title": "Expires In Days",
+            "default": 30
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "package_id",
+          "email"
+        ],
+        "title": "AuditGrantCreate",
+        "description": "What an owner chooses. The token, the time and who made it are the server's.",
+        "examples": [
+          {
+            "email": "auditor@example.com",
+            "expires_in_days": 30,
+            "package_id": "6b1e0f3c-5a62-4c0f-9a43-2f7a8b9c0d11"
+          }
+        ]
+      },
+      "AuditGrantCreatedOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "package_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Package Id"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "OPENED",
+              "EXPIRED",
+              "REVOKED"
+            ],
+            "title": "Status"
+          },
+          "created_by": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Created By"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "opened_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opened At"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "link": {
+            "type": "string",
+            "title": "Link"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "package_id",
+          "email",
+          "status",
+          "created_by",
+          "created_at",
+          "expires_at",
+          "opened_at",
+          "revoked_at",
+          "link"
+        ],
+        "title": "AuditGrantCreatedOut",
+        "description": "The grant, and its link -- shown this once and never again."
+      },
+      "AuditGrantEventOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "grant_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Grant Id"
+          },
+          "event": {
+            "type": "string",
+            "enum": [
+              "OPENED",
+              "ARCHIVE_DOWNLOADED"
+            ],
+            "title": "Event"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "detail": {
+            "type": "object",
+            "title": "Detail"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "grant_id",
+          "event",
+          "user_id",
+          "detail",
+          "at"
+        ],
+        "title": "AuditGrantEventOut"
+      },
+      "AuditGrantOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "package_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Package Id"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "OPENED",
+              "EXPIRED",
+              "REVOKED"
+            ],
+            "title": "Status"
+          },
+          "created_by": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Created By"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "opened_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opened At"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "package_id",
+          "email",
+          "status",
+          "created_by",
+          "created_at",
+          "expires_at",
+          "opened_at",
+          "revoked_at"
+        ],
+        "title": "AuditGrantOut"
+      },
+      "AuditGrantRevokedOut": {
+        "properties": {
+          "revoked": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Revoked"
+          }
+        },
+        "type": "object",
+        "required": [
+          "revoked"
+        ],
+        "title": "AuditGrantRevokedOut"
+      },
+      "AuditPackageCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "framework_ids": {
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.]{1,40}$"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Framework Ids",
+            "description": "Frameworks to assess, each one this organization is offered. A package holds a handful, and each can be chosen once."
+          },
+          "period_start": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period Start",
+            "description": "The audit period the customer declares. Informational: the evidence is one scan."
+          },
+          "period_end": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period End"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "framework_ids"
+        ],
+        "title": "AuditPackageCreate",
+        "description": "What a person chooses when sealing. The scan, the verdicts and the time are the server's.",
+        "examples": [
+          {
+            "framework_ids": [
+              "SOC2",
+              "ISO_27001"
+            ],
+            "name": "SOC 2 Type II, FY2026",
+            "period_end": "2026-09-30",
+            "period_start": "2026-01-01"
+          }
+        ]
+      },
+      "AuditPackageDetailOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "frameworks": {
+            "items": {
+              "$ref": "#/components/schemas/PackageFrameworkOut"
+            },
+            "type": "array",
+            "title": "Frameworks"
+          },
+          "scan_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Scan Id"
+          },
+          "scan_status": {
+            "$ref": "#/components/schemas/ScanStatus"
+          },
+          "scan_completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scan Completed At"
+          },
+          "period_start": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period Start"
+          },
+          "period_end": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period End"
+          },
+          "manifest_sha256": {
+            "type": "string",
+            "title": "Manifest Sha256"
+          },
+          "sealed_by": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Sealed By"
+          },
+          "sealed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Sealed At"
+          },
+          "assessment": {
+            "items": {
+              "$ref": "#/components/schemas/FrameworkAssessmentOut"
+            },
+            "type": "array",
+            "title": "Assessment"
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/EvidenceOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "frameworks",
+          "scan_id",
+          "scan_status",
+          "scan_completed_at",
+          "period_start",
+          "period_end",
+          "manifest_sha256",
+          "sealed_by",
+          "sealed_at",
+          "assessment",
+          "evidence"
+        ],
+        "title": "AuditPackageDetailOut"
+      },
+      "AuditPackageOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "frameworks": {
+            "items": {
+              "$ref": "#/components/schemas/PackageFrameworkOut"
+            },
+            "type": "array",
+            "title": "Frameworks"
+          },
+          "scan_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Scan Id"
+          },
+          "scan_status": {
+            "$ref": "#/components/schemas/ScanStatus"
+          },
+          "scan_completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scan Completed At"
+          },
+          "period_start": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period Start"
+          },
+          "period_end": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period End"
+          },
+          "manifest_sha256": {
+            "type": "string",
+            "title": "Manifest Sha256"
+          },
+          "sealed_by": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Sealed By"
+          },
+          "sealed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Sealed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "frameworks",
+          "scan_id",
+          "scan_status",
+          "scan_completed_at",
+          "period_start",
+          "period_end",
+          "manifest_sha256",
+          "sealed_by",
+          "sealed_at"
+        ],
+        "title": "AuditPackageOut"
+      },
+      "AuditorGrantOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "package_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Package Id"
+          },
+          "package_name": {
+            "type": "string",
+            "title": "Package Name"
+          },
+          "organization_name": {
+            "type": "string",
+            "title": "Organization Name"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "opened_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Opened At"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "package_id",
+          "package_name",
+          "organization_name",
+          "email",
+          "opened_at",
+          "expires_at"
+        ],
+        "title": "AuditorGrantOut",
+        "description": "A grant as the auditor it is for sees it."
+      },
       "AzurePermissionsOut": {
         "properties": {
           "graph_application_permissions": {
@@ -12536,6 +14651,126 @@
         ],
         "title": "Envelope[AssetDetailOut, NoMeta]"
       },
+      "Envelope_AuditGrantCreatedOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AuditGrantCreatedOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[AuditGrantCreatedOut, NoMeta]"
+      },
+      "Envelope_AuditGrantOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AuditGrantOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[AuditGrantOut, NoMeta]"
+      },
+      "Envelope_AuditGrantRevokedOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AuditGrantRevokedOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[AuditGrantRevokedOut, NoMeta]"
+      },
+      "Envelope_AuditPackageDetailOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AuditPackageDetailOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[AuditPackageDetailOut, NoMeta]"
+      },
+      "Envelope_AuditPackageOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AuditPackageOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[AuditPackageOut, NoMeta]"
+      },
+      "Envelope_AuditorGrantOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AuditorGrantOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[AuditorGrantOut, NoMeta]"
+      },
       "Envelope_AzurePermissionsOut_NoMeta_": {
         "properties": {
           "data": {
@@ -13471,6 +15706,26 @@
         ],
         "title": "Envelope[Union[ContextDeclarationOut, NoneType], NoMeta]"
       },
+      "Envelope_VerificationOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/app__schemas__audit_package__VerificationOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[VerificationOut, NoMeta]"
+      },
       "Envelope_WebhookCreatedOut_NoMeta_": {
         "properties": {
           "data": {
@@ -13662,6 +15917,102 @@
           "meta"
         ],
         "title": "Envelope[list[AuditEntryOut], PageMeta]"
+      },
+      "Envelope_list_AuditGrantEventOut__PageMeta_": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/AuditGrantEventOut"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PageMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[list[AuditGrantEventOut], PageMeta]"
+      },
+      "Envelope_list_AuditGrantOut__PageMeta_": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/AuditGrantOut"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PageMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[list[AuditGrantOut], PageMeta]"
+      },
+      "Envelope_list_AuditPackageOut__PageMeta_": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/AuditPackageOut"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PageMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[list[AuditPackageOut], PageMeta]"
+      },
+      "Envelope_list_AuditorGrantOut__NoMeta_": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/AuditorGrantOut"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[list[AuditorGrantOut], NoMeta]"
       },
       "Envelope_list_BlastAssetOut__TotalMeta_": {
         "properties": {
@@ -14570,6 +16921,39 @@
         "title": "EvidenceCitationOut",
         "description": "One reading a finding rests on.\n\nThe citation rather than the excerpt. ``findings.evidence`` already says\nwhat the rule saw; this says where it came from and whether it can still be\nfollowed back to the bytes."
       },
+      "EvidenceOut": {
+        "properties": {
+          "readings": {
+            "type": "integer",
+            "title": "Readings"
+          },
+          "outcomes": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Outcomes"
+          },
+          "payloads_named": {
+            "type": "integer",
+            "title": "Payloads Named"
+          },
+          "payloads_stored": {
+            "type": "integer",
+            "title": "Payloads Stored"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "readings",
+          "outcomes",
+          "payloads_named",
+          "payloads_stored"
+        ],
+        "title": "EvidenceOut",
+        "description": "What the package's controls rest on, and what is still held of it."
+      },
       "FindingAttackPathOut": {
         "properties": {
           "entry": {
@@ -14765,7 +17149,7 @@
           "verification": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/VerificationOut"
+                "$ref": "#/components/schemas/app__schemas__finding__VerificationOut"
               },
               {
                 "type": "null"
@@ -15274,6 +17658,34 @@
         "title": "FoldedGroupOut",
         "description": "Neighbours past the fan-out, counted rather than drawn."
       },
+      "FrameworkAssessmentOut": {
+        "properties": {
+          "framework_id": {
+            "type": "string",
+            "title": "Framework Id"
+          },
+          "controls": {
+            "type": "integer",
+            "title": "Controls"
+          },
+          "statuses": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Statuses"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "framework_id",
+          "controls",
+          "statuses"
+        ],
+        "title": "FrameworkAssessmentOut",
+        "description": "How one framework's controls came out when the package was sealed."
+      },
       "FrameworkDetailOut": {
         "properties": {
           "id": {
@@ -15514,6 +17926,28 @@
         ],
         "title": "FreshnessOut",
         "description": "How recently the provider was read; the oldest reading is the headline."
+      },
+      "GrantToken": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 20,
+            "title": "Token"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "title": "GrantToken",
+        "description": "A token from a grant link. In a body, so it stays out of URLs and logs.",
+        "examples": [
+          {
+            "token": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          }
+        ]
       },
       "GraphEdgeOut": {
         "properties": {
@@ -16803,6 +19237,56 @@
         "type": "object",
         "title": "OrganizationUpdate",
         "description": "A correction to how an organization describes itself.\n\nEvery field optional and applied only when present, which is the opposite\nof ``ContextDeclarationIn`` and deliberately so. That one is a *statement*\nabout a subscription, replaced entire so a reader always knows what it\ncurrently claims. This is a profile: a form that saves only the name must\nnot silently clear the country nobody touched.\n\nThe slug is not here. It is an identifier that already appears in stored\nreferences, and quietly changing it when somebody fixes a typo in a display\nname would be renaming a thing rather than relabelling it."
+      },
+      "PackageFrameworkOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "short_name": {
+            "type": "string",
+            "title": "Short Name"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "authority": {
+            "type": "string",
+            "title": "Authority"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "scope_note": {
+            "type": "string",
+            "title": "Scope Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "short_name",
+          "version",
+          "authority",
+          "url",
+          "summary",
+          "scope_note"
+        ],
+        "title": "PackageFrameworkOut",
+        "description": "A framework as the catalogue described it when the package was sealed."
       },
       "PageMeta": {
         "properties": {
@@ -20155,83 +22639,6 @@
         "title": "TotalMeta",
         "description": "How many there are in all, where the list may be cut short."
       },
-      "VerificationOut": {
-        "properties": {
-          "status": {
-            "$ref": "#/components/schemas/VerificationStatus"
-          },
-          "claimed_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Claimed At"
-          },
-          "expected_state": {
-            "items": {
-              "type": "object"
-            },
-            "type": "array",
-            "title": "Expected State",
-            "default": []
-          },
-          "attempts": {
-            "type": "integer",
-            "title": "Attempts"
-          },
-          "last_state": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/RuleState"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "next_attempt_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Next Attempt At"
-          },
-          "settled_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Settled At"
-          },
-          "detail": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Detail"
-          }
-        },
-        "type": "object",
-        "required": [
-          "status",
-          "claimed_at",
-          "attempts"
-        ],
-        "title": "VerificationOut",
-        "description": "Where a claimed fix has got to.\n\n``detail`` is the field that matters and it is written for a person: the\nthree ways of not being verified -- too soon, still failing, could not tell\n-- are the same open finding and entirely different news, and a status code\nalone leaves the reader to guess which one they are looking at."
-      },
       "VerificationStatus": {
         "type": "string",
         "enum": [
@@ -20756,6 +23163,36 @@
         "title": "WorkerStatusOut",
         "description": "Whether any worker is listening, asked of the broker rather than guessed."
       },
+      "app__schemas__audit_package__VerificationOut": {
+        "properties": {
+          "verified": {
+            "type": "boolean",
+            "title": "Verified"
+          },
+          "sealed_sha256": {
+            "type": "string",
+            "title": "Sealed Sha256"
+          },
+          "recomputed_sha256": {
+            "type": "string",
+            "title": "Recomputed Sha256"
+          },
+          "checked_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Checked At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "verified",
+          "sealed_sha256",
+          "recomputed_sha256",
+          "checked_at"
+        ],
+        "title": "VerificationOut",
+        "description": "Whether a package's stored rows still give the hash it was sealed under."
+      },
       "app__schemas__dashboard__CoverageOut": {
         "properties": {
           "ratio": {
@@ -20799,6 +23236,83 @@
         ],
         "title": "CoverageOut",
         "description": "Kept beside the score, never folded into it."
+      },
+      "app__schemas__finding__VerificationOut": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/VerificationStatus"
+          },
+          "claimed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Claimed At"
+          },
+          "expected_state": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Expected State",
+            "default": []
+          },
+          "attempts": {
+            "type": "integer",
+            "title": "Attempts"
+          },
+          "last_state": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RuleState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "next_attempt_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Attempt At"
+          },
+          "settled_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Settled At"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "claimed_at",
+          "attempts"
+        ],
+        "title": "VerificationOut",
+        "description": "Where a claimed fix has got to.\n\n``detail`` is the field that matters and it is written for a person: the\nthree ways of not being verified -- too soon, still failing, could not tell\n-- are the same open finding and entirely different news, and a status code\nalone leaves the reader to guess which one they are looking at."
       },
       "app__schemas__scan__CoverageOut": {
         "properties": {
@@ -20858,6 +23372,18 @@
     {
       "name": "audit",
       "description": "The append-only record of every change a person made."
+    },
+    {
+      "name": "audit-packages",
+      "description": "Sealed assessments of chosen frameworks, kept as they were, with the evidence they rest on as a zip an auditor can check."
+    },
+    {
+      "name": "audit-grants",
+      "description": "Who may read a sealed package: grants made to an address, withdrawn, and the trail of what was done through them."
+    },
+    {
+      "name": "auditor",
+      "description": "What an auditor reads through a grant: one sealed package, checked on every call against the address on their verified token."
     },
     {
       "name": "webhooks",

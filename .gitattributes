@@ -12,3 +12,4 @@
 docs/api/openapi.json linguist-generated=true
 apps/web/src/lib/geo/worldDots.ts linguist-generated=true
 apps/web/package-lock.json linguist-generated=true -diff
+graphify-out/graph.json merge=graphify

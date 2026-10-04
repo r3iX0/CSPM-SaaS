@@ -18,7 +18,7 @@ from app.rules.property import PropertySpec, property_rule
 
 _FLOW_LOGGING = {
     "ISO_27001": ["A.8.15", "A.8.16"],
-    "NIST_CSF": ["DE.CM-1", "PR.PT-1"],
+    "NIST_CSF_2.0": ["DE.CM-01", "PR.PS-04"],
     "GDPR": ["32(1)(d)"],
     "NIST_800_53": ["AU-2", "SI-4"],
     "SOC2": ["CC7.2"],
@@ -26,7 +26,7 @@ _FLOW_LOGGING = {
 }
 _NETWORK = {
     "ISO_27001": ["A.8.20", "A.8.22"],
-    "NIST_CSF": ["PR.AC-5", "PR.PT-4"],
+    "NIST_CSF_2.0": ["PR.IR-01"],
     "GDPR": ["32(1)(b)"],
     "NIST_800_53": ["SC-7"],
     "SOC2": ["CC6.6"],
@@ -226,7 +226,7 @@ class AzureBastionRule(SecurityRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.20"],
-        "NIST_CSF": ["PR.AC-3"],
+        "NIST_CSF_2.0": ["PR.IR-01"],
         "GDPR": ["32(1)(b)"],
         "NIST_800_53": ["AC-17"],
         "SOC2": ["CC6.6"],

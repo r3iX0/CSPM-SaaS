@@ -67,7 +67,7 @@ class AzureUnmanagedDiskRule(SecurityRule):
         # this rule asks for, moving them to managed disks (DECISIONS.md section 204).
         "CIS_AZURE_2.0": ["7.2", "7.7"],
         "ISO_27001": ["A.8.24", "A.8.3"],
-        "NIST_CSF": ["PR.DS-1"],
+        "NIST_CSF_2.0": ["PR.DS-01"],
         "GDPR": ["32(1)(a)"],
         "NIST_800_53": ["SC-28", "AC-3"],
         "SOC2": ["CC6.1"],

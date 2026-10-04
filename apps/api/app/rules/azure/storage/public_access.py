@@ -70,7 +70,7 @@ class AzurePublicStorageRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["3.7", "3.8"],
         "ISO_27001": ["A.5.10", "A.8.3"],
-        "NIST_CSF": ["PR.AC-3", "PR.DS-5"],
+        "NIST_CSF_2.0": ["PR.IR-01", "PR.DS-01"],
         "GDPR": ["5(1)(f)", "25", "32(1)(b)"],
         "NIST_800_53": ["AC-3", "SC-7"],
         "SOC2": ["CC6.1", "CC6.6"],
@@ -195,7 +195,7 @@ class AzureStorageEncryptionRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["3.1", "3.15"],
         "ISO_27001": ["A.8.24"],
-        "NIST_CSF": ["PR.DS-2"],
+        "NIST_CSF_2.0": ["PR.DS-02"],
         "GDPR": ["5(1)(f)", "32(1)(a)"],
         "NIST_800_53": ["SC-28"],
         "SOC2": ["CC6.7"],
@@ -310,7 +310,7 @@ class AzureStorageTransportRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["3.1", "3.15"],
         "ISO_27001": ["A.5.10", "A.8.24"],
-        "NIST_CSF": ["PR.DS-2"],
+        "NIST_CSF_2.0": ["PR.DS-02"],
         "GDPR": ["32(1)(a)", "32(1)(b)"],
         "NIST_800_53": ["SC-8"],
         "SOC2": ["CC6.7"],

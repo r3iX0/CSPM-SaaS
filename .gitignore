@@ -34,7 +34,7 @@ apps/web/.vite/
 temp/
 
 # Claude Code: per-developer settings and hookify rules
-.claude/settings.local.json
+.claude/settings*
 .claude/*.local.md
 
 # graphify: the local knowledge graph, rebuilt by its post-commit hook

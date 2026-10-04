@@ -90,7 +90,7 @@ class AzureAppServiceHttpsRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["9.2"],
         "ISO_27001": ["A.8.24"],
-        "NIST_CSF": ["PR.DS-2"],
+        "NIST_CSF_2.0": ["PR.DS-02"],
         "GDPR": ["32(1)(a)"],
         "NIST_800_53": ["SC-8"],
         "SOC2": ["CC6.7"],
@@ -166,7 +166,7 @@ class AzureAppServiceTlsRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["9.3"],
         "ISO_27001": ["A.8.24"],
-        "NIST_CSF": ["PR.DS-2"],
+        "NIST_CSF_2.0": ["PR.DS-02"],
         "GDPR": ["32(1)(a)"],
         "NIST_800_53": ["SC-8"],
         "SOC2": ["CC6.7"],
@@ -251,7 +251,7 @@ class AzureAppServiceFtpRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["9.10"],
         "ISO_27001": ["A.8.24", "A.5.17"],
-        "NIST_CSF": ["PR.DS-2", "PR.AC-1"],
+        "NIST_CSF_2.0": ["PR.DS-02", "PR.AA-01"],
         "GDPR": ["32(1)(a)", "32(1)(b)"],
         "NIST_800_53": ["SC-8", "CM-7"],
         "SOC2": ["CC6.7", "CC8.1"],
@@ -341,7 +341,7 @@ class AzureAppServiceRemoteDebuggingRule(SecurityRule):
     # requirement it does not answer.
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.20"],
-        "NIST_CSF": ["PR.PT-4"],
+        "NIST_CSF_2.0": ["PR.IR-01"],
         "GDPR": ["32(1)(b)"],
         "NIST_800_53": ["CM-7"],
         "SOC2": ["CC6.6"],
@@ -425,7 +425,7 @@ class AzureAppServiceIdentityRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["9.5"],
         "ISO_27001": ["A.5.17"],
-        "NIST_CSF": ["PR.AC-1"],
+        "NIST_CSF_2.0": ["PR.AA-01"],
         "GDPR": ["32(1)(b)"],
         "NIST_800_53": ["IA-5"],
         "SOC2": ["CC6.1"],
@@ -506,7 +506,7 @@ class AzureFunctionAppPublicRule(SecurityRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.20", "A.8.22"],
-        "NIST_CSF": ["PR.AC-3", "PR.AC-5"],
+        "NIST_CSF_2.0": ["PR.IR-01"],
         "GDPR": ["32(1)(b)"],
         "NIST_800_53": ["SC-7", "AC-3"],
         "SOC2": ["CC6.1", "CC6.6"],

@@ -153,7 +153,7 @@ class AzurePersonWithSubscriptionControlRule(_RoleAssignmentRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.15", "A.5.18", "A.8.2"],
-        "NIST_CSF": ["PR.AC-1", "PR.AC-4"],
+        "NIST_CSF_2.0": ["PR.AA-01", "PR.AA-05"],
         "GDPR": ["5(1)(f)", "32(1)(b)"],
         "NIST_800_53": ["AC-6", "AC-2"],
         "SOC2": ["CC6.3"],
@@ -227,7 +227,7 @@ class AzureWorkloadWithSubscriptionControlRule(_RoleAssignmentRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.15", "A.5.16", "A.8.2"],
-        "NIST_CSF": ["PR.AC-1", "PR.AC-4"],
+        "NIST_CSF_2.0": ["PR.AA-01", "PR.AA-05"],
         "GDPR": ["5(1)(f)", "32(1)(b)"],
         "NIST_800_53": ["AC-6", "AC-3"],
         "SOC2": ["CC6.3"],
@@ -319,7 +319,7 @@ class AzureRoleGrantingIdentityRule(_RoleAssignmentRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.15", "A.5.18", "A.8.2"],
-        "NIST_CSF": ["PR.AC-4"],
+        "NIST_CSF_2.0": ["PR.AA-05"],
         "GDPR": ["5(1)(f)", "32(1)(b)"],
         "NIST_800_53": ["AC-6", "AC-3"],
         "SOC2": ["CC6.3"],
@@ -430,7 +430,7 @@ class AzureExcessiveOwnersRule(SecurityRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.15", "A.5.18", "A.8.2"],
-        "NIST_CSF": ["PR.AC-4"],
+        "NIST_CSF_2.0": ["PR.AA-05"],
         "GDPR": ["32(1)(b)"],
         "NIST_800_53": ["AC-2", "AC-6"],
         "SOC2": ["CC6.2", "CC6.3"],
@@ -546,7 +546,7 @@ class AzureBroadScopeAssignmentRule(_RoleAssignmentRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.15", "A.8.2"],
-        "NIST_CSF": ["PR.AC-4"],
+        "NIST_CSF_2.0": ["PR.AA-05"],
         "GDPR": ["32(1)(b)", "5(1)(f)"],
         "NIST_800_53": ["AC-6", "AC-3"],
         "SOC2": ["CC6.3"],
@@ -667,7 +667,7 @@ class AzureDangerousCustomRoleRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["1.23"],
         "ISO_27001": ["A.5.15", "A.8.2"],
-        "NIST_CSF": ["PR.AC-4"],
+        "NIST_CSF_2.0": ["PR.AA-05"],
         "GDPR": ["32(1)(b)"],
         "NIST_800_53": ["AC-6", "AC-3"],
         "SOC2": ["CC6.3"],
@@ -773,7 +773,7 @@ class AzureLockAdministratorRoleRule(SecurityRule):
         "CIS_AZURE_2.0": ["1.24"],
         "CIS_AZURE_6.0": ["5.5"],
         "ISO_27001": ["A.5.15", "A.8.2"],
-        "NIST_CSF": ["PR.AC-4"],
+        "NIST_CSF_2.0": ["PR.AA-05"],
         "NIST_800_53": ["AC-6"],
         "SOC2": ["CC6.3"],
         "PCI_DSS_4": ["7.2.1"],
@@ -866,7 +866,7 @@ class AzureSingleOwnerRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_6.0": ["5.7"],
         "ISO_27001": ["A.5.18"],
-        "NIST_CSF": ["PR.AC-4"],
+        "NIST_CSF_2.0": ["PR.AA-05"],
         "NIST_800_53": ["AC-2"],
         "SOC2": ["CC6.2"],
         "PCI_DSS_4": ["7.2.1"],

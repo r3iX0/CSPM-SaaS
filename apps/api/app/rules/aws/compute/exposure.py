@@ -64,7 +64,7 @@ class AwsInstanceMetadataRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AWS_3.0": ["5.6"],
         "ISO_27001": ["A.8.2"],
-        "NIST_CSF": ["PR.AC-1"],
+        "NIST_CSF_2.0": ["PR.AA-01"],
         "NIST_800_53": ["AC-6"],
         "SOC2": ["CC6.1"],
         "PCI_DSS_4": ["7.2.1"],

@@ -87,7 +87,7 @@ class AzureLongLivedApplicationCredentialRule(SecurityRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.17"],
-        "NIST_CSF": ["PR.AC-1"],
+        "NIST_CSF_2.0": ["PR.AA-01"],
         "NIST_800_53": ["IA-5"],
         "SOC2": ["CC6.1"],
         # The nearest control this catalogue holds. PCI's own requirement about

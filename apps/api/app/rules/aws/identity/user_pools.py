@@ -18,7 +18,7 @@ from app.rules.property import PropertySpec, property_rule
 
 _SIGN_IN = {
     "ISO_27001": ["A.5.17", "A.8.16"],
-    "NIST_CSF": ["PR.AC-7", "DE.CM-1"],
+    "NIST_CSF_2.0": ["PR.AA-03", "DE.CM-01"],
     "GDPR": ["32(1)(b)"],
     "NIST_800_53": ["IA-2", "SI-4"],
     "SOC2": ["CC6.1"],
@@ -173,7 +173,7 @@ SPECS = (
         failure="has no web ACL in front of it",
         mappings={
             "ISO_27001": ["A.8.20"],
-            "NIST_CSF": ["PR.AC-5"],
+            "NIST_CSF_2.0": ["PR.IR-01"],
             "GDPR": ["32(1)(b)"],
             "NIST_800_53": ["SC-7"],
             "SOC2": ["CC6.6"],

@@ -94,7 +94,7 @@ class AzureDormantPrivilegedAccountRule(SecurityRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.18"],
-        "NIST_CSF": ["PR.AC-1"],
+        "NIST_CSF_2.0": ["PR.AA-01"],
         "NIST_800_53": ["AC-2", "PS-4"],
         "SOC2": ["CC6.2", "CC6.3"],
         "PCI_DSS_4": ["7.2.1"],

@@ -357,7 +357,14 @@ def test_a_framework_about_an_organization_applies_to_every_cloud() -> None:
     from app.services.compliance import frameworks_for
 
     shown = {f.id for f in frameworks_for({Provider.AWS})}
-    for framework_id in ("ISO_27001", "GDPR", "NIST_CSF", "SOC2", "PCI_DSS_4"):
+    for framework_id in (
+        "ISO_27001",
+        "GDPR",
+        "NIST_CSF_2.0",
+        "SOC2",
+        "PCI_DSS_4",
+        "CIS_CONTROLS_8.1",
+    ):
         assert framework_id in shown
 
 

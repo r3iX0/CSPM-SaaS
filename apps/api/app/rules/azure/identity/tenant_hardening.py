@@ -30,7 +30,7 @@ _LIST_POLICIES = (
 )
 _AUTHENTICATION = {
     "ISO_27001": ["A.5.17"],
-    "NIST_CSF": ["PR.AC-7"],
+    "NIST_CSF_2.0": ["PR.AA-03"],
     "GDPR": ["32(1)(b)"],
     "NIST_800_53": ["IA-2"],
     "SOC2": ["CC6.1"],
@@ -38,7 +38,7 @@ _AUTHENTICATION = {
 }
 _ACCESS = {
     "ISO_27001": ["A.5.15", "A.5.18"],
-    "NIST_CSF": ["PR.AC-1", "PR.AC-4"],
+    "NIST_CSF_2.0": ["PR.AA-01", "PR.AA-05"],
     "GDPR": ["32(1)(b)"],
     "NIST_800_53": ["AC-2"],
     "SOC2": ["CC6.2"],
@@ -234,7 +234,7 @@ class AzureBannedPasswordRule(_TenantSettingRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.17"],
-        "NIST_CSF": ["PR.AC-1"],
+        "NIST_CSF_2.0": ["PR.AA-01"],
         "GDPR": ["32(1)(b)"],
         "NIST_800_53": ["IA-5"],
         "SOC2": ["CC6.1"],
@@ -303,6 +303,7 @@ class AzureAuthenticatorContextRule(_TenantSettingRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         **_AUTHENTICATION,
+        "PCI_DSS_4": ["8.4.2", "8.5"],
         "MITRE_ATTACK": ["T1621"],
     }
 

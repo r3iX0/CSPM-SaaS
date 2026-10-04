@@ -26,7 +26,7 @@ _NO_POLICY = (
 
 _MAPPINGS_EXPOSURE: dict[str, list[str]] = {
     "ISO_27001": ["A.8.20", "A.8.22"],
-    "NIST_CSF": ["PR.AC-3", "PR.AC-5"],
+    "NIST_CSF_2.0": ["PR.IR-01"],
     "GDPR": ["5(1)(f)", "32(1)(b)"],
     "NIST_800_53": ["SC-7", "AC-17"],
     "SOC2": ["CC6.1", "CC6.6"],
@@ -168,7 +168,7 @@ class AzureClusterLocalAccountsRule(_ClusterRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.15", "A.5.17"],
-        "NIST_CSF": ["PR.AC-1", "PR.AC-7"],
+        "NIST_CSF_2.0": ["PR.AA-01", "PR.AA-03"],
         "GDPR": ["25", "32(1)(b)"],
         "NIST_800_53": ["IA-2", "AC-2"],
         "SOC2": ["CC6.1", "CC6.2"],
@@ -235,11 +235,11 @@ class AzureClusterRbacRule(_ClusterRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.15", "A.8.2"],
-        "NIST_CSF": ["PR.AC-4"],
+        "NIST_CSF_2.0": ["PR.AA-05"],
         "GDPR": ["25", "32(1)(b)"],
         "NIST_800_53": ["AC-3", "AC-6"],
         "SOC2": ["CC6.1", "CC6.3"],
-        "PCI_DSS_4": ["7.2.1", "7.2.2"],
+        "PCI_DSS_4": ["7.2.1", "7.2.2", "7.3"],
     }
 
     def evaluate(
@@ -353,7 +353,7 @@ class AzureClusterNetworkPolicyRule(_ClusterRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.20", "A.8.22"],
-        "NIST_CSF": ["PR.AC-5"],
+        "NIST_CSF_2.0": ["PR.IR-01"],
         "GDPR": ["32(1)(b)"],
         "NIST_800_53": ["SC-7"],
         "SOC2": ["CC6.6"],

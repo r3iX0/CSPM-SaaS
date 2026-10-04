@@ -79,7 +79,7 @@ class AzureExposedComputeRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AZURE_2.0": ["6.1", "6.2"],
         "ISO_27001": ["A.8.20", "A.8.22"],
-        "NIST_CSF": ["PR.AC-3", "PR.AC-5"],
+        "NIST_CSF_2.0": ["PR.IR-01"],
         "GDPR": ["5(1)(f)", "32(1)(b)"],
         "NIST_800_53": ["AC-17", "SC-7"],
         "SOC2": ["CC6.6"],
@@ -205,7 +205,7 @@ class AzureUnguardedVmRule(SecurityRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.8.20", "A.8.22"],
-        "NIST_CSF": ["PR.AC-5", "PR.PT-4"],
+        "NIST_CSF_2.0": ["PR.IR-01"],
         "GDPR": ["5(1)(f)", "32(1)(b)"],
         "NIST_800_53": ["SC-7", "CM-7"],
         "SOC2": ["CC6.6"],
@@ -306,7 +306,7 @@ class AzureLinuxPasswordSignInRule(SecurityRule):
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.17"],
-        "NIST_CSF": ["PR.AC-1", "PR.AC-7"],
+        "NIST_CSF_2.0": ["PR.AA-01", "PR.AA-03"],
         "GDPR": ["32(1)(b)"],
         "NIST_800_53": ["IA-2", "IA-5"],
         "SOC2": ["CC6.1"],

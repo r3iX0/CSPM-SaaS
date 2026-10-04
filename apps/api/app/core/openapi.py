@@ -30,6 +30,27 @@ TAGS: list[dict[str, Any]] = [
     {"name": "team", "description": "Members, roles and invitations to an organization."},
     {"name": "audit", "description": "The append-only record of every change a person made."},
     {
+        "name": "audit-packages",
+        "description": (
+            "Sealed assessments of chosen frameworks, kept as they were, with the evidence "
+            "they rest on as a zip an auditor can check."
+        ),
+    },
+    {
+        "name": "audit-grants",
+        "description": (
+            "Who may read a sealed package: grants made to an address, withdrawn, and the "
+            "trail of what was done through them."
+        ),
+    },
+    {
+        "name": "auditor",
+        "description": (
+            "What an auditor reads through a grant: one sealed package, checked on every call "
+            "against the address on their verified token."
+        ),
+    },
+    {
         "name": "webhooks",
         "description": "Endpoints that receive notifications, and their deliveries.",
     },

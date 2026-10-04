@@ -59,7 +59,7 @@ class AwsKeyRotationRule(SecurityRule):
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "CIS_AWS_3.0": ["3.6"],
         "ISO_27001": ["A.8.24"],
-        "NIST_CSF": ["PR.DS-1"],
+        "NIST_CSF_2.0": ["PR.DS-01"],
         "NIST_800_53": ["SC-12"],
         "SOC2": ["CC6.1"],
         "PCI_DSS_4": ["3.6.1"],
