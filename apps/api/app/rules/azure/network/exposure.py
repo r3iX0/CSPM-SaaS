@@ -54,41 +54,152 @@ def _port_matches(port_spec: str, target: int) -> bool:
     return False
 
 
-def _inbound_allow_rules(resource: CloudResource) -> list[dict[str, Any]] | None:
+# Past every priority Azure accepts (100 to 4096), so a rule whose priority was
+# not recorded is read last rather than ahead of the rules that state one.
+_UNSTATED_PRIORITY = 1 << 16
+
+_ALL_PORTS = (0, 65535)
+
+
+def _priority(rule: dict[str, Any]) -> int:
+    value = rule.get("priority")
+    try:
+        return int(value) if value is not None else _UNSTATED_PRIORITY
+    except (TypeError, ValueError):
+        return _UNSTATED_PRIORITY
+
+
+def _is_allow(rule: dict[str, Any]) -> bool:
+    return str(rule.get("access", "")).lower() == "allow"
+
+
+def _protocol_covers(rule: dict[str, Any], protocol: str) -> bool:
+    """Whether the rule matches traffic of ``protocol`` (lower-case, or ``*``)."""
+    own = str(rule.get("protocol") or "*").lower()
+    return own in ("*", protocol)
+
+
+def _by_priority(rules: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Inbound rules, Allow and Deny, in the order Azure reads them.
+
+    Azure applies the first rule a connection matches, lowest priority number
+    first, and stops. An Allow behind a Deny that matches the same traffic
+    admits nothing, so a rule is judged only in that order and never alone.
+    """
+    inbound = [r for r in rules if str(r.get("direction", "")).lower() == "inbound"]
+    return sorted(inbound, key=_priority)
+
+
+def _inbound_rules(resource: CloudResource) -> list[dict[str, Any]] | None:
     rules = resource.get("security_rules")
     if rules is None:
         return None
+    return _by_priority(rules)
+
+
+def _port_intervals(port_specs: list[Any]) -> list[tuple[int, int]] | None:
+    """The port ranges a rule names, or None if any part of them cannot be read."""
+    intervals: list[tuple[int, int]] = []
+    for spec in port_specs:
+        for raw in str(spec).split(","):
+            token = raw.strip()
+            if not token:
+                continue
+            if token == "*":
+                intervals.append(_ALL_PORTS)
+                continue
+            low, _, high = token.partition("-")
+            try:
+                intervals.append((int(low), int(high or low)))
+            except ValueError:
+                return None
+    return intervals
+
+
+def _covered(inner: list[tuple[int, int]], outer: list[tuple[int, int]]) -> bool:
+    """Whether every port in ``inner`` falls inside ``outer``'s ranges."""
+    merged: list[tuple[int, int]] = []
+    for low, high in sorted(outer):
+        if merged and low <= merged[-1][1] + 1:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], high))
+        else:
+            merged.append((low, high))
+    return all(any(a <= low and high <= b for a, b in merged) for low, high in inner)
+
+
+def _overrides(earlier: dict[str, Any], rule: dict[str, Any]) -> bool:
+    """Whether ``earlier`` is a Deny that every connection ``rule`` admits meets first.
+
+    Only a Deny from the whole internet, over the same protocol and at least the
+    same ports, takes a public Allow out entirely. A Deny that closes part of it
+    leaves the rest open, and the Allow is still reported.
+    """
+    if _is_allow(earlier) or not _is_public(earlier.get("source")):
+        return False
+    if not _protocol_covers(earlier, str(rule.get("protocol") or "*").lower()):
+        return False
+    inner = _port_intervals(rule.get("destination_ports") or [])
+    outer = _port_intervals(earlier.get("destination_ports") or [])
+    if not inner or outer is None:
+        return False
+    return _covered(inner, outer)
+
+
+def admitting_rules(rules: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The inbound Allow rules that admit the internet and no earlier Deny overrides.
+
+    ``rules`` is the group's whole list. Shared with the normalizer, which scores
+    the group's exposure from the same reading these rules judge.
+    """
+    inbound = _by_priority(rules)
     return [
-        r
-        for r in rules
-        if str(r.get("direction", "")).lower() == "inbound"
-        and str(r.get("access", "")).lower() == "allow"
+        rule
+        for index, rule in enumerate(inbound)
+        if _is_allow(rule)
+        and _is_public(rule.get("source"))
+        and not any(_overrides(earlier, rule) for earlier in inbound[:index])
     ]
+
+
+def _public_allow_rules(resource: CloudResource) -> list[dict[str, Any]] | None:
+    rules = resource.get("security_rules")
+    if rules is None:
+        return None
+    return admitting_rules(rules)
+
+
+def _first_match(rules: list[dict[str, Any]], port: int, protocol: str) -> dict[str, Any] | None:
+    """The rule that decides a connection from anywhere on the internet.
+
+    A rule naming a narrower source decides only for the addresses it names, so
+    it neither opens the port to the internet nor closes it.
+    """
+    for rule in rules:
+        if not _is_public(rule.get("source")) or not _protocol_covers(rule, protocol):
+            continue
+        if any(_port_matches(spec, port) for spec in rule.get("destination_ports") or []):
+            return rule
+    return None
 
 
 def _find_public_port(
     resource: CloudResource, ports: tuple[int, ...], protocols: set[str]
 ) -> tuple[dict, int] | None:
-    """The first rule opening any of these ports to the internet, and which one.
+    """The rule opening any of these ports to the internet, and which port.
 
     Several ports rather than one, because a service is not always a port.
     WinRM listens on 5985 and 5986 and either is the same finding with the same
     fix -- reporting them as two findings would ask a customer to close the
     same door twice.
     """
-    rules = _inbound_allow_rules(resource)
+    rules = _inbound_rules(resource)
     if rules is None:
         return None
-    for rule in rules:
-        protocol = str(rule.get("protocol", "*")).lower()
-        if protocol not in protocols and protocol != "*":
-            continue
-        if not _is_public(rule.get("source")):
-            continue
-        for port_spec in rule.get("destination_ports", []) or []:
-            for port in ports:
-                if _port_matches(port_spec, port):
-                    return rule, port
+    for port in ports:
+        for protocol in sorted(protocols):
+            decisive = _first_match(rules, port, protocol)
+            if decisive is not None and _is_allow(decisive):
+                return decisive, port
     return None
 
 
@@ -185,7 +296,7 @@ class _PublicPortRule(SecurityRule):
         if failure:
             return RuleResult.unknown(f"Network configuration unavailable: {failure}")
 
-        if _inbound_allow_rules(resource) is None:
+        if _inbound_rules(resource) is None:
             # The NSG exists but its rule list never arrived. Saying PASS here
             # would be inventing evidence we do not have.
             return RuleResult.unknown("Security rule list missing from snapshot")
@@ -462,7 +573,7 @@ class AzureOpenNsgRule(SecurityRule):
         if failure:
             return RuleResult.unknown(f"Network configuration unavailable: {failure}")
 
-        inbound = _inbound_allow_rules(resource)
+        inbound = _public_allow_rules(resource)
         if inbound is None:
             return RuleResult.unknown("Security rule list missing from snapshot")
 
@@ -807,7 +918,7 @@ class AzurePublicUdpRule(SecurityRule):
         if failure:
             return RuleResult.unknown(f"Network configuration unavailable: {failure}")
 
-        inbound = _inbound_allow_rules(resource)
+        inbound = _public_allow_rules(resource)
         if inbound is None:
             return RuleResult.unknown("Security rule list missing from snapshot")
 

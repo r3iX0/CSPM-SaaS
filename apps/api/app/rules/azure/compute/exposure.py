@@ -19,6 +19,24 @@ from app.rules.base import RuleContext, RuleResult, SecurityRule
 ADMIN_SERVICES = {3389: "RDP", 22: "SSH", 5985: "WinRM", 5986: "WinRM over HTTPS"}
 
 
+def _paths(resource: CloudResource, guarding: list[CloudResource]) -> list[list[CloudResource]]:
+    """The groups guarding each public address, one list per address.
+
+    A connection to a public address meets the subnet's group and then the
+    interface's, and passes only if both allow it. A machine captured before
+    the normalizer recorded its paths (``public_paths``) is read as it always
+    was, each guarding group on its own.
+    """
+    recorded = resource.get("public_paths")
+    if recorded is None:
+        return [[nsg] for nsg in guarding]
+    by_id = {nsg.provider_resource_id.lower(): nsg for nsg in guarding}
+    return [
+        [by_id[str(i).lower()] for i in path.get("nsgs") or [] if str(i).lower() in by_id]
+        for path in recorded
+    ]
+
+
 class AzureExposedComputeRule(SecurityRule):
     rule_id = "AZ-CMP-001"
     name = "Internet-facing virtual machine with an administrative port open"
@@ -113,21 +131,34 @@ class AzureExposedComputeRule(SecurityRule):
                 "VM has a public IP but no governing network security group was resolved"
             )
 
+        paths = _paths(resource, guarding_nsgs)
+        if not any(paths):
+            return RuleResult.unknown(
+                "VM has a public IP but no network security group guards its public address"
+            )
+
         exposed: list[dict] = []
-        for nsg in guarding_nsgs:
+        for layers in paths:
             for port, service in ADMIN_SERVICES.items():
-                found = _find_public_port(nsg, (port,), {"tcp"})
-                if found:
-                    match, _ = found
-                    exposed.append(
-                        {
-                            "service": service,
-                            "port": port,
-                            "nsg": nsg.name,
-                            "nsg_rule_name": match.get("name"),
-                            "source": match.get("source"),
-                        }
-                    )
+                # Every group on the path must open the port; one that does
+                # not stops the connection before it reaches the machine.
+                opening = [
+                    (nsg, found[0])
+                    for nsg in layers
+                    if (found := _find_public_port(nsg, (port,), {"tcp"})) is not None
+                ]
+                if not layers or len(opening) < len(layers):
+                    continue
+                for nsg, match in opening:
+                    entry = {
+                        "service": service,
+                        "port": port,
+                        "nsg": nsg.name,
+                        "nsg_rule_name": match.get("name"),
+                        "source": match.get("source"),
+                    }
+                    if entry not in exposed:
+                        exposed.append(entry)
 
         evidence = {
             "has_public_ip": True,

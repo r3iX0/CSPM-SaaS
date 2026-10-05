@@ -304,3 +304,70 @@ class TestSensitiveMachineWithAnAddress:
     def test_a_machine_whose_interfaces_never_arrived_is_unknown(self) -> None:
         vm = machine(public=None, sensitivity=Level.HIGH)
         assert self.rule.evaluate(vm, make_context(vm)).state is RuleState.UNKNOWN
+
+
+def _nsg(*rules: dict) -> CloudResource:
+    return CloudResource(
+        provider_resource_id="/nsg/n",
+        resource_type=ResourceType.NETWORK_SECURITY_GROUP,
+        name="n",
+        provider=Provider.AZURE,
+        metadata={"security_rules": list(rules)},
+    )
+
+
+def _rule(name: str, access: str, priority: int, ports: list[str], protocol: str = "Tcp") -> dict:
+    return {
+        "name": name,
+        "direction": "Inbound",
+        "access": access,
+        "protocol": protocol,
+        "source": "*",
+        "destination_ports": ports,
+        "priority": priority,
+    }
+
+
+class TestRulePrecedence:
+    """Azure applies the first rule a connection matches, lowest priority number first."""
+
+    def test_an_allow_behind_a_deny_for_the_same_port_admits_nothing(self) -> None:
+        nsg = _nsg(
+            _rule("allow-rdp", "Allow", 300, ["3389"]), _rule("deny-all", "Deny", 100, ["*"])
+        )
+        assert AzurePublicRdpRule().evaluate(nsg, make_context(nsg)).state == RuleState.PASS
+
+    def test_a_deny_read_after_the_allow_closes_nothing(self) -> None:
+        nsg = _nsg(
+            _rule("allow-rdp", "Allow", 100, ["3389"]), _rule("deny-all", "Deny", 300, ["*"])
+        )
+        assert AzurePublicRdpRule().evaluate(nsg, make_context(nsg)).state == RuleState.FAIL
+
+    def test_a_deny_for_another_port_leaves_the_allow_open(self) -> None:
+        nsg = _nsg(
+            _rule("deny-ssh", "Deny", 100, ["22"]), _rule("allow-rdp", "Allow", 300, ["3389"])
+        )
+        assert AzurePublicRdpRule().evaluate(nsg, make_context(nsg)).state == RuleState.FAIL
+
+    def test_a_deny_for_another_protocol_leaves_the_allow_open(self) -> None:
+        nsg = _nsg(
+            _rule("deny-udp", "Deny", 100, ["*"], protocol="Udp"),
+            _rule("allow-rdp", "Allow", 300, ["3389"]),
+        )
+        assert AzurePublicRdpRule().evaluate(nsg, make_context(nsg)).state == RuleState.FAIL
+
+    def test_a_deny_from_one_address_does_not_close_the_port_to_the_internet(self) -> None:
+        narrow = {**_rule("deny-one", "Deny", 100, ["3389"]), "source": "203.0.113.7/32"}
+        nsg = _nsg(narrow, _rule("allow-rdp", "Allow", 300, ["3389"]))
+        assert AzurePublicRdpRule().evaluate(nsg, make_context(nsg)).state == RuleState.FAIL
+
+    def test_an_open_group_behind_a_deny_for_all_ports_is_not_reported(self) -> None:
+        nsg = _nsg(_rule("deny-all", "Deny", 100, ["*"]), _rule("allow-all", "Allow", 300, ["*"]))
+        assert AzureOpenNsgRule().evaluate(nsg, make_context(nsg)).state == RuleState.PASS
+
+    def test_a_deny_closing_part_of_an_open_range_leaves_the_rest_reported(self) -> None:
+        nsg = _nsg(
+            _rule("deny-mysql", "Deny", 100, ["3306"]),
+            _rule("allow-range", "Allow", 300, ["3000-6000"]),
+        )
+        assert AzureOpenNsgRule().evaluate(nsg, make_context(nsg)).state == RuleState.FAIL

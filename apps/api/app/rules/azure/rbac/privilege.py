@@ -64,6 +64,42 @@ def _is_person(resource: CloudResource) -> bool:
     return str(resource.get("principal_type") or "").lower() == "user"
 
 
+def _policy_identity(resource: CloudResource, context: RuleContext) -> list[dict[str, Any]]:
+    """The policy assignments this identity remediates for, when nothing else runs as it.
+
+    Azure Policy holds such an identity's token, and only to deploy what the
+    assignment's definition names. Reaching its roles takes the right to write
+    that policy, not a foothold in a workload, so the finding stands with a lower
+    exploitability, and the identity is no administrator (DECISIONS.md section
+    222). An identity a workload also runs as is that workload's too, and is
+    judged as one.
+    """
+    assignments = resource.get("policy_assignments") or []
+    if not assignments or context.get_related_inverse(resource, "has_identity"):
+        return []
+    return [a for a in assignments if isinstance(a, dict)]
+
+
+def _policy_suffix(assignments: list[dict[str, Any]]) -> str:
+    if not assignments:
+        return ""
+    if len(assignments) == 1:
+        return f", as the identity of Azure Policy assignment '{assignments[0].get('name')}'"
+    return f", as the identity of {len(assignments)} Azure Policy assignments"
+
+
+# Exploitability for an identity only Azure Policy acts as: the attacker must
+# already be able to write the policy that drives it.
+_POLICY_EXPLOITABILITY = 1
+
+_POLICY_REMEDIATION = (
+    "\n\nWhere the identity belongs to an Azure Policy assignment, the role comes from the "
+    "policy definition's roleDefinitionIds. Narrow those, or the assignment's scope, and "
+    "re-create the assignment's role assignments; deleting the role assignment alone stops "
+    "the policy remediating."
+)
+
+
 class _RoleAssignmentRule(SecurityRule):
     """Shared plumbing: read the assignments, or say why you cannot."""
 
@@ -223,7 +259,7 @@ class AzureWorkloadWithSubscriptionControlRule(_RoleAssignmentRule):
         "  az role assignment delete --assignee <object-id> --role Contributor \\\n"
         "    --scope /subscriptions/<subscription-id>\n"
         "  az role assignment create --assignee <object-id> --role <narrower-role> \\\n"
-        "    --scope /subscriptions/<subscription-id>/resourceGroups/<rg>"
+        "    --scope /subscriptions/<subscription-id>/resourceGroups/<rg>" + _POLICY_REMEDIATION
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.15", "A.5.16", "A.8.2"],
@@ -259,6 +295,7 @@ class AzureWorkloadWithSubscriptionControlRule(_RoleAssignmentRule):
         # is the path -- so the evidence names them and the graph carries on
         # from here.
         runs = context.get_related_inverse(resource, "has_identity")
+        policy = _policy_identity(resource, context)
         return RuleResult.failed(
             evidence={
                 "subscription_wide_roles": [
@@ -267,10 +304,13 @@ class AzureWorkloadWithSubscriptionControlRule(_RoleAssignmentRule):
                 "principal_type": resource.get("principal_type"),
                 "attached_to": [r.name for r in runs],
                 "attached_resource_ids": [r.provider_resource_id for r in runs],
+                "policy_assignments": policy,
             },
             # Nothing runs as it, so there is no workload to compromise on the
-            # way in. The over-privilege is real and the route to it is not.
-            exploitability=None if runs else 2,
+            # way in. The over-privilege is real and the route to it is not --
+            # and for Azure Policy's own identity the route is writing the
+            # policy, which is narrower still (section 222).
+            exploitability=_POLICY_EXPLOITABILITY if policy else None if runs else 2,
             message=(
                 f"{resource.name} holds "
                 + ", ".join(sorted({str(r.get("role")) for r in held}))
@@ -280,6 +320,8 @@ class AzureWorkloadWithSubscriptionControlRule(_RoleAssignmentRule):
                     if len(runs) == 1
                     else f", and is the identity of {len(runs)} resources"
                     if runs
+                    else _policy_suffix(policy)
+                    if policy
                     else ", though nothing currently runs as it"
                 )
             ),
@@ -316,6 +358,7 @@ class AzureRoleGrantingIdentityRule(_RoleAssignmentRule):
         "Azure CLI, to see what a custom role actually permits:\n"
         "  az role definition list --name <role> \\\n"
         '    --query "[].{actions:permissions[0].actions,notActions:permissions[0].notActions}"'
+        + _POLICY_REMEDIATION
     )
     compliance_mappings: ClassVar[dict[str, list[str]]] = {
         "ISO_27001": ["A.5.15", "A.5.18", "A.8.2"],
@@ -341,6 +384,7 @@ class AzureRoleGrantingIdentityRule(_RoleAssignmentRule):
             return RuleResult.passed({"can_grant_roles": False})
 
         runs = context.get_related_inverse(resource, "has_identity")
+        policy = _policy_identity(resource, context)
         return RuleResult.failed(
             evidence={
                 "can_grant_roles": True,
@@ -349,14 +393,38 @@ class AzureRoleGrantingIdentityRule(_RoleAssignmentRule):
                 ],
                 "is_person": _is_person(resource),
                 "attached_to": [r.name for r in runs],
+                "policy_assignments": policy,
             },
+            exploitability=_POLICY_EXPLOITABILITY if policy else None,
             message=(
                 f"{resource.name} holds "
                 + ", ".join(sorted({str(r.get("role")) for r in escalating}))
+                + _policy_suffix(policy)
                 + ", which permits writing role assignments -- it can grant itself any "
                 "role at that scope"
             ),
         )
+
+
+def _owners(context: RuleContext) -> tuple[list[CloudResource], list[CloudResource]]:
+    """Who holds Owner over the subscription: administrators, then Azure Policy's identities.
+
+    The two Owner counts ask how many accounts can administer the subscription.
+    An identity only Azure Policy acts as administers nothing, so it is counted
+    apart, where the evidence can still name it (DECISIONS.md section 222).
+    """
+    holders = [
+        identity
+        for identity in context.resources
+        if any(
+            str(role.get("role", "")).lower() == "owner"
+            and _is_subscription_scope(role.get("scope"))
+            for role in _roles(identity) or []
+        )
+    ]
+    policy = [identity for identity in holders if _policy_identity(identity, context)]
+    apart = {identity.provider_resource_id for identity in policy}
+    return [i for i in holders if i.provider_resource_id not in apart], policy
 
 
 # ``/providers/Microsoft.Management/managementGroups/<name>``, and the tenant
@@ -449,15 +517,7 @@ class AzureExcessiveOwnersRule(SecurityRule):
         if failure:
             return RuleResult.unknown(f"Role assignments unavailable: {failure}")
 
-        holders = [
-            identity
-            for identity in context.resources
-            if any(
-                str(role.get("role", "")).lower() == "owner"
-                and _is_subscription_scope(role.get("scope"))
-                for role in _roles(identity) or []
-            )
-        ]
+        holders, policy_owners = _owners(context)
 
         # Nobody at all is not a clean tenant; it is a tenant whose assignments
         # never arrived, or one where every Owner sits above the subscription.
@@ -467,6 +527,7 @@ class AzureExcessiveOwnersRule(SecurityRule):
 
         evidence = {
             "owner_count": len(holders),
+            "policy_identities_not_counted": len(policy_owners),
             "threshold": self.MAX_OWNERS,
             "owners": sorted(
                 str(identity.get("user_principal_name") or identity.name) for identity in holders
@@ -515,7 +576,7 @@ class AzureBroadScopeAssignmentRule(_RoleAssignmentRule):
         "  az role assignment delete --assignee <object-id> --scope <management-group-scope>\n\n"
         "Where a platform team genuinely operates across every subscription, prefer an "
         "eligible assignment in Privileged Identity Management over a standing one, so the "
-        "inherited reach exists only while somebody is using it."
+        "inherited reach exists only while somebody is using it." + _POLICY_REMEDIATION
     )
     remediation_spec: ClassVar[RemediationSpec | None] = RemediationSpec(
         expected=(
@@ -570,6 +631,7 @@ class AzureBroadScopeAssignmentRule(_RoleAssignmentRule):
         if not held:
             return RuleResult.passed({"inherited_full_control": []})
 
+        policy = _policy_identity(resource, context)
         return RuleResult.failed(
             evidence={
                 "inherited_full_control": [
@@ -577,12 +639,15 @@ class AzureBroadScopeAssignmentRule(_RoleAssignmentRule):
                 ],
                 "principal_type": resource.get("principal_type"),
                 "user_principal_name": resource.get("user_principal_name"),
+                "policy_assignments": policy,
             },
+            exploitability=_POLICY_EXPLOITABILITY if policy else None,
             message=(
                 f"{resource.name} holds "
                 + ", ".join(sorted({str(r.get("role")) for r in held}))
-                + " above the subscription, so every subscription beneath that "
-                "scope inherits it"
+                + " above the subscription"
+                + _policy_suffix(policy)
+                + ", so every subscription beneath that scope inherits it"
             ),
         )
 
@@ -880,16 +945,13 @@ class AzureSingleOwnerRule(SecurityRule):
             return RuleResult.unknown(f"Role assignments unavailable: {failure}")
         if not any(_roles(identity) is not None for identity in context.resources):
             return RuleResult.unknown("No role assignments were collected")
-        owners = [
-            identity
-            for identity in context.resources
-            if any(
-                str(role.get("role", "")).lower() == "owner"
-                and _is_subscription_scope(role.get("scope"))
-                for role in _roles(identity) or []
-            )
-        ]
-        evidence = {"owner_count": len(owners)}
+        # Azure Policy's identity cannot sign in to recover access, so it is
+        # no second Owner (section 222).
+        owners, policy_owners = _owners(context)
+        evidence = {
+            "owner_count": len(owners),
+            "policy_identities_not_counted": len(policy_owners),
+        }
         if len(owners) >= 2:
             return RuleResult.passed(evidence)
         return RuleResult.failed(

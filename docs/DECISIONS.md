@@ -12011,6 +12011,73 @@ enforced by the API yet. "Open the demo" links to `/demo`, the guest entry (§21
 address there, and the legal pages -- privacy, terms, a DPA and an imprint -- which need a lawyer
 rather than generated text.
 
+## 221. A setting Azure ignores is not an exposure
+
+An audit on 2026-10-05 (`docs/REMEDIATION_PLAN.md`, Part 4) found rules that failed a resource
+Azure already keeps closed, because each read one setting without the setting that overrides it.
+Practitioners name exactly this as the noise that makes them stop reading a posture tool. The
+rules now read the two together, as Azure does.
+
+**Public network access Disabled overrides the network rules.** Azure then answers only private
+endpoints and applies neither a storage account's network rules nor a server's firewall rules.
+`AZ-STO-001` no longer fails a default action of Allow on such an account, and the normalizer no
+longer scores it HIGH exposure. Anonymous blob access still fails. `AZ-DB-001` passes a SQL or
+PostgreSQL server whose public access is Disabled whatever its firewall rules say, recording how
+many there are. `AZ-DB-025` applies only while public access is Enabled, so it is NOT_APPLICABLE
+when Disabled and UNKNOWN when unstated (§177).
+
+**An NSG is read in priority order.** Azure applies the first rule a connection matches, lowest
+priority number first. The exposure rules used to drop every Deny and report any public Allow.
+Now a port is open only if the first rule matching a connection from anywhere (`*`, `Internet`,
+`0.0.0.0/0`) is an Allow (`_find_public_port`), and an Allow counts only if no earlier Deny from
+anywhere covers its protocol and every one of its ports (`admitting_rules`, which the normalizer's
+exposure score shares). A Deny from one address range closes nothing for the rest of the
+internet, and a Deny over part of an Allow's range leaves the Allow reported. This covers
+`AZ-NET-001` to `AZ-NET-005`, `AZ-NET-008`, `AZ-NET-009`, `AZ-NET-017` and `AZ-CMP-001`.
+
+**A machine is reached through every group on one path.** A connection to a virtual machine's
+public address passes the subnet's NSG and then the interface's, and only if both allow it. The
+normalizer records each public address with the groups on its path (`public_paths`), and
+`AZ-CMP-001` fails only where every group on a path opens the port, naming each group's rule. A
+machine whose public addresses have no group on their path is UNKNOWN, as a machine with no
+guarding group was. A machine stored before `public_paths` existed is read as before, each group
+on its own, until its next scan.
+
+**Not decided here:** the audit's second half. `AZ-IAM-002`, `AZ-IAM-003` and `AZ-IAM-008` cannot
+tell an Azure Policy assignment's managed identity from any other service principal. That needs
+its own entry, because the identity's privilege is real and the question is what the rules should
+say about who holds it. Settled in §222.
+
+## 222. Azure Policy's own identity is named, scored lower and counted apart
+
+A DeployIfNotExists or Modify policy assignment remediates as a managed identity, granted the
+roles its definition names. A landing zone assigns these at management groups with Contributor or
+Owner by design. The rules read that identity as one more service principal: `AZ-IAM-003` called
+it CRITICAL, advised removing a role the policy needs, and the two Owner counts counted it.
+Defender for Cloud's equivalent findings about Microsoft's own identities are the ones its users
+resent most (`docs/REMEDIATION_PLAN.md`, Part 4).
+
+**Recognised from what is already read.** Each subscription's policy assignments are listed with
+`$filter=atScope()`, inherited ones included, and each names its identity: `identity.principalId`
+when system-assigned, `identity.userAssignedIdentities` otherwise. The normalizer records the
+assignments on the identity holding the role (`policy_assignments`, with id, display name and
+scope; `settings_v13.policy_identities`). No new permission and no new read.
+
+**The finding stands.** Whoever can write the policy can deploy whatever its definition allows as
+that identity, so its privilege is real, and hiding it would trade one false statement for
+another. `AZ-IAM-002`, `AZ-IAM-003` and `AZ-IAM-008` still fail, name the assignment in the
+message and evidence, and score exploitability 1: the way in is the right to write policy, not a
+foothold in a workload. Each rule's remediation says where the role comes from (the definition's
+`roleDefinitionIds`) and that deleting the role assignment alone stops the policy remediating.
+
+**Not an administrator.** `AZ-IAM-005` and `AZ-IAM-012` ask how many accounts can administer the
+subscription. A policy identity cannot sign in to do that, so it is left out of both counts and
+reported as `policy_identities_not_counted`. It is no second Owner for `AZ-IAM-012`.
+
+**Only while nothing else runs as it.** A user-assigned identity can also be attached to a
+workload, and then a foothold in that workload reaches its roles. Such an identity is judged as a
+workload's, exactly as before, and counted as an Owner.
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,

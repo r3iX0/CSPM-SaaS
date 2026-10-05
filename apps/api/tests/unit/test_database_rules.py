@@ -55,6 +55,16 @@ class TestPublicDatabase:
         result = self.rule.evaluate(wide_open, make_context(wide_open))
         assert result.state == RuleState.FAIL
 
+    def test_a_firewall_rule_left_behind_opens_nothing_while_public_access_is_off(self) -> None:
+        """Azure refuses every connection to the public endpoint while public
+        access is Disabled and applies no firewall rule, so an old allow-all
+        rule does not make the server reachable."""
+        server = resource_from("vulnerable", "sql_server_public")
+        closed = replace(server, metadata={**server.metadata, "public_network_access": "Disabled"})
+        result = self.rule.evaluate(closed, make_context(closed))
+        assert result.state == RuleState.PASS
+        assert result.evidence["firewall_rule_count"] > 0
+
     def test_unknown_when_config_missing(self) -> None:
         server = resource_from("unknown", "sql_server_config_missing")
         assert self.rule.evaluate(server, make_context(server)).state == RuleState.UNKNOWN

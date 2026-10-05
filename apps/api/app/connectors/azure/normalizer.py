@@ -993,6 +993,9 @@ class AzureNormalizer:
                 if name:
                     identity_names.setdefault(workload_principal, name)
 
+        # The managed identities Azure Policy remediates as (section 222).
+        policy_identities = v13.policy_identities(data.get("policy_assignments"))
+
         nodes: dict[str, CloudResource] = {}
         edges: list[tuple[str, RelationshipType, str]] = []
         # Who is in each role-holding group, where the subscription's reading
@@ -1101,6 +1104,8 @@ class AzureNormalizer:
                     }
                 )
                 existing.metadata["roles"] = roles
+                if principal_id in policy_identities:
+                    existing.metadata["policy_assignments"] = policy_identities[principal_id]
 
         # Roles a principal is eligible to activate under PIM rather than
         # holds (section 130). Recorded apart from ``roles`` -- the rules judge
@@ -1253,15 +1258,11 @@ class AzureNormalizer:
         Feeds the risk score directly, which is why an open administrative port
         outranks an open web port.
         """
-        from app.rules.azure.network.exposure import _is_public, _port_matches
+        from app.rules.azure.network.exposure import _port_matches, admitting_rules
 
-        inbound_allow = [
-            r
-            for r in rules
-            if str(r.get("direction", "")).lower() == "inbound"
-            and str(r.get("access", "")).lower() == "allow"
-        ]
-        public = [r for r in inbound_allow if _is_public(r.get("source"))]
+        # Read as Azure reads them, so an Allow a higher-priority Deny overrides
+        # scores nothing, as it decides nothing.
+        public = admitting_rules(rules)
         if not public:
             return Level.LOW
 
@@ -1289,6 +1290,10 @@ class AzureNormalizer:
 
             allow_public = props.get("allowBlobPublicAccess")
             default_action = network_acls.get("defaultAction")
+            # Azure ignores the network rules while public network access is
+            # Disabled, so a default of Allow then opens nothing (AZ-STO-001).
+            public_disabled = str(props.get("publicNetworkAccess") or "").lower() == "disabled"
+            network_open = str(default_action).lower() == "allow" and not public_disabled
 
             resources.append(
                 CloudResource(
@@ -1302,9 +1307,9 @@ class AzureNormalizer:
                         Level.CRITICAL
                         if allow_public is True
                         else Level.HIGH
-                        if str(default_action).lower() == "allow"
+                        if network_open
                         else Level.LOW
-                        if allow_public is False
+                        if allow_public is False or public_disabled
                         else Level.UNKNOWN
                     ),
                     metadata={
@@ -1746,6 +1751,11 @@ class AzureNormalizer:
             ]
 
             vm_public_ips: list[str] = []
+            # Each public address and the groups a connection to it passes. A
+            # connection meets the subnet's group and then the interface's, and
+            # must be allowed by both, so the machine is reachable on a port
+            # only where every group on one path opens it.
+            public_paths: list[dict[str, Any]] = []
             guarding_nsgs: set[str] = set()
             subnets: set[str] = set()
             private_ips: list[str] = []
@@ -1783,6 +1793,12 @@ class AzureNormalizer:
                         pip = public_ips.get(str(pip_id).lower())
                         address = _first(pip or {}, "properties", "ipAddress")
                         vm_public_ips.append(address or pip_id)
+                        public_paths.append(
+                            {
+                                "public_ip": address or pip_id,
+                                "nsgs": sorted({n for n in (nsg_id, subnet_nsg) if n}),
+                            }
+                        )
 
             # Edges point NSG -> VM, the direction the relationship actually
             # runs. The rule engine derives the reverse index itself.
@@ -1837,6 +1853,7 @@ class AzureNormalizer:
                         "vm_size": _first(props, "hardwareProfile", "vmSize"),
                         "network_interfaces": attached_nic_ids,
                         "guarding_nsgs": sorted(guarding_nsgs),
+                        "public_paths": public_paths,
                         # Where the machine sits on its network, for working
                         # out which machines it can reach
                         # (``connectors/azure/network.py``).
