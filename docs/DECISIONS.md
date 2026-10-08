@@ -12271,6 +12271,45 @@ and sent outside any transaction (§158, §164). Tokens are encrypted at the app
 the request role may write but never read them. The demo and guests are refused (§99, §219). The
 connect link's `state` names its purpose and is spent once (§147).
 
+## 227. Fix-as-Code finds a block by the customer's own state, and opens one pull request per rule and repository
+
+Designed, not built. `docs/FIX_AS_CODE.md` Phase 2 is the specification. Phase 1 measured that a
+literal resource name locates about 1% of blocks in public samples, so Phase 2 could not start until
+a searched repository could be matched. Two designs answered that on 2026-10-04: the remediation
+plan's, and Ermir's (`docs/superpowers/specs/2026-10-04-fix-as-code-pull-requests-design.md`).
+This entry settles between them.
+
+**A block is located by the customer's CI, not by a model.** A GitHub Action in the customer's
+pipeline reads `terraform show -json` and uploads each managed resource's address, type, index and
+`id`. An azurerm `id` is the asset's Azure Resource Manager id, so the match is exact through
+variables, `count`, `for_each` and local modules. The address then names the block. Ermir's design
+had a read-only model point at the block when a name search failed. It was well guarded, but it
+needs a model provider, key custody and data-processing terms that do not exist yet. It sends
+repository text to a third party, and it guesses where the index knows. Either fits behind the
+same locator output, so a model can still return for repositories with no index.
+
+- **Only four fields leave the runner.** State JSON holds secrets in plaintext, so the Action
+  keeps address, type, index and id, and never uploads state.
+- **No stored credential.** The Action authenticates with its GitHub Actions OIDC token. Cleave
+  accepts an index only from the default branch of a repository its GitHub App installation covers.
+- **The index marks assets IaC-managed**, so their CLI fix is offered as an emergency fix that will
+  drift. This gives the Action value before any pull request exists.
+- **New declines:** `module_external`; `partial_instances`, where `count`, `for_each` or several
+  workspaces share a block and not every instance fails; and `index_stale`.
+
+**One pull request per rule per repository**, not per finding, to match one Jira issue per rule
+group (§226). It edits every failing asset of the rule the repository defines and lists the ones it
+declined. A merge claims the fix for every finding in it, and the next scan decides (§190).
+
+**The upload stays.** Ermir's design removed it with `sole_block`. It is the only code fix for a
+customer without GitHub until pull requests ship, and its removal is decided on measured use after
+that.
+
+**Adopted from Ermir's design:** the GitHub App and its permissions, `code_integrations`,
+`repo_mappings` and `fix_pull_requests`, the `IacDialect` engine, the leased Celery task, the
+`FIX_PRS_ENABLED` rollout and logging every decline from the first day. His spec and plan carry a
+note saying which parts this entry replaced.
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,

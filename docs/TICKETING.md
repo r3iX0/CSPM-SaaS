@@ -138,8 +138,9 @@ What one send does:
    - **Due date**: the earliest `due_on` among the tasks (§225).
    - **Labels**: `cleave` and the rule id.
    - Priority is not set, because priority schemes differ per site.
-4. Posts the **status comment**: one Cleave-owned comment listing each asset and its state, edited
-   in place (`PUT` on the comment) as states change. A checklist kept in the description would
+4. Posts the **status comment**: one Cleave-owned comment listing each asset and its state, and
+   the rule's pull request once Fix-as-Code opens one (§227), edited in place (`PUT` on the
+   comment) as states change. A checklist kept in the description would
    overwrite human edits; a stream of comments would bury the discussion.
 
 **A new failing asset** on a rule with an open issue joins that issue: a task is created and linked,
