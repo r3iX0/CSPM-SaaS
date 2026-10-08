@@ -287,7 +287,7 @@ so the shell's own `<main>` is the page's only one (§155).
   uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}`.
 - **Railway settings** (API, worker, Redis) are `.railway/railway.ts`, which a push does not apply:
   `railway config plan`, then `railway config apply`, since apply deletes what the file omits;
-  every variable in it is `preserve()`, never a value (DECISIONS.md §218).
+  every variable in it is `preserve()`, never a value (DECISIONS.md §223).
 - **Frontend**: Vercel (auto-deploy from `apps/web`).
 - **Database**: Supabase PostgreSQL. RLS role setup in `infrastructure/supabase/roles.sql`.
 - CI checks that `infrastructure/supabase/roles.sql` retains the placeholder password — never commit
@@ -442,6 +442,10 @@ so the shell's own `<main>` is the page's only one (§155).
   `SECURITY DEFINER` function that re-checks the grant (this user, this address, unrevoked,
   unexpired). The link's token is stored only as its hash and spent once; the grant's own event log
   (`OPENED`, `ARCHIVE_DOWNLOADED`) is the only trail of what an auditor read (§211)
+- Owners seal, grant and revoke at `/settings/audit` and see counts and a download, never a list of
+  controls; an auditor reads at `/auditor`, outside the shell, which would send an account with no
+  organization to onboarding, and tests the archive against its seal with `SubtleCrypto`
+  (`lib/archiveVerify.ts`), not by asking the API (§218)
 - A visitor opens the demo at `/demo` as a guest -- Supabase's anonymous sign-in, `is_anonymous`
   read into `AuthenticatedUser.guest` -- with no account or organization; a guest reads the demo
   only, refused `ACCOUNT_REQUIRED` by the API and any non-demo membership by a trigger (migration

@@ -8205,7 +8205,7 @@ here rather than implied away. The larger exposure is not the database at all:
 the scanner holds Cleave's multi-tenant Entra secret and its AWS identity, which
 reach every customer who has granted access. See the open items.
 
-## 152. No Railway config at the repo root — **the config files superseded by §218**
+## 152. No Railway config at the repo root — **the config files superseded by §223**
 
 The first scanner deploy started the API. Railway reads `railway.json` at the
 repo root for every service built from the repo that names no config file of its
@@ -11875,58 +11875,55 @@ so the audit trail (§163) does not record it; Supabase's own auth log does. Not
 organization require two-factor authentication of its members yet -- the API already knows a
 session's level, so that is a setting and a check in `get_tenant`, left for its own decision.
 
-## 218. The Railway project is `.railway/railway.ts`, applied by hand
+## 218. Owners seal and grant in Settings; an auditor reads outside the shell and tests the archive in the browser
 
-Railway stops reading Config as Code on 2026-12-01 (§152), and the API and
-worker took their Dockerfile, start command, health check and restart limit
-from `infrastructure/railway/api.json` and `worker.json`. A deploy after that
-date would have built each service with Railpack and no start command. Both
-files are deleted, and their settings are in `.railway/railway.ts`, Railway's
-infrastructure-as-code file, which describes the whole project: the API
-(`humorous-passion`), the worker (`CSPM-SaaS`), Redis and its volume.
+The audit routes of §208 and §211 had no screen. This is the screen, and it adds no endpoint: the
+web reads what the API already answers.
 
-**Pulled, then edited.** `railway config migrate` finds only files named
-`railway.json` or `railway.toml`, so it found nothing here. The file started as
-`railway config pull` of the live project, which already planned to no change,
-and gained the two services' build and deploy settings, copied from the JSON
-files. The plan was then four changes, all additions and none destroyed, and
-it was applied. Two settings were left out on purpose:
+**The owner's page is `/settings/audit`.** It is one more settings topic (§207), shown to owners
+and administrators and not in the demo, as the API allows. A package is a row that opens to how
+each standard's controls came out as counts, what they rest on, and the hash that seals it, with
+the three things an owner does to it: download the archive, check the seal, and give it to an
+auditor. Sealing is a dialog from the heading, and the standards offered are the ones
+`GET /compliance` lists for the organization (§209). Giving a package shows its link once, in a
+dialog that stays open until the reader says it is copied, as a webhook's signing secret does
+(§164), because Cleave keeps only the link's hash (§211). Revoking asks first. What an auditor read
+is the grant's own event log, opened from the grant's row.
 
-- **No restart policy type.** `ON_FAILURE` is Railway's default, and Railway
-  stores the default as no setting, so naming it left the plan proposing the
-  same change after every apply. The retry limit of 3 is not a default and
-  stays.
-- **No domain.** The API's Railway domain is not something the file manages:
-  a pull leaves it out, and the plan without it destroys nothing.
+**Counts and a download, not a list of controls.** §211 said the controls as a screen were a later
+need, with the web page. They are not built, and §208's reasoning stands: hundreds of rows of
+verdicts, rules and readings are a file to read in a spreadsheet, and a table of them here would
+be a second, lesser copy of the CSV that carries them. An endpoint for it is not added.
 
-**Every variable is `preserve()`.** The file names each variable a service
-has, so that applying it does not delete one, and holds no value; the values
-stay on Railway. A variable added on Railway and not here is one the next apply
-removes, so adding one means adding its name here too.
+**An auditor reads outside the shell.** `/auditor` and `/auditor/:grantId` sit beside `/invite`
+and not under `Shell`, which sends an account with no membership to onboarding and would ask an
+auditor to create an organization. The link's page is open to a signed-out reader for the reason
+the invitation's is (§162): the token is held across the sign-in (`lib/pendingGrant.ts`, its own
+key, since one person may hold an invitation and a grant), and the fragment leaves the address
+bar. Opening is a click and not something done on arrival, because it ties the grant to this
+account for good; a link refused for the wrong address stays held for the right one, and one that
+can never work is forgotten. The shell sends a held link to `/auditor` before onboarding, and an
+account with no organization that has opened a grant goes back to its packages the same way. That
+second case is one request, `GET /auditor/grants`, asked only of an account with no organization.
 
-**Applying it is a step of its own.** Railway does not read `.railway/` on
-deploy. A push builds what is set on the service, and the file reaches the
-service only through `railway config apply`. There is no CI job for it: apply
-deletes whatever the file leaves out, and a change to the production project
-is one a person reads the plan for first. `docs/DEPLOYMENT.md` §2 step 6 has the
-commands. The SDK the file imports, `railway` on npm, is pinned in
-`.railway/package.json` with its lockfile, so a plan run next month evaluates
-the file the same way.
+**The archive is tested in the browser.** `lib/archiveVerify.ts` does with `SubtleCrypto` what the
+archive's README tells an auditor to do with `sha256sum` (§208): it hashes `manifest.json` and
+compares it with the value sealed in the package, then hashes every file `SHA256SUMS` lists, and
+names a changed file, a missing one and one the sums do not list. The page asks the API for the
+sealed value and for the bytes, and for nothing else, so the answer does not rest on
+`/verification`, which can say only what Cleave says. The one new dependency is `fflate`, to read
+the zip, and it loads with the auditor's page and nowhere else. One file is inflated at a time, so
+memory holds the archive and a payload and not every payload; the archive is at most 256 MB of
+payloads (§208).
 
-**The services' config-file setting is cleared.** Each service still named its
-JSON file, and the setting outlives the file; what a deploy does with a file
-that is gone is not something to find out in production. The IaC SDK drops an
-empty `configFile`, and `serviceInstanceUpdate` with `railwayConfigFile: null`
-answered `true` and changed nothing, so the setting was removed with an
-`environmentPatchCommit` setting `configFile` to null on both services. That
-patch redeployed both, from the settings alone: the API answered
-`/health/ready` with the database and the broker ok, and the worker's log shows
-Celery's banner and `beat: Starting`.
+**What the check does not say.** A matching hash shows the files are those sealed, and nothing
+about what the provider said, which the archive's README already states and the page repeats. And
+it is a page Cleave serves: an auditor who will not take that on trust has the two commands for a
+terminal beside the button.
 
-**The queue test reads the file.** `test_every_queue_a_step_is_routed_to_is_actually_consumed`
-read the worker's `--queues` from `worker.json`, and failed once it was deleted. It now finds the
-one Celery worker start command in `.railway/railway.ts`, so a step routed to a queue the
-deployed worker does not consume still fails the build.
+**Not built.** A screen of controls, an expiry reminder for a grant, and the Ed25519 manifest
+signature (§208), which would let the page check who sealed a package and not only that it is
+unchanged.
 
 ## 219. A visitor opens the demo as a guest, with no account and no organization
 
@@ -12077,6 +12074,62 @@ reported as `policy_identities_not_counted`. It is no second Owner for `AZ-IAM-0
 **Only while nothing else runs as it.** A user-assigned identity can also be attached to a
 workload, and then a foothold in that workload reaches its roles. Such an identity is judged as a
 workload's, exactly as before, and counted as an Owner.
+
+## 223. The Railway project is `.railway/railway.ts`, applied by hand
+
+Written as §218 on its branch; renumbered when the audit pages' §218 reached `main` first, so
+commits on that branch that cite §218 for Railway mean this entry.
+
+Railway stops reading Config as Code on 2026-12-01 (§152), and the API and
+worker took their Dockerfile, start command, health check and restart limit
+from `infrastructure/railway/api.json` and `worker.json`. A deploy after that
+date would have built each service with Railpack and no start command. Both
+files are deleted, and their settings are in `.railway/railway.ts`, Railway's
+infrastructure-as-code file, which describes the whole project: the API
+(`humorous-passion`), the worker (`CSPM-SaaS`), Redis and its volume.
+
+**Pulled, then edited.** `railway config migrate` finds only files named
+`railway.json` or `railway.toml`, so it found nothing here. The file started as
+`railway config pull` of the live project, which already planned to no change,
+and gained the two services' build and deploy settings, copied from the JSON
+files. The plan was then four changes, all additions and none destroyed, and
+it was applied. Two settings were left out on purpose:
+
+- **No restart policy type.** `ON_FAILURE` is Railway's default, and Railway
+  stores the default as no setting, so naming it left the plan proposing the
+  same change after every apply. The retry limit of 3 is not a default and
+  stays.
+- **No domain.** The API's Railway domain is not something the file manages:
+  a pull leaves it out, and the plan without it destroys nothing.
+
+**Every variable is `preserve()`.** The file names each variable a service
+has, so that applying it does not delete one, and holds no value; the values
+stay on Railway. A variable added on Railway and not here is one the next apply
+removes, so adding one means adding its name here too.
+
+**Applying it is a step of its own.** Railway does not read `.railway/` on
+deploy. A push builds what is set on the service, and the file reaches the
+service only through `railway config apply`. There is no CI job for it: apply
+deletes whatever the file leaves out, and a change to the production project
+is one a person reads the plan for first. `docs/DEPLOYMENT.md` §2 step 6 has the
+commands. The SDK the file imports, `railway` on npm, is pinned in
+`.railway/package.json` with its lockfile, so a plan run next month evaluates
+the file the same way.
+
+**The services' config-file setting is cleared.** Each service still named its
+JSON file, and the setting outlives the file; what a deploy does with a file
+that is gone is not something to find out in production. The IaC SDK drops an
+empty `configFile`, and `serviceInstanceUpdate` with `railwayConfigFile: null`
+answered `true` and changed nothing, so the setting was removed with an
+`environmentPatchCommit` setting `configFile` to null on both services. That
+patch redeployed both, from the settings alone: the API answered
+`/health/ready` with the database and the broker ok, and the worker's log shows
+Celery's banner and `beat: Starting`.
+
+**The queue test reads the file.** `test_every_queue_a_step_is_routed_to_is_actually_consumed`
+read the worker's `--queues` from `worker.json`, and failed once it was deleted. It now finds the
+one Celery worker start command in `.railway/railway.ts`, so a step routed to a queue the
+deployed worker does not consume still fails the build.
 
 ## Open items carried forward
 

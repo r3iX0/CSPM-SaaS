@@ -1,4 +1,5 @@
 import {
+  ArchiveIcon,
   Building2Icon,
   CrosshairIcon,
   HistoryIcon,
@@ -13,7 +14,14 @@ import type { Organization } from "@/lib/types";
 import type { Strings } from "@/i18n/en";
 
 export type SettingsSectionId =
-  "general" | "members" | "context" | "integrations" | "activity" | "security" | "preferences";
+  | "general"
+  | "members"
+  | "context"
+  | "integrations"
+  | "audit"
+  | "activity"
+  | "security"
+  | "preferences";
 
 export interface SettingsSectionLink {
   readonly id: SettingsSectionId;
@@ -55,6 +63,7 @@ export function settingsSections(
       icon: PlugIcon,
       shown: manages,
     },
+    { id: "audit", label: t.settings.nav.audit, icon: ArchiveIcon, shown: manages },
     { id: "activity", label: t.settings.nav.activity, icon: HistoryIcon, shown: manages },
     // A guest has no sign-in of their own to protect yet (DECISIONS.md §219).
     { id: "security", label: t.settings.nav.security, icon: ShieldCheckIcon, shown: !guest },
@@ -81,5 +90,6 @@ export const LEGACY_ANCHORS: Record<string, SettingsSectionId> = {
   members: "members",
   context: "context",
   integrations: "integrations",
+  audit: "audit",
   activity: "activity",
 };

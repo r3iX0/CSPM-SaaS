@@ -89,7 +89,7 @@ def test_every_queue_a_step_is_routed_to_is_actually_consumed() -> None:
 
     Pinned against the deployment file rather than described in prose, because
     the failure is silent and the fix is one flag. The worker's start command is
-    in `.railway/railway.ts` (DECISIONS.md section 218), a TypeScript file, so it
+    in `.railway/railway.ts` (DECISIONS.md section 223), a TypeScript file, so it
     is found as the one string literal that starts Celery's worker.
     """
     import re

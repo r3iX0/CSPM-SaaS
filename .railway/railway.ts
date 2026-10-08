@@ -1,7 +1,7 @@
 import { defineRailway, github, preserve, project, redis, service, volume } from "railway/iac";
 
 // The Railway project the API and worker run in, as Railway's infrastructure-as-code file
-// (DECISIONS.md §218). It replaces `infrastructure/railway/api.json` and `worker.json`, whose
+// (DECISIONS.md §223). It replaces `infrastructure/railway/api.json` and `worker.json`, whose
 // Config as Code format Railway stops reading on 2026-12-01.
 //
 // Railway does not read this file on deploy: a push to `main` builds what is set on the
