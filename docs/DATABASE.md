@@ -10,6 +10,9 @@ discussion are called out inline — treat this file as authoritative over any e
 ```text
 organizations
   id, name, slug, industry, country, created_at, updated_at
+  is_demo, fix_within_days_critical, _high, _medium, _low
+  -- fix_within_days_*: 1 to 365 days or NULL; a task with no due date is due
+  -- that long after its finding's first detection (DECISIONS.md §225)
 
 organization_members
   id, organization_id, user_id, role, email, created_at, updated_at
@@ -339,6 +342,17 @@ asset_change_events        -- what moved between two readings of one environment
   id, organization_id, ...  -- APPEARED / DISAPPEARED / attribute moves, with
                             -- direction where a level went up or down. A move
                             -- into UNKNOWN has no direction
+
+iac_indexes                -- one Terraform state's index, uploaded by the
+  id, organization_id      -- customer's own pipeline (DECISIONS.md §229);
+  repository_id, repository, working_directory, workspace  -- replaced whole
+  commit_sha, uploaded_at  -- by the next upload of the same four
+  UNIQUE(organization_id, repository_id, working_directory, workspace)
+
+iac_index_entries          -- one managed azurerm resource of it: its state
+  id, index_id, organization_id   -- address, type, instance key and lower-cased
+  address, type, instance_key     -- Azure Resource Manager id. Members read;
+  resource_id                     -- only the owner connection writes
 ```
 
 ---

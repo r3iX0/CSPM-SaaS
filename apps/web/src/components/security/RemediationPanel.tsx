@@ -1,6 +1,6 @@
 import { InfoIcon } from "lucide-react";
 
-import type { RemediationSpec } from "@/lib/types";
+import type { IacLocation, RemediationSpec } from "@/lib/types";
 import { formatEffort } from "@/lib/format";
 import { fillPlaceholders } from "@/lib/remediationFill";
 import { CodeBlock } from "@/components/common/CodeBlock";
@@ -33,6 +33,7 @@ export function RemediationPanel({
   fill,
   batch,
   findingId,
+  managedInCode = [],
 }: {
   remediation: string;
   spec?: RemediationSpec | null;
@@ -61,6 +62,12 @@ export function RemediationPanel({
    * so no block to find.
    */
   findingId?: string;
+  /**
+   * Where the customer's own Terraform state defines the asset (§229). The
+   * code is then the fix, and a CLI change is an emergency one: the next
+   * `terraform apply` puts the old value back.
+   */
+  managedInCode?: readonly IacLocation[];
 }) {
   const hasCli = (spec?.cli?.length ?? 0) > 0;
   const hasTerraform = (spec?.terraform?.length ?? 0) > 0;
@@ -68,6 +75,7 @@ export function RemediationPanel({
   // offered as an edit of existing code (DECISIONS.md §228).
   const replacing = (spec?.terraform ?? []).filter((hint) => hint.replaces === true);
   const hasPolicy = Boolean(spec?.azure_policy);
+  const inCode = managedInCode.length > 0;
   const commands = (spec?.cli ?? []).map((command) =>
     fill ? fillPlaceholders(command, fill.values) : { text: command, filled: [] },
   );
@@ -117,10 +125,12 @@ export function RemediationPanel({
           </div>
         )}
 
-        <Tabs defaultValue="steps">
+        {inCode && <ManagedInCode locations={managedInCode} />}
+
+        <Tabs defaultValue={inCode && hasTerraform ? "terraform" : "steps"}>
           <TabsList>
             <TabsTrigger value="steps">Steps</TabsTrigger>
-            {hasCli && <TabsTrigger value="cli">CLI</TabsTrigger>}
+            {hasCli && <TabsTrigger value="cli">{inCode ? "Emergency fix" : "CLI"}</TabsTrigger>}
             {hasTerraform && <TabsTrigger value="terraform">Terraform</TabsTrigger>}
             {hasPolicy && <TabsTrigger value="policy">Policy</TabsTrigger>}
           </TabsList>
@@ -218,5 +228,19 @@ function Prose({ text }: { text: string }) {
         ),
       )}
     </>
+  );
+}
+
+/** Where the state index puts the asset, and what that makes of a change made elsewhere. */
+function ManagedInCode({ locations }: { locations: readonly IacLocation[] }) {
+  const [first, ...rest] = locations;
+  if (!first) return null;
+  const where = [first.repository, first.working_directory].filter(Boolean).join("/");
+  return (
+    <Alert>
+      <AlertDescription>
+        {`Managed in code: ${first.address} in ${where}${rest.length > 0 ? ` and ${rest.length} more` : ""}. A change made any other way drifts back at the next terraform apply, so fix it in the code.`}
+      </AlertDescription>
+    </Alert>
   );
 }

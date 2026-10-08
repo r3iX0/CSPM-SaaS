@@ -60,3 +60,35 @@ describe("a Terraform argument that replaces the resource", () => {
     expect(screen.getByLabelText(/Terraform file/)).toBeInTheDocument();
   });
 });
+
+describe("an asset the customer's state index places in code (DECISIONS.md §229)", () => {
+  it("leads with the code, and calls the CLI an emergency fix", () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <RemediationPanel
+          remediation="Raise the minimum TLS version."
+          spec={{
+            ...spec(false),
+            cli: ["az storage account update --name <account> --min-tls-version TLS1_2"],
+          }}
+          managedInCode={[
+            {
+              repository: "contoso/infra",
+              working_directory: "envs/prod",
+              workspace: "default",
+              address: "module.storage.azurerm_storage_account.main",
+              commit_sha: "a1b2c3",
+              uploaded_at: "2026-10-08T09:00:00Z",
+            },
+          ]}
+        />
+      </QueryClientProvider>,
+    );
+
+    expect(
+      screen.getByText(/Managed in code: module\.storage\.azurerm_storage_account\.main/),
+    ).toHaveTextContent("contoso/infra/envs/prod");
+    expect(screen.getByRole("tab", { name: "Terraform" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Emergency fix" })).toBeInTheDocument();
+  });
+});

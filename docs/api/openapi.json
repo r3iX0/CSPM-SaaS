@@ -17348,6 +17348,13 @@
             },
             "type": "object",
             "title": "Compliance Mappings"
+          },
+          "managed_in_code": {
+            "items": {
+              "$ref": "#/components/schemas/IacLocationOut"
+            },
+            "type": "array",
+            "title": "Managed In Code"
           }
         },
         "type": "object",
@@ -18633,6 +18640,46 @@
           "line"
         ],
         "title": "IacEditOut"
+      },
+      "IacLocationOut": {
+        "properties": {
+          "repository": {
+            "type": "string",
+            "title": "Repository"
+          },
+          "working_directory": {
+            "type": "string",
+            "title": "Working Directory"
+          },
+          "workspace": {
+            "type": "string",
+            "title": "Workspace"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "commit_sha": {
+            "type": "string",
+            "title": "Commit Sha"
+          },
+          "uploaded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Uploaded At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "repository",
+          "working_directory",
+          "workspace",
+          "address",
+          "commit_sha",
+          "uploaded_at"
+        ],
+        "title": "IacLocationOut",
+        "description": "Where the customer's own Terraform state says the asset is defined (DECISIONS.md \u00a7229)."
       },
       "InvitationCreate": {
         "properties": {

@@ -233,6 +233,7 @@ function FixSheetBody({ findingId }: { findingId: string }) {
           spec={data.remediation_spec}
           effortMinutes={data.estimated_effort_minutes}
           findingId={data.id}
+          managedInCode={data.managed_in_code}
           fill={
             data.resource
               ? {

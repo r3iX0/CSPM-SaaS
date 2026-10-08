@@ -359,6 +359,17 @@ class EvidenceCitationOut(BaseModel):
     payload_available: bool
 
 
+class IacLocationOut(BaseModel):
+    """Where the customer's own Terraform state says the asset is defined (DECISIONS.md §229)."""
+
+    repository: str
+    working_directory: str
+    workspace: str
+    address: str
+    commit_sha: str
+    uploaded_at: datetime
+
+
 class FindingDetail(FindingOut):
     """Everything the finding detail page needs to answer WHAT / WHY / HOW BAD /
     HOW DO I FIX IT / DID THE FIX WORK (UI.md section 3)."""
@@ -384,6 +395,9 @@ class FindingDetail(FindingOut):
     #: it -- the object the rules routes publish.
     remediation_spec: RemediationSpecOut | None = None
     compliance_mappings: dict[str, list[str]] = Field(default_factory=dict)
+    #: Empty unless an uploaded state index names the asset. Managed in code, a
+    #: change made any other way drifts back at the next ``terraform apply``.
+    managed_in_code: list[IacLocationOut] = Field(default_factory=list)
 
 
 class FindingAttackPathOut(AttackPathOut):

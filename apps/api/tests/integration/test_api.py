@@ -1145,6 +1145,83 @@ class TestAssetList:
             )
             await session.commit()
 
+    async def test_a_finding_says_where_the_state_index_defines_its_asset(
+        self, client, cleanup_orgs
+    ) -> None:
+        """An uploaded index marks its asset managed in code, for its organization only (§229)."""
+        from sqlalchemy import select
+
+        from app.core.db import service_session
+        from app.core.enums import FindingStatus, Severity
+        from app.models.finding import Finding
+        from app.models.resource import ResourceRecord
+        from app.remediation.iac.index import entries_from_upload
+        from app.services.iac_index import replace_index
+
+        user, stranger = uuid.uuid4(), uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Indexed Ltd"))
+        other_id = uuid.UUID(await make_org(client, stranger, "Elsewhere Ltd"))
+        cleanup_orgs.extend([org_id, other_id])
+
+        arm_id = (
+            "/subscriptions/00000000-0000-0000-0000-000000000001"
+            "/resourceGroups/prod/providers/Microsoft.Storage/storageAccounts/payroll"
+        )
+        await self._asset_in_a_subscription(org_id, arm_id)
+
+        def index(address: str) -> list:
+            # The id as Terraform writes it, in another case than Azure listed it.
+            return entries_from_upload(
+                [{"address": address, "type": "azurerm_storage_account", "id": arm_id.upper()}]
+            )
+
+        now = datetime.now(UTC)
+        async with service_session() as session:
+            resource = (
+                await session.execute(
+                    select(ResourceRecord).where(ResourceRecord.organization_id == org_id)
+                )
+            ).scalar_one()
+            finding = Finding(
+                organization_id=org_id,
+                resource_id=resource.id,
+                rule_id="AZ-STO-002",
+                severity=Severity.HIGH,
+                status=FindingStatus.OPEN,
+                title="TLS 1.0 is accepted",
+                description="",
+                first_detected_at=now,
+                last_detected_at=now,
+            )
+            session.add(finding)
+            for organization, address in [
+                (org_id, "module.storage.azurerm_storage_account.main"),
+                # Another organization indexing the same id is not this one's code.
+                (other_id, "azurerm_storage_account.theirs"),
+            ]:
+                for _ in range(2):  # a second upload replaces the first
+                    await replace_index(
+                        session,
+                        organization,
+                        repository_id=42,
+                        repository="contoso/infra",
+                        working_directory="infra",
+                        workspace="default",
+                        commit_sha="a" * 40,
+                        entries=index(address),
+                    )
+            finding_id = finding.id
+            await session.commit()
+
+        response = await client.get(f"/api/v1/findings/{finding_id}", headers=auth_header(user))
+
+        assert response.status_code == 200, response.text
+        [location] = response.json()["data"]["managed_in_code"]
+        assert (location["repository"], location["address"]) == (
+            "contoso/infra",
+            "module.storage.azurerm_storage_account.main",
+        )
+
     async def test_a_listed_asset_names_itself_in_the_provider(self, client, cleanup_orgs) -> None:
         import uuid as uuid_module
 

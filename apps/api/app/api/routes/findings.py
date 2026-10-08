@@ -30,6 +30,7 @@ from app.schemas.finding import (
     FindingProvenanceMeta,
     FindingProvenanceOut,
     IacDiffOut,
+    IacLocationOut,
     RescanQueuedOut,
     ResourceSummary,
     RiskOut,
@@ -38,6 +39,7 @@ from app.schemas.finding import (
 from app.services import findings as service
 from app.services import graph as graph_service
 from app.services import iac as iac_service
+from app.services import iac_index
 from app.services import rescan as rescan_service
 from app.services import scans as scans_service
 from app.services.graph import serialize_path
@@ -210,6 +212,17 @@ async def get_finding(
             else None
         ),
         "accepted_until": await service.accepted_until(session, finding),
+        "managed_in_code": [
+            IacLocationOut(
+                repository=index.repository,
+                working_directory=index.working_directory,
+                workspace=index.workspace,
+                address=entry.address,
+                commit_sha=index.commit_sha,
+                uploaded_at=index.uploaded_at,
+            )
+            for index, entry in await iac_index.managed_in_code(session, tenant, detail["resource"])
+        ],
     }
     # The registry's say, which replaces the effort estimate with the rule's
     # own where the rule is still registered.

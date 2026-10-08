@@ -271,7 +271,19 @@ export interface IacDiff {
   matched_by?: "name" | "sole_block" | null;
 }
 
+/** Where the customer's own Terraform state defines an asset (DECISIONS.md §229). */
+export interface IacLocation {
+  repository: string;
+  working_directory: string;
+  workspace: string;
+  address: string;
+  commit_sha: string;
+  uploaded_at: string;
+}
+
 export interface FindingDetail extends Finding {
+  /** Empty unless an uploaded state index names the asset (§229). */
+  managed_in_code?: IacLocation[];
   /**
    * When an accepted finding comes back to the queue. `null` when it is not
    * accepted, or accepted with no end date (DECISIONS.md §104).

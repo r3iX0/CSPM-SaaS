@@ -21,8 +21,9 @@ never evaluated, and it is refused before parsing above a size cap.
 from __future__ import annotations
 
 import difflib
+import posixpath
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Literal
@@ -81,6 +82,11 @@ class Decline(StrEnum):
     # Decided before any file is read: changing the argument makes Terraform
     # destroy the resource and create another, which no fix may do (§228).
     REPLACES_RESOURCE = "replaces_resource"
+    # Following a state address (§229): a module on the way is not in this
+    # repository (a registry or git source), or the address no longer names a
+    # block in the code, which moved since the index was uploaded.
+    MODULE_EXTERNAL = "module_external"
+    INDEX_STALE = "index_stale"
 
 
 @dataclass(frozen=True)
@@ -117,10 +123,11 @@ class Patched:
     # From ``.terraform.lock.hcl`` where one was given. ``None`` is "not known",
     # which the caller says out loud rather than treating as checked.
     provider_version: str | None
-    # How the block was found: by its literal ``name``, or as the only block of
-    # the rule's types in a file a person chose for this asset. The second is
+    # How the block was found: by its literal ``name``, as the only block of
+    # the rule's types in a file a person chose for this asset, or by the label
+    # the customer's own state gives the asset (``address``, §229). The second is
     # said out loud, so the reviewer checks the block is the one they meant.
-    matched_by: Literal["name", "sole_block"] = "name"
+    matched_by: Literal["name", "sole_block", "address"] = "name"
 
     def diff(self, filename: str) -> str:
         return "".join(
@@ -154,6 +161,7 @@ def edit_terraform(
     changes: Sequence[Change],
     lockfile: str | None = None,
     sole_block: bool = False,
+    label: str | None = None,
 ) -> Patched | Declined:
     """Apply ``changes`` to the block of one of ``resource_types`` named ``name``.
 
@@ -164,9 +172,14 @@ def edit_terraform(
     ``sole_block`` is for a file a person chose for this asset: there, the only
     block of these types is the one they meant even where its name is an
     expression. Never for a file CloudGuard found on its own (§190).
+
+    ``label`` is the block's own label from the customer's state address
+    (``resource "azurerm_storage_account" "<label>"``), which names the block
+    exactly whatever its ``name`` renders to (§229). Given, it replaces the name
+    search; ``find_resource_block`` says which file to pass.
     """
     try:
-        return _edit(source, resource_types, name, changes, lockfile, sole_block)
+        return _edit(source, resource_types, name, changes, lockfile, sole_block, label)
     except _Refused as refused:
         return Declined(refused.reason, refused.detail)
 
@@ -178,20 +191,21 @@ def _edit(
     changes: Sequence[Change],
     lockfile: str | None,
     sole_block: bool,
+    label: str | None,
 ) -> Patched:
     data = source.encode()
     if len(data) > MAX_BYTES:
         raise _Refused(Decline.TOO_LARGE, f"The file is over {MAX_BYTES // 1024} KiB.")
     root = _parse(data)
     version = _provider_version(root, data, lockfile)
-    block, matched_by = _locate(root, data, resource_types, name, sole_block)
+    block, matched_by = _find(root, data, resource_types, name, sole_block, label)
 
     splices = [splice for change in changes if (splice := _plan(block, data, change))]
     if not splices:
         raise _Refused(Decline.ALREADY_SET, "The file already sets every value this fix asks for.")
 
     edited, edits = _apply(data, splices)
-    _verify(edited, resource_types, name, changes, sole_block)
+    _verify(edited, resource_types, name, changes, sole_block, label)
     order = {change.attribute: index for index, change in enumerate(changes)}
     return Patched(
         original=source,
@@ -298,6 +312,58 @@ def _literal_string(node: Node, data: bytes) -> str | None:
 
 
 # ---------------------------------------------------------------- the block
+def _find(
+    root: Node,
+    data: bytes,
+    resource_types: Sequence[str],
+    name: str,
+    sole_block: bool,
+    label: str | None,
+) -> tuple[Node, Literal["name", "sole_block", "address"]]:
+    if label is None:
+        return _locate(root, data, resource_types, name, sole_block)
+    return _by_label(root, data, resource_types, label), "address"
+
+
+def _resource_blocks(
+    root: Node, data: bytes, resource_types: Sequence[str], label: str
+) -> list[Node]:
+    found = []
+    for block in _blocks(_child(root, "body")):
+        labels = _labels(block, data)
+        if (
+            _keyword(block, data) == "resource"
+            and len(labels) == 2
+            and labels[0] in resource_types
+            and labels[1] == label
+        ):
+            found.append(block)
+    return found
+
+
+def _by_label(root: Node, data: bytes, resource_types: Sequence[str], label: str) -> Node:
+    matches = _resource_blocks(root, data, resource_types, label)
+    if not matches:
+        raise _Refused(Decline.INDEX_STALE, f"No resource in this file is labelled {label!r}.")
+    if len(matches) > 1:
+        raise _Refused(
+            Decline.MULTIPLE_MATCHES,
+            f"{len(matches)} resources in this file are labelled {label!r}.",
+        )
+    (block,) = matches
+    _refuse_repeated(block, data)
+    return block
+
+
+def _refuse_repeated(block: Node, data: bytes) -> None:
+    meta = _attributes(_body(block), data).keys() & {"count", "for_each"}
+    if meta:
+        raise _Refused(
+            Decline.COUNT_OR_FOR_EACH,
+            f"The resource uses {sorted(meta)[0]}, so one block defines several.",
+        )
+
+
 def _locate(
     root: Node, data: bytes, resource_types: Sequence[str], name: str, sole_block: bool
 ) -> tuple[Node, Literal["name", "sole_block"]]:
@@ -340,12 +406,7 @@ def _locate(
         raise _Refused(Decline.NO_MATCH, f"No resource in this file is named {name!r}.")
 
     (block,) = matches
-    meta = _attributes(_body(block), data).keys() & {"count", "for_each"}
-    if meta:
-        raise _Refused(
-            Decline.COUNT_OR_FOR_EACH,
-            f"The resource uses {sorted(meta)[0]}, so one block defines several.",
-        )
+    _refuse_repeated(block, data)
     return block, matched_by
 
 
@@ -422,10 +483,11 @@ def _verify(
     name: str,
     changes: Sequence[Change],
     sole_block: bool,
+    label: str | None,
 ) -> None:
     """Read the edited file back and refuse unless it says what was meant."""
     try:
-        block, _ = _locate(_parse(edited), edited, resource_types, name, sole_block)
+        block, _ = _find(_parse(edited), edited, resource_types, name, sole_block, label)
         for change in changes:
             *path, leaf = change.attribute.split(".")
             attribute = _attributes(_nested_body(block, edited, path), edited).get(leaf)
@@ -505,3 +567,92 @@ def _constraint_in_range(constraint: str) -> bool:
             if upper <= VERIFIED_FROM or release >= VERIFIED_BELOW:
                 return False
     return True
+
+
+# ---------------------------------------------------------- by state address
+@dataclass(frozen=True)
+class FoundBlock:
+    """Where a state address's resource is written: a file of the repository, and its label."""
+
+    path: str
+    label: str
+
+
+def find_resource_block(
+    files: Mapping[str, str],
+    working_directory: str,
+    modules: Sequence[str],
+    resource_type: str,
+    label: str,
+) -> FoundBlock | Declined:
+    """Follow a state address from the directory Terraform ran in to its resource block.
+
+    ``modules`` are the address's module calls in order, without their
+    instance keys: ``module.storage["eu"].azurerm_storage_account.main`` is
+    ``("storage",)``, ``azurerm_storage_account`` and ``main``. Each call's
+    ``source`` must be a local path inside the repository; a registry or git
+    module is declined, because the block is not here to edit (§229).
+
+    ``files`` maps repository-relative paths to their text. Only ``.tf`` files
+    in the directory a step reaches are read, and each is parsed, never evaluated.
+    """
+    try:
+        directory = _inside(working_directory, "")
+        for module in modules:
+            directory = _module_directory(files, directory, module)
+        found = [
+            path
+            for path, data in _terraform_files(files, directory)
+            if _resource_blocks(_parse(data), data, (resource_type,), label)
+        ]
+    except _Refused as refused:
+        return Declined(refused.reason, refused.detail)
+    if not found:
+        return Declined(
+            Decline.INDEX_STALE,
+            f"No {resource_type} labelled {label!r} is in {directory or 'the root'} any more.",
+        )
+    if len(found) > 1:
+        return Declined(
+            Decline.MULTIPLE_MATCHES, f"{len(found)} files define {resource_type}.{label}."
+        )
+    return FoundBlock(path=found[0], label=label)
+
+
+def _inside(path: str, base: str) -> str:
+    """``path`` under ``base``, normalised; refused if it leaves the repository."""
+    joined = posixpath.normpath(posixpath.join(base, path.strip("/")))
+    if joined == ".." or joined.startswith("../"):
+        raise _Refused(Decline.MODULE_EXTERNAL, f"{path!r} is outside this repository.")
+    return "" if joined == "." else joined
+
+
+def _terraform_files(files: Mapping[str, str], directory: str) -> list[tuple[str, bytes]]:
+    found = []
+    for path in sorted(files):
+        if not path.endswith(".tf") or posixpath.dirname(path) != directory:
+            continue
+        data = files[path].encode()
+        if len(data) > MAX_BYTES:
+            raise _Refused(Decline.TOO_LARGE, f"{path} is over {MAX_BYTES // 1024} KiB.")
+        found.append((path, data))
+    return found
+
+
+def _module_directory(files: Mapping[str, str], directory: str, module: str) -> str:
+    for _path, data in _terraform_files(files, directory):
+        for block in _blocks(_child(_parse(data), "body")):
+            if _keyword(block, data) != "module" or _labels(block, data) != [module]:
+                continue
+            source = _attributes(_body(block), data).get("source")
+            literal = None if source is None else _literal_string(_value(source), data)
+            if literal is None or not literal.startswith(("./", "../")):
+                raise _Refused(
+                    Decline.MODULE_EXTERNAL,
+                    f"Module {module!r} comes from {literal or 'an expression'}, "
+                    "which is not in this repository.",
+                )
+            return _inside(literal, directory)
+    raise _Refused(
+        Decline.INDEX_STALE, f"No module {module!r} is called in {directory or 'the root'}."
+    )

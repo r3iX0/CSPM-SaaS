@@ -12354,6 +12354,50 @@ azurerm 4.81.0's schema but no longer documented: it is deprecated in favour of
 name, in a list that only shrinks. A hint that names the argument per release retires that list,
 and is needed before azurerm 5.
 
+## 229. The state index is stored and read; its upload route waits for the GitHub App
+
+The first half of §227's index, built without a GitHub App. The upload route checks a GitHub
+Actions OIDC token, and admits a repository only through the organization's App installation. No
+App is registered yet, so the route is not served. Everything on either side of it is built.
+
+**Storage (migration 0054).** `iac_indexes` holds one upload: repository (GitHub's numeric id,
+which survives a rename), working directory, workspace and commit. The next upload of the same four
+replaces it whole, because a resource removed from the code must stop being called managed in
+code. `iac_index_entries` holds address, type, instance key and the lower-cased Azure Resource
+Manager id. ARM ids are case-insensitive, and Terraform and Azure's listings write them in
+different cases. Members may SELECT both, and no role writes them through the request path. The
+upload is authenticated by the customer's pipeline, not by a person, so it is written through the
+owner connection scoped to the organization, as change events are (`services/iac_index.py`).
+
+**What an upload may hold** (`app/remediation/iac/index.py`). Four fields per entry; a managed
+azurerm address; an ARM id under a subscription; at most 20,000 entries; no address twice.
+Anything else refuses the whole upload rather than keeping the part that looks right, because an
+Action that sends more has been changed.
+
+**The Action** is a script, `tools/iac/github/cleave-index.sh`, that the customer's existing plan
+job runs after `terraform init`, with `tools/iac/github/cleave-index.example.yml` beside it. It
+reads `terraform show -json` and keeps the four fields of managed azurerm resources whose id is an
+ARM id. That leaves out data sources, other providers, and a key vault secret, whose id is a URL
+naming it. The filter was run over a sample state holding a secret attribute, which did not
+survive. The customer commits a reviewed copy of the script rather than fetching one at run time:
+it runs with their state credentials.
+
+**From an address to its block.** `find_resource_block` follows each `module` call's literal local
+`source` from the working directory, and declines `module_external` for a registry or git source
+or a path outside the repository. It declines `index_stale` when the module or the
+`resource "<type>" "<label>"` is no longer there. `edit_terraform` takes the block's `label` in
+place of the name search (`matched_by: "address"`), which finds a block whose `name` is an
+expression, the 99% that name matching missed (§190). `count` and `for_each` still decline;
+`partial_instances` comes with pull requests, which need the failing set across instances.
+
+**Managed in code.** `GET /findings/{id}` returns `managed_in_code`, the index's locations for the
+asset. The fix sheet then says where the asset is defined, opens on the Terraform tab, and calls
+the CLI tab "Emergency fix", because the next `terraform apply` undoes a change made elsewhere.
+
+**Waiting on the App:** `PUT /iac-indexes`, the OIDC check against
+`https://token.actions.githubusercontent.com`, mapping `repository_id` to an organization through
+the installation, and accepting only the default branch.
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,

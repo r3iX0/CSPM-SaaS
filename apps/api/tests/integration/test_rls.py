@@ -566,3 +566,58 @@ class TestWorkerTenancy:
                 )
             ).scalar_one()
         assert inherited is False
+
+
+class TestIacIndexIsolation:
+    """The state index says where an asset is defined in a customer's code (§229).
+
+    Members read their own; nobody writes it through the request role, because the
+    upload is authenticated by the customer's pipeline, not by a person.
+    """
+
+    async def _index(self, org_id: uuid.UUID, address: str) -> None:
+        async with service_session() as session:
+            await session.execute(
+                text(
+                    "INSERT INTO iac_indexes (id, organization_id, repository_id, repository, "
+                    "commit_sha) VALUES (:id, :org, 42, 'contoso/infra', 'abc')"
+                ),
+                {"id": (index_id := uuid.uuid4()), "org": org_id},
+            )
+            await session.execute(
+                text(
+                    "INSERT INTO iac_index_entries "
+                    "(index_id, organization_id, address, type, resource_id) "
+                    "VALUES (:index, :org, :address, 'azurerm_key_vault', '/subscriptions/x')"
+                ),
+                {"index": index_id, "org": org_id, "address": address},
+            )
+            await session.commit()
+
+    async def test_an_index_is_read_only_by_its_own_organization(self, two_orgs) -> None:
+        org_a, org_b = two_orgs
+        await self._index(org_a, "azurerm_key_vault.a")
+        await self._index(org_b, "azurerm_key_vault.b")
+
+        async with rls_session(USER_A) as session:
+            addresses = (
+                (await session.execute(text("SELECT address FROM iac_index_entries")))
+                .scalars()
+                .all()
+            )
+
+        assert addresses == ["azurerm_key_vault.a"], "one tenant read another's code layout"
+
+    async def test_a_member_cannot_write_an_index(self, two_orgs) -> None:
+        org_a, _ = two_orgs
+
+        with pytest.raises((DBAPIError, ProgrammingError)) as exc:
+            async with rls_session(USER_A) as session:
+                await session.execute(
+                    text(
+                        "INSERT INTO iac_indexes (organization_id, repository_id, repository, "
+                        "commit_sha) VALUES (:org, 1, 'x/y', 'abc')"
+                    ),
+                    {"org": org_a},
+                )
+        assert "permission denied" in str(exc.value).lower()

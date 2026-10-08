@@ -292,7 +292,13 @@ sentence in `detail`. A decline is an answer, not an error: the file was read
 and the edit would have needed a guess. `replaces_resource` is declined before
 the file is read: the argument is one azurerm sets only by recreating the
 resource, and each Terraform hint on `remediation_spec` says so as `replaces`
-(DECISIONS.md §228). `provider_version` comes from the lock
+(DECISIONS.md §228).
+
+`GET /findings/{id}` carries `managed_in_code`: where the customer's own
+Terraform state index places the asset (`repository`, `working_directory`,
+`workspace`, `address`, `commit_sha`, `uploaded_at`), or an empty list when no
+index names it (DECISIONS.md §229). The index is uploaded by the customer's
+pipeline, through a route not yet served. `provider_version` comes from the lock
 file where one was sent, and `checked_against` names the azurerm releases the
 edit was held to. Nothing uploaded is stored and the finding does not change, so
 a viewer and the demo organization may ask; it counts against the costly
