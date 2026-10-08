@@ -92,7 +92,7 @@ password, and CI refuses a commit that replaces it.
 
 Both run from the same image, `infrastructure/docker/api.Dockerfile`, as a non-root user with the
 pango libraries WeasyPrint needs for PDF reports. Railway's start commands are in
-`infrastructure/railway/`:
+`.railway/railway.ts`:
 
 ```bash
 # API: migrate, then serve. /health is liveness; /health/ready checks the database and the broker.

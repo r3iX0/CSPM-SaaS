@@ -50,3 +50,13 @@ CREATE TABLE auth.mfa_factors (
   factor_type text NOT NULL DEFAULT 'totp',
   status text NOT NULL
 );
+
+-- Supabase's users, reduced to the columns `app.forget_guests()` reads
+-- (migration 0052, DECISIONS.md #219): which are guests, and since when. Here
+-- it lets the integration tests prove a stale guest is forgotten and an
+-- account is not.
+CREATE TABLE auth.users (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  is_anonymous boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now()
+);

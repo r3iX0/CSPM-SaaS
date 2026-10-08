@@ -162,6 +162,59 @@ export async function signInWithGoogle(): Promise<void> {
   if (error) throw error;
 }
 
+/**
+ * Open a guest session: a visitor exploring the demo without an account.
+ *
+ * Supabase's anonymous sign-in. The token is real -- a user id, signed by
+ * Supabase -- with no email and `is_anonymous` set, which the API reads to keep
+ * a guest in the demo and refuse everything else (DECISIONS.md §219).
+ */
+export async function signInAsGuest(): Promise<void> {
+  if (!supabase) throw new Error("Supabase is not configured");
+  const { data, error } = await supabase.auth.signInAnonymously();
+  if (error) throw error;
+  // Written here as well as by onAuthStateChange, because the very next call
+  // is the API's, and it must carry this token rather than race the listener.
+  auth.token = data.session?.access_token ?? null;
+}
+
+/**
+ * Keep a guest as an account, by email.
+ *
+ * The same user, so nothing they had moves: Supabase sends a confirmation to the
+ * address, and the link lands on /reset-password with the session, where they
+ * choose a password -- Supabase sets one only once the address is confirmed.
+ */
+export async function saveGuestWithEmail(email: string): Promise<void> {
+  if (!supabase) throw new Error("Supabase is not configured");
+  const { error } = await supabase.auth.updateUser(
+    { email },
+    { emailRedirectTo: `${window.location.origin}/reset-password` },
+  );
+  if (error) throw error;
+}
+
+/**
+ * Keep a guest as an account, by linking Microsoft or Google to it.
+ *
+ * Navigates away to the provider like a sign-in does, and comes back as the same
+ * user with an identity attached and `is_anonymous` gone. Needs manual linking
+ * switched on in the Supabase project (docs/DEPLOYMENT.md §1).
+ */
+export async function saveGuestWithProvider(provider: "azure" | "google"): Promise<void> {
+  if (!supabase) throw new Error("Supabase is not configured");
+  const { error } = await supabase.auth.linkIdentity({
+    provider,
+    options: {
+      redirectTo: window.location.origin,
+      ...(provider === "azure"
+        ? { scopes: "openid profile email" }
+        : { queryParams: { prompt: "select_account" } }),
+    },
+  });
+  if (error) throw error;
+}
+
 /** An authenticator app the signed-in user has confirmed with a code. */
 export interface SecondFactor {
   readonly id: string;

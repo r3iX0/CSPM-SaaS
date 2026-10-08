@@ -834,3 +834,10 @@ route that reads data refuses a token whose `aal` claim is not `aal2` with
 `403 MFA_REQUIRED`: a password alone, or Microsoft or Google alone, is not
 enough for that account. The client answers by asking for the code and retrying
 with the two-factor token Supabase issues (DECISIONS.md §217).
+
+**Guests.** A token whose `is_anonymous` claim is `true` is a guest: somebody who
+opened the demo without an account. A guest may join and read the demo
+(`POST /organizations/demo/join`), and is refused with `403 ACCOUNT_REQUIRED` on
+the routes that act on the person -- `POST /organizations`, the invitation
+preview and accept, and every `/auditor` route. Any other organization is a
+`404` to a guest, as it is to anyone who is not a member (DECISIONS.md §219).

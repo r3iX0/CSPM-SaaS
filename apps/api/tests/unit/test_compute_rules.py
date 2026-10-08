@@ -1,5 +1,7 @@
 """AZ-CMP-001 -- the rule that combines exposure with an open admin port."""
 
+from dataclasses import replace
+
 from app.core.enums import RuleState
 from app.rules.azure.compute.exposure import AzureExposedComputeRule
 from tests.conftest import make_context, resource_from
@@ -50,3 +52,53 @@ class TestExposedCompute:
         vm = resource_from("vulnerable", "vm_public_rdp")
         ctx = make_context(vm, collection_errors={"compute": "throttled"})
         assert self.rule.evaluate(vm, ctx).state == RuleState.UNKNOWN
+
+
+class TestPublicPaths:
+    """A connection meets the subnet's group and the interface's, and must pass both."""
+
+    rule = AzureExposedComputeRule()
+
+    def _context(self, *, subnet_open: bool):  # type: ignore[no-untyped-def]
+        vm = resource_from("vulnerable", "vm_public_rdp")
+        nic_nsg = resource_from("vulnerable", "nsg_public_rdp")
+        subnet_nsg = replace(
+            resource_from(
+                "vulnerable" if subnet_open else "secure",
+                "nsg_public_rdp" if subnet_open else "nsg_restricted",
+            ),
+            provider_resource_id="/subnet-nsg",
+            name="subnet-nsg",
+        )
+        vm = replace(
+            vm,
+            metadata={
+                **vm.metadata,
+                "public_paths": [
+                    {"public_ip": "20.0.0.1", "nsgs": [nic_nsg.provider_resource_id, "/subnet-nsg"]}
+                ],
+            },
+        )
+        ctx = make_context(
+            vm,
+            nic_nsg,
+            subnet_nsg,
+            relationships={
+                (nic_nsg.provider_resource_id, "protects"): [vm.provider_resource_id],
+                ("/subnet-nsg", "protects"): [vm.provider_resource_id],
+            },
+        )
+        return vm, ctx
+
+    def test_a_subnet_group_that_closes_the_port_makes_the_machine_unreachable(self) -> None:
+        vm, ctx = self._context(subnet_open=False)
+        assert self.rule.evaluate(vm, ctx).state == RuleState.PASS
+
+    def test_both_groups_opening_the_port_is_reported_with_each_rule(self) -> None:
+        vm, ctx = self._context(subnet_open=True)
+        result = self.rule.evaluate(vm, ctx)
+        assert result.state == RuleState.FAIL
+        assert {e["nsg"] for e in result.evidence["exposed_services"]} == {
+            "subnet-nsg",
+            resource_from("vulnerable", "nsg_public_rdp").name,
+        }

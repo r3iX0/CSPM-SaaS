@@ -5,6 +5,7 @@ import { auth } from "@/lib/api";
 import { useT } from "@/i18n";
 import { DEMO_ICON } from "@/lib/icons";
 import { useCurrentOrganization, useLeaveDemo, useOrganizations } from "@/lib/useDemo";
+import { useIsGuest } from "@/lib/useAuth";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/format";
 
@@ -17,6 +18,10 @@ import { cn } from "@/lib/format";
  * context, or a screenshot sent to a colleague, has to carry the fact that it
  * is a recording. The way out is on the same line: to the reader's own
  * organization if they have one, to creating one if they do not.
+ *
+ * A guest (DECISIONS.md §219) has neither, and nowhere to go by leaving: their
+ * way out is an account, kept as the same user, so the demo stays theirs while
+ * they make it.
  */
 export function DemoBanner() {
   const t = useT();
@@ -25,6 +30,7 @@ export function DemoBanner() {
   const current = useCurrentOrganization();
   const { data } = useOrganizations();
   const leave = useLeaveDemo();
+  const guest = useIsGuest();
 
   if (!current?.is_demo) return null;
   const own = (Array.isArray(data) ? data : []).find((org) => !org.is_demo);
@@ -40,30 +46,38 @@ export function DemoBanner() {
         <span className="text-muted-foreground">{t.demo.bannerDetail}</span>
       </p>
       <div className="flex shrink-0 items-center gap-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => leave.mutate()}
-          disabled={leave.isPending}
-          className="text-muted-foreground"
-        >
-          {t.demo.leave}
-        </Button>
-        {own ? (
-          <Button
-            size="sm"
-            onClick={() => {
-              auth.organizationId = own.id;
-              queryClient.clear();
-              navigate("/", { replace: true });
-            }}
-          >
-            {t.demo.backTo.replace("{name}", own.name)}
-          </Button>
-        ) : (
-          <Link to="/onboarding" className={cn(buttonVariants({ size: "sm" }))}>
-            {t.demo.createOwn}
+        {guest ? (
+          <Link to="/sign-in" className={cn(buttonVariants({ size: "sm" }))}>
+            {t.demo.saveAccount}
           </Link>
+        ) : (
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => leave.mutate()}
+              disabled={leave.isPending}
+              className="text-muted-foreground"
+            >
+              {t.demo.leave}
+            </Button>
+            {own ? (
+              <Button
+                size="sm"
+                onClick={() => {
+                  auth.organizationId = own.id;
+                  queryClient.clear();
+                  navigate("/", { replace: true });
+                }}
+              >
+                {t.demo.backTo.replace("{name}", own.name)}
+              </Button>
+            ) : (
+              <Link to="/onboarding" className={cn(buttonVariants({ size: "sm" }))}>
+                {t.demo.createOwn}
+              </Link>
+            )}
+          </>
         )}
       </div>
     </div>

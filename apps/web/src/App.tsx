@@ -33,6 +33,7 @@ const AuditorPage = lazy(() => import("@/pages/Auditor").then((m) => ({ default:
 const AuditorGrantPage = lazy(() =>
   import("@/pages/Auditor").then((m) => ({ default: m.AuditorGrantPage })),
 );
+const DemoPage = lazy(() => import("@/pages/Demo").then((m) => ({ default: m.DemoPage })));
 const OnboardingPage = lazy(() =>
   import("@/pages/Onboarding").then((m) => ({ default: m.OnboardingPage })),
 );
@@ -145,6 +146,9 @@ export function App() {
                 </RequireAuth>
               }
             />
+            {/* Not behind RequireAuth: this is where a visitor with no account
+            becomes a guest and opens the demo (DECISIONS.md §219). */}
+            <Route path="/demo" element={<DemoPage />} />
             <Route
               path="/onboarding"
               element={

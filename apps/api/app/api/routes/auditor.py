@@ -18,14 +18,21 @@ from fastapi.responses import StreamingResponse
 
 from app.api.archives import archive_response
 from app.api.routes.audit_packages import package_detail
-from app.core.deps import Costly, CurrentUser, DbSession
+from app.core.deps import Costly, CurrentUser, DbSession, RequireAccount
 from app.schemas.audit_grant import AuditorGrantOut, GrantToken
 from app.schemas.audit_package import AuditPackageDetailOut, VerificationOut
 from app.schemas.common import ERROR_RESPONSES, Envelope, NoMeta, error_responses
 from app.services import auditor as service
 from app.services.auditor import AuditorGrant
 
-router = APIRouter(prefix="/auditor", tags=["auditor"], responses=ERROR_RESPONSES)
+# An auditor is a person with an account: a grant is bound to a verified address, which a guest
+# has none of, and the account check says so before the grant's own would (section 219).
+router = APIRouter(
+    prefix="/auditor",
+    tags=["auditor"],
+    responses=ERROR_RESPONSES,
+    dependencies=[RequireAccount],
+)
 
 # What the grant's state can answer: no longer open or expired (409), made for another address
 # (403). A grant that is not this account's is a 404, which every route here already documents.

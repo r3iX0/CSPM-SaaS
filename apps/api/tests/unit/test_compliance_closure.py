@@ -404,17 +404,35 @@ def test_a_vault_open_to_every_network_is_left_to_az_kv_002() -> None:
     assert verdict("AZ-KV-008", resource) is RuleState.FAIL
 
 
-def test_a_postgresql_server_open_to_azure_fails() -> None:
+def _postgresql_open_to_azure(public_access: str | None) -> CloudResource:
     server_id = f"{RG}/providers/Microsoft.DBforPostgreSQL/flexibleServers/pg"
     rules = {server_id: [{"properties": {"startIpAddress": "0.0.0.0", "endIpAddress": "0.0.0.0"}}]}
-    resource = one(
+    network = {} if public_access is None else {"publicNetworkAccess": public_access}
+    return one(
         normalize(
-            postgresql_servers=[{"id": server_id, "name": "pg", "properties": {}}],
+            postgresql_servers=[
+                {"id": server_id, "name": "pg", "properties": {"network": network}}
+            ],
             postgresql_firewall_rules=rules,
         ),
         ResourceType.POSTGRESQL_SERVER,
     )
-    assert verdict("AZ-DB-025", resource) is RuleState.FAIL
+
+
+def test_a_postgresql_server_open_to_azure_fails() -> None:
+    assert verdict("AZ-DB-025", _postgresql_open_to_azure("Enabled")) is RuleState.FAIL
+
+
+def test_a_firewall_rule_on_a_server_with_public_access_off_is_not_judged() -> None:
+    """Azure applies no firewall rule while public access is Disabled, so a
+    0.0.0.0 rule left behind admits nobody."""
+    resource = _postgresql_open_to_azure("Disabled")
+    assert verdict("AZ-DB-025", resource) is RuleState.NOT_APPLICABLE
+
+
+def test_a_firewall_rule_is_unknown_when_public_access_was_not_stated() -> None:
+    resource = _postgresql_open_to_azure(None)
+    assert verdict("AZ-DB-025", resource) is RuleState.UNKNOWN
 
 
 def test_the_critical_asset_lock_check_asks_only_of_critical_assets() -> None:

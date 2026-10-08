@@ -749,6 +749,10 @@ WORKLOAD_SPECS = (
         safe=False,
         describes="No firewall rule admits every Azure service",
         failure="admits every address inside Azure",
+        # A firewall rule applies only while public access is on. With it
+        # Disabled the server answers its private endpoints alone, and a 0.0.0.0
+        # rule left behind admits nobody.
+        applies_when=(("public_network_access", "enabled"),),
         mappings={**_NETWORK, "CIS_AZURE_2.0": ["4.3.7"]},
         effort_minutes=30,
     ),

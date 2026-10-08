@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Request, Response, status
 
 from app.api.links import created
-from app.core.deps import CurrentUser, DbSession, Tenant
+from app.core.deps import AccountUser, CurrentUser, DbSession, Tenant
 from app.core.enums import Role
 from app.models.organization import Organization
 from app.schemas.common import Envelope, NoMeta, error_responses
@@ -24,14 +24,15 @@ router = APIRouter(
 )
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED, responses=error_responses(403))
 async def create_organization(
     payload: OrganizationCreate,
     request: Request,
     response: Response,
-    user: CurrentUser,
+    user: AccountUser,
     session: DbSession,
 ) -> Envelope[OrganizationOut, NoMeta]:
+    """Create an organization, with the caller as its owner. Refused to a guest."""
     org = await service.create_organization(session, user, payload)
     created(request, response, "get_organization", organization_id=org.id)
     return Envelope(data=OrganizationOut.model_validate(org), meta=NoMeta())

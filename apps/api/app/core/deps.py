@@ -25,6 +25,7 @@ from app.core.config import settings
 from app.core.db import rls_session
 from app.core.enums import Role
 from app.core.errors import (
+    AccountRequired,
     NotAuthenticated,
     OrganizationNotFound,
     PermissionDenied,
@@ -62,6 +63,25 @@ async def get_current_user(
 CurrentUser = Annotated[AuthenticatedUser, Depends(get_current_user)]
 
 
+async def get_account_user(user: CurrentUser) -> AuthenticatedUser:
+    """The caller, refused if they are a guest.
+
+    For the routes that act on the person rather than inside an organization
+    -- creating one, taking an invitation, opening an auditor's grant -- where
+    the tenant check that keeps a guest in the demo never runs. The database
+    refuses a guest a membership as well (DECISIONS.md section 219).
+    """
+    if user.guest:
+        raise AccountRequired()
+    return user
+
+
+AccountUser = Annotated[AuthenticatedUser, Depends(get_account_user)]
+
+# For a router's ``dependencies=[...]``, where no handler reads the user itself.
+RequireAccount = Depends(get_account_user)
+
+
 async def _within_limit(bucket: str, user_id: UUID, limit: int) -> None:
     window_seconds = settings.rate_limit_window_seconds
     window = int(time.time()) // window_seconds
@@ -92,7 +112,7 @@ async def get_session(user: CurrentUser) -> AsyncIterator[AsyncSession]:
     one-factor token straight from Supabase's API, so the check that counts is
     this one (DECISIONS.md section 217).
     """
-    async with rls_session(user.id, user.email) as session:
+    async with rls_session(user.id, user.email, guest=user.guest) as session:
         if not user.second_factor:
             await refuse_a_skipped_second_factor(session)
         yield session
@@ -178,6 +198,11 @@ async def get_tenant(
         .order_by(Organization.is_demo, Organization.created_at)
     )
     memberships = list((await session.execute(stmt)).all())
+    # A guest is in the demo and nowhere else. Nothing lets a guest join
+    # another organization, so this drops nothing today; it is here so that a
+    # membership which should not exist still opens nothing (section 219).
+    if user.guest:
+        memberships = [row for row in memberships if row[1]]
     if not memberships:
         raise OrganizationNotFound("You do not belong to any organization yet")
 

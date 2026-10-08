@@ -20,7 +20,10 @@ import type { InvitationPreview } from "@/lib/types";
 const TOKEN = "a-token-from-the-link-long-enough";
 
 let signedIn = true;
-vi.mock("@/lib/useAuth", () => ({ useAuthToken: () => (signedIn ? "jwt" : null) }));
+vi.mock("@/lib/useAuth", () => ({
+  useAuthToken: () => (signedIn ? "jwt" : null),
+  useIsGuest: () => false,
+}));
 
 function preview(overrides: Partial<InvitationPreview> = {}): InvitationPreview {
   return {

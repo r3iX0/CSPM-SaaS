@@ -98,7 +98,15 @@ class AzurePublicStorageRule(SecurityRule):
         problems = []
         if allow_blob_public is True:
             problems.append("Anonymous blob public access is enabled")
-        if network_default is not None and str(network_default).lower() == "allow":
+        # With public network access Disabled the account answers only its
+        # private endpoints, and Azure ignores the network rules entirely, so
+        # a default action left at Allow opens nothing.
+        public_disabled = str(public_network or "").lower() == "disabled"
+        if (
+            not public_disabled
+            and network_default is not None
+            and str(network_default).lower() == "allow"
+        ):
             problems.append("Network access rules default to Allow (open to all networks)")
         if (
             public_network is not None

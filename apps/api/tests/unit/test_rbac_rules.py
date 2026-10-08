@@ -14,6 +14,8 @@ everywhere else.
 
 from typing import Any, ClassVar
 
+import pytest
+
 from app.connectors.azure.evidence import AzureEvidence
 from app.core.enums import Level, Provider, ResourceType, RuleState
 from app.domain.resource import CloudResource
@@ -23,6 +25,7 @@ from app.rules.azure.rbac.privilege import (
     AzureExcessiveOwnersRule,
     AzurePersonWithSubscriptionControlRule,
     AzureRoleGrantingIdentityRule,
+    AzureSingleOwnerRule,
     AzureWorkloadWithSubscriptionControlRule,
 )
 from app.rules.base import RuleContext
@@ -445,3 +448,82 @@ class TestRolesATenantWroteItself:
             CUSTOM.evaluate(subscription, RuleContext(resources=[subscription])).state
             is RuleState.UNKNOWN
         )
+
+
+# ------------------------------------------------- Azure Policy's own identities
+POLICY_ASSIGNMENT = {
+    "id": "/providers/Microsoft.Management/managementGroups/lz/providers/"
+    "Microsoft.Authorization/policyAssignments/deploy-diagnostics",
+    "name": "Deploy diagnostic settings",
+    "scope": "/providers/Microsoft.Management/managementGroups/lz",
+}
+
+
+def policy_identity(
+    *roles: dict[str, Any], resource_id: str = "/principals/policy"
+) -> CloudResource:
+    principal = identity(
+        ResourceType.SERVICE_PRINCIPAL,
+        roles=list(roles),
+        principal_type="ServicePrincipal",
+        name="ServicePrincipal 0a1b2c3d",
+        resource_id=resource_id,
+    )
+    principal.metadata["policy_assignments"] = [POLICY_ASSIGNMENT]
+    return principal
+
+
+class TestAzurePolicyIdentities:
+    """Section 222. The privilege is real, so the finding stands; reaching it
+    takes the right to write the policy, so it scores lower, and the identity
+    administers nothing, so it is no Owner in either count."""
+
+    @pytest.mark.parametrize(
+        ("rule", "held"),
+        [
+            (WORKLOAD, role("Contributor")),
+            (GRANTER, role("Owner", grants=True)),
+            (AzureBroadScopeAssignmentRule(), role("Owner", MANAGEMENT_GROUP)),
+        ],
+    )
+    def test_the_finding_stands_and_names_the_assignment(
+        self, rule: Any, held: dict[str, Any]
+    ) -> None:
+        principal = policy_identity(held)
+        result = rule.evaluate(principal, context(principal))
+        assert result.state is RuleState.FAIL
+        assert result.exploitability == 1
+        assert result.evidence["policy_assignments"] == [POLICY_ASSIGNMENT]
+        assert "Deploy diagnostic settings" in result.message
+
+    def test_an_identity_a_workload_also_runs_as_is_judged_as_the_workloads(self) -> None:
+        principal = policy_identity(role("Contributor"))
+        vm = identity(ResourceType.VIRTUAL_MACHINE, name="web-01", resource_id="/vms/web-01")
+        shared = context(
+            principal,
+            vm,
+            relationships={("/vms/web-01", "has_identity"): [principal.provider_resource_id]},
+        )
+        result = WORKLOAD.evaluate(principal, shared)
+        assert result.state is RuleState.FAIL
+        assert result.exploitability is None
+        assert result.evidence["policy_assignments"] == []
+
+    def test_policy_identities_are_not_counted_as_owners(self) -> None:
+        holders = [
+            *owners(2),
+            *(
+                policy_identity(role("Owner"), resource_id=f"/principals/policy-{index}")
+                for index in range(OWNERS.MAX_OWNERS)
+            ),
+        ]
+        result = OWNERS.evaluate(None, RuleContext(resources=holders))
+        assert result.state is RuleState.PASS
+        assert result.evidence["owner_count"] == 2
+        assert result.evidence["policy_identities_not_counted"] == OWNERS.MAX_OWNERS
+
+    def test_a_policy_identity_is_no_second_owner(self) -> None:
+        holders = [*owners(1), policy_identity(role("Owner"))]
+        result = AzureSingleOwnerRule().evaluate(None, RuleContext(resources=holders))
+        assert result.state is RuleState.FAIL
+        assert result.evidence["owner_count"] == 1

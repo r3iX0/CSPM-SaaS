@@ -73,6 +73,13 @@ class SecondFactorRequired(AppError):
     status_code_default = status.HTTP_403_FORBIDDEN
 
 
+class AccountRequired(AppError):
+    """Create an account to do this. A guest can only read the demo."""
+
+    code = "ACCOUNT_REQUIRED"
+    status_code_default = status.HTTP_403_FORBIDDEN
+
+
 class NotFound(AppError):
     """Resource not found"""
 

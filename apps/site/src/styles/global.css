@@ -1,0 +1,185 @@
+/*
+  The marketing site's theme. The brand values are the product's own
+  (apps/web/src/index.css): Geist, a neutral ramp and one teal accent, so the
+  site and the app read as one thing. The site follows the reader's system
+  theme; it has no toggle and sets no cookie.
+
+  Shape rule: controls (buttons, chips) are 8px, surfaces (screenshots, panels)
+  are 14px. Nothing else.
+*/
+@import "tailwindcss";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+
+@custom-variant dark (@media (prefers-color-scheme: dark));
+
+@theme inline {
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, monospace;
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-brand: var(--brand);
+  --color-brand-fg: var(--brand-fg);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-line: var(--brand-line);
+  --color-critical: var(--critical);
+
+  --radius-control: 8px;
+  --radius-surface: 14px;
+}
+
+:root {
+  color-scheme: light dark;
+  --bg: oklch(0.992 0.002 196);
+  --surface: oklch(1 0 0);
+  --sunken: oklch(0.968 0.004 196);
+  --fg: oklch(0.17 0.006 196);
+  --muted: oklch(0.47 0.008 196);
+  --line: oklch(0.9 0.005 196);
+  --brand: oklch(0.45 0.072 196);
+  --brand-fg: oklch(0.99 0 0);
+  --brand-soft: color-mix(in oklab, var(--brand) 9%, var(--bg));
+  --brand-line: color-mix(in oklab, var(--brand) 30%, var(--bg));
+  --critical: oklch(0.49 0.2 24.5);
+  --shadow: 0 1px 2px oklch(0.45 0.03 196 / 6%), 0 18px 48px -16px oklch(0.45 0.05 196 / 18%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: oklch(0.155 0.004 196);
+    --surface: oklch(0.195 0.005 196);
+    --sunken: oklch(0.18 0.005 196);
+    --fg: oklch(0.965 0.003 196);
+    --muted: oklch(0.72 0.01 196);
+    --line: oklch(1 0 0 / 11%);
+    --brand: oklch(0.74 0.082 194);
+    --brand-fg: oklch(0.18 0.02 196);
+    --brand-soft: color-mix(in oklab, var(--brand) 12%, var(--bg));
+    --brand-line: color-mix(in oklab, var(--brand) 38%, var(--bg));
+    --critical: oklch(0.79 0.17 22.5);
+    --shadow: 0 1px 2px oklch(0 0 0 / 30%), 0 24px 60px -20px oklch(0 0 0 / 60%);
+  }
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: var(--brand-line);
+  }
+  :focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+  [id] {
+    scroll-margin-top: 5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* --- Buttons --------------------------------------------------------------- */
+@utility btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding-inline: 1.125rem;
+  border-radius: var(--radius-control);
+  font-size: 0.9375rem;
+  font-weight: 550;
+  white-space: nowrap;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  &:active {
+    transform: translateY(1px) scale(0.99);
+  }
+}
+
+@utility btn-primary {
+  background: var(--brand);
+  color: var(--brand-fg);
+  &:hover {
+    background: color-mix(in oklab, var(--brand) 88%, var(--fg));
+  }
+}
+
+@utility btn-ghost {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--fg);
+  &:hover {
+    border-color: color-mix(in oklab, var(--fg) 30%, var(--line));
+  }
+}
+
+/* --- Motion ---------------------------------------------------------------- */
+/*
+  Two movements, both said once:
+  - the hero arrives in sequence, so the headline is read before the picture;
+  - the cut mark severs: its brand half slides into place along the line,
+    which is what the product does.
+  Sections fade up as they enter the viewport where the browser supports
+  scroll-driven animation, and stay still otherwise. A reader who asked for
+  less motion gets none of it.
+*/
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes sever {
+  from {
+    transform: translate(-4px, 4px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .rise {
+    animation: rise 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: calc(var(--i, 0) * 90ms);
+  }
+  .sever {
+    animation: sever 900ms cubic-bezier(0.16, 1, 0.3, 1) 350ms both;
+  }
+  @supports (animation-timeline: view()) {
+    .reveal {
+      animation: rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 45%;
+    }
+  }
+}

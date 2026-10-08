@@ -115,6 +115,12 @@ celery_app.conf.beat_schedule = {
         "task": "cloudguard.prune_evidence",
         "schedule": 24 * 60 * 60.0,
     },
+    # Daily, like retention, and for the same reason: a guest is kept for weeks,
+    # so a finer tick would only find nobody more often (DECISIONS.md §219).
+    "forget-guests": {
+        "task": "cloudguard.forget_guests",
+        "schedule": 24 * 60 * 60.0,
+    },
 }
 
 celery_app.conf.update(

@@ -78,6 +78,13 @@ class TestVmNormalization:
         assert source.endswith("networkSecurityGroups/nsg-jumpbox")
         assert target.endswith("virtualMachines/vm-jumpbox")
 
+    def test_each_public_address_records_the_groups_its_connections_pass(self, state) -> None:
+        """AZ-CMP-001 needs every group on one path, not the union of them."""
+        vm = by_type(state, ResourceType.VIRTUAL_MACHINE)[0]
+        [path] = vm.metadata["public_paths"]
+        assert path["public_ip"] == "20.50.10.10"
+        assert [n.rsplit("/", 1)[-1] for n in path["nsgs"]] == ["nsg-jumpbox"]
+
     def test_explicit_criticality_tag_wins(self, state) -> None:
         vm = by_type(state, ResourceType.VIRTUAL_MACHINE)[0]
         assert vm.criticality == Level.HIGH
@@ -89,6 +96,20 @@ class TestStorageNormalization:
         assert storage.metadata["allow_blob_public_access"] is True
         assert storage.metadata["network_default_action"] == "Allow"
         assert storage.metadata["min_tls_version"] == "TLS1_2"
+
+    def test_network_rules_raise_no_exposure_while_public_access_is_disabled(self) -> None:
+        """Azure ignores the network rules while public access is Disabled."""
+        account = {
+            "id": "/subscriptions/s/providers/Microsoft.Storage/storageAccounts/a",
+            "name": "a",
+            "properties": {
+                "allowBlobPublicAccess": False,
+                "publicNetworkAccess": "Disabled",
+                "networkAcls": {"defaultAction": "Allow"},
+            },
+        }
+        [storage] = AzureNormalizer()._normalize_storage({"storage_accounts": [account]}, {})
+        assert storage.public_exposure == Level.LOW
 
     def test_untagged_storage_is_not_assumed_low_criticality(self, state) -> None:
         """No tag and no naming hint must yield UNKNOWN, never LOW."""
@@ -519,3 +540,43 @@ class TestWhatTheNewRulesRead:
         state = self._state(sql_tde={})
         server = by_type(state, ResourceType.SQL_SERVER)[0]
         assert server.metadata["databases"] is None
+
+
+class TestPolicyIdentities:
+    """Section 222: an identity Azure Policy remediates as says which assignment."""
+
+    def test_the_assignment_is_recorded_on_the_identity_holding_its_role(self) -> None:
+        sub = "/subscriptions/1111"
+        principal = "0a1b2c3d-0000-0000-0000-000000000000"
+        data = {
+            "role_assignments": [
+                {
+                    "properties": {
+                        "principalId": principal,
+                        "principalType": "ServicePrincipal",
+                        "scope": sub,
+                        "roleDefinitionId": "/defs/contributor",
+                    }
+                }
+            ],
+            "role_definitions": [
+                {"id": "/defs/contributor", "properties": {"roleName": "Contributor"}}
+            ],
+            "policy_assignments": [
+                {
+                    "id": f"{sub}/providers/Microsoft.Authorization/policyAssignments/diag",
+                    "name": "diag",
+                    "identity": {"type": "SystemAssigned", "principalId": principal},
+                    "properties": {"displayName": "Deploy diagnostics", "scope": sub},
+                }
+            ],
+        }
+        nodes, _ = AzureNormalizer()._normalize_authorization(data, [])
+        [node] = nodes
+        assert node.metadata["policy_assignments"] == [
+            {
+                "id": f"{sub}/providers/Microsoft.Authorization/policyAssignments/diag",
+                "name": "Deploy diagnostics",
+                "scope": sub,
+            }
+        ]

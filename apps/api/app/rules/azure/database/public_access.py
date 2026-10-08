@@ -116,6 +116,19 @@ class AzurePublicDatabaseRule(SecurityRule):
         if public_access is None and firewall_rules is None:
             return RuleResult.unknown("Database server configuration missing from snapshot")
 
+        # Public access off is the boundary itself: Azure refuses every
+        # connection to the public endpoint and applies no firewall rule, so a
+        # rule left behind from before opens nothing.
+        if str(public_access or "").lower() == "disabled":
+            return RuleResult.passed(
+                {
+                    "public_network_access": public_access,
+                    "firewall_rule_count": len(firewall_rules or []),
+                    "private_endpoints": resource.get("private_endpoints", []),
+                    "note": "Firewall rules do not apply while public access is disabled",
+                }
+            )
+
         problems = []
         offending: list[dict] = []
 

@@ -5,6 +5,7 @@ import { api, auth } from "@/lib/api";
 import type { Organization } from "@/lib/types";
 import { useT } from "@/i18n";
 import { cn } from "@/lib/format";
+import { useIsGuest } from "@/lib/useAuth";
 import { ActivitySection } from "@/components/settings/Activity";
 import { AuditPackagesSection } from "@/components/settings/AuditPackages";
 import { ContextSettings } from "@/components/settings/ContextSettings";
@@ -38,6 +39,7 @@ import { CardsSkeleton, ErrorState, PageHeader } from "@/components/common/state
  */
 export function SettingsPage() {
   const t = useT();
+  const guest = useIsGuest();
   const { hash } = useLocation();
 
   const organizations = useQuery({
@@ -66,7 +68,7 @@ export function SettingsPage() {
 
   if (!current) return null;
 
-  const sections = settingsSections(current, t);
+  const sections = settingsSections(current, t, guest);
   const shown = new Set(sections.map((section) => section.id));
 
   // Where `/settings` alone lands: an old anchor's page if it names one this

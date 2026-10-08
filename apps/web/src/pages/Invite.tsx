@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError, auth } from "@/lib/api";
 import { forgetInvite, heldInvite, holdInvite, inviteFromHash } from "@/lib/pendingInvite";
 import { supabaseSignOut } from "@/lib/supabase";
-import { useAuthToken } from "@/lib/useAuth";
+import { useAuthToken, useIsGuest } from "@/lib/useAuth";
 import type { InvitationPreview, Organization } from "@/lib/types";
 import { useT } from "@/i18n";
 import { cn } from "@/lib/utils";
@@ -27,7 +27,10 @@ import { PAGE_TITLE_CLASS } from "@/components/common/states";
  */
 export function InvitePage() {
   const t = useT();
-  const signedIn = Boolean(useAuthToken());
+  // A guest cannot take an invitation (DECISIONS.md §219): to this page they are
+  // signed out, so the link is held while they make an account, not spent.
+  const guest = useIsGuest();
+  const signedIn = Boolean(useAuthToken()) && !guest;
   const { hash } = useLocation();
 
   // The fragment wins over anything held: it is the link just opened.

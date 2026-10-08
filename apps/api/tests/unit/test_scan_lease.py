@@ -88,18 +88,21 @@ def test_every_queue_a_step_is_routed_to_is_actually_consumed() -> None:
     starts, and nothing says why.
 
     Pinned against the deployment file rather than described in prose, because
-    the failure is silent and the fix is one flag.
+    the failure is silent and the fix is one flag. The worker's start command is
+    in `.railway/railway.ts` (DECISIONS.md section 223), a TypeScript file, so it
+    is found as the one string literal that starts Celery's worker.
     """
-    import json
+    import re
     from pathlib import Path
 
     from app.core.enums import ScanStepKind
     from app.workers.scan_tasks import queue_for
 
-    railway = Path(__file__).resolve().parents[4] / "infrastructure" / "railway"
-    command = json.loads((railway / "worker.json").read_text())["deploy"]["startCommand"]
+    project = Path(__file__).resolve().parents[4] / ".railway" / "railway.ts"
+    commands = re.findall(r'"(celery [^"]* worker [^"]*)"', project.read_text())
+    assert len(commands) == 1, "expected exactly one Celery worker start command"
     consumed = next(
-        part.split("=", 1)[1] for part in command.split() if part.startswith("--queues=")
+        part.split("=", 1)[1] for part in commands[0].split() if part.startswith("--queues=")
     ).split(",")
 
     for kind in ScanStepKind:

@@ -1954,6 +1954,8 @@ Azure CLI:
     --scope /subscriptions/<subscription-id>
   az role assignment create --assignee <object-id> --role <narrower-role> \
     --scope /subscriptions/<subscription-id>/resourceGroups/<rg>
+
+Where the identity belongs to an Azure Policy assignment, the role comes from the policy definition's roleDefinitionIds. Narrow those, or the assignment's scope, and re-create the assignment's role assignments; deleting the role assignment alone stops the policy remediating.
 ```
 
 ##### <a id="az-iam-003"></a>`AZ-IAM-003` — Identity can grant itself any role
@@ -1976,6 +1978,8 @@ User Access Administrator and Owner both carry `Microsoft.Authorization/roleAssi
 Azure CLI, to see what a custom role actually permits:
   az role definition list --name <role> \
     --query "[].{actions:permissions[0].actions,notActions:permissions[0].notActions}"
+
+Where the identity belongs to an Azure Policy assignment, the role comes from the policy definition's roleDefinitionIds. Narrow those, or the assignment's scope, and re-create the assignment's role assignments; deleting the role assignment alone stops the policy remediating.
 ```
 
 ##### <a id="az-iam-005"></a>`AZ-IAM-005` — Too many Owners on the subscription
@@ -2024,6 +2028,8 @@ Azure CLI:
   az role assignment delete --assignee <object-id> --scope <management-group-scope>
 
 Where a platform team genuinely operates across every subscription, prefer an eligible assignment in Privileged Identity Management over a standing one, so the inherited reach exists only while somebody is using it.
+
+Where the identity belongs to an Azure Policy assignment, the role comes from the policy definition's roleDefinitionIds. Narrow those, or the assignment's scope, and re-create the assignment's role assignments; deleting the role assignment alone stops the policy remediating.
 ```
 
 ##### <a id="az-iam-010"></a>`AZ-IAM-010` — Custom role grants unrestricted or self-granting permissions

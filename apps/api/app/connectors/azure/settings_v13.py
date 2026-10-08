@@ -112,6 +112,38 @@ def locations_restricted(raw: Any) -> bool | None:
     return False
 
 
+def policy_identities(raw: Any) -> dict[str, list[dict[str, Any]]]:
+    """Which policy assignments each managed identity acts for, by principal id.
+
+    A DeployIfNotExists or Modify assignment runs its remediation as a managed
+    identity, granted the roles its definition names (DECISIONS.md section
+    222). The listing already carries that identity: a system-assigned one as
+    ``identity.principalId``, user-assigned ones under
+    ``identity.userAssignedIdentities``. Read with ``$filter=atScope()``, the
+    listing includes assignments inherited from management groups.
+    """
+    found: dict[str, list[dict[str, Any]]] = {}
+    if not isinstance(raw, list):
+        return found
+    for assignment in raw:
+        if not isinstance(assignment, dict):
+            continue
+        identity = assignment.get("identity") or {}
+        principals = [identity.get("principalId")]
+        for entry in (identity.get("userAssignedIdentities") or {}).values():
+            principals.append((entry or {}).get("principalId"))
+        props = assignment.get("properties") or {}
+        record = {
+            "id": assignment.get("id"),
+            "name": props.get("displayName") or assignment.get("name"),
+            "scope": props.get("scope"),
+        }
+        for principal in principals:
+            if principal:
+                found.setdefault(str(principal), []).append(record)
+    return found
+
+
 def basic_public_ips(raw: Any) -> list[str] | None:
     """Public IP addresses on the Basic SKU, which Azure retired on 30
     September 2025: no SLA, no availability zones, and open by default."""

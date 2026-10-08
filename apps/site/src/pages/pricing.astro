@@ -1,0 +1,195 @@
+---
+import Base from "../layouts/Base.astro";
+import { Check, Plus } from "@lucide/astro";
+import { SIGN_UP_URL, SALES_EMAIL } from "../site";
+
+// Draft plans. Prices and limits are a proposal until billing exists (Stripe,
+// limits enforced by the API); nothing here is read from the product.
+const plans = [
+  {
+    name: "Free",
+    price: "€0",
+    unit: "no time limit",
+    pitch: "One subscription, to see what Cleave finds in it.",
+    features: ["1 Azure subscription", "2 members", "CIS Azure 6.0 coverage"],
+    cta: { label: "Start free", href: SIGN_UP_URL },
+  },
+  {
+    name: "Team",
+    price: "€39",
+    unit: "per subscription, per month",
+    pitch: "For a security or platform team working through fixes together.",
+    features: [
+      "Up to 20 subscriptions",
+      "10 members",
+      "All 13 compliance frameworks",
+      "PDF reports",
+      "Signed webhooks",
+      "Risk context per subscription",
+    ],
+    cta: { label: "Start free", href: SIGN_UP_URL },
+    featured: true,
+  },
+  {
+    name: "Business",
+    price: "€79",
+    unit: "per subscription, per month",
+    pitch: "For organizations that are audited and need to show their work.",
+    features: [
+      "Unlimited subscriptions",
+      "Unlimited members",
+      "Sealed audit packages",
+      "Auditor access by grant",
+      "Terraform fix diffs",
+      "Audit log of every change",
+    ],
+    cta: { label: "Start free", href: SIGN_UP_URL },
+  },
+];
+
+const everyPlan = [
+  "200+ deterministic Azure rules",
+  "Attack-path graph and cut simulation",
+  "Risks scored by reach, not alert count",
+  "Remediation queue with fix scripts",
+  "Findings closed only by a scan",
+  "Two-factor authentication, enforced",
+];
+
+const faqs = [
+  [
+    "What counts as a subscription?",
+    "Each Azure subscription Cleave scans during a billing month, counted once however many scans it gets.",
+  ],
+  [
+    "What access does Cleave need?",
+    "An admin consents to Cleave's Entra application and assigns a read-only role. The security page lists what it reads and what it never requests.",
+  ],
+  [
+    "Is the free plan a trial?",
+    "No. It has no time limit. Upgrade when you connect a second subscription.",
+  ],
+  [
+    "Do you support AWS?",
+    "The AWS connector is built and being verified against live accounts. It is not offered yet.",
+  ],
+  ["Can I pay yearly?", "Yes. Paying yearly gets two months free."],
+  [
+    "Can I cancel?",
+    "Yes, from billing settings. Your plan runs to the end of the period you paid for.",
+  ],
+];
+---
+
+<Base
+  title="Pricing · Cleave"
+  description="Cleave is priced by the Azure subscriptions you connect. Start free with one subscription, no time limit."
+>
+  <section class="mx-auto max-w-6xl px-4 pt-14 sm:px-6 lg:pt-20">
+    <h1
+      class="rise max-w-3xl text-[2.5rem] leading-[1.05] font-semibold tracking-[-0.04em] text-balance sm:text-6xl"
+    >
+      Priced by the subscriptions you connect.
+    </h1>
+    <p class="rise mt-6 max-w-[52ch] text-lg leading-relaxed text-muted" style="--i:1">
+      Every plan runs the same rules. Plans differ in how many subscriptions, who can work in them,
+      and what you can hand an auditor.
+    </p>
+  </section>
+
+  <section aria-label="Plans" class="mx-auto max-w-6xl px-4 pt-14 sm:px-6">
+    <div class="grid gap-4 lg:grid-cols-3">
+      {
+        plans.map((plan, i) => (
+          <article
+            class:list={[
+              "rise flex flex-col rounded-[14px] border p-7",
+              plan.featured
+                ? "border-brand-line bg-brand-soft"
+                : "border-line bg-surface",
+            ]}
+            style={`--i:${i + 2}`}
+          >
+            <h2 class="text-lg font-semibold">{plan.name}</h2>
+            <p class="mt-2 min-h-12 text-[15px] leading-relaxed text-muted">{plan.pitch}</p>
+            <p class="mt-6 flex items-baseline gap-2">
+              <span class="text-4xl font-semibold tracking-[-0.03em]">{plan.price}</span>
+              <span class="text-sm text-muted">{plan.unit}</span>
+            </p>
+            <a
+              href={plan.cta.href}
+              class:list={["btn mt-6 w-full", plan.featured ? "btn-primary" : "btn-ghost"]}
+            >
+              {plan.cta.label}
+            </a>
+            <ul class="mt-7 space-y-3 border-t border-line pt-6 text-[15px]">
+              {plan.features.map((f) => (
+                <li class="flex gap-2.5">
+                  <Check size={18} stroke-width={1.75} class="mt-0.5 shrink-0 text-brand" aria-hidden="true" />
+                  {f}
+                </li>
+              ))}
+            </ul>
+          </article>
+        ))
+      }
+    </div>
+
+    <div
+      class="mt-4 flex flex-col gap-6 rounded-[14px] border border-line bg-sunken p-7 md:flex-row md:items-center md:justify-between"
+    >
+      <div>
+        <h2 class="text-lg font-semibold">Enterprise</h2>
+        <p class="mt-1 max-w-[60ch] text-[15px] leading-relaxed text-muted">
+          Invoice billing, a data processing agreement and your own terms, help connecting
+          management groups, and a named contact.
+        </p>
+      </div>
+      <a href={`mailto:${SALES_EMAIL}`} class="btn btn-ghost shrink-0">Contact sales</a>
+    </div>
+  </section>
+
+  <section aria-labelledby="all-title" class="mx-auto max-w-6xl px-4 pt-24 sm:px-6">
+    <div class="grid gap-10 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)]">
+      <h2 id="all-title" class="reveal text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
+        In every plan, including Free.
+      </h2>
+      <ul class="grid gap-x-10 gap-y-4 sm:grid-cols-2">
+        {
+          everyPlan.map((f) => (
+            <li class="reveal flex gap-2.5 text-[15px]">
+              <Check size={18} stroke-width={1.75} class="mt-0.5 shrink-0 text-brand" aria-hidden="true" />
+              {f}
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <section aria-labelledby="faq-title" class="mx-auto max-w-6xl px-4 py-24 sm:px-6 lg:py-32">
+    <div class="grid gap-10 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)]">
+      <h2 id="faq-title" class="reveal text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
+        Questions
+      </h2>
+      <div class="divide-y divide-line border-y border-line">
+        {
+          faqs.map(([q, a]) => (
+            <details class="group">
+              <summary class="flex cursor-pointer list-none items-center justify-between gap-6 py-5 text-[17px] font-medium [&::-webkit-details-marker]:hidden">
+                {q}
+                <Plus
+                  size={18}
+                  stroke-width={1.75}
+                  class="shrink-0 text-muted transition-transform duration-200 group-open:rotate-45"
+                  aria-hidden="true"
+                />
+              </summary>
+              <p class="max-w-[62ch] pb-6 text-[15px] leading-relaxed text-muted">{a}</p>
+            </details>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+</Base>

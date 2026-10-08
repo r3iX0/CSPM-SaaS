@@ -8205,7 +8205,7 @@ here rather than implied away. The larger exposure is not the database at all:
 the scanner holds Cleave's multi-tenant Entra secret and its AWS identity, which
 reach every customer who has granted access. See the open items.
 
-## 152. No Railway config at the repo root
+## 152. No Railway config at the repo root — **the config files superseded by §223**
 
 The first scanner deploy started the API. Railway reads `railway.json` at the
 repo root for every service built from the repo that names no config file of its
@@ -11925,13 +11925,217 @@ terminal beside the button.
 signature (§208), which would let the page check who sealed a package and not only that it is
 unchanged.
 
+## 219. A visitor opens the demo as a guest, with no account and no organization
+
+The demo (§99) needed an account: a visitor from the marketing site signed up, confirmed an
+email, perhaps set up an authenticator, and only then reached "Explore a demo environment" in
+onboarding. Every step of that is a reason to leave before seeing anything. `/demo` now opens it
+in one visit.
+
+**A guest is Supabase's anonymous user.** `/demo` calls `signInAnonymously()` for a visitor with
+no session, then the same `POST /organizations/demo/join` onboarding uses. The token is real --
+a user id, signed by Supabase, with no email and `is_anonymous` set -- so RLS, the demo's
+VIEWER-only membership and read-only flag (§99), the per-user rate limits (§161) and the request
+id all apply unchanged. `decode_token` reads the claim into `AuthenticatedUser.guest`, only for a
+literal `true`. A guest has no factor, so §217's lookup answers no and lets the session through.
+
+Three alternatives were rejected. Public, unauthenticated read routes for the demo would be a
+second copy of every read path without RLS. A static snapshot of the demo's answers inside the
+web app is a mock in production code (§2), drifts from the product, and cannot answer the cut
+simulation, which is a `POST`. One shared demo account signed in automatically puts its
+credentials in the bundle and every visitor on one rate limit, so one abuser locks out the rest.
+
+**A guest reads the demo and owns nothing, enforced twice.** In the API, `get_tenant` keeps only
+a guest's demo membership, and `get_account_user` (`AccountUser`, `RequireAccount`) answers
+`403 ACCOUNT_REQUIRED` on the routes that act on the person rather than inside an organization:
+creating an organization, previewing or accepting an invitation, and every auditor route. In the
+database, migration `0052` puts a trigger on `organization_members` that refuses a guest any row
+whose organization is not the demo. Every way into an organization ends in a membership row, so
+this one lock covers creation, invitations and anything added later, whichever function or
+policy the row comes through; `rls_session(..., guest=True)` carries `is_anonymous` into
+`request.jwt.claims` beside the email (§162), and `app.is_guest()` reads it there. Invitations
+and auditor grants also need a verified address, which a guest does not have, so they were
+already refused; the account check says why first.
+
+**The way out is an account, kept as the same user.** The demo banner offers a guest "Create an
+account" instead of leaving, which would leave them with nothing. The sign-in page, for a guest,
+links Microsoft or Google to the guest (`linkIdentity`, which needs manual linking on in
+Supabase) or confirms an email on it (`updateUser`), whose link opens `/reset-password` to
+choose a password, since Supabase sets one only once the address is confirmed. The user id does
+not change, so the demo membership carries over, and §99's "own organization wins" moves them
+into their estate once they make one. Onboarding sends a guest to make the account first; the
+Security settings page, for an authenticator, is not offered to a guest. Signing in to an
+existing account instead simply replaces the guest session.
+
+**Guests are forgotten.** One click mints one, so they would only accumulate.
+`app.forget_guests()` deletes the guests created before a cutoff that never became accounts,
+with their demo membership and their notification reads and dismissals -- named one by one,
+because `organization_members.user_id` has no foreign key to `auth.users` and nothing cascades.
+The worker runs it daily (`forget-guests`) for guests older than `GUEST_RETENTION_DAYS`, 30 by
+default, at most 5,000 a run. A converted guest is no longer anonymous and is never touched.
+
+**No CAPTCHA yet, on purpose.** Supabase's CAPTCHA protection applies to every sign-in and
+sign-up, not to anonymous sign-ins alone, and the app's forms send no token, so switching it on
+for guests would lock everyone out. Until the forms carry Turnstile, Supabase's per-address limit
+on anonymous sign-ins and the API's per-address flood guard (§161) bound how fast guests can be
+minted. A script that rotates addresses can still mint guests, and each gets its own costly-route
+allowance; the cost is reads of a recording, since a guest can start no scan.
+
+## 220. The marketing site is its own static app, `apps/site`
+
+Selling the product needs pages that load fast, index cleanly and read without an account: what
+Cleave does, what it costs, how it treats a customer's cloud. The product is an SPA behind
+sign-in (§84), so those pages live beside it in `apps/site`, deployed as their own Vercel project.
+
+**Astro, static.** Every page is HTML at build time, with no client JavaScript but a `<details>`
+menu, so it reads and indexes without scripts. Tailwind 4 and Geist as in the app, and Lucide
+for icons (`@lucide/astro`), so no second UI kit arrives (the CLAUDE.md rule). The theme is the
+product's own -- the neutral ramp, the one teal accent and the cut mark -- following the reader's
+light or dark setting, with no toggle and no cookie. Motion is CSS only and stops for a reader who
+asks for less.
+
+**Real screens, not drawings.** The product shots are crops of the design prototype in
+`docs/design_handoff_cleave_redesign`, captured in both themes; a phone zooms each into its key
+region rather than shrinking the whole screen past reading.
+
+**Three pages and what each may claim.** Home, Pricing and Security. Every statement on Security
+is something the product does today, with the section behind it noted in the source. Nothing
+says AWS, SSO or ticketing, which are not offered. Pricing is per connected Azure subscription
+(Free, Team at EUR 39, Business at EUR 79, Enterprise by contact) and is a proposal: no plan is
+enforced by the API yet. "Open the demo" links to `/demo`, the guest entry (§219).
+
+**Before it ships:** the domain (canonical links and the app's URL in `src/site.ts`), the sales
+address there, and the legal pages -- privacy, terms, a DPA and an imprint -- which need a lawyer
+rather than generated text.
+
+## 221. A setting Azure ignores is not an exposure
+
+An audit on 2026-10-05 (`docs/REMEDIATION_PLAN.md`, Part 4) found rules that failed a resource
+Azure already keeps closed, because each read one setting without the setting that overrides it.
+Practitioners name exactly this as the noise that makes them stop reading a posture tool. The
+rules now read the two together, as Azure does.
+
+**Public network access Disabled overrides the network rules.** Azure then answers only private
+endpoints and applies neither a storage account's network rules nor a server's firewall rules.
+`AZ-STO-001` no longer fails a default action of Allow on such an account, and the normalizer no
+longer scores it HIGH exposure. Anonymous blob access still fails. `AZ-DB-001` passes a SQL or
+PostgreSQL server whose public access is Disabled whatever its firewall rules say, recording how
+many there are. `AZ-DB-025` applies only while public access is Enabled, so it is NOT_APPLICABLE
+when Disabled and UNKNOWN when unstated (§177).
+
+**An NSG is read in priority order.** Azure applies the first rule a connection matches, lowest
+priority number first. The exposure rules used to drop every Deny and report any public Allow.
+Now a port is open only if the first rule matching a connection from anywhere (`*`, `Internet`,
+`0.0.0.0/0`) is an Allow (`_find_public_port`), and an Allow counts only if no earlier Deny from
+anywhere covers its protocol and every one of its ports (`admitting_rules`, which the normalizer's
+exposure score shares). A Deny from one address range closes nothing for the rest of the
+internet, and a Deny over part of an Allow's range leaves the Allow reported. This covers
+`AZ-NET-001` to `AZ-NET-005`, `AZ-NET-008`, `AZ-NET-009`, `AZ-NET-017` and `AZ-CMP-001`.
+
+**A machine is reached through every group on one path.** A connection to a virtual machine's
+public address passes the subnet's NSG and then the interface's, and only if both allow it. The
+normalizer records each public address with the groups on its path (`public_paths`), and
+`AZ-CMP-001` fails only where every group on a path opens the port, naming each group's rule. A
+machine whose public addresses have no group on their path is UNKNOWN, as a machine with no
+guarding group was. A machine stored before `public_paths` existed is read as before, each group
+on its own, until its next scan.
+
+**Not decided here:** the audit's second half. `AZ-IAM-002`, `AZ-IAM-003` and `AZ-IAM-008` cannot
+tell an Azure Policy assignment's managed identity from any other service principal. That needs
+its own entry, because the identity's privilege is real and the question is what the rules should
+say about who holds it. Settled in §222.
+
+## 222. Azure Policy's own identity is named, scored lower and counted apart
+
+A DeployIfNotExists or Modify policy assignment remediates as a managed identity, granted the
+roles its definition names. A landing zone assigns these at management groups with Contributor or
+Owner by design. The rules read that identity as one more service principal: `AZ-IAM-003` called
+it CRITICAL, advised removing a role the policy needs, and the two Owner counts counted it.
+Defender for Cloud's equivalent findings about Microsoft's own identities are the ones its users
+resent most (`docs/REMEDIATION_PLAN.md`, Part 4).
+
+**Recognised from what is already read.** Each subscription's policy assignments are listed with
+`$filter=atScope()`, inherited ones included, and each names its identity: `identity.principalId`
+when system-assigned, `identity.userAssignedIdentities` otherwise. The normalizer records the
+assignments on the identity holding the role (`policy_assignments`, with id, display name and
+scope; `settings_v13.policy_identities`). No new permission and no new read.
+
+**The finding stands.** Whoever can write the policy can deploy whatever its definition allows as
+that identity, so its privilege is real, and hiding it would trade one false statement for
+another. `AZ-IAM-002`, `AZ-IAM-003` and `AZ-IAM-008` still fail, name the assignment in the
+message and evidence, and score exploitability 1: the way in is the right to write policy, not a
+foothold in a workload. Each rule's remediation says where the role comes from (the definition's
+`roleDefinitionIds`) and that deleting the role assignment alone stops the policy remediating.
+
+**Not an administrator.** `AZ-IAM-005` and `AZ-IAM-012` ask how many accounts can administer the
+subscription. A policy identity cannot sign in to do that, so it is left out of both counts and
+reported as `policy_identities_not_counted`. It is no second Owner for `AZ-IAM-012`.
+
+**Only while nothing else runs as it.** A user-assigned identity can also be attached to a
+workload, and then a foothold in that workload reaches its roles. Such an identity is judged as a
+workload's, exactly as before, and counted as an Owner.
+
+## 223. The Railway project is `.railway/railway.ts`, applied by hand
+
+Written as §218 on its branch; renumbered when the audit pages' §218 reached `main` first, so
+commits on that branch that cite §218 for Railway mean this entry.
+
+Railway stops reading Config as Code on 2026-12-01 (§152), and the API and
+worker took their Dockerfile, start command, health check and restart limit
+from `infrastructure/railway/api.json` and `worker.json`. A deploy after that
+date would have built each service with Railpack and no start command. Both
+files are deleted, and their settings are in `.railway/railway.ts`, Railway's
+infrastructure-as-code file, which describes the whole project: the API
+(`humorous-passion`), the worker (`CSPM-SaaS`), Redis and its volume.
+
+**Pulled, then edited.** `railway config migrate` finds only files named
+`railway.json` or `railway.toml`, so it found nothing here. The file started as
+`railway config pull` of the live project, which already planned to no change,
+and gained the two services' build and deploy settings, copied from the JSON
+files. The plan was then four changes, all additions and none destroyed, and
+it was applied. Two settings were left out on purpose:
+
+- **No restart policy type.** `ON_FAILURE` is Railway's default, and Railway
+  stores the default as no setting, so naming it left the plan proposing the
+  same change after every apply. The retry limit of 3 is not a default and
+  stays.
+- **No domain.** The API's Railway domain is not something the file manages:
+  a pull leaves it out, and the plan without it destroys nothing.
+
+**Every variable is `preserve()`.** The file names each variable a service
+has, so that applying it does not delete one, and holds no value; the values
+stay on Railway. A variable added on Railway and not here is one the next apply
+removes, so adding one means adding its name here too.
+
+**Applying it is a step of its own.** Railway does not read `.railway/` on
+deploy. A push builds what is set on the service, and the file reaches the
+service only through `railway config apply`. There is no CI job for it: apply
+deletes whatever the file leaves out, and a change to the production project
+is one a person reads the plan for first. `docs/DEPLOYMENT.md` §2 step 6 has the
+commands. The SDK the file imports, `railway` on npm, is pinned in
+`.railway/package.json` with its lockfile, so a plan run next month evaluates
+the file the same way.
+
+**The services' config-file setting is cleared.** Each service still named its
+JSON file, and the setting outlives the file; what a deploy does with a file
+that is gone is not something to find out in production. The IaC SDK drops an
+empty `configFile`, and `serviceInstanceUpdate` with `railwayConfigFile: null`
+answered `true` and changed nothing, so the setting was removed with an
+`environmentPatchCommit` setting `configFile` to null on both services. That
+patch redeployed both, from the settings alone: the API answered
+`/health/ready` with the database and the broker ok, and the worker's log shows
+Celery's banner and `beat: Starting`.
+
+**The queue test reads the file.** `test_every_queue_a_step_is_routed_to_is_actually_consumed`
+read the worker's `--queues` from `worker.json`, and failed once it was deleted. It now finds the
+one Celery worker start command in `.railway/railway.ts`, so a step routed to a queue the
+deployed worker does not consume still fails the build.
+
 ## Open items carried forward
 
-**Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read
-`infrastructure/railway/api.json` and `worker.json`. Both have to move to
-`.railway/railway.ts` (`railway config
-pull`, then edit, `railway config plan`, `railway config apply`) before that
-date, or the API and worker lose their start commands.
+**Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,
+password reset and anonymous sign-in together, so it can be switched on only once all of those
+forms, and `/demo`, send a token. Until then guests are bounded by rate limits alone.
 
 **Data residency is not built (§113).** An organization setting for allowed
 regions, a rule over `CloudResource.region` per provider (never one rule that

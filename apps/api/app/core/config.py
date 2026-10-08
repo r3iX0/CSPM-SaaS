@@ -94,6 +94,12 @@ class Settings(BaseSettings):
     # changed in six months keeps one copy alive by re-reading it, which is the
     # behaviour that makes deduplication worth having.
     evidence_retention_days: int = 90
+    # How long a guest -- a visitor who opened the demo without an account --
+    # is kept before the daily sweep forgets them. Long enough that somebody who
+    # comes back next week finds the same session; a guest owns nothing, so
+    # forgetting one loses nothing but a place in the demo (DECISIONS.md
+    # section 219).
+    guest_retention_days: int = 30
 
     @property
     def worker_is_constrained(self) -> bool:

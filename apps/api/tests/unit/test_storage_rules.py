@@ -30,9 +30,25 @@ class TestPublicStorage:
         storage = resource_from("secure", "storage_locked_down")
         opened = replace(
             storage,
-            metadata={**storage.metadata, "network_default_action": "Allow"},
+            metadata={
+                **storage.metadata,
+                "network_default_action": "Allow",
+                "public_network_access": "Enabled",
+            },
         )
         assert self.rule.evaluate(opened, make_context(opened)).state == RuleState.FAIL
+
+    def test_network_rules_do_not_count_while_public_access_is_disabled(self) -> None:
+        """Azure ignores the network rules while public network access is
+        Disabled, so a default action left at Allow opens nothing."""
+        from dataclasses import replace
+
+        storage = resource_from("secure", "storage_locked_down")
+        closed = replace(
+            storage,
+            metadata={**storage.metadata, "network_default_action": "Allow"},
+        )
+        assert self.rule.evaluate(closed, make_context(closed)).state == RuleState.PASS
 
     def test_anonymous_access_carries_the_rule_tag(self) -> None:
         """No credential, no exploit: the data is handed to whoever asks. This
@@ -53,7 +69,11 @@ class TestPublicStorage:
         storage = resource_from("secure", "storage_locked_down")
         opened = replace(
             storage,
-            metadata={**storage.metadata, "network_default_action": "Allow"},
+            metadata={
+                **storage.metadata,
+                "network_default_action": "Allow",
+                "public_network_access": "Enabled",
+            },
         )
         result = self.rule.evaluate(opened, make_context(opened))
 

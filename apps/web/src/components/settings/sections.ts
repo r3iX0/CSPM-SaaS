@@ -42,7 +42,11 @@ export function managesOrganization(organization: Organization): boolean {
  * activity log are for owners and admins, as the API allows. Security is the
  * reader's own sign-in and Preferences this browser's, so everyone has them.
  */
-export function settingsSections(organization: Organization, t: Strings): SettingsSectionLink[] {
+export function settingsSections(
+  organization: Organization,
+  t: Strings,
+  guest = false,
+): SettingsSectionLink[] {
   const manages = managesOrganization(organization);
   const all: (SettingsSectionLink & { shown: boolean })[] = [
     { id: "general", label: t.settings.nav.general, icon: Building2Icon, shown: true },
@@ -61,7 +65,8 @@ export function settingsSections(organization: Organization, t: Strings): Settin
     },
     { id: "audit", label: t.settings.nav.audit, icon: ArchiveIcon, shown: manages },
     { id: "activity", label: t.settings.nav.activity, icon: HistoryIcon, shown: manages },
-    { id: "security", label: t.settings.nav.security, icon: ShieldCheckIcon, shown: true },
+    // A guest has no sign-in of their own to protect yet (DECISIONS.md §219).
+    { id: "security", label: t.settings.nav.security, icon: ShieldCheckIcon, shown: !guest },
     {
       id: "preferences",
       label: t.settings.nav.preferences,

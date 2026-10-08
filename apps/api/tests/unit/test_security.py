@@ -135,6 +135,24 @@ class TestSecondFactorClaim:
         assert user.second_factor is False
 
 
+class TestGuestClaim:
+    """Supabase's ``is_anonymous`` claim marks a guest who opened the demo without an account."""
+
+    async def test_an_anonymous_session_is_a_guest(self, _hs256_project) -> None:
+        user = await _hs256_project.decode_token(make_token(is_anonymous=True, email=None))
+        assert user.guest is True
+
+    async def test_a_token_without_the_claim_is_an_account(self, _hs256_project) -> None:
+        user = await _hs256_project.decode_token(make_token())
+        assert user.guest is False
+
+    async def test_only_a_literal_true_makes_a_guest(self, _hs256_project) -> None:
+        # A string is not the claim Supabase writes; reading it as one would let a
+        # malformed claim decide anything other than "an account", the old default.
+        user = await _hs256_project.decode_token(make_token(is_anonymous="true"))
+        assert user.guest is False
+
+
 class TestRejectsBadTokens:
     async def test_a_forged_signature_is_rejected(self, _hs256_project) -> None:
         token = make_token(secret="not-the-real-secret")

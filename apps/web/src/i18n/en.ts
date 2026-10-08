@@ -36,6 +36,7 @@ export const en = {
     newOrganization: "Create organization",
     settings: "Environments",
     unknownUser: "Signed in",
+    guest: "A guest, exploring the demo",
     removeOrg: "Remove organization",
     removingOrg: "Removing\u2026",
     removeOrgTitle: "Remove",
@@ -78,6 +79,10 @@ export const en = {
     backToSignIn: "Back to sign in",
     useAnotherAddress: "Use a different address",
     providerHint: "Signing in with Microsoft or Google gives Cleave no access to your cloud.",
+    saveGuestTitle: "Create your account",
+    saveGuestIntro: "Keep exploring as yourself, then connect your own Azure estate.",
+    sendConfirmation: "Send confirmation link",
+    backToDemo: "Back to the demo",
   },
   // The dashboard's getting-started checklist. Every step is read off state
   // the server already holds, so the list is right on any device and for any
@@ -87,6 +92,8 @@ export const en = {
     exploreDetail: "A recorded Azure estate, scanned by Cleave. Read-only, nothing to set up.",
     opening: "Opening the demo\u2026",
     unavailable: "The demo is not available right now.",
+    unavailableDetail: "Try again in a minute, or sign in to explore it from your account.",
+    saveAccount: "Create an account",
     badge: "Demo",
     bannerTitle: "You are exploring the Cleave demo",
     bannerDetail:
