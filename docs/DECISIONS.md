@@ -12398,6 +12398,34 @@ the CLI tab "Emergency fix", because the next `terraform apply` undoes a change 
 `https://token.actions.githubusercontent.com`, mapping `repository_id` to an organization through
 the installation, and accepting only the default branch.
 
+## 230. A Terraform hint names its argument per azurerm release
+
+§228 left one argument allowed by name: `AZ-COS-002`'s `local_authentication_disabled`, still in
+azurerm 4.81.0's schema but no longer documented. It was more than untidy. azurerm 4 renamed it,
+with the sense turned round, to `local_authentication_enabled`, and both names are accepted below
+version 5. A v4 block that already set the new name got the old one added beside it, which sets one
+argument twice, and `terraform plan` refuses that. The upload diff would have handed that over as a
+fix.
+
+**`ExpectedState.terraform_renamed`**, a tuple of `TerraformRename(since, attribute, value)`: the
+argument's name, and its value in that name's terms, from a major release on. `AZ-COS-002`
+declares `local_authentication_enabled = false` from 4. `terraform_attribute` stays the name every
+checked release accepts.
+
+**Which name is written.** First, the name the block already sets, whichever it is, so the conflict
+cannot arise. Otherwise, the newest name the lock file's release documents. With no lock file, the
+original name, which every checked release still accepts. A release is known only from a lock file:
+a `required_providers` constraint is a range, not a release.
+
+**Held by the fixtures.** `test_terraform_hints_schema` checks each name against the schema and the
+documentation of the releases that use it, and that the original name is still settable in every
+checked release. It also checks that a rename comes after the oldest checked release, and applies
+§228's replacement check to every name. The list of undocumented arguments allowed by name is gone.
+
+**Shown as a comment.** The Terraform tab prints the later name under the original as
+`# azurerm 4+: local_authentication_enabled = false`, and the API carries it as `renamed` on each
+hint.
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,

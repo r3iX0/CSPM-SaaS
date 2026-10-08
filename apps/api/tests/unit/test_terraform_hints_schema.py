@@ -141,25 +141,18 @@ def test_the_documentation_is_of_the_releases_the_schema_is() -> None:
     assert sorted(DOCS) == sorted(SCHEMAS)
 
 
-# Arguments the schema still accepts but the release's documentation dropped, as
-# deprecated ahead of v5. Each works across the checked releases; a hint per release
-# is the open item that retires this list (DECISIONS.md §228).
-DEPRECATED_IN = {
-    ("azurerm_cosmosdb_account", "local_authentication_disabled"): "4.81.0",
-}
-
-
 @pytest.mark.parametrize("rule", AZURE_HINTED, ids=lambda r: r.rule_id)
 def test_every_attribute_is_documented_in_every_version(rule) -> None:
     # Guards the test below: an argument the trimmer missed would read as safe.
     for state in _hinted(rule):
         for resource_type in rule.remediation_spec.terraform_resource_types:
             for version, docs in DOCS.items():
-                if DEPRECATED_IN.get((resource_type, state.terraform_attribute)) == version:
-                    continue
+                # The name this release is written with: a renamed argument's old
+                # name may be undocumented once the new one is (§230).
+                attribute, _ = _named_for(state, version)
                 documented = docs[resource_type]["arguments"]
-                assert _documented_as(state.terraform_attribute, documented), (
-                    f"{resource_type}.{state.terraform_attribute} is not in azurerm {version}'s "
+                assert _documented_as(attribute, documented), (
+                    f"{resource_type}.{attribute} is not in azurerm {version}'s "
                     "documentation; rerun tools/iac/trim_azurerm_docs.py"
                 )
 
@@ -172,7 +165,7 @@ def test_an_attribute_that_replaces_the_resource_says_so(rule) -> None:
             f"{resource_type} in azurerm {version}"
             for resource_type in rule.remediation_spec.terraform_resource_types
             for version, docs in DOCS.items()
-            if _documented_as(state.terraform_attribute, docs[resource_type]["replaces"])
+            if _documented_as(_named_for(state, version)[0], docs[resource_type]["replaces"])
         }
         assert state.terraform_replaces == bool(replaces), (
             f"{state.terraform_attribute}: the documentation says it replaces the resource in "
@@ -182,15 +175,47 @@ def test_an_attribute_that_replaces_the_resource_says_so(rule) -> None:
         )
 
 
-def test_the_deprecated_list_holds_only_what_is_undocumented() -> None:
-    # It only shrinks: an entry the documentation names again is taken off.
-    for (resource_type, attribute), version in DEPRECATED_IN.items():
-        assert not _documented_as(attribute, DOCS[version][resource_type]["arguments"])
-        assert _attribute(SCHEMAS[version], resource_type, attribute) is not None
-
-
 def _documented_as(attribute: str, documented: list[str]) -> bool:
     # The documentation names a nested argument by its own block only:
     # ``site_config.minimum_tls_version`` is ``minimum_tls_version`` under
     # "The `site_config` block", so the last two parts are what match.
     return ".".join(attribute.split(".")[-2:]) in documented
+
+
+RENAMED = [rule for rule in AZURE_HINTED if any(state.terraform_renamed for state in _hinted(rule))]
+
+
+def _named_for(state: ExpectedState, version: str) -> tuple[str, Any]:
+    """The argument and value a file for this release is written with (§230)."""
+    major = int(version.split(".")[0])
+    later = [rename for rename in state.terraform_renamed if rename.since <= major]
+    if not later:
+        return state.terraform_attribute or "", _written(state)
+    newest = max(later, key=lambda rename: rename.since)
+    return newest.attribute, newest.value
+
+
+def test_a_renamed_argument_is_declared_somewhere() -> None:
+    assert RENAMED, "AZ-COS-002 renames its argument in azurerm 4"
+
+
+@pytest.mark.parametrize("rule", RENAMED, ids=lambda r: r.rule_id)
+def test_every_later_name_is_an_argument_of_the_releases_that_use_it(rule) -> None:
+    for state in _hinted(rule):
+        for resource_type in rule.remediation_spec.terraform_resource_types:
+            for version, schema in SCHEMAS.items():
+                attribute, value = _named_for(state, version)
+                found = _attribute(schema, resource_type, attribute)
+                where = f"{resource_type}.{attribute} in azurerm {version}"
+                assert found is not None, f"{where} does not exist"
+                assert found.get("optional") or found.get("required"), f"{where} is read-only"
+                assert found["type"] == _HCL_TYPES[type(value)], f"{where} is {found['type']}"
+
+
+@pytest.mark.parametrize("rule", RENAMED, ids=lambda r: r.rule_id)
+def test_a_rename_comes_after_the_oldest_checked_release(rule) -> None:
+    # The original name is what a file with no lock file gets, so it must be one
+    # every checked release accepts; a rename at or below the oldest is a typo.
+    oldest = min(int(version.split(".")[0]) for version in SCHEMAS)
+    for state in _hinted(rule):
+        assert all(rename.since > oldest for rename in state.terraform_renamed)

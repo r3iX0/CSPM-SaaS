@@ -37,6 +37,14 @@ class CollectionStateOut(_StateBase):
 ExpectedStateOut = Annotated[EqualsStateOut | CollectionStateOut, Field(discriminator="comparison")]
 
 
+class TerraformRenameOut(BaseModel):
+    """The argument under the name a later azurerm major release gives it."""
+
+    since: int
+    attribute: str
+    value: str
+
+
 class TerraformHintOut(BaseModel):
     """The argument to set, for a customer who manages this in code."""
 
@@ -46,6 +54,8 @@ class TerraformHintOut(BaseModel):
     describes: str
     #: Changing it makes Terraform destroy and recreate the resource (DECISIONS.md §228).
     replaces: bool = False
+    #: Its names in later azurerm majors, with the value in their terms (§230).
+    renamed: list[TerraformRenameOut] = []
 
 
 class RemediationSpecOut(BaseModel):

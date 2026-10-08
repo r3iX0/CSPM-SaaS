@@ -65,6 +65,24 @@ class Comparison(StrEnum):
 
 
 @dataclass(frozen=True)
+class TerraformRename:
+    """The argument under another name from a major azurerm release on.
+
+    azurerm renames arguments between majors, often turning the sense round as
+    it goes: v3's ``local_authentication_disabled = true`` is v4's
+    ``local_authentication_enabled = false``. Both names stay accepted until the
+    old one is removed, but a block may not set both, so a fix writing the old
+    name beside the new one fails ``terraform plan`` (DECISIONS.md §230).
+    """
+
+    #: The first major release that documents ``attribute``.
+    since: int
+    attribute: str
+    #: What to write under this name, in Terraform's terms.
+    value: Any
+
+
+@dataclass(frozen=True)
 class ExpectedState:
     """One thing that must be true for this finding to be fixed.
 
@@ -126,6 +144,10 @@ class ExpectedState:
     # (DECISIONS.md §228). Held to the provider's documentation by
     # ``test_terraform_hints_schema``.
     terraform_replaces: bool = False
+    # The argument's later names, newest last. ``terraform_attribute`` stays the
+    # name every checked release accepts; the edit engine writes whichever name
+    # the block already uses, or the one the lock file's release documents.
+    terraform_renamed: tuple[TerraformRename, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -249,6 +271,12 @@ def _condition(state: ExpectedState) -> dict[str, Any]:
     return {"field": state.arm_alias, "notIn": [_policy_value(v) for v in accepted]}
 
 
+class TerraformRenamedHint(TypedDict):
+    since: int
+    attribute: str
+    value: str
+
+
 class TerraformHint(TypedDict):
     """One argument to set, as the API and the edit engine read it."""
 
@@ -256,6 +284,7 @@ class TerraformHint(TypedDict):
     value: str
     describes: str
     replaces: bool
+    renamed: list[TerraformRenamedHint]
 
 
 def terraform_hints(spec: RemediationSpec) -> list[TerraformHint]:
@@ -274,6 +303,14 @@ def terraform_hints(spec: RemediationSpec) -> list[TerraformHint]:
             ),
             "describes": state.describes,
             "replaces": state.terraform_replaces,
+            "renamed": [
+                {
+                    "since": rename.since,
+                    "attribute": rename.attribute,
+                    "value": _hcl_value(rename.value),
+                }
+                for rename in state.terraform_renamed
+            ],
         }
         for state in spec.expected
         if state.terraform_attribute

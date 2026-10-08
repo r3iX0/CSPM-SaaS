@@ -74,6 +74,46 @@ def test_an_argument_that_replaces_the_resource_is_never_written() -> None:
     assert out.diff is None
 
 
+COSMOS = """\
+resource "azurerm_cosmosdb_account" "db" {
+  name                = "orders"
+  offer_type          = "Standard"
+}
+"""
+LOCK_V4 = """provider "registry.terraform.io/hashicorp/azurerm" {
+  version = "4.81.0"
+}
+"""
+
+
+def test_a_renamed_argument_takes_the_name_the_block_already_uses() -> None:
+    # A v4 file setting the new name: writing the old one beside it would set
+    # the argument twice, which terraform plan refuses (DECISIONS.md §230).
+    source = COSMOS.replace(
+        'offer_type          = "Standard"\n',
+        'offer_type          = "Standard"\n  local_authentication_enabled = true\n',
+    )
+    out = propose("AZ-COS-002", source=source, name="orders")
+    assert out.outcome == "patched"
+    assert [(e.attribute, e.before, e.after) for e in out.edits] == [
+        ("local_authentication_enabled", "true", "false")
+    ]
+
+
+def test_a_renamed_argument_takes_the_lock_files_release_name() -> None:
+    out = propose("AZ-COS-002", source=COSMOS, name="orders", lockfile=LOCK_V4)
+    assert [(e.attribute, e.after) for e in out.edits] == [
+        ("local_authentication_enabled", "false")
+    ]
+
+
+def test_with_no_release_known_the_name_every_release_accepts_is_written() -> None:
+    out = propose("AZ-COS-002", source=COSMOS, name="orders")
+    assert [(e.attribute, e.after) for e in out.edits] == [
+        ("local_authentication_disabled", "true")
+    ]
+
+
 def test_a_finding_without_one_resource_is_not_editable() -> None:
     out = propose("AZ-STO-003", name=None)
     assert (out.outcome, out.decline_reason) == ("declined", "not_editable")

@@ -466,7 +466,9 @@ so the shell's own `<main>` is the page's only one (§155).
   `GET /remediation/progress` counts scan-verified fixes, never tasks marked done (§225)
 - A Terraform hint that azurerm can only set by recreating the resource carries `terraform_replaces`,
   held to the provider's documentation (`tools/iac/trim_azurerm_docs.py`); it is shown with a
-  warning and never written into existing code (`replaces_resource`) (§228)
+  warning and never written into existing code (`replaces_resource`) (§228); a renamed argument
+  is `terraform_renamed`, and the engine writes the name the block already uses, else the lock
+  file's release's, else the original (§230)
 - The customer's Terraform state index (`iac_indexes`, `iac_index_entries`) is four fields per
   managed azurerm resource, written only through the owner connection and read by members; an
   address finds its block through local module sources (`find_resource_block`), and an indexed

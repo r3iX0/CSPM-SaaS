@@ -22996,6 +22996,14 @@
             "type": "boolean",
             "title": "Replaces",
             "default": false
+          },
+          "renamed": {
+            "items": {
+              "$ref": "#/components/schemas/TerraformRenameOut"
+            },
+            "type": "array",
+            "title": "Renamed",
+            "default": []
           }
         },
         "type": "object",
@@ -23006,6 +23014,30 @@
         ],
         "title": "TerraformHintOut",
         "description": "The argument to set, for a customer who manages this in code."
+      },
+      "TerraformRenameOut": {
+        "properties": {
+          "since": {
+            "type": "integer",
+            "title": "Since"
+          },
+          "attribute": {
+            "type": "string",
+            "title": "Attribute"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "since",
+          "attribute",
+          "value"
+        ],
+        "title": "TerraformRenameOut",
+        "description": "The argument under the name a later azurerm major release gives it."
       },
       "TopRiskOut": {
         "properties": {

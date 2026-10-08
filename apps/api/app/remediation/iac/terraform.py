@@ -90,6 +90,15 @@ class Decline(StrEnum):
 
 
 @dataclass(frozen=True)
+class Renamed:
+    """The argument's name and value from a major azurerm release on (§230)."""
+
+    since: int
+    attribute: str
+    value: str
+
+
+@dataclass(frozen=True)
 class Change:
     """One argument to set: a dotted path below the resource, and the HCL value."""
 
@@ -99,6 +108,9 @@ class Change:
     # them is left alone: TLS 1.3 rewritten to the 1.2 a rule asks for is a
     # regression dressed as a fix.
     accepts: tuple[str, ...] = ()
+    # Later names of the argument. ``attribute`` is the one every checked
+    # release accepts, written when nothing says which release the file is for.
+    renamed: tuple[Renamed, ...] = ()
 
     def met_by(self, written: str) -> bool:
         return written.strip() in (self.value, *self.accepts)
@@ -199,6 +211,8 @@ def _edit(
     root = _parse(data)
     version = _provider_version(root, data, lockfile)
     block, matched_by = _find(root, data, resource_types, name, sole_block, label)
+    major = _release(version)[0] if version is not None else None
+    changes = [_named(block, data, change, major) for change in changes]
 
     splices = [splice for change in changes if (splice := _plan(block, data, change))]
     if not splices:
@@ -437,6 +451,29 @@ def _nested_body(block: Node, data: bytes, path: Sequence[str]) -> Node:
 
 
 # ----------------------------------------------------------------- the edit
+def _named(block: Node, data: bytes, change: Change, major: int | None) -> Change:
+    """``change`` under the name this block and this release use (§230).
+
+    The name the block already sets wins: writing the other beside it would set
+    one argument twice, which ``terraform plan`` refuses. Otherwise the newest
+    name the lock file's release documents, and with no lock file the original
+    name, which every checked release still accepts.
+    """
+    names = [change, *(Change(r.attribute, r.value) for r in change.renamed)]
+    for named in names:
+        *path, leaf = named.attribute.split(".")
+        try:
+            if leaf in _attributes(_nested_body(block, data, path), data):
+                return named
+        except _Refused:
+            continue
+    later = [r for r in change.renamed if major is not None and r.since <= major]
+    if later:
+        newest = max(later, key=lambda r: r.since)
+        return Change(newest.attribute, newest.value)
+    return change
+
+
 def _plan(block: Node, data: bytes, change: Change) -> _Splice | None:
     *path, leaf = change.attribute.split(".")
     body = _nested_body(block, data, path)

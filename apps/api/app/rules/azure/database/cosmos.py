@@ -10,7 +10,7 @@ from typing import ClassVar
 from app.connectors.azure.evidence import AzureEvidence
 from app.core.enums import ResourceType, Severity
 from app.domain.resource import CloudResource
-from app.remediation import ExpectedState, RemediationSpec
+from app.remediation import ExpectedState, RemediationSpec, TerraformRename
 from app.rules.azure.containers.kubernetes import _NO_POLICY
 from app.rules.base import RuleContext, RuleResult, SecurityRule
 
@@ -137,6 +137,10 @@ class AzureCosmosLocalAuthRule(_CosmosRule):
                 equals=True,
                 describes="Key-based authentication is disabled; only Entra identities connect",
                 terraform_attribute="local_authentication_disabled",
+                # azurerm 4 turns it round; both names are accepted below 5.
+                terraform_renamed=(
+                    TerraformRename(since=4, attribute="local_authentication_enabled", value=False),
+                ),
             ),
         ),
         cli=("az resource update --ids <resource-id> --set properties.disableLocalAuth=true",),

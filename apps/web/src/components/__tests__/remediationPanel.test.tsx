@@ -92,3 +92,31 @@ describe("an asset the customer's state index places in code (DECISIONS.md §229
     expect(screen.getByRole("tab", { name: "Emergency fix" })).toBeInTheDocument();
   });
 });
+
+describe("an argument azurerm renamed (DECISIONS.md §230)", () => {
+  it("gives the later release's name beside it, as a comment", async () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <RemediationPanel
+          remediation="Disable key-based authentication."
+          spec={{
+            ...spec(false),
+            terraform: [
+              {
+                attribute: "local_authentication_disabled",
+                value: "true",
+                describes: "Only Entra identities connect",
+                renamed: [{ since: 4, attribute: "local_authentication_enabled", value: "false" }],
+              },
+            ],
+          }}
+        />
+      </QueryClientProvider>,
+    );
+    await userEvent.setup().click(screen.getByRole("tab", { name: "Terraform" }));
+
+    expect(
+      screen.getByText(/# azurerm 4\+: local_authentication_enabled = false/),
+    ).toBeInTheDocument();
+  });
+});

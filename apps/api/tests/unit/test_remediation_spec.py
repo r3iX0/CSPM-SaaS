@@ -286,6 +286,7 @@ def test_terraform_takes_the_providers_own_spelling() -> None:
             "value": "false",
             "describes": "Public network access is disabled",
             "replaces": False,
+            "renamed": [],
         }
     ]
 

@@ -161,7 +161,17 @@ export function RemediationPanel({
           {hasTerraform && (
             <TabsContent value="terraform" className="flex flex-col gap-2">
               <CodeBlock
-                code={spec!.terraform.map((hint) => `${hint.attribute} = ${hint.value}`).join("\n")}
+                code={spec!.terraform
+                  .flatMap((hint) => [
+                    `${hint.attribute} = ${hint.value}`,
+                    // The same argument under a later release's name, as a
+                    // comment: a block sets one or the other, never both (§230).
+                    ...(hint.renamed ?? []).map(
+                      (rename) =>
+                        `# azurerm ${rename.since}+: ${rename.attribute} = ${rename.value}`,
+                    ),
+                  ])
+                  .join("\n")}
               />
               <p className="text-xs text-muted-foreground">
                 The arguments to set on the resource you already manage — not a whole block, which

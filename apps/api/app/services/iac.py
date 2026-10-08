@@ -11,7 +11,7 @@ loop (§158).
 
 from app.core.enums import Provider
 from app.remediation import Comparison, terraform_accepts, terraform_hints
-from app.remediation.iac import Change, Decline, Declined, edit_terraform
+from app.remediation.iac import Change, Decline, Declined, Renamed, edit_terraform
 from app.remediation.iac.terraform import CHECKED_RELEASES, MAX_BYTES
 from app.rules.base import SecurityRule
 from app.schemas.finding import IacDiffOut, IacEditOut
@@ -93,7 +93,12 @@ def propose_terraform_fix(
         name=resource_name,
         changes=[
             # ``terraform_hints`` keeps the states that carry an attribute, in order.
-            Change(hint["attribute"], hint["value"], terraform_accepts(state))
+            Change(
+                hint["attribute"],
+                hint["value"],
+                terraform_accepts(state),
+                tuple(Renamed(r["since"], r["attribute"], r["value"]) for r in hint["renamed"]),
+            )
             for hint, state in zip(
                 hints, [s for s in spec.expected if s.terraform_attribute], strict=True
             )
