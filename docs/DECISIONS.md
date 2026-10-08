@@ -11875,6 +11875,56 @@ so the audit trail (§163) does not record it; Supabase's own auth log does. Not
 organization require two-factor authentication of its members yet -- the API already knows a
 session's level, so that is a setting and a check in `get_tenant`, left for its own decision.
 
+## 218. Owners seal and grant in Settings; an auditor reads outside the shell and tests the archive in the browser
+
+The audit routes of §208 and §211 had no screen. This is the screen, and it adds no endpoint: the
+web reads what the API already answers.
+
+**The owner's page is `/settings/audit`.** It is one more settings topic (§207), shown to owners
+and administrators and not in the demo, as the API allows. A package is a row that opens to how
+each standard's controls came out as counts, what they rest on, and the hash that seals it, with
+the three things an owner does to it: download the archive, check the seal, and give it to an
+auditor. Sealing is a dialog from the heading, and the standards offered are the ones
+`GET /compliance` lists for the organization (§209). Giving a package shows its link once, in a
+dialog that stays open until the reader says it is copied, as a webhook's signing secret does
+(§164), because Cleave keeps only the link's hash (§211). Revoking asks first. What an auditor read
+is the grant's own event log, opened from the grant's row.
+
+**Counts and a download, not a list of controls.** §211 said the controls as a screen were a later
+need, with the web page. They are not built, and §208's reasoning stands: hundreds of rows of
+verdicts, rules and readings are a file to read in a spreadsheet, and a table of them here would
+be a second, lesser copy of the CSV that carries them. An endpoint for it is not added.
+
+**An auditor reads outside the shell.** `/auditor` and `/auditor/:grantId` sit beside `/invite`
+and not under `Shell`, which sends an account with no membership to onboarding and would ask an
+auditor to create an organization. The link's page is open to a signed-out reader for the reason
+the invitation's is (§162): the token is held across the sign-in (`lib/pendingGrant.ts`, its own
+key, since one person may hold an invitation and a grant), and the fragment leaves the address
+bar. Opening is a click and not something done on arrival, because it ties the grant to this
+account for good; a link refused for the wrong address stays held for the right one, and one that
+can never work is forgotten. The shell sends a held link to `/auditor` before onboarding, and an
+account with no organization that has opened a grant goes back to its packages the same way. That
+second case is one request, `GET /auditor/grants`, asked only of an account with no organization.
+
+**The archive is tested in the browser.** `lib/archiveVerify.ts` does with `SubtleCrypto` what the
+archive's README tells an auditor to do with `sha256sum` (§208): it hashes `manifest.json` and
+compares it with the value sealed in the package, then hashes every file `SHA256SUMS` lists, and
+names a changed file, a missing one and one the sums do not list. The page asks the API for the
+sealed value and for the bytes, and for nothing else, so the answer does not rest on
+`/verification`, which can say only what Cleave says. The one new dependency is `fflate`, to read
+the zip, and it loads with the auditor's page and nowhere else. One file is inflated at a time, so
+memory holds the archive and a payload and not every payload; the archive is at most 256 MB of
+payloads (§208).
+
+**What the check does not say.** A matching hash shows the files are those sealed, and nothing
+about what the provider said, which the archive's README already states and the page repeats. And
+it is a page Cleave serves: an auditor who will not take that on trust has the two commands for a
+terminal beside the button.
+
+**Not built.** A screen of controls, an expiry reminder for a grant, and the Ed25519 manifest
+signature (§208), which would let the page check who sealed a package and not only that it is
+unchanged.
+
 ## Open items carried forward
 
 **Railway Config as Code ends on 2026-12-01 (§152).** The API and worker read

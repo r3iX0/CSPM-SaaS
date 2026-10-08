@@ -6,6 +6,7 @@ import type { Organization } from "@/lib/types";
 import { useT } from "@/i18n";
 import { cn } from "@/lib/format";
 import { ActivitySection } from "@/components/settings/Activity";
+import { AuditPackagesSection } from "@/components/settings/AuditPackages";
 import { ContextSettings } from "@/components/settings/ContextSettings";
 import { GeneralSettings } from "@/components/settings/GeneralSettings";
 import { MembersSection } from "@/components/settings/Members";
@@ -100,6 +101,9 @@ export function SettingsPage() {
                 path="integrations"
                 element={<WebhooksSection organizationId={current.id} />}
               />
+            )}
+            {shown.has("audit") && (
+              <Route path="audit" element={<AuditPackagesSection organizationId={current.id} />} />
             )}
             {shown.has("activity") && (
               <Route path="activity" element={<ActivitySection organizationId={current.id} />} />

@@ -3,8 +3,9 @@ import { Link, Outlet, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
 import { api, auth } from "@/lib/api";
+import { heldGrant } from "@/lib/pendingGrant";
 import { heldInvite } from "@/lib/pendingInvite";
-import type { CloudAccount, Dashboard, Organization } from "@/lib/types";
+import type { AuditorGrant, CloudAccount, Dashboard, Organization } from "@/lib/types";
 import { Wordmark } from "@/components/Brand";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AccountMenu } from "@/components/AccountMenu";
@@ -81,6 +82,14 @@ export function Shell() {
     queryFn: () => api.get<Organization[]>("/api/v1/organizations").then((r) => r.data),
   });
 
+  // Asked only of somebody with no organization: an auditor's packages are what
+  // keep them out of onboarding, which would ask them to create one (§211).
+  const { data: auditorGrants, isLoading: grantsLoading } = useQuery({
+    queryKey: ["auditor-grants"],
+    queryFn: () => api.get<AuditorGrant[]>("/api/v1/auditor/grants").then((r) => r.data),
+    enabled: orgs?.length === 0,
+  });
+
   // Both of these used to run during render, which meant navigating and writing
   // to a store that notifies subscribers while React was still rendering.
   useEffect(() => {
@@ -90,12 +99,21 @@ export function Shell() {
       navigate("/invite", { replace: true });
       return;
     }
+    // An auditor's link, held across sign-in, for the same reason (§211).
+    if (heldGrant()) {
+      void navigate("/auditor", { replace: true });
+      return;
+    }
 
     if (isLoading || !orgs) return;
 
-    // A signed-in user with no organization has not finished signing up.
+    // A signed-in user with no organization has not finished signing up --
+    // unless they are an auditor, whose packages are all they have.
     if (orgs.length === 0) {
-      navigate("/onboarding", { replace: true });
+      if (grantsLoading) return;
+      navigate(auditorGrants && auditorGrants.length > 0 ? "/auditor" : "/onboarding", {
+        replace: true,
+      });
       return;
     }
 
@@ -103,7 +121,7 @@ export function Shell() {
     // would immediately undo whatever the user just picked.
     const selected = orgs.find((o) => o.id === auth.organizationId);
     if (!selected) auth.organizationId = orgs[0].id;
-  }, [isLoading, orgs, navigate]);
+  }, [isLoading, orgs, auditorGrants, grantsLoading, navigate]);
 
   const current = orgs?.find((o) => o.id === auth.organizationId) ?? orgs?.[0];
 

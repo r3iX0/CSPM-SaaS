@@ -29,6 +29,10 @@ const ResetPasswordPage = lazy(() =>
   })),
 );
 const InvitePage = lazy(() => import("@/pages/Invite").then((m) => ({ default: m.InvitePage })));
+const AuditorPage = lazy(() => import("@/pages/Auditor").then((m) => ({ default: m.AuditorPage })));
+const AuditorGrantPage = lazy(() =>
+  import("@/pages/Auditor").then((m) => ({ default: m.AuditorGrantPage })),
+);
 const OnboardingPage = lazy(() =>
   import("@/pages/Onboarding").then((m) => ({ default: m.OnboardingPage })),
 );
@@ -129,6 +133,18 @@ export function App() {
             {/* Not behind RequireAuth either: whoever opens an invitation may not
             have an account yet, and the page holds the link while they make one. */}
             <Route path="/invite" element={<InvitePage />} />
+            {/* An auditor belongs to no organization, so these sit outside the shell,
+            which would send them to onboarding (DECISIONS.md §211, §218). The link's
+            page is open for the same reason the invitation's is. */}
+            <Route path="/auditor" element={<AuditorPage />} />
+            <Route
+              path="/auditor/:grantId"
+              element={
+                <RequireAuth>
+                  <AuditorGrantPage />
+                </RequireAuth>
+              }
+            />
             <Route
               path="/onboarding"
               element={
