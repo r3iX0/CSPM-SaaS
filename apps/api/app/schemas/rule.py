@@ -44,6 +44,8 @@ class TerraformHintOut(BaseModel):
     #: Written as HCL: quoted strings, ``true``/``false``, ``null``.
     value: str
     describes: str
+    #: Changing it makes Terraform destroy and recreate the resource (DECISIONS.md §228).
+    replaces: bool = False
 
 
 class RemediationSpecOut(BaseModel):

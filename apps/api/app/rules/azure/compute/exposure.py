@@ -325,6 +325,8 @@ class AzureLinuxPasswordSignInRule(SecurityRule):
                 equals=True,
                 describes="SSH accepts keys only; password authentication is disabled",
                 terraform_attribute="disable_password_authentication",
+                # azurerm replaces the machine to change it: new code only.
+                terraform_replaces=True,
             ),
         ),
         cli=(

@@ -1,7 +1,9 @@
 # Fix-as-Code: IaC diffs and pull requests
 
 Status: **Phases 0 and 1 done (2026-09-29); Phase 2 designed (§227), not built.**
-The decisions are DECISIONS §190 and §227. Phase 0 settled:
+The decisions are DECISIONS §190, §227 and §228. As of 2026-10-08, 35 Azure rules
+carry a Terraform hint, and no edit is made to an argument that replaces the
+resource (§228). Phase 0 settled:
 
 - `RemediationSpec.terraform_resource_types` is declared on the 13 Azure rules
   with a Terraform attribute; `tests/unit/test_terraform_hints_schema.py` holds

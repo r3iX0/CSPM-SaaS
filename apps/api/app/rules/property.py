@@ -72,6 +72,8 @@ class PropertySpec:
     terraform_value: Any = None
     # The azurerm resources ``terraform_attribute`` sits on (DECISIONS.md §190).
     terraform_resource_types: tuple[str, ...] = ()
+    # Changing the argument replaces the resource (``ExpectedState.terraform_replaces``).
+    terraform_replaces: bool = False
     effort_minutes: int = 30
     # Metadata a resource must carry for the check to apply, matched as a
     # case-blind substring: ``(("kind", "functionapp"),)`` limits a check to
@@ -123,6 +125,7 @@ def _declaration(spec: PropertySpec) -> RemediationSpec:
                 equals=spec.safe,
                 describes=spec.describes,
                 terraform_attribute=spec.terraform_attribute,
+                terraform_replaces=spec.terraform_replaces,
                 **extra,
             ),
         ),

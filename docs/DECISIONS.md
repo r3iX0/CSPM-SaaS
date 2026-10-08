@@ -12310,6 +12310,50 @@ that.
 `FIX_PRS_ENABLED` rollout and logging every decline from the first day. His spec and plan carry a
 note saying which parts this entry replaced.
 
+## 228. A Terraform fix never replaces the resource it fixes
+
+The plan's first step for Fix-as-Code was to widen the editable rules, each hint held to the azurerm
+schemas (§190). Checking that first showed what the schemas cannot: `terraform providers schema
+-json` says whether an argument can be set, not what setting it costs. An argument the provider
+marks `ForceNew` makes `terraform apply` destroy the resource and create another. Three hints the
+upload diff would already write were of that kind:
+
+- `AZ-STO-007`, `infrastructure_encryption_enabled` on a storage account. The replacement is an
+  empty account, and the data stays with the old one.
+- `AZ-CMP-004`, `disable_password_authentication` on a Linux virtual machine.
+- `AZ-AKS-003`, `role_based_access_control_enabled` on a Kubernetes cluster.
+
+**Recorded from the provider's own documentation.** `tools/iac/trim_azurerm_docs.py` reads the
+documentation of each release the schema fixtures were dumped from (3.117.1 and 4.81.0). It keeps
+every documented argument and those whose text says "Changing this forces a new ... to be
+created", as `azurerm-<version>-docs.json`. A sentence that forces replacement only for some
+changes counts as forcing it, which errs toward declining.
+
+**`ExpectedState.terraform_replaces`.** It is true on those three hints and on one added below.
+`test_terraform_hints_schema` requires it to agree with the documentation in both directions, and
+every hinted argument to be documented in every checked release. The Terraform tab still shows such
+a hint, with a warning that it recreates the resource, so new code sets it. The upload never writes
+it, and declines `replaces_resource`. A pull request (§227) will not write it either.
+
+**Widened by three, to 35 hinted rules:** `AZ-COS-005` (`automatic_failover_enabled`), `AZ-DB-015`
+(`authentication.active_directory_auth_enabled`), and `AZ-DB-023` (`geo_redundant_backup_enabled`,
+which replaces the server and is new code only). Three candidates were left out because the
+one-value edit would break a working system:
+
+- `AZ-COS-006`: a periodic `backup` block's interval and retention arguments are invalid for
+  continuous backup.
+- `AZ-KV-003`: switching a vault to role-based access stops every access policy at once.
+- `AZ-WEB-005`: the `identity` block is usually absent, so the edit always declines.
+
+The rest need resource types the fixtures do not hold yet (MySQL, Windows virtual machines,
+application gateways), or are structural.
+
+**Open: an argument's name per release.** `local_authentication_disabled` (`AZ-COS-002`) is still in
+azurerm 4.81.0's schema but no longer documented: it is deprecated in favour of
+`local_authentication_enabled`. It works across the checked releases, so the test allows it by
+name, in a list that only shrinks. A hint that names the argument per release retires that list,
+and is needed before azurerm 5.
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,

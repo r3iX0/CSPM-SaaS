@@ -78,6 +78,9 @@ class Decline(StrEnum):
     UNVERIFIED = "unverified"
     # Decided before any file is read: the rule has no Terraform argument to set.
     NOT_EDITABLE = "not_editable"
+    # Decided before any file is read: changing the argument makes Terraform
+    # destroy the resource and create another, which no fix may do (§228).
+    REPLACES_RESOURCE = "replaces_resource"
 
 
 @dataclass(frozen=True)

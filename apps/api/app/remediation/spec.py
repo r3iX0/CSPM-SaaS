@@ -31,7 +31,7 @@ producing a warning.
 
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any, Final
+from typing import Any, Final, TypedDict
 
 # Distinguishes "Terraform spells this the same way" from "Terraform spells it
 # ``false``". ``None`` cannot serve, because a Terraform argument genuinely set
@@ -119,6 +119,13 @@ class ExpectedState:
     # provider says ``public_network_access_enabled = false``. Emitting the ARM
     # spelling into HCL would produce a line that does not mean what it says.
     terraform_value: Any = UNSET
+    # Whether changing ``terraform_attribute`` makes Terraform destroy the resource
+    # and create another (the provider's ``ForceNew``). The hint still says what new
+    # code should set, with the warning; the edit engine never writes it into
+    # existing code, because for a storage account the replacement is its data
+    # (DECISIONS.md §228). Held to the provider's documentation by
+    # ``test_terraform_hints_schema``.
+    terraform_replaces: bool = False
 
 
 @dataclass(frozen=True)
@@ -242,7 +249,16 @@ def _condition(state: ExpectedState) -> dict[str, Any]:
     return {"field": state.arm_alias, "notIn": [_policy_value(v) for v in accepted]}
 
 
-def terraform_hints(spec: RemediationSpec) -> list[dict[str, str]]:
+class TerraformHint(TypedDict):
+    """One argument to set, as the API and the edit engine read it."""
+
+    attribute: str
+    value: str
+    describes: str
+    replaces: bool
+
+
+def terraform_hints(spec: RemediationSpec) -> list[TerraformHint]:
     """The arguments to set, for a customer who manages this in code.
 
     Attributes rather than a resource block, deliberately. A generated block
@@ -257,6 +273,7 @@ def terraform_hints(spec: RemediationSpec) -> list[dict[str, str]]:
                 state.equals if state.terraform_value is UNSET else state.terraform_value
             ),
             "describes": state.describes,
+            "replaces": state.terraform_replaces,
         }
         for state in spec.expected
         if state.terraform_attribute

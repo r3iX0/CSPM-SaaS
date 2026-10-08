@@ -300,6 +300,8 @@ SPECS = (
         field="entra_authentication",
         safe=True,
         describes="Microsoft Entra authentication is enabled",
+        terraform_attribute="authentication.active_directory_auth_enabled",
+        terraform_resource_types=("azurerm_postgresql_flexible_server",),
         failure="accepts only local PostgreSQL accounts",
         mappings=_IDENTITY,
     ),

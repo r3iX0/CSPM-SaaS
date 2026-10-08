@@ -285,6 +285,7 @@ def test_terraform_takes_the_providers_own_spelling() -> None:
             "attribute": "public_network_access_enabled",
             "value": "false",
             "describes": "Public network access is disabled",
+            "replaces": False,
         }
     ]
 

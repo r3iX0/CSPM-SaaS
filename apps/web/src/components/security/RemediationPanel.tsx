@@ -5,6 +5,7 @@ import { formatEffort } from "@/lib/format";
 import { fillPlaceholders } from "@/lib/remediationFill";
 import { CodeBlock } from "@/components/common/CodeBlock";
 import { IacDiffCheck } from "@/components/security/IacDiffCheck";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -63,6 +64,9 @@ export function RemediationPanel({
 }) {
   const hasCli = (spec?.cli?.length ?? 0) > 0;
   const hasTerraform = (spec?.terraform?.length ?? 0) > 0;
+  // Arguments azurerm can only set by recreating the resource: said, and never
+  // offered as an edit of existing code (DECISIONS.md §228).
+  const replacing = (spec?.terraform ?? []).filter((hint) => hint.replaces === true);
   const hasPolicy = Boolean(spec?.azure_policy);
   const commands = (spec?.cli ?? []).map((command) =>
     fill ? fillPlaceholders(command, fill.values) : { text: command, filled: [] },
@@ -153,8 +157,15 @@ export function RemediationPanel({
                 The arguments to set on the resource you already manage — not a whole block, which
                 would be missing everything Terraform requires and could not be applied.
               </p>
-              {findingId && fill && (
-                <IacDiffCheck findingId={findingId} resourceName={fill.resourceName} />
+              {replacing.length > 0 ? (
+                <Alert>
+                  <AlertDescription>
+                    {`Changing ${replacing.map((hint) => hint.attribute).join(", ")} makes Terraform destroy this resource and create another. Set it in new code; plan replacing an existing one by hand.`}
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                findingId &&
+                fill && <IacDiffCheck findingId={findingId} resourceName={fill.resourceName} />
               )}
             </TabsContent>
           )}

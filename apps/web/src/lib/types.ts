@@ -242,7 +242,8 @@ export interface RemediationSpec {
     example?: unknown;
   }[];
   cli: string[];
-  terraform: { attribute: string; value: string; describes: string }[];
+  /** `replaces`: changing it makes Terraform recreate the resource (DECISIONS.md §228). */
+  terraform: { attribute: string; value: string; describes: string; replaces?: boolean }[];
   azure_policy: Record<string, unknown> | null;
   enforceable: boolean;
   applies_when?: Record<string, unknown>;

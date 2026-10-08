@@ -22944,6 +22944,11 @@
           "describes": {
             "type": "string",
             "title": "Describes"
+          },
+          "replaces": {
+            "type": "boolean",
+            "title": "Replaces",
+            "default": false
           }
         },
         "type": "object",

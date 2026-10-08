@@ -289,7 +289,10 @@ name is an expression, which a reviewer should confirm -- or
 `outcome: "declined"` with a stable `decline_reason` (such as
 `interpolated_name`, `multiple_matches`, `variable_value` or `too_large`) and a
 sentence in `detail`. A decline is an answer, not an error: the file was read
-and the edit would have needed a guess. `provider_version` comes from the lock
+and the edit would have needed a guess. `replaces_resource` is declined before
+the file is read: the argument is one azurerm sets only by recreating the
+resource, and each Terraform hint on `remediation_spec` says so as `replaces`
+(DECISIONS.md §228). `provider_version` comes from the lock
 file where one was sent, and `checked_against` names the azurerm releases the
 edit was held to. Nothing uploaded is stored and the finding does not change, so
 a viewer and the demo organization may ask; it counts against the costly

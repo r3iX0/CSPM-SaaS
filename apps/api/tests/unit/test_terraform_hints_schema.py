@@ -19,9 +19,19 @@ from app.remediation import Comparison
 from app.remediation.spec import UNSET, ExpectedState
 from app.rules.registry import RULE_REGISTRY
 
+FIXTURES = Path(__file__).parents[1] / "fixtures/terraform"
 SCHEMAS = {
     path.stem.removeprefix("azurerm-"): json.loads(path.read_text())["resource_types"]
-    for path in sorted((Path(__file__).parents[1] / "fixtures/terraform").glob("azurerm-*.json"))
+    for path in sorted(FIXTURES.glob("azurerm-*.json"))
+    if not path.stem.endswith("-docs")
+}
+# What the provider's documentation says of each argument, from
+# ``tools/iac/trim_azurerm_docs.py``: which exist, and which replace the resource.
+DOCS = {
+    path.stem.removeprefix("azurerm-").removesuffix("-docs"): json.loads(path.read_text())[
+        "resource_types"
+    ]
+    for path in sorted(FIXTURES.glob("azurerm-*-docs.json"))
 }
 
 AZURE_HINTED = [
@@ -125,3 +135,62 @@ def test_every_hinted_value_has_the_argument_type(rule) -> None:
 def test_only_a_scalar_state_is_hinted(rule) -> None:
     # A collection state is a structural edit, not a line to change (§190).
     assert all(state.comparison is Comparison.EQUALS for state in _hinted(rule))
+
+
+def test_the_documentation_is_of_the_releases_the_schema_is() -> None:
+    assert sorted(DOCS) == sorted(SCHEMAS)
+
+
+# Arguments the schema still accepts but the release's documentation dropped, as
+# deprecated ahead of v5. Each works across the checked releases; a hint per release
+# is the open item that retires this list (DECISIONS.md §228).
+DEPRECATED_IN = {
+    ("azurerm_cosmosdb_account", "local_authentication_disabled"): "4.81.0",
+}
+
+
+@pytest.mark.parametrize("rule", AZURE_HINTED, ids=lambda r: r.rule_id)
+def test_every_attribute_is_documented_in_every_version(rule) -> None:
+    # Guards the test below: an argument the trimmer missed would read as safe.
+    for state in _hinted(rule):
+        for resource_type in rule.remediation_spec.terraform_resource_types:
+            for version, docs in DOCS.items():
+                if DEPRECATED_IN.get((resource_type, state.terraform_attribute)) == version:
+                    continue
+                documented = docs[resource_type]["arguments"]
+                assert _documented_as(state.terraform_attribute, documented), (
+                    f"{resource_type}.{state.terraform_attribute} is not in azurerm {version}'s "
+                    "documentation; rerun tools/iac/trim_azurerm_docs.py"
+                )
+
+
+@pytest.mark.parametrize("rule", AZURE_HINTED, ids=lambda r: r.rule_id)
+def test_an_attribute_that_replaces_the_resource_says_so(rule) -> None:
+    # A fix that recreates a storage account is not a fix (DECISIONS.md §228).
+    for state in _hinted(rule):
+        replaces = {
+            f"{resource_type} in azurerm {version}"
+            for resource_type in rule.remediation_spec.terraform_resource_types
+            for version, docs in DOCS.items()
+            if _documented_as(state.terraform_attribute, docs[resource_type]["replaces"])
+        }
+        assert state.terraform_replaces == bool(replaces), (
+            f"{state.terraform_attribute}: the documentation says it replaces the resource in "
+            f"{sorted(replaces)}, the hint says {state.terraform_replaces}"
+            if replaces
+            else f"{state.terraform_attribute} is flagged as replacing but nothing documents it"
+        )
+
+
+def test_the_deprecated_list_holds_only_what_is_undocumented() -> None:
+    # It only shrinks: an entry the documentation names again is taken off.
+    for (resource_type, attribute), version in DEPRECATED_IN.items():
+        assert not _documented_as(attribute, DOCS[version][resource_type]["arguments"])
+        assert _attribute(SCHEMAS[version], resource_type, attribute) is not None
+
+
+def _documented_as(attribute: str, documented: list[str]) -> bool:
+    # The documentation names a nested argument by its own block only:
+    # ``site_config.minimum_tls_version`` is ``minimum_tls_version`` under
+    # "The `site_config` block", so the last two parts are what match.
+    return ".".join(attribute.split(".")[-2:]) in documented

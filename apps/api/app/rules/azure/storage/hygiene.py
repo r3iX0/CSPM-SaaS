@@ -118,6 +118,8 @@ SPECS = (
         describes="Data is encrypted twice at rest",
         terraform_attribute="infrastructure_encryption_enabled",
         terraform_resource_types=("azurerm_storage_account",),
+        # Azure sets it only at creation; azurerm replaces the account, and its data.
+        terraform_replaces=True,
         failure="encrypts its data at rest once rather than twice",
         mappings=_ENCRYPTION,
     ),

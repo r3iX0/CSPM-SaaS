@@ -78,6 +78,14 @@ def propose_terraform_fix(
         return _declined(
             filename, Decline.NOT_EDITABLE, "This finding is not about one resource in code."
         )
+    if replacing := [hint["attribute"] for hint in hints if hint["replaces"]]:
+        # Never written into existing code: the apply would destroy the resource (§228).
+        return _declined(
+            filename,
+            Decline.REPLACES_RESOURCE,
+            f"Changing {', '.join(replacing)} makes Terraform destroy this resource and create "
+            "another. Plan that replacement by hand.",
+        )
 
     result = edit_terraform(
         text,
