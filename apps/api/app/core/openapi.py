@@ -67,6 +67,7 @@ TAGS: list[dict[str, Any]] = [
     {"name": "findings", "description": "Rule failures on one asset, with evidence and a fix."},
     {"name": "risks", "description": "Findings and routes scored as business risks, and triage."},
     {"name": "remediation", "description": "The queue of fixes being worked, and who owns each."},
+    {"name": "integrations", "description": "Cleave's GitHub App, linked to an organization."},
     {"name": "rules", "description": "The rules that run, and how each one is judged."},
     {"name": "compliance", "description": "Framework controls and the evidence each rests on."},
     {"name": "dashboard", "description": "One summary of the estate for the first screen."},

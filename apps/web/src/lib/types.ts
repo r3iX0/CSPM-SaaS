@@ -280,6 +280,20 @@ export interface IacDiff {
   matched_by?: "name" | "sole_block" | null;
 }
 
+/** A GitHub App installation linked to the organization (DECISIONS.md §231). */
+export interface GitHubInstallation {
+  installation_id: number;
+  account_login: string;
+  account_type: string;
+  connected_at: string;
+}
+
+export interface GitHubStatus {
+  /** Whether this deployment offers GitHub at all. */
+  available: boolean;
+  installations: GitHubInstallation[];
+}
+
 /** Where the customer's own Terraform state defines an asset (DECISIONS.md §229). */
 export interface IacLocation {
   repository: string;

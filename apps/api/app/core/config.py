@@ -187,6 +187,22 @@ class Settings(BaseSettings):
     # cloud nobody has scanned.
     aws_enabled: bool = False
 
+    # --- GitHub App (Fix-as-Code, DECISIONS.md section 231) ------------------
+    # Cleave's own GitHub App: customers install it on the repositories that
+    # hold their Terraform. The private key signs the App's own JWTs and never
+    # leaves this process; installation tokens are minted per call and never
+    # stored. Linking an installation needs the App's OAuth half too, because
+    # only a user token can prove the person linking it can see it.
+    github_app_id: str = ""
+    github_app_slug: str = ""
+    github_app_client_id: str = ""
+    github_app_client_secret: str = ""
+    github_app_private_key: str = ""
+    github_app_webhook_secret: str = ""
+    # Off by default, as AWS is: the GitHub card, linking and the state index
+    # upload are offered only once somebody switches it on.
+    fix_prs_enabled: bool = False
+
     sentry_dsn: str = ""
 
     # NoDecode is load-bearing. pydantic-settings treats any list field as
@@ -240,6 +256,25 @@ class Settings(BaseSettings):
         run the live checklist. Either alone is a connection that cannot finish.
         """
         return self.aws_configured and self.aws_enabled
+
+    @property
+    def github_configured(self) -> bool:
+        """True when every half of Cleave's GitHub App is present."""
+        return all(
+            (
+                self.github_app_id,
+                self.github_app_slug,
+                self.github_app_client_id,
+                self.github_app_client_secret,
+                self.github_app_private_key,
+                self.github_app_webhook_secret,
+            )
+        )
+
+    @property
+    def github_offered(self) -> bool:
+        """Whether customers may link GitHub and upload a state index."""
+        return self.github_configured and self.fix_prs_enabled
 
     @property
     def azure_configured(self) -> bool:

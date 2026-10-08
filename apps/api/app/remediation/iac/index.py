@@ -18,9 +18,9 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-#: More than any one Terraform root module manages; fewer than would let one
-#: upload fill a table.
-MAX_ENTRIES = 20_000
+#: What fits the 1 MiB request limit at about 250 bytes an entry. A root managing
+#: more is uploaded per workspace or split, rather than the limit raised for it.
+MAX_ENTRIES = 4_000
 
 # The Action keeps only ids under a subscription: a key vault secret's id is a
 # URL naming the secret, and nothing else is an asset Cleave reads.

@@ -54,6 +54,8 @@ class Purpose(StrEnum):
     CONSENT = "azure_consent"
     TEMPLATE = "template"
     EVENT_FEED = "event_grid"
+    # Installing Cleave's GitHub App and coming back to link it (DECISIONS.md §231).
+    GITHUB_INSTALL = "github_install"
 
 
 class SignedStateError(ValueError):

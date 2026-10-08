@@ -621,3 +621,30 @@ class TestIacIndexIsolation:
                     {"org": org_a},
                 )
         assert "permission denied" in str(exc.value).lower()
+
+
+class TestCodeIntegrationIsolation:
+    """A linked GitHub installation is one organization's, and invisible to others (§231)."""
+
+    async def test_a_link_is_read_only_by_its_own_organization(self, two_orgs) -> None:
+        org_a, org_b = two_orgs
+        async with service_session() as session:
+            for org, installation in ((org_a, 101), (org_b, 202)):
+                await session.execute(
+                    text(
+                        "INSERT INTO code_integrations (organization_id, installation_id, "
+                        "account_login, account_type, connected_by) "
+                        "VALUES (:org, :installation, 'contoso', 'Organization', :user)"
+                    ),
+                    {"org": org, "installation": installation, "user": USER_A},
+                )
+            await session.commit()
+
+        async with rls_session(USER_A) as session:
+            seen = (
+                (await session.execute(text("SELECT installation_id FROM code_integrations")))
+                .scalars()
+                .all()
+            )
+
+        assert seen == [101], "one tenant saw another's GitHub installation"

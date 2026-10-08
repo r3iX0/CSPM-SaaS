@@ -1443,6 +1443,25 @@ export const en = {
     } as Record<string, string>,
   },
 
+  // Cleave's GitHub App, linked to the organization (DECISIONS.md §231).
+  github: {
+    title: "GitHub",
+    help: "Link the repositories that hold your Terraform, so Cleave knows which code defines what.",
+    connect: "Install on GitHub",
+    linked: (account: string) => `Linked to ${account}`,
+    linkedOn: (day: string) => `since ${day}`,
+    unlink: "Unlink",
+    unlinkFor: (account: string) => `Unlink ${account}`,
+    unlinked: "GitHub installation unlinked",
+    unlinkNote: "Unlinking does not uninstall the App; remove it on GitHub to revoke its access.",
+    none: "No GitHub installation is linked yet.",
+    indexHelp: "Then run the state index script in your Terraform pipeline.",
+    linking: "Linking your GitHub installation…",
+    linkedToast: "GitHub installation linked",
+    linkFailed: "Could not link the GitHub installation",
+    linkMissing: "GitHub sent no installation to link. Start again from Integrations.",
+    back: "Back to Integrations",
+  },
   // Webhooks (DECISIONS.md §164).
   webhooks: {
     title: "Integrations",

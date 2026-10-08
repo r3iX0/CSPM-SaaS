@@ -5,6 +5,7 @@ from app.models.audit_package import AuditPackage, AuditPackageItem
 from app.models.base import Base
 from app.models.cloud_account import CloudAccount
 from app.models.cloud_connection import CloudConnection
+from app.models.code_integration import CodeIntegration
 from app.models.context import ContextDeclarationRecord
 from app.models.finding import Finding
 from app.models.history import AssetChangeEvent, FindingEventRecord
@@ -37,6 +38,7 @@ __all__ = [
     "CloudAccount",
     "CloudConnection",
     "CloudSnapshot",
+    "CodeIntegration",
     "ContextDeclarationRecord",
     "Evidence",
     "EvidenceBlob",

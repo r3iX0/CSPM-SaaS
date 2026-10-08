@@ -362,6 +362,23 @@ Node installed on your machine.
    # ten-item checklist in AWS_INTEGRATION.md §1 has passed.
    AWS_ENABLED=false
 
+   # Cleave's GitHub App, for the Terraform state index and Fix-as-Code pull
+   # requests (DECISIONS.md §231). Optional: leave blank and GitHub is not
+   # offered. Set on the API and the worker. The App needs "Request user
+   # authorization (OAuth) during installation" on, with the callback URL
+   # https://<your-vercel-domain>/settings/integrations/github, because linking
+   # an installation is proven with the linking person's own GitHub token.
+   # The private key may be pasted on one line with its newlines written as \n.
+   # API_URL above is also the audience the state index upload's token must name.
+   GITHUB_APP_ID=
+   GITHUB_APP_SLUG=
+   GITHUB_APP_CLIENT_ID=
+   GITHUB_APP_CLIENT_SECRET=
+   GITHUB_APP_PRIVATE_KEY=
+   GITHUB_APP_WEBHOOK_SECRET=
+   # Whether the GitHub card appears and uploads are taken. Off by default.
+   FIX_PRS_ENABLED=false
+
    SENTRY_DSN=
 
    # Optional, both with defaults, both about disk rather than correctness.

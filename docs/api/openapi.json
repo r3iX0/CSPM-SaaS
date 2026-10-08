@@ -10429,6 +10429,385 @@
         }
       }
     },
+    "/api/v1/integrations/github": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Github Status",
+        "description": "Whether GitHub is offered here, and which installations this organization linked.",
+        "operationId": "integrations_github_status",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_GitHubStatusOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/github/connect": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Connect",
+        "description": "Where an owner or an admin installs the App. GitHub sends them back to link it.",
+        "operationId": "integrations_connect",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_GitHubConnectOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/github/installations": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Link Installation",
+        "description": "Link the installation GitHub sent the person back with.\n\nThe installation id arrives in a query string anybody can edit, so it is\nlinked only if GitHub lists it among the installations of the person's own\ntoken, exchanged from ``code``. ``200``: the installation already exists on\nGitHub, and this links it rather than creating it.",
+        "operationId": "integrations_link_installation",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GitHubLinkIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_GitHubInstallationOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/github/installations/{installation_id}": {
+      "delete": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Unlink Installation",
+        "description": "Unlink an installation. The App stays installed on GitHub until it is removed there.",
+        "operationId": "integrations_unlink_installation",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "installation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Installation Id"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_UnlinkedOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
     "/api/v1/rules": {
       "get": {
         "tags": [
@@ -15199,6 +15578,66 @@
         ],
         "title": "Envelope[FrameworkDetailOut, NoMeta]"
       },
+      "Envelope_GitHubConnectOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/GitHubConnectOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[GitHubConnectOut, NoMeta]"
+      },
+      "Envelope_GitHubInstallationOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/GitHubInstallationOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[GitHubInstallationOut, NoMeta]"
+      },
+      "Envelope_GitHubStatusOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/GitHubStatusOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[GitHubStatusOut, NoMeta]"
+      },
       "Envelope_HealthOut_NoMeta_": {
         "properties": {
           "data": {
@@ -15833,6 +16272,26 @@
           "meta"
         ],
         "title": "Envelope[Union[ContextDeclarationOut, NoneType], NoMeta]"
+      },
+      "Envelope_UnlinkedOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/UnlinkedOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[UnlinkedOut, NoMeta]"
       },
       "Envelope_VerificationOut_NoMeta_": {
         "properties": {
@@ -18242,6 +18701,108 @@
         ],
         "title": "FreshnessOut",
         "description": "How recently the provider was read; the oldest reading is the headline."
+      },
+      "GitHubConnectOut": {
+        "properties": {
+          "install_url": {
+            "type": "string",
+            "title": "Install Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "install_url"
+        ],
+        "title": "GitHubConnectOut",
+        "description": "Where to install the App; GitHub brings the person back with what to link."
+      },
+      "GitHubInstallationOut": {
+        "properties": {
+          "installation_id": {
+            "type": "integer",
+            "title": "Installation Id"
+          },
+          "account_login": {
+            "type": "string",
+            "title": "Account Login"
+          },
+          "account_type": {
+            "type": "string",
+            "title": "Account Type"
+          },
+          "connected_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Connected At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "installation_id",
+          "account_login",
+          "account_type",
+          "connected_at"
+        ],
+        "title": "GitHubInstallationOut"
+      },
+      "GitHubLinkIn": {
+        "properties": {
+          "installation_id": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Installation Id"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Code"
+          },
+          "state": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "State"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "installation_id",
+          "code",
+          "state"
+        ],
+        "title": "GitHubLinkIn",
+        "description": "What GitHub hands back after an installation, posted by the signed-in person.",
+        "examples": [
+          {
+            "code": "<code>",
+            "installation_id": 12345678,
+            "state": "<state>"
+          }
+        ]
+      },
+      "GitHubStatusOut": {
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "installations": {
+            "items": {
+              "$ref": "#/components/schemas/GitHubInstallationOut"
+            },
+            "type": "array",
+            "title": "Installations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "available",
+          "installations"
+        ],
+        "title": "GitHubStatusOut",
+        "description": "Whether GitHub is offered here, and the installations this organization has linked."
       },
       "GrantToken": {
         "properties": {
@@ -23122,6 +23683,19 @@
         "title": "TotalMeta",
         "description": "How many there are in all, where the list may be cut short."
       },
+      "UnlinkedOut": {
+        "properties": {
+          "installation_id": {
+            "type": "integer",
+            "title": "Installation Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "installation_id"
+        ],
+        "title": "UnlinkedOut"
+      },
       "VerificationStatus": {
         "type": "string",
         "enum": [
@@ -23911,6 +24485,10 @@
     {
       "name": "remediation",
       "description": "The queue of fixes being worked, and who owns each."
+    },
+    {
+      "name": "integrations",
+      "description": "Cleave's GitHub App, linked to an organization."
     },
     {
       "name": "rules",

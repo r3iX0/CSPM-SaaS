@@ -12426,6 +12426,48 @@ checked release. It also checks that a rename comes after the oldest checked rel
 `# azurerm 4+: local_authentication_enabled = false`, and the API carries it as `renamed` on each
 hint.
 
+## 231. A GitHub installation is linked on GitHub's word, and a state index on a job's token
+
+The GitHub App is registered, so §229's upload route is built. With it comes the link from an App
+installation to an organization, and the App's webhook. All of it is behind `FIX_PRS_ENABLED`, off
+by default, and needs the six `GITHUB_APP_*` variables. The Jira sync stays unbuilt and unoffered.
+
+**Linking is proven, not asserted.** GitHub sends a person back from installing the App with
+`installation_id` in the query string, and anybody can edit a query string. Linking whatever id
+arrived would let one organization claim another's installation, then read its state index and,
+once pull requests exist, open them on its repositories. So the App's OAuth half is on: GitHub
+returns a one-time `code` too. The web app posts the id, the code and the `state` under the
+signed-in person's session. The API checks three things before linking: the `state` is signed for
+this purpose and bound to this person and organization (§147); the `code` exchanges for the
+person's own token; and GitHub lists the installation among that token's installations. The token
+is used once and never stored. `code_integrations.installation_id` is unique, so an installation
+linked elsewhere is a `409` rather than a second owner. Without the OAuth half there is no safe way
+to link, so `github_configured` requires the client id and secret as well as the App's key.
+
+**The upload's credential is the job's own OIDC token** (`integrations/github_oidc.py`). The token
+must be RS256, from `https://token.actions.githubusercontent.com`, with this API's `API_URL` as its
+audience, and within its expiry. GitHub's keys are read through the same non-blocking, rate-limited
+`SigningKeys` the Supabase keys use (§158). Then the App says which installation covers the token's
+repository, and that installation must be linked. The repository's numeric id must match the
+token's, so a renamed repository cannot stand in for another. The token's ref must be the default
+branch. The repository and the commit are taken from the token, never from the body. GitHub is
+asked before any database session opens, and the index is written through the owner connection
+scoped to the linked organization, so a stranger's token holds no pooled connection.
+
+**Smaller choices:**
+
+- **At most 4,000 entries**, down from §229's 20,000. At about 250 bytes an entry, that is what
+  fits the 1 MiB request limit, which is not raised for one route.
+- **The App's JWT names its client id** as `iss`, as GitHub now recommends, and is issued a minute
+  early against clock skew.
+- **The webhook is verified by HMAC** of the exact body (`X-Hub-Signature-256`). For now it acts
+  only on an uninstall, which unlinks the installation everywhere. Pull-request merges come with
+  pull requests.
+- **Unlinking leaves the App installed on GitHub**, and the toast says so. Revoking its access is
+  the customer's, on GitHub.
+- **The callback is a page of the web app** (`/settings/integrations/github`), not an open API
+  route. That keeps the person's session in the request, so the state's binding can be checked.
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,

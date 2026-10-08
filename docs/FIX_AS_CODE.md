@@ -1,8 +1,8 @@
 # Fix-as-Code: IaC diffs and pull requests
 
-Status: **Phases 0 and 1 done (2026-09-29); Phase 2 designed (§227), its index
-stored and read (§229), its upload route and pull requests not built.**
-The decisions are DECISIONS §190, §227 to §230. As of 2026-10-08, 35 Azure rules
+Status: **Phases 0 and 1 done (2026-09-29); Phase 2 designed (§227), its GitHub App
+linked and its state index uploaded and read (§229, §231), pull requests not built.**
+The decisions are DECISIONS §190 and §227 to §231. As of 2026-10-08, 35 Azure rules
 carry a Terraform hint, and no edit is made to an argument that replaces the
 resource (§228). Phase 0 settled:
 

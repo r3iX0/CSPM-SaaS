@@ -80,6 +80,11 @@ POST   /findings/{id}/accept-risk          POST   /findings/{id}/status
 POST   /findings/{id}/rescan               POST   /findings/{id}/iac-diff  (multipart)
 GET    /findings/{id}/attack-paths         GET    /findings/{id}/provenance
 
+GET    /integrations/github                POST   /integrations/github/connect
+POST   /integrations/github/installations  DELETE /integrations/github/installations/{id}
+POST   /integrations/github/events  (GitHub's deliveries; HMAC-signed)
+PUT    /iac-indexes  (a job's GitHub Actions token)
+
 GET    /attack-paths                       GET    /attack-paths/choke-points
 GET    /attack-paths/graph?limit=1..200
 GET    /attack-paths/blast-radius/{resource_id}
@@ -295,16 +300,36 @@ resource, and each Terraform hint on `remediation_spec` says so as `replaces`
 (DECISIONS.md §228). A hint's `renamed` lists the argument's name and value from
 a later azurerm major release on (`since`); the edit writes the name the block
 already uses, else the lock file's release's, else `attribute` (§230).
+`provider_version` comes from the lock file where one was sent, and
+`checked_against` names the azurerm releases the edit was held to. Nothing
+uploaded is stored and the finding does not change, so a viewer and the demo
+organization may ask; it counts against the costly allowance.
 
 `GET /findings/{id}` carries `managed_in_code`: where the customer's own
 Terraform state index places the asset (`repository`, `working_directory`,
 `workspace`, `address`, `commit_sha`, `uploaded_at`), or an empty list when no
-index names it (DECISIONS.md §229). The index is uploaded by the customer's
-pipeline, through a route not yet served. `provider_version` comes from the lock
-file where one was sent, and `checked_against` names the azurerm releases the
-edit was held to. Nothing uploaded is stored and the finding does not change, so
-a viewer and the demo organization may ask; it counts against the costly
-allowance.
+index names it (DECISIONS.md §229).
+
+`/integrations/github` links Cleave's GitHub App to the organization
+(DECISIONS.md §231), and answers `404` until the deployment offers GitHub.
+`POST /integrations/github/connect` (owners and admins) answers the
+`install_url`, carrying a signed `state` bound to the caller. GitHub sends the
+person back to the web app with `installation_id`, a one-time `code` and that
+`state`, which it posts to `POST /integrations/github/installations`. The
+installation is linked only if GitHub lists it among the installations of the
+person's own token, exchanged from `code`; one already linked elsewhere is `409`.
+`DELETE /integrations/github/installations/{id}` unlinks it and leaves the App
+installed on GitHub. `POST /integrations/github/events` takes GitHub's
+deliveries, signed with the App's webhook secret (`X-Hub-Signature-256`), and
+unlinks an uninstalled App.
+
+`PUT /iac-indexes` takes a Terraform state index from
+`tools/iac/github/cleave-index.sh`, authenticated by the job's GitHub Actions
+OIDC token as `Authorization: Bearer`, with this API's URL as its audience. The
+body is `working_directory`, `workspace` and up to 4,000 `entries` of
+`address`, `type`, `index` and `id`; the repository and the commit come from the
+token. It is refused `403` unless the App is installed on the repository, that
+installation is linked, and the token's ref is the default branch.
 
 `POST /organizations/demo/join` adds the caller to the one shared demo
 organization as `VIEWER`, whatever the request says, and

@@ -349,6 +349,12 @@ iac_indexes                -- one Terraform state's index, uploaded by the
   commit_sha, uploaded_at  -- by the next upload of the same four
   UNIQUE(organization_id, repository_id, working_directory, workspace)
 
+code_integrations          -- a GitHub App installation linked to an
+  id, organization_id      -- organization (DECISIONS.md §231). installation_id
+  provider, installation_id UNIQUE  -- is unique, so no second organization can
+  account_login, account_type       -- claim it; linking is proven with the
+  connected_by, connected_at        -- linking person's own GitHub token
+
 iac_index_entries          -- one managed azurerm resource of it: its state
   id, index_id, organization_id   -- address, type, instance key and lower-cased
   address, type, instance_key     -- Azure Resource Manager id. Members read;

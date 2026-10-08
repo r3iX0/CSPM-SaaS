@@ -33,13 +33,12 @@ entries="$(terraform show -json | jq -c '
 token="$(curl -sSf -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
   "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${CLEAVE_API}" | jq -r .value)"
 
+# The repository and the commit are not sent: Cleave reads both from the token.
 jq -n \
   --arg working_directory "${working_directory}" \
   --arg workspace "${workspace}" \
-  --arg commit_sha "${GITHUB_SHA}" \
   --argjson entries "${entries}" \
-  '{working_directory: $working_directory, workspace: $workspace,
-    commit_sha: $commit_sha, entries: $entries}' |
+  '{working_directory: $working_directory, workspace: $workspace, entries: $entries}' |
   curl -sSf -X PUT \
     -H "Authorization: Bearer ${token}" \
     -H "Content-Type: application/json" \

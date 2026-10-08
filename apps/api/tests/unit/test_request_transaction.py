@@ -56,6 +56,11 @@ WORKER_OWNED = {
     # It commits the claim before sending and the outcome after, so no
     # transaction is open while a receiver takes its time (DECISIONS.md 164).
     "webhooks.py": {"deliver_due"},
+    # GitHub's uninstall delivery and a job's state index upload: neither has a
+    # person, so neither has an ``rls_session``. Each opens ``service_session``
+    # scoped to one organization by hand, and the upload only after GitHub has
+    # answered, so a stranger's token holds no pooled connection (DECISIONS.md 231).
+    "code_integrations.py": {"forget_installation", "take_index"},
 }
 
 
