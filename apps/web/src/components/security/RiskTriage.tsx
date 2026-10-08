@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/common/DatePicker";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -192,13 +192,11 @@ export function RiskDecisions({
             </Field>
             <Field>
               <FieldLabel htmlFor="risk-accept-until">Until (optional)</FieldLabel>
-              <Input
+              <DatePicker
                 id="risk-accept-until"
-                type="date"
                 min={tomorrowDay()}
                 value={until}
-                onChange={(e) => setUntil(e.target.value)}
-                className="w-fit"
+                onChange={(day) => setUntil(day ?? "")}
               />
               <FieldDescription>
                 {until

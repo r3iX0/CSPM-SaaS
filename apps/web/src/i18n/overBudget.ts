@@ -41,7 +41,6 @@ export const OVER_BUDGET: readonly string[] = [
   "notifications.empty",
   "onboarding.demoDetail",
   "onboarding.intro",
-  "remediation.doneNote",
   "reports.executiveDetail",
   "reports.intro",
   "reports.technicalDetail",

@@ -7,13 +7,15 @@
  * short, so showing it the six weighted components would be working nobody did.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { RiskDetailPage } from "../RiskDetail";
 import { api, ApiError } from "@/lib/api";
+import { endOfDayIso, tomorrowDay } from "@/lib/format";
+import { pickDay } from "@/test/pickDay";
 import type { RiskDetail } from "@/lib/types";
 
 function findingRisk(overrides: Partial<RiskDetail> = {}): RiskDetail {
@@ -238,9 +240,8 @@ describe("RiskDetailPage", () => {
       screen.getByLabelText("Why is this acceptable?"),
       "Accepted for the migration window",
     );
-    fireEvent.change(screen.getByLabelText("Until (optional)"), {
-      target: { value: "2099-03-31" },
-    });
+    // The calendar opens on the earliest day an acceptance may end on.
+    await pickDay("Until (optional)", tomorrowDay());
     await userEvent.click(screen.getByRole("button", { name: "Accept" }));
 
     await waitFor(() =>
@@ -248,7 +249,7 @@ describe("RiskDetailPage", () => {
         risk_ids: ["r-1"],
         status: "ACCEPTED",
         reason: "Accepted for the migration window",
-        expires_at: new Date("2099-03-31T23:59:59").toISOString(),
+        expires_at: endOfDayIso(tomorrowDay()),
       }),
     );
   });

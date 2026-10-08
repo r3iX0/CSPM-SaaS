@@ -215,6 +215,16 @@ export function RemediationPage() {
 }
 
 /**
+ * A row's figures and its action. On a phone they take a line of their own
+ * under the title, with the action at its end; the fixed widths that line the
+ * figures up in columns apply only beside the title, where there are columns
+ * to line up -- on their own line they centred the button (§223).
+ */
+const ROW_FIGURES =
+  "flex w-full flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground sm:w-auto";
+const ROW_ACTION = "ml-auto flex justify-end sm:ml-0 sm:w-24";
+
+/**
  * One job, said as a job.
  *
  * The card this replaces led with two badges and a link reading "View finding",
@@ -287,45 +297,45 @@ function TaskCard({
             // does not reflow under the reader's cursor.
             <Skeleton className="h-4 w-72 max-w-full" />
           )}
-          <p className="mt-0.5 truncate text-caption text-muted-foreground">
-            {finding?.resource
-              ? `${finding.resource.name} · ${resourceTypeLabel(finding.resource.resource_type)}`
-              : finding
-                ? t.remediation.tenantWide
-                : " "}
+          {/* Only the asset's name gives way when the line is short: on a
+              phone the route count was the part cut off (§223). */}
+          <p className="mt-0.5 flex flex-wrap gap-x-1 text-caption text-muted-foreground">
+            <span className="max-w-full min-w-0 truncate">
+              {finding?.resource
+                ? `${finding.resource.name} · ${resourceTypeLabel(finding.resource.resource_type)}`
+                : finding
+                  ? t.remediation.tenantWide
+                  : " "}
+            </span>
             {/* Why it sits above an equally urgent task: the asset is on a
                 route. Counted by the API, and only said when it is true. */}
             {finding && (task.on_routes ?? 0) > 0 && (
               <span className="font-medium text-foreground">
-                {" · "}
-                {t.remediation.onRoutes(task.on_routes ?? 0)}
+                · {t.remediation.onRoutes(task.on_routes ?? 0)}
               </span>
             )}
             {finding && task.assigned_to && (
-              <>
-                {" · "}
-                {t.remediation.ownedBy(memberName(owners.get(task.assigned_to)))}
-              </>
+              <span>· {t.remediation.ownedBy(memberName(owners.get(task.assigned_to)))}</span>
             )}
           </p>
           {task.notes && <p className="mt-1 text-xs text-muted-foreground">{task.notes}</p>}
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
+      <div className={ROW_FIGURES}>
         {/* To do is the queue itself and needs no pill. Anything further
             says where the work has got to, as its sheet does: started, or
             claimed and what the checks have found since (§212). */}
         {state !== "todo" && <WorkPill state={state} />}
-        <span className="w-14 tabular-nums">{formatEffort(task.estimated_effort_minutes)}</span>
-        <span className={cn("w-[130px] tabular-nums", overdue && "font-medium text-critical")}>
+        <span className="tabular-nums sm:w-14">{formatEffort(task.estimated_effort_minutes)}</span>
+        <span className={cn("tabular-nums sm:w-[130px]", overdue && "font-medium text-critical")}>
           {done && task.completed_at
             ? t.remediation.doneOn(formatDay(task.completed_at))
             : task.due_date
               ? `${overdue ? "Overdue · " : "Due "}${formatDay(task.due_date)}`
               : null}
         </span>
-        <span className="flex w-24 justify-end">
+        <span className={ROW_ACTION}>
           {!done && !isDemo && (
             <Button variant="outline" size="sm" disabled={marking} onClick={onDone}>
               {marking ? (
@@ -409,19 +419,20 @@ function TaskGroup({
             >
               {lead?.rule_name ?? lead?.title}
             </button>
-            <p className="mt-0.5 truncate text-caption text-muted-foreground">
-              {t.remediation.groupLine(tasks.length, names)}
+            <p className="mt-0.5 flex flex-wrap gap-x-1 text-caption text-muted-foreground">
+              <span className="max-w-full min-w-0 truncate">
+                {t.remediation.groupLine(tasks.length, names)}
+              </span>
               {onRoutes > 0 && (
                 <span className="font-medium text-foreground">
-                  {" · "}
-                  {t.remediation.groupOnRoutes(onRoutes)}
+                  · {t.remediation.groupOnRoutes(onRoutes)}
                 </span>
               )}
             </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
+        <div className={ROW_FIGURES}>
           <CollapsibleTrigger
             className="inline-flex items-center gap-1 rounded-sm outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring"
             aria-label={expanded ? t.remediation.groupHide : t.remediation.groupShow(tasks.length)}
@@ -431,11 +442,11 @@ function TaskGroup({
               aria-hidden
             />
           </CollapsibleTrigger>
-          <span className="w-14 tabular-nums">{effort > 0 ? formatEffort(effort) : null}</span>
-          <span className={cn("w-[130px] tabular-nums", overdue && "font-medium text-critical")}>
+          <span className="tabular-nums sm:w-14">{effort > 0 ? formatEffort(effort) : null}</span>
+          <span className={cn("tabular-nums sm:w-[130px]", overdue && "font-medium text-critical")}>
             {due ? `${overdue ? "Overdue · " : "Due "}${formatDay(due)}` : null}
           </span>
-          <span className="flex w-24 justify-end">
+          <span className={ROW_ACTION}>
             {open.length > 0 && !isDemo && (
               <Button variant="outline" size="sm" disabled={marking} onClick={onDoneAll}>
                 {marking ? (

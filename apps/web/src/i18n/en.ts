@@ -1589,8 +1589,7 @@ export const en = {
       INSUFFICIENT_EVIDENCE: "Fix claimed — Cleave could not read enough to verify it",
       ABANDONED: "Fix claimed — Cleave stopped checking",
     },
-    doneNote:
-      "Marked done does not close a finding. Cleave reads the environment again on the next scan and closes it then, or leaves it open.",
+    doneNote: "Marked done is not fixed: a finding closes only when a scan sees the change.",
   },
   access: {
     tab: "Access",
@@ -1652,6 +1651,8 @@ export const en = {
     unknown: "Unknown",
     never: "Never",
     back: "Back",
+    pickDate: "Pick a date",
+    clearDate: "Clear date",
   },
 } as const;
 

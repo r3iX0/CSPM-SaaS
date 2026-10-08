@@ -12078,6 +12078,42 @@ reported as `policy_identities_not_counted`. It is no second Owner for `AZ-IAM-0
 workload, and then a foothold in that workload reaches its roles. Such an identity is judged as a
 workload's, exactly as before, and counted as an Owner.
 
+## 223. The queue's own faults: stopped work, the phone, one note and one date picker
+
+A browser audit of `/remediation` on 4 October 2026 found faults that needed no decision
+(`docs/REMEDIATION_PLAN.md`, "What the audit found"). This entry records how four of them were
+fixed.
+
+**Work somebody stopped is not an asset of the fix (faults 1 and 3).** Cancelling a task hands its
+finding back to OPEN (§212), but the task stays in `GET /remediation`. The rule sheet counted it as
+one of the rule's assets ("6 assets, 5 still to do"), and also left its finding out of "Track N
+more", so nothing in the sheet could track it again. Tracked again from the finding, the asset was
+listed twice, once "In progress" and once "Not tracked": the likeliest cause of fault 1, which
+matches the audit but was not confirmed against production's rows. The sheet now lists, counts and
+scripts only tasks that were not cancelled, and a cancelled task's finding is offered with the rest
+to track. The queue's rows are unchanged.
+
+**A row on a phone (fault 4).** A row's figures and its action wrap onto their own line under the
+title. Their fixed widths, which line them up in columns beside the title, now apply from `sm` up
+only. On their own line those widths centred the button, so the line now runs full width with the
+button at its end. In the line under the title, only the asset's name truncates, and the route
+count wraps rather than being cut off.
+
+**Said once (fault 5).** "Marked done does not close a finding" was said under the queue, under the
+fix sheet's controls and in the rule sheet, and both sheets open over the queue. It is said once
+under the queue, shortened to one line, and the toast that answers "Mark done" says it at the
+moment it matters. The text is out of `i18n/overBudget.ts`.
+
+**One date picker (fault 7).** The browser's own date input drew `dd.mm.yyyy` in its own chrome.
+`DatePicker` (`components/common/DatePicker.tsx`) is a button that opens shadcn's `Calendar` in a
+`Popover`, with a "Clear date" action, and it keeps the API's `YYYY-MM-DD` string, read and written
+in local time so no time zone moves the day. It replaces both date inputs: a task's due date and
+an acceptance's end date. `calendar.tsx` was copied from the `base-nova` registry by hand rather
+than added with the CLI, because the CLI would also overwrite `button.tsx` and drop its
+`forwardRef`, `focusableWhenDisabled` and merged `buttonVariants` (§135, §165). It adds one
+dependency, `react-day-picker`, which shadcn's calendar is built on. It is a primitive's engine,
+not a second UI kit.
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,

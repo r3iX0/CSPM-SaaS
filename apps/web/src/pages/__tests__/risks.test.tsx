@@ -17,6 +17,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { RisksPage } from "../Risks";
 import { api } from "@/lib/api";
+import { endOfDayIso, tomorrowDay } from "@/lib/format";
+import { pickDay } from "@/test/pickDay";
 import type { Risk } from "@/lib/types";
 
 function findingRisk(overrides: Partial<Risk> = {}): Risk {
@@ -258,9 +260,8 @@ describe("RisksPage", () => {
       screen.getByLabelText("Why is this acceptable?"),
       "Accepted for the migration window",
     );
-    fireEvent.change(screen.getByLabelText("Until (optional)"), {
-      target: { value: "2099-03-31" },
-    });
+    // The calendar opens on the earliest day an acceptance may end on.
+    await pickDay("Until (optional)", tomorrowDay());
     expect(screen.getByText(/comes back to Needs triage on its own/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Accept" }));
 
@@ -269,7 +270,7 @@ describe("RisksPage", () => {
         risk_ids: ["r-finding"],
         status: "ACCEPTED",
         reason: "Accepted for the migration window",
-        expires_at: new Date("2099-03-31T23:59:59").toISOString(),
+        expires_at: endOfDayIso(tomorrowDay()),
       }),
     );
   });

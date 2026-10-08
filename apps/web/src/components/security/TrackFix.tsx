@@ -15,9 +15,9 @@ import {
   type TaskChange,
 } from "@/lib/remediation";
 import { useIsDemo } from "@/lib/useDemo";
+import { DatePicker } from "@/components/common/DatePicker";
 import { SelectField } from "@/components/common/SelectField";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
@@ -33,8 +33,9 @@ import { formatDate, formatEffort } from "@/lib/format";
  * and the Terraform it was a scroll nobody made, and a reader looking for the
  * way to queue a fix concluded there was none (§205). Neither closes the
  * finding: tracking moves it to IN_PROGRESS, done starts the verification
- * (§18), and only a scan observing the fix resolves it. The caption says so
- * where the button is.
+ * (§18), and only a scan observing the fix resolves it. The queue says so once
+ * under its rows, and marking done says so in its toast; the sheet over the
+ * queue does not say it a third time (§223).
  *
  * Tracked work is worked here too: started, handed to a member, given a due
  * date, reopened when it was marked done too soon, and dropped from the queue
@@ -140,13 +141,11 @@ export function TrackFix({
               <Label htmlFor={`due-${task.id}`} className="text-caption text-muted-foreground">
                 {t.remediation.due}
               </Label>
-              <Input
+              <DatePicker
                 id={`due-${task.id}`}
-                type="date"
-                className="h-8 w-fit"
                 disabled={isDemo || busy}
                 value={task.due_date ?? ""}
-                onChange={(event) => change({ due_date: event.target.value || null })}
+                onChange={(day) => change({ due_date: day })}
               />
             </div>
             {!isDemo && (
@@ -163,7 +162,6 @@ export function TrackFix({
             )}
           </div>
         )}
-        {open && <p className="text-xs text-muted-foreground">{t.remediation.doneNote}</p>}
       </div>
     );
   }

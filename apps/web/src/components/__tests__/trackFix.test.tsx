@@ -6,7 +6,7 @@
  * no way to assign anything. The queue could therefore only ever be empty.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -112,14 +112,13 @@ describe("tracking a fix", () => {
     expect(screen.queryByRole("button", { name: /Track this fix/ })).not.toBeInTheDocument();
   });
 
-  it("marks tracked work done where the fix is, and says done is not closed", async () => {
+  it("marks tracked work done where the fix is", async () => {
     // The fix is read in full in the remediation page's sheet, so finishing
     // the work belongs at its foot too (DECISIONS.md §202).
     const fetchMock = mount([TASK]);
     const user = userEvent.setup();
 
-    expect(await screen.findByText(/Marked done does not close a finding/)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Mark done" }));
+    await user.click(await screen.findByRole("button", { name: "Mark done" }));
 
     await waitFor(() => {
       const patch = fetchMock.mock.calls.find(
@@ -157,9 +156,17 @@ describe("tracking a fix", () => {
   it("gives the work a due date and takes it off again (§212)", async () => {
     const fetchMock = mount([{ ...TASK, due_date: "2026-10-09" }]);
 
+    // A picker, not the browser's date input, and it says the day it holds (§223).
     const due = await screen.findByLabelText("Due");
-    expect(due).toHaveValue("2026-10-09");
-    fireEvent.change(due, { target: { value: "" } });
+    expect(due).toHaveTextContent(
+      new Date(2026, 9, 9).toLocaleDateString(undefined, {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }),
+    );
+    await userEvent.click(due);
+    await userEvent.click(await screen.findByRole("button", { name: "Clear date" }));
 
     await waitFor(() => expect(patches(fetchMock)).toEqual([{ due_date: null }]));
   });

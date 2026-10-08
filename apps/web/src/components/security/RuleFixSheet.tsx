@@ -44,6 +44,11 @@ export interface RuleFixMember {
  * other open findings that nobody has tracked yet. Each asset still opens its
  * own fix, where its Terraform can be checked against an uploaded file and
  * its rescan followed.
+ *
+ * A task somebody stopped tracking is not one of the assets: its finding is
+ * open again and nobody's work, so it is offered with the rest to track. Listed
+ * as an asset it was counted ("6 assets, 5 still to do") and could not be
+ * tracked again from here, and once it was, the asset was listed twice (§223).
  */
 export function RuleFixSheet({
   ruleId,
@@ -91,12 +96,13 @@ function RuleFixBody({
   const trackAll = useTrackAll();
 
   const lead = members[0]?.finding;
-  const open = members.filter((member) => isOpenTask(member.task));
+  const live = members.filter((member) => member.task.status !== "CANCELLED");
+  const open = live.filter((member) => isOpenTask(member.task));
   const hasCli = (lead?.remediation_spec?.cli?.length ?? 0) > 0;
 
   // Each asset's provider id fills its commands, under the asset page's key.
   const assets = useQueries({
-    queries: members.map(({ finding }) => ({
+    queries: live.map(({ finding }) => ({
       queryKey: ["asset", finding.resource?.id],
       queryFn: () =>
         api
@@ -120,7 +126,7 @@ function RuleFixBody({
     enabled: !isDemo,
     retry: false,
   });
-  const tracked = new Set(members.map((member) => member.finding.id));
+  const tracked = new Set(live.map((member) => member.finding.id));
   const toTrack = (Array.isArray(untracked.data) ? untracked.data : []).filter(
     (finding) => !tracked.has(finding.id),
   );
@@ -133,7 +139,7 @@ function RuleFixBody({
     );
   }
 
-  const batch = members.flatMap(({ finding }, index) =>
+  const batch = live.flatMap(({ finding }, index) =>
     finding.resource
       ? [
           {
@@ -146,7 +152,7 @@ function RuleFixBody({
   const effort = open.reduce((sum, member) => sum + member.task.estimated_effort_minutes, 0);
   // The findings' own severity, as every other badge on a finding says it;
   // the task's priority orders the queue and is not a second severity (§212).
-  const severity = worstSeverity(members.map((member) => member.finding.severity));
+  const severity = worstSeverity(live.map((member) => member.finding.severity));
 
   return (
     <>
@@ -158,37 +164,39 @@ function RuleFixBody({
         <SheetTitle className="text-heading font-semibold">
           {lead.rule_name ?? lead.title}
         </SheetTitle>
-        <SheetDescription>{t.remediation.groupCount(members.length, open.length)}</SheetDescription>
+        <SheetDescription>{t.remediation.groupCount(live.length, open.length)}</SheetDescription>
       </SheetHeader>
 
       {/* Cards keep their height and the body scrolls (as `FixSheet`, §212). */}
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6 *:shrink-0">
-        <section aria-labelledby="rule-fix-assets">
-          <h3 id="rule-fix-assets" className="text-caption font-medium text-muted-foreground">
-            {t.remediation.groupAssetsHeading}
-          </h3>
-          <ul className="mt-2 divide-y rounded-lg border">
-            {members.map(({ task, finding }) => (
-              <li key={task.id} className="flex items-center justify-between gap-3 px-3 py-2">
-                <button
-                  type="button"
-                  onClick={() => onOpenFinding(finding.id)}
-                  className={cn(
-                    "min-w-0 truncate rounded-sm text-left text-body outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring",
-                    !isOpenTask(task) && "text-muted-foreground",
-                  )}
-                >
-                  {finding.resource
-                    ? `${finding.resource.name} · ${resourceTypeLabel(finding.resource.resource_type)}`
-                    : t.remediation.tenantWide}
-                </button>
-                <span className="shrink-0 text-caption text-muted-foreground">
-                  {t.remediation.work[workState(task, finding)]}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        {live.length > 0 && (
+          <section aria-labelledby="rule-fix-assets">
+            <h3 id="rule-fix-assets" className="text-caption font-medium text-muted-foreground">
+              {t.remediation.groupAssetsHeading}
+            </h3>
+            <ul className="mt-2 divide-y rounded-lg border">
+              {live.map(({ task, finding }) => (
+                <li key={task.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                  <button
+                    type="button"
+                    onClick={() => onOpenFinding(finding.id)}
+                    className={cn(
+                      "min-w-0 truncate rounded-sm text-left text-body outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring",
+                      !isOpenTask(task) && "text-muted-foreground",
+                    )}
+                  >
+                    {finding.resource
+                      ? `${finding.resource.name} · ${resourceTypeLabel(finding.resource.resource_type)}`
+                      : t.remediation.tenantWide}
+                  </button>
+                  <span className="shrink-0 text-caption text-muted-foreground">
+                    {t.remediation.work[workState(task, finding)]}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <RemediationPanel
           remediation={lead.remediation}
@@ -197,25 +205,20 @@ function RuleFixBody({
           batch={batch}
           footer={
             <div className="flex flex-col gap-4">
-              {open.length > 0 && (
-                <div className="flex flex-col gap-2">
-                  {!isDemo && (
-                    <Button
-                      variant="secondary"
-                      className="w-fit"
-                      disabled={markAll.isPending}
-                      onClick={() => markAll.mutate(open.map((member) => member.task.id))}
-                    >
-                      {markAll.isPending ? (
-                        <Spinner data-icon="inline-start" />
-                      ) : (
-                        <CheckIcon data-icon="inline-start" aria-hidden />
-                      )}
-                      {t.remediation.markAllDone(open.length)}
-                    </Button>
+              {open.length > 0 && !isDemo && (
+                <Button
+                  variant="secondary"
+                  className="w-fit"
+                  disabled={markAll.isPending}
+                  onClick={() => markAll.mutate(open.map((member) => member.task.id))}
+                >
+                  {markAll.isPending ? (
+                    <Spinner data-icon="inline-start" />
+                  ) : (
+                    <CheckIcon data-icon="inline-start" aria-hidden />
                   )}
-                  <p className="text-xs text-muted-foreground">{t.remediation.doneNote}</p>
-                </div>
+                  {t.remediation.markAllDone(open.length)}
+                </Button>
               )}
               {!isDemo && toTrack.length > 0 && (
                 <div className="flex flex-wrap items-center gap-3">

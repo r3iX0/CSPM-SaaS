@@ -204,7 +204,7 @@ describe("the remediation queue", () => {
     expect(await screen.findByText("Checking the fix")).toBeInTheDocument();
     expect(screen.queryByText("Verified fixed")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Mark done/ })).not.toBeInTheDocument();
-    expect(screen.getByText(/Marked done does not close a finding/)).toBeInTheDocument();
+    expect(screen.getByText(/Marked done is not fixed/)).toBeInTheDocument();
   });
 
   it("says a claimed fix the checks have not seen yet is not fixed, in the row and the sheet", async () => {
@@ -304,10 +304,19 @@ describe("the queue, grouped by rule (DECISIONS.md §203)", () => {
       id: "finding-2",
       resource: { ...FINDING.resource, id: "asset-2", name: "devstorage" },
     },
+    "finding-3": {
+      ...RULE_FINDING,
+      id: "finding-3",
+      status: "OPEN",
+      resource: { ...FINDING.resource, id: "asset-3", name: "teststorage" },
+    },
   };
+  const TWO_TASKS = [TASK, { ...TASK, id: "task-2", finding_id: "finding-2" }];
+  let queue: Record<string, unknown>[] = TWO_TASKS;
   let fetchMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    queue = TWO_TASKS;
     fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = input instanceof Request ? input.url : input.toString();
       const id = /\/findings\/([^/?]+)$/.exec(url)?.[1];
@@ -327,7 +336,7 @@ describe("the queue, grouped by rule (DECISIONS.md §203)", () => {
                   ]
                 : url.includes("/assets/")
                   ? { provider_resource_id: "/subscriptions/s1/resourceGroups/rg/x" }
-                  : [TASK, { ...TASK, id: "task-2", finding_id: "finding-2" }];
+                  : queue;
       const response: Pick<Response, "ok" | "status" | "json"> = {
         ok: true,
         status: 200,
@@ -368,6 +377,19 @@ describe("the queue, grouped by rule (DECISIONS.md §203)", () => {
     await user.click(within(sheet).getByRole("tab", { name: "CLI" }));
     const script = within(sheet).getByText(/# prodstorage/);
     expect(script).toHaveTextContent("# devstorage");
+  });
+
+  it("offers an asset somebody stopped tracking to track again, rather than listing it (§223)", async () => {
+    // Listed, it was counted ("3 assets, 2 still to do") and nothing in the
+    // sheet could track it again.
+    queue = [...TWO_TASKS, { ...TASK, id: "task-3", finding_id: "finding-3", status: "CANCELLED" }];
+    renderPage("/remediation?rule=AZ-STORAGE-001");
+
+    const sheet = await screen.findByRole("dialog");
+    expect(await within(sheet).findByText("2 assets, all still to do")).toBeInTheDocument();
+    const assets = within(sheet).getByRole("region", { name: "Assets this fix is applied to" });
+    expect(within(assets).queryByText(/teststorage/)).not.toBeInTheDocument();
+    expect(await within(sheet).findByRole("button", { name: /Track 1 more/ })).toBeInTheDocument();
   });
 
   it("marks every open task of the rule done from its row", async () => {
