@@ -1,11 +1,11 @@
 # Fix-as-Code: IaC diffs and pull requests
 
 Status: **Phases 0 and 1 done (2026-09-29); Phase 2 built behind `FIX_PRS_ENABLED`
-(§227, §229, §231, §232): the GitHub App linked, the state index uploaded, and one pull request
-per rule per repository, claimed on merge.** Module input edits and the pull-request guardrail
-are next. The decisions are DECISIONS §190 and §227 to §232. As of 2026-10-08, 35 Azure rules
-carry a Terraform hint, and no edit is made to an argument that replaces the
-resource (§228). Phase 0 settled:
+(§227, §229, §231 to §233): the GitHub App linked, the state index uploaded, one pull request
+per rule per repository, claimed on merge, and a value passed into a module written on the module
+call.** The pull-request guardrail is next. The decisions are DECISIONS §190 and §227 to §233.
+As of 2026-10-08, 35 Azure rules carry a Terraform hint, and no edit is made to an argument that
+replaces the resource (§228). Phase 0 settled:
 
 - `RemediationSpec.terraform_resource_types` is declared on the 13 Azure rules
   with a Terraform attribute; `tests/unit/test_terraform_hints_schema.py` holds
@@ -171,7 +171,9 @@ with no index.
   `terraform apply` reverts a change made outside the code.
 
 The edit rule of §190 does not change: one literal value, or one optional argument added, in a
-block that exists. The index finds the block; it does not make a variable's value editable.
+block that exists. The index finds the block; it does not make a variable's value editable. A
+module's input is the exception (§233): where the argument is exactly `var.<name>` and the module
+uses that variable for nothing else, the module call that sets it is edited instead.
 
 **Declines added by the index:**
 
@@ -181,6 +183,8 @@ block that exists. The index finds the block; it does not make a variable's valu
   defines every instance at once. It is edited only where every instance in the index fails the
   rule, and declined otherwise.
 - `index_stale`: the indexed address no longer parses to a block in the default branch's tree.
+- `variable_shared` and `unindexed_caller` (§233): the module uses the input variable elsewhere
+  too, or code no index covers calls the module an edit would change.
 
 **One pull request per rule per repository.** It edits every failing asset of the rule that the
 repository defines and the engine can edit, and says in its body which assets it declined and why.

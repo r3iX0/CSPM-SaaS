@@ -20,6 +20,7 @@ from app.remediation.iac.terraform import (
     Decline,
     Declined,
     FoundBlock,
+    ModuleCall,
     Patched,
     edit_terraform,
     find_resource_block,
@@ -149,7 +150,11 @@ def _find(files: dict[str, str] = FILES, modules: tuple[str, ...] = ("storage",)
 
 
 def test_an_address_is_followed_through_a_local_module() -> None:
-    assert _find() == FoundBlock(path="infra/modules/storage/main.tf", label="main")
+    assert _find() == FoundBlock(
+        path="infra/modules/storage/main.tf",
+        label="main",
+        calls=(ModuleCall("infra/main.tf", "storage", "infra/modules/storage"),),
+    )
 
 
 def test_a_registry_module_is_not_in_the_repository() -> None:

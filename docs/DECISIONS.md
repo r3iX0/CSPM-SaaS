@@ -12514,6 +12514,44 @@ finding closes only when a scan sees the change.
 request's repository, state, link and how many of its assets were edited. The list is read again
 every five seconds while one is in flight.
 
+## 233. A fix passed into a module is written on the call, and a module's edit counts every call
+
+Most real Terraform sets an argument in a module from the module's inputs: `min_tls_version =
+var.tls`, with `tls = "TLS1_0"` on the `module` call. §190 declines `variable_value` there, and the
+state index (§229) did not change that. It found the block, but the value was not in it.
+
+**Written where the value is.** Where the argument in a module's resource block is exactly
+`var.<name>`, the module call that sets `<name>` is edited instead: its literal value is changed, or
+the input is added where the call leaves it to the variable's default. Where that call itself
+passes `var.<other>` along, the edit moves up one more call, as far as the root. A value from the
+root module's own variables declines `variable_value`: it is set in a `.tfvars` file or the
+pipeline, outside the code. Only a bare `var.<name>` is followed. `"${var.name}"`, `var.name.x` and
+`!var.name` transform the value on the way, so the value to pass is not the one the argument
+needs.
+
+**Only where the variable does nothing else.** The module must use `var.<name>` exactly once, in
+that argument. Used anywhere else, setting it changes more than the fix, and it declines
+`variable_shared`. A variable with a `validation` block declines `variable_value`, because the rule
+may refuse the value the fix needs and only `terraform plan` could say. A default that already
+meets the rule is not written onto a call that omits the input: that answers `already_set`. A
+call that omits an input with no default declines `index_stale`, since Terraform could not have
+applied it. A fix with some arguments passed in and others written in the block declines, rather
+than editing two places for one fix.
+
+**An edit in a module reaches every call of it.** §232 counted the assets of one address with its
+instance keys taken out, so a literal edited in `modules/storage` for `module.logs` also changed
+`module.data`, which it never counted. The planner now resolves every indexed address to the
+blocks it is written through, and an edit counts every asset whose address passes through the
+edited block and ends at the same resource. All of them must fail the rule, or it declines
+`partial_instances`. A module call no indexed address passes through, at any depth (an `examples/`
+directory, a root without the Action), declines `unindexed_caller`: what it deployed is unknown.
+An edit on a call changes only the assets under that call, so other callers of the module do not
+hold it back. Two failing calls that share one edit get one change and the same outcome.
+
+Modules from a registry or git still decline `module_external` (§229). A module other
+repositories use by git source changes for them only when they move to the new ref, which is
+their decision.
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,

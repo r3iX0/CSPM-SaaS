@@ -12,7 +12,9 @@ a guess -- which resource an interpolated name renders to, what a variable
 holds, which copy of a ``count`` is deployed, what else a nested block that is
 not there should contain. Each of those is a ``Declined`` with a reason, and a
 decline is an answer rather than an error: the customer is told what to change
-by hand, which ``terraform_hints`` already says.
+by hand, which ``terraform_hints`` already says. The one value followed out of
+the block is a module's input passed straight through, which is written on the
+module call instead (``edit_module_input``, §233).
 
 The input is untrusted -- an upload now, a repository later. It is parsed and
 never evaluated, and it is refused before parsing above a size cap.
@@ -90,6 +92,12 @@ class Decline(StrEnum):
     # A block under ``count``, ``for_each`` or several workspaces defines more
     # assets than fail the rule, so editing it would change the rest too (§232).
     PARTIAL_INSTANCES = "partial_instances"
+    # Through a module's inputs (§233): the module uses the input variable
+    # somewhere else too, or other code calls the module and no uploaded state
+    # index says what that code deployed, so an edit would change what nobody
+    # asked about.
+    VARIABLE_SHARED = "variable_shared"
+    UNINDEXED_CALLER = "unindexed_caller"
 
 
 @dataclass(frozen=True)
@@ -164,16 +172,33 @@ class Patched:
 
 
 @dataclass(frozen=True)
+class Passed:
+    """A change whose argument is written ``= var.<variable>``: its value is the caller's (§233).
+
+    ``change`` keeps the name and value the resource block needs, so whichever
+    module call sets the variable is given that value.
+    """
+
+    variable: str
+    change: Change
+
+
+@dataclass(frozen=True)
 class Declined:
     reason: Decline
     detail: str
+    # Set where every change left is a module input passed straight through, so
+    # the edit belongs one call up (``edit_module_input``); asked for only by a
+    # caller that can follow the module call (§233).
+    passed: tuple[Passed, ...] = ()
 
 
 class _Refused(Exception):
-    def __init__(self, reason: Decline, detail: str) -> None:
+    def __init__(self, reason: Decline, detail: str, passed: tuple[Passed, ...] = ()) -> None:
         super().__init__(detail)
         self.reason = reason
         self.detail = detail
+        self.passed = passed
 
 
 def edit_terraform(
@@ -186,6 +211,7 @@ def edit_terraform(
     sole_block: bool = False,
     label: str | None = None,
     allow_repeated: bool = False,
+    through_inputs: bool = False,
 ) -> Patched | Declined:
     """Apply ``changes`` to the block of one of ``resource_types`` named ``name``.
 
@@ -205,13 +231,26 @@ def edit_terraform(
     ``allow_repeated`` edits a block under ``count`` or ``for_each``, which
     changes every instance it defines. Only for a caller that has checked every
     instance fails the rule, from the customer's state index (§232).
+
+    ``through_inputs`` is for a block inside a module the caller can follow:
+    where every change left is written ``= var.<name>``, the decline carries
+    them as ``passed``, for ``edit_module_input`` to set on the module call
+    (§233). Without it, such a value declines as any other expression does.
     """
     try:
         return _edit(
-            source, resource_types, name, changes, lockfile, sole_block, label, allow_repeated
+            source,
+            resource_types,
+            name,
+            changes,
+            lockfile,
+            sole_block,
+            label,
+            allow_repeated,
+            through_inputs,
         )
     except _Refused as refused:
-        return Declined(refused.reason, refused.detail)
+        return Declined(refused.reason, refused.detail, refused.passed)
 
 
 def _edit(
@@ -223,6 +262,7 @@ def _edit(
     sole_block: bool,
     label: str | None,
     allow_repeated: bool = False,
+    through_inputs: bool = False,
 ) -> Patched:
     data = source.encode()
     if len(data) > MAX_BYTES:
@@ -233,7 +273,15 @@ def _edit(
     major = _release(version)[0] if version is not None else None
     changes = [_named(block, data, change, major) for change in changes]
 
-    splices = [splice for change in changes if (splice := _plan(block, data, change))]
+    passed = [
+        Passed(variable, change)
+        for change in changes
+        if through_inputs and (variable := _passed_variable(block, data, change))
+    ]
+    written = [change for change in changes if all(p.change is not change for p in passed)]
+    splices = [splice for change in written if (splice := _plan(block, data, change))]
+    if passed:
+        _refuse_passed(passed, mixed=bool(splices), where="this block")
     if not splices:
         raise _Refused(Decline.ALREADY_SET, "The file already sets every value this fix asks for.")
 
@@ -362,17 +410,7 @@ def _find(
 def _resource_blocks(
     root: Node, data: bytes, resource_types: Sequence[str], label: str
 ) -> list[Node]:
-    found = []
-    for block in _blocks(_child(root, "body")):
-        labels = _labels(block, data)
-        if (
-            _keyword(block, data) == "resource"
-            and len(labels) == 2
-            and labels[0] in resource_types
-            and labels[1] == label
-        ):
-            found.append(block)
-    return found
+    return _resource_blocks_in(_blocks(_child(root, "body")), data, resource_types, label)
 
 
 def _by_label(
@@ -392,12 +430,12 @@ def _by_label(
     return block
 
 
-def _refuse_repeated(block: Node, data: bytes) -> None:
+def _refuse_repeated(block: Node, data: bytes, noun: str = "resource") -> None:
     meta = _attributes(_body(block), data).keys() & {"count", "for_each"}
     if meta:
         raise _Refused(
             Decline.COUNT_OR_FOR_EACH,
-            f"The resource uses {sorted(meta)[0]}, so one block defines several.",
+            f"The {noun} uses {sorted(meta)[0]}, so one block defines several.",
         )
 
 
@@ -562,6 +600,172 @@ def _verify(
         ) from refused
 
 
+# ------------------------------------------------------- through module inputs
+def _bare_variable(expression: Node, data: bytes) -> str | None:
+    """``x`` where the expression is exactly ``var.x``; ``None`` for anything else.
+
+    ``var.x.y``, ``"${var.x}"``, ``!var.x`` and ``coalesce(var.x, ...)`` all
+    transform the value on the way, so the value to pass in is not the one the
+    argument needs.
+    """
+    parts = expression.children
+    if (
+        len(parts) != 2
+        or parts[0].type != "variable_expr"
+        or _text(parts[0], data) != "var"
+        or parts[1].type != "get_attr"
+    ):
+        return None
+    identifier = _child(parts[1], "identifier")
+    return None if identifier is None else _text(identifier, data)
+
+
+def _passed_variable(block: Node, data: bytes, change: Change) -> str | None:
+    *path, leaf = change.attribute.split(".")
+    try:
+        body = _nested_body(block, data, path)
+    except _Refused:
+        return None  # ``_plan`` says why, as it would without modules.
+    attribute = _attributes(body, data).get(leaf)
+    return None if attribute is None else _bare_variable(_value(attribute), data)
+
+
+def _refuse_passed(passed: Sequence[Passed], *, mixed: bool, where: str) -> None:
+    first = passed[0]
+    if mixed:
+        # Half in the block and half on the call is two edits in two places
+        # for one fix; rare enough to leave to a person.
+        raise _Refused(
+            Decline.VARIABLE_VALUE,
+            f"{first.change.attribute} is set from var.{first.variable} but other arguments "
+            f"of this fix are written in {where}; change them together by hand.",
+        )
+    raise _Refused(
+        Decline.VARIABLE_VALUE,
+        f"{first.change.attribute} is set from var.{first.variable}, an input of this module; "
+        "change it where its value comes from.",
+        tuple(passed),
+    )
+
+
+def edit_module_input(
+    source: str,
+    *,
+    module: str,
+    inputs: Sequence[Passed],
+    defaults: Mapping[str, str | None],
+    lockfile: str | None = None,
+    allow_repeated: bool = False,
+) -> Patched | Declined:
+    """Set each passed-through input on the ``module "<module>"`` call in ``source`` (§233).
+
+    The call's literal value is changed, or the input is added where the call
+    leaves it to the variable's default. ``defaults`` holds each variable's
+    default as written, ``None`` for one with none; the caller has checked that
+    the module uses each variable for this argument and nothing else
+    (``Repository.variable``). Where the call itself passes ``var.<y>`` along,
+    the decline carries it as ``passed``, for the call one level further up.
+    """
+    try:
+        return _edit_input(source, module, inputs, defaults, lockfile, allow_repeated)
+    except _Refused as refused:
+        return Declined(refused.reason, refused.detail, refused.passed)
+
+
+def _edit_input(
+    source: str,
+    module: str,
+    inputs: Sequence[Passed],
+    defaults: Mapping[str, str | None],
+    lockfile: str | None,
+    allow_repeated: bool,
+) -> Patched:
+    data = source.encode()
+    if len(data) > MAX_BYTES:
+        raise _Refused(Decline.TOO_LARGE, f"The file is over {MAX_BYTES // 1024} KiB.")
+    root = _parse(data)
+    version = _provider_version(root, data, lockfile)
+    call = _module_call(root, data, module, allow_repeated)
+    arguments = _attributes(_body(call), data)
+
+    passed: list[Passed] = []
+    changes: list[Change] = []
+    for item in inputs:
+        change = Change(item.variable, item.change.value, item.change.accepts)
+        attribute = arguments.get(item.variable)
+        if attribute is not None and (variable := _bare_variable(_value(attribute), data)):
+            passed.append(Passed(variable, item.change))
+            continue
+        if attribute is None:
+            default = defaults.get(item.variable)
+            if default is None:
+                raise _Refused(
+                    Decline.INDEX_STALE,
+                    f"Module {module!r} does not set {item.variable}, which has no default.",
+                )
+            if change.met_by(default):
+                continue  # The default already meets the rule; nothing to add.
+        changes.append(change)
+
+    splices = [splice for change in changes if (splice := _plan(call, data, change))]
+    if passed:
+        _refuse_passed(passed, mixed=bool(splices), where=f"module {module!r}")
+    if not splices:
+        raise _Refused(Decline.ALREADY_SET, "The module call already passes what this fix asks.")
+    edited, edits = _apply(data, splices)
+    try:
+        written = _attributes(_body(_module_call(_parse(edited), edited, module, True)), edited)
+        if not all(
+            c.attribute in written and c.met_by(_text(_value(written[c.attribute]), edited))
+            for c in changes
+        ):
+            raise _Refused(Decline.UNVERIFIED, module)
+    except _Refused as refused:
+        raise _Refused(
+            Decline.UNVERIFIED, "The edited file did not read back as the intended change."
+        ) from refused
+    return Patched(
+        original=source,
+        source=edited.decode(),
+        edits=tuple(edits),
+        provider_version=version,
+        matched_by="address",
+    )
+
+
+def _module_call(root: Node, data: bytes, module: str, allow_repeated: bool) -> Node:
+    calls = [
+        block
+        for block in _blocks(_child(root, "body"))
+        if _keyword(block, data) == "module" and _labels(block, data) == [module]
+    ]
+    if not calls:
+        raise _Refused(Decline.INDEX_STALE, f"No module {module!r} is called in this file.")
+    if len(calls) > 1:
+        raise _Refused(Decline.MULTIPLE_MATCHES, f"{len(calls)} module calls are named {module!r}.")
+    (call,) = calls
+    if not allow_repeated:
+        _refuse_repeated(call, data, "module call")
+    return call
+
+
+def _references(node: Node, data: bytes, variable: str) -> int:
+    """How many times ``var.<variable>`` appears under ``node``, templates included."""
+    count = 0
+    stack = [node]
+    while stack:
+        current = stack.pop()
+        siblings = current.children
+        for index, child in enumerate(siblings[:-1]):
+            if child.type == "variable_expr" and _text(child, data) == "var":
+                following = siblings[index + 1]
+                identifier = _child(following, "identifier")
+                if following.type == "get_attr" and identifier is not None:
+                    count += _text(identifier, data) == variable
+        stack.extend(siblings)
+    return count
+
+
 # ------------------------------------------------------------ the provider
 def _provider_version(root: Node, data: bytes, lockfile: str | None) -> str | None:
     constraint = _required_azurerm(root, data)
@@ -634,11 +838,30 @@ def _constraint_in_range(constraint: str) -> bool:
 
 # ---------------------------------------------------------- by state address
 @dataclass(frozen=True)
+class ModuleCall:
+    """A ``module "<label>"`` block with a local source: the file holding it, and its directory."""
+
+    path: str
+    label: str
+    directory: str
+
+
+@dataclass(frozen=True)
 class FoundBlock:
     """Where a state address's resource is written: a file of the repository, and its label."""
 
     path: str
     label: str
+    #: The module calls the address passes through, outermost first.
+    calls: tuple[ModuleCall, ...] = ()
+
+
+@dataclass(frozen=True)
+class Variable:
+    """A module's input variable that one argument uses and nothing else does (§233)."""
+
+    #: As written, or ``None`` where the variable has no default.
+    default: str | None
 
 
 def find_resource_block(
@@ -659,52 +882,94 @@ def find_resource_block(
     ``files`` maps repository-relative paths to their text. Only ``.tf`` files
     in the directory a step reaches are read, and each is parsed, never evaluated.
     """
-    try:
-        directory = _inside(working_directory, "")
-        for module in modules:
-            directory = _module_directory(files, directory, module)
-        found = [
+    return Repository(files).find_resource_block(working_directory, modules, resource_type, label)
+
+
+class Repository:
+    """A repository's Terraform, each file parsed once, read for what an edit depends on.
+
+    A pull request's plan asks the same files many questions -- where every
+    indexed address is written, which code calls a module, what uses a
+    variable -- so the parse of each file is kept.
+    """
+
+    def __init__(self, files: Mapping[str, str]) -> None:
+        self._files = files
+        self._parsed: dict[str, tuple[Node, bytes]] = {}
+        self._calls: dict[str, list[ModuleCall]] | None = None
+
+    def _parse(self, path: str) -> tuple[Node, bytes]:
+        if path not in self._parsed:
+            data = self._files[path].encode()
+            if len(data) > MAX_BYTES:
+                raise _Refused(Decline.TOO_LARGE, f"{path} is over {MAX_BYTES // 1024} KiB.")
+            try:
+                self._parsed[path] = (_parse(data), data)
+            except _Refused as refused:
+                raise _Refused(refused.reason, f"{path} is not valid HCL.") from refused
+        return self._parsed[path]
+
+    def _in(self, directory: str) -> list[str]:
+        return [
             path
-            for path, data in _terraform_files(files, directory)
-            if _resource_blocks(_parse(data), data, (resource_type,), label)
+            for path in sorted(self._files)
+            if path.endswith(".tf") and posixpath.dirname(path) == directory
         ]
-    except _Refused as refused:
-        return Declined(refused.reason, refused.detail)
-    if not found:
-        return Declined(
-            Decline.INDEX_STALE,
-            f"No {resource_type} labelled {label!r} is in {directory or 'the root'} any more.",
-        )
-    if len(found) > 1:
-        return Declined(
-            Decline.MULTIPLE_MATCHES, f"{len(found)} files define {resource_type}.{label}."
-        )
-    return FoundBlock(path=found[0], label=label)
 
+    def _blocks_in(self, directory: str) -> list[tuple[str, Node, bytes]]:
+        found = []
+        for path in self._in(directory):
+            root, data = self._parse(path)
+            found += [(path, block, data) for block in _blocks(_child(root, "body"))]
+        return found
 
-def _inside(path: str, base: str) -> str:
-    """``path`` under ``base``, normalised; refused if it leaves the repository."""
-    joined = posixpath.normpath(posixpath.join(base, path.strip("/")))
-    if joined == ".." or joined.startswith("../"):
-        raise _Refused(Decline.MODULE_EXTERNAL, f"{path!r} is outside this repository.")
-    return "" if joined == "." else joined
+    def find_resource_block(
+        self, working_directory: str, modules: Sequence[str], resource_type: str, label: str
+    ) -> FoundBlock | Declined:
+        """``find_resource_block``, over this repository's parsed files."""
+        try:
+            calls = self._follow(working_directory, modules)
+            directory = calls[-1].directory if calls else _inside(working_directory, "")
+            found = sorted(
+                {
+                    path
+                    for path, block, data in self._blocks_in(directory)
+                    if _resource_blocks_in([block], data, (resource_type,), label)
+                }
+            )
+        except _Refused as refused:
+            return Declined(refused.reason, refused.detail)
+        if not found:
+            return Declined(
+                Decline.INDEX_STALE,
+                f"No {resource_type} labelled {label!r} is in {directory or 'the root'} any more.",
+            )
+        if len(found) > 1:
+            return Declined(
+                Decline.MULTIPLE_MATCHES, f"{len(found)} files define {resource_type}.{label}."
+            )
+        return FoundBlock(path=found[0], label=label, calls=calls)
 
+    def module_calls(
+        self, working_directory: str, modules: Sequence[str]
+    ) -> tuple[ModuleCall, ...] | Declined:
+        """The local module calls an address passes through, or why they cannot be followed."""
+        try:
+            return self._follow(working_directory, modules)
+        except _Refused as refused:
+            return Declined(refused.reason, refused.detail)
 
-def _terraform_files(files: Mapping[str, str], directory: str) -> list[tuple[str, bytes]]:
-    found = []
-    for path in sorted(files):
-        if not path.endswith(".tf") or posixpath.dirname(path) != directory:
-            continue
-        data = files[path].encode()
-        if len(data) > MAX_BYTES:
-            raise _Refused(Decline.TOO_LARGE, f"{path} is over {MAX_BYTES // 1024} KiB.")
-        found.append((path, data))
-    return found
+    def _follow(self, working_directory: str, modules: Sequence[str]) -> tuple[ModuleCall, ...]:
+        directory = _inside(working_directory, "")
+        calls: list[ModuleCall] = []
+        for module in modules:
+            call = self._call(directory, module)
+            calls.append(call)
+            directory = call.directory
+        return tuple(calls)
 
-
-def _module_directory(files: Mapping[str, str], directory: str, module: str) -> str:
-    for _path, data in _terraform_files(files, directory):
-        for block in _blocks(_child(_parse(data), "body")):
+    def _call(self, directory: str, module: str) -> ModuleCall:
+        for path, block, data in self._blocks_in(directory):
             if _keyword(block, data) != "module" or _labels(block, data) != [module]:
                 continue
             source = _attributes(_body(block), data).get("source")
@@ -715,7 +980,102 @@ def _module_directory(files: Mapping[str, str], directory: str, module: str) -> 
                     f"Module {module!r} comes from {literal or 'an expression'}, "
                     "which is not in this repository.",
                 )
-            return _inside(literal, directory)
-    raise _Refused(
-        Decline.INDEX_STALE, f"No module {module!r} is called in {directory or 'the root'}."
-    )
+            return ModuleCall(path, module, _inside(literal, directory))
+        raise _Refused(
+            Decline.INDEX_STALE, f"No module {module!r} is called in {directory or 'the root'}."
+        )
+
+    def callers(self, directory: str) -> list[ModuleCall] | Declined:
+        """Every module call in the repository whose local source is ``directory``.
+
+        Every file is read, since a call can be anywhere; one that does not
+        parse is a decline, because what it calls cannot be told.
+        """
+        if self._calls is None:
+            calls: dict[str, list[ModuleCall]] = {}
+            try:
+                for path in sorted(self._files):
+                    if not path.endswith(".tf"):
+                        continue
+                    root, data = self._parse(path)
+                    for block in _blocks(_child(root, "body")):
+                        call = _local_call(path, block, data)
+                        if call is not None:
+                            calls.setdefault(call.directory, []).append(call)
+            except _Refused as refused:
+                return Declined(refused.reason, refused.detail)
+            self._calls = calls
+        return self._calls.get(directory, [])
+
+    def variable(self, directory: str, name: str) -> Variable | Declined:
+        """The module's ``variable "<name>"``, if one argument is all that uses it (§233).
+
+        Used anywhere else, setting it would change that too, so it declines
+        ``variable_shared``. A ``validation`` block declines as well: it may
+        refuse the value the fix needs, and only ``terraform plan`` can say.
+        """
+        where = directory or "the root"
+        try:
+            blocks = self._blocks_in(directory)
+        except _Refused as refused:
+            return Declined(refused.reason, refused.detail)
+        declared = [
+            (block, data)
+            for _path, block, data in blocks
+            if _keyword(block, data) == "variable" and _labels(block, data) == [name]
+        ]
+        if len(declared) != 1:
+            return Declined(Decline.INDEX_STALE, f"var.{name} is not declared once in {where}.")
+        ((block, data),) = declared
+        if any(_keyword(nested, data) == "validation" for nested in _blocks(_body(block))):
+            return Declined(
+                Decline.VARIABLE_VALUE,
+                f"var.{name} has a validation rule, which may refuse the value this fix needs.",
+            )
+        uses = sum(_references(top, data, name) for _path, top, data in blocks)
+        if uses != 1:
+            return Declined(
+                Decline.VARIABLE_SHARED,
+                f"var.{name} is used {uses} times in {where}, so setting it changes more "
+                "than this argument.",
+            )
+        default = _attributes(_body(block), data).get("default")
+        return Variable(None if default is None else _text(_value(default), data))
+
+
+def _resource_blocks_in(
+    blocks: Sequence[Node], data: bytes, resource_types: Sequence[str], label: str
+) -> list[Node]:
+    found = []
+    for block in blocks:
+        labels = _labels(block, data)
+        if (
+            _keyword(block, data) == "resource"
+            and len(labels) == 2
+            and labels[0] in resource_types
+            and labels[1] == label
+        ):
+            found.append(block)
+    return found
+
+
+def _local_call(path: str, block: Node, data: bytes) -> ModuleCall | None:
+    labels = _labels(block, data)
+    if _keyword(block, data) != "module" or len(labels) != 1:
+        return None
+    source = _attributes(_body(block), data).get("source")
+    literal = None if source is None else _literal_string(_value(source), data)
+    if literal is None or not literal.startswith(("./", "../")):
+        return None
+    try:
+        return ModuleCall(path, labels[0], _inside(literal, posixpath.dirname(path)))
+    except _Refused:
+        return None  # Outside the repository: not code this repository holds.
+
+
+def _inside(path: str, base: str) -> str:
+    """``path`` under ``base``, normalised; refused if it leaves the repository."""
+    joined = posixpath.normpath(posixpath.join(base, path.strip("/")))
+    if joined == ".." or joined.startswith("../"):
+        raise _Refused(Decline.MODULE_EXTERNAL, f"{path!r} is outside this repository.")
+    return "" if joined == "." else joined
