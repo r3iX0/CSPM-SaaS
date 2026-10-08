@@ -292,7 +292,9 @@ sentence in `detail`. A decline is an answer, not an error: the file was read
 and the edit would have needed a guess. `replaces_resource` is declined before
 the file is read: the argument is one azurerm sets only by recreating the
 resource, and each Terraform hint on `remediation_spec` says so as `replaces`
-(DECISIONS.md §228).
+(DECISIONS.md §228). A hint's `renamed` lists the argument's name and value from
+a later azurerm major release on (`since`); the edit writes the name the block
+already uses, else the lock file's release's, else `attribute` (§230).
 
 `GET /findings/{id}` carries `managed_in_code`: where the customer's own
 Terraform state index places the asset (`repository`, `working_directory`,
