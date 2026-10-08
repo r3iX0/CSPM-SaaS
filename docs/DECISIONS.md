@@ -12226,6 +12226,51 @@ table, and the latest fixes with on time or late. With no policy set, it says so
 and admins a link to set one. The demo organization is seeded with 7, 30 and 90 days for Critical,
 High and Medium, so a visitor sees deadlines.
 
+## 226. The Jira sync is designed: Cleave referees, Jira carries the work
+
+Designed, not built. `docs/TICKETING.md` is the specification. The 2026-09-20 product review
+ranked a ticket sync first among remediation's next features, and practitioners' most common ask
+was a ticket that closes only when the fix is verified. This entry records the shape, so each build
+step's own entry has something to depart from.
+
+**Chosen.** Jira Cloud first, behind a `TicketProvider` seam for GitHub Issues and Linear. One
+issue per rule group (§203) per Jira project, which gives a rule group a server identity for the
+first time (`ticket_links`). Status and assignee sync back into Cleave, and comments stay in Jira.
+Groups are sent by hand, or by an opt-in rule over severities and attack paths. Each subscription
+routes to a project, with an organization default that directory findings use. A new failing asset
+joins the rule's open issue; after the issue is done, a new issue links the old one.
+
+**Checked against Atlassian on 8 October 2026**, and changed by what was found:
+
+- **A dynamic webhook registration carries no secret.** The HMAC signature some guides describe
+  does not apply. Deliveries carry a bearer token signed with the app's client secret, whose
+  algorithm the guide does not name. So a delivery is verified, then treated as a hint only: the
+  issue is read again with Cleave's own token, and only that reading changes anything.
+- **Five webhooks per app, per user, per site**, owned by the account that connected. One webhook
+  per connection is filtered by `project IN (...)`. A 15-minute poll is the floor, because the
+  webhook dies with its account and expires after 30 days unless refreshed.
+- **Refresh tokens rotate** and expire after 90 days unused. The new token is stored with the
+  access token in one transaction; a refused refresh marks the connection broken and tells owners
+  and admins.
+- **Emails can be hidden** by a Jira user's privacy setting, so matching an assignee to a member
+  by email is best effort.
+
+**Changed from the plan.**
+
+- **Status categories, not a required status mapping.** Every Jira status is in `new`,
+  `indeterminate` or `done`, which map to `TODO`, `IN_PROGRESS` and `DONE`. A per-project mapping is
+  only an override.
+- **A verified fix closes the ticket.** When every asset passes, Cleave comments with the evidence
+  and moves the issue to done if nobody has. Otherwise a fixed rule's ticket would linger.
+- **The checklist is one status comment that Cleave edits in place**, not the description.
+  Rewriting the description would overwrite people's edits.
+- **Assignees go back only.** Cleave does not set the Jira assignee.
+
+**Kept from existing decisions.** A request never calls Jira: outbox rows are claimed under a lease
+and sent outside any transaction (§158, §164). Tokens are encrypted at the application layer, and
+the request role may write but never read them. The demo and guests are refused (§99, §219). The
+connect link's `state` names its purpose and is spent once (§147).
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,
