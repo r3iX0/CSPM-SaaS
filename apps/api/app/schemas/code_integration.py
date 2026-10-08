@@ -1,10 +1,11 @@
-"""Cleave's GitHub App: linking installations, and the state index they upload (§231)."""
+"""Cleave's GitHub App: linking installations, the state index (§231), and the guardrail (§234)."""
 
 from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.remediation.iac.guardrail import MAX_RESOURCES
 from app.remediation.iac.index import MAX_ENTRIES
 from app.schemas.common import RequestModel
 
@@ -116,3 +117,62 @@ class FixPullRequestsQueuedOut(BaseModel):
     pull_requests: list[FixPullRequestOut]
     #: Failing findings no uploaded state index names, so no pull request covers.
     not_indexed: int
+
+
+# ------------------------------------------------------------- the guardrail
+type PlannedValue = str | bool | int | float | None
+
+
+class GuardrailAllowlistOut(BaseModel):
+    """Per azurerm resource type, every argument the guardrail reads: all the Action may send."""
+
+    attributes: dict[str, list[str]]
+
+
+class PlannedResourceIn(RequestModel):
+    """One resource a pull request's plan creates or updates, cut to the arguments rules read."""
+
+    address: str = Field(min_length=1, max_length=1000)
+    type: str = Field(min_length=1, max_length=100)
+    actions: list[str] = Field(min_length=1, max_length=2)
+    #: Dotted argument path to its planned value; absent where the plan sets none.
+    after: dict[str, PlannedValue] = Field(default_factory=dict, max_length=50)
+    before: dict[str, PlannedValue] = Field(default_factory=dict, max_length=50)
+    #: Paths whose value is known only after apply.
+    unknown: list[str] = Field(default_factory=list, max_length=50)
+
+
+class GuardrailPlanIn(RequestModel):
+    """A pull request's plan, from ``tools/iac/github/cleave-guardrail.sh`` (§234).
+
+    The repository and the pull request come from the job's signed token, never
+    from the body.
+    """
+
+    working_directory: str = Field(default="", max_length=500)
+    workspace: str = Field(default="default", pattern=r"^[A-Za-z0-9_.-]{1,100}$")
+    resources: list[PlannedResourceIn] = Field(max_length=MAX_RESOURCES)
+
+
+class GuardrailVerdictOut(BaseModel):
+    rule_id: str
+    address: str
+    #: PASS, FAIL or UNKNOWN; UNKNOWN is never a pass.
+    verdict: str
+    #: A failure this plan brings, rather than one the resource already had.
+    introduced: bool
+    attribute: str
+    planned: str | None
+    expected: str
+
+
+class GuardrailOut(BaseModel):
+    repository: str
+    pull_request: int
+    head_sha: str
+    #: ``failure`` where the plan brings a failure, otherwise ``success``.
+    conclusion: str
+    #: The check run on the pull request; ``None`` where GitHub refused it.
+    check_run_url: str | None
+    check_run_detail: str | None = None
+    verdicts: list[GuardrailVerdictOut]

@@ -1,9 +1,10 @@
-"""Cleave's GitHub App: linking installations, its webhook, and the state index upload (§231).
+"""Cleave's GitHub App: linking installations, its webhook, the state index (§231), the guardrail.
 
-Linking is a person's action, under their session. The webhook and the upload
-are not: GitHub's deliveries carry an HMAC of the App's webhook secret, and an
-upload carries the job's GitHub Actions token. Both are left out of the
-published document, as the cloud event receivers are.
+Linking is a person's action, under their session. The webhook and the uploads
+are not: GitHub's deliveries carry an HMAC of the App's webhook secret, and a
+state index or a pull request's plan (§234) carries the job's GitHub Actions
+token. All are left out of the published document, as the cloud event
+receivers are.
 """
 
 import json
@@ -21,15 +22,20 @@ from app.schemas.code_integration import (
     GitHubInstallationOut,
     GitHubLinkIn,
     GitHubStatusOut,
+    GuardrailAllowlistOut,
+    GuardrailOut,
+    GuardrailPlanIn,
     IacIndexIn,
     IacIndexOut,
 )
 from app.schemas.common import ERROR_RESPONSES, Envelope, NoMeta, error_responses
 from app.services import code_integrations as service
+from app.services import guardrail as guardrail_service
 from app.services import pull_requests as pull_request_service
 
 router = APIRouter(prefix="/integrations/github", tags=["integrations"], responses=ERROR_RESPONSES)
 index_router = APIRouter(prefix="/iac-indexes", tags=["integrations"])
+guardrail_router = APIRouter(prefix="/iac-guardrail", tags=["integrations"])
 
 
 class UnlinkedOut(BaseModel):
@@ -119,8 +125,36 @@ async def put_index(
 
     Replaces the last index of the same repository, directory and workspace.
     """
+    identity = await github_oidc.verify(_bearer(authorization))
+    return Envelope(data=await service.take_index(identity, payload), meta=NoMeta())
+
+
+def _bearer(authorization: str | None) -> str:
     scheme, _, token = (authorization or "").partition(" ")
     if scheme.lower() != "bearer" or not token:
         raise NotAuthenticated("Send the job's GitHub Actions token as a bearer token")
-    identity = await github_oidc.verify(token)
-    return Envelope(data=await service.take_index(identity, payload), meta=NoMeta())
+    return token
+
+
+@guardrail_router.get("/allowlist", include_in_schema=False)
+async def guardrail_allowlist() -> Envelope[GuardrailAllowlistOut, NoMeta]:
+    """Every argument the guardrail reads, per azurerm type: all a plan upload may hold.
+
+    Open, as it holds no secret and is the same for everyone: the Action reads
+    it before its token is minted, to cut the plan down on the runner.
+    """
+    return Envelope(data=guardrail_service.attributes(), meta=NoMeta())
+
+
+@guardrail_router.post("/plans", include_in_schema=False)
+async def guardrail_plan(
+    payload: GuardrailPlanIn,
+    authorization: Annotated[str | None, Header()] = None,
+) -> Envelope[GuardrailOut, NoMeta]:
+    """A pull request's plan, judged and reported as a check run on the pull request (§234).
+
+    ``200`` with the verdicts whatever they are: a failing plan is an answer,
+    and ``conclusion`` says it. Nothing is stored.
+    """
+    identity = await github_oidc.verify(_bearer(authorization))
+    return Envelope(data=await guardrail_service.take_plan(identity, payload), meta=NoMeta())

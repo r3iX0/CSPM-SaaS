@@ -1,0 +1,32 @@
+# Have Cleave judge each pull request's Terraform plan (DECISIONS.md §234).
+#
+# Copy into .github/workflows/, or add the last step to the plan job you already run on pull
+# requests: it needs the same Terraform setup and backend credentials. Cleave needs no secret of
+# its own; the upload is authenticated by this job's OIDC token. A pull request from a fork gets
+# no OIDC token, so it is not judged.
+name: Cleave guardrail
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  guardrail:
+    runs-on: ubuntu-latest
+    env:
+      CLEAVE_API: https://<cleave-api-host>
+    defaults:
+      run:
+        working-directory: <your terraform root>
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Set up Terraform and sign in to your state backend here, as your plan job does.
+      - run: terraform init -input=false
+      - run: terraform plan -input=false -lock=false -out=cleave.tfplan
+      # A copy of cleave-guardrail.sh committed to your repository, so what runs with
+      # your state credentials is what you reviewed, never a script fetched at run time.
+      - run: bash "${GITHUB_WORKSPACE}/.github/cleave-guardrail.sh" cleave.tfplan

@@ -18,6 +18,8 @@ GitHub answers (§158).
 
 import posixpath
 import time
+from dataclasses import dataclass
+from uuid import UUID
 
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
@@ -164,11 +166,48 @@ async def forget_installation(installation_id: int) -> None:
         await session.commit()
 
 
-def _working_directory(given: str) -> str:
+def working_directory_in(given: str) -> str:
+    """A working directory as a job names it, inside the repository; refused otherwise."""
     normalised = posixpath.normpath(given.strip().strip("/") or ".")
     if normalised == ".." or normalised.startswith("../") or normalised.startswith("/"):
         raise ValidationFailed("The working directory is outside the repository")
     return "" if normalised == "." else normalised
+
+
+@dataclass(frozen=True)
+class LinkedRepository:
+    """A job's repository, proven to be covered by an installation this organization linked."""
+
+    installation_id: int
+    repository: github.Repository
+    organization_id: UUID
+
+
+async def linked_repository(identity: ActionsIdentity) -> LinkedRepository:
+    """The organization a job's repository belongs to, on GitHub's word; refused otherwise.
+
+    GitHub says which installation covers the token's repository, and that the
+    repository's numeric id is the token's, so a renamed repository cannot stand
+    in for another. The installation must be linked here. GitHub is asked before
+    any session opens, so a stranger's token holds no pooled connection (§231).
+    """
+    installation_id = await github.repository_installation(identity.repository)
+    if installation_id is None:
+        raise PermissionDenied("Cleave's GitHub App is not installed on this repository")
+    repository = await github.repository(identity.repository, installation_id)
+    if repository.repository_id != identity.repository_id:
+        raise PermissionDenied("The repository is not the one the token was issued for")
+    async with service_session() as session:
+        organization_id = (
+            await session.execute(
+                select(CodeIntegration.organization_id).where(
+                    CodeIntegration.installation_id == installation_id
+                )
+            )
+        ).scalar_one_or_none()
+    if organization_id is None:
+        raise PermissionDenied("This repository's installation is not linked to Cleave")
+    return LinkedRepository(installation_id, repository, organization_id)
 
 
 async def take_index(identity: ActionsIdentity, payload: IacIndexIn) -> IacIndexOut:
@@ -178,32 +217,19 @@ async def take_index(identity: ActionsIdentity, payload: IacIndexIn) -> IacIndex
         entries = entries_from_upload([entry.model_dump() for entry in payload.entries])
     except InvalidIndex as exc:
         raise ValidationFailed(str(exc)) from exc
-    working_directory = _working_directory(payload.working_directory)
+    working_directory = working_directory_in(payload.working_directory)
 
-    installation_id = await github.repository_installation(identity.repository)
-    if installation_id is None:
-        raise PermissionDenied("Cleave's GitHub App is not installed on this repository")
-    repository = await github.repository(identity.repository, installation_id)
-    if repository.repository_id != identity.repository_id:
-        raise PermissionDenied("The repository is not the one the token was issued for")
+    linked = await linked_repository(identity)
+    repository = linked.repository
     if identity.ref != f"refs/heads/{repository.default_branch}":
         raise PermissionDenied(
             f"Only {repository.default_branch}'s state is indexed, not {identity.ref}"
         )
 
     async with service_session() as session:
-        organization_id = (
-            await session.execute(
-                select(CodeIntegration.organization_id).where(
-                    CodeIntegration.installation_id == installation_id
-                )
-            )
-        ).scalar_one_or_none()
-        if organization_id is None:
-            raise PermissionDenied("This repository's installation is not linked to Cleave")
         await iac_index.replace_index(
             session,
-            organization_id,
+            linked.organization_id,
             repository_id=repository.repository_id,
             repository=repository.full_name,
             working_directory=working_directory,

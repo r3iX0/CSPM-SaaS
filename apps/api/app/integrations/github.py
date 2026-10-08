@@ -305,3 +305,55 @@ async def open_pull_request(
         "open the pull request",
     )
     return OpenedPullRequest(number=int(pull["number"]), url=str(pull["html_url"]))
+
+
+# ------------------------------------------------------------- the guardrail
+#: GitHub's own cap on a check run's summary and its text (DECISIONS.md §234).
+MAX_CHECK_OUTPUT = 65_535
+
+
+async def pull_request_head(full_name: str, number: int, token: str) -> str | None:
+    """The head commit of an open pull request, where a check run belongs; ``None`` if closed.
+
+    A pull request job's token names the merge commit GitHub made for it, which
+    no person pushed; the check is shown on the commit the author pushed.
+    """
+    body = _json(
+        await _request("GET", f"{API}/repos/{full_name}/pulls/{number}", token=token),
+        "read the pull request",
+    )
+    if body.get("state") != "open":
+        return None
+    return str(body["head"]["sha"])
+
+
+async def create_check_run(
+    full_name: str,
+    *,
+    token: str,
+    head_sha: str,
+    name: str,
+    conclusion: str,
+    title: str,
+    summary: str,
+    details_url: str | None = None,
+) -> str:
+    """Report a finished check on ``head_sha``; answers its page on GitHub.
+
+    Needs the App's ``checks: write`` permission; GitHub refuses it with a
+    ``403`` for an installation that has not accepted it.
+    """
+    payload: dict[str, Any] = {
+        "name": name,
+        "head_sha": head_sha,
+        "status": "completed",
+        "conclusion": conclusion,
+        "output": {"title": title[:255], "summary": summary[:MAX_CHECK_OUTPUT]},
+    }
+    if details_url:
+        payload["details_url"] = details_url
+    body = _json(
+        await _request("POST", f"{API}/repos/{full_name}/check-runs", token=token, json=payload),
+        "report the check",
+    )
+    return str(body["html_url"])

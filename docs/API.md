@@ -85,6 +85,7 @@ GET    /integrations/github                POST   /integrations/github/connect
 POST   /integrations/github/installations  DELETE /integrations/github/installations/{id}
 POST   /integrations/github/events  (GitHub's deliveries; HMAC-signed)
 PUT    /iac-indexes  (a job's GitHub Actions token)
+GET    /iac-guardrail/allowlist  (open)    POST   /iac-guardrail/plans  (a job's GitHub Actions token)
 
 GET    /attack-paths                       GET    /attack-paths/choke-points
 GET    /attack-paths/graph?limit=1..200
@@ -331,6 +332,18 @@ body is `working_directory`, `workspace` and up to 4,000 `entries` of
 `address`, `type`, `index` and `id`; the repository and the commit come from the
 token. It is refused `403` unless the App is installed on the repository, that
 installation is linked, and the token's ref is the default branch.
+
+`GET /iac-guardrail/allowlist` lists, per azurerm resource type, every argument
+path the pull-request guardrail reads (DECISIONS.md §234). It is open and the
+same for everyone. `POST /iac-guardrail/plans` takes a pull request's plan from
+`tools/iac/github/cleave-guardrail.sh`, authenticated like the index, from a job
+whose token's ref is `refs/pull/<n>/merge`. The body is `working_directory`,
+`workspace` and up to 4,000 `resources` of `address`, `type`, `actions`, and
+`after`, `before` and `unknown` over allowlisted paths only; anything else is
+`422`. It answers `200` with each `verdict` (`PASS`, `FAIL`, `UNKNOWN`), whether
+the failure is `introduced` by the change, the `conclusion` (`failure` only for
+an introduced one), and the check run it posted on the pull request's head
+commit (`check_run_url`, or `check_run_detail` where GitHub refused it).
 
 `POST /remediation/pull-requests` (`{rule_id}`, any role that may write) asks for
 a rule's fix as pull requests, one per repository the organization's state

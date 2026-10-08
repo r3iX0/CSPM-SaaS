@@ -12552,6 +12552,69 @@ Modules from a registry or git still decline `module_external` (§229). A module
 repositories use by git source changes for them only when they move to the new ref, which is
 their decision.
 
+## 234. A pull request's plan is judged by the rules' Terraform hints, and reported as a check run
+
+The last step of Fix-as-Code's first release (`docs/REMEDIATION_PLAN.md` Part 2, step 6): judge a
+change before it is applied, so a misconfiguration is caught in review instead of by the next
+scan. It runs on the GitHub App (§231) and uses the job's OIDC token as the state index does
+(§229). Behind `FIX_PRS_ENABLED`.
+
+**Judged by the hints, not the rule engine.** A rule reads Azure Resource Manager's JSON for an
+asset, and a plan is Terraform's JSON for a resource. Translating one into the other would be a
+guess per resource type, and the rule engine stays deterministic over the evidence it was written
+for. What already speaks Terraform is each rule's fix: the arguments `rule_checks` builds from
+its hints, held to the azurerm 3.117.1 and 4.81.0 schemas and documentation (§190, §228, §230).
+The guardrail compares planned values against those, with the same accepted values and the newer
+name of a renamed argument where the plan carries it. That is 35 Azure rules today. A rule with
+no hint is not judged in the pull request, and the scan still judges everything deployed. A hint
+that would replace the resource (§228) is judged too: Cleave never edits existing code to set it,
+but new code should.
+
+**Only the allowlist leaves the runner.** A plan holds every attribute in plain text, secrets
+included. `GET /iac-guardrail/allowlist` publishes, per azurerm type, every argument path a
+guarded rule reads. It is open, because it is the same for everyone and holds no secret.
+`tools/iac/github/cleave-guardrail.sh` reads `terraform show -json` on the runner. For each
+azurerm resource the plan creates or updates, it keeps those paths' planned and prior values and
+which ones are known only after apply. It drops any value Terraform marks sensitive, even an
+allowlisted one. A nested block is read only where it holds exactly one block. `POST
+/iac-guardrail/plans` refuses the whole upload if it holds anything else, as the index does
+(§229): another field, another path, a value that is not one scalar, or another provider.
+
+**A failure counts only where the change brings it.** A resource the plan leaves alone or only
+deletes is the scan's to judge, so it is not sent. A failing rule on a new resource, or on one that
+passed before the change, is _brought by this change_, and only those make the check fail. A
+failure the resource already had is listed as _already failing_, so a pull request is not blocked
+for debt it did not add. A value known only after apply, or not set in the plan, is UNKNOWN. It is
+never a pass and never a failure, and it is listed. A replacement counts as a new resource.
+
+**Proven, as the index is.** The token must be GitHub's, for this API, and its ref must be a pull
+request's, `refs/pull/<n>/merge`. The repository must be covered by an installation an
+organization linked, with the token's repository id (`linked_repository`, shared with the index).
+That ref names the merge commit GitHub made, which nobody pushed. So the check is posted on the
+pull request's head commit, read from GitHub, and a closed pull request is refused. A pull
+request from a fork gets no OIDC token, so it is not judged.
+
+**Reported twice.** The answer carries every verdict and the conclusion, and the script prints the
+failures and exits non-zero on `failure`, so the job fails. It is also a check run on the pull
+request, named for its working directory and workspace so that two roots do not replace each
+other. Its summary lists what the change brings and what is already failing, with the planned and
+expected values, and what is unknown. A check run needs the App's `checks: write` permission. That
+permission is new, so each installation must accept it on GitHub. Until one does, GitHub refuses
+the check run, the job still fails on the verdicts, and `check_run_detail` says why.
+
+**Smaller choices:**
+
+- **Nothing is stored.** The check run is the record, on the pull request it judged. Measuring the
+  time from a guardrail failure to its fix (`docs/REMEDIATION_PLAN.md` Part 3) will need a table.
+  It is added with that measure.
+- **No annotations on lines.** A plan names addresses, not files. Placing each one would mean
+  reading the pull request's tree and following its modules, as pull requests do (§233). That can
+  come later behind the same verdicts.
+- **A script of its own**, not a mode of `cleave-index.sh`. Each copy a customer reviews does one
+  thing. Both scripts run with the same state credentials.
+- **Severity does not gate.** Any failure the change brings fails the check, and branch protection
+  decides whether it blocks a merge. That is the customer's setting, on GitHub.
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,

@@ -1,9 +1,10 @@
 # Fix-as-Code: IaC diffs and pull requests
 
 Status: **Phases 0 and 1 done (2026-09-29); Phase 2 built behind `FIX_PRS_ENABLED`
-(§227, §229, §231 to §233): the GitHub App linked, the state index uploaded, one pull request
-per rule per repository, claimed on merge, and a value passed into a module written on the module
-call.** The pull-request guardrail is next. The decisions are DECISIONS §190 and §227 to §233.
+(§227, §229, §231 to §234): the GitHub App linked, the state index uploaded, one pull request
+per rule per repository, claimed on merge, a value passed into a module written on the module
+call, and each pull request's plan judged as a check run.** GitLab (Phase 3) is next. The
+decisions are DECISIONS §190 and §227 to §234.
 As of 2026-10-08, 35 Azure rules carry a Terraform hint, and no edit is made to an argument that
 replaces the resource (§228). Phase 0 settled:
 
@@ -198,7 +199,8 @@ request for the same rule and repository answers the open pull request. The bran
 
 - **GitHub App, not personal access tokens.** Installation tokens are scoped to repositories the
   customer selects and expire in an hour, minted per task and never stored. Permissions:
-  `contents:write`, `pull_requests:write`. The App's private key is a server environment variable.
+  `contents:write`, `pull_requests:write`, and `checks:write` for the guardrail (§234). The
+  App's private key is a server environment variable.
 - **Schema**, with RLS policies and grants for `cloudguard_app`: `code_integrations`,
   `repo_mappings`, `fix_pull_requests`, `fix_pull_request_findings`, and `iac_indexes` with their
   entries.
@@ -226,8 +228,14 @@ without an index turn out to be common, it can return behind the same locator ou
 
 **Order.** Widen the editable rules first; it improves today's upload at once. Then the Action in
 index mode with the IaC-managed flag, which needs no GitHub App. Then the Jira sync. Then the App
-and pull requests. Module input edits and the pull-request guardrail (the Action's plan mode, the
-same rules over planned values, reported through the Checks API) follow, each with its own entry.
+and pull requests. Module input edits (§233) and the pull-request guardrail (§234) followed, each
+with its own entry.
+
+**The guardrail** (§234). `tools/iac/github/cleave-guardrail.sh` runs in the customer's pull
+request job after `terraform plan`, keeps only the allowlisted arguments of each azurerm resource
+the plan creates or updates, and posts them with the job's OIDC token. Cleave judges them against
+the rules' Terraform hints and posts a check run on the pull request. A failure fails the check
+only where the change brings it. The App needs `checks: write` for the check run.
 
 ### Phase 3 -- GitLab (medium)
 

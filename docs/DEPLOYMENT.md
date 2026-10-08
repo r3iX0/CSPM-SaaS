@@ -370,6 +370,10 @@ Node installed on your machine.
    # an installation is proven with the linking person's own GitHub token.
    # The private key may be pasted on one line with its newlines written as \n.
    # API_URL above is also the audience the state index upload's token must name.
+   # Repository permissions: Contents and Pull requests read and write, and
+   # Checks read and write for the pull-request guardrail (DECISIONS.md §234);
+   # subscribe to the Pull request event. A permission added later must be
+   # accepted by each installation on GitHub before it applies there.
    GITHUB_APP_ID=
    GITHUB_APP_SLUG=
    GITHUB_APP_CLIENT_ID=

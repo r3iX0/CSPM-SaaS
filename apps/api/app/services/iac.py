@@ -28,13 +28,12 @@ def upload_filename(given: str | None) -> str:
     return kept if kept.strip(". ") else "main.tf"
 
 
-def rule_edit(rule: SecurityRule | None) -> RuleChanges | Declined:
-    """The edit a rule's fix makes, or why it makes none; shared by uploads and pull requests.
+def rule_checks(rule: SecurityRule | None) -> RuleChanges | Declined:
+    """The arguments a rule's fix sets, and their resource types, or why it has none.
 
-    Declined before any file is read: a rule with no Terraform argument, a
-    collection state (a structural edit, §190), an AWS rule while AWS is
-    unverified, or an argument azurerm can only set by recreating the resource
-    (§228).
+    What the guardrail judges a plan by (§234), and what ``rule_edit`` writes.
+    Declined for a rule with no Terraform argument, a collection state (a
+    structural edit, §190), or an AWS rule while AWS is unverified.
     """
     spec = rule.remediation_spec if rule is not None else None
     hints = terraform_hints(spec) if spec is not None else []
@@ -54,13 +53,6 @@ def rule_edit(rule: SecurityRule | None) -> RuleChanges | Declined:
         )
     ):
         return Declined(Decline.NOT_EDITABLE, "This rule has no Terraform argument to set.")
-    if replacing := [hint["attribute"] for hint in hints if hint["replaces"]]:
-        # Never written into existing code: the apply would destroy the resource (§228).
-        return Declined(
-            Decline.REPLACES_RESOURCE,
-            f"Changing {', '.join(replacing)} makes Terraform destroy this resource and create "
-            "another. Plan that replacement by hand.",
-        )
     return RuleChanges(
         resource_types=tuple(spec.terraform_resource_types),
         changes=tuple(
@@ -76,6 +68,27 @@ def rule_edit(rule: SecurityRule | None) -> RuleChanges | Declined:
             )
         ),
     )
+
+
+def rule_edit(rule: SecurityRule | None) -> RuleChanges | Declined:
+    """The edit a rule's fix makes, or why it makes none; shared by uploads and pull requests.
+
+    ``rule_checks``, and declined as well where azurerm can only set the
+    argument by recreating the resource (§228): new code sets it, existing code
+    is never edited to.
+    """
+    checks = rule_checks(rule)
+    if isinstance(checks, Declined) or rule is None or rule.remediation_spec is None:
+        return checks
+    hints = terraform_hints(rule.remediation_spec)
+    if replacing := [hint["attribute"] for hint in hints if hint["replaces"]]:
+        # Never written into existing code: the apply would destroy the resource (§228).
+        return Declined(
+            Decline.REPLACES_RESOURCE,
+            f"Changing {', '.join(replacing)} makes Terraform destroy this resource and create "
+            "another. Plan that replacement by hand.",
+        )
+    return checks
 
 
 def propose_terraform_fix(
