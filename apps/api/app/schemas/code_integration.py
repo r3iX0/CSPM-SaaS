@@ -1,6 +1,7 @@
 """Cleave's GitHub App: linking installations, and the state index they upload (§231)."""
 
 from datetime import datetime
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -71,3 +72,47 @@ class IacIndexOut(BaseModel):
     workspace: str
     commit_sha: str
     entries: int
+
+
+class FixPullRequestIn(RequestModel):
+    """Ask for one rule's fix as pull requests, one per repository its assets are in."""
+
+    model_config = ConfigDict(json_schema_extra={"examples": [{"rule_id": "AZ-STO-002"}]})
+
+    rule_id: str = Field(min_length=1, max_length=128)
+
+
+class FixPullRequestFindingOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    finding_id: UUID
+    address: str
+    #: PENDING until the worker has read the repository, then EDITED or DECLINED.
+    outcome: str
+    reason: str | None = None
+    path: str | None = None
+    line: int | None = None
+
+
+class FixPullRequestOut(BaseModel):
+    """One rule's fix in one repository, from queued to merged (DECISIONS.md §232)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    rule_id: str
+    repository: str
+    #: QUEUED, OPENING, OPEN, MERGED, CLOSED, DECLINED or FAILED.
+    state: str
+    pr_number: int | None = None
+    pr_url: str | None = None
+    decline_reason: str | None = None
+    detail: str | None = None
+    created_at: datetime
+    findings: list[FixPullRequestFindingOut] = Field(default_factory=list)
+
+
+class FixPullRequestsQueuedOut(BaseModel):
+    pull_requests: list[FixPullRequestOut]
+    #: Failing findings no uploaded state index names, so no pull request covers.
+    not_indexed: int

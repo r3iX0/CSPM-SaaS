@@ -76,6 +76,7 @@ POST   /risks/{id}/status                  POST   /risks/status
 
 POST   /remediation                        GET    /remediation
 PATCH  /remediation/{id}                   GET    /remediation/progress?days=
+POST   /remediation/pull-requests          GET    /remediation/pull-requests?rule_id=
 POST   /findings/{id}/accept-risk          POST   /findings/{id}/status
 POST   /findings/{id}/rescan               POST   /findings/{id}/iac-diff  (multipart)
 GET    /findings/{id}/attack-paths         GET    /findings/{id}/provenance
@@ -330,6 +331,20 @@ body is `working_directory`, `workspace` and up to 4,000 `entries` of
 `address`, `type`, `index` and `id`; the repository and the commit come from the
 token. It is refused `403` unless the App is installed on the repository, that
 installation is linked, and the token's ref is the default branch.
+
+`POST /remediation/pull-requests` (`{rule_id}`, any role that may write) asks for
+a rule's fix as pull requests, one per repository the organization's state
+indexes place its failing assets in (DECISIONS.md §232). It answers `202` with
+the requests, existing live ones included, and `not_indexed`, the failing
+findings no index names; with none indexed it is `422`. The worker opens each
+within a minute: it reads the repository's Terraform at the default branch,
+edits each block it can stand behind, and opens a pull request from a
+`cloudguard/fix-<rule>-<id>` branch. `GET /remediation/pull-requests?rule_id=`
+lists them, newest first, each with a `state` (`QUEUED`, `OPENING`, `OPEN`,
+`MERGED`, `CLOSED`, `DECLINED`, `FAILED`), `pr_url`, and per finding its
+`outcome` (`EDITED` with `path` and `line`, or `DECLINED` with a `reason`). A
+merge, reported by the App's webhook, marks the edited findings' tasks done and
+opens their verification; the next scan decides.
 
 `POST /organizations/demo/join` adds the caller to the one shared demo
 organization as `VIEWER`, whatever the request says, and

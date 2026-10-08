@@ -26,6 +26,7 @@ from app.schemas.code_integration import (
 )
 from app.schemas.common import ERROR_RESPONSES, Envelope, NoMeta, error_responses
 from app.services import code_integrations as service
+from app.services import pull_requests as pull_request_service
 
 router = APIRouter(prefix="/integrations/github", tags=["integrations"], responses=ERROR_RESPONSES)
 index_router = APIRouter(prefix="/iac-indexes", tags=["integrations"])
@@ -100,6 +101,12 @@ async def github_event(
         raise ValidationFailed("The delivery is not JSON") from exc
     if x_github_event == "installation" and event.get("action") == "deleted":
         await service.forget_installation(int(event["installation"]["id"]))
+    elif x_github_event == "pull_request" and event.get("action") == "closed":
+        # A merge claims the fix for what the pull request edited (§232).
+        pull = event["pull_request"]
+        await pull_request_service.pull_request_closed(
+            int(event["repository"]["id"]), int(pull["number"]), merged=bool(pull.get("merged"))
+        )
     return Envelope(data=DeliveryOut(received=True), meta=NoMeta())
 
 

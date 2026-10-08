@@ -294,6 +294,27 @@ export interface GitHubStatus {
   installations: GitHubInstallation[];
 }
 
+/** One rule's fix as a pull request on one repository (DECISIONS.md §232). */
+export interface FixPullRequest {
+  id: string;
+  rule_id: string;
+  repository: string;
+  state: "QUEUED" | "OPENING" | "OPEN" | "MERGED" | "CLOSED" | "DECLINED" | "FAILED";
+  pr_number: number | null;
+  pr_url: string | null;
+  decline_reason: string | null;
+  detail: string | null;
+  created_at: string;
+  findings: {
+    finding_id: string;
+    address: string;
+    outcome: "PENDING" | "EDITED" | "DECLINED";
+    reason: string | null;
+    path: string | null;
+    line: number | null;
+  }[];
+}
+
 /** Where the customer's own Terraform state defines an asset (DECISIONS.md §229). */
 export interface IacLocation {
   repository: string;

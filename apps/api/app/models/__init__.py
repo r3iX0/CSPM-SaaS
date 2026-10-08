@@ -8,6 +8,7 @@ from app.models.cloud_connection import CloudConnection
 from app.models.code_integration import CodeIntegration
 from app.models.context import ContextDeclarationRecord
 from app.models.finding import Finding
+from app.models.fix_pull_request import FixPullRequest, FixPullRequestFinding
 from app.models.history import AssetChangeEvent, FindingEventRecord
 from app.models.iac import IacIndex, IacIndexEntry
 from app.models.organization import Organization, OrganizationInvitation, OrganizationMember
@@ -44,6 +45,8 @@ __all__ = [
     "EvidenceBlob",
     "Finding",
     "FindingEventRecord",
+    "FixPullRequest",
+    "FixPullRequestFinding",
     "IacIndex",
     "IacIndexEntry",
     "Organization",

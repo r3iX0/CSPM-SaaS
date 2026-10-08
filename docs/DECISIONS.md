@@ -12468,6 +12468,52 @@ scoped to the linked organization, so a stranger's token holds no pooled connect
 - **The callback is a page of the web app** (`/settings/integrations/github`), not an open API
   route. That keeps the person's session in the request, so the state's binding can be checked.
 
+## 232. A rule's fix becomes one pull request per repository, opened by a sweep
+
+Fix-as-Code's pull requests (§227), on the linked App (§231) and the state index (§229). Behind
+`FIX_PRS_ENABLED`.
+
+**Asked for per rule.** `POST /remediation/pull-requests` takes a rule. The rule's open findings
+are matched to the organization's state indexes by Azure Resource Manager id, and one request is
+queued per repository, with the findings it covers. A failing finding no index names is counted in
+`not_indexed`, never guessed into a repository. With nothing indexed, the request is `422`. A
+request already queued, opening or open for that rule and repository is answered rather than
+repeated: a partial unique index on `fix_pull_requests` holds that.
+
+**Opened by a sweep, not a task per request.** `cloudguard.open_fix_pull_requests` runs every
+minute, as webhook deliveries do (§164). It claims up to five queued requests under a ten-minute
+lease (`FOR UPDATE SKIP LOCKED`), reads everything each needs from the database, and closes the
+session. Then GitHub is asked: which installation covers the repository (it must be one of this
+organization's links), the default branch, and every `.tf` and lock file at its head, through the
+Git Data API under caps of 400 files and 4 MiB. A tree GitHub truncated is declined rather than
+half-read. The result is written in a fresh session. A failure to reach GitHub goes back to the
+queue, and becomes `FAILED` after three attempts. There is no enqueue to refuse, so no
+refused-enqueue path is needed (§158).
+
+**Planned without a guess** (`remediation/iac/pull_request.py`, pure). Each target's block is found
+by its address and edited by its label (§229). Two assets in one block are one edit, and edits to
+one file build on each other. A block that defines more than one asset, through `count`, `for_each`
+or several workspaces of one directory, is edited only where every asset it defines fails the rule,
+and declines `partial_instances` otherwise. Workspaces count because they are the same code with
+other state. `edit_terraform(..., allow_repeated=True)` is how the planner says it has checked;
+nothing else passes it. Everything §190, §228 and §230 decline still declines, and is listed beside
+what was edited.
+
+**One pull request per rule per repository** (§227), from `cloudguard/fix-<rule>-<id>` to the
+default branch. It is never pushed to the default branch and never merged. Its body names each
+edited address and file, each declined address and why, and says that a merge is a claim, not a
+fix. The branch carries the request's id, so a second request after a closed pull request never
+collides with the first's branch.
+
+**A merge claims; a scan decides.** The App's `pull_request` `closed` delivery, verified by HMAC
+(§231), marks the request `MERGED` or `CLOSED`. On a merge, each edited finding's task is marked
+done and its verification opened (§18), claimed by whoever asked. A merge is not an apply, so the
+finding closes only when a scan sees the change.
+
+**In the rule sheet**, where a GitHub installation is linked: "Open pull request", and each
+request's repository, state, link and how many of its assets were edited. The list is read again
+every five seconds while one is in flight.
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,

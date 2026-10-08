@@ -10324,6 +10324,201 @@
         }
       }
     },
+    "/api/v1/remediation/pull-requests": {
+      "post": {
+        "tags": [
+          "remediation"
+        ],
+        "summary": "Request Pull Requests",
+        "description": "Ask for a rule's fix as pull requests, one per repository its failing assets are in.\n\nMatched through the organization's state indexes; a failing asset no index\nnames is counted in ``not_indexed``. Queued for the worker, which reads the\nrepository, edits what it can stand behind and opens the pull request\n(DECISIONS.md \u00a7232). A request already in flight or open is answered, not\nrepeated.",
+        "operationId": "remediation_request_pull_requests",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FixPullRequestIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_FixPullRequestsQueuedOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "remediation"
+        ],
+        "summary": "List Pull Requests",
+        "description": "The organization's latest fix pull requests, with each finding's outcome.",
+        "operationId": "remediation_list_pull_requests",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "rule_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rule Id"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_list_FixPullRequestOut__NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
     "/api/v1/remediation/{task_id}": {
       "patch": {
         "tags": [
@@ -15558,6 +15753,26 @@
         ],
         "title": "Envelope[FixProgressOut, NoMeta]"
       },
+      "Envelope_FixPullRequestsQueuedOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/FixPullRequestsQueuedOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[FixPullRequestsQueuedOut, NoMeta]"
+      },
       "Envelope_FrameworkDetailOut_NoMeta_": {
         "properties": {
           "data": {
@@ -16816,6 +17031,30 @@
           "meta"
         ],
         "title": "Envelope[list[FindingOut], PageMeta]"
+      },
+      "Envelope_list_FixPullRequestOut__NoMeta_": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/FixPullRequestOut"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[list[FixPullRequestOut], NoMeta]"
       },
       "Envelope_list_FrameworkSummaryOut__NoMeta_": {
         "properties": {
@@ -18154,6 +18393,193 @@
         ],
         "title": "FixProgressOut",
         "description": "What was fixed in a window: verified fixes only, since only a scan closes a finding.\n\n``on_time`` and ``late`` count only the fixes that had a deadline, judged against today's\npolicy where no person set a date (DECISIONS.md \u00a7225)."
+      },
+      "FixPullRequestFindingOut": {
+        "properties": {
+          "finding_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Finding Id"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "outcome": {
+            "type": "string",
+            "title": "Outcome"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "line": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line"
+          }
+        },
+        "type": "object",
+        "required": [
+          "finding_id",
+          "address",
+          "outcome"
+        ],
+        "title": "FixPullRequestFindingOut"
+      },
+      "FixPullRequestIn": {
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Rule Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "rule_id"
+        ],
+        "title": "FixPullRequestIn",
+        "description": "Ask for one rule's fix as pull requests, one per repository its assets are in.",
+        "examples": [
+          {
+            "rule_id": "AZ-STO-002"
+          }
+        ]
+      },
+      "FixPullRequestOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "repository": {
+            "type": "string",
+            "title": "Repository"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "pr_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pr Number"
+          },
+          "pr_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pr Url"
+          },
+          "decline_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decline Reason"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/FixPullRequestFindingOut"
+            },
+            "type": "array",
+            "title": "Findings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "rule_id",
+          "repository",
+          "state",
+          "created_at"
+        ],
+        "title": "FixPullRequestOut",
+        "description": "One rule's fix in one repository, from queued to merged (DECISIONS.md \u00a7232)."
+      },
+      "FixPullRequestsQueuedOut": {
+        "properties": {
+          "pull_requests": {
+            "items": {
+              "$ref": "#/components/schemas/FixPullRequestOut"
+            },
+            "type": "array",
+            "title": "Pull Requests"
+          },
+          "not_indexed": {
+            "type": "integer",
+            "title": "Not Indexed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pull_requests",
+          "not_indexed"
+        ],
+        "title": "FixPullRequestsQueuedOut"
       },
       "FixWithinDays": {
         "properties": {

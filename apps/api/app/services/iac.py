@@ -12,7 +12,7 @@ loop (§158).
 from app.core.enums import Provider
 from app.remediation import Comparison, terraform_accepts, terraform_hints
 from app.remediation.iac import Change, Decline, Declined, Renamed, edit_terraform
-from app.remediation.iac.terraform import CHECKED_RELEASES, MAX_BYTES
+from app.remediation.iac.terraform import CHECKED_RELEASES, MAX_BYTES, RuleChanges
 from app.rules.base import SecurityRule
 from app.schemas.finding import IacDiffOut, IacEditOut
 
@@ -26,6 +26,56 @@ def upload_filename(given: str | None) -> str:
     last = (given or "").replace("\\", "/").rsplit("/", 1)[-1]
     kept = "".join(ch for ch in last if ch.isprintable())[:255]
     return kept if kept.strip(". ") else "main.tf"
+
+
+def rule_edit(rule: SecurityRule | None) -> RuleChanges | Declined:
+    """The edit a rule's fix makes, or why it makes none; shared by uploads and pull requests.
+
+    Declined before any file is read: a rule with no Terraform argument, a
+    collection state (a structural edit, §190), an AWS rule while AWS is
+    unverified, or an argument azurerm can only set by recreating the resource
+    (§228).
+    """
+    spec = rule.remediation_spec if rule is not None else None
+    hints = terraform_hints(spec) if spec is not None else []
+    if (
+        # AWS attributes are unverified until AWS is (docs/AWS_INTEGRATION.md).
+        rule is None
+        or rule.provider != Provider.AZURE
+        or spec is None
+        or not spec.terraform_resource_types
+        or not hints
+        # A collection state has no one value to write -- its hint renders as
+        # ``null`` -- so it is a structural edit, never attempted (§190).
+        or any(
+            state.comparison is not Comparison.EQUALS
+            for state in spec.expected
+            if state.terraform_attribute
+        )
+    ):
+        return Declined(Decline.NOT_EDITABLE, "This rule has no Terraform argument to set.")
+    if replacing := [hint["attribute"] for hint in hints if hint["replaces"]]:
+        # Never written into existing code: the apply would destroy the resource (§228).
+        return Declined(
+            Decline.REPLACES_RESOURCE,
+            f"Changing {', '.join(replacing)} makes Terraform destroy this resource and create "
+            "another. Plan that replacement by hand.",
+        )
+    return RuleChanges(
+        resource_types=tuple(spec.terraform_resource_types),
+        changes=tuple(
+            # ``terraform_hints`` keeps the states that carry an attribute, in order.
+            Change(
+                hint["attribute"],
+                hint["value"],
+                terraform_accepts(state),
+                tuple(Renamed(r["since"], r["attribute"], r["value"]) for r in hint["renamed"]),
+            )
+            for hint, state in zip(
+                hints, [s for s in spec.expected if s.terraform_attribute], strict=True
+            )
+        ),
+    )
 
 
 def propose_terraform_fix(
@@ -54,55 +104,19 @@ def propose_terraform_fix(
     except UnicodeDecodeError:
         return _declined(filename, Decline.PARSE_ERROR, "The file is not UTF-8 text.")
 
-    spec = rule.remediation_spec if rule is not None else None
-    hints = terraform_hints(spec) if spec is not None else []
-    if (
-        # AWS attributes are unverified until AWS is (docs/AWS_INTEGRATION.md).
-        rule is None
-        or rule.provider != Provider.AZURE
-        or spec is None
-        or not spec.terraform_resource_types
-        or not hints
-        # A collection state has no one value to write -- its hint renders as
-        # ``null`` -- so it is a structural edit, never attempted (§190).
-        or any(
-            state.comparison is not Comparison.EQUALS
-            for state in spec.expected
-            if state.terraform_attribute
-        )
-    ):
-        return _declined(
-            filename, Decline.NOT_EDITABLE, "This rule has no Terraform argument to set."
-        )
+    edit = rule_edit(rule)
+    if isinstance(edit, Declined):
+        return _declined(filename, edit.reason, edit.detail)
     if resource_name is None:
         return _declined(
             filename, Decline.NOT_EDITABLE, "This finding is not about one resource in code."
         )
-    if replacing := [hint["attribute"] for hint in hints if hint["replaces"]]:
-        # Never written into existing code: the apply would destroy the resource (§228).
-        return _declined(
-            filename,
-            Decline.REPLACES_RESOURCE,
-            f"Changing {', '.join(replacing)} makes Terraform destroy this resource and create "
-            "another. Plan that replacement by hand.",
-        )
 
     result = edit_terraform(
         text,
-        resource_types=spec.terraform_resource_types,
+        resource_types=edit.resource_types,
         name=resource_name,
-        changes=[
-            # ``terraform_hints`` keeps the states that carry an attribute, in order.
-            Change(
-                hint["attribute"],
-                hint["value"],
-                terraform_accepts(state),
-                tuple(Renamed(r["since"], r["attribute"], r["value"]) for r in hint["renamed"]),
-            )
-            for hint, state in zip(
-                hints, [s for s in spec.expected if s.terraform_attribute], strict=True
-            )
-        ],
+        changes=edit.changes,
         lockfile=lock,
         sole_block=sole_block,
     )

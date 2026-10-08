@@ -355,6 +355,17 @@ code_integrations          -- a GitHub App installation linked to an
   account_login, account_type       -- claim it; linking is proven with the
   connected_by, connected_at        -- linking person's own GitHub token
 
+fix_pull_requests          -- one rule's fix asked for as a pull request on
+  id, organization_id, rule_id     -- one repository (DECISIONS.md §232): QUEUED,
+  repository_id, repository, state -- OPENING (claimed under a lease), OPEN,
+  branch, pr_number, pr_url        -- MERGED, CLOSED, DECLINED or FAILED; at most
+  decline_reason, detail           -- one live per organization, rule and
+  requested_by, attempts, claimed_until, created_at, updated_at  -- repository
+
+fix_pull_request_findings  -- each finding it covers, and whether its block was
+  id, pull_request_id, organization_id, finding_id, address  -- EDITED (path,
+  outcome, reason, path, line                                -- line) or DECLINED
+
 iac_index_entries          -- one managed azurerm resource of it: its state
   id, index_id, organization_id   -- address, type, instance key and lower-cased
   address, type, instance_key     -- Azure Resource Manager id. Members read;

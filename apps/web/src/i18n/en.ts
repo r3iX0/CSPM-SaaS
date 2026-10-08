@@ -1462,6 +1462,27 @@ export const en = {
     linkMissing: "GitHub sent no installation to link. Start again from Integrations.",
     back: "Back to Integrations",
   },
+  // A rule's fix as pull requests, one per repository (DECISIONS.md §232).
+  pullRequests: {
+    title: "Pull requests",
+    open: "Open pull request",
+    opening: "Asking for the pull request…",
+    queued: (n: number) => `Queued ${n} ${n === 1 ? "pull request" : "pull requests"}`,
+    notIndexed: (n: number) =>
+      `${n} failing ${n === 1 ? "asset is" : "assets are"} in no uploaded state index.`,
+    failed: "Could not ask for the pull request",
+    state: {
+      QUEUED: "Queued",
+      OPENING: "Opening",
+      OPEN: "Open",
+      MERGED: "Merged, waiting for a scan",
+      CLOSED: "Closed without merging",
+      DECLINED: "Nothing could be edited",
+      FAILED: "GitHub refused it",
+    },
+    number: (n: number) => `#${n}`,
+    edited: (edited: number, total: number) => `${edited} of ${total} assets edited`,
+  },
   // Webhooks (DECISIONS.md §164).
   webhooks: {
     title: "Integrations",

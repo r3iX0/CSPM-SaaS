@@ -87,6 +87,9 @@ class Decline(StrEnum):
     # block in the code, which moved since the index was uploaded.
     MODULE_EXTERNAL = "module_external"
     INDEX_STALE = "index_stale"
+    # A block under ``count``, ``for_each`` or several workspaces defines more
+    # assets than fail the rule, so editing it would change the rest too (§232).
+    PARTIAL_INSTANCES = "partial_instances"
 
 
 @dataclass(frozen=True)
@@ -114,6 +117,14 @@ class Change:
 
     def met_by(self, written: str) -> bool:
         return written.strip() in (self.value, *self.accepts)
+
+
+@dataclass(frozen=True)
+class RuleChanges:
+    """What one rule's fix writes, and the resource types it may write it into."""
+
+    resource_types: tuple[str, ...]
+    changes: tuple[Change, ...]
 
 
 @dataclass(frozen=True)
@@ -174,6 +185,7 @@ def edit_terraform(
     lockfile: str | None = None,
     sole_block: bool = False,
     label: str | None = None,
+    allow_repeated: bool = False,
 ) -> Patched | Declined:
     """Apply ``changes`` to the block of one of ``resource_types`` named ``name``.
 
@@ -189,9 +201,15 @@ def edit_terraform(
     (``resource "azurerm_storage_account" "<label>"``), which names the block
     exactly whatever its ``name`` renders to (§229). Given, it replaces the name
     search; ``find_resource_block`` says which file to pass.
+
+    ``allow_repeated`` edits a block under ``count`` or ``for_each``, which
+    changes every instance it defines. Only for a caller that has checked every
+    instance fails the rule, from the customer's state index (§232).
     """
     try:
-        return _edit(source, resource_types, name, changes, lockfile, sole_block, label)
+        return _edit(
+            source, resource_types, name, changes, lockfile, sole_block, label, allow_repeated
+        )
     except _Refused as refused:
         return Declined(refused.reason, refused.detail)
 
@@ -204,13 +222,14 @@ def _edit(
     lockfile: str | None,
     sole_block: bool,
     label: str | None,
+    allow_repeated: bool = False,
 ) -> Patched:
     data = source.encode()
     if len(data) > MAX_BYTES:
         raise _Refused(Decline.TOO_LARGE, f"The file is over {MAX_BYTES // 1024} KiB.")
     root = _parse(data)
     version = _provider_version(root, data, lockfile)
-    block, matched_by = _find(root, data, resource_types, name, sole_block, label)
+    block, matched_by = _find(root, data, resource_types, name, sole_block, label, allow_repeated)
     major = _release(version)[0] if version is not None else None
     changes = [_named(block, data, change, major) for change in changes]
 
@@ -219,7 +238,7 @@ def _edit(
         raise _Refused(Decline.ALREADY_SET, "The file already sets every value this fix asks for.")
 
     edited, edits = _apply(data, splices)
-    _verify(edited, resource_types, name, changes, sole_block, label)
+    _verify(edited, resource_types, name, changes, sole_block, label, allow_repeated)
     order = {change.attribute: index for index, change in enumerate(changes)}
     return Patched(
         original=source,
@@ -333,10 +352,11 @@ def _find(
     name: str,
     sole_block: bool,
     label: str | None,
+    allow_repeated: bool = False,
 ) -> tuple[Node, Literal["name", "sole_block", "address"]]:
     if label is None:
         return _locate(root, data, resource_types, name, sole_block)
-    return _by_label(root, data, resource_types, label), "address"
+    return _by_label(root, data, resource_types, label, allow_repeated), "address"
 
 
 def _resource_blocks(
@@ -355,7 +375,9 @@ def _resource_blocks(
     return found
 
 
-def _by_label(root: Node, data: bytes, resource_types: Sequence[str], label: str) -> Node:
+def _by_label(
+    root: Node, data: bytes, resource_types: Sequence[str], label: str, allow_repeated: bool
+) -> Node:
     matches = _resource_blocks(root, data, resource_types, label)
     if not matches:
         raise _Refused(Decline.INDEX_STALE, f"No resource in this file is labelled {label!r}.")
@@ -365,7 +387,8 @@ def _by_label(root: Node, data: bytes, resource_types: Sequence[str], label: str
             f"{len(matches)} resources in this file are labelled {label!r}.",
         )
     (block,) = matches
-    _refuse_repeated(block, data)
+    if not allow_repeated:
+        _refuse_repeated(block, data)
     return block
 
 
@@ -521,10 +544,13 @@ def _verify(
     changes: Sequence[Change],
     sole_block: bool,
     label: str | None,
+    allow_repeated: bool,
 ) -> None:
     """Read the edited file back and refuse unless it says what was meant."""
     try:
-        block, _ = _find(_parse(edited), edited, resource_types, name, sole_block, label)
+        block, _ = _find(
+            _parse(edited), edited, resource_types, name, sole_block, label, allow_repeated
+        )
         for change in changes:
             *path, leaf = change.attribute.split(".")
             attribute = _attributes(_nested_body(block, edited, path), edited).get(leaf)

@@ -61,6 +61,10 @@ WORKER_OWNED = {
     # scoped to one organization by hand, and the upload only after GitHub has
     # answered, so a stranger's token holds no pooled connection (DECISIONS.md 231).
     "code_integrations.py": {"forget_installation", "take_index"},
+    # The fix pull request sweep and GitHub's merge delivery: the worker and a
+    # webhook, never a request. The sweep commits its claim before asking GitHub
+    # and the outcome after, so no transaction is open while GitHub answers (232).
+    "pull_requests.py": {"open_due", "_settle", "pull_request_closed"},
 }
 
 

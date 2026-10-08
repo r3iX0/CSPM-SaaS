@@ -13,6 +13,7 @@ Only fixed GitHub hosts are called, never a URL a customer typed, so these calls
 need not go through ``core/outbound`` (§164).
 """
 
+import base64
 import hashlib
 import hmac
 import time
@@ -181,3 +182,126 @@ def signed_by_github(body: bytes, signature: str | None) -> bool:
         settings.github_app_webhook_secret.encode(), body, hashlib.sha256
     ).hexdigest()
     return hmac.compare_digest(signature.removeprefix("sha256="), expected)
+
+
+# -------------------------------------------------------------- pull requests
+#: A repository's Terraform read for one pull request, at most: past this the
+#: repository is declined rather than half-read (DECISIONS.md §232).
+MAX_TERRAFORM_FILES = 400
+MAX_TERRAFORM_BYTES = 4 * 1024 * 1024
+
+
+@dataclass(frozen=True)
+class OpenedPullRequest:
+    number: int
+    url: str
+
+
+async def terraform_files(
+    full_name: str, branch: str, token: str
+) -> tuple[str, dict[str, str]] | str:
+    """The branch's head commit and every ``.tf`` and lock file at it, or why not.
+
+    Read through the Git Data API, never cloned, under file and byte caps. A
+    tree GitHub truncated is refused, since a half-read repository would decline
+    blocks that are there.
+    """
+    head = _json(
+        await _request("GET", f"{API}/repos/{full_name}/git/ref/heads/{branch}", token=token),
+        "read the default branch",
+    )["object"]["sha"]
+    tree = _json(
+        await _request(
+            "GET",
+            f"{API}/repos/{full_name}/git/trees/{head}",
+            token=token,
+            params={"recursive": "1"},
+        ),
+        "read the repository tree",
+    )
+    if tree.get("truncated"):
+        return "The repository is too large for GitHub to list in one tree."
+    wanted = [
+        item
+        for item in tree.get("tree", [])
+        if item.get("type") == "blob"
+        and (item["path"].endswith(".tf") or item["path"].endswith(".terraform.lock.hcl"))
+    ]
+    if len(wanted) > MAX_TERRAFORM_FILES:
+        return (
+            f"The repository holds {len(wanted)} Terraform files; "
+            f"at most {MAX_TERRAFORM_FILES} are read."
+        )
+    if sum(int(item.get("size", 0)) for item in wanted) > MAX_TERRAFORM_BYTES:
+        return "The repository's Terraform is over 4 MiB."
+    files: dict[str, str] = {}
+    for item in wanted:
+        blob = _json(
+            await _request("GET", f"{API}/repos/{full_name}/git/blobs/{item['sha']}", token=token),
+            "read a file",
+        )
+        try:
+            files[item["path"]] = base64.b64decode(blob["content"]).decode("utf-8")
+        except (ValueError, UnicodeDecodeError):
+            continue  # Not UTF-8 text; Terraform would not read it either.
+    return head, files
+
+
+async def open_pull_request(
+    full_name: str,
+    *,
+    token: str,
+    base: str,
+    base_sha: str,
+    branch: str,
+    files: dict[str, str],
+    title: str,
+    body: str,
+) -> OpenedPullRequest:
+    """Commit ``files`` on a new branch from ``base_sha`` and open a pull request to ``base``.
+
+    Never a push to ``base``, and never a merge: a person merges (§190).
+    """
+    tree = _json(
+        await _request(
+            "POST",
+            f"{API}/repos/{full_name}/git/trees",
+            token=token,
+            json={
+                "base_tree": base_sha,
+                "tree": [
+                    {"path": path, "mode": "100644", "type": "blob", "content": content}
+                    for path, content in sorted(files.items())
+                ],
+            },
+        ),
+        "write the edited files",
+    )
+    commit = _json(
+        await _request(
+            "POST",
+            f"{API}/repos/{full_name}/git/commits",
+            token=token,
+            json={"message": title, "tree": tree["sha"], "parents": [base_sha]},
+        ),
+        "commit the edit",
+    )
+    _json(
+        await _request(
+            "POST",
+            f"{API}/repos/{full_name}/git/refs",
+            token=token,
+            json={"ref": f"refs/heads/{branch}", "sha": commit["sha"]},
+        ),
+        "create the branch",
+    )
+    pull = _json(
+        await _request(
+            "POST",
+            f"{API}/repos/{full_name}/pulls",
+            token=token,
+            json={"title": title, "head": branch, "base": base, "body": body},
+        ),
+        "open the pull request",
+    )
+    return OpenedPullRequest(number=int(pull["number"]), url=str(pull["html_url"]))

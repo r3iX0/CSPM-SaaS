@@ -1222,6 +1222,147 @@ class TestAssetList:
             "module.storage.azurerm_storage_account.main",
         )
 
+    async def test_a_rules_pull_request_is_queued_once_and_a_merge_claims_its_fix(
+        self, client, cleanup_orgs, monkeypatch
+    ) -> None:
+        """One request per rule and repository; a merge marks done and verifies (§232)."""
+        from sqlalchemy import select, update
+
+        from app.core.config import settings
+        from app.core.db import service_session
+        from app.core.enums import (
+            FindingStatus,
+            Priority,
+            RemediationStatus,
+            Severity,
+            VerificationStatus,
+        )
+        from app.models.finding import Finding
+        from app.models.fix_pull_request import FixPullRequest, FixPullRequestFinding
+        from app.models.remediation import RemediationTask
+        from app.models.resource import ResourceRecord
+        from app.models.verification import RemediationVerification
+        from app.remediation.iac.index import entries_from_upload
+        from app.services import pull_requests
+        from app.services.iac_index import replace_index
+
+        for name, value in {
+            "github_app_id": "1",
+            "github_app_slug": "cleave",
+            "github_app_client_id": "Iv1.x",
+            "github_app_client_secret": "s",
+            "github_app_private_key": "k",
+            "github_app_webhook_secret": "w",
+            "fix_prs_enabled": True,
+        }.items():
+            monkeypatch.setattr(settings, name, value)
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Pull Ltd"))
+        cleanup_orgs.append(org_id)
+        arm_id = (
+            "/subscriptions/00000000-0000-0000-0000-000000000001"
+            "/resourceGroups/prod/providers/Microsoft.Storage/storageAccounts/payroll"
+        )
+        await self._asset_in_a_subscription(org_id, arm_id)
+
+        now = datetime.now(UTC)
+        async with service_session() as session:
+            resource = (
+                await session.execute(
+                    select(ResourceRecord).where(ResourceRecord.organization_id == org_id)
+                )
+            ).scalar_one()
+            finding = Finding(
+                organization_id=org_id,
+                resource_id=resource.id,
+                rule_id="AZ-STO-002",
+                severity=Severity.HIGH,
+                status=FindingStatus.IN_PROGRESS,
+                title="TLS 1.0 is accepted",
+                description="",
+                first_detected_at=now,
+                last_detected_at=now,
+            )
+            session.add(finding)
+            await session.flush()
+            session.add(
+                RemediationTask(
+                    organization_id=org_id,
+                    finding_id=finding.id,
+                    status=RemediationStatus.TODO,
+                    priority=Priority.HIGH,
+                    estimated_effort_minutes=15,
+                )
+            )
+            await replace_index(
+                session,
+                org_id,
+                repository_id=42,
+                repository="contoso/infra",
+                working_directory="infra",
+                workspace="default",
+                commit_sha="a" * 40,
+                entries=entries_from_upload(
+                    [
+                        {
+                            "address": "azurerm_storage_account.payroll",
+                            "type": "azurerm_storage_account",
+                            "id": arm_id,
+                        }
+                    ]
+                ),
+            )
+            finding_id = finding.id
+            await session.commit()
+
+        asked = [
+            await client.post(
+                "/api/v1/remediation/pull-requests",
+                json={"rule_id": "AZ-STO-002"},
+                headers=auth_header(user),
+            )
+            for _ in range(2)
+        ]
+        assert [response.status_code for response in asked] == [202, 202], asked[0].text
+        first, second = (response.json()["data"] for response in asked)
+        assert first["not_indexed"] == 0
+        [queued] = first["pull_requests"]
+        assert (queued["state"], queued["repository"]) == ("QUEUED", "contoso/infra")
+        assert second["pull_requests"][0]["id"] == queued["id"], "asked twice, queued once"
+
+        # What the worker records once GitHub has the pull request open.
+        async with service_session() as session:
+            await session.execute(
+                update(FixPullRequest)
+                .where(FixPullRequest.id == uuid.UUID(queued["id"]))
+                .values(state="OPEN", pr_number=5)
+            )
+            await session.execute(
+                update(FixPullRequestFinding)
+                .where(FixPullRequestFinding.finding_id == finding_id)
+                .values(outcome="EDITED", path="infra/main.tf", line=3)
+            )
+            await session.commit()
+
+        await pull_requests.pull_request_closed(42, 5, merged=True)
+
+        async with service_session() as session:
+            task = (
+                await session.execute(
+                    select(RemediationTask).where(RemediationTask.finding_id == finding_id)
+                )
+            ).scalar_one()
+            verification = (
+                await session.execute(
+                    select(RemediationVerification).where(
+                        RemediationVerification.finding_id == finding_id
+                    )
+                )
+            ).scalar_one()
+        assert task.status == RemediationStatus.DONE
+        assert verification.status == VerificationStatus.PENDING
+
     async def test_a_listed_asset_names_itself_in_the_provider(self, client, cleanup_orgs) -> None:
         import uuid as uuid_module
 

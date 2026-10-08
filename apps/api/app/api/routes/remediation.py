@@ -2,9 +2,15 @@ from uuid import UUID
 
 from fastapi import APIRouter, Query, Request, Response, status
 
-from app.api.links import created
+from app.api.links import accepted, created
 from app.core.deps import DbSession, Tenant
 from app.core.enums import RemediationStatus
+from app.schemas.code_integration import (
+    FixPullRequestFindingOut,
+    FixPullRequestIn,
+    FixPullRequestOut,
+    FixPullRequestsQueuedOut,
+)
 from app.schemas.common import ERROR_RESPONSES, Envelope, NoMeta, error_responses
 from app.schemas.finding import (
     FixedFindingOut,
@@ -15,6 +21,7 @@ from app.schemas.finding import (
     RemediationUpdatedOut,
     SeverityProgressOut,
 )
+from app.services import pull_requests as pull_request_service
 from app.services import remediation as service
 from app.services.deadlines import Deadline
 
@@ -79,6 +86,55 @@ async def progress(
             by_severity=[SeverityProgressOut.model_validate(row) for row in result.by_severity],
             recent=[FixedFindingOut.model_validate(fix) for fix in result.recent],
         ),
+        meta=NoMeta(),
+    )
+
+
+@router.post(
+    "/pull-requests", status_code=status.HTTP_202_ACCEPTED, responses=error_responses(403, 404)
+)
+async def request_pull_requests(
+    payload: FixPullRequestIn,
+    request: Request,
+    response: Response,
+    session: DbSession,
+    tenant: Tenant,
+) -> Envelope[FixPullRequestsQueuedOut, NoMeta]:
+    """Ask for a rule's fix as pull requests, one per repository its failing assets are in.
+
+    Matched through the organization's state indexes; a failing asset no index
+    names is counted in ``not_indexed``. Queued for the worker, which reads the
+    repository, edits what it can stand behind and opens the pull request
+    (DECISIONS.md §232). A request already in flight or open is answered, not
+    repeated.
+    """
+    queued, not_indexed = await pull_request_service.request(session, tenant, payload.rule_id)
+    await session.commit()
+    accepted(request, response, "list_pull_requests")
+    return Envelope(
+        data=FixPullRequestsQueuedOut(
+            pull_requests=[FixPullRequestOut.model_validate(row) for row in queued],
+            not_indexed=not_indexed,
+        ),
+        meta=NoMeta(),
+    )
+
+
+@router.get("/pull-requests")
+async def list_pull_requests(
+    session: DbSession,
+    tenant: Tenant,
+    rule_id: str | None = Query(default=None, max_length=128),
+) -> Envelope[list[FixPullRequestOut], NoMeta]:
+    """The organization's latest fix pull requests, with each finding's outcome."""
+    rows = await pull_request_service.for_rule(session, tenant, rule_id)
+    return Envelope(
+        data=[
+            FixPullRequestOut.model_validate(pr).model_copy(
+                update={"findings": [FixPullRequestFindingOut.model_validate(f) for f in findings]}
+            )
+            for pr, findings in rows
+        ],
         meta=NoMeta(),
     )
 

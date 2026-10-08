@@ -15,6 +15,7 @@ import {
 import { placeholderValues } from "@/lib/remediationFill";
 import { useIsDemo } from "@/lib/useDemo";
 import { cn, resourceTypeLabel } from "@/lib/format";
+import { FixPullRequests } from "@/components/security/FixPullRequests";
 import { RemediationPanel } from "@/components/security/RemediationPanel";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { Button } from "@/components/ui/button";
@@ -197,6 +198,8 @@ function RuleFixBody({
             </ul>
           </section>
         )}
+
+        <FixPullRequests ruleId={ruleId} />
 
         <RemediationPanel
           remediation={lead.remediation}
