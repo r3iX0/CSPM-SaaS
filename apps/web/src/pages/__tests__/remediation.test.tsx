@@ -379,7 +379,7 @@ describe("the queue, grouped by rule (DECISIONS.md §203)", () => {
     expect(script).toHaveTextContent("# devstorage");
   });
 
-  it("offers an asset somebody stopped tracking to track again, rather than listing it (§223)", async () => {
+  it("offers an asset somebody stopped tracking to track again, rather than listing it (§224)", async () => {
     // Listed, it was counted ("3 assets, 2 still to do") and nothing in the
     // sheet could track it again.
     queue = [...TWO_TASKS, { ...TASK, id: "task-3", finding_id: "finding-3", status: "CANCELLED" }];

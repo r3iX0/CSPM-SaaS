@@ -218,7 +218,7 @@ export function RemediationPage() {
  * A row's figures and its action. On a phone they take a line of their own
  * under the title, with the action at its end; the fixed widths that line the
  * figures up in columns apply only beside the title, where there are columns
- * to line up -- on their own line they centred the button (§223).
+ * to line up -- on their own line they centred the button (§224).
  */
 const ROW_FIGURES =
   "flex w-full flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground sm:w-auto";
@@ -298,7 +298,7 @@ function TaskCard({
             <Skeleton className="h-4 w-72 max-w-full" />
           )}
           {/* Only the asset's name gives way when the line is short: on a
-              phone the route count was the part cut off (§223). */}
+              phone the route count was the part cut off (§224). */}
           <p className="mt-0.5 flex flex-wrap gap-x-1 text-caption text-muted-foreground">
             <span className="max-w-full min-w-0 truncate">
               {finding?.resource

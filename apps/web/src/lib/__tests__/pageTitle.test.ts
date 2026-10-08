@@ -18,6 +18,12 @@ describe("the page title", () => {
     expect(routeTitle("/connections/abc/setup")).toBe("Environment setup");
   });
 
+  it("names the audit pages, the owner's and the auditor's", () => {
+    expect(documentTitle("/settings/audit", null)).toBe("Audit packages · Settings · Cleave");
+    expect(routeTitle("/auditor")).toBe("Audit packages");
+    expect(documentTitle("/auditor/g-1", "SOC 2 FY26")).toBe("SOC 2 FY26 · Audit package · Cleave");
+  });
+
   it("puts a detail page's own name first", () => {
     expect(documentTitle("/findings/f1", null)).toBe("Finding · Cleave");
     expect(documentTitle("/findings/f1", "Storage open to the internet")).toBe(

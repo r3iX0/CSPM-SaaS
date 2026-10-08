@@ -48,7 +48,7 @@ export interface RuleFixMember {
  * A task somebody stopped tracking is not one of the assets: its finding is
  * open again and nobody's work, so it is offered with the rest to track. Listed
  * as an asset it was counted ("6 assets, 5 still to do") and could not be
- * tracked again from here, and once it was, the asset was listed twice (§223).
+ * tracked again from here, and once it was, the asset was listed twice (§224).
  */
 export function RuleFixSheet({
   ruleId,

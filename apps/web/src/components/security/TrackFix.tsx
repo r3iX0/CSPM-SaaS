@@ -35,7 +35,7 @@ import { formatDate, formatEffort } from "@/lib/format";
  * finding: tracking moves it to IN_PROGRESS, done starts the verification
  * (§18), and only a scan observing the fix resolves it. The queue says so once
  * under its rows, and marking done says so in its toast; the sheet over the
- * queue does not say it a third time (§223).
+ * queue does not say it a third time (§224).
  *
  * Tracked work is worked here too: started, handed to a member, given a due
  * date, reopened when it was marked done too soon, and dropped from the queue

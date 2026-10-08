@@ -26,7 +26,7 @@ function formatDayValue(date: Date): string {
  *
  * The browser's own date input drew its own control in its own locale's
  * order (`dd.mm.yyyy`), and matched nothing else on the page (DECISIONS.md
- * §223). The value stays the API's `YYYY-MM-DD` string, `""` for none.
+ * §224). The value stays the API's `YYYY-MM-DD` string, `""` for none.
  */
 export function DatePicker({
   id,

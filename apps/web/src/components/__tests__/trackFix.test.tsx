@@ -156,7 +156,7 @@ describe("tracking a fix", () => {
   it("gives the work a due date and takes it off again (§212)", async () => {
     const fetchMock = mount([{ ...TASK, due_date: "2026-10-09" }]);
 
-    // A picker, not the browser's date input, and it says the day it holds (§223).
+    // A picker, not the browser's date input, and it says the day it holds (§224).
     const due = await screen.findByLabelText("Due");
     expect(due).toHaveTextContent(
       new Date(2026, 9, 9).toLocaleDateString(undefined, {

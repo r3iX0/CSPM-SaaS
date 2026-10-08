@@ -181,6 +181,20 @@ describe("Settings pages", () => {
     mount({ at: "/settings/activity", orgs: [organization({ role: "VIEWER" })] });
     await waitFor(() => expect(location()).toBe("/settings/general"));
   });
+
+  it("offers audit packages to owners and not to viewers (DECISIONS.md §218)", async () => {
+    mount({ at: "/settings/security" });
+    const nav = await screen.findByRole("navigation", { name: "Settings sections" });
+    expect(within(nav).getByRole("link", { name: "Audit packages" })).toHaveAttribute(
+      "href",
+      "/settings/audit",
+    );
+  });
+
+  it("turns a viewer who opens the audit page back to General", async () => {
+    mount({ at: "/settings/audit", orgs: [organization({ role: "VIEWER" })] });
+    await waitFor(() => expect(location()).toBe("/settings/general"));
+  });
 });
 
 describe("General", () => {

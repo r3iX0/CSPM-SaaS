@@ -390,7 +390,7 @@ Node installed on your machine.
    deploy settings and the names of their variables, never a value (every one
    is `preserve()`). Railway does not read it on deploy; it reaches the
    services only when it is applied, and apply deletes whatever the file leaves
-   out of the project, so read the plan before applying it (DECISIONS.md §218):
+   out of the project, so read the plan before applying it (DECISIONS.md §223):
 
    ```bash
    railway link                                  # the project and environment
