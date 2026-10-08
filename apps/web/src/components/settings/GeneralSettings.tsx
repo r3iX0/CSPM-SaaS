@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError, auth } from "@/lib/api";
 import type { CloudAccount, Member, Organization } from "@/lib/types";
 import { useT } from "@/i18n";
+import { FixDeadlines } from "@/components/settings/FixDeadlines";
 import { OrganizationForm } from "@/components/settings/OrganizationForm";
 import { SettingsSection } from "@/components/settings/SettingsSection";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -21,7 +22,10 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
-/** The organization's profile, and at the foot of it, deleting the organization. */
+/**
+ * The organization's profile, how long it gives itself to fix a finding
+ * (DECISIONS.md §225), and at the foot of it, deleting the organization.
+ */
 export function GeneralSettings({ organization }: { organization: Organization }) {
   const t = useT();
 
@@ -45,6 +49,13 @@ export function GeneralSettings({ organization }: { organization: Organization }
         {/* Keyed, so switching organization remounts the form with the new
             values rather than leaving the previous one's name in the boxes. */}
         <OrganizationForm key={organization.id} organization={organization} />
+      </SettingsSection>
+      <SettingsSection
+        id="deadlines"
+        title={t.settings.deadlinesTitle}
+        description={t.settings.deadlinesHelp}
+      >
+        <FixDeadlines key={organization.id} organization={organization} />
       </SettingsSection>
       <DangerZone organization={organization} />
     </div>

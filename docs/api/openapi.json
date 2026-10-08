@@ -10148,7 +10148,7 @@
           "remediation"
         ],
         "summary": "List Tasks",
-        "description": "The queue, in the order the page says it is in.\n\nIt said \"ordered by impact against effort\" and was ordered by when each\ntask was created. Now: open work first, then priority, then how many attack\npaths run through the finding's asset, then the finding's own score\n(DECISIONS.md section 127). ``service.queue`` holds the ordering.",
+        "description": "The queue, in the order the page says it is in.\n\nIt said \"ordered by impact against effort\" and was ordered by when each\ntask was created. Now: open work first, then priority, then how many attack\npaths run through the finding's asset, then the finding's own score\n(DECISIONS.md section 127). ``service.queue`` holds the ordering. Each task\nsays when it is due, by its own date or the organization's policy (\u00a7225).",
         "operationId": "remediation_list_tasks",
         "security": [
           {
@@ -10180,6 +10180,103 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Envelope_list_RemediationOut__NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/api/v1/remediation/progress": {
+      "get": {
+        "tags": [
+          "remediation"
+        ],
+        "summary": "Progress",
+        "description": "What a scan observed fixed in the last ``days`` days, and how it went against deadlines.\n\nFinished work used to leave the queue and the page with it. Counted from the findings a scan\nresolved, never from tasks marked done, since only an observation closes a finding: each\nseverity's count and median days from first detection to the fix, how many met their\ndeadline, and the latest few by name (DECISIONS.md \u00a7225).",
+        "operationId": "remediation_progress",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 7,
+              "default": 30,
+              "title": "Days"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_FixProgressOut_NoMeta_"
                 }
               }
             }
@@ -15062,6 +15159,26 @@
         ],
         "title": "Envelope[FindingProvenanceOut, FindingProvenanceMeta]"
       },
+      "Envelope_FixProgressOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/FixProgressOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[FixProgressOut, NoMeta]"
+      },
       "Envelope_FrameworkDetailOut_NoMeta_": {
         "properties": {
           "data": {
@@ -17527,6 +17644,187 @@
         "title": "FindingTallyOut",
         "description": "Open findings on an asset or a box, and the worst of them."
       },
+      "FixProgressOut": {
+        "properties": {
+          "days": {
+            "type": "integer",
+            "title": "Days"
+          },
+          "fixed": {
+            "type": "integer",
+            "title": "Fixed"
+          },
+          "on_time": {
+            "type": "integer",
+            "title": "On Time"
+          },
+          "late": {
+            "type": "integer",
+            "title": "Late"
+          },
+          "by_severity": {
+            "items": {
+              "$ref": "#/components/schemas/SeverityProgressOut"
+            },
+            "type": "array",
+            "title": "By Severity"
+          },
+          "recent": {
+            "items": {
+              "$ref": "#/components/schemas/FixedFindingOut"
+            },
+            "type": "array",
+            "title": "Recent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "days",
+          "fixed",
+          "on_time",
+          "late",
+          "by_severity",
+          "recent"
+        ],
+        "title": "FixProgressOut",
+        "description": "What was fixed in a window: verified fixes only, since only a scan closes a finding.\n\n``on_time`` and ``late`` count only the fixes that had a deadline, judged against today's\npolicy where no person set a date (DECISIONS.md \u00a7225)."
+      },
+      "FixWithinDays": {
+        "properties": {
+          "critical": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 365.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Critical"
+          },
+          "high": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 365.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High"
+          },
+          "medium": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 365.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Medium"
+          },
+          "low": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 365.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "FixWithinDays",
+        "description": "How many days after first detection a finding is due, by severity (DECISIONS.md \u00a7225).\n\nA severity left null has no deadline. Sent whole, as one statement of the policy: a form that\nlowers Critical to seven days says what High is too, so a reader of the change knows the\npolicy that resulted.",
+        "examples": [
+          {
+            "critical": 7,
+            "high": 30,
+            "medium": 90
+          }
+        ]
+      },
+      "FixedFindingOut": {
+        "properties": {
+          "finding_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Finding Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/Severity"
+          },
+          "first_detected_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "First Detected At"
+          },
+          "resolved_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Resolved At"
+          },
+          "due_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due On"
+          },
+          "days_to_fix": {
+            "type": "number",
+            "title": "Days To Fix"
+          },
+          "on_time": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "On Time"
+          }
+        },
+        "type": "object",
+        "required": [
+          "finding_id",
+          "title",
+          "rule_id",
+          "severity",
+          "first_detected_at",
+          "resolved_at",
+          "days_to_fix"
+        ],
+        "title": "FixedFindingOut",
+        "description": "A finding a scan observed fixed, as the progress report names it."
+      },
       "FoldBoxOut": {
         "properties": {
           "id": {
@@ -19131,6 +19429,10 @@
             "title": "Is Demo",
             "default": false
           },
+          "fix_within_days": {
+            "$ref": "#/components/schemas/FixWithinDays",
+            "default": {}
+          },
           "role": {
             "$ref": "#/components/schemas/Role"
           }
@@ -19192,6 +19494,10 @@
             "type": "boolean",
             "title": "Is Demo",
             "default": false
+          },
+          "fix_within_days": {
+            "$ref": "#/components/schemas/FixWithinDays",
+            "default": {}
           }
         },
         "type": "object",
@@ -19242,6 +19548,16 @@
               }
             ],
             "title": "Country"
+          },
+          "fix_within_days": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FixWithinDays"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -19928,6 +20244,23 @@
             "type": "integer",
             "title": "On Routes",
             "default": 0
+          },
+          "due_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due On"
+          },
+          "due_by_policy": {
+            "type": "boolean",
+            "title": "Due By Policy",
+            "default": false
           }
         },
         "type": "object",
@@ -20169,6 +20502,23 @@
             "type": "integer",
             "title": "On Routes",
             "default": 0
+          },
+          "due_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due On"
+          },
+          "due_by_policy": {
+            "type": "boolean",
+            "title": "Due By Policy",
+            "default": false
           },
           "note": {
             "anyOf": [
@@ -22327,6 +22677,44 @@
           "CRITICAL"
         ],
         "title": "Severity"
+      },
+      "SeverityProgressOut": {
+        "properties": {
+          "severity": {
+            "$ref": "#/components/schemas/Severity"
+          },
+          "fixed": {
+            "type": "integer",
+            "title": "Fixed"
+          },
+          "median_days_to_fix": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median Days To Fix"
+          },
+          "on_time": {
+            "type": "integer",
+            "title": "On Time"
+          },
+          "late": {
+            "type": "integer",
+            "title": "Late"
+          }
+        },
+        "type": "object",
+        "required": [
+          "severity",
+          "fixed",
+          "on_time",
+          "late"
+        ],
+        "title": "SeverityProgressOut"
       },
       "SimulatedCutOut": {
         "properties": {

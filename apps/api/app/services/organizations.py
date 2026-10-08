@@ -14,7 +14,7 @@ from app.core.enums import Role
 from app.core.errors import OrganizationNotFound, PermissionDenied
 from app.core.security import AuthenticatedUser
 from app.models.organization import Organization, OrganizationMember
-from app.schemas.organization import OrganizationCreate, OrganizationUpdate
+from app.schemas.organization import FixWithinDays, OrganizationCreate, OrganizationUpdate
 from app.services import audit
 
 _SLUG_STRIP = re.compile(r"[^a-z0-9]+")
@@ -124,8 +124,16 @@ async def update_organization(
         raise OrganizationNotFound()
 
     changes = payload.model_dump(exclude_unset=True)
+    if "fix_within_days" in changes:
+        # The policy is sent whole: a severity left out is cleared, null clears them all, and the
+        # audit row records the policy that resulted rather than the keys that were sent (§225).
+        changes["fix_within_days"] = (payload.fix_within_days or FixWithinDays()).model_dump()
     for field, value in changes.items():
-        setattr(org, field, value)
+        if field == "fix_within_days":
+            for severity, days in value.items():
+                setattr(org, f"fix_within_days_{severity}", days)
+        else:
+            setattr(org, field, value)
     await audit.record(
         session, tenant, "organization.updated", "organization", org.id, {"changed": changes}
     )

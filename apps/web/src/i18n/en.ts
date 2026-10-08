@@ -1123,6 +1123,16 @@ export const en = {
     orgFailed: "Could not save the organization",
     // Only owners and admins may edit, and a reader who cannot should be told
     // why rather than meeting disabled fields with no explanation.
+    // How long a fix may take, by severity (DECISIONS.md §225).
+    deadlinesTitle: "Fix deadlines",
+    deadlinesHelp: "Days from first detection to a fix, for work with no due date of its own.",
+    deadlinesDays: "days",
+    deadlinesNone: "No deadline",
+    deadlinesRange: "Leave a box empty for no deadline, or give 1 to 365 days.",
+    deadlinesSave: "Save deadlines",
+    deadlinesSaved: "Fix deadlines saved",
+    deadlinesFailed: "Could not save the fix deadlines",
+    deadlinesReadOnly: "An owner or an admin can change these.",
     orgReadOnly:
       "Your role can read this but not change it. An owner or an admin can edit the organization.",
 
@@ -1591,6 +1601,28 @@ export const en = {
       ABANDONED: "Fix claimed — Cleave stopped checking",
     },
     doneNote: "Marked done is not fixed: a finding closes only when a scan sees the change.",
+    // When work is due, by a person's date or the organization's policy (DECISIONS.md §225).
+    dueLine: (day: string, overdue: boolean) => (overdue ? `Overdue · ${day}` : `Due ${day}`),
+    dueByPolicy: (day: string) => `By policy: ${day}`,
+    // What a scan observed fixed, tracked or not (§225).
+    progress: {
+      title: (days: number) => `Fixed in the last ${days} days`,
+      empty: "No finding was verified fixed in this window.",
+      fixed: "Seen fixed by a scan",
+      onTime: "Met their deadline",
+      onTimeOf: (met: number, held: number) => `${met} of ${held}`,
+      noDeadlines: "No fix deadlines are set, so nothing is measured against one.",
+      setDeadlines: "Set fix deadlines",
+      severity: "Severity",
+      count: "Fixed",
+      median: "Median time to fix",
+      days: (n: number) => `${n} ${n === 1 ? "day" : "days"}`,
+      late: (n: number) => `${n} late`,
+      recentTitle: "Latest fixes",
+      fixedOn: (day: string, days: string) => `Fixed ${day}, ${days} after it was first seen`,
+      wasLate: "Late",
+      wasOnTime: "On time",
+    },
   },
   access: {
     tab: "Access",

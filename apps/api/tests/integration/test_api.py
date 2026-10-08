@@ -2651,6 +2651,90 @@ class TestAssetNeighborhood:
         assert [row["finding_id"] for row in queue] == expected
         assert [row["on_routes"] for row in queue] == [1, 0, 0]
 
+    async def test_work_is_due_by_policy_and_fixes_are_counted_against_it(
+        self, client, cleanup_orgs
+    ) -> None:
+        """A task with no date is due by the policy; progress counts verified fixes (§225)."""
+        from datetime import timedelta
+
+        from app.core.db import service_session
+        from app.core.enums import FindingStatus, Priority, RemediationStatus, Severity
+        from app.models.finding import Finding
+        from app.models.remediation import RemediationTask
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Deadline Ltd"))
+        cleanup_orgs.append(org_id)
+
+        policy = await client.patch(
+            "/api/v1/organizations",
+            json={"fix_within_days": {"critical": 7, "high": 30}},
+            headers=auth_header(user),
+        )
+        assert policy.status_code == 200, policy.text
+        assert policy.json()["data"]["fix_within_days"] == {
+            "critical": 7,
+            "high": 30,
+            "medium": None,
+            "low": None,
+        }
+
+        now = datetime.now(UTC)
+
+        def finding(
+            severity: Severity, status: FindingStatus, age: int, fixed: int | None = None
+        ) -> Finding:
+            return Finding(
+                organization_id=org_id,
+                resource_id=None,
+                rule_id=f"AZ-TEST-{severity}-{age}",
+                severity=severity,
+                status=status,
+                title=f"{severity} first seen {age} days ago",
+                description="",
+                first_detected_at=now - timedelta(days=age),
+                last_detected_at=now,
+                resolved_at=None if fixed is None else now - timedelta(days=fixed),
+            )
+
+        async with service_session() as session:
+            late = finding(Severity.CRITICAL, FindingStatus.IN_PROGRESS, age=10)
+            on_time = finding(Severity.HIGH, FindingStatus.RESOLVED, age=20, fixed=2)
+            unheld = finding(Severity.LOW, FindingStatus.RESOLVED, age=40, fixed=1)
+            session.add_all([late, on_time, unheld])
+            await session.flush()
+            session.add(
+                RemediationTask(
+                    organization_id=org_id,
+                    finding_id=late.id,
+                    status=RemediationStatus.TODO,
+                    priority=Priority.CRITICAL,
+                    estimated_effort_minutes=30,
+                )
+            )
+            due = (late.first_detected_at.astimezone(UTC).date() + timedelta(days=7)).isoformat()
+            await session.commit()
+
+        queue = await client.get("/api/v1/remediation", headers=auth_header(user))
+        assert queue.status_code == 200, queue.text
+        [task] = queue.json()["data"]
+        assert (task["due_date"], task["due_on"], task["due_by_policy"]) == (None, due, True)
+
+        progress = await client.get("/api/v1/remediation/progress", headers=auth_header(user))
+        assert progress.status_code == 200, progress.text
+        body = progress.json()["data"]
+        assert (body["days"], body["fixed"], body["on_time"], body["late"]) == (30, 2, 1, 0)
+        by_severity = {row["severity"]: row for row in body["by_severity"]}
+        assert by_severity["HIGH"]["median_days_to_fix"] == 18.0
+        assert [fix["on_time"] for fix in body["recent"]] == [None, True]
+
+        refused = await client.patch(
+            "/api/v1/organizations",
+            json={"fix_within_days": {"critical": 0}},
+            headers=auth_header(user),
+        )
+        assert refused.status_code == 422
+
     async def test_who_holds_an_asset_names_the_workload_behind_the_identity(
         self, client, cleanup_orgs
     ) -> None:

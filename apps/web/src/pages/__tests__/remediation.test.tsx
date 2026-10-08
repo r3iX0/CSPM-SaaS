@@ -68,7 +68,37 @@ function renderPage(entry = "/remediation") {
   );
 }
 
+/** `GET /remediation/progress`: one late critical fix, no deadline policy (§225). */
+const PROGRESS = {
+  days: 30,
+  fixed: 1,
+  on_time: 0,
+  late: 1,
+  by_severity: [
+    { severity: "CRITICAL", fixed: 1, median_days_to_fix: 12, on_time: 0, late: 1 },
+    { severity: "HIGH", fixed: 0, median_days_to_fix: null, on_time: 0, late: 0 },
+    { severity: "MEDIUM", fixed: 0, median_days_to_fix: null, on_time: 0, late: 0 },
+    { severity: "LOW", fixed: 0, median_days_to_fix: null, on_time: 0, late: 0 },
+  ],
+  recent: [
+    {
+      finding_id: "finding-9",
+      title: "Key vault allows public network access",
+      rule_id: "AZ-KV-001",
+      severity: "CRITICAL",
+      first_detected_at: "2026-08-01T00:00:00Z",
+      resolved_at: "2026-08-13T00:00:00Z",
+      due_on: "2026-08-08",
+      days_to_fix: 12,
+      on_time: false,
+    },
+  ],
+};
+
+const NOTHING_FIXED = { ...PROGRESS, fixed: 0, late: 0, by_severity: [], recent: [] };
+
 let tasks: Record<string, unknown>[] = [TASK];
+let progress: Record<string, unknown> = PROGRESS;
 let openFindings: Record<string, unknown>[] = [{ ...FINDING, status: "OPEN" }];
 let finding: Record<string, unknown> = FINDING;
 let members: Record<string, unknown>[] = [];
@@ -76,6 +106,7 @@ let members: Record<string, unknown>[] = [];
 describe("the remediation queue", () => {
   beforeEach(() => {
     tasks = [TASK];
+    progress = PROGRESS;
     openFindings = [{ ...FINDING, status: "OPEN" }];
     finding = FINDING;
     members = [];
@@ -83,13 +114,15 @@ describe("the remediation queue", () => {
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
         const url = String(input);
-        const body = url.includes("/members")
-          ? members
-          : url.includes("/findings/")
-            ? finding
-            : url.includes("/findings?")
-              ? openFindings
-              : tasks;
+        const body = url.includes("/remediation/progress")
+          ? progress
+          : url.includes("/members")
+            ? members
+            : url.includes("/findings/")
+              ? finding
+              : url.includes("/findings?")
+                ? openFindings
+                : tasks;
         return {
           ok: true,
           status: 200,
@@ -120,6 +153,41 @@ describe("the remediation queue", () => {
         name: "Track the fix for Storage account allows public blob access",
       }),
     ).toBeInTheDocument();
+  });
+
+  it("calls work late by the policy's deadline when nobody set a date", async () => {
+    // "Overdue 0" meant nothing while nobody picked dates (DECISIONS.md §225).
+    tasks = [{ ...TASK, due_on: "2026-08-08", due_by_policy: true }];
+    renderPage();
+
+    expect(await screen.findByText(/Overdue · /)).toBeInTheDocument();
+    const overdue = screen.getByText("Overdue", { selector: "dt" });
+    expect(overdue.nextElementSibling).toHaveTextContent("1");
+  });
+
+  it("does not call work due today overdue", async () => {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    tasks = [{ ...TASK, due_date: today, due_on: today }];
+    renderPage();
+
+    expect(await screen.findByText(/^Due /)).toBeInTheDocument();
+    expect(screen.queryByText(/Overdue · /)).not.toBeInTheDocument();
+  });
+
+  it("says what a scan fixed in the last thirty days, and against what deadline", async () => {
+    // Finished work used to leave the page with the queue (§225).
+    renderPage();
+
+    const fixed = await screen.findByRole("region", { name: "Fixed in the last 30 days" });
+    expect(
+      await within(fixed).findByRole("link", { name: "Key vault allows public network access" }),
+    ).toHaveAttribute("href", "/findings/finding-9");
+    expect(within(fixed).getByText("0 of 1")).toBeInTheDocument();
+    expect(within(fixed).getByText("12 days")).toBeInTheDocument();
+    expect(within(fixed).getByText("Late")).toBeInTheDocument();
+    expect(within(fixed).getByText(/No fix deadlines are set/)).toBeInTheDocument();
   });
 
   it("names the finding and the asset the work is on, and opens its fix", async () => {
@@ -236,6 +304,8 @@ describe("the remediation queue", () => {
   it("draws the finding's severity, not the task's priority (§212)", async () => {
     tasks = [{ ...TASK, priority: "CRITICAL" }];
     finding = { ...FINDING, severity: "HIGH" };
+    // The fixes section would draw a critical fix of its own.
+    progress = NOTHING_FIXED;
     renderPage();
 
     await screen.findByText(/prodstorage/);
@@ -323,20 +393,22 @@ describe("the queue, grouped by rule (DECISIONS.md §203)", () => {
       const body =
         init?.method === "PATCH"
           ? { ...TASK, status: "DONE" }
-          : url.includes("/members")
-            ? []
-            : id
-              ? BY_ID[id]
-              : url.includes("/findings?")
-                ? // The rule's open findings: the two tracked, and one nobody has.
-                  [
-                    { ...RULE_FINDING, status: "OPEN" },
-                    { ...BY_ID["finding-2"], status: "OPEN" },
-                    { ...RULE_FINDING, id: "finding-3", status: "OPEN" },
-                  ]
-                : url.includes("/assets/")
-                  ? { provider_resource_id: "/subscriptions/s1/resourceGroups/rg/x" }
-                  : queue;
+          : url.includes("/remediation/progress")
+            ? PROGRESS
+            : url.includes("/members")
+              ? []
+              : id
+                ? BY_ID[id]
+                : url.includes("/findings?")
+                  ? // The rule's open findings: the two tracked, and one nobody has.
+                    [
+                      { ...RULE_FINDING, status: "OPEN" },
+                      { ...BY_ID["finding-2"], status: "OPEN" },
+                      { ...RULE_FINDING, id: "finding-3", status: "OPEN" },
+                    ]
+                  : url.includes("/assets/")
+                    ? { provider_resource_id: "/subscriptions/s1/resourceGroups/rg/x" }
+                    : queue;
       const response: Pick<Response, "ok" | "status" | "json"> = {
         ok: true,
         status: 200,

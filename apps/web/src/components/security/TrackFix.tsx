@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { formatDate, formatEffort } from "@/lib/format";
+import { formatDate, formatDay, formatEffort } from "@/lib/format";
 
 /**
  * The work on a fix: track it, then say it is done.
@@ -141,10 +141,18 @@ export function TrackFix({
               <Label htmlFor={`due-${task.id}`} className="text-caption text-muted-foreground">
                 {t.remediation.due}
               </Label>
+              {/* With no date of its own, the policy's is said in the box, so
+                  the reader sees what clearing a date falls back to (§225). */}
               <DatePicker
                 id={`due-${task.id}`}
                 disabled={isDemo || busy}
                 value={task.due_date ?? ""}
+                placeholder={
+                  task.due_by_policy && task.due_on
+                    ? t.remediation.dueByPolicy(formatDay(task.due_on))
+                    : undefined
+                }
+                className="w-44"
                 onChange={(day) => change({ due_date: day })}
               />
             </div>

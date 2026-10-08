@@ -477,8 +477,10 @@ async def seed_shared(provider: Provider) -> None:
 
         await session.execute(
             text(
-                "INSERT INTO organizations (id, name, slug, industry, country, is_demo) "
-                "VALUES (:id, :n, :s, 'Financial services', NULL, true)"
+                # A common deadline policy, so a visitor sees work due and late (§225).
+                "INSERT INTO organizations (id, name, slug, industry, country, is_demo, "
+                "fix_within_days_critical, fix_within_days_high, fix_within_days_medium) "
+                "VALUES (:id, :n, :s, 'Financial services', NULL, true, 7, 30, 90)"
             ),
             {"id": org_id, "n": SHARED_NAME, "s": SHARED_SLUG},
         )

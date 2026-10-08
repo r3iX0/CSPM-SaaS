@@ -12170,6 +12170,62 @@ than added with the CLI, because the CLI would also overwrite `button.tsx` and d
 dependency, `react-day-picker`, which shadcn's calendar is built on. It is a primitive's engine,
 not a second UI kit.
 
+## 225. Work is due by policy, and the queue shows what a scan fixed
+
+The remediation plan's next step was Part 3's first two items: due dates by severity and progress
+numbers (`docs/REMEDIATION_PLAN.md`). The audit behind it found "Overdue 0" meaningless while nobody
+set due dates, and finished work vanishing from the page. Neither needs the Jira sync, so both are
+built first. The Jira sync will carry the same deadline out as the issue's due date.
+
+**A deadline policy per organization.** `organizations` gains four nullable day counts,
+`fix_within_days_critical` to `fix_within_days_low` (migration 0053). Each allows 1 to 365 days;
+null means no deadline. Columns rather than a JSON document, so the database refuses a bad count
+whoever writes it. The API reads and writes them as one object, `fix_within_days`, on
+`GET`/`PATCH /organizations`. Owners and admins set it, as the rest of the organization's profile
+(`org_update` already limits writes to them), and the change is audited. The policy is sent whole:
+a severity left out is cleared, null clears all four, and the audit row records the resulting
+policy, not the keys sent. Settings > General has a "Fix deadlines" form beside the profile, with
+its own "Save deadlines" button. Two buttons both named "Save changes" on one page cannot be told
+apart by a screen reader.
+
+**Derived at read time, never stored on the task.** A task's `due_on` is its `due_date` where a
+person set one. Otherwise it is the policy's days for the finding's severity, counted from the
+finding's `first_detected_at` as a UTC day, with `due_by_policy` true. `due_date` stays what a
+person set, so the fix sheet can show the policy's day as the date picker's placeholder rather than
+as a chosen date. Storing the policy's day on each task at creation was rejected: changing the
+policy would then move nothing, and tasks tracked before the policy existed would never get a day.
+
+- **The clock starts at detection, not at tracking.** A deadline is about how long an exposure
+  stands. A clock started by tracking would reward leaving work untracked. An old finding is
+  overdue the moment a policy is set, which is true.
+- **The deadline does not reorder the queue.** Priority, impact against effort (§127), still
+  decides what comes first. A late fifteen-minute change and a late redesign are both late.
+- **Due today is not overdue.** The page compared `new Date(due_date) < new Date()`, which reads a
+  `YYYY-MM-DD` day as midnight UTC and called work overdue on its own due day. It now compares day
+  strings in the reader's calendar (`isPast` in `lib/remediation.ts`). That matches how a fix is
+  judged on time: observed on or before its due day.
+
+**`GET /remediation/progress?days=30`.** The endpoint counts findings a scan resolved in the window
+(7 to 365 days), tracked or not, and never tasks marked done. Only an observation closes a finding
+(§18). It answers per severity: the count, the median days from first detection to the resolving
+scan, and how many met their deadline or missed it. It also names the latest ten fixes. A fix with
+no deadline is neither on time nor late: counting it on time would make an unset policy look met.
+The counting is a pure module, `services/deadlines.py`, unit-tested without a database.
+
+- **Judged against today's policy.** No history of the policy is kept. A fix made before a 7-day
+  policy existed counts as late against it. That is the standard the organization holds now, and
+  keeping policy versions to soften it is not worth a table yet.
+- **A fix found again is not counted.** A resolved finding detected again is open, so the window
+  counts fixes that held. A finding resolved twice is timed from its first detection, so its
+  median time to fix may read long.
+- **Verified time is later than the fix.** A fix is timed to the scan that observed it, and §18's
+  verification backoff can add hours. Deadlines are whole days, so this rarely changes the verdict.
+
+The queue page draws this under the queue as "Fixed in the last 30 days": the counts, a per-severity
+table, and the latest fixes with on time or late. With no policy set, it says so, and offers owners
+and admins a link to set one. The demo organization is seeded with 7, 30 and 90 days for Critical,
+High and Medium, so a visitor sees deadlines.
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,

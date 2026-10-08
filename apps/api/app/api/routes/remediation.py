@@ -1,18 +1,22 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Request, Response, status
+from fastapi import APIRouter, Query, Request, Response, status
 
 from app.api.links import created
 from app.core.deps import DbSession, Tenant
 from app.core.enums import RemediationStatus
 from app.schemas.common import ERROR_RESPONSES, Envelope, NoMeta, error_responses
 from app.schemas.finding import (
+    FixedFindingOut,
+    FixProgressOut,
     RemediationCreate,
     RemediationOut,
     RemediationUpdate,
     RemediationUpdatedOut,
+    SeverityProgressOut,
 )
 from app.services import remediation as service
+from app.services.deadlines import Deadline
 
 router = APIRouter(prefix="/remediation", tags=["remediation"], responses=ERROR_RESPONSES)
 
@@ -28,9 +32,10 @@ async def create_task(
     """Open a remediation task for a finding. A finding has at most one open task."""
     tenant.require_write()
     task = await service.create_task(session, tenant, payload)
+    due = await service.deadline_of(session, tenant, task)
     await session.commit()
     created(request, response, "update_task", task_id=task.id)
-    return Envelope(data=RemediationOut.model_validate(task), meta=NoMeta())
+    return Envelope(data=_with_deadline(RemediationOut.model_validate(task), due), meta=NoMeta())
 
 
 @router.get("")
@@ -40,14 +45,42 @@ async def list_tasks(session: DbSession, tenant: Tenant) -> Envelope[list[Remedi
     It said "ordered by impact against effort" and was ordered by when each
     task was created. Now: open work first, then priority, then how many attack
     paths run through the finding's asset, then the finding's own score
-    (DECISIONS.md section 127). ``service.queue`` holds the ordering.
+    (DECISIONS.md section 127). ``service.queue`` holds the ordering. Each task
+    says when it is due, by its own date or the organization's policy (§225).
     """
     out = []
-    for task, on_routes in await service.queue(session, tenant):
-        item = RemediationOut.model_validate(task)
+    for task, on_routes, due in await service.queue(session, tenant):
+        item = _with_deadline(RemediationOut.model_validate(task), due)
         item.on_routes = on_routes
         out.append(item)
     return Envelope(data=out, meta=NoMeta())
+
+
+@router.get("/progress")
+async def progress(
+    session: DbSession,
+    tenant: Tenant,
+    days: int = Query(default=30, ge=7, le=365),
+) -> Envelope[FixProgressOut, NoMeta]:
+    """What a scan observed fixed in the last ``days`` days, and how it went against deadlines.
+
+    Finished work used to leave the queue and the page with it. Counted from the findings a scan
+    resolved, never from tasks marked done, since only an observation closes a finding: each
+    severity's count and median days from first detection to the fix, how many met their
+    deadline, and the latest few by name (DECISIONS.md §225).
+    """
+    result = await service.progress(session, tenant, days)
+    return Envelope(
+        data=FixProgressOut(
+            days=days,
+            fixed=result.fixed,
+            on_time=result.on_time,
+            late=result.late,
+            by_severity=[SeverityProgressOut.model_validate(row) for row in result.by_severity],
+            recent=[FixedFindingOut.model_validate(fix) for fix in result.recent],
+        ),
+        meta=NoMeta(),
+    )
 
 
 @router.patch("/{task_id}", responses=error_responses(403))
@@ -60,9 +93,10 @@ async def update_task(
     """
     tenant.require_write()
     task = await service.update_task(session, tenant, task_id, payload)
+    due = await service.deadline_of(session, tenant, task)
     await session.commit()
 
-    payload_out = RemediationUpdatedOut.model_validate(task)
+    payload_out = _with_deadline(RemediationUpdatedOut.model_validate(task), due)
     if task.status == RemediationStatus.DONE:
         # Marking work done does not resolve the finding. Only an observation
         # does -- but the customer no longer has to remember to ask for one.
@@ -72,3 +106,9 @@ async def update_task(
             "the finding once the check passes."
         )
     return Envelope(data=payload_out, meta=NoMeta())
+
+
+def _with_deadline[OutT: RemediationOut](item: OutT, due: Deadline) -> OutT:
+    item.due_on = due.due_on
+    item.due_by_policy = due.by_policy
+    return item

@@ -6,6 +6,7 @@ import type {
   Finding,
   FindingDetail,
   FindingStatus,
+  FixProgress,
   Member,
   RemediationTask,
   Severity,
@@ -35,6 +36,51 @@ export function useRemediationQueue() {
     queryKey: ["remediation"],
     queryFn: () => api.get<RemediationTask[]>("/api/v1/remediation").then((r) => r.data),
     staleTime: 30_000,
+    retry: false,
+  });
+}
+
+/**
+ * When a task is due: its own date, or the organization's policy for its
+ * finding (DECISIONS.md §225). The queue listing sends `due_on`; a task read
+ * anywhere else falls back to the date a person set.
+ */
+export function dueOn(task: RemediationTask): string | null {
+  return task.due_on ?? task.due_date;
+}
+
+/** Today in the reader's own calendar, as the API writes a day (`YYYY-MM-DD`). */
+function today(): string {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+/**
+ * Whether a day has passed. Work due today is not late yet: a fix observed on
+ * its due day counts as on time (§225). Compared as `YYYY-MM-DD` strings,
+ * which order as the days do; parsing one as a `Date` read it as midnight UTC
+ * and called work due today overdue.
+ */
+export function isPast(day: string | null): boolean {
+  return day !== null && day < today();
+}
+
+/** Open work whose day has passed. */
+export function isOverdue(task: RemediationTask): boolean {
+  return isOpenTask(task) && isPast(dueOn(task));
+}
+
+/**
+ * What a scan observed fixed in the last `days` days (§225): verified fixes
+ * only, so the work that left the queue is still seen to have been done.
+ */
+export function useFixProgress(days = 30) {
+  return useQuery({
+    queryKey: ["remediation", "progress", days],
+    queryFn: () =>
+      api.get<FixProgress>(`/api/v1/remediation/progress?days=${days}`).then((r) => r.data),
+    staleTime: 60_000,
     retry: false,
   });
 }

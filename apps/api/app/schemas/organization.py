@@ -24,6 +24,24 @@ class OrganizationCreate(RequestModel):
         return v.upper() if v else v
 
 
+class FixWithinDays(RequestModel):
+    """How many days after first detection a finding is due, by severity (DECISIONS.md §225).
+
+    A severity left null has no deadline. Sent whole, as one statement of the policy: a form that
+    lowers Critical to seven days says what High is too, so a reader of the change knows the
+    policy that resulted.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [{"critical": 7, "high": 30, "medium": 90, "low": None}]}
+    )
+
+    critical: int | None = Field(default=None, ge=1, le=365)
+    high: int | None = Field(default=None, ge=1, le=365)
+    medium: int | None = Field(default=None, ge=1, le=365)
+    low: int | None = Field(default=None, ge=1, le=365)
+
+
 class OrganizationUpdate(RequestModel):
     """A correction to how an organization describes itself.
 
@@ -41,6 +59,8 @@ class OrganizationUpdate(RequestModel):
     name: str | None = Field(default=None, min_length=2, max_length=200)
     industry: str | None = Field(default=None, max_length=120)
     country: str | None = Field(default=None, min_length=2, max_length=2)
+    # Owners and admins, as the rest of this model. Null clears every deadline.
+    fix_within_days: FixWithinDays | None = None
 
     @field_validator("country")
     @classmethod
@@ -58,6 +78,7 @@ class OrganizationOut(BaseModel):
     country: str | None = None
     created_at: datetime
     is_demo: bool = False
+    fix_within_days: FixWithinDays = FixWithinDays()
 
 
 class OrganizationMembershipOut(OrganizationOut):

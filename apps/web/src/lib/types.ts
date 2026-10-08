@@ -13,6 +13,16 @@ export interface Organization {
   role?: string;
   /** The shared, read-only demo estate (DECISIONS.md §99). */
   is_demo?: boolean;
+  /** Days after first detection a finding is due, by severity; null is none (§225). */
+  fix_within_days?: FixWithinDays;
+}
+
+/** An organization's deadline policy, sent and read whole (DECISIONS.md §225). */
+export interface FixWithinDays {
+  critical: number | null;
+  high: number | null;
+  medium: number | null;
+  low: number | null;
 }
 
 /**
@@ -490,6 +500,45 @@ export interface RemediationTask {
    * queue listing.
    */
   on_routes?: number;
+  /**
+   * When the work is due: `due_date` where a person set one, else the
+   * organization's policy for the finding's severity (DECISIONS.md §225).
+   */
+  due_on?: string | null;
+  /** True where `due_on` came from the policy rather than a person. */
+  due_by_policy?: boolean;
+}
+
+/** A finding a scan observed fixed, as `GET /remediation/progress` names it (§225). */
+export interface FixedFinding {
+  finding_id: string;
+  title: string;
+  rule_id: string;
+  severity: Severity;
+  first_detected_at: string;
+  resolved_at: string;
+  due_on: string | null;
+  days_to_fix: number;
+  /** Null where the fix had no deadline. */
+  on_time: boolean | null;
+}
+
+export interface SeverityProgress {
+  severity: Severity;
+  fixed: number;
+  median_days_to_fix: number | null;
+  on_time: number;
+  late: number;
+}
+
+/** What a scan observed fixed in a window, and how it went against deadlines (§225). */
+export interface FixProgress {
+  days: number;
+  fixed: number;
+  on_time: number;
+  late: number;
+  by_severity: SeverityProgress[];
+  recent: FixedFinding[];
 }
 
 /** Compliance coverage. Mirrors app/compliance/coverage.py::ControlStatus. */

@@ -8,9 +8,12 @@ import type { Finding, FindingDetail, Member, RemediationTask } from "@/lib/type
 import {
   FIX_PARAM,
   RULE_PARAM,
+  dueOn,
   groupByRule,
   groupUntracked,
   isOpenTask,
+  isOverdue,
+  isPast,
   memberName,
   ruleTitle,
   taskFor,
@@ -28,6 +31,7 @@ import { useT } from "@/i18n";
 import { WorkPill } from "@/components/security/WorkPill";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { FixSheet } from "@/components/security/FixSheet";
+import { FixProgressSection } from "@/components/security/FixProgress";
 import { RuleFixSheet, type RuleFixMember } from "@/components/security/RuleFixSheet";
 import { CardsSkeleton, EmptyState, ErrorState, PageHeader } from "@/components/common/states";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -203,6 +207,9 @@ export function RemediationPage() {
       {/* A queue with work in it still says what is not in it (§205). */}
       {data && data.length > 0 && <WhereToStart tasks={data} onOpen={openFix} />}
 
+      {/* What the queue let go of: work a scan saw fixed (§225). */}
+      {data && <FixProgressSection />}
+
       <FixSheet findingId={fixId} onClose={() => openFix(null)} />
       <RuleFixSheet
         ruleId={ruleId}
@@ -256,7 +263,8 @@ function TaskCard({
   const t = useT();
   const done = task.status === "DONE" || task.status === "CANCELLED";
   const isDemo = useIsDemo();
-  const overdue = !done && task.due_date !== null && new Date(task.due_date) < new Date();
+  const due = dueOn(task);
+  const overdue = isOverdue(task);
   const state = workState(task, finding);
 
   return (
@@ -331,8 +339,8 @@ function TaskCard({
         <span className={cn("tabular-nums sm:w-[130px]", overdue && "font-medium text-critical")}>
           {done && task.completed_at
             ? t.remediation.doneOn(formatDay(task.completed_at))
-            : task.due_date
-              ? `${overdue ? "Overdue · " : "Due "}${formatDay(task.due_date)}`
+            : due
+              ? t.remediation.dueLine(formatDay(due), overdue)
               : null}
         </span>
         <span className={ROW_ACTION}>
@@ -387,10 +395,10 @@ function TaskGroup({
   const onRoutes = tasks.filter((task) => (task.on_routes ?? 0) > 0).length;
   const effort = open.reduce((sum, task) => sum + task.estimated_effort_minutes, 0);
   const due = open
-    .map((task) => task.due_date)
+    .map(dueOn)
     .filter((date): date is string => date !== null)
     .sort()[0];
-  const overdue = due !== undefined && new Date(due) < new Date();
+  const overdue = isPast(due ?? null);
   const severity = worstSeverity(
     tasks.flatMap((task) => {
       const finding = findings.get(task.finding_id);
@@ -444,7 +452,7 @@ function TaskGroup({
           </CollapsibleTrigger>
           <span className="tabular-nums sm:w-14">{effort > 0 ? formatEffort(effort) : null}</span>
           <span className={cn("tabular-nums sm:w-[130px]", overdue && "font-medium text-critical")}>
-            {due ? `${overdue ? "Overdue · " : "Due "}${formatDay(due)}` : null}
+            {due ? t.remediation.dueLine(formatDay(due), overdue) : null}
           </span>
           <span className={ROW_ACTION}>
             {open.length > 0 && !isDemo && (
@@ -472,15 +480,15 @@ function TaskGroup({
  *
  * What is left, what is moving, what it will cost, and what is late -- the
  * questions somebody opening this page on a Monday is actually asking, which a
- * list of rows answers only if they are all counted by eye.
+ * list of rows answers only if they are all counted by eye. Late is measured
+ * against the organization's policy as well as the dates people set, so it no
+ * longer reads 0 merely because nobody picked a date (§225).
  */
 function QueueSummary({ tasks }: { tasks: RemediationTask[] }) {
   const open = tasks.filter((task) => task.status === "TODO" || task.status === "IN_PROGRESS");
   const moving = tasks.filter((task) => task.status === "IN_PROGRESS").length;
   const minutes = open.reduce((sum, task) => sum + task.estimated_effort_minutes, 0);
-  const late = open.filter(
-    (task) => task.due_date !== null && new Date(task.due_date) < new Date(),
-  ).length;
+  const late = open.filter(isOverdue).length;
 
   return (
     <StatStrip

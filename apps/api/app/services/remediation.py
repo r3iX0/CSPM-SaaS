@@ -5,21 +5,23 @@ them. Every function runs in the caller's request session and never commits it: 
 transaction carries the RLS claims, so ending it is the route's job.
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import TenantContext
-from app.core.enums import FindingStatus, Priority, RemediationStatus
+from app.core.enums import FindingStatus, Priority, RemediationStatus, Severity
 from app.core.errors import NotFound, ValidationFailed
 from app.models.finding import Finding
+from app.models.organization import Organization
 from app.models.remediation import RemediationTask
 from app.models.resource import ResourceRecord
 from app.models.rule import Rule
 from app.risk.scorer import default_scorer
 from app.schemas.finding import RemediationCreate, RemediationUpdate
+from app.services import deadlines
 from app.services import findings as findings_service
 from app.services import graph as graph_service
 from app.services import organizations as organizations_service
@@ -39,6 +41,9 @@ _PRIORITY_ORDER = {
     Priority.MEDIUM: 2,
     Priority.LOW: 3,
 }
+
+#: How many of the window's fixes the progress report names.
+RECENT_FIXES = 10
 
 
 async def require_assignee(
@@ -119,7 +124,37 @@ async def create_task(
     return task
 
 
-async def queue(session: AsyncSession, tenant: TenantContext) -> list[tuple[RemediationTask, int]]:
+async def fix_within(session: AsyncSession, organization_id: UUID) -> deadlines.FixWithin:
+    """The organization's policy on how long a fix may take, by severity (DECISIONS.md §225)."""
+    org = await session.get(Organization, organization_id)
+    if org is None:  # pragma: no cover -- the tenant context resolved it
+        return deadlines.NO_POLICY
+    return deadlines.fix_within(
+        {
+            Severity.CRITICAL: org.fix_within_days_critical,
+            Severity.HIGH: org.fix_within_days_high,
+            Severity.MEDIUM: org.fix_within_days_medium,
+            Severity.LOW: org.fix_within_days_low,
+        }
+    )
+
+
+async def deadline_of(
+    session: AsyncSession, tenant: TenantContext, task: RemediationTask
+) -> deadlines.Deadline:
+    """When one task is due: its own date, or the policy's for its finding."""
+    finding = await findings_service.get_finding(session, tenant, task.finding_id)
+    return deadlines.deadline(
+        task.due_date,
+        finding.severity,
+        finding.first_detected_at,
+        await fix_within(session, tenant.organization_id),
+    )
+
+
+async def queue(
+    session: AsyncSession, tenant: TenantContext
+) -> list[tuple[RemediationTask, int, deadlines.Deadline]]:
     """Every task with how many attack paths run through its asset, in queue order.
 
     Open work first; then priority, which is impact against effort (RISK_ENGINE.md section 4);
@@ -129,10 +164,20 @@ async def queue(session: AsyncSession, tenant: TenantContext) -> list[tuple[Reme
     The routes break ties rather than set the order. A finding on a route is already outranked
     by the route itself in the risks queue, and scoring it up here as well would count the
     route twice.
+
+    Each task comes with when it is due (§225). The deadline does not reorder the queue: a
+    late fifteen-minute change and a late redesign are both late, and priority still says
+    which cuts more risk first.
     """
     rows = (
         await session.execute(
-            select(RemediationTask, Finding.risk_score, ResourceRecord.provider_resource_id)
+            select(
+                RemediationTask,
+                Finding.risk_score,
+                Finding.severity,
+                Finding.first_detected_at,
+                ResourceRecord.provider_resource_id,
+            )
             .join(Finding, Finding.id == RemediationTask.finding_id)
             .outerjoin(ResourceRecord, ResourceRecord.id == Finding.resource_id)
             .where(RemediationTask.organization_id == tenant.organization_id)
@@ -141,11 +186,13 @@ async def queue(session: AsyncSession, tenant: TenantContext) -> list[tuple[Reme
 
     graph = await graph_service.load_graph(session, tenant.organization_id)
     through = graph_service.routes_through(graph)
+    policy = await fix_within(session, tenant.organization_id)
 
     ordered = []
-    for task, score, provider_id in rows:
+    for task, score, severity, first_detected_at, provider_id in rows:
         on_routes = through.get(graph.resolve(provider_id), 0) if provider_id else 0
-        ordered.append((task, float(score or 0.0), on_routes))
+        due = deadlines.deadline(task.due_date, severity, first_detected_at, policy)
+        ordered.append((task, float(score or 0.0), on_routes, due))
     ordered.sort(
         key=lambda item: (
             _STATUS_ORDER[item[0].status],
@@ -155,7 +202,62 @@ async def queue(session: AsyncSession, tenant: TenantContext) -> list[tuple[Reme
             -item[0].created_at.timestamp(),
         )
     )
-    return [(task, on_routes) for task, _, on_routes in ordered]
+    return [(task, on_routes, due) for task, _, on_routes, due in ordered]
+
+
+async def progress(session: AsyncSession, tenant: TenantContext, days: int) -> deadlines.Progress:
+    """What a scan observed fixed in the last ``days`` days, and how it went against deadlines.
+
+    Verified fixes only: a finding is fixed when a scan observes it passing (RULE_ENGINE.md
+    section 3), never when a task is marked done, so work marked done and still failing is not
+    counted. Every fix counts, tracked or not, since a fix nobody queued is still a fix. A
+    finding resolved and then detected again is open, and is not counted.
+
+    Each fix is held to its task's due date where a person set one, and otherwise to today's
+    policy, counted from first detection: there is no record of what the policy was before, and
+    judging against the standard the organization holds now is the useful comparison (§225).
+    """
+    since = datetime.now(UTC) - timedelta(days=days)
+    rows = (
+        await session.execute(
+            select(
+                Finding.id,
+                Finding.title,
+                Finding.rule_id,
+                Finding.severity,
+                Finding.first_detected_at,
+                Finding.resolved_at,
+                RemediationTask.due_date,
+            )
+            # At most one task per finding is not cancelled (``create_task``).
+            .outerjoin(
+                RemediationTask,
+                and_(
+                    RemediationTask.finding_id == Finding.id,
+                    RemediationTask.status != RemediationStatus.CANCELLED,
+                ),
+            )
+            .where(
+                Finding.organization_id == tenant.organization_id,
+                Finding.status == FindingStatus.RESOLVED,
+                Finding.resolved_at >= since,
+            )
+        )
+    ).all()
+    policy = await fix_within(session, tenant.organization_id)
+    fixes = [
+        deadlines.Fix(
+            finding_id=finding_id,
+            title=title,
+            rule_id=rule_id,
+            severity=severity,
+            first_detected_at=first_detected_at,
+            resolved_at=resolved_at,
+            due_on=deadlines.deadline(due_date, severity, first_detected_at, policy).due_on,
+        )
+        for finding_id, title, rule_id, severity, first_detected_at, resolved_at, due_date in rows
+    ]
+    return deadlines.progress(fixes, recent=RECENT_FIXES)
 
 
 async def update_task(

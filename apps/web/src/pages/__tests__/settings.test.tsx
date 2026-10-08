@@ -253,6 +253,48 @@ describe("General", () => {
     );
   });
 
+  it("sends the deadline policy whole, an empty box as no deadline (DECISIONS.md §225)", async () => {
+    const patch = vi.spyOn(api, "patch").mockResolvedValue({ data: organization(), meta: {} });
+    mount({
+      orgs: [organization({ fix_within_days: { critical: 14, high: 30, medium: null, low: 180 } })],
+    });
+
+    const save = await screen.findByRole("button", { name: "Save deadlines" });
+    expect(save).toHaveAttribute("aria-disabled", "true");
+    fireEvent.change(screen.getByLabelText("Critical"), { target: { value: "7" } });
+    fireEvent.change(screen.getByLabelText("Low"), { target: { value: "" } });
+    fireEvent.click(save);
+
+    await waitFor(() =>
+      expect(patch).toHaveBeenCalledWith("/api/v1/organizations", {
+        fix_within_days: { critical: 7, high: 30, medium: null, low: null },
+      }),
+    );
+  });
+
+  it("will not save a deadline outside a year", async () => {
+    mount();
+
+    const save = await screen.findByRole("button", { name: "Save deadlines" });
+    fireEvent.change(screen.getByLabelText("High"), { target: { value: "400" } });
+    expect(screen.getByLabelText("High")).toHaveAttribute("aria-invalid", "true");
+    expect(save).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("shows a reader who cannot edit the deadlines as text", async () => {
+    mount({
+      orgs: [
+        organization({
+          role: "VIEWER",
+          fix_within_days: { critical: 7, high: null, medium: null, low: null },
+        }),
+      ],
+    });
+
+    expect(await screen.findByText("7 days")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save deadlines" })).not.toBeInTheDocument();
+  });
+
   it("chooses a country by name and stores its code", async () => {
     const user = userEvent.setup();
     const patch = vi.spyOn(api, "patch").mockResolvedValue({ data: organization(), meta: {} });

@@ -33,6 +33,7 @@ export function DatePicker({
   value,
   onChange,
   min,
+  placeholder,
   disabled = false,
   className,
 }: {
@@ -43,6 +44,8 @@ export function DatePicker({
   onChange: (value: string | null) => void;
   /** The earliest day that may be picked, as `YYYY-MM-DD`. */
   min?: string;
+  /** Said while no day is set, in place of "Pick a date". */
+  placeholder?: string;
   disabled?: boolean;
   className?: string;
 }) {
@@ -72,7 +75,7 @@ export function DatePicker({
             year: "numeric",
           })
         ) : (
-          <span className="text-muted-foreground">{t.common.pickDate}</span>
+          <span className="text-muted-foreground">{placeholder ?? t.common.pickDate}</span>
         )}
       </PopoverTrigger>
       <PopoverContent align="start" className="w-auto p-0">

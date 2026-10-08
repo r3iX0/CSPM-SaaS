@@ -222,6 +222,11 @@ class RemediationOut(BaseModel):
     # closes is the choke points' question, and only a link can answer it
     # (DECISIONS.md section 127). Filled by the queue listing; zero elsewhere.
     on_routes: int = 0
+    # When the work is due: ``due_date`` if somebody set one, else the organization's policy for
+    # the finding's severity, counted from its first detection; null with neither. ``due_date``
+    # stays what a person set, so the sheet can tell a date chosen from one derived (§225).
+    due_on: date | None = None
+    due_by_policy: bool = False
 
 
 class RemediationUpdatedOut(RemediationOut):
@@ -231,6 +236,50 @@ class RemediationUpdatedOut(RemediationOut):
     #: only an observation does -- and the customer is told CloudGuard will
     #: look again. ``None`` otherwise.
     note: str | None = None
+
+
+class FixedFindingOut(BaseModel):
+    """A finding a scan observed fixed, as the progress report names it."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    finding_id: UUID
+    title: str
+    rule_id: str
+    severity: Severity
+    first_detected_at: datetime
+    resolved_at: datetime
+    due_on: date | None = None
+    days_to_fix: float
+    #: Null where the fix had no deadline: it was held to nothing.
+    on_time: bool | None = None
+
+
+class SeverityProgressOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    severity: Severity
+    fixed: int
+    median_days_to_fix: float | None = None
+    on_time: int
+    late: int
+
+
+class FixProgressOut(BaseModel):
+    """What was fixed in a window: verified fixes only, since only a scan closes a finding.
+
+    ``on_time`` and ``late`` count only the fixes that had a deadline, judged against today's
+    policy where no person set a date (DECISIONS.md §225).
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    days: int
+    fixed: int
+    on_time: int
+    late: int
+    by_severity: list[SeverityProgressOut]
+    recent: list[FixedFindingOut]
 
 
 class VerificationOut(BaseModel):

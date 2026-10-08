@@ -75,7 +75,7 @@ GET    /risks                              GET    /risks/{id}
 POST   /risks/{id}/status                  POST   /risks/status
 
 POST   /remediation                        GET    /remediation
-PATCH  /remediation/{id}
+PATCH  /remediation/{id}                   GET    /remediation/progress?days=
 POST   /findings/{id}/accept-risk          POST   /findings/{id}/status
 POST   /findings/{id}/rescan               POST   /findings/{id}/iac-diff  (multipart)
 GET    /findings/{id}/attack-paths         GET    /findings/{id}/provenance
@@ -505,6 +505,20 @@ back to `TODO` or `IN_PROGRESS` clears `completed_at` and abandons its pending
 verification. `CANCELLED` abandons the verification and returns an
 `IN_PROGRESS` finding to `OPEN`; a cancelled task cannot be moved again (422) --
 track the finding with a new task instead (DECISIONS.md §212).
+
+Every task carries `due_on` and `due_by_policy` (DECISIONS.md §225). `due_on` is
+`due_date` where a person set one; otherwise it is the organization's
+`fix_within_days` for the finding's severity, counted from the finding's first
+detection, and `due_by_policy` is true. With neither, `due_on` is `null`. Owners
+and admins set the policy with `PATCH /organizations` and `fix_within_days`
+(`critical`, `high`, `medium`, `low`, each 1 to 365 days or `null`), sent whole:
+a severity left out is cleared.
+
+`GET /remediation/progress?days=30` (7 to 365) counts the findings a scan
+resolved in the window, tracked or not, never tasks marked done. `by_severity`
+gives each severity's `fixed`, `median_days_to_fix` from first detection,
+`on_time` and `late`; a fix with no deadline is neither. `recent` names the
+latest ten.
 
 `/attack-paths/access/{id}` answers who holds access to an asset and what an
 identity holds (DECISIONS.md §125). `data.holders` lists every role assigned on
