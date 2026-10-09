@@ -13815,6 +13815,16 @@
           },
           "evidence": {
             "$ref": "#/components/schemas/EvidenceOut"
+          },
+          "fixes": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FixesOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -13831,7 +13841,8 @@
           "sealed_by",
           "sealed_at",
           "assessment",
-          "evidence"
+          "evidence",
+          "fixes"
         ],
         "title": "AuditPackageDetailOut"
       },
@@ -19290,6 +19301,48 @@
         ],
         "title": "FixedFindingOut",
         "description": "A finding a scan observed fixed, as the progress report names it."
+      },
+      "FixesOut": {
+        "properties": {
+          "window_from": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Window From"
+          },
+          "window_to": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Window To"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "listed": {
+            "type": "integer",
+            "title": "Listed"
+          },
+          "verified": {
+            "type": "integer",
+            "title": "Verified"
+          },
+          "with_pull_request": {
+            "type": "integer",
+            "title": "With Pull Request"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "window_from",
+          "window_to",
+          "total",
+          "listed",
+          "verified",
+          "with_pull_request"
+        ],
+        "title": "FixesOut",
+        "description": "The fixes a package carries (DECISIONS.md section 238), counted; the archive lists them."
       },
       "FoldBoxOut": {
         "properties": {

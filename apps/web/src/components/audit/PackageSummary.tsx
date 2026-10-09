@@ -8,7 +8,7 @@ import { InfoTip } from "@/components/common/InfoTip";
 /**
  * One sealed package as it is read: when, from which scan, how each standard's
  * controls came out, what they rest on, and the hash that seals it
- * (DECISIONS.md §208).
+ * (DECISIONS.md §208), and how many fixes a scan observed in its period (§238).
  *
  * The same body for the owner who sealed it and the auditor who was given it,
  * since the two must see one thing. It draws counts and never controls: the
@@ -60,6 +60,25 @@ export function PackageSummary({ detail }: { detail: AuditPackageDetail }) {
         {" · "}
         {t.auditPackages.evidence(evidence.payloads_stored, evidence.payloads_named)}
       </p>
+
+      {detail.fixes && (
+        <p className="text-meta text-muted-foreground">
+          {t.auditPackages.fixes(
+            detail.fixes.total,
+            formatDate(detail.fixes.window_from),
+            // The window ends at the start of the day after; the last day in it is the one before.
+            formatDate(new Date(Date.parse(detail.fixes.window_to) - 1).toISOString()),
+          )}
+          {detail.fixes.total > 0 && (
+            <>
+              {" · "}
+              {t.auditPackages.fixesVerified(detail.fixes.verified)}
+              {" · "}
+              {t.auditPackages.fixesByPullRequest(detail.fixes.with_pull_request)}
+            </>
+          )}
+        </p>
+      )}
 
       <div className="flex flex-col gap-1.5">
         <p className="flex items-center gap-1 text-meta font-medium text-foreground">

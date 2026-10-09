@@ -19,7 +19,8 @@ same bytes, which is what makes the hash worth taking.
 """
 
 from collections.abc import Iterable, Mapping, Sequence
-from datetime import UTC, date, datetime
+from dataclasses import dataclass, field
+from datetime import UTC, date, datetime, time, timedelta
 from enum import Enum
 from typing import Any
 from uuid import UUID
@@ -29,7 +30,18 @@ from app.core.payloads import digest
 from app.models.audit_package import AuditPackage, AuditPackageItem
 from app.models.scan import Evidence
 
-MANIFEST_VERSION = 1
+MANIFEST_VERSION = 2
+
+#: The first version whose manifest carries the fixes (DECISIONS.md section 238). A package
+#: sealed under version 1 is hashed without them, and still verifies as it was sealed.
+FIXES_SINCE = 2
+
+#: How many fixes one package keeps, the latest ones; ``total`` says how many there were.
+MAX_FIXES = 5000
+
+#: The window a package without a declared period looks back over for fixes: a year, the usual
+#: audit cycle. Said in the manifest, so nobody has to guess it.
+DEFAULT_FIX_WINDOW = timedelta(days=365)
 
 # What changes with the clock rather than with the estate. ``age_seconds`` is
 # relative to whoever asks, and ``retained`` is whether retention has run since:
@@ -143,6 +155,133 @@ def _item_order(item: Mapping[str, Any]) -> tuple[str, str, str]:
     return (item["evidence_key"], item["cloud_account_id"] or "", item["region"] or "")
 
 
+@dataclass(frozen=True)
+class FixTask:
+    """The task that tracked a fix: its state, and when a person marked it done."""
+
+    id: UUID
+    status: str
+    marked_done_at: datetime | None
+
+
+@dataclass(frozen=True)
+class FixVerification:
+    """The latest claim that a fix was made, and what CloudGuard's checking made of it."""
+
+    id: UUID
+    status: str
+    claimed_at: datetime
+    settled_at: datetime | None
+    verified_by_scan_id: UUID | None
+    attempts: int
+
+
+@dataclass(frozen=True)
+class FixChange:
+    """A Fix-as-Code pull request that edited the code defining the fixed asset."""
+
+    repository: str
+    number: int
+    url: str | None
+    state: str
+
+
+@dataclass(frozen=True)
+class Fix:
+    """One finding a scan observed fixed, and the trail of work behind it."""
+
+    finding_id: UUID
+    rule_id: str
+    severity: str
+    title: str
+    asset: str | None
+    asset_id: str | None
+    first_detected_at: datetime
+    fixed_at: datetime
+    fixed_by_scan_id: UUID | None
+    task: FixTask | None = None
+    verification: FixVerification | None = None
+    changes: Sequence[FixChange] = field(default_factory=tuple)
+
+
+def fix_window(
+    sealed_at: datetime, period_start: date | None, period_end: date | None
+) -> tuple[datetime, datetime]:
+    """The half-open window ``[start, end)`` a package's fixes are taken from.
+
+    The declared period where there is one, as whole UTC days, and never past the sealing: a
+    package cannot vouch for a fix nobody has observed yet. Without a start, the year before.
+    """
+    end = sealed_at
+    if period_end is not None:
+        end = min(end, datetime.combine(period_end + timedelta(days=1), time(), tzinfo=UTC))
+    if period_start is not None:
+        start = datetime.combine(period_start, time(), tzinfo=UTC)
+    else:
+        start = end - DEFAULT_FIX_WINDOW
+    return start, end
+
+
+def _fix(fix: Fix) -> dict[str, Any]:
+    task = fix.task
+    verification = fix.verification
+    return {
+        "finding_id": _text(fix.finding_id),
+        "rule_id": fix.rule_id,
+        "severity": fix.severity,
+        "title": fix.title,
+        "asset": fix.asset,
+        "asset_id": fix.asset_id,
+        "first_detected_at": _iso(fix.first_detected_at),
+        "fixed_at": _iso(fix.fixed_at),
+        "fixed_by_scan_id": _text(fix.fixed_by_scan_id),
+        "task": None
+        if task is None
+        else {
+            "id": _text(task.id),
+            "status": task.status,
+            "marked_done_at": _iso(task.marked_done_at),
+        },
+        "verification": None
+        if verification is None
+        else {
+            "id": _text(verification.id),
+            "status": verification.status,
+            "claimed_at": _iso(verification.claimed_at),
+            "settled_at": _iso(verification.settled_at),
+            "verified_by_scan_id": _text(verification.verified_by_scan_id),
+            "attempts": verification.attempts,
+        },
+        "pull_requests": sorted(
+            (
+                {
+                    "repository": change.repository,
+                    "number": change.number,
+                    "url": change.url,
+                    "state": change.state,
+                }
+                for change in fix.changes
+            ),
+            key=lambda change: (change["repository"], change["number"]),
+        ),
+    }
+
+
+def seal_fixes(fixes: Iterable[Fix], start: datetime, end: datetime) -> dict[str, Any]:
+    """The fixes section as it is kept and hashed: the window, how many, and the latest few.
+
+    Ordered by when each was observed fixed, so the same fixes always give the same bytes.
+    Bounded at ``MAX_FIXES``, keeping the latest, and ``total`` says what was left out rather
+    than letting a cut list pass for a whole one.
+    """
+    ordered = sorted(fixes, key=lambda fix: (_iso(fix.fixed_at) or "", str(fix.finding_id)))
+    return {
+        "window": {"from": _iso(start), "to": _iso(end)},
+        "total": len(ordered),
+        "items": [_fix(fix) for fix in ordered[-MAX_FIXES:]],
+    }
+
+
 def manifest(package: AuditPackage, items: Sequence[AuditPackageItem]) -> dict[str, Any]:
     """The canonical description of a package: what it assessed, and on what.
 
@@ -152,7 +291,7 @@ def manifest(package: AuditPackage, items: Sequence[AuditPackageItem]) -> dict[s
     an audit, and a manifest that included it would stop verifying the day
     somebody fixed a typo.
     """
-    return {
+    document: dict[str, Any] = {
         "manifest_version": package.manifest_version,
         "package": {
             "id": _text(package.id),
@@ -171,6 +310,9 @@ def manifest(package: AuditPackage, items: Sequence[AuditPackageItem]) -> dict[s
         "controls": list(package.controls),
         "evidence": sorted((_item(row) for row in items), key=_item_order),
     }
+    if package.manifest_version >= FIXES_SINCE:
+        document["fixes"] = package.fixes
+    return document
 
 
 def manifest_digest(document: dict[str, Any]) -> str:

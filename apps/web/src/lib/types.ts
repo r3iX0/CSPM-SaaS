@@ -1734,9 +1734,21 @@ export interface AuditPackageEvidence {
   payloads_stored: number;
 }
 
+/** The fixes a package carries (DECISIONS.md §238), counted; the archive lists them. */
+export interface AuditPackageFixes {
+  window_from: string;
+  window_to: string;
+  total: number;
+  listed: number;
+  verified: number;
+  with_pull_request: number;
+}
+
 export interface AuditPackageDetail extends AuditPackage {
   assessment: AuditPackageAssessment[];
   evidence: AuditPackageEvidence;
+  /** `null` for a package sealed before fixes were kept. */
+  fixes: AuditPackageFixes | null;
 }
 
 export interface AuditPackageVerification {

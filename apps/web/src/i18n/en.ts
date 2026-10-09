@@ -1842,6 +1842,10 @@ export const en = {
     period: (from: string, to: string) => `Audit period ${from} to ${to}`,
     controls: (n: number) => `${n} ${n === 1 ? "control" : "controls"}`,
     evidence: (stored: number, named: number) => `${stored} of ${named} payloads still stored`,
+    fixes: (total: number, from: string, to: string) =>
+      `${total} ${total === 1 ? "fix" : "fixes"} observed by a scan, ${from} to ${to}`,
+    fixesVerified: (count: number) => `${count} confirmed by verification`,
+    fixesByPullRequest: (count: number) => `${count} by pull request`,
     sealHash: "Sealed hash",
     sealExplain:
       "The SHA-256 of the package's manifest. Anyone can hash manifest.json in the archive and compare it with this value; a package edited afterwards no longer matches.",

@@ -26,6 +26,7 @@ from app.schemas.audit_package import (
     AuditPackageDetailOut,
     AuditPackageOut,
     EvidenceOut,
+    FixesOut,
     FrameworkAssessmentOut,
     PackageFrameworkOut,
     VerificationOut,
@@ -51,6 +52,23 @@ def package_out(package: AuditPackage) -> AuditPackageOut:
         manifest_sha256=package.manifest_sha256,
         sealed_by=package.sealed_by,
         sealed_at=package.sealed_at,
+    )
+
+
+def fixes_out(package: AuditPackage) -> FixesOut | None:
+    if package.fixes is None:
+        return None
+    items = package.fixes.get("items") or []
+    window = package.fixes["window"]
+    return FixesOut(
+        window_from=window["from"],
+        window_to=window["to"],
+        total=int(package.fixes.get("total") or 0),
+        listed=len(items),
+        verified=sum(
+            1 for fix in items if (fix.get("verification") or {}).get("status") == "VERIFIED"
+        ),
+        with_pull_request=sum(1 for fix in items if fix.get("pull_requests")),
     )
 
 
@@ -80,6 +98,7 @@ def package_detail(
             payloads_named=payloads[0],
             payloads_stored=payloads[1],
         ),
+        fixes=fixes_out(package),
     )
 
 

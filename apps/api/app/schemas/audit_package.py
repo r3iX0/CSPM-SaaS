@@ -105,9 +105,26 @@ class EvidenceOut(ClosedModel):
     payloads_stored: int
 
 
+class FixesOut(ClosedModel):
+    """The fixes a package carries (DECISIONS.md section 238), counted; the archive lists them."""
+
+    #: The half-open window ``[window_from, window_to)`` they were taken from.
+    window_from: datetime
+    window_to: datetime
+    #: Every fix a scan observed in the window, and how many the package lists (the latest).
+    total: int
+    listed: int
+    #: Of those listed, how many Cleave's own verification confirmed, and how many a
+    #: Fix-as-Code pull request changed the code for.
+    verified: int
+    with_pull_request: int
+
+
 class AuditPackageDetailOut(AuditPackageOut):
     assessment: list[FrameworkAssessmentOut]
     evidence: EvidenceOut
+    #: ``None`` for a package sealed before fixes were kept, which carries none.
+    fixes: FixesOut | None
 
 
 class VerificationOut(BaseModel):

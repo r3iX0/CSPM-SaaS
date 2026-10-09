@@ -12767,6 +12767,50 @@ on `organizations` and `organization_members` but no policy arm, so row-level se
 neither, and 0058 gave `ownership_rules` no worker arm. Each now has a SELECT arm on the claim,
 as every worker arm is. Nothing lets the worker change an owner or a deadline.
 
+## 238. An audit package carries the fixes behind its controls
+
+The remediation plan's proof of progress (`docs/REMEDIATION_PLAN.md` Part 3, item 2) asks for fix
+evidence in the audit package (§208): for each control, which ticket, which pull request, and
+when the verification passed. A package said how each control stood on the sealing date. An
+auditor of a period also asks what was found wrong during it and how it was put right, and the
+answer sat in the queue, the verifications and the pull requests, none of which a package kept.
+
+**What a fix is.** A finding of a rule a sealed control rests on, resolved by a scan within the
+window, and still resolved when the package is sealed. Only a scan's observation counts, never a
+status a person set (§18), and a fix that did not hold is not counted, as the progress report
+counts (§225). A finding fixed twice in the window is dated by the later fix. Untracked fixes
+count: a fix nobody queued is still a fix, and the record says it had no task.
+
+**What each fix carries.** The finding, its rule, severity, asset, first detection, the time and
+scan that observed the fix, and the days between; the task not cancelled, with its state and when
+it was marked done; the latest verification (§18), with its status, when it was claimed and
+settled and by which scan; and the Fix-as-Code pull requests (§232) that edited the code defining
+the asset, by repository, number, link and state. **No ticket.** The Jira sync (§226) is not
+built, and a ticket field that is always empty would claim it is. It is added when the sync
+ships, under a new manifest version.
+
+**The window.** The declared audit period in whole UTC days, or the year before sealing where none
+is declared, and never past the sealing: a package cannot vouch for a fix not yet observed. The
+window is written into the manifest, so nobody has to guess it. This is the one place the declared
+period is more than informational (§208): the controls' verdicts are still the closing scan's.
+
+**Bounded.** A package keeps the latest 5,000 fixes and says how many there were in all, rather
+than letting a cut list pass for a whole one. Sealing reads them in batches of 1,000 finding ids.
+
+**Manifest version 2, and version 1 still verifies.** The fixes are a JSONB column on
+`audit_packages` (migration 0061), hashed into the manifest as `fixes`. A package sealed before
+this has `manifest_version` 1 and a NULL column, and the manifest is built without the key for it,
+so its hash is what it was sealed under. Rebuilding every old manifest with `"fixes": null` would
+have broken every package already handed to an auditor. The auditor's read path needed nothing:
+`app.audit_grant_package` returns the table's row type, which includes the new column.
+
+**In the archive, per control.** `fixes.csv` has one row per control and each fix of a rule it
+rests on, so a fix of a rule two controls share is listed under both: an auditor reads the
+evidence one control at a time. The README gives the count and window, and says that a fix is an
+observation, not a status. A version 1 archive has no `fixes.csv`. The package's detail answers
+with counts (`fixes`: total, listed, confirmed by verification, changed by pull request), as it
+does for the controls, and the summary the owner and the auditor both read draws one line from it.
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,

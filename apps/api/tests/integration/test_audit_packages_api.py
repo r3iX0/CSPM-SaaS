@@ -159,6 +159,78 @@ class TestReading:
         assert data["evidence"]["payloads_named"] == 1
         assert data["evidence"]["payloads_stored"] == 1
 
+    async def test_a_package_keeps_the_fixes_a_scan_observed_and_no_others(
+        self, client, estate
+    ) -> None:
+        """Section 238: observed by a scan, still fixed, of a rule a control rests on."""
+        from datetime import UTC, datetime, timedelta
+
+        from app.core.enums import FindingEvent, FindingStatus, Severity
+        from app.models.finding import Finding
+        from app.models.history import FindingEventRecord
+        from app.services import compliance as compliance_service
+
+        async with service_session() as session:
+            detail = await compliance_service.get_framework_detail(session, estate, FRAMEWORK)
+            scan_id = (
+                await session.execute(
+                    text("SELECT id FROM scans WHERE organization_id = :org"), {"org": estate}
+                )
+            ).scalar_one()
+        assert detail is not None
+        rule_id = next(
+            rule["rule_id"] for control in detail["controls"] for rule in control["rules"]
+        )
+        now = datetime.now(UTC)
+
+        async with service_session() as session:
+            for status, observed_by_scan in (
+                (FindingStatus.RESOLVED, True),  # a fix
+                (FindingStatus.RESOLVED, False),  # a person said so; not a fix
+                (FindingStatus.OPEN, True),  # fixed, then found again; not a fix that held
+            ):
+                finding = Finding(
+                    organization_id=estate,
+                    rule_id=rule_id,
+                    resource_id=None,
+                    severity=Severity.HIGH,
+                    status=status,
+                    title="A setting that was wrong",
+                    description="",
+                    remediation="",
+                    rule_version="1.0",
+                    first_detected_at=now - timedelta(days=10),
+                    last_detected_at=now - timedelta(days=2),
+                )
+                session.add(finding)
+                await session.flush()
+                session.add(
+                    FindingEventRecord(
+                        organization_id=estate,
+                        finding_id=finding.id,
+                        scan_id=scan_id if observed_by_scan else None,
+                        user_id=None if observed_by_scan else OWNER,
+                        event=FindingEvent.RESOLVED,
+                        previous_status=FindingStatus.OPEN,
+                        current_status=FindingStatus.RESOLVED,
+                        observed_at=now - timedelta(days=2),
+                    )
+                )
+            await session.commit()
+
+        sealed = await seal(client, estate)
+        response = await client.get(f"{BASE}/{sealed['id']}", headers=owner(estate))
+
+        assert response.status_code == 200, response.text
+        fixes = response.json()["data"]["fixes"]
+        assert fixes["total"] == 1
+        assert fixes["listed"] == 1
+        assert fixes["verified"] == 0
+        assert fixes["with_pull_request"] == 0
+
+        verified = await client.get(f"{BASE}/{sealed['id']}/verification", headers=owner(estate))
+        assert verified.json()["data"]["verified"] is True
+
     async def test_the_list_is_paged_newest_first(self, client, estate) -> None:
         first = await seal(client, estate, name="First")
         second = await seal(client, estate, name="Second")

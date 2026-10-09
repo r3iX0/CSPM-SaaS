@@ -79,6 +79,8 @@ function detail(): AuditPackageDetail {
       payloads_named: 40,
       payloads_stored: 40,
     },
+    // Sealed before fixes were kept: the summary says nothing about them.
+    fixes: null,
   };
 }
 

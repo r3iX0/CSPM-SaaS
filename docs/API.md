@@ -197,14 +197,16 @@ compliance claim with no date on it.
 it was, for owners and administrators only (DECISIONS.md §208). There is no `PATCH` and no
 `DELETE`: a wrong package is sealed again and the old one stays what it was. `GET /{id}` gives the
 header, how each framework's controls came out and what they rest on, with how many payloads are
-still stored counted live. `/{id}/verification` rebuilds the manifest from the stored rows and
-returns both digests, so `verified: false` can be checked and not only believed. `/{id}/archive`
-answers with a zip rather than the envelope, as the export above does: a manifest that hashes to
-the sealed value, a CSV of controls per framework, the gaps, the readings, the captured payloads
-named by their own hash, and a `SHA256SUMS` that `sha256sum -c` accepts. It is a `GET` that
-writes an audit entry, because evidence leaving the system belongs on the trail; the build runs
-one at a time off the event loop, and a package whose evidence is over 256 MB answers `409`
-`ARCHIVE_TOO_LARGE`.
+still stored counted live, and `fixes`: how many findings a scan observed fixed in the audit period
+for the rules the controls rest on, and how many of them a verification confirmed or a pull request
+changed, or `null` for a package sealed before fixes were kept (§238). `/{id}/verification`
+rebuilds the manifest from the stored rows and returns both digests, so `verified: false` can be
+checked and not only believed. `/{id}/archive` answers with a zip rather than the envelope, as the
+export above does: a manifest that hashes to the sealed value, a CSV of controls per framework, the
+gaps, the fixes, the readings, the captured payloads named by their own hash, and a `SHA256SUMS`
+that `sha256sum -c` accepts. It is a `GET` that writes an audit entry, because evidence leaving the
+system belongs on the trail; the build runs one at a time off the event loop, and a package whose
+evidence is over 256 MB answers `409` `ARCHIVE_TOO_LARGE`.
 
 An auditor reads a package through a grant and not as a member (DECISIONS.md §211).
 `POST /audit-grants` names a package and an address and returns the link once, with `expires_in_days`

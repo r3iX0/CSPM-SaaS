@@ -50,6 +50,10 @@ class AuditPackage(TenantOwned, Base):
     # evidence is the closing scan's, and the package does not claim more.
     period_start: Mapped[date | None] = mapped_column(Date)
     period_end: Mapped[date | None] = mapped_column(Date)
+    # The fixes a scan verified within the period, for the rules the controls rest on, with
+    # their task, verification and pull requests (DECISIONS.md section 238). NULL for a
+    # package sealed under manifest version 1, which is hashed without them.
+    fixes: Mapped[dict | None] = mapped_column(JSONB)
     manifest_version: Mapped[int] = mapped_column(Integer, nullable=False)
     manifest_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     sealed_by: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
