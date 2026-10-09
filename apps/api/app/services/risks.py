@@ -292,7 +292,7 @@ async def set_status(
         if risk.kind == RiskKind.FINDING and not members.get(risk.id):
             raise ValidationFailed(f"Nothing on “{risk.title}” is open to decide about")
 
-    policy = await approval_policy.policy_of(session, tenant.organization_id)
+    policy = await approval_policy.policy_for(session, tenant)
     for risk in risks:
         if risk.kind == RiskKind.FINDING:
             await _decide_findings(
@@ -311,6 +311,10 @@ async def set_status(
             # clears it, so a route reopened and later accepted again without a
             # date is not reopened by the first one's (DECISIONS.md §104).
             risk.accepted_until = expires_at if status == RiskStatus.ACCEPTED else None
+            if status == RiskStatus.ACCEPTED:
+                # Accepted at once, by an owner or admin or below the policy: a request still
+                # waiting on the route is answered (DECISIONS.md section 239).
+                await approval_policy.withdraw(session, tenant.organization_id, risk_id=risk.id)
             await findings_service.record_audit(
                 session,
                 tenant,

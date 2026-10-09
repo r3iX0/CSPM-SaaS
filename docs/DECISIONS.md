@@ -12823,6 +12823,7 @@ exception process.
 
 **A policy by severity, per organization.** `organizations.acceptance_approval_from` is the lowest
 severity whose acceptance waits for a second owner or admin, or null for none (migration 0062).
+An owner's or admin's own acceptance does not wait (§242).
 `HIGH` covers High and Critical. Owners and admins set it under Settings > General as an instant
 choice answered in a toast, through `PATCH /organizations`. It is a team's only: a solo
 organization has nobody else, so setting it there is refused (`409`) and a policy kept through a
@@ -12959,6 +12960,27 @@ the seed's paths, the email templates' `local` command and `vite preview`'s head
 **Still different, on purpose.** HTTP rather than HTTPS; the mail catcher rather than Supabase's
 mailer; Google and Microsoft sign-in, which need their own OAuth clients registered for the local
 callback; and one replica of each process. Each is listed in the local stack's own README.
+
+## 242. An owner's or admin's acceptance needs no second approver
+
+§239 held every acceptance the policy covers to a second owner or admin, the asker's own role
+regardless. An owner or admin who accepted a critical finding then waited for a colleague to
+approve what they could have approved themselves, had anyone else asked. The policy is there to
+put an approver's judgement on the decision; an owner's or admin's acceptance already carries
+one.
+
+**The policy holds analysts, IT admins and advisors.** `approval_policy.policy_for` answers for
+the caller rather than the organization: none for an owner or admin, as none in solo. Their
+acceptance of a finding or a route is made at once, with them as approver, as one below the
+threshold is. Everyone else who may write still waits for an owner or admin.
+
+**A request it answers is withdrawn.** An acceptance that takes effect revokes the request still
+waiting on that finding or route (`approval_policy.withdraw`, which asking again already used),
+so an approver is never offered a decision an owner or admin has made since.
+
+**Four eyes, still in the database.** A requester is now never an owner or admin when asking,
+but may become one later, so the service's refusal of a self-approval and the CHECK constraint
+behind it stay.
 
 ## Open items carried forward
 

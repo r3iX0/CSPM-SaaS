@@ -221,7 +221,7 @@ async def accept_risk(
     except ValueError as exc:
         raise ValidationFailed(str(exc)) from exc
 
-    policy = await approval_policy.policy_of(session, tenant.organization_id)
+    policy = await approval_policy.policy_for(session, tenant)
     if policy is not None and approval_policy.requires(
         policy, await approval_policy.level_of_finding(session, finding)
     ):
@@ -269,6 +269,10 @@ async def apply_acceptance(
         # An approved request is already a row; it is about to become the running one.
         running = running.where(RiskException.id != exception.id)
     await session.execute(running.values(status=ExceptionStatus.REVOKED))
+    # A request still waiting on it is answered by this one (§239), whoever made it take effect.
+    await approval_policy.withdraw(
+        session, finding.organization_id, finding_id=finding.id, keep=exception.id
+    )
 
     _record_event(
         session,

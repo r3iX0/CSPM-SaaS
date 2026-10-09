@@ -76,7 +76,7 @@ export function AcceptanceRequests({ organization }: { organization: Organizatio
               <p className="text-body text-foreground">“{request.reason}”</p>
             </div>
             {request.requested_by === subject ? (
-              <p className="text-meta text-muted-foreground">Waits for another owner or admin</p>
+              <p className="text-meta text-muted-foreground">Waits for an owner or admin</p>
             ) : (
               decides && <Decide request={request} onReject={() => setRejecting(request)} />
             )}

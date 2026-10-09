@@ -1168,7 +1168,7 @@ export const en = {
     // why rather than meeting disabled fields with no explanation.
     // A second approver for acceptances, by severity (DECISIONS.md §239).
     approvalTitle: "Second approver",
-    approvalHelp: "Acceptances at or above this severity wait for another owner or admin.",
+    approvalHelp: "Acceptances at or above this wait for an owner or admin, unless one made them.",
     approvalLabel: "Ask a second approver for",
     approvalOff: "No acceptance",
     approvalFrom: {

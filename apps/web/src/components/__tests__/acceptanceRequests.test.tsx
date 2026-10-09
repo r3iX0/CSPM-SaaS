@@ -28,8 +28,8 @@ function request(overrides: Partial<Acceptance> = {}): Acceptance {
     reason: "Behind the VPN until the rebuild",
     expires_at: "2026-11-30T23:59:59Z",
     status: "PENDING",
-    requested_by: "u-owner",
-    requested_by_email: "owner@example.com",
+    requested_by: "u-analyst",
+    requested_by_email: "analyst@example.com",
     created_at: new Date().toISOString(),
     decided_by: null,
     decided_by_email: null,
@@ -89,10 +89,10 @@ describe("acceptances waiting for a second approver", () => {
   });
 
   it("tells the person who asked that it waits for somebody else", async () => {
-    subject = "u-owner";
-    mount([request()], "OWNER");
+    subject = "u-analyst";
+    mount([request()], "SECURITY_ANALYST");
 
-    expect(await screen.findByText("Waits for another owner or admin")).toBeInTheDocument();
+    expect(await screen.findByText("Waits for an owner or admin")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
   });
 

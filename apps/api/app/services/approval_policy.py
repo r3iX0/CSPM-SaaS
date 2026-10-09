@@ -4,7 +4,8 @@ An organization may require that accepting a risk at or above a severity it choo
 by a second owner or admin, so no one person can quietly decide to live with a critical finding.
 An acceptance the policy covers is written as a PENDING exception and changes nothing: the
 finding stays open, the route stays in the queue, until somebody else approves or rejects it
-(``services/approvals.py``).
+(``services/approvals.py``). An owner or admin is that somebody, so their own acceptance is
+made at once: the policy asks for an approver's eye, not for two of them.
 
 Kept apart from ``approvals`` so ``findings`` can ask it without a cycle: approving applies the
 acceptance through ``findings``, and ``findings`` asks here before applying one.
@@ -76,12 +77,48 @@ async def level_of_finding(session: AsyncSession, finding: Finding) -> Severity:
     return highest([finding.severity, *levels]) or finding.severity
 
 
-async def policy_of(session: AsyncSession, organization_id: UUID) -> Severity | None:
-    """The organization's policy, or None in solo, where there is nobody else to approve."""
-    org = await session.get(Organization, organization_id)
+async def policy_for(session: AsyncSession, tenant: TenantContext) -> Severity | None:
+    """The policy this caller's acceptance is held to, or None where it is made at once.
+
+    None in solo, where there is nobody else to approve, and for an owner or admin, who is
+    who approves: their acceptance already carries an approver's judgement.
+    """
+    if tenant.may_administer:
+        return None
+    org = await session.get(Organization, tenant.organization_id)
     if org is None or org.mode is OrganizationMode.SOLO:
         return None
     return org.acceptance_approval_from
+
+
+async def withdraw(
+    session: AsyncSession,
+    organization_id: UUID,
+    *,
+    finding_id: UUID | None = None,
+    risk_id: UUID | None = None,
+    keep: UUID | None = None,
+) -> None:
+    """Withdraw the request waiting on this finding or route, once something else decides it.
+
+    Asked again, or accepted at once by an owner or admin: either way the request is no longer
+    the question, and leaving it would offer an approver a decision already made.
+    """
+    subject = (
+        RiskException.finding_id == finding_id
+        if finding_id is not None
+        else RiskException.risk_id == risk_id
+    )
+    waiting = update(RiskException).where(
+        RiskException.organization_id == organization_id,
+        subject,
+        RiskException.status == ExceptionStatus.PENDING,
+    )
+    if keep is not None:
+        waiting = waiting.where(RiskException.id != keep)
+    await session.execute(
+        waiting.values(status=ExceptionStatus.REVOKED, decided_at=datetime.now(UTC))
+    )
 
 
 async def request(
@@ -98,21 +135,8 @@ async def request(
     One request waits per finding or route: asking again, to change the reason or the date,
     withdraws the one before rather than leaving two for an approver to choose between.
     """
-    subject = (
-        RiskException.finding_id == finding_id
-        if finding_id is not None
-        else RiskException.risk_id == risk_id
-    )
+    await withdraw(session, tenant.organization_id, finding_id=finding_id, risk_id=risk_id)
     now = datetime.now(UTC)
-    await session.execute(
-        update(RiskException)
-        .where(
-            RiskException.organization_id == tenant.organization_id,
-            subject,
-            RiskException.status == ExceptionStatus.PENDING,
-        )
-        .values(status=ExceptionStatus.REVOKED, decided_at=now)
-    )
     pending = RiskException(
         organization_id=tenant.organization_id,
         finding_id=finding_id,

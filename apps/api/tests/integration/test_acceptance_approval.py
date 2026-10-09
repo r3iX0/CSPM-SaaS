@@ -44,11 +44,16 @@ async def add_member(org_id: uuid.UUID, user_id: uuid.UUID, role: str) -> None:
 
 @pytest.fixture
 async def team(client, cleanup_orgs):
-    """An owner who asks, an admin who decides, and a policy covering High and above."""
-    owner, admin = uuid.uuid4(), uuid.uuid4()
+    """An analyst who asks, an admin who decides, and a policy covering High and above.
+
+    The owner sets the policy and is otherwise left out: an owner's or admin's own acceptance
+    is made at once, so only an analyst's waits.
+    """
+    owner, admin, analyst = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
     org_id = uuid.UUID(await make_org(client, owner, "Four Eyes Ltd"))
     cleanup_orgs.append(org_id)
     await add_member(org_id, admin, "ADMIN")
+    await add_member(org_id, analyst, "SECURITY_ANALYST")
     response = await client.patch(
         "/api/v1/organizations",
         json={"acceptance_approval_from": "HIGH"},
@@ -56,7 +61,7 @@ async def team(client, cleanup_orgs):
     )
     assert response.status_code == 200, response.text
     assert response.json()["data"]["acceptance_approval_from"] == "HIGH"
-    return org_id, owner, admin
+    return org_id, analyst, admin, owner
 
 
 async def accept(client, user, finding_id) -> dict:
@@ -85,16 +90,16 @@ async def finding(client, user, finding_id) -> dict:
 
 
 async def test_an_acceptance_the_policy_covers_changes_nothing_until_approved(client, team) -> None:
-    org_id, owner, admin = team
+    org_id, analyst, admin, _ = team
     _, (finding_id,), _ = await test_api.TestRiskTriage()._seed(
         org_id, members=[FindingStatus.OPEN]
     )
 
-    assert (await accept(client, owner, finding_id))["status"] == "OPEN"
-    pending = (await finding(client, owner, finding_id))["pending_acceptance"]
+    assert (await accept(client, analyst, finding_id))["status"] == "OPEN"
+    pending = (await finding(client, analyst, finding_id))["pending_acceptance"]
     assert pending["reason"] == "Behind the VPN until the rebuild"
     (request,) = await waiting(client, admin)
-    assert request["requested_by"] == str(owner)
+    assert request["requested_by"] == str(analyst)
 
     approved = await client.post(
         f"/api/v1/acceptances/{request['id']}/approve", headers=auth_header(admin)
@@ -103,34 +108,34 @@ async def test_an_acceptance_the_policy_covers_changes_nothing_until_approved(cl
     assert approved.status_code == 200, approved.text
     assert approved.json()["data"]["status"] == "ACTIVE"
     assert approved.json()["data"]["decided_by"] == str(admin)
-    after = await finding(client, owner, finding_id)
+    after = await finding(client, analyst, finding_id)
     assert after["status"] == "ACCEPTED_RISK"
     assert after["pending_acceptance"] is None
     assert await waiting(client, admin) == []
 
 
 async def test_the_person_who_asked_cannot_approve_it(client, team) -> None:
-    org_id, owner, _ = team
+    org_id, analyst, _, _ = team
     _, (finding_id,), _ = await test_api.TestRiskTriage()._seed(
         org_id, members=[FindingStatus.OPEN]
     )
-    await accept(client, owner, finding_id)
-    (request,) = await waiting(client, owner)
+    await accept(client, analyst, finding_id)
+    (request,) = await waiting(client, analyst)
 
     response = await client.post(
-        f"/api/v1/acceptances/{request['id']}/approve", headers=auth_header(owner)
+        f"/api/v1/acceptances/{request['id']}/approve", headers=auth_header(analyst)
     )
 
     assert response.status_code == 403
 
 
 async def test_the_database_refuses_a_self_approval_the_service_did_not_stop(client, team) -> None:
-    org_id, owner, _ = team
+    org_id, analyst, _, _ = team
     _, (finding_id,), _ = await test_api.TestRiskTriage()._seed(
         org_id, members=[FindingStatus.OPEN]
     )
-    await accept(client, owner, finding_id)
-    (request,) = await waiting(client, owner)
+    await accept(client, analyst, finding_id)
+    (request,) = await waiting(client, analyst)
 
     with pytest.raises(IntegrityError):
         async with service_session() as session:
@@ -139,17 +144,17 @@ async def test_the_database_refuses_a_self_approval_the_service_did_not_stop(cli
                     "UPDATE exceptions SET status = 'ACTIVE', approved_by = :user, "
                     "decided_by = :user WHERE id = :id"
                 ),
-                {"user": owner, "id": request["id"]},
+                {"user": analyst, "id": request["id"]},
             )
             await session.commit()
 
 
 async def test_a_rejection_says_why_and_leaves_the_finding_open(client, team) -> None:
-    org_id, owner, admin = team
+    org_id, analyst, admin, _ = team
     _, (finding_id,), _ = await test_api.TestRiskTriage()._seed(
         org_id, members=[FindingStatus.OPEN]
     )
-    await accept(client, owner, finding_id)
+    await accept(client, analyst, finding_id)
     (request,) = await waiting(client, admin)
 
     no_note = await client.post(
@@ -168,11 +173,11 @@ async def test_a_rejection_says_why_and_leaves_the_finding_open(client, team) ->
     assert rejected.status_code == 200, rejected.text
     assert rejected.json()["data"]["decision_note"] == "Not without a compensating control"
     assert again.status_code == 409
-    assert (await finding(client, owner, finding_id))["status"] == "OPEN"
+    assert (await finding(client, analyst, finding_id))["status"] == "OPEN"
 
 
 async def test_a_route_waits_as_its_findings_do(client, team) -> None:
-    org_id, owner, admin = team
+    org_id, analyst, admin, _ = team
     _, _, route_id = await test_api.TestRiskTriage()._seed(
         org_id, members=[FindingStatus.OPEN], route=True
     )
@@ -180,7 +185,7 @@ async def test_a_route_waits_as_its_findings_do(client, team) -> None:
     response = await client.post(
         f"/api/v1/risks/{route_id}/status",
         json={"status": "ACCEPTED", "reason": "By design: the bastion"},
-        headers=auth_header(owner),
+        headers=auth_header(analyst),
     )
     assert response.status_code == 200, response.text
     assert response.json()["data"]["status"] != "ACCEPTED"
@@ -192,12 +197,12 @@ async def test_a_route_waits_as_its_findings_do(client, team) -> None:
     )
 
     assert approved.status_code == 200, approved.text
-    route = await client.get(f"/api/v1/risks/{route_id}", headers=auth_header(owner))
+    route = await client.get(f"/api/v1/risks/{route_id}", headers=auth_header(analyst))
     assert route.json()["data"]["status"] == "ACCEPTED"
 
 
 async def test_below_the_threshold_an_acceptance_is_made_at_once(client, team) -> None:
-    org_id, owner, _ = team
+    org_id, analyst, _, owner = team
     await client.patch(
         "/api/v1/organizations",
         json={"acceptance_approval_from": "CRITICAL"},
@@ -207,17 +212,50 @@ async def test_below_the_threshold_an_acceptance_is_made_at_once(client, team) -
         org_id, members=[FindingStatus.OPEN]
     )
 
-    assert (await accept(client, owner, finding_id))["status"] == "ACCEPTED_RISK"
+    assert (await accept(client, analyst, finding_id))["status"] == "ACCEPTED_RISK"
+
+
+@pytest.mark.parametrize("decider", ["owner", "admin"])
+async def test_an_owner_or_admin_accepts_at_once(client, team, decider) -> None:
+    org_id, _, admin, owner = team
+    person = owner if decider == "owner" else admin
+    _, (finding_id,), route_id = await test_api.TestRiskTriage()._seed(
+        org_id, members=[FindingStatus.OPEN], route=True
+    )
+
+    accepted = await accept(client, person, finding_id)
+    route = await client.post(
+        f"/api/v1/risks/{route_id}/status",
+        json={"status": "ACCEPTED", "reason": "By design: the bastion"},
+        headers=auth_header(person),
+    )
+
+    assert accepted["status"] == "ACCEPTED_RISK"
+    assert route.status_code == 200, route.text
+    assert route.json()["data"]["status"] == "ACCEPTED"
+    assert await waiting(client, person) == []
+
+
+async def test_an_admin_accepting_answers_the_request_waiting_on_it(client, team) -> None:
+    org_id, analyst, admin, _ = team
+    _, (finding_id,), _ = await test_api.TestRiskTriage()._seed(
+        org_id, members=[FindingStatus.OPEN]
+    )
+    await accept(client, analyst, finding_id)
+    assert len(await waiting(client, admin)) == 1
+
+    assert (await accept(client, admin, finding_id))["status"] == "ACCEPTED_RISK"
+    assert await waiting(client, admin) == []
 
 
 async def test_a_request_whose_date_passes_undecided_ends(client, team) -> None:
     from app.services import acceptance
 
-    org_id, owner, admin = team
+    org_id, analyst, admin, _ = team
     _, (finding_id,), _ = await test_api.TestRiskTriage()._seed(
         org_id, members=[FindingStatus.OPEN]
     )
-    await accept(client, owner, finding_id)
+    await accept(client, analyst, finding_id)
 
     later = datetime.now(UTC) + timedelta(days=31)
     async with service_session() as session:
