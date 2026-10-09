@@ -683,3 +683,24 @@ class TestOwnershipRuleIsolation:
         await self._rule(org_a, USER_A)
         with pytest.raises(IntegrityError):
             await self._rule(org_a, USER_A)
+
+    async def test_the_worker_reads_its_own_organization_members_and_rules(self, two_orgs) -> None:
+        """The digest's reads (§237, migration 0060): this organization's, and nobody else's."""
+        org_a, org_b = two_orgs
+        await self._rule(org_a, USER_A)
+        await self._rule(org_b, USER_B)
+
+        async with scan_session(org_a) as session:
+            orgs = set((await session.execute(text("SELECT id FROM organizations"))).scalars())
+            members = set(
+                (
+                    await session.execute(text("SELECT organization_id FROM organization_members"))
+                ).scalars()
+            )
+            rules = set(
+                (await session.execute(text("SELECT owner_id FROM ownership_rules"))).scalars()
+            )
+
+        assert orgs == {org_a}
+        assert members == {org_a}
+        assert rules == {USER_A}

@@ -12710,7 +12710,62 @@ The fix sheets read the whole queue under one key to find a finding's task, and 
 queue would hide another person's task from them.
 
 **Next from the same step:** a weekly digest per owner and overdue work sent to the security
-lead through Slack or Teams (§164). Both read the owner this entry derives.
+lead through Slack or Teams (§164). Both read the owner this entry derives. Built in §237.
+
+## 237. A weekly digest and a daily escalation say what is due, through the notifications
+
+The last of the remediation plan's accountability step (`docs/REMEDIATION_PLAN.md` Part 3,
+item 1): a weekly digest per owner, and overdue work sent to the security lead through Slack or
+Teams. Deadlines (§225) and owners (§236) were derived on the queue page only, so a missed
+deadline was seen by whoever opened that page, and nobody was told.
+
+**Two notification kinds, not a second channel.** `WORK_DIGEST` and `WORK_OVERDUE` join the
+three scan-derived kinds (§164), so both reach the bell and any Slack, Teams or signed webhook
+that asks for them, with the same retries and the same delivery log. Cleave sends no email, and
+Slack and Teams webhooks post to a channel rather than to a person. So "the security lead" is
+whoever reads the channel an owner or admin points at `WORK_OVERDUE`, and "per owner" is one
+line per owner in one message. One message per owner to a shared channel would be ten posts
+saying one thing, and the bell is shared by the organization anyway. No migration was needed
+for the kinds: the column is text.
+
+- **The digest, every Monday.** Its title says how many fixes are overdue, how many are due in
+  the next seven days, and how many a scan verified fixed in the week before (counted as §225's
+  progress counts them). Its detail splits overdue and due work by owner, the most first, five
+  named and the rest counted, and says how many of the overdue have no task yet. A week with
+  none of the three says nothing.
+- **The escalation, every day.** It names the fixes whose last day was yesterday, worst first,
+  with their asset and owner, five named and the rest counted. Only those: the digest carries the
+  standing count. So a deadline policy set for the first time, which makes old findings overdue
+  all at once, does not arrive as one enormous message.
+- **A solo organization** (§236) gets both, without owners.
+
+**Every open finding counts, tracked or not.** A finding is due by its task's date where a person
+set one and otherwise by the policy, from first detection, and is owned by the person assigned
+or else by the ownership rule its asset matches: the derivations §225 and §236 make for the
+queue, made here by `work_digest.open_work`. The queue lists only tracked work, but counting only
+that here would let leaving work untracked hide it from its owner, which is what §225 starts the
+clock at detection to prevent. The digest says how many are untracked, so the gap between the
+message and the queue is explained.
+
+**Sent at 07:00 UTC, from the five-minute notification sweep.** `work_digest.derive` runs beside
+the scan-derived notifications, in a savepoint, and writes only within the hour from 07:00 UTC.
+It is keyed by day (`overdue:2026-10-09`) and by ISO week (`digest:2026-W41`) on the existing
+unique index, so a second sweep in the hour writes nothing twice. A day with nothing overdue is
+looked at again each sweep in that hour, a dozen reads of the open findings at most. A worker
+down for the whole hour skips that day's escalation, and the next digest still counts the work.
+Organizations have no time zone yet, so UTC is the one choice that is wrong for nobody in
+particular; a time zone per organization would move the hour, not the design.
+
+**The scan sweep's watermark ignores these kinds.** `notifications.derive` reads events newer
+than the newest notification. A digest is stamped 07:00, not with anything a scan observed, so
+counting it would move the watermark past events a scan wrote minutes earlier, and they would
+never be said. The watermark is now the newest of `notifications.EVENT_KINDS` only.
+
+**The worker reads the organization, its members and its rules** (migration 0060). The sweep runs
+as `cloudguard_worker` under one organization's claim. Migration 0012 granted that role SELECT
+on `organizations` and `organization_members` but no policy arm, so row-level security showed it
+neither, and 0058 gave `ownership_rules` no worker arm. Each now has a SELECT arm on the claim,
+as every worker arm is. Nothing lets the worker change an owner or a deadline.
 
 ## Open items carried forward
 

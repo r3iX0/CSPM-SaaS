@@ -20,6 +20,10 @@ Everything else belongs on a screen somebody chose to open. ``/changes`` already
 answers "what moved in the environment"; this answers "what happened since you
 last looked", and blurring the two would build a second changes feed with a
 worse layout.
+
+The weekly digest and the overdue escalation are about the work rather than the
+estate, and are derived from deadlines and the clock, not from these events:
+they live in ``services/work_digest.py`` (DECISIONS.md section 237).
 """
 
 from datetime import UTC, datetime, timedelta
@@ -67,11 +71,26 @@ async def derive(session: AsyncSession, organization_id: UUID) -> int:
     return written
 
 
+#: The kinds derived from a scan's event rows, whose newest ``event_at`` is the watermark.
+EVENT_KINDS = (
+    NotificationKind.REACHABLE_FINDING,
+    NotificationKind.VERIFIED_FIX,
+    NotificationKind.COVERAGE_DROP,
+)
+
+
 async def _watermark(session: AsyncSession, organization_id: UUID) -> datetime:
+    # Only the kinds read from events. A digest is stamped with the hour it is
+    # sent, not with anything a scan observed, so counting it would move the
+    # watermark past events a scan wrote minutes earlier and the sweep had not
+    # read yet -- and they would never be said (DECISIONS.md section 237).
     newest = (
         await session.execute(
             select(Notification.event_at)
-            .where(Notification.organization_id == organization_id)
+            .where(
+                Notification.organization_id == organization_id,
+                Notification.kind.in_(EVENT_KINDS),
+            )
             .order_by(Notification.event_at.desc())
             .limit(1)
         )
@@ -79,7 +98,7 @@ async def _watermark(session: AsyncSession, organization_id: UUID) -> datetime:
     return newest or datetime.now(UTC) - COLD_START
 
 
-async def _write(
+async def write(
     session: AsyncSession,
     organization_id: UUID,
     *,
@@ -165,7 +184,7 @@ async def _reachable_findings(session: AsyncSession, organization_id: UUID, sinc
             # somebody goes to ask "what is wrong" rather than to be told.
             continue
         reopened = event.event is FindingEvent.REOPENED
-        written += await _write(
+        written += await write(
             session,
             organization_id,
             kind=NotificationKind.REACHABLE_FINDING,
@@ -218,7 +237,7 @@ async def _verified_fixes(session: AsyncSession, organization_id: UUID, since: d
     ).all()
     written = 0
     for event, finding in rows:
-        written += await _write(
+        written += await write(
             session,
             organization_id,
             kind=NotificationKind.VERIFIED_FIX,
@@ -263,7 +282,7 @@ async def _coverage_drops(session: AsyncSession, organization_id: UUID, since: d
     written = 0
     for row in rows:
         partial = row.outcome is TaskOutcome.PARTIAL
-        written += await _write(
+        written += await write(
             session,
             organization_id,
             kind=NotificationKind.COVERAGE_DROP,

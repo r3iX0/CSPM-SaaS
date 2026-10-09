@@ -744,7 +744,13 @@ describe("Integrations", () => {
         name: "SIEM",
         url: "https://siem.example.com/hook",
         format: "GENERIC",
-        kinds: ["REACHABLE_FINDING", "VERIFIED_FIX", "COVERAGE_DROP"],
+        kinds: [
+          "REACHABLE_FINDING",
+          "VERIFIED_FIX",
+          "COVERAGE_DROP",
+          "WORK_OVERDUE",
+          "WORK_DIGEST",
+        ],
       }),
     );
     expect(await screen.findByText("a".repeat(64))).toBeInTheDocument();

@@ -38,6 +38,7 @@ from app.services import retention as retention_service
 from app.services import scans as scans_service
 from app.services import verification as verification_service
 from app.services import webhooks as webhooks_service
+from app.services import work_digest as work_digest_service
 from app.services.scan import ScanPipeline
 from app.workers.celery_app import (
     ANALYZE_QUEUE,
@@ -678,6 +679,15 @@ async def _derive_all_notifications() -> int:
             try:
                 async with scan_session(org_id) as session:
                     total += await notifications_service.derive(session, org_id)
+                    # The digest and the escalation (section 237), in a
+                    # savepoint for the same reason as the webhooks below.
+                    try:
+                        async with session.begin_nested():
+                            total += await work_digest_service.derive(
+                                session, org_id, datetime.now(UTC)
+                            )
+                    except Exception:
+                        log.exception("work_digest.derive_failed", organization_id=str(org_id))
                     # Owed in the same transaction as the notifications, so a
                     # notification is never written without its deliveries --
                     # but in a savepoint, so a fault in the webhooks can never

@@ -20927,10 +20927,12 @@
         "enum": [
           "REACHABLE_FINDING",
           "VERIFIED_FIX",
-          "COVERAGE_DROP"
+          "COVERAGE_DROP",
+          "WORK_DIGEST",
+          "WORK_OVERDUE"
         ],
         "title": "NotificationKind",
-        "description": "What a notification is *about*, and the whole of the vocabulary.\n\nThree, and the shortness is the design. A CSPM that notifies per finding\nbecomes a filter rule in the second week, and the product already made this\ndecision one layer down: a rule may declare that forty failures are one\nproblem, because forty rows saying the same sentence is not forty pieces of\nnews (``risk/grouping.py``).\n\nSo the bar is not severity -- severity is the rulebook's opinion, and the\nproduct's whole argument is that what matters is what a finding means on\n*this* asset. The bar is whether a person would want to be interrupted."
+        "description": "What a notification is *about*, and the whole of the vocabulary.\n\nFew, and the shortness is the design. A CSPM that notifies per finding\nbecomes a filter rule in the second week, and the product already made this\ndecision one layer down: a rule may declare that forty failures are one\nproblem, because forty rows saying the same sentence is not forty pieces of\nnews (``risk/grouping.py``).\n\nSo the bar is not severity -- severity is the rulebook's opinion, and the\nproduct's whole argument is that what matters is what a finding means on\n*this* asset. The bar is whether a person would want to be interrupted."
       },
       "NotificationOut": {
         "properties": {

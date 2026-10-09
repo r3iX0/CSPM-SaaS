@@ -339,7 +339,7 @@ class RiskKind(StrEnum):
 class NotificationKind(StrEnum):
     """What a notification is *about*, and the whole of the vocabulary.
 
-    Three, and the shortness is the design. A CSPM that notifies per finding
+    Few, and the shortness is the design. A CSPM that notifies per finding
     becomes a filter rule in the second week, and the product already made this
     decision one layer down: a rule may declare that forty failures are one
     problem, because forty rows saying the same sentence is not forty pieces of
@@ -363,6 +363,18 @@ class NotificationKind(StrEnum):
     # something narrower than it was yesterday, and saying nothing would let a
     # score hold steady while the evidence under it thinned out.
     COVERAGE_DROP = "COVERAGE_DROP"
+
+    # The two below are about the work, not the estate, and are derived from
+    # deadlines and the clock rather than from a scan's events (DECISIONS.md
+    # section 237). Each is one message for the whole organization, never one
+    # per finding, for the reason the three above are few.
+
+    # Monday's summary: what is overdue and due this week, by owner, and what a
+    # scan verified fixed in the week before.
+    WORK_DIGEST = "WORK_DIGEST"
+    # The fixes whose last day was yesterday. A channel subscribed to this is
+    # the escalation: whoever reads it is told the day a deadline is missed.
+    WORK_OVERDUE = "WORK_OVERDUE"
 
 
 class WebhookFormat(StrEnum):

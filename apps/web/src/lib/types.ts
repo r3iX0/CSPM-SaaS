@@ -1591,7 +1591,8 @@ export interface AzurePermissions {
   writes_performed: string;
 }
 
-export type NotificationKind = "REACHABLE_FINDING" | "VERIFIED_FIX" | "COVERAGE_DROP";
+export type NotificationKind =
+  "REACHABLE_FINDING" | "VERIFIED_FIX" | "COVERAGE_DROP" | "WORK_DIGEST" | "WORK_OVERDUE";
 
 /**
  * One thing worth telling somebody, as it was true when it happened.

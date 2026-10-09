@@ -392,8 +392,10 @@ the caller is not a member yet.
 
 Webhooks (DECISIONS.md §164) are for owners and admins, up to twenty per
 organization. `format` is `GENERIC`, `SLACK` or `TEAMS`, and `kinds` is any of
-the three notification kinds (`REACHABLE_FINDING`, `VERIFIED_FIX`,
-`COVERAGE_DROP`). The URL must be HTTPS on port 443 and resolve only to public
+the five notification kinds: `REACHABLE_FINDING`, `VERIFIED_FIX` and
+`COVERAGE_DROP` from scans, and `WORK_OVERDUE` (each morning, the fixes whose
+last day was yesterday) and `WORK_DIGEST` (Monday's summary of overdue and due
+work by owner) from deadlines (§237). The URL must be HTTPS on port 443 and resolve only to public
 addresses, which is checked when the webhook is created and again at every send;
 redirects are not followed, and a refusal is 422 `VALIDATION_FAILED`. A
 `GENERIC` delivery is JSON signed with the endpoint's own secret:

@@ -1552,6 +1552,8 @@ export const en = {
       REACHABLE_FINDING: "New findings on an attack route",
       VERIFIED_FIX: "Fixes Cleave has verified",
       COVERAGE_DROP: "Readings that stopped arriving",
+      WORK_OVERDUE: "Fixes that went overdue, each morning",
+      WORK_DIGEST: "Monday's summary of overdue and due work",
     },
     health: {
       ok: "Delivering",
