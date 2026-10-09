@@ -22,8 +22,8 @@ from app.core.errors import ConflictError, NotFound, PermissionDenied
 from app.models.finding import Finding
 from app.models.organization import OrganizationMember
 from app.models.remediation import RiskException
-from app.models.risk import Risk
-from app.services import audit
+from app.models.risk import Risk, RiskFinding
+from app.services import approval_policy, audit
 from app.services import findings as findings_service
 
 #: Who may decide: the roles that may already set the organization's policies.
@@ -79,7 +79,7 @@ async def _describe(
                 Finding.severity,
                 Finding.status,
                 Risk.title,
-                Risk.severity,
+                Risk.risk_level,
                 Risk.status,
             )
             .outerjoin(Finding, Finding.id == RiskException.finding_id)
@@ -91,20 +91,43 @@ async def _describe(
         )
     ).all()
     emails = await _emails(session, tenant.organization_id)
+    shown = await _risk_levels(session, [row[0].finding_id for row in rows if row[0].finding_id])
     requests = []
-    for exception, f_title, f_severity, f_status, r_title, r_severity, r_status in rows:
+    for exception, f_title, f_severity, f_status, r_title, r_level, r_status in rows:
         on_finding = exception.finding_id is not None
+        # The level the acceptance was judged at (approval_policy.level_of_finding): what the
+        # queue showed, so the request reads the same as the row it was asked from.
+        level = (
+            approval_policy.highest([f_severity, *shown.get(exception.finding_id, [])])
+            if on_finding
+            else r_level
+        )
         requests.append(
             Request(
                 exception=exception,
                 subject_title=_text(f_title if on_finding else r_title),
-                subject_severity=_text(f_severity if on_finding else r_severity),
+                subject_severity=_text(level),
                 subject_status=_text(f_status if on_finding else r_status),
                 requested_by_email=emails.get(exception.requested_by),
                 decided_by_email=emails.get(exception.decided_by) if exception.decided_by else None,
             )
         )
     return requests
+
+
+async def _risk_levels(session: AsyncSession, finding_ids: list[UUID]) -> dict[UUID, list[str]]:
+    """The scored level of every risk each of these findings belongs to."""
+    if not finding_ids:
+        return {}
+    rows = await session.execute(
+        select(RiskFinding.finding_id, Risk.risk_level)
+        .join(Risk, Risk.id == RiskFinding.risk_id)
+        .where(RiskFinding.finding_id.in_(finding_ids))
+    )
+    levels: dict[UUID, list[str]] = {}
+    for finding_id, level in rows.tuples():
+        levels.setdefault(finding_id, []).append(level)
+    return levels
 
 
 async def list_requests(

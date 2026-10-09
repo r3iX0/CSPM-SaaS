@@ -39,3 +39,9 @@ temp/
 
 # graphify: the local knowledge graph, rebuilt by its post-commit hook
 graphify-out/
+
+# The local stack (DECISIONS.md sections 240 and 241): it stays on the developer's machine and is
+# never pushed. Only the application's inert support for APP_ENV=local is in the repository.
+tools/local/
+infrastructure/local/
+CLAUDE.local.md

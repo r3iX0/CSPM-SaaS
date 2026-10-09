@@ -222,7 +222,9 @@ async def accept_risk(
         raise ValidationFailed(str(exc)) from exc
 
     policy = await approval_policy.policy_of(session, tenant.organization_id)
-    if approval_policy.requires(policy, finding.severity):
+    if policy is not None and approval_policy.requires(
+        policy, await approval_policy.level_of_finding(session, finding)
+    ):
         await approval_policy.request(
             session, tenant, finding_id=finding.id, reason=reason, expires_at=expires_at
         )

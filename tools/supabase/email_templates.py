@@ -3,6 +3,7 @@
     python3 tools/supabase/email_templates.py build
     python3 tools/supabase/email_templates.py preview <dir>
     SUPABASE_ACCESS_TOKEN=... python3 tools/supabase/email_templates.py push <project-ref>
+    python3 tools/supabase/email_templates.py local
 
 ``build`` writes one HTML file per template into
 ``infrastructure/supabase/email/built/`` -- the files pasted into the dashboard
@@ -17,6 +18,11 @@ Go template variables, so they open in a browser.
 supabase.com/dashboard/account/tokens. It replaces what the dashboard holds.
 It does not switch the security notices on: each ``*_notification`` template
 is sent only once its toggle under Authentication -> Emails -> Security is on.
+
+``local`` writes the same subjects and built bodies into the local Supabase stack's
+``infrastructure/local/supabase/config.toml``, between two marker lines, so a local run sends
+the emails the deployment sends (DECISIONS.md section 241). Supabase's CLI has no setting for
+the security notices, so those are sent only by the deployment.
 
 An email is a table layout with inline styles because that is all Outlook and
 Gmail keep. The mark is a hosted PNG (``apps/web/public/email/``), not an SVG,
@@ -460,6 +466,44 @@ def push(project_ref: str) -> None:
         print(f"{response.status}: {len(TEMPLATES)} templates set on {project_ref}")
 
 
+LOCAL_CONFIG = Path(__file__).resolve().parents[2] / "infrastructure/local/supabase/config.toml"
+LOCAL_BEGIN = "# BEGIN Cleave email templates (tools/supabase/email_templates.py local)"
+LOCAL_END = "# END Cleave email templates"
+
+
+def local(config: Path = LOCAL_CONFIG) -> None:
+    """Point the local stack at the templates, replacing the block written last time.
+
+    The CLI reads a template only from inside its project, so each is rendered into the
+    project's ``supabase/templates/`` (generated, and ignored by git) rather than referenced
+    where ``build`` writes it.
+    """
+    templates = config.parent / "templates"
+    templates.mkdir(exist_ok=True)
+    lines = [LOCAL_BEGIN]
+    for template in TEMPLATES:
+        if template.key.endswith("_notification"):
+            continue
+        (templates / f"{template.key}.html").write_text(render(template))
+        lines += [
+            f"[auth.email.template.{template.key}]",
+            f"subject = {json.dumps(template.subject)}",
+            f'content_path = "./supabase/templates/{template.key}.html"',
+            "",
+        ]
+    lines.append(LOCAL_END)
+    block = "\n".join(lines)
+    text = config.read_text()
+    if LOCAL_BEGIN in text:
+        start = text.index(LOCAL_BEGIN)
+        end = text.index(LOCAL_END, start) + len(LOCAL_END)
+        text = text[:start] + block + text[end:]
+    else:
+        text = text.rstrip("\n") + "\n\n" + block + "\n"
+    config.write_text(text)
+    print(f"{config}: email templates set")
+
+
 def main() -> None:
     command, *args = sys.argv[1:] or ["build"]
     if command == "build" and not args:
@@ -468,6 +512,8 @@ def main() -> None:
         build(Path(args[0]).resolve(), SAMPLE)
     elif command == "push" and len(args) == 1:
         push(args[0])
+    elif command == "local" and not args:
+        local()
     else:
         sys.exit(__doc__)
 

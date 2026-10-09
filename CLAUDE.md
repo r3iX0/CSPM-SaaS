@@ -27,6 +27,11 @@ Standards are the checks in `.pre-commit-config.yaml` (DECISIONS.md §191, `docs
 and mypy for Python, ESLint and Prettier for the web app, plus hygiene and gitleaks. Never commit
 with `--no-verify`; CI runs the same hooks.
 
+### Running locally
+
+The local stack's tooling is kept on the developer's machine and is not in the repository
+(`CLAUDE.local.md`, DECISIONS.md §240, §241). `APP_ENV=local` runs only against this machine.
+
 ### Backend (apps/api)
 
 ```bash

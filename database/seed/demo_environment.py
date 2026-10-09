@@ -46,7 +46,10 @@ import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
-sys.path.insert(0, "/srv/apps/api")
+# The repository root: /srv in the API's image, the checkout on a developer's machine
+# (tools/local/seed.sh, DECISIONS.md section 240).
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "apps" / "api"))
 
 from sqlalchemy import text
 
@@ -77,8 +80,8 @@ from app.services.scan import collection as collection_module
 SNAPSHOTS = {
     # The mixed recording with an estate built around it, so the graph view has
     # routes, an escalation and a fold to show (build_snapshot_demo.py).
-    Provider.AZURE: Path("/srv/apps/api/tests/fixtures/azure_raw/snapshot_demo.json"),
-    Provider.AWS: Path("/srv/apps/api/tests/fixtures/aws_raw/snapshot_mixed.json"),
+    Provider.AZURE: ROOT / "apps/api/tests/fixtures/azure_raw/snapshot_demo.json",
+    Provider.AWS: ROOT / "apps/api/tests/fixtures/aws_raw/snapshot_mixed.json",
 }
 DEMO_ORG = "Banka Kombetare (demo)"
 

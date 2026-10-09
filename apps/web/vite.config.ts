@@ -2,6 +2,35 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
 
+import vercel from "./vercel.json";
+
+/** The local API and Auth a built app served on this machine calls (tools/local/env.sh). */
+const LOCAL_ORIGINS = "http://localhost:8000 http://127.0.0.1:54321";
+
+/**
+ * vercel.json's headers, for `vite preview` (tools/local/run.sh, DECISIONS.md §241).
+ *
+ * A local run serves the built app with the headers Vercel sends, so a page that breaks under
+ * the deployed Content-Security-Policy breaks here first. Two changes only, both because the
+ * local stack speaks plain HTTP: the policy also allows the local API and Auth origins and
+ * drops `upgrade-insecure-requests`, and Strict-Transport-Security is left out, since a browser
+ * holding it for localhost would refuse every other local server.
+ */
+function vercelHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {};
+  for (const { key, value } of vercel.headers.find((rule) => rule.source === "/(.*)")?.headers ??
+    []) {
+    if (key === "Strict-Transport-Security") continue;
+    headers[key] =
+      key === "Content-Security-Policy"
+        ? value
+            .replace("connect-src 'self'", `connect-src 'self' ${LOCAL_ORIGINS}`)
+            .replace(/;\s*upgrade-insecure-requests/, "")
+        : value;
+  }
+  return headers;
+}
+
 export default defineConfig({
   plugins: [react()],
   build: {
@@ -29,6 +58,9 @@ export default defineConfig({
   },
   resolve: {
     alias: { "@": path.resolve(__dirname, "./src") },
+  },
+  preview: {
+    headers: vercelHeaders(),
   },
   server: {
     port: 5173,

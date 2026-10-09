@@ -162,6 +162,8 @@ add richer components remains possible.
 
 ## 13. Cloud-only: no local development mode
 
+**Superseded in part by §240:** a change can now be run locally under `APP_ENV=local`.
+
 **Spec:** `ARCHITECTURE.md` §1 listed Docker Compose for local development.
 
 CloudGuard now targets exactly one environment — Supabase, Railway, Vercel —
@@ -12862,8 +12864,101 @@ for the person who did. The finding page says an acceptance waits, and the triag
 decision was sent for approval rather than made. A notification for an approver is not built:
 the queue is where acceptances are decided, and it says what waits at the top.
 
+**Judged at the level the queue shows.** The first version judged a finding by its rule's
+severity, and running it locally (§240) showed the gap at once: the queue ranks by a risk's scored
+level, so a Medium rule on a sensitive asset sits on a row labelled High, and a reviewer who chose
+"High and Critical" watched it accepted by one person. An acceptance of a finding is now judged at
+the higher of its severity and the level of every risk it belongs to (`level_of_finding`), and a
+route at its own scored level. An unscored (`UNKNOWN`) risk neither lowers nor raises a finding.
+The approvals list shows that same level, so a request reads as the row it was asked from.
+
 **Not built: reminders before an acceptance expires.** The plan asks for them through Jira, which
 is not built (§226). Slack or Teams reminders would be a notification kind like §237's.
+
+## 240. A change can be run on a developer's machine before it ships
+
+CloudGuard was cloud-only (§13): no local mode, and the API refused a localhost address. Every
+change was proven by unit tests, by CI's integration suite, and then in production. Features that
+live across the API, the worker, the database and the browser -- a second approver, a digest at
+07:00, a sealed package -- could not be tried as a person uses them before they were live, and the
+product needs them tried before they ship.
+
+**`APP_ENV=local`, the mirror of a deployment.** A deployment refuses an address on this machine; a
+local run refuses any address that is not. It runs every other startup check as a deployment does,
+so a missing value is still refused. Setting it by mistake on a deployed service stops it from
+starting, rather than running against real data with a developer's settings. `test` still skips
+the checks, for CI.
+
+**Supabase's own local stack, not a stand-in.** `infrastructure/local` is a Supabase CLI project,
+pinned to one CLI release (§241), started with only Postgres, Auth, its gateway and the mail
+catcher. The application relies on what Supabase provides -- the `authenticated` and `anon` roles, `auth.users`,
+guest sign-in -- so running against plain Postgres or a token minted by the API would test
+something other than what ships. The API grows no token-minting code; Auth issues the tokens.
+
+**Three scripts in `tools/local`.** `up.sh` starts Supabase and a Redis container, applies
+`roles.sql` with a local-only password (the committed file keeps its placeholder, which CI checks),
+and runs the migrations. `run.sh` starts the API, the worker with the beat schedule Railway runs,
+and the web app. `seed.sh` creates an owner and an admin through the Auth admin API, the owner's
+organization from the demo recording through the real pipeline (the admin a member, fix deadlines
+set), and the shared demo. The seed now finds its files from its own location rather than the
+image's `/srv`, so the same script runs in both. The worker connects as `cloudguard_worker`, so
+local runs exercise its row-level security, as production's should.
+
+**What it found on first use.** All 62 migrations ran cleanly on Postgres 17. The second approver
+judged the wrong level (§239), which unit and integration tests had not caught, because both
+asserted the rule as it was written.
+
+## 241. The local stack is the cloud's, setting by setting
+
+From 2026-10-09 every change is built and tested locally before it goes to git and the cloud,
+so the local stack has to fail where the cloud fails. §240 ran the code against a Supabase of
+its own; this makes each layer the cloud's, and names what still differs.
+
+**Database.** The cloud project's exact Postgres build (`17.6.1.165`, set in `tools/local/up.sh`
+and written to the CLI's `.temp/postgres-version`), with the cloud's installed extensions only:
+the CLI adds `pg_graphql` and `pg_net`, which the cloud does not have, so `up.sh` drops them. A
+local run that leaned on either would break once deployed. That build needs a newer CLI than
+§240 pinned, so the CLI is pinned at 2.118.0, a release two weeks old when chosen.
+
+**Auth.** Tokens are signed with an ES256 key, as the cloud's are (its JWKS publishes one), so
+the API verifies through the JWKS path it uses in production rather than the shared-secret path
+it never sees there. The key is generated per machine by `up.sh` and never committed. Email
+confirmation is on and TOTP is offered, as in the cloud; guest sign-in is on. The emails are
+Cleave's own, written into the local config from the same source the cloud's are pushed from
+(`tools/supabase/email_templates.py local`), and land in the mail catcher. The CLI has no
+setting for the security notices, so those are sent by the cloud only.
+
+**API and worker.** Built from `infrastructure/docker/api.Dockerfile` and started with the
+commands `.railway/railway.ts` gives them (`infrastructure/local/docker-compose.yml`): the API
+migrates and then serves, the worker runs Celery with its beat schedule. The seed runs inside
+that image, as production's does from Railway's shell. The containers reach Postgres and Auth by
+the local stack's container names, so `APP_ENV=local` accepts a host carrying `cleave-local` as
+well as localhost; such a name exists only on that Docker network. Comparing hosts rather than
+substrings also closed a hole: `localhost.attacker.example` used to pass as local.
+
+**Redis.** Password-protected, as Railway's is.
+
+**Web.** `tools/local/run.sh` builds the app as Vercel does and serves it with `vercel.json`'s
+headers and rewrite (`vite preview`), so a page the deployed Content-Security-Policy blocks is
+blocked locally first. Two changes, because the local stack speaks plain HTTP: the policy also
+allows the local API and Auth origins and drops `upgrade-insecure-requests`, and
+Strict-Transport-Security is not sent. `run.sh --dev` keeps hot reload for writing code; a change
+is confirmed in the default mode before it is committed.
+
+**Environment.** Production runs `APP_ENV=staging` with an Azure and an AWS identity, and with
+the GitHub App and `FIX_PRS_ENABLED` unset. Locally the same flags are unset. The cloud
+identities are secrets and are not copied: a developer who wants to scan a real tenant puts a
+development identity in the gitignored `infrastructure/local/.env.local`, and the recording the
+seed replays stands in otherwise.
+
+**Kept off GitHub.** The tooling (`tools/local`, `infrastructure/local`) stays on the
+developer's machine and is gitignored, so a push carries no local deployment. What is in the
+repository is the application's own support, inert in the cloud: `APP_ENV=local` and its checks,
+the seed's paths, the email templates' `local` command and `vite preview`'s headers.
+
+**Still different, on purpose.** HTTP rather than HTTPS; the mail catcher rather than Supabase's
+mailer; Google and Microsoft sign-in, which need their own OAuth clients registered for the local
+callback; and one replica of each process. Each is listed in the local stack's own README.
 
 ## Open items carried forward
 

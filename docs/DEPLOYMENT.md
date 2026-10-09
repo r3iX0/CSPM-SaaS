@@ -1,8 +1,9 @@
 # CloudGuard — Deploying to the Web
 
-Companion to [`DECISIONS.md`](DECISIONS.md). CloudGuard is cloud-only — there
-is no local development mode and no localhost defaults, and the API refuses to
-start without a complete deployment environment. Everything runs on:
+Companion to [`DECISIONS.md`](DECISIONS.md). CloudGuard is deployed to the cloud.
+There are no localhost defaults, and the API refuses to start without a complete
+deployment environment. `APP_ENV=local` (DECISIONS.md §240) runs the same code on a
+developer's machine, and only there. Everything deployed runs on:
 
 | Layer | Platform | Why |
 |---|---|---|

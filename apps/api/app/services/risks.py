@@ -298,7 +298,7 @@ async def set_status(
             await _decide_findings(
                 session, tenant, risk, members[risk.id], status, reason, expires_at
             )
-        elif status == RiskStatus.ACCEPTED and approval_policy.requires(policy, risk.severity):
+        elif status == RiskStatus.ACCEPTED and approval_policy.requires(policy, risk.risk_level):
             # A route waits as its findings do: nothing changes until a second person approves
             # (DECISIONS.md section 239). Its status stays, which is how the caller can tell.
             assert reason is not None  # refused above otherwise

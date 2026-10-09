@@ -46,9 +46,8 @@ an AWS account with it, and not before.
 
 ## Running it
 
-Cleave is cloud-only. There is no local run mode, no `docker-compose.yml`, and no localhost
-defaults anywhere in the configuration — the API refuses to start unless it has a complete
-deployment environment.
+Cleave is deployed to the cloud, with no localhost defaults anywhere in the configuration — the
+API refuses to start unless it has a complete environment.
 
 | Layer | Platform |
 |---|---|
