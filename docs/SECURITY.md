@@ -150,6 +150,11 @@ risks are never permanently hidden** — they remain auditable via
 `audit_logs`, which no application role can edit or delete (`DECISIONS.md` §163). Every entry
 carries the actor, the caller's address and the request id.
 
+An organization may require a second approver for acceptances at or above a severity it chooses
+(`DECISIONS.md` §239). Such an acceptance waits, changing nothing, until an owner or admin other
+than the person who asked approves or rejects it; the database refuses a decision by the person
+who asked, whatever the application does.
+
 ---
 
 ## 5. Product Trust Model

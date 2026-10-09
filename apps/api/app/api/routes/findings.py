@@ -31,15 +31,16 @@ from app.schemas.finding import (
     FindingProvenanceOut,
     IacDiffOut,
     IacLocationOut,
+    PendingAcceptanceOut,
     RescanQueuedOut,
     ResourceSummary,
     RiskOut,
     VerificationOut,
 )
+from app.services import approvals, iac_index
 from app.services import findings as service
 from app.services import graph as graph_service
 from app.services import iac as iac_service
-from app.services import iac_index
 from app.services import rescan as rescan_service
 from app.services import scans as scans_service
 from app.services.graph import serialize_path
@@ -212,6 +213,11 @@ async def get_finding(
             else None
         ),
         "accepted_until": await service.accepted_until(session, finding),
+        "pending_acceptance": (
+            PendingAcceptanceOut.model_validate(pending)
+            if (pending := await approvals.pending_for_finding(session, finding.id))
+            else None
+        ),
         "managed_in_code": [
             IacLocationOut(
                 repository=index.repository,

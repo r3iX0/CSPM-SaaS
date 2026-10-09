@@ -193,10 +193,13 @@ remediation_tasks
   created_at, updated_at, completed_at
 
 exceptions
-  id, organization_id, finding_id, approved_by, reason, expires_at, status, created_at
-  -- status: ACTIVE / EXPIRED / REVOKED. At most one ACTIVE per finding:
+  id, organization_id, finding_id, risk_id, requested_by, approved_by, reason, expires_at
+  status, created_at, second_approval, decided_by, decided_at, decision_note
+  -- status: PENDING / ACTIVE / REJECTED / EXPIRED / REVOKED. At most one ACTIVE per finding:
   -- accepting again or reopening revokes the running one, and the
-  -- expire-acceptances sweep expires it once expires_at passes
+  -- expire-acceptances sweep expires it once expires_at passes.
+  -- PENDING waits for a second approver (DECISIONS.md §239): one per finding or risk, a risk
+  -- only while waiting, and decided_by never requested_by where second_approval is set
 
 audit_logs
   id, organization_id, user_id, action, resource_type, resource_id

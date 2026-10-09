@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import INET, JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -41,16 +41,30 @@ class RiskException(UUIDPrimaryKey, TenantOwned, Base):
 
     __tablename__ = "exceptions"
 
-    finding_id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("findings.id", ondelete="CASCADE"), nullable=False
+    # A finding, or -- only while an acceptance waits for a second approver -- a route or an
+    # escalation; never both (migration 0062, DECISIONS.md section 239).
+    finding_id: Mapped[uuid.UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("findings.id", ondelete="CASCADE")
     )
-    approved_by: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    risk_id: Mapped[uuid.UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("risks.id", ondelete="CASCADE")
+    )
+    requested_by: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    # Whoever made it take effect: the person who asked, or the second approver. NULL until then.
+    approved_by: Mapped[uuid.UUID | None] = mapped_column(PGUUID(as_uuid=True))
     reason: Mapped[str] = mapped_column(Text, nullable=False)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     status: Mapped[ExceptionStatus] = mapped_column(
         StrEnumType(ExceptionStatus, 16), nullable=False, default=ExceptionStatus.ACTIVE
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # The policy covered it, so whoever decides may not be whoever asked; the database refuses
+    # it otherwise (``ck_exceptions_four_eyes``).
+    second_approval: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    decided_by: Mapped[uuid.UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Why a request was rejected, said to the person who asked.
+    decision_note: Mapped[str | None] = mapped_column(Text)
 
 
 class AuditLog(UUIDPrimaryKey, TenantOwned, Base):

@@ -14,7 +14,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.enums import OrganizationMode, Role
+from app.core.enums import OrganizationMode, Role, Severity
 from app.models.base import Base, StrEnumType, Timestamps, UUIDPrimaryKey
 
 
@@ -37,6 +37,9 @@ class Organization(UUIDPrimaryKey, Timestamps, Base):
     fix_within_days_high: Mapped[int | None] = mapped_column(SmallInteger)
     fix_within_days_medium: Mapped[int | None] = mapped_column(SmallInteger)
     fix_within_days_low: Mapped[int | None] = mapped_column(SmallInteger)
+    # The lowest severity whose acceptance waits for a second owner or admin; NULL for none
+    # (migration 0062, DECISIONS.md section 239). Applies to a team only: solo has nobody else.
+    acceptance_approval_from: Mapped[Severity | None] = mapped_column(StrEnumType(Severity, 8))
     # One person or a team (migration 0059, DECISIONS.md section 236). Solo has one member and
     # no invitations; the product then leaves out members, ownership rules and owners on tasks.
     mode: Mapped[OrganizationMode] = mapped_column(

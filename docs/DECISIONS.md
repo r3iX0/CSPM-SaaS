@@ -12811,6 +12811,60 @@ observation, not a status. A version 1 archive has no `fixes.csv`. The package's
 with counts (`fixes`: total, listed, confirmed by verification, changed by pull request), as it
 does for the controls, and the summary the owner and the auditor both read draws one line from it.
 
+## 239. An acceptance can wait for a second approver
+
+The remediation plan's proof of progress (`docs/REMEDIATION_PLAN.md` Part 3, item 2) asks for a
+second approver on an exception (§104). Anyone who may write could accept a critical finding,
+alone, with a reason nobody else read. Auditors and security leads ask for a second person on
+exactly that decision, and practitioners describe one person's acceptance as the hole in an
+exception process.
+
+**A policy by severity, per organization.** `organizations.acceptance_approval_from` is the lowest
+severity whose acceptance waits for a second owner or admin, or null for none (migration 0062).
+`HIGH` covers High and Critical. Owners and admins set it under Settings > General as an instant
+choice answered in a toast, through `PATCH /organizations`. It is a team's only: a solo
+organization has nobody else, so setting it there is refused (`409`) and a policy kept through a
+switch to solo does nothing until the organization is a team again. A severity, rather than a
+yes or no, because a team that wants four eyes on Critical rarely wants them on every Low.
+
+**A waiting acceptance changes nothing.** Where the policy covers a finding's severity, accepting
+it writes an `exceptions` row with status `PENDING` and leaves the finding as it was: still open,
+still counted, still verified. The answer is the finding unchanged, which is how the caller
+tells. The risks triage passes through the same path, so a grouped risk's members each wait.
+Approving makes the acceptance take effect through the one function that applies any acceptance
+(`findings.apply_acceptance`): the same timeline event, exception and audit row, with the
+approver named. Rejecting needs a note, shown to the person who asked, and changes nothing else.
+A waiting acceptance of a finding already accepted leaves the running one in place until the new
+one is approved, which then replaces it.
+
+**Routes wait too, or the policy has a hole.** A route or an escalation is accepted on the risk
+itself (§103, §104). Gating findings only would leave the riskier decision, that a route is by
+design, to one person. So an exception row may name a risk instead of a finding (`risk_id`, one
+of the two exactly). It is used only while a route's acceptance waits; once approved, the
+acceptance lives on the risk as before.
+
+**Four eyes, in the database.** The service refuses a decision by the person who asked (`403`)
+and by anyone but an owner or an admin. The row also carries `second_approval`, and a CHECK
+constraint refuses `decided_by = requested_by` on such a row, so no code path, present or later,
+can approve its own request. `requested_by` is new and was backfilled from `approved_by` on
+earlier rows, where one person did both.
+
+**Lifecycle.** `PENDING` becomes `ACTIVE` (approved), `REJECTED`, `REVOKED` (asked again, which
+replaces the request; one waits per finding or risk at a time, by a unique partial index) or
+`EXPIRED`. The `expire-acceptances` sweep (§104) ends a request whose end date passes undecided,
+since approving it then would accept something for a time already over. Approval is also refused
+(`409`) once the finding or route has moved on: fixed, marked a false positive, or resolved.
+
+**Where it is seen.** `GET /acceptances?status=` lists the requests for any member, since a
+request is part of the finding's story. The risks page lists what waits above the queue, with
+Approve and Reject for an owner or admin who did not ask, and "waits for another owner or admin"
+for the person who did. The finding page says an acceptance waits, and the triage toast says a
+decision was sent for approval rather than made. A notification for an approver is not built:
+the queue is where acceptances are decided, and it says what waits at the top.
+
+**Not built: reminders before an acceptance expires.** The plan asks for them through Jira, which
+is not built (§226). Slack or Teams reminders would be a notification kind like §237's.
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,

@@ -656,6 +656,7 @@ export const en = {
     actions: "Actions",
     assign: "Assign",
     decideOnRisk: "Decide on its risk",
+    acceptanceWaiting: "Acceptance waits for a second approver",
     rescan: "Rescan to verify",
     rescanQueued: "Rescan queued. Cleave will close this finding automatically if the fix worked.",
     cancel: "Cancel",
@@ -1165,6 +1166,21 @@ export const en = {
     orgFailed: "Could not save the organization",
     // Only owners and admins may edit, and a reader who cannot should be told
     // why rather than meeting disabled fields with no explanation.
+    // A second approver for acceptances, by severity (DECISIONS.md §239).
+    approvalTitle: "Second approver",
+    approvalHelp: "Acceptances at or above this severity wait for another owner or admin.",
+    approvalLabel: "Ask a second approver for",
+    approvalOff: "No acceptance",
+    approvalFrom: {
+      CRITICAL: "Critical only",
+      HIGH: "High and Critical",
+      MEDIUM: "Medium and above",
+      LOW: "Every acceptance",
+    },
+    approvalChanged: "Second approver saved",
+    approvalFailed: "That did not save. Try again.",
+    approvalReadOnly: "Owners and admins choose this.",
+
     // How long a fix may take, by severity (DECISIONS.md §225).
     deadlinesTitle: "Fix deadlines",
     deadlinesHelp: "Days from first detection to a fix, for work with no due date of its own.",

@@ -561,7 +561,12 @@ class CloudAccountStatus(StrEnum):
 
 
 class ExceptionStatus(StrEnum):
+    # Asked for, under the organization's second-approver policy, and waiting for somebody other
+    # than the person who asked (DECISIONS.md section 239). Changes nothing until decided.
+    PENDING = "PENDING"
     ACTIVE = "ACTIVE"
+    # The second person said no. The finding or route is as it was before the request.
+    REJECTED = "REJECTED"
     EXPIRED = "EXPIRED"
     REVOKED = "REVOKED"
 

@@ -175,6 +175,10 @@ export function FindingDetailPage() {
                 until {formatDate(data.accepted_until)}
               </span>
             )}
+            {/* Asked for and not yet decided by a second person (§239): nothing has changed. */}
+            {data.pending_acceptance && (
+              <span className="text-xs text-muted-foreground">{t.findings.acceptanceWaiting}</span>
+            )}
             <span className="font-mono text-xs text-muted-foreground">
               {data.rule_id} · v{data.rule_version}
             </span>

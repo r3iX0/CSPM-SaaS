@@ -126,6 +126,9 @@ async def update_organization(
     changes = payload.model_dump(exclude_unset=True)
     if changes.get("mode") == OrganizationMode.SOLO and org.mode != OrganizationMode.SOLO:
         await _require_alone(session, org.id)
+    solo = changes.get("mode", org.mode) == OrganizationMode.SOLO
+    if changes.get("acceptance_approval_from") is not None and solo:
+        raise ConflictError("A second approver needs a second person; switch to a team first")
     if "fix_within_days" in changes:
         # The policy is sent whole: a severity left out is cleared, null clears them all, and the
         # audit row records the policy that resulted rather than the keys that were sent (§225).

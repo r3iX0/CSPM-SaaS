@@ -5,10 +5,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError, auth } from "@/lib/api";
 import type { CloudAccount, Member, Organization } from "@/lib/types";
 import { useT } from "@/i18n";
+import { AcceptanceApproval } from "@/components/settings/AcceptanceApproval";
 import { FixDeadlines } from "@/components/settings/FixDeadlines";
 import { OrganizationForm } from "@/components/settings/OrganizationForm";
 import { OrganizationModeChoice } from "@/components/settings/OrganizationMode";
 import { SettingsSection } from "@/components/settings/SettingsSection";
+import { isTeam } from "@/components/settings/sections";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -25,7 +27,8 @@ import { Input } from "@/components/ui/input";
 
 /**
  * The organization's profile, how long it gives itself to fix a finding
- * (DECISIONS.md §225), and at the foot of it, deleting the organization.
+ * (DECISIONS.md §225), who must approve an acceptance (§239), and at the foot
+ * of it, deleting the organization.
  */
 export function GeneralSettings({ organization }: { organization: Organization }) {
   const t = useT();
@@ -63,6 +66,15 @@ export function GeneralSettings({ organization }: { organization: Organization }
       >
         <FixDeadlines key={organization.id} organization={organization} />
       </SettingsSection>
+      {!organization.is_demo && isTeam(organization) && (
+        <SettingsSection
+          id="approval"
+          title={t.settings.approvalTitle}
+          description={t.settings.approvalHelp}
+        >
+          <AcceptanceApproval organization={organization} />
+        </SettingsSection>
+      )}
       <DangerZone organization={organization} />
     </div>
   );

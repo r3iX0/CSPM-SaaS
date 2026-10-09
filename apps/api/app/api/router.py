@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from app.api.routes import (
+    acceptances,
     assets,
     attack_paths,
     audit_grants,
@@ -50,6 +51,7 @@ api_router.include_router(notifications.router)
 api_router.include_router(attack_paths.router)
 api_router.include_router(findings.router)
 api_router.include_router(risks.router)
+api_router.include_router(acceptances.router)
 api_router.include_router(remediation.router)
 api_router.include_router(ownership.router)
 api_router.include_router(integrations.router)

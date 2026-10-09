@@ -38,6 +38,7 @@ from app.schemas.rule import (
     RemediationSpecOut,
     TerraformHintOut,
 )
+from app.services import approval_policy
 from app.services import audit as audit_service
 from app.services import verification as verification_service
 
@@ -203,10 +204,15 @@ async def accept_risk(
     reason: str,
     expires_at: datetime | None,
 ) -> Finding:
-    """Record a deliberate decision not to fix something.
+    """Record a deliberate decision not to fix something, or ask for one (§239).
 
     Accepted is not hidden: the finding keeps its risk score, stays queryable,
     and the decision is written to the audit log (SECURITY.md section 4).
+
+    Where the organization asks a second person to approve acceptances of this
+    severity, nothing about the finding changes here: the request is written as
+    a PENDING exception, and the finding is returned as it was, which is how the
+    caller can tell the acceptance is waiting rather than made.
     """
     if finding.status == FindingStatus.RESOLVED:
         raise ValidationFailed("This finding is already resolved")
@@ -215,17 +221,52 @@ async def accept_risk(
     except ValueError as exc:
         raise ValidationFailed(str(exc)) from exc
 
+    policy = await approval_policy.policy_of(session, tenant.organization_id)
+    if approval_policy.requires(policy, finding.severity):
+        await approval_policy.request(
+            session, tenant, finding_id=finding.id, reason=reason, expires_at=expires_at
+        )
+        await commit_unless_externally_managed(session)
+        return finding
+
+    exception = RiskException(
+        organization_id=tenant.organization_id,
+        finding_id=finding.id,
+        requested_by=tenant.user.id,
+        approved_by=tenant.user.id,
+        reason=reason,
+        expires_at=expires_at,
+        status=ExceptionStatus.ACTIVE,
+        created_at=datetime.now(UTC),
+    )
+    await apply_acceptance(session, tenant, finding, exception)
+    await commit_unless_externally_managed(session)
+    return finding
+
+
+async def apply_acceptance(
+    session: AsyncSession,
+    tenant: TenantContext,
+    finding: Finding,
+    exception: RiskException,
+) -> None:
+    """Make an acceptance take effect: the exception runs and the finding is accepted.
+
+    The one path for both an acceptance made at once and one a second person
+    approved (§239). ``tenant`` is whoever made it take effect, so the timeline
+    and the audit row name the approver where there was one. The caller commits.
+    """
     # One acceptance at a time. A finding accepted again used to keep the first
     # exception ACTIVE beside the second, and once expiry was enforced the older
     # date would have reopened a finding the newer decision still covered.
-    await session.execute(
-        update(RiskException)
-        .where(
-            RiskException.finding_id == finding.id,
-            RiskException.status == ExceptionStatus.ACTIVE,
-        )
-        .values(status=ExceptionStatus.REVOKED)
+    running = update(RiskException).where(
+        RiskException.finding_id == finding.id,
+        RiskException.status == ExceptionStatus.ACTIVE,
     )
+    if exception.id is not None:
+        # An approved request is already a row; it is about to become the running one.
+        running = running.where(RiskException.id != exception.id)
+    await session.execute(running.values(status=ExceptionStatus.REVOKED))
 
     _record_event(
         session,
@@ -233,7 +274,7 @@ async def accept_risk(
         finding,
         FindingEvent.RISK_ACCEPTED,
         FindingStatus.ACCEPTED_RISK,
-        detail=reason,
+        detail=exception.reason,
     )
     finding.status = FindingStatus.ACCEPTED_RISK
 
@@ -247,17 +288,7 @@ async def accept_risk(
         reason="The risk was accepted, so Cleave stopped checking for a fix.",
     )
 
-    session.add(
-        RiskException(
-            organization_id=tenant.organization_id,
-            finding_id=finding.id,
-            approved_by=tenant.user.id,
-            reason=reason,
-            expires_at=expires_at,
-            status=ExceptionStatus.ACTIVE,
-            created_at=datetime.now(UTC),
-        )
-    )
+    session.add(exception)
 
     await resync_own_risk(session, finding)
 
@@ -267,10 +298,13 @@ async def accept_risk(
         action="finding.accept_risk",
         resource_type="finding",
         resource_id=finding.id,
-        metadata={"reason": reason, "rule_id": finding.rule_id},
+        metadata={
+            "reason": exception.reason,
+            "rule_id": finding.rule_id,
+            "requested_by": str(exception.requested_by),
+            "second_approval": exception.second_approval,
+        },
     )
-    await commit_unless_externally_managed(session)
-    return finding
 
 
 async def set_status(

@@ -17,6 +17,8 @@ export interface Organization {
   fix_within_days?: FixWithinDays;
   /** One person or a team (§236); solo leaves out members, ownership and task owners. */
   mode?: OrganizationMode;
+  /** The lowest severity whose acceptance waits for a second approver; null for none (§239). */
+  acceptance_approval_from?: Severity | null;
 }
 
 export type OrganizationMode = "SOLO" | "TEAM";
@@ -337,6 +339,8 @@ export interface FindingDetail extends Finding {
    * accepted, or accepted with no end date (DECISIONS.md §104).
    */
   accepted_until?: string | null;
+  /** An acceptance waiting for a second approver (DECISIONS.md §239). */
+  pending_acceptance?: PendingAcceptance | null;
   /** From the rule registry; `null` once the finding's rule has left it. */
   rule_name?: string | null;
   rationale?: string | null;
@@ -1798,4 +1802,34 @@ export interface AuditorGrant {
   email: string;
   opened_at: string;
   expires_at: string;
+}
+
+/** An acceptance that asked for a second approver, and what became of it (DECISIONS.md §239). */
+export interface Acceptance {
+  id: string;
+  /** The finding it is about, or else the route or escalation; never both. */
+  finding_id: string | null;
+  risk_id: string | null;
+  subject_title: string;
+  subject_severity: string;
+  subject_status: string;
+  reason: string;
+  expires_at: string | null;
+  status: "PENDING" | "ACTIVE" | "REJECTED" | "EXPIRED" | "REVOKED";
+  requested_by: string;
+  requested_by_email: string | null;
+  created_at: string;
+  decided_by: string | null;
+  decided_by_email: string | null;
+  decided_at: string | null;
+  decision_note: string | null;
+}
+
+/** An acceptance of a finding waiting for a second approver (§239). */
+export interface PendingAcceptance {
+  id: string;
+  requested_by: string;
+  reason: string;
+  expires_at: string | null;
+  created_at: string;
 }

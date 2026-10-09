@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.core.enums import OrganizationMode, Role
+from app.core.enums import OrganizationMode, Role, Severity
 from app.schemas.common import RequestModel
 
 
@@ -63,6 +63,9 @@ class OrganizationUpdate(RequestModel):
     fix_within_days: FixWithinDays | None = None
     # Solo only with one member and no open invitation; ``409`` otherwise (§236).
     mode: OrganizationMode | None = None
+    # The lowest severity whose acceptance waits for a second owner or admin; null for none.
+    # A team's only: ``409`` in solo, where there is nobody else to approve (§239).
+    acceptance_approval_from: Severity | None = None
 
     @field_validator("country")
     @classmethod
@@ -83,6 +86,9 @@ class OrganizationOut(BaseModel):
     fix_within_days: FixWithinDays = FixWithinDays()
     #: One person or a team (§236). Solo leaves out members, ownership rules and task owners.
     mode: OrganizationMode = OrganizationMode.TEAM
+    #: The lowest severity whose acceptance waits for a second approver, or null (§239). Kept
+    #: through a switch to solo, where it does nothing, and in force again with a team.
+    acceptance_approval_from: Severity | None = None
 
     @field_validator("mode", mode="before")
     @classmethod

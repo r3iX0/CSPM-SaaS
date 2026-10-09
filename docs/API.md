@@ -73,6 +73,8 @@ GET    /changes
 GET    /findings                           GET    /findings/{id}
 GET    /risks                              GET    /risks/{id}
 POST   /risks/{id}/status                  POST   /risks/status
+GET    /acceptances?status=&limit=1..200&offset=
+POST   /acceptances/{id}/approve           POST   /acceptances/{id}/reject  { note }
 
 POST   /remediation                        GET    /remediation
 PATCH  /remediation/{id}                   GET    /remediation/progress?days=
@@ -832,6 +834,18 @@ user. `/risks` rows carry `accepted_until`: the earliest running end date among
 a finding risk's accepted members, or a route's own. `GET /findings/{id}` carries
 `accepted_until` too: the running acceptance's end date, `null` when the finding
 is not accepted or has no end date.
+
+An organization may require a second approver for acceptances at or above a severity
+(`acceptance_approval_from` on `PATCH /organizations`, a team's only: `409` in solo; DECISIONS.md
+§239). An acceptance it covers, on the finding page or through the risks triage, changes nothing:
+it is written as a `PENDING` acceptance, and the finding or route comes back with its status
+unchanged, which is how a caller can tell. `GET /findings/{id}` carries it as
+`pending_acceptance`. `GET /acceptances` lists them by `status` (`PENDING` by default) for any
+member. An owner or an admin other than the person who asked approves, and the acceptance then
+takes effect with the approver named on it, or rejects with a `note` the person who asked is
+shown. Both are `403` for the person who asked and for other roles, and `409` once decided, once
+the date asked for has passed, or once the finding or route has moved on. Asking again replaces a
+waiting request, and the `expire-acceptances` sweep ends one whose date passes undecided.
 
 `GET /risks/{id}` returns `observed_at` on a scenario: when the route was last
 seen, resolved from the scan that saw it. `null` where that scan has been pruned

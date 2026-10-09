@@ -10049,6 +10049,343 @@
         }
       }
     },
+    "/api/v1/acceptances": {
+      "get": {
+        "tags": [
+          "acceptances"
+        ],
+        "summary": "List Acceptances",
+        "description": "Acceptances that asked for a second approver, in one status, newest first.",
+        "operationId": "acceptances_list_acceptances",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ExceptionStatus",
+              "default": "PENDING"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_list_AcceptanceOut__PageMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/api/v1/acceptances/{acceptance_id}/approve": {
+      "post": {
+        "tags": [
+          "acceptances"
+        ],
+        "summary": "Approve Acceptance",
+        "description": "Approve a waiting acceptance; it takes effect with the approver named on it.\n\n``403`` for the person who asked, or anyone but an owner or an admin. ``409`` once it is\ndecided, its date has passed, or the finding or route has moved on since.",
+        "operationId": "acceptances_approve_acceptance",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "acceptance_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Acceptance Id"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AcceptanceOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/api/v1/acceptances/{acceptance_id}/reject": {
+      "post": {
+        "tags": [
+          "acceptances"
+        ],
+        "summary": "Reject Acceptance",
+        "description": "Turn a waiting acceptance down, saying why; nothing about the finding or route changes.",
+        "operationId": "acceptances_reject_acceptance",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "acceptance_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Acceptance Id"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptanceReject"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AcceptanceOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        }
+      }
+    },
     "/api/v1/remediation": {
       "post": {
         "tags": [
@@ -12257,6 +12594,179 @@
           {
             "expires_at": "2026-12-31T00:00:00Z",
             "reason": "The jump box is the documented way in until the migration ends"
+          }
+        ]
+      },
+      "AcceptanceOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "finding_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finding Id"
+          },
+          "risk_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk Id"
+          },
+          "subject_title": {
+            "type": "string",
+            "title": "Subject Title"
+          },
+          "subject_severity": {
+            "type": "string",
+            "title": "Subject Severity"
+          },
+          "subject_status": {
+            "type": "string",
+            "title": "Subject Status"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ExceptionStatus"
+          },
+          "requested_by": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Requested By"
+          },
+          "requested_by_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested By Email"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "decided_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By"
+          },
+          "decided_by_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By Email"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "decision_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "finding_id",
+          "risk_id",
+          "subject_title",
+          "subject_severity",
+          "subject_status",
+          "reason",
+          "expires_at",
+          "status",
+          "requested_by",
+          "requested_by_email",
+          "created_at",
+          "decided_by",
+          "decided_by_email",
+          "decided_at",
+          "decision_note"
+        ],
+        "title": "AcceptanceOut",
+        "description": "One acceptance that asked for a second approver, and what became of it."
+      },
+      "AcceptanceReject": {
+        "properties": {
+          "note": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "note"
+        ],
+        "title": "AcceptanceReject",
+        "examples": [
+          {
+            "note": "Not without a compensating control on the subnet."
           }
         ]
       },
@@ -15794,6 +16304,26 @@
         ],
         "title": "DismissedOut"
       },
+      "Envelope_AcceptanceOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AcceptanceOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[AcceptanceOut, NoMeta]"
+      },
       "Envelope_AccessOut_AccessMeta_": {
         "properties": {
           "data": {
@@ -17209,6 +17739,30 @@
         ],
         "title": "Envelope[WorkerStatusOut, NoMeta]"
       },
+      "Envelope_list_AcceptanceOut__PageMeta_": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/AcceptanceOut"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PageMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[list[AcceptanceOut], PageMeta]"
+      },
       "Envelope_list_AssetRowOut__AssetsMeta_": {
         "properties": {
           "data": {
@@ -18365,6 +18919,17 @@
         "title": "EvidenceOut",
         "description": "What the package's controls rest on, and what is still held of it."
       },
+      "ExceptionStatus": {
+        "type": "string",
+        "enum": [
+          "PENDING",
+          "ACTIVE",
+          "REJECTED",
+          "EXPIRED",
+          "REVOKED"
+        ],
+        "title": "ExceptionStatus"
+      },
       "FindingAttackPathOut": {
         "properties": {
           "entry": {
@@ -18578,6 +19143,16 @@
               }
             ],
             "title": "Accepted Until"
+          },
+          "pending_acceptance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PendingAcceptanceOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "rule_name": {
             "anyOf": [
@@ -21174,6 +21749,16 @@
             "$ref": "#/components/schemas/OrganizationMode",
             "default": "TEAM"
           },
+          "acceptance_approval_from": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Severity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "role": {
             "$ref": "#/components/schemas/Role"
           }
@@ -21252,6 +21837,16 @@
           "mode": {
             "$ref": "#/components/schemas/OrganizationMode",
             "default": "TEAM"
+          },
+          "acceptance_approval_from": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Severity"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -21317,6 +21912,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/OrganizationMode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "acceptance_approval_from": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Severity"
               },
               {
                 "type": "null"
@@ -21773,6 +22378,51 @@
         ],
         "title": "PatternKind",
         "description": "Which end of the routes fans out."
+      },
+      "PendingAcceptanceOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "requested_by": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Requested By"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "requested_by",
+          "reason",
+          "expires_at",
+          "created_at"
+        ],
+        "title": "PendingAcceptanceOut",
+        "description": "An acceptance of this finding waiting for a second approver (DECISIONS.md section 239)."
       },
       "PlacementOut": {
         "properties": {
@@ -25965,6 +26615,10 @@
     {
       "name": "risks",
       "description": "Findings and routes scored as business risks, and triage."
+    },
+    {
+      "name": "acceptances",
+      "description": "Acceptances waiting for a second approver."
     },
     {
       "name": "remediation",

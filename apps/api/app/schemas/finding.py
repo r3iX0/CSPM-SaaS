@@ -376,6 +376,18 @@ class IacLocationOut(BaseModel):
     uploaded_at: datetime
 
 
+class PendingAcceptanceOut(BaseModel):
+    """An acceptance of this finding waiting for a second approver (DECISIONS.md section 239)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    requested_by: UUID
+    reason: str
+    expires_at: datetime | None
+    created_at: datetime
+
+
 class FindingDetail(FindingOut):
     """Everything the finding detail page needs to answer WHAT / WHY / HOW BAD /
     HOW DO I FIX IT / DID THE FIX WORK (UI.md section 3)."""
@@ -391,6 +403,8 @@ class FindingDetail(FindingOut):
     # When an accepted finding comes back to the queue. ``None`` when it is not
     # accepted, or accepted with no end date (DECISIONS.md section 104).
     accepted_until: datetime | None = None
+    # An acceptance asked for and waiting for a second approver (section 239).
+    pending_acceptance: PendingAcceptanceOut | None = None
     # From the rule registry, as it is today. ``None`` for a finding whose rule
     # has since left the registry, which is a fact about CloudGuard rather than
     # about the finding.
