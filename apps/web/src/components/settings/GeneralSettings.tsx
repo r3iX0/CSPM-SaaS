@@ -7,6 +7,7 @@ import type { CloudAccount, Member, Organization } from "@/lib/types";
 import { useT } from "@/i18n";
 import { FixDeadlines } from "@/components/settings/FixDeadlines";
 import { OrganizationForm } from "@/components/settings/OrganizationForm";
+import { OrganizationModeChoice } from "@/components/settings/OrganizationMode";
 import { SettingsSection } from "@/components/settings/SettingsSection";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -50,6 +51,11 @@ export function GeneralSettings({ organization }: { organization: Organization }
             values rather than leaving the previous one's name in the boxes. */}
         <OrganizationForm key={organization.id} organization={organization} />
       </SettingsSection>
+      {!organization.is_demo && (
+        <SettingsSection id="mode" title={t.settings.modeTitle} description={t.settings.modeHelp}>
+          <OrganizationModeChoice organization={organization} />
+        </SettingsSection>
+      )}
       <SettingsSection
         id="deadlines"
         title={t.settings.deadlinesTitle}

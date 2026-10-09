@@ -10148,7 +10148,7 @@
           "remediation"
         ],
         "summary": "List Tasks",
-        "description": "The queue, in the order the page says it is in.\n\nIt said \"ordered by impact against effort\" and was ordered by when each\ntask was created. Now: open work first, then priority, then how many attack\npaths run through the finding's asset, then the finding's own score\n(DECISIONS.md section 127). ``service.queue`` holds the ordering. Each task\nsays when it is due, by its own date or the organization's policy (\u00a7225).",
+        "description": "The queue, in the order the page says it is in.\n\nIt said \"ordered by impact against effort\" and was ordered by when each\ntask was created. Now: open work first, then priority, then how many attack\npaths run through the finding's asset, then the finding's own score\n(DECISIONS.md section 127). ``service.queue`` holds the ordering. Each task\nsays when it is due, by its own date or the organization's policy (\u00a7225),\nand who has it, by assignment or the ownership rules (\u00a7236).\n\n``owner`` narrows to one person's work, as the queue derives it. The owner is\nderived from the rules, not stored, so it is narrowed after deriving rather\nthan in the query.",
         "operationId": "remediation_list_tasks",
         "security": [
           {
@@ -10156,6 +10156,25 @@
           }
         ],
         "parameters": [
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(me|none|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`me`, `none`, or a member's id: the work that person has, however it came.",
+              "title": "Owner"
+            },
+            "description": "`me`, `none`, or a member's id: the work that person has, however it came."
+          },
           {
             "name": "x-organization-id",
             "in": "header",
@@ -10577,6 +10596,392 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Envelope_RemediationUpdatedOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/api/v1/ownership-rules": {
+      "get": {
+        "tags": [
+          "remediation"
+        ],
+        "summary": "List Ownership Rules",
+        "description": "Every rule, most general scope first. Not paged: at most 500 (``MAX_RULES``).",
+        "operationId": "remediation_list_ownership_rules",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_list_OwnershipRuleOut__TotalMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "remediation"
+        ],
+        "summary": "Create Ownership Rule",
+        "description": "Name an owner for a scope. Owners and admins. One rule per scope: a second is ``409``.",
+        "operationId": "remediation_create_ownership_rule",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnershipRuleIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_OwnershipRuleOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/api/v1/ownership-rules/{rule_id}": {
+      "patch": {
+        "tags": [
+          "remediation"
+        ],
+        "summary": "Update Ownership Rule",
+        "description": "Hand a scope to another member. Owners and admins.",
+        "operationId": "remediation_update_ownership_rule",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "rule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Rule Id"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnershipRuleUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_OwnershipRuleOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "remediation"
+        ],
+        "summary": "Delete Ownership Rule",
+        "description": "Remove a rule. Its scope's unassigned work falls to the next rule that matches.",
+        "operationId": "remediation_delete_ownership_rule",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "rule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Rule Id"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_OwnershipRuleDeletedOut_NoMeta_"
                 }
               }
             }
@@ -16199,6 +16604,46 @@
         ],
         "title": "Envelope[OrganizationOut, NoMeta]"
       },
+      "Envelope_OwnershipRuleDeletedOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/OwnershipRuleDeletedOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[OwnershipRuleDeletedOut, NoMeta]"
+      },
+      "Envelope_OwnershipRuleOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/OwnershipRuleOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[OwnershipRuleOut, NoMeta]"
+      },
       "Envelope_ReadThroughOut_NoMeta_": {
         "properties": {
           "data": {
@@ -17304,6 +17749,30 @@
           "meta"
         ],
         "title": "Envelope[list[OrganizationMembershipOut], NoMeta]"
+      },
+      "Envelope_list_OwnershipRuleOut__TotalMeta_": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/OwnershipRuleOut"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/TotalMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[list[OwnershipRuleOut], TotalMeta]"
       },
       "Envelope_list_ProviderOptionOut__NoMeta_": {
         "properties": {
@@ -20646,6 +21115,10 @@
             "$ref": "#/components/schemas/FixWithinDays",
             "default": {}
           },
+          "mode": {
+            "$ref": "#/components/schemas/OrganizationMode",
+            "default": "TEAM"
+          },
           "role": {
             "$ref": "#/components/schemas/Role"
           }
@@ -20660,6 +21133,15 @@
         ],
         "title": "OrganizationMembershipOut",
         "description": "An organization, and the caller's role in it."
+      },
+      "OrganizationMode": {
+        "type": "string",
+        "enum": [
+          "SOLO",
+          "TEAM"
+        ],
+        "title": "OrganizationMode",
+        "description": "Whether an organization is one person or a team (DECISIONS.md \u00a7236).\n\nA solo organization has one member and no invitations, and the product leaves out what\nonly a team needs: members, ownership rules, owners on tasks."
       },
       "OrganizationOut": {
         "properties": {
@@ -20711,6 +21193,10 @@
           "fix_within_days": {
             "$ref": "#/components/schemas/FixWithinDays",
             "default": {}
+          },
+          "mode": {
+            "$ref": "#/components/schemas/OrganizationMode",
+            "default": "TEAM"
           }
         },
         "type": "object",
@@ -20771,12 +21257,222 @@
                 "type": "null"
               }
             ]
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OrganizationMode"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
         "type": "object",
         "title": "OrganizationUpdate",
         "description": "A correction to how an organization describes itself.\n\nEvery field optional and applied only when present, which is the opposite\nof ``ContextDeclarationIn`` and deliberately so. That one is a *statement*\nabout a subscription, replaced entire so a reader always knows what it\ncurrently claims. This is a profile: a form that saves only the name must\nnot silently clear the country nobody touched.\n\nThe slug is not here. It is an identifier that already appears in stored\nreferences, and quietly changing it when somebody fixes a typo in a display\nname would be renaming a thing rather than relabelling it."
+      },
+      "OwnershipRuleDeletedOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "OwnershipRuleDeletedOut"
+      },
+      "OwnershipRuleIn": {
+        "properties": {
+          "scope": {
+            "$ref": "#/components/schemas/OwnershipScope"
+          },
+          "cloud_account_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cloud Account Id"
+          },
+          "resource_group": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 90,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Group"
+          },
+          "tag_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tag Key"
+          },
+          "tag_value": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tag Value"
+          },
+          "owner_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Owner Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "scope",
+          "owner_id"
+        ],
+        "title": "OwnershipRuleIn",
+        "description": "A scope and its owner. Send exactly the fields the scope needs, and no other.",
+        "examples": [
+          {
+            "owner_id": "6b1e2f4a-8c3d-4e5f-9a7b-1c2d3e4f5a6b",
+            "scope": "TAG",
+            "tag_key": "owner",
+            "tag_value": "platform-team"
+          }
+        ]
+      },
+      "OwnershipRuleOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/OwnershipScope"
+          },
+          "cloud_account_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cloud Account Id"
+          },
+          "resource_group": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Group"
+          },
+          "tag_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tag Key"
+          },
+          "tag_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tag Value"
+          },
+          "owner_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Owner Id"
+          },
+          "owner_is_member": {
+            "type": "boolean",
+            "title": "Owner Is Member",
+            "default": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "scope",
+          "owner_id",
+          "created_at"
+        ],
+        "title": "OwnershipRuleOut"
+      },
+      "OwnershipRuleUpdate": {
+        "properties": {
+          "owner_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Owner Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "owner_id"
+        ],
+        "title": "OwnershipRuleUpdate",
+        "description": "Hand the scope to another member."
+      },
+      "OwnershipScope": {
+        "type": "string",
+        "enum": [
+          "DEFAULT",
+          "SUBSCRIPTION",
+          "RESOURCE_GROUP",
+          "TAG"
+        ],
+        "title": "OwnershipScope",
+        "description": "Where an ownership rule applies, most specific last (DECISIONS.md \u00a7236).\n\nA task nobody was assigned to is owned by the most specific rule its asset\nmatches: a tag, then its resource group, then its subscription, then the\norganization's default."
       },
       "PackageFrameworkOut": {
         "properties": {
@@ -21474,6 +22170,28 @@
             "type": "boolean",
             "title": "Due By Policy",
             "default": false
+          },
+          "owner_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Id"
+          },
+          "owner_by_rule": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OwnershipScope"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -21732,6 +22450,28 @@
             "type": "boolean",
             "title": "Due By Policy",
             "default": false
+          },
+          "owner_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Id"
+          },
+          "owner_by_rule": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OwnershipScope"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "note": {
             "anyOf": [

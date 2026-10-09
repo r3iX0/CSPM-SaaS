@@ -12669,6 +12669,49 @@ findings that decided it, each linking to its page.
 risks scanned daily adds about 90 MB a year. If that becomes a problem, ledgers older than the
 retention window can be dropped. Only the two newest readings' ledgers are read.
 
+## 236. An organization is one person or a team, and a team routes unassigned work by its rules
+
+The remediation plan's accountability step (`docs/REMEDIATION_PLAN.md` Part 3, item 1) routes work
+to owners by subscription, resource group or Azure tag. Cleave is used by teams and by one
+person alone, and for one person every task is already theirs: owners, members and invitations
+are noise. So the organization says which it is, and a team gets ownership rules.
+
+**`organizations.mode`, `SOLO` or `TEAM`** (migration 0059). Owners and admins choose it under
+Settings > General, "Who uses Cleave here", as an instant choice answered in a toast. Every
+organization that existed is a team, so nobody's screens change until they choose. Solo leaves
+out the Members and Ownership pages, the owner on a task in the queue and in the fix sheet, and
+the queue's owner filter. It is refused (`409`) while anybody else is a member or holds an open
+invitation, because hiding them would leave a colleague nobody can see or remove. An invitation
+is refused in solo (`409`), and so is a new ownership rule. The mode changes what is shown, not
+what is stored: assignments and rules survive a switch, and come back with a team.
+
+**Ownership rules** (`ownership_rules`, migration 0058; `/ownership-rules`). A rule names a
+member for a scope: the organization's `DEFAULT`, a `SUBSCRIPTION`, a `RESOURCE_GROUP` in one,
+or an Azure `TAG` key and value such as `owner=platform-team`. There is one rule per scope.
+Members read the rules, and owners and admins write them. A tag's key is compared ignoring case
+and its value exactly, as Azure compares them. A resource group's name ignores case, as Azure's
+resource ids do. Tags do not inherit, because Azure's do not: only the asset's own tags count.
+
+**A task's owner is derived, never written.** A task handed to a person (`assigned_to`) stays
+theirs. Any other task is owned by the most specific rule its asset matches: a tag, then its
+resource group, then its subscription, then the default. Of two matching tags, the rule made
+first wins, so a later rule never quietly takes work from an owner who had it. The queue
+derives `owner_id` and `owner_by_rule` when it is read, as a policy's due date is (§225). So a
+rule changed today reroutes every unassigned task at once, with no batch write (§203), and never
+overwrites a person's choice. A rule whose owner has left the organization is skipped, and is
+listed with "Left the organization", so the work falls to the next rule rather than to somebody
+who can no longer see it. A directory object, with no subscription, has only the default.
+
+**Narrowed by owner.** `GET /remediation?owner=me|none|<member id>` narrows the queue to one
+person's work as derived. Because the owner is derived rather than stored, it is narrowed after
+deriving, over a queue that is already read whole for its ordering. The page narrows on its own
+side (`?owner=` in its URL, Everyone, Mine or Nobody's) rather than through that parameter.
+The fix sheets read the whole queue under one key to find a finding's task, and a narrowed
+queue would hide another person's task from them.
+
+**Next from the same step:** a weekly digest per owner and overdue work sent to the security
+lead through Slack or Teams (§164). Both read the owner this entry derives.
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,

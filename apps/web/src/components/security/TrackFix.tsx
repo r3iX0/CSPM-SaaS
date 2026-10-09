@@ -14,7 +14,8 @@ import {
   useUpdateTask,
   type TaskChange,
 } from "@/lib/remediation";
-import { useIsDemo } from "@/lib/useDemo";
+import { useCurrentOrganization, useIsDemo } from "@/lib/useDemo";
+import { isTeam } from "@/components/settings/sections";
 import { DatePicker } from "@/components/common/DatePicker";
 import { SelectField } from "@/components/common/SelectField";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,8 @@ export function TrackFix({
   const update = useUpdateTask();
   const track = useTrack();
   const assignees = useAssignees();
+  // One person has every task, so a solo organization is not asked who (§236).
+  const team = isTeam(useCurrentOrganization());
 
   if (tasks.isLoading) return <Skeleton className="h-9 w-48" />;
 
@@ -115,28 +118,40 @@ export function TrackFix({
         </div>
         {open && (
           <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor={`owner-${task.id}`} className="text-caption text-muted-foreground">
-                {t.remediation.owner}
-              </Label>
-              <SelectField
-                id={`owner-${task.id}`}
-                value={task.assigned_to ?? ""}
-                disabled={isDemo || busy}
-                onValueChange={(value) => change({ assigned_to: value === "" ? null : value })}
-                ariaLabel={t.remediation.owner}
-                size="default"
-                className="w-56"
-                fallbackLabel={() => memberName(undefined)}
-                options={[
-                  { value: "", label: t.remediation.unassigned },
-                  ...(assignees.data ?? []).map((member) => ({
-                    value: member.user_id,
-                    label: memberName(member),
-                  })),
-                ]}
-              />
-            </div>
+            {team && (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor={`owner-${task.id}`} className="text-caption text-muted-foreground">
+                  {t.remediation.owner}
+                </Label>
+                <SelectField
+                  id={`owner-${task.id}`}
+                  value={task.assigned_to ?? ""}
+                  disabled={isDemo || busy}
+                  onValueChange={(value) => change({ assigned_to: value === "" ? null : value })}
+                  ariaLabel={t.remediation.owner}
+                  size="default"
+                  className="w-56"
+                  fallbackLabel={() => memberName(undefined)}
+                  options={[
+                    {
+                      value: "",
+                      // Unassigned work still has an owner where a rule names one (§236).
+                      label:
+                        task.owner_by_rule && task.owner_id
+                          ? t.remediation.routedTo(
+                              memberName(assignees.data?.find((m) => m.user_id === task.owner_id)),
+                              t.remediation.ownerScope[task.owner_by_rule],
+                            )
+                          : t.remediation.unassigned,
+                    },
+                    ...(assignees.data ?? []).map((member) => ({
+                      value: member.user_id,
+                      label: memberName(member),
+                    })),
+                  ]}
+                />
+              </div>
+            )}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor={`due-${task.id}`} className="text-caption text-muted-foreground">
                 {t.remediation.due}

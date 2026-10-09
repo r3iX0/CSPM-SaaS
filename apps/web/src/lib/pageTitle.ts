@@ -33,6 +33,7 @@ const ROUTES: [pattern: string, title: string][] = [
   ["/settings/general", "General · Settings"],
   ["/settings/members", "Members · Settings"],
   ["/settings/context", "Risk context · Settings"],
+  ["/settings/ownership", "Ownership · Settings"],
   ["/settings/integrations", "Integrations · Settings"],
   ["/settings/audit", "Audit packages · Settings"],
   ["/settings/activity", "Activity · Settings"],

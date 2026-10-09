@@ -14,7 +14,7 @@ from typing import ClassVar
 
 import pytest
 from sqlalchemy import text
-from sqlalchemy.exc import DBAPIError, ProgrammingError
+from sqlalchemy.exc import DBAPIError, IntegrityError, ProgrammingError
 
 from app.core.config import settings
 from app.core.db import rls_session, scan_session, service_session
@@ -648,3 +648,38 @@ class TestCodeIntegrationIsolation:
             )
 
         assert seen == [101], "one tenant saw another's GitHub installation"
+
+
+class TestOwnershipRuleIsolation:
+    """An ownership rule is one organization's, and only its owners and admins write it (§236)."""
+
+    async def _rule(self, org: uuid.UUID, owner: uuid.UUID) -> None:
+        async with service_session() as session:
+            await session.execute(
+                text(
+                    "INSERT INTO ownership_rules (organization_id, scope, owner_id, created_by) "
+                    "VALUES (:org, 'DEFAULT', :owner, :owner)"
+                ),
+                {"org": org, "owner": owner},
+            )
+            await session.commit()
+
+    async def test_a_rule_is_read_only_by_its_own_organization(self, two_orgs) -> None:
+        org_a, org_b = two_orgs
+        await self._rule(org_a, USER_A)
+        await self._rule(org_b, USER_B)
+
+        async with rls_session(USER_A) as session:
+            seen = (
+                (await session.execute(text("SELECT owner_id FROM ownership_rules")))
+                .scalars()
+                .all()
+            )
+
+        assert seen == [USER_A], "one tenant read another's ownership rules"
+
+    async def test_one_scope_has_one_rule(self, two_orgs) -> None:
+        org_a, _ = two_orgs
+        await self._rule(org_a, USER_A)
+        with pytest.raises(IntegrityError):
+            await self._rule(org_a, USER_A)

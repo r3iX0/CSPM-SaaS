@@ -77,6 +77,8 @@ POST   /risks/{id}/status                  POST   /risks/status
 POST   /remediation                        GET    /remediation
 PATCH  /remediation/{id}                   GET    /remediation/progress?days=
 POST   /remediation/pull-requests          GET    /remediation/pull-requests?rule_id=
+GET    /ownership-rules                    POST   /ownership-rules
+PATCH  /ownership-rules/{id}               DELETE /ownership-rules/{id}
 POST   /findings/{id}/accept-risk          POST   /findings/{id}/status
 POST   /findings/{id}/rescan               POST   /findings/{id}/iac-diff  (multipart)
 GET    /findings/{id}/attack-paths         GET    /findings/{id}/provenance
@@ -344,6 +346,17 @@ whose token's ref is `refs/pull/<n>/merge`. The body is `working_directory`,
 the failure is `introduced` by the change, the `conclusion` (`failure` only for
 an introduced one), and the check run it posted on the pull request's head
 commit (`check_run_url`, or `check_run_detail` where GitHub refused it).
+
+`/ownership-rules` names who owns the work nobody was handed (DECISIONS.md §236): a
+`DEFAULT`, a `SUBSCRIPTION` (`cloud_account_id`), a `RESOURCE_GROUP`
+(`cloud_account_id`, `resource_group`) or a `TAG` (`tag_key`, `tag_value`), each with
+an `owner_id` who is a member. Owners and admins write them, one per scope (`409`
+for a second), and not in a solo organization (`409`). Each task in
+`GET /remediation` carries `owner_id`, its `assigned_to` or else the most specific
+rule its asset matches, and `owner_by_rule`, that rule's scope; `?owner=me`,
+`?owner=none` or `?owner=<member id>` narrows the queue to it. An organization's
+`mode` is `SOLO` or `TEAM` (`PATCH /organizations`); solo is refused with another
+member or an open invitation, and an invitation is refused in solo (`409`).
 
 `POST /remediation/pull-requests` (`{rule_id}`, any role that may write) asks for
 a rule's fix as pull requests, one per repository the organization's state

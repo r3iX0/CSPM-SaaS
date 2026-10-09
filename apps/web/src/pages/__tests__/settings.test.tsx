@@ -26,6 +26,7 @@ import type {
   Invitation,
   Member,
   Organization,
+  OwnershipRule,
   Webhook,
 } from "@/lib/types";
 
@@ -101,6 +102,7 @@ function mount({
   invitations = [] as Invitation[],
   activity = [] as AuditEntry[],
   webhooks = [] as Webhook[],
+  ownership = [] as OwnershipRule[],
 }: {
   at?: string;
   orgs?: Organization[];
@@ -110,6 +112,7 @@ function mount({
   invitations?: Invitation[];
   activity?: AuditEntry[];
   webhooks?: Webhook[];
+  ownership?: OwnershipRule[];
 } = {}) {
   const get = vi.spyOn(api, "get").mockImplementation((path: string) => {
     if (path.includes("/context-declarations")) {
@@ -126,6 +129,9 @@ function mount({
     }
     if (path.endsWith("/webhooks")) {
       return Promise.resolve({ data: webhooks, meta: {} });
+    }
+    if (path.endsWith("/ownership-rules")) {
+      return Promise.resolve({ data: ownership, meta: { total: ownership.length } });
     }
     if (path.includes("/audit-log")) {
       return Promise.resolve({ data: activity, meta: { total: activity.length } });
@@ -170,7 +176,14 @@ describe("Settings pages", () => {
     const names = within(nav)
       .getAllByRole("link")
       .map((link) => link.textContent);
-    expect(names).toEqual(["General", "Members", "Risk context", "Security", "Preferences"]);
+    expect(names).toEqual([
+      "General",
+      "Members",
+      "Risk context",
+      "Ownership",
+      "Security",
+      "Preferences",
+    ]);
     expect(within(nav).getByRole("link", { name: "Risk context" })).toHaveAttribute(
       "aria-current",
       "page",
@@ -755,5 +768,63 @@ describe("Preferences", () => {
     const group = await screen.findByRole("radiogroup", { name: "Theme" });
     expect(within(group).getAllByRole("radio")).toHaveLength(3);
     expect(screen.getByRole("switch", { name: /Single-key shortcuts/ })).toBeInTheDocument();
+  });
+});
+
+describe("One person or a team (DECISIONS.md §236)", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("leaves members and ownership out of a solo organization", async () => {
+    mount({ at: "/settings/general", orgs: [organization({ mode: "SOLO" })] });
+    const nav = await screen.findByRole("navigation", { name: "Settings sections" });
+    const names = within(nav)
+      .getAllByRole("link")
+      .map((link) => link.textContent);
+    expect(names).not.toContain("Members");
+    expect(names).not.toContain("Ownership");
+  });
+
+  it("switches to solo when an owner chooses it", async () => {
+    const patch = vi.spyOn(api, "patch").mockResolvedValue({ data: {}, meta: {} });
+    mount({ at: "/settings/general" });
+    fireEvent.click(await screen.findByRole("radio", { name: /Just me/ }));
+    await waitFor(() =>
+      expect(patch).toHaveBeenCalledWith("/api/v1/organizations", { mode: "SOLO" }),
+    );
+  });
+
+  it("says each rule's scope in words, and who owns it", async () => {
+    mount({
+      at: "/settings/ownership",
+      ownership: [
+        {
+          id: "r-1",
+          scope: "TAG",
+          cloud_account_id: null,
+          resource_group: null,
+          tag_key: "owner",
+          tag_value: "platform-team",
+          owner_id: "u-1",
+          owner_is_member: true,
+          created_at: "2026-10-01T00:00:00Z",
+        },
+        {
+          id: "r-2",
+          scope: "SUBSCRIPTION",
+          cloud_account_id: "a-1",
+          resource_group: null,
+          tag_key: null,
+          tag_value: null,
+          owner_id: "u-gone",
+          owner_is_member: false,
+          created_at: "2026-10-01T00:00:00Z",
+        },
+      ],
+    });
+    expect(await screen.findByText("Tag owner = platform-team")).toBeInTheDocument();
+    expect(screen.getByText("Subscription Production subscription")).toBeInTheDocument();
+    expect(screen.getByText(/Left the organization/)).toBeInTheDocument();
   });
 });

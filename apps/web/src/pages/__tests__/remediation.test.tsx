@@ -102,6 +102,7 @@ let progress: Record<string, unknown> = PROGRESS;
 let openFindings: Record<string, unknown>[] = [{ ...FINDING, status: "OPEN" }];
 let finding: Record<string, unknown> = FINDING;
 let members: Record<string, unknown>[] = [];
+let orgs: Record<string, unknown>[] = [];
 
 describe("the remediation queue", () => {
   beforeEach(() => {
@@ -110,19 +111,22 @@ describe("the remediation queue", () => {
     openFindings = [{ ...FINDING, status: "OPEN" }];
     finding = FINDING;
     members = [];
+    orgs = [];
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
         const url = String(input);
         const body = url.includes("/remediation/progress")
           ? progress
-          : url.includes("/members")
-            ? members
-            : url.includes("/findings/")
-              ? finding
-              : url.includes("/findings?")
-                ? openFindings
-                : tasks;
+          : url.includes("/organizations")
+            ? orgs
+            : url.includes("/members")
+              ? members
+              : url.includes("/findings/")
+                ? finding
+                : url.includes("/findings?")
+                  ? openFindings
+                  : tasks;
         return {
           ok: true,
           status: 200,
@@ -138,6 +142,37 @@ describe("the remediation queue", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it("says who has unassigned work by the rule that names them, and narrows to it (§236)", async () => {
+    members = [
+      { id: "m-1", user_id: "u-me", email: "me@contoso.example", role: "OWNER", is_you: true },
+    ];
+    tasks = [
+      { ...TASK, owner_id: "u-me", owner_by_rule: "TAG" },
+      { ...TASK, id: "task-2", finding_id: "finding-2", owner_id: null, owner_by_rule: null },
+    ];
+    const user = userEvent.setup();
+    renderPage();
+
+    expect(await screen.findAllByText(/with You, by tag/)).not.toHaveLength(0);
+    expect(screen.getByText("2 tasks shown")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Mine" }));
+    expect(await screen.findByText("1 task shown")).toBeInTheDocument();
+  });
+
+  it("asks nothing about owners in a solo organization (§236)", async () => {
+    orgs = [
+      { id: "o-1", name: "Me", slug: "me", created_at: "2026-01-01T00:00:00Z", mode: "SOLO" },
+    ];
+    tasks = [{ ...TASK, owner_id: "u-me", owner_by_rule: "DEFAULT" }];
+    renderPage();
+
+    expect(
+      await screen.findByText("Storage account allows public blob access"),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Whose work" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/with /)).not.toBeInTheDocument();
   });
 
   it("offers the worst open findings when the queue is empty", async () => {

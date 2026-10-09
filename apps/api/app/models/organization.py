@@ -14,7 +14,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.enums import Role
+from app.core.enums import OrganizationMode, Role
 from app.models.base import Base, StrEnumType, Timestamps, UUIDPrimaryKey
 
 
@@ -37,6 +37,14 @@ class Organization(UUIDPrimaryKey, Timestamps, Base):
     fix_within_days_high: Mapped[int | None] = mapped_column(SmallInteger)
     fix_within_days_medium: Mapped[int | None] = mapped_column(SmallInteger)
     fix_within_days_low: Mapped[int | None] = mapped_column(SmallInteger)
+    # One person or a team (migration 0059, DECISIONS.md section 236). Solo has one member and
+    # no invitations; the product then leaves out members, ownership rules and owners on tasks.
+    mode: Mapped[OrganizationMode] = mapped_column(
+        StrEnumType(OrganizationMode, 8),
+        nullable=False,
+        default=OrganizationMode.TEAM,
+        server_default=OrganizationMode.TEAM.value,
+    )
 
     @property
     def fix_within_days(self) -> dict[str, int | None]:

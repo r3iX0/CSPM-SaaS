@@ -15,7 +15,11 @@ export interface Organization {
   is_demo?: boolean;
   /** Days after first detection a finding is due, by severity; null is none (§225). */
   fix_within_days?: FixWithinDays;
+  /** One person or a team (§236); solo leaves out members, ownership and task owners. */
+  mode?: OrganizationMode;
 }
+
+export type OrganizationMode = "SOLO" | "TEAM";
 
 /** An organization's deadline policy, sent and read whole (DECISIONS.md §225). */
 export interface FixWithinDays {
@@ -596,6 +600,29 @@ export interface RemediationTask {
   due_on?: string | null;
   /** True where `due_on` came from the policy rather than a person. */
   due_by_policy?: boolean;
+  /**
+   * Who has the work: `assigned_to` where a person handed it out, else the owner the
+   * organization's ownership rules name for the asset's place (DECISIONS.md §236).
+   */
+  owner_id?: string | null;
+  /** The rule's scope where routed; null where a person assigned it, or nobody has it. */
+  owner_by_rule?: OwnershipScope | null;
+}
+
+/** Where an ownership rule applies, most specific last (DECISIONS.md §236). */
+export type OwnershipScope = "DEFAULT" | "SUBSCRIPTION" | "RESOURCE_GROUP" | "TAG";
+
+export interface OwnershipRule {
+  id: string;
+  scope: OwnershipScope;
+  cloud_account_id: string | null;
+  resource_group: string | null;
+  tag_key: string | null;
+  tag_value: string | null;
+  owner_id: string;
+  /** False once the owner has left: the rule is skipped when routing. */
+  owner_is_member: boolean;
+  created_at: string;
 }
 
 /** A finding a scan observed fixed, as `GET /remediation/progress` names it (§225). */

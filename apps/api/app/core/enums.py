@@ -431,6 +431,31 @@ class RiskStatus(StrEnum):
     ACCEPTED = "ACCEPTED"
 
 
+class OrganizationMode(StrEnum):
+    """Whether an organization is one person or a team (DECISIONS.md §236).
+
+    A solo organization has one member and no invitations, and the product leaves out what
+    only a team needs: members, ownership rules, owners on tasks.
+    """
+
+    SOLO = "SOLO"
+    TEAM = "TEAM"
+
+
+class OwnershipScope(StrEnum):
+    """Where an ownership rule applies, most specific last (DECISIONS.md §236).
+
+    A task nobody was assigned to is owned by the most specific rule its asset
+    matches: a tag, then its resource group, then its subscription, then the
+    organization's default.
+    """
+
+    DEFAULT = "DEFAULT"
+    SUBSCRIPTION = "SUBSCRIPTION"
+    RESOURCE_GROUP = "RESOURCE_GROUP"
+    TAG = "TAG"
+
+
 class RemediationStatus(StrEnum):
     TODO = "TODO"
     IN_PROGRESS = "IN_PROGRESS"

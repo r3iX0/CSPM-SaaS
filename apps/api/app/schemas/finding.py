@@ -8,6 +8,7 @@ from app.core.enums import (
     FindingEvent,
     FindingStatus,
     Level,
+    OwnershipScope,
     Priority,
     RemediationStatus,
     RiskKind,
@@ -227,6 +228,11 @@ class RemediationOut(BaseModel):
     # stays what a person set, so the sheet can tell a date chosen from one derived (§225).
     due_on: date | None = None
     due_by_policy: bool = False
+    # Who has the work: ``assigned_to`` if somebody handed it out, else the owner the
+    # organization's ownership rules name for the asset's place, with the rule's scope in
+    # ``owner_by_rule``; null with neither. ``assigned_to`` stays what a person set (§236).
+    owner_id: UUID | None = None
+    owner_by_rule: OwnershipScope | None = None
 
 
 class RemediationUpdatedOut(RemediationOut):

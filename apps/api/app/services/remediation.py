@@ -5,6 +5,7 @@ them. Every function runs in the caller's request session and never commits it: 
 transaction carries the RLS claims, so ending it is the route's job.
 """
 
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -12,7 +13,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import TenantContext
-from app.core.enums import FindingStatus, Priority, RemediationStatus, Severity
+from app.core.enums import FindingStatus, OwnershipScope, Priority, RemediationStatus, Severity
 from app.core.errors import NotFound, ValidationFailed
 from app.models.finding import Finding
 from app.models.organization import Organization
@@ -21,7 +22,7 @@ from app.models.resource import ResourceRecord
 from app.models.rule import Rule
 from app.risk.scorer import default_scorer
 from app.schemas.finding import RemediationCreate, RemediationUpdate
-from app.services import deadlines
+from app.services import deadlines, ownership
 from app.services import findings as findings_service
 from app.services import graph as graph_service
 from app.services import organizations as organizations_service
@@ -152,9 +153,47 @@ async def deadline_of(
     )
 
 
+@dataclass(frozen=True)
+class Owner:
+    """Who has a task: the person assigned, else the rule its asset's place names (§236)."""
+
+    owner_id: UUID | None
+    #: The rule's scope where routed; ``None`` where a person assigned it, or nobody has it.
+    by_rule: OwnershipScope | None = None
+
+
+def owner(task: RemediationTask, routed: ownership.Routed | None) -> Owner:
+    if task.assigned_to is not None:
+        return Owner(task.assigned_to)
+    if routed is None:
+        return Owner(None)
+    return Owner(routed.owner_id, routed.scope)
+
+
+async def owner_of(session: AsyncSession, tenant: TenantContext, task: RemediationTask) -> Owner:
+    """One task's owner, for an answer about that task alone."""
+    if task.assigned_to is not None:
+        return Owner(task.assigned_to)
+    row = (
+        await session.execute(
+            select(
+                ResourceRecord.cloud_account_id,
+                ResourceRecord.provider_resource_id,
+                ResourceRecord.resource_metadata["tags"],
+            )
+            .select_from(Finding)
+            .outerjoin(ResourceRecord, ResourceRecord.id == Finding.resource_id)
+            .where(Finding.id == task.finding_id)
+        )
+    ).one_or_none()
+    placement = ownership.placement_of(*row) if row is not None else ownership.Placement()
+    route = await ownership.router(session, tenant.organization_id)
+    return owner(task, route(placement))
+
+
 async def queue(
     session: AsyncSession, tenant: TenantContext
-) -> list[tuple[RemediationTask, int, deadlines.Deadline]]:
+) -> list[tuple[RemediationTask, int, deadlines.Deadline, Owner]]:
     """Every task with how many attack paths run through its asset, in queue order.
 
     Open work first; then priority, which is impact against effort (RISK_ENGINE.md section 4);
@@ -167,7 +206,8 @@ async def queue(
 
     Each task comes with when it is due (§225). The deadline does not reorder the queue: a
     late fifteen-minute change and a late redesign are both late, and priority still says
-    which cuts more risk first.
+    which cuts more risk first. And with who has it, assigned or routed by the organization's
+    ownership rules (§236).
     """
     rows = (
         await session.execute(
@@ -177,6 +217,8 @@ async def queue(
                 Finding.severity,
                 Finding.first_detected_at,
                 ResourceRecord.provider_resource_id,
+                ResourceRecord.cloud_account_id,
+                ResourceRecord.resource_metadata["tags"],
             )
             .join(Finding, Finding.id == RemediationTask.finding_id)
             .outerjoin(ResourceRecord, ResourceRecord.id == Finding.resource_id)
@@ -187,12 +229,14 @@ async def queue(
     graph = await graph_service.load_graph(session, tenant.organization_id)
     through = graph_service.routes_through(graph)
     policy = await fix_within(session, tenant.organization_id)
+    route = await ownership.router(session, tenant.organization_id)
 
     ordered = []
-    for task, score, severity, first_detected_at, provider_id in rows:
+    for task, score, severity, first_detected_at, provider_id, account_id, tags in rows:
         on_routes = through.get(graph.resolve(provider_id), 0) if provider_id else 0
         due = deadlines.deadline(task.due_date, severity, first_detected_at, policy)
-        ordered.append((task, float(score or 0.0), on_routes, due))
+        has = owner(task, route(ownership.placement_of(account_id, provider_id, tags)))
+        ordered.append((task, float(score or 0.0), on_routes, due, has))
     ordered.sort(
         key=lambda item: (
             _STATUS_ORDER[item[0].status],
@@ -202,7 +246,7 @@ async def queue(
             -item[0].created_at.timestamp(),
         )
     )
-    return [(task, on_routes, due) for task, _, on_routes, due in ordered]
+    return [(task, on_routes, due, has) for task, _, on_routes, due, has in ordered]
 
 
 async def progress(session: AsyncSession, tenant: TenantContext, days: int) -> deadlines.Progress:

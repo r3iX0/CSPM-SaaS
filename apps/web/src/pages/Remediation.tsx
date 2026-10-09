@@ -37,10 +37,16 @@ import { CardsSkeleton, EmptyState, ErrorState, PageHeader } from "@/components/
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatStrip } from "@/components/common/StatStrip";
-import { useIsDemo } from "@/lib/useDemo";
+import { useCurrentOrganization, useIsDemo } from "@/lib/useDemo";
+import { isTeam } from "@/components/settings/sections";
+import { LiveStatus } from "@/components/common/LiveStatus";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Spinner } from "@/components/ui/spinner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn, formatDay, formatEffort, resourceTypeLabel } from "@/lib/format";
+
+/** Whose work the queue shows, in a team (§236): `me` or `none`; absent is everyone's. */
+const OWNER_PARAM = "owner";
 
 /**
  * The work queue.
@@ -61,6 +67,32 @@ export function RemediationPage() {
   const markAllDone = useMarkAllDone();
   const assignees = useAssignees();
   const owners = new Map((assignees.data ?? []).map((member) => [member.user_id, member]));
+
+  /**
+   * Whose work is shown, in the URL (`?owner=me|none`), for a team only (§236).
+   * Narrowed here rather than through the API's `?owner=`: the fix sheets read
+   * the whole queue under one key to find a finding's task, and a filtered
+   * queue would hide another person's task from them.
+   */
+  const team = isTeam(useCurrentOrganization());
+  const ownerFilter = team ? params.get(OWNER_PARAM) : null;
+  const viewer = (assignees.data ?? []).find((member) => member.is_you)?.user_id;
+  const shown = (data ?? []).filter((task) => {
+    const holder = task.owner_id ?? task.assigned_to ?? null;
+    if (ownerFilter === "me") return holder !== null && holder === viewer;
+    if (ownerFilter === "none") return holder === null;
+    return true;
+  });
+  const setOwnerFilter = (value: string | null) =>
+    setParams(
+      (previous) => {
+        const next = new URLSearchParams(previous);
+        if (value) next.set(OWNER_PARAM, value);
+        else next.delete(OWNER_PARAM);
+        return next;
+      },
+      { replace: true },
+    );
 
   /**
    * The fix the sheet is open on, in the URL: one finding's (`?fix=`,
@@ -111,7 +143,7 @@ export function RemediationPage() {
   // Grouped once every finding has arrived (or failed), so rows regroup once
   // rather than each time another title lands (§203).
   const settled = findings.every((query) => !query.isLoading);
-  const items = groupByRule(data ?? [], settled ? byFinding : new Map());
+  const items = groupByRule(shown, settled ? byFinding : new Map());
   const ruleMembers: RuleFixMember[] =
     ruleId === null
       ? []
@@ -151,11 +183,41 @@ export function RemediationPage() {
         </>
       )}
 
-      {data && data.length > 0 && <QueueSummary tasks={data} />}
+      {data && data.length > 0 && <QueueSummary tasks={shown} />}
+
+      {team && data && data.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3">
+          <ToggleGroup
+            aria-label={t.remediation.showOwner}
+            variant="outline"
+            size="sm"
+            spacing={0}
+            value={[ownerFilter ?? "all"]}
+            onValueChange={(value) => {
+              const next = value[0];
+              if (typeof next === "string") setOwnerFilter(next === "all" ? null : next);
+            }}
+          >
+            <ToggleGroupItem value="all">{t.remediation.ownerEveryone}</ToggleGroupItem>
+            <ToggleGroupItem value="me">{t.remediation.ownerMine}</ToggleGroupItem>
+            <ToggleGroupItem value="none">{t.remediation.ownerNobody}</ToggleGroupItem>
+          </ToggleGroup>
+          <span className="text-meta text-muted-foreground">
+            {t.remediation.ownerShown(shown.length)}
+          </span>
+          <LiveStatus message={t.remediation.ownerShown(shown.length)} quietFirst />
+        </div>
+      )}
+
+      {team && data && data.length > 0 && shown.length === 0 && (
+        <p className="text-meta text-muted-foreground">
+          {ownerFilter === "me" ? t.remediation.ownerNoneMine : t.remediation.ownerNoneNobody}
+        </p>
+      )}
 
       {/* One queue, one container. Divided rows read as a list to work down;
           a stack of separate cards read as a pile of separate problems. */}
-      {data && data.length > 0 && (
+      {data && shown.length > 0 && (
         <div className="divide-y divide-border overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
           {items.map((item) =>
             item.kind === "task" ? (
@@ -263,6 +325,7 @@ function TaskCard({
   const t = useT();
   const done = task.status === "DONE" || task.status === "CANCELLED";
   const isDemo = useIsDemo();
+  const team = isTeam(useCurrentOrganization());
   const due = dueOn(task);
   const overdue = isOverdue(task);
   const state = workState(task, finding);
@@ -322,8 +385,20 @@ function TaskCard({
                 · {t.remediation.onRoutes(task.on_routes ?? 0)}
               </span>
             )}
-            {finding && task.assigned_to && (
-              <span>· {t.remediation.ownedBy(memberName(owners.get(task.assigned_to)))}</span>
+            {/* Who has it, in a team: the person it was handed to, or the
+                owner a rule names, which the line says (§236). */}
+            {finding && team && (task.owner_id ?? task.assigned_to) && (
+              <span>
+                ·{" "}
+                {task.owner_by_rule
+                  ? t.remediation.ownedByRule(
+                      memberName(owners.get(task.owner_id ?? "")),
+                      t.remediation.ownerScope[task.owner_by_rule],
+                    )
+                  : t.remediation.ownedBy(
+                      memberName(owners.get(task.owner_id ?? task.assigned_to ?? "")),
+                    )}
+              </span>
             )}
           </p>
           {task.notes && <p className="mt-1 text-xs text-muted-foreground">{task.notes}</p>}

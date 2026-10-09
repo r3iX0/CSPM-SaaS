@@ -2953,6 +2953,118 @@ class TestAssetNeighborhood:
         )
         assert refused.status_code == 422
 
+    async def test_unassigned_work_is_owned_by_the_rule_its_place_matches(
+        self, client, cleanup_orgs
+    ) -> None:
+        """A task nobody was handed is owned by the ownership rules, derived on read (§236)."""
+        from app.core.db import service_session
+        from app.core.enums import FindingStatus, Priority, RemediationStatus, Severity
+        from app.models.finding import Finding
+        from app.models.remediation import RemediationTask
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Owners Ltd"))
+        cleanup_orgs.append(org_id)
+        now = datetime.now(UTC)
+        async with service_session() as session:
+            finding = Finding(
+                organization_id=org_id,
+                resource_id=None,
+                rule_id="AZ-IAM-002",
+                severity=Severity.HIGH,
+                status=FindingStatus.OPEN,
+                title="Nobody was handed this",
+                description="",
+                first_detected_at=now,
+                last_detected_at=now,
+            )
+            session.add(finding)
+            await session.flush()
+            session.add(
+                RemediationTask(
+                    organization_id=org_id,
+                    finding_id=finding.id,
+                    status=RemediationStatus.TODO,
+                    priority=Priority.HIGH,
+                    estimated_effort_minutes=30,
+                )
+            )
+            await session.commit()
+
+        before = await client.get("/api/v1/remediation?owner=none", headers=auth_header(user))
+        assert len(before.json()["data"]) == 1, before.text
+
+        rule = await client.post(
+            "/api/v1/ownership-rules",
+            json={"scope": "DEFAULT", "owner_id": str(user)},
+            headers=auth_header(user),
+        )
+        assert rule.status_code == 201, rule.text
+        assert rule.headers["Location"].endswith(rule.json()["data"]["id"])
+
+        mine = await client.get("/api/v1/remediation?owner=me", headers=auth_header(user))
+        [task] = mine.json()["data"]
+        assert (task["assigned_to"], task["owner_id"], task["owner_by_rule"]) == (
+            None,
+            str(user),
+            "DEFAULT",
+        )
+        unowned = await client.get("/api/v1/remediation?owner=none", headers=auth_header(user))
+        assert unowned.json()["data"] == []
+
+        again = await client.post(
+            "/api/v1/ownership-rules",
+            json={"scope": "DEFAULT", "owner_id": str(user)},
+            headers=auth_header(user),
+        )
+        assert again.status_code == 409, again.text
+
+        stranger = await client.post(
+            "/api/v1/ownership-rules",
+            json={"scope": "DEFAULT", "owner_id": str(uuid.uuid4())},
+            headers=auth_header(user),
+        )
+        assert stranger.status_code == 422, stranger.text
+
+        listed = await client.get("/api/v1/ownership-rules", headers=auth_header(user))
+        assert listed.json()["meta"] == {"total": 1}
+
+    async def test_solo_is_one_person_and_refuses_what_only_a_team_needs(
+        self, client, cleanup_orgs
+    ) -> None:
+        """Solo with nobody else; no invitation and no ownership rule in it (§236)."""
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Just Me Ltd"))
+        cleanup_orgs.append(org_id)
+        headers = auth_header(user)
+
+        invited = await client.post(
+            "/api/v1/invitations", json={"email": "colleague@example.com"}, headers=headers
+        )
+        assert invited.status_code == 201, invited.text
+        solo_body = {"mode": "SOLO"}
+        refused = await client.patch("/api/v1/organizations", json=solo_body, headers=headers)
+        assert refused.status_code == 409, refused.text
+
+        revoke = await client.delete(
+            f"/api/v1/invitations/{invited.json()['data']['id']}", headers=headers
+        )
+        assert revoke.status_code == 200, revoke.text
+        solo = await client.patch("/api/v1/organizations", json=solo_body, headers=headers)
+        assert solo.status_code == 200, solo.text
+        assert solo.json()["data"]["mode"] == "SOLO"
+
+        again = await client.post(
+            "/api/v1/invitations", json={"email": "colleague@example.com"}, headers=headers
+        )
+        assert again.status_code == 409, again.text
+        rule = await client.post(
+            "/api/v1/ownership-rules",
+            json={"scope": "DEFAULT", "owner_id": str(user)},
+            headers=headers,
+        )
+        assert rule.status_code == 409, rule.text
+
     async def test_who_holds_an_asset_names_the_workload_behind_the_identity(
         self, client, cleanup_orgs
     ) -> None:

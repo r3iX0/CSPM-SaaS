@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.core.enums import Role
+from app.core.enums import OrganizationMode, Role
 from app.schemas.common import RequestModel
 
 
@@ -61,6 +61,8 @@ class OrganizationUpdate(RequestModel):
     country: str | None = Field(default=None, min_length=2, max_length=2)
     # Owners and admins, as the rest of this model. Null clears every deadline.
     fix_within_days: FixWithinDays | None = None
+    # Solo only with one member and no open invitation; ``409`` otherwise (§236).
+    mode: OrganizationMode | None = None
 
     @field_validator("country")
     @classmethod
@@ -79,6 +81,14 @@ class OrganizationOut(BaseModel):
     created_at: datetime
     is_demo: bool = False
     fix_within_days: FixWithinDays = FixWithinDays()
+    #: One person or a team (§236). Solo leaves out members, ownership rules and task owners.
+    mode: OrganizationMode = OrganizationMode.TEAM
+
+    @field_validator("mode", mode="before")
+    @classmethod
+    def _team_until_written(cls, v: object) -> object:
+        # An organization not yet flushed has no mode; the column's default is TEAM.
+        return OrganizationMode.TEAM if v is None else v
 
 
 class OrganizationMembershipOut(OrganizationOut):

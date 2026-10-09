@@ -20,6 +20,7 @@ from app.api.routes import (
     integrations,
     notifications,
     organizations,
+    ownership,
     remediation,
     reports,
     risks,
@@ -50,6 +51,7 @@ api_router.include_router(attack_paths.router)
 api_router.include_router(findings.router)
 api_router.include_router(risks.router)
 api_router.include_router(remediation.router)
+api_router.include_router(ownership.router)
 api_router.include_router(integrations.router)
 api_router.include_router(integrations.index_router)
 api_router.include_router(integrations.guardrail_router)

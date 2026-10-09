@@ -25,6 +25,9 @@ from app.services import pull_requests as pull_request_service
 from app.services import remediation as service
 from app.services.deadlines import Deadline
 
+_UUID = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+_OWNER = rf"^(me|none|{_UUID})$"
+
 router = APIRouter(prefix="/remediation", tags=["remediation"], responses=ERROR_RESPONSES)
 
 
@@ -40,24 +43,46 @@ async def create_task(
     tenant.require_write()
     task = await service.create_task(session, tenant, payload)
     due = await service.deadline_of(session, tenant, task)
+    has = await service.owner_of(session, tenant, task)
     await session.commit()
     created(request, response, "update_task", task_id=task.id)
-    return Envelope(data=_with_deadline(RemediationOut.model_validate(task), due), meta=NoMeta())
+    item = _with_owner(_with_deadline(RemediationOut.model_validate(task), due), has)
+    return Envelope(data=item, meta=NoMeta())
 
 
 @router.get("")
-async def list_tasks(session: DbSession, tenant: Tenant) -> Envelope[list[RemediationOut], NoMeta]:
+async def list_tasks(
+    session: DbSession,
+    tenant: Tenant,
+    owner: str | None = Query(
+        default=None,
+        pattern=_OWNER,
+        description="`me`, `none`, or a member's id: the work that person has, however it came.",
+    ),
+) -> Envelope[list[RemediationOut], NoMeta]:
     """The queue, in the order the page says it is in.
 
     It said "ordered by impact against effort" and was ordered by when each
     task was created. Now: open work first, then priority, then how many attack
     paths run through the finding's asset, then the finding's own score
     (DECISIONS.md section 127). ``service.queue`` holds the ordering. Each task
-    says when it is due, by its own date or the organization's policy (§225).
+    says when it is due, by its own date or the organization's policy (§225),
+    and who has it, by assignment or the ownership rules (§236).
+
+    ``owner`` narrows to one person's work, as the queue derives it. The owner is
+    derived from the rules, not stored, so it is narrowed after deriving rather
+    than in the query.
     """
+    wanted: UUID | None = None
+    if owner == "me":
+        wanted = tenant.user.id
+    elif owner not in (None, "none"):
+        wanted = UUID(owner)
     out = []
-    for task, on_routes, due in await service.queue(session, tenant):
-        item = _with_deadline(RemediationOut.model_validate(task), due)
+    for task, on_routes, due, has in await service.queue(session, tenant):
+        if owner is not None and has.owner_id != wanted:
+            continue
+        item = _with_owner(_with_deadline(RemediationOut.model_validate(task), due), has)
         item.on_routes = on_routes
         out.append(item)
     return Envelope(data=out, meta=NoMeta())
@@ -150,9 +175,10 @@ async def update_task(
     tenant.require_write()
     task = await service.update_task(session, tenant, task_id, payload)
     due = await service.deadline_of(session, tenant, task)
+    has = await service.owner_of(session, tenant, task)
     await session.commit()
 
-    payload_out = _with_deadline(RemediationUpdatedOut.model_validate(task), due)
+    payload_out = _with_owner(_with_deadline(RemediationUpdatedOut.model_validate(task), due), has)
     if task.status == RemediationStatus.DONE:
         # Marking work done does not resolve the finding. Only an observation
         # does -- but the customer no longer has to remember to ask for one.
@@ -167,4 +193,10 @@ async def update_task(
 def _with_deadline[OutT: RemediationOut](item: OutT, due: Deadline) -> OutT:
     item.due_on = due.due_on
     item.due_by_policy = due.by_policy
+    return item
+
+
+def _with_owner[OutT: RemediationOut](item: OutT, has: service.Owner) -> OutT:
+    item.owner_id = has.owner_id
+    item.owner_by_rule = has.by_rule
     return item

@@ -4,16 +4,16 @@ import re
 import secrets
 from uuid import UUID
 
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import commit_unless_externally_managed
 from app.core.deps import TenantContext
-from app.core.enums import Role
-from app.core.errors import OrganizationNotFound, PermissionDenied
+from app.core.enums import OrganizationMode, Role
+from app.core.errors import ConflictError, OrganizationNotFound, PermissionDenied
 from app.core.security import AuthenticatedUser
-from app.models.organization import Organization, OrganizationMember
+from app.models.organization import Organization, OrganizationInvitation, OrganizationMember
 from app.schemas.organization import FixWithinDays, OrganizationCreate, OrganizationUpdate
 from app.services import audit
 
@@ -124,6 +124,8 @@ async def update_organization(
         raise OrganizationNotFound()
 
     changes = payload.model_dump(exclude_unset=True)
+    if changes.get("mode") == OrganizationMode.SOLO and org.mode != OrganizationMode.SOLO:
+        await _require_alone(session, org.id)
     if "fix_within_days" in changes:
         # The policy is sent whole: a severity left out is cleared, null clears them all, and the
         # audit row records the policy that resulted rather than the keys that were sent (§225).
@@ -143,6 +145,37 @@ async def update_organization(
     # transaction-scoped ``SET LOCAL ROLE authenticated`` that RLS depends on.
     await commit_unless_externally_managed(session)
     return org
+
+
+async def _require_alone(session: AsyncSession, organization_id: UUID) -> None:
+    """Refuse solo while anybody else is in the organization or invited to it (§236).
+
+    Solo hides members and invitations, so switching with somebody else there would leave a
+    colleague nobody can see or remove, and an open invitation that would bring one in.
+    """
+    others = (
+        await session.execute(
+            select(func.count())
+            .select_from(OrganizationMember)
+            .where(OrganizationMember.organization_id == organization_id)
+        )
+    ).scalar_one()
+    invited = (
+        await session.execute(
+            select(func.count())
+            .select_from(OrganizationInvitation)
+            .where(
+                OrganizationInvitation.organization_id == organization_id,
+                OrganizationInvitation.accepted_at.is_(None),
+                OrganizationInvitation.revoked_at.is_(None),
+                OrganizationInvitation.expires_at > func.now(),
+            )
+        )
+    ).scalar_one()
+    if others > 1 or invited:
+        raise ConflictError(
+            "Solo is for one person: remove the other members and withdraw open invitations first"
+        )
 
 
 async def delete_organization(
