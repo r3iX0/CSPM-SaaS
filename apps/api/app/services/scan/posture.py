@@ -7,9 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.enums import FindingStatus, Level, RiskKind, RiskStatus
 from app.models.finding import Finding
-from app.models.risk import Risk, RiskFinding, RiskHistory
+from app.models.risk import Risk, RiskHistory
 from app.risk.scorer import default_scorer
 from app.services.scan.context import AnalyzeContext
+from app.services.score_movement import ledger, open_charges, rule_versions
 
 
 async def record_posture(ctx: AnalyzeContext) -> None:
@@ -44,6 +45,8 @@ async def record_posture(ctx: AnalyzeContext) -> None:
     entry.findings_by_severity = counts["findings_by_severity"]
     entry.risk_bands = counts["risk_bands"]
     entry.attack_path_count = counts["attack_path_count"]
+    entry.charges = counts["charges"]
+    entry.rule_versions = rule_versions()
     await ctx.writer.commit()
 
 
@@ -68,34 +71,10 @@ async def _posture_counts(session: AsyncSession, org_id: UUID) -> dict:
         )
     ).all()
 
-    # Finding risks only, exactly as the security score counts them: a
-    # scenario groups findings already counted here, and including it would
-    # charge the customer twice for one problem.
-    #
-    # Counted distinctly, because the join fans a risk out across its
-    # members. A rule that groups its findings has one risk with forty of
-    # them, and counting join rows would deduct forty times for the one
-    # problem grouping exists to state once.
-    band_rows = (
-        await session.execute(
-            select(
-                Risk.risk_level,
-                func.coalesce(Risk.known_risk_level, Risk.risk_level),
-                func.count(func.distinct(Risk.id)),
-            )
-            .join(RiskFinding, RiskFinding.risk_id == Risk.id)
-            .join(Finding, Finding.id == RiskFinding.finding_id)
-            .where(
-                Risk.organization_id == org_id,
-                Risk.kind == RiskKind.FINDING,
-                Finding.status.in_(open_statuses),
-            )
-            .group_by(
-                Risk.risk_level,
-                func.coalesce(Risk.known_risk_level, Risk.risk_level),
-            )
-        )
-    ).all()
+    # Finding risks only, each once, exactly as the security score counts
+    # them (``open_charges``). Kept risk by risk as well as in total, so the
+    # next reading can say which risks moved the score (§235).
+    charges = await open_charges(session, org_id)
 
     paths = (
         await session.execute(
@@ -110,13 +89,11 @@ async def _posture_counts(session: AsyncSession, org_id: UUID) -> dict:
     ).scalar_one()
 
     bands: dict[Level, int] = {}
-    open_levels: list[Level] = []
-    for level, known, count in band_rows:
-        bands[Level(level)] = bands.get(Level(level), 0) + int(count)
-        open_levels.extend([Level(known)] * int(count))
+    for ranked, _known in charges.values():
+        bands[ranked] = bands.get(ranked, 0) + 1
 
     return {
-        "security_score": default_scorer.security_score(open_levels),
+        "security_score": default_scorer.security_score([known for _, known in charges.values()]),
         # Findings, from the findings. It used to be the width of the band
         # query, which was the same number only while every risk had
         # exactly one member.
@@ -124,4 +101,5 @@ async def _posture_counts(session: AsyncSession, org_id: UUID) -> dict:
         "findings_by_severity": {str(severity): int(count) for severity, count in severity_rows},
         "risk_bands": {level.value: count for level, count in bands.items()},
         "attack_path_count": int(paths),
+        "charges": ledger(charges),
     }

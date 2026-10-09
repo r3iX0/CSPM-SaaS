@@ -29,6 +29,7 @@ from app.models.risk import Risk, RiskFinding, RiskHistory
 from app.models.scan import Evidence, Scan, ScanRuleResult
 from app.risk.scorer import default_scorer
 from app.services.placement import REGION
+from app.services.score_movement import open_charges
 
 
 async def build_dashboard(session: AsyncSession, organization_id: UUID) -> dict:
@@ -59,34 +60,15 @@ async def build_dashboard(session: AsyncSession, organization_id: UUID) -> dict:
     #
     # Coalesced, so risks written before the column existed keep scoring exactly
     # as they did rather than being silently re-banded by a migration.
-    band_rows = (
-        await session.execute(
-            select(
-                Risk.risk_level,
-                func.coalesce(Risk.known_risk_level, Risk.risk_level),
-                func.count(func.distinct(Risk.id)),
-            )
-            .join(RiskFinding, RiskFinding.risk_id == Risk.id)
-            .join(Finding, Finding.id == RiskFinding.finding_id)
-            .where(
-                Risk.organization_id == organization_id,
-                Risk.kind == RiskKind.FINDING,
-                Finding.status.in_(open_statuses),
-            )
-            .group_by(
-                Risk.risk_level,
-                func.coalesce(Risk.known_risk_level, Risk.risk_level),
-            )
-        )
-    ).all()
+    charges = await open_charges(session, organization_id)
 
     # The distribution shown to a reader is the ranked one, because it is the
     # one the risks list is sorted by. Only the deduction uses the other.
     band_counts: dict[Level, int] = {}
     open_levels: list[Level] = []
-    for level, known, count in band_rows:
-        band_counts[Level(level)] = band_counts.get(Level(level), 0) + int(count)
-        open_levels.extend([Level(known)] * int(count))
+    for ranked, known in charges.values():
+        band_counts[ranked] = band_counts.get(ranked, 0) + 1
+        open_levels.append(known)
     security_score = default_scorer.security_score(open_levels)
 
     severity_rows = (

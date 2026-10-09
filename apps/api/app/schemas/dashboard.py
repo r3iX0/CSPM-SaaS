@@ -133,3 +133,43 @@ class DashboardOut(ClosedModel):
     evidence_freshness: FreshnessOut
     regions: list[RegionOut]
     last_scan: LastScanOut | None
+
+
+class MovementFindingOut(ClosedModel):
+    """A finding that moved the score, named so the reader can open it."""
+
+    id: UUID
+    title: str
+    severity: str
+    rule_id: str
+    status: str
+
+
+class MovementCauseOut(ClosedModel):
+    """One cause of the score's movement (DECISIONS.md §235)."""
+
+    #: new_failures, fixes_verified, rules_changed, assets_appeared, assets_removed,
+    #: acceptances_expired, accepted, by_hand, context_changed or unexplained.
+    cause: str
+    #: Whole points; the causes sum to ``delta``. Negative lowered the score.
+    points: int
+    #: The exact share, which may be under a point where ``points`` is 0.
+    exact: float
+    #: How many risks' charges this cause changed.
+    risks: int
+    #: Up to five of the findings that decided it.
+    findings: list[MovementFindingOut]
+
+
+class ScoreMovementOut(ClosedModel):
+    """Why the score moved since the reading before the latest scan."""
+
+    #: False for a first reading, or one recorded before the ledger was kept.
+    available: bool
+    #: first_reading or not_recorded where unavailable.
+    reason: str | None
+    since: datetime | None
+    from_score: int | None
+    to_score: int | None
+    delta: int | None
+    causes: list[MovementCauseOut]

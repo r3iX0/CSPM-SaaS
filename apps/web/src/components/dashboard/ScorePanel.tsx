@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 
 import type { PostureReading } from "@/lib/types";
 import { ScoreDelta } from "@/components/ScoreDelta";
+import { ScoreMovement } from "@/components/dashboard/ScoreMovement";
 import { Sparkline } from "@/components/charts/Sparkline";
 import { useCountUp, useValueChange } from "@/lib/motion";
 import { useT } from "@/i18n";
@@ -100,6 +101,8 @@ export function ScorePanel({
 
         <p className={cn("text-body font-medium", tone)}>{label}</p>
         <ScoreDelta delta={delta} />
+        {/* Only once there is a movement to explain (DECISIONS.md §235). */}
+        {delta !== null && delta !== 0 && <ScoreMovement />}
       </div>
 
       <div className="flex min-w-0 flex-col gap-4 bg-card px-5 py-5">

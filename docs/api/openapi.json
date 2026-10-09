@@ -11545,6 +11545,91 @@
         }
       }
     },
+    "/api/v1/dashboard/score-movement": {
+      "get": {
+        "tags": [
+          "dashboard"
+        ],
+        "summary": "Get Score Movement",
+        "description": "Why the score moved since the reading before the latest scan, cause by cause.\n\nThe causes' points sum to ``delta``, which is the dashboard's ``score_delta``.",
+        "operationId": "dashboard_get_score_movement",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ScoreMovementOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
     "/api/v1/reports/{kind}": {
       "get": {
         "tags": [
@@ -16414,6 +16499,26 @@
         ],
         "title": "Envelope[ScanOut, NoMeta]"
       },
+      "Envelope_ScoreMovementOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ScoreMovementOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[ScoreMovementOut, NoMeta]"
+      },
       "Envelope_SimulationOut_SimulationMeta_": {
         "properties": {
           "data": {
@@ -20124,6 +20229,80 @@
         ],
         "title": "MemberUpdate"
       },
+      "MovementCauseOut": {
+        "properties": {
+          "cause": {
+            "type": "string",
+            "title": "Cause"
+          },
+          "points": {
+            "type": "integer",
+            "title": "Points"
+          },
+          "exact": {
+            "type": "number",
+            "title": "Exact"
+          },
+          "risks": {
+            "type": "integer",
+            "title": "Risks"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/MovementFindingOut"
+            },
+            "type": "array",
+            "title": "Findings"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "cause",
+          "points",
+          "exact",
+          "risks",
+          "findings"
+        ],
+        "title": "MovementCauseOut",
+        "description": "One cause of the score's movement (DECISIONS.md \u00a7235)."
+      },
+      "MovementFindingOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "severity": {
+            "type": "string",
+            "title": "Severity"
+          },
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "severity",
+          "rule_id",
+          "status"
+        ],
+        "title": "MovementFindingOut",
+        "description": "A finding that moved the score, named so the reader can open it."
+      },
       "NeighborNodeOut": {
         "properties": {
           "id": {
@@ -23701,6 +23880,90 @@
           "in_scope"
         ],
         "title": "ScopeSubscriptionOut"
+      },
+      "ScoreMovementOut": {
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          },
+          "from_score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Score"
+          },
+          "to_score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Score"
+          },
+          "delta": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delta"
+          },
+          "causes": {
+            "items": {
+              "$ref": "#/components/schemas/MovementCauseOut"
+            },
+            "type": "array",
+            "title": "Causes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "available",
+          "reason",
+          "since",
+          "from_score",
+          "to_score",
+          "delta",
+          "causes"
+        ],
+        "title": "ScoreMovementOut",
+        "description": "Why the score moved since the reading before the latest scan."
       },
       "Severity": {
         "type": "string",

@@ -3550,6 +3550,42 @@ class TestRiskHistory:
         entries = await self._history(org_id)
         assert second["score_delta"] == entries[1][0] - entries[0][0]
 
+    async def test_a_reading_keeps_what_it_charged(self, replay, connected_account) -> None:
+        """The ledger the next reading's movement is explained from (§235)."""
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+
+        [(charges, versions)] = await fetch(
+            "SELECT charges, rule_versions FROM risk_history WHERE organization_id = :o",
+            {"o": org_id},
+        )
+        assert charges, "the vulnerable fixture has open risks to charge"
+        assert set(charges.values()) <= {level.value for level in Level}
+        assert versions, "the rules that ran are named with their versions"
+
+    async def test_a_verified_fix_explains_the_movement(self, replay, connected_account) -> None:
+        """The delta, split into causes that add up to it, the fix among them."""
+        from app.services.dashboard import build_dashboard
+        from app.services.score_movement import explain
+
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+        async with service_session() as session:
+            assert (await explain(session, org_id))["reason"] == "first_reading"
+
+        replay["payload"] = _with_rdp_closed()
+        await run_scan(org_id, account_id)
+
+        async with service_session() as session:
+            dashboard = await build_dashboard(session, org_id)
+            movement = await explain(session, org_id)
+        assert movement["available"]
+        assert movement["delta"] == dashboard["score_delta"]
+        assert sum(cause["points"] for cause in movement["causes"]) == movement["delta"]
+        fixed = next(c for c in movement["causes"] if c["cause"] == "fixes_verified")
+        assert fixed["points"] > 0 and fixed["findings"]
+        assert all(c["cause"] != "unexplained" for c in movement["causes"])
+
     async def test_a_superseded_replay_records_nothing(self, replay, connected_account) -> None:
         """It reports what today's rules would have found and changes nothing,
         so recording an entry would make the line move on a day nobody looked

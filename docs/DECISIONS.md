@@ -12615,6 +12615,60 @@ the check run, the job still fails on the verdicts, and `check_run_detail` says 
 - **Severity does not gate.** Any failure the change brings fails the check, and branch protection
   decides whether it blocks a merge. That is the customer's setting, on GitHub.
 
+## 235. The score's movement is split into its causes, from a ledger each reading keeps
+
+Practitioners describe a Defender for Cloud score that fell from 72% to 50% with no visible cause,
+while their CFO watched the number (`docs/REMEDIATION_PLAN.md` Part 4, gap 2). Cleave's dashboard
+had the same fault in a smaller form. `score_delta` said the score moved and which way, but not
+why. A reader had to compare two lists of findings from memory to find out.
+
+**Each reading keeps what it charged.** The score deducts once per open finding risk, by the band
+it is charged at. A reading stored only the total and a few counts, so which risks made the
+difference could not be recovered later: findings are reclassified, risks re-banded, and rows go
+with a deleted connection. Migration 0057 adds `charges` (each charged risk's id to its band) and
+`rule_versions` (each rule to the version that ran) to `risk_history`. Readings written before it
+have neither, and a movement from one is said to be unavailable (`not_recorded`) rather than
+reconstructed. `open_charges` is now the one query the score is computed from, at scan time and on
+the dashboard, so the ledger and the score cannot disagree.
+
+**A movement is the risks whose charge changed.** `GET /dashboard/score-movement` compares the same
+two points the delta does: the reading before the latest scan's, and the charges as they stand now.
+Each risk charged differently is given one cause from what was recorded in between:
+
+- **New failures**, from a detection or a regression.
+- **Fixes a scan verified**, from a scan's resolution.
+- **Rules added or changed**, where the finding's rule ran under another version, or not at all,
+  in the earlier reading.
+- **Assets that appeared**, where the finding's asset was first seen, or seen again, since then.
+- **Assets removed from Cleave**, where the risk itself is gone, with its connection or its scan
+  (§124).
+- **Acceptances that ran out** (§104), and **risks accepted**.
+- **Status changed by hand**: a false positive, or a finding reopened by a person.
+- **Risk context changed**: the same risk charged at another band, without a new rule version.
+- **Not recorded**: anything else. It is listed, and never given the nearest cause, because a score
+  that explains itself wrongly is worse than one that says it cannot.
+
+A risk that rose is explained by the first of its findings to open, and one that fell by the last
+to close, since that is what changed its charge.
+
+**The points are split exactly.** The score is `100 × exp(-D / k)`, so a cause's points cannot be
+found by scoring it alone, and applying the causes one after another gives a different answer for
+each order. `ln S` is linear in `D`, so the change is split in log space, as an index decomposition
+does. A cause whose deductions changed by `ΔD_i` takes `-L × ΔD_i / k` of the change, where `L` is
+the logarithmic mean of the two scores. The parts are exact and signed, do not depend on order, and
+sum to the change. Rounding to whole points moves the causes nearest the next point, so they sum to
+the delta shown. A share under a point says so instead of showing 0. A gap the curve does not
+account for, such as a scoring change between the readings, goes to _not recorded_.
+
+**Read on asking.** The dashboard draws "Why it moved" under the delta only when there is a
+movement. The breakdown is fetched when the popover opens, since it diffs two ledgers and reads the
+events between them. Each cause shows its points, how many risks it moved, and up to five of the
+findings that decided it, each linking to its page.
+
+**The cost.** A ledger is about 50 bytes per open risk per reading, so an estate with 5,000 open
+risks scanned daily adds about 90 MB a year. If that becomes a problem, ledgers older than the
+retention window can be dropped. Only the two newest readings' ledgers are read.
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,

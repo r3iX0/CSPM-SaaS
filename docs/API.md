@@ -116,7 +116,7 @@ GET    /auditor/grants/{id}/archive        (a zip)
 GET    /notifications                      POST   /notifications/read
 DELETE /notifications                      DELETE /notifications/{id}
 
-GET    /dashboard
+GET    /dashboard                          GET    /dashboard/score-movement
 GET    /reports/{kind}?format=pdf|html&days=30&sections=a,b
 
 GET    /health                             GET    /health/ready   (outside /api/v1, unauthenticated)
@@ -441,6 +441,16 @@ scan's finish time — a scan may carry a reading forward instead of re-taking i
 and a carried reading keeps the time it was collected. The headline is the
 _oldest_ of those readings, because an average would let a hundred fresh
 listings hide the one subscription nobody has managed to read since Tuesday.
+
+`/dashboard/score-movement` splits `score_delta` into its causes (DECISIONS.md
+§235): `new_failures`, `fixes_verified`, `rules_changed`, `assets_appeared`,
+`assets_removed`, `acceptances_expired`, `accepted`, `by_hand`,
+`context_changed` and `unexplained`. Each carries whole `points`, which sum to
+`delta`, the `exact` share, how many `risks` it moved and up to five
+`findings`. It compares the same two points the delta does: the reading before
+the latest scan's, and the charges as they stand. `available` is false, with a
+`reason` of `first_reading` or `not_recorded`, until two readings that kept
+their ledger exist.
 
 `/assets` returns `provider_resource_id` on every row, not only on the detail.
 It is the one field that says where an asset _sits_: an ARM id spells out its

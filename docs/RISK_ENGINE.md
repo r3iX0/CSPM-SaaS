@@ -165,6 +165,16 @@ That makes the caution actionable rather than punitive. "9 of 12 open risks sit 
 classify — describe those subscriptions and the score will move" is work a customer can do; a
 silently lower number was not.
 
+### Why the score moved
+
+Each posture reading stores the risks it charged, each at its band, beside its total
+(`risk_history.charges`). A movement is then the risks whose charge changed between two readings,
+and each is given one cause from what Cleave recorded in between (DECISIONS.md §235). The curve is
+not a sum, so the points are split in its own terms: `ln S` is linear in `Σ deductions`, so a cause
+whose deductions changed by `Δ_i` takes `-L × Δ_i / k` of the change, where `L` is the logarithmic
+mean of the two scores. The parts are exact, do not depend on the order the causes happened in, and
+add up to the delta shown.
+
 ---
 
 ## 4. Priority

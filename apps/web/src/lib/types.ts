@@ -387,6 +387,38 @@ export interface Scan {
   evaluation_only?: boolean;
 }
 
+/** What moved the score since the reading before the latest scan (DECISIONS.md §235). */
+export type MovementCause =
+  | "new_failures"
+  | "fixes_verified"
+  | "rules_changed"
+  | "assets_appeared"
+  | "assets_removed"
+  | "acceptances_expired"
+  | "accepted"
+  | "by_hand"
+  | "context_changed"
+  | "unexplained";
+
+export interface ScoreMovement {
+  /** False for a first reading, or one recorded before readings kept their charges. */
+  available: boolean;
+  reason: "first_reading" | "not_recorded" | null;
+  since: string | null;
+  from_score: number | null;
+  to_score: number | null;
+  delta: number | null;
+  /** Whole points that sum to `delta`, largest share first. */
+  causes: {
+    cause: MovementCause;
+    points: number;
+    /** The exact share; under a point where `points` is 0. */
+    exact: number;
+    risks: number;
+    findings: { id: string; title: string; severity: string; rule_id: string; status: string }[];
+  }[];
+}
+
 /** What the posture was, one scan at a time. */
 export interface PostureReading {
   observed_at: string;
