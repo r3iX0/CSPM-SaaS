@@ -12982,6 +12982,25 @@ so an approver is never offered a decision an owner or admin has made since.
 but may become one later, so the service's refusal of a self-approval and the CHECK constraint
 behind it stay.
 
+## 243. A plan's document is removed once the plan is built
+
+Two documents described work that is now built, and read as if it were still to do. A reader
+following either would be steered wrong: the Azure connector redesign told the operator to grant
+admin consent in CloudGuard's own tenant, which `AZURE_INTEGRATION.md` §2.1 says not to do.
+
+- **`docs/AZURE_CONNECTOR_REDESIGN.md`** is removed. Its two-phase onboarding, consent and then
+  Deploy to Azure, is built (§71, §92, §114), and `AZURE_INTEGRATION.md` describes the flow and
+  the one-time app registration as they are. The one code comment that cited it,
+  `REQUIRED_GRAPH_PERMISSIONS` in `connectors/azure/auth.py`, now cites §2.1 there.
+- **`docs/design_handoff_cleave_redesign/`** is removed: the README, the token patch and the HTML
+  prototype. The redesign is built (§144, §145), and the lint, Prettier and pre-commit
+  exclusions kept for it are gone with it. §144, §145 and §220 still name the folder, as history;
+  it is in git at `0327037`, the last commit to touch it.
+
+What stays: a plan with work still to do (`REMEDIATION_PLAN.md`, `ATTACK_PATH_PLAN.md`,
+`TICKETING.md`, `FIX_AS_CODE.md`, `ROADMAP.md`, `MULTI_CLOUD.md`), and the dated reviews, which
+are snapshots by rule (`MARKDOWN_GUIDELINES.md` §2), not plans.
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,
