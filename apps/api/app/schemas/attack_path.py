@@ -714,6 +714,18 @@ class CutFindingOut(BaseModel):
     tracked: bool
 
 
+class CutCodeOut(BaseModel):
+    """A role assignment the cut removes, where the customer's Terraform defines it.
+
+    Removing it in code is deleting that block (DECISIONS.md section 257).
+    """
+
+    assignment_id: str
+    repository: str
+    working_directory: str
+    address: str
+
+
 class CutFixOut(BaseModel):
     """How to make one cut: the change said once, the provider's commands where
     one command removes the link exactly, and the open findings on its two ends.
@@ -734,6 +746,8 @@ class CutFixOut(BaseModel):
     severs: int
     commands: list[str]
     findings: list[CutFindingOut]
+    #: Where the assignments it removes are defined in code; empty where none is indexed.
+    code: list[CutCodeOut] = []
 
 
 # -- The inspector (DECISIONS.md section 254) ----------------------------------

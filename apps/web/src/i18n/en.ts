@@ -800,6 +800,8 @@ export const en = {
     cardAccess: "Who holds access",
     // How to make a cut (DECISIONS.md §246).
     fixToggle: "How to fix",
+    fixInCode: "Defined in code: delete this block",
+    fixInCodeNote: "Removed at the next apply. A command alone would be undone by it.",
     fixCopy: "Copy the commands",
     fixNoCommand: "No single command makes this change: the findings below say what to fix.",
     fixFindingsTitle: "Open findings on these two assets",

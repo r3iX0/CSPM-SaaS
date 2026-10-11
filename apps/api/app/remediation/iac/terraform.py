@@ -253,6 +253,57 @@ def edit_terraform(
         return Declined(refused.reason, refused.detail, refused.passed)
 
 
+@dataclass(frozen=True)
+class Removed:
+    """A resource block taken out of a file whole (DECISIONS.md section 257)."""
+
+    original: str
+    source: str
+    #: 1-based line the block started on, in the original file.
+    line: int
+
+    def diff(self, filename: str) -> str:
+        return "".join(
+            difflib.unified_diff(
+                self.original.splitlines(keepends=True),
+                self.source.splitlines(keepends=True),
+                fromfile=f"a/{filename}",
+                tofile=f"b/{filename}",
+            )
+        )
+
+
+def remove_resource_block(
+    source: str, *, resource_type: str, label: str, allow_repeated: bool = False
+) -> Removed | Declined:
+    """Delete the ``resource "<type>" "<label>"`` block, with the blank line after it.
+
+    A new kind of edit beside ``edit_terraform``, which only changes arguments:
+    removing a role assignment, the cut a customer makes most, is deleting its
+    block. Found by its label from the customer's state address, exactly as an
+    edit is (section 229). ``allow_repeated`` deletes a block under ``count``
+    or ``for_each``, which removes every assignment it defines -- only for a
+    caller that checked each of them is in the plan.
+    """
+    try:
+        data = source.encode()
+        root = _parse(data)
+        block = _by_label(root, data, (resource_type,), label, allow_repeated)
+    except _Refused as refused:
+        return Declined(refused.reason, refused.detail)
+    start = data.rfind(b"\n", 0, block.start_byte) + 1
+    end = block.end_byte
+    # The line break that ends the block, and one blank line after it, go with
+    # it, so the file keeps the spacing it had between the blocks either side.
+    for _ in range(2):
+        if data[end : end + 1] == b"\n":
+            end += 1
+        else:
+            break
+    removed = data[:start] + data[end:]
+    return Removed(original=source, source=removed.decode(), line=block.start_point[0] + 1)
+
+
 def _edit(
     source: str,
     resource_types: Sequence[str],

@@ -707,7 +707,9 @@ and group memberships only, from the connector), `severs` what the cut closes
 alone, and `findings` the open findings on the link's two ends, worst first,
 with whether a live task tracks each. Those findings are the ones on the two
 assets, never a claim about what the change resolves. A link not in the estate,
-or one nobody can remove, is `404`.
+or one nobody can remove, is `404`. For a role cut, `code` lists each assignment it
+removes that the organization's state index places in a repository (repository,
+working directory, address): removing it in code is deleting that block (§257).
 
 `/attack-paths/inspect/{id}` is what the asset card reads beyond the drawing
 (DECISIONS.md §254): `defined_in` lists where the customer's Terraform state

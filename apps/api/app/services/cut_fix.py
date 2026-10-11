@@ -23,10 +23,12 @@ from app.core.enums import FindingStatus, RelationshipType, RemediationStatus, S
 from app.core.errors import NotConfigured
 from app.domain.resource import CloudResource
 from app.graph import AssetGraph, PathStep
+from app.graph.access import role_entries
 from app.graph.severance import cut_cost, removable
 from app.models.finding import Finding
+from app.models.iac import IacIndex, IacIndexEntry
 from app.models.remediation import RemediationTask
-from app.schemas.attack_path import CutEndOut, CutFindingOut, CutFixOut
+from app.schemas.attack_path import CutCodeOut, CutEndOut, CutFindingOut, CutFixOut
 from app.services import graph as graph_service
 
 #: Open findings listed for one cut. Two assets rarely carry more; past this the
@@ -130,6 +132,7 @@ async def cut_fix(
         cost=cut_cost(relationship),
         severs=len(severed),
         commands=_commands(step),
+        code=await _code_homes(session, organization_id, step),
         findings=[
             CutFindingOut(
                 id=finding.id,
@@ -178,3 +181,46 @@ async def _open_findings(
         ).scalars()
     )
     return [(each, each.id in tracked) for each in found]
+
+
+async def _code_homes(
+    session: AsyncSession, organization_id: UUID, step: PathStep
+) -> list[CutCodeOut]:
+    """Where the role assignments a cut removes are defined in the customer's Terraform.
+
+    Read from the assignments the principal records at the scope (their ARM ids)
+    and the organization's state index (section 229). Empty for a link that is
+    not a role assignment, and for one no indexed repository defines.
+    """
+    if step.relationship not in {RelationshipType.GRANTS_ROLE, RelationshipType.CAN_GRANT_ROLES}:
+        return []
+    ids = {
+        str(entry["assignment_id"]).lower()
+        for entry in role_entries(step.source, step.target.provider_resource_id)
+        if entry.get("assignment_id")
+    }
+    if not ids:
+        return []
+    rows = await session.execute(
+        select(
+            IacIndexEntry.resource_id,
+            IacIndex.repository,
+            IacIndex.working_directory,
+            IacIndexEntry.address,
+        )
+        .join(IacIndex, IacIndex.id == IacIndexEntry.index_id)
+        .where(
+            IacIndexEntry.organization_id == organization_id,
+            IacIndexEntry.resource_id.in_(ids),
+        )
+        .order_by(IacIndex.repository, IacIndexEntry.address)
+    )
+    return [
+        CutCodeOut(
+            assignment_id=assignment_id,
+            repository=repository,
+            working_directory=working_directory,
+            address=address,
+        )
+        for assignment_id, repository, working_directory, address in rows.tuples().all()
+    ]

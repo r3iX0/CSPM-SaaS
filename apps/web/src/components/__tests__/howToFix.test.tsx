@@ -41,6 +41,7 @@ function fix(overrides: Partial<CutFix> = {}): CutFix {
         tracked: false,
       },
     ],
+    code: [],
     ...overrides,
   };
 }

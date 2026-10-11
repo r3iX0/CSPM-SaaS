@@ -16695,6 +16695,35 @@
         ],
         "title": "CoverageGapOut"
       },
+      "CutCodeOut": {
+        "properties": {
+          "assignment_id": {
+            "type": "string",
+            "title": "Assignment Id"
+          },
+          "repository": {
+            "type": "string",
+            "title": "Repository"
+          },
+          "working_directory": {
+            "type": "string",
+            "title": "Working Directory"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address"
+          }
+        },
+        "type": "object",
+        "required": [
+          "assignment_id",
+          "repository",
+          "working_directory",
+          "address"
+        ],
+        "title": "CutCodeOut",
+        "description": "A role assignment the cut removes, where the customer's Terraform defines it.\n\nRemoving it in code is deleting that block (DECISIONS.md section 257)."
+      },
       "CutEndOut": {
         "properties": {
           "id": {
@@ -16834,6 +16863,14 @@
             },
             "type": "array",
             "title": "Findings"
+          },
+          "code": {
+            "items": {
+              "$ref": "#/components/schemas/CutCodeOut"
+            },
+            "type": "array",
+            "title": "Code",
+            "default": []
           }
         },
         "type": "object",

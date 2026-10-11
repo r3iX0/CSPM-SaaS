@@ -13333,7 +13333,41 @@ cards through `m.*`; and with reduced motion every state lands at once.
 **Not taken.** A Rerouted route fading its old way out as the new one draws in needs the ledger's
 old way on the canvas, which only the history panel holds; the panel says it in words (§249).
 
+## 257. A role-assignment cut knows the block that defines it
+
+A cut is usually a role assignment, and where a customer manages access in Terraform, a command
+removes the assignment until the next apply puts it back. Fix-as-Code (§232) edits a rule's
+arguments; removing an assignment is deleting a block, a different edit.
+
+**Each role entry records its assignment's id.** The Azure normalizer writes `assignment_id`, the
+assignment's ARM id, beside each role a principal holds, which is what Terraform state records the
+assignment under. Neutral code reads it like any other role field.
+
+**"How to fix" names the block.** `GET /attack-paths/fix` returns `code` for a role cut: each
+assignment it removes that the organization's state index (§229) places in a repository, as
+repository, directory and address. The panel shows it as "Defined in code: delete this block", and
+says that a command alone would be undone by the next apply.
+
+**The deletion is planned, purely.** `remove_resource_block` (`remediation/iac/terraform.py`) takes
+a `resource "<type>" "<label>"` block out whole, with its trailing blank line, found by its label
+from the state address, as an edit is. `plan_removal` (`remediation/iac/cut.py`) plans a cut's
+deletions over a repository: two in one file build on each other, two assignments in one block are
+one deletion, and a block under `count` or `for_each` is deleted only where every assignment it
+defines is in the cut, the rule §232 applies to an edit; otherwise it declines
+`count_or_for_each` rather than take away access nobody asked to remove.
+
+**Not yet: opening the pull request.** The pull-request sweep (§232) is keyed by rule and its rows
+by finding, and a cut has neither; carrying a cut needs its own kind of request, a migration and a
+GitHub write path, which cannot be proven against GitHub from a developer machine. Until then the
+command (§246) is the handoff, the block is named so the change can be made in code by hand, and
+merging stays a person's review either way.
+
 ## Open items carried forward
+
+**A cut as a pull request (§257).** The deletion is planned and tested (`plan_removal`); opening it
+as a pull request needs a cut kind of `fix_pull_requests` (no rule, no findings), the worker
+reading the repository and planning with `plan_removal`, and a decision on how a merge proves the
+cut. Behind `FIX_PRS_ENABLED`, like every pull request.
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,
 password reset and anonymous sign-in together, so it can be switched on only once all of those

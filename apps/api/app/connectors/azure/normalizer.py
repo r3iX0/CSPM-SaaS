@@ -1091,6 +1091,10 @@ class AzureNormalizer:
                     {
                         "role": role,
                         "scope": scope,
+                        # The assignment's own ARM id: what Terraform state
+                        # records it under, so a cut can be found in code
+                        # (DECISIONS.md section 257).
+                        "assignment_id": assignment.get("id"),
                         "grants_role_assignment": escalates,
                         # The node the edge was drawn to, which is the scope
                         # itself except for an inherited assignment. None when

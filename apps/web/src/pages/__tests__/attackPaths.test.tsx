@@ -227,6 +227,7 @@ const FIX = {
   cost: 3,
   severs: 1,
   commands: [],
+  code: [],
   findings: [
     {
       id: "finding-vm",

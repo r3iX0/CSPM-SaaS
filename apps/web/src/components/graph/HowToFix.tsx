@@ -59,7 +59,7 @@ function CutFixBody({ link }: { link: CutLink }) {
     return <p className="text-meta text-muted-foreground">{t.attackPaths.fixError}</p>;
   }
 
-  const { sentence, commands, findings } = fix.data;
+  const { sentence, commands, findings, code } = fix.data;
   return (
     <div className="flex flex-col gap-3 rounded-lg bg-muted/40 p-3">
       <p className="text-body font-medium">{sentence}</p>
@@ -67,6 +67,20 @@ function CutFixBody({ link }: { link: CutLink }) {
         <CodeBlock code={commands.join("\n")} label={t.attackPaths.fixCopy} />
       ) : (
         <p className="text-meta text-muted-foreground">{t.attackPaths.fixNoCommand}</p>
+      )}
+      {code.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <h4 className="text-caption font-medium text-muted-foreground">
+            {t.attackPaths.fixInCode}
+          </h4>
+          {code.map((home) => (
+            <p key={`${home.repository}|${home.address}`} className="font-mono text-meta break-all">
+              {home.repository}
+              {home.working_directory ? `/${home.working_directory}` : ""} · {home.address}
+            </p>
+          ))}
+          <p className="text-meta text-muted-foreground">{t.attackPaths.fixInCodeNote}</p>
+        </div>
       )}
       <div className="flex flex-col gap-1.5">
         <h4 className="text-caption font-medium text-muted-foreground">

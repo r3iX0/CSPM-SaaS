@@ -1914,6 +1914,8 @@ export interface CutFix {
   severs: number;
   commands: string[];
   findings: CutFinding[];
+  /** Where the role assignments it removes are defined in code (§257). */
+  code: { assignment_id: string; repository: string; working_directory: string; address: string }[];
 }
 
 /** One hop of a route as the ledger stored it, readable after its assets go. */

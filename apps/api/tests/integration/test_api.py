@@ -3456,6 +3456,79 @@ class TestAssetNeighborhood:
         )
         assert missing.status_code == 404
 
+    async def test_a_role_cut_names_the_block_that_defines_it(self, client, cleanup_orgs) -> None:
+        """Removing it in code is deleting that block (DECISIONS.md section 257)."""
+        from urllib.parse import urlencode
+
+        from sqlalchemy import update
+
+        from app.core.db import service_session
+        from app.models.iac import IacIndex, IacIndexEntry
+        from app.models.resource import ResourceRecord
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Code Ltd"))
+        cleanup_orgs.append(org_id)
+        await self._estate(org_id)
+        assignment = f"{self.STORAGE}/providers/Microsoft.Authorization/roleAssignments/ra-1"
+        async with service_session() as session:
+            await session.execute(
+                update(ResourceRecord)
+                .where(
+                    ResourceRecord.organization_id == org_id,
+                    ResourceRecord.provider_resource_id == self.IDENTITY,
+                )
+                .values(
+                    resource_metadata={
+                        "roles": [
+                            {
+                                "role": "Storage Blob Data Owner",
+                                "scope": self.STORAGE,
+                                "target": self.STORAGE,
+                                "assignment_id": assignment,
+                            }
+                        ]
+                    }
+                )
+            )
+            index = IacIndex(
+                organization_id=org_id,
+                repository_id=1,
+                repository="acme/infra",
+                working_directory="prod",
+                commit_sha="0" * 40,
+            )
+            session.add(index)
+            await session.flush()
+            session.add(
+                IacIndexEntry(
+                    organization_id=org_id,
+                    index_id=index.id,
+                    address="azurerm_role_assignment.payroll",
+                    type="azurerm_role_assignment",
+                    resource_id=assignment.lower(),
+                )
+            )
+            await session.commit()
+        from app.services import graph as graph_service
+
+        graph_service.forget_cached_graphs()
+
+        query = urlencode(
+            {"source": self.IDENTITY, "relationship": "grants_role", "target": self.STORAGE}
+        )
+        response = await client.get(f"/api/v1/attack-paths/fix?{query}", headers=auth_header(user))
+
+        assert response.status_code == 200, response.text
+        assert response.json()["data"]["code"] == [
+            {
+                "assignment_id": assignment.lower(),
+                "repository": "acme/infra",
+                "working_directory": "prod",
+                "address": "azurerm_role_assignment.payroll",
+            }
+        ]
+
 
 class TestReports:
     """The report endpoints, over the real dependency chain.
