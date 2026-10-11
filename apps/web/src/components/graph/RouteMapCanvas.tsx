@@ -486,10 +486,11 @@ function Canvas({
       {/* An 18px dot grid, from the text colour at 9%, so the drawing reads as
           a surface to press on in either theme without a canvas background
           kit (base.css only, §101). It does not pan with the view: it is
-          texture, not coordinates. */}
+          texture, not coordinates. A faint glow of the primary colour sits
+          under it where the drawing is (§259). */}
       <div
         ref={frame}
-        className="cg-route-map size-full bg-[radial-gradient(color-mix(in_oklab,var(--foreground)_9%,transparent)_1px,transparent_1px)] bg-[length:18px_18px]"
+        className="cg-route-map size-full bg-[radial-gradient(color-mix(in_oklab,var(--foreground)_9%,transparent)_1px,transparent_1px),radial-gradient(ellipse_at_42%_38%,color-mix(in_oklab,var(--primary)_7%,transparent),transparent_65%)] bg-[length:18px_18px,100%_100%]"
         onKeyDown={onKeyDown}
       >
         <ReactFlow
@@ -522,7 +523,11 @@ function Canvas({
           preventScrolling={wheelZoom}
         >
           <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="var(--border)" />
-          <ZoomButtons position={zoomPosition} />
+          <ZoomButtons
+            position={zoomPosition}
+            island={zoomPosition !== undefined}
+            onFit={() => frameReadable(reduced ? 0 : DURATION.quick)}
+          />
         </ReactFlow>
       </div>
     </Actions.Provider>
@@ -733,14 +738,17 @@ function toFlow(
       // Revealed in order from the way in when the route is traced, and the hop
       // being read pulses when it is reached; both once, as classes are added
       // only when the trace or the hop changes (§256).
+      // The route being read also glows (`cg-glow`), so it reads at a look
+      // even where the lines around it are heavy (§259).
       className: now
-        ? "cg-pulse"
+        ? "cg-pulse cg-glow"
         : onTraced
-          ? `cg-reveal cg-step-${Math.min(tracedOrder.get(key) ?? 0, 7)}`
+          ? `cg-reveal cg-step-${Math.min(tracedOrder.get(key) ?? 0, 7)} cg-glow`
           : undefined,
       labelStyle: { fill: labelFill, fontSize: 11 },
-      labelBgStyle: { fill: "var(--card)" },
-      labelBgPadding: [4, 2] as [number, number],
+      labelBgStyle: { fill: "var(--popover)", stroke: "var(--border)" },
+      labelBgPadding: [7, 3] as [number, number],
+      labelBgBorderRadius: 999,
       style: { stroke, strokeWidth: width, strokeDasharray: dash, opacity },
       markerEnd: {
         type: MarkerType.ArrowClosed,
@@ -757,6 +765,12 @@ function toFlow(
 const LEVEL_TEXT: Record<string, string> = {
   CRITICAL: "text-critical",
   HIGH: "text-high",
+};
+
+/** A mark's tile, tinted from the same level as its glyph. */
+const MARK_BG: Record<string, string> = {
+  CRITICAL: "bg-critical-bg",
+  HIGH: "bg-high-bg",
 };
 
 function AssetNode({ id, data }: NodeProps<AssetFlowNode>) {
@@ -786,48 +800,66 @@ function AssetNode({ id, data }: NodeProps<AssetFlowNode>) {
           transitionDelay: data.closed ? `${data.closeDelay}ms` : undefined,
         }}
         className={cn(
-          "nopan flex w-[220px] cursor-pointer items-center gap-2 rounded-lg border bg-card px-2 py-1.5 text-left",
-          "transition-[opacity,filter] duration-500 hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring",
+          // A box is the asset's name first: the role is a strip on its left
+          // edge -- a way in, or what is worth taking -- rather than its whole
+          // border, so the name is what the eye lands on (§259).
+          "nopan relative flex h-[52px] w-[220px] cursor-pointer items-center gap-2.5 rounded-xl border border-foreground/12 bg-card pr-2.5 pl-3 text-left shadow-lg shadow-black/25",
+          "transition-[opacity,filter,box-shadow] duration-500 hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring",
           data.arrival > 0 && "animate-[cg-rise_180ms_ease-out_both]",
-          data.entry
-            ? "border-critical-border"
-            : data.sensitive
-              ? "border-high-border"
-              : "border-border",
           (data.dimmed || (actions.lit && !actions.lit.has(id))) && "opacity-30",
           actions.picked === id && "ring-2 ring-foreground/70 ring-offset-2 ring-offset-card",
-          data.current && "border-primary ring-3 ring-primary/30",
+          data.current && "border-primary ring-4 ring-primary/20 shadow-primary/20",
           // Out of reach once the considered link is gone. Desaturated rather
           // than hidden: the asset is still in the estate, it is the route to
           // it that would be over.
           data.closed && "opacity-40 grayscale",
         )}
       >
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground">
+        {(data.entry || data.sensitive) && (
+          <span
+            aria-hidden
+            className={cn(
+              "absolute top-3 -left-px h-[26px] w-[3px] rounded-r-full",
+              data.entry ? "bg-high" : "bg-critical",
+            )}
+          />
+        )}
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-foreground/5 text-foreground">
           {createElement(resourceTypeIcon(data.resource_type), {
-            className: "size-3.5",
+            className: "size-4",
             "aria-hidden": true,
           })}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-xs font-medium text-foreground">{data.name}</span>
+          <span className="block truncate text-body font-semibold tracking-tight text-foreground">
+            {data.name}
+          </span>
           <span className="block truncate text-caption text-muted-foreground">
             {resourceTypeLabel(data.resource_type)}
           </span>
         </span>
         <span className="flex shrink-0 items-center gap-1">
           {data.entry && (
-            <span title={`Internet exposure ${data.public_exposure.toLowerCase()}`}>
-              <Exposure className={cn("size-3.5", LEVEL_TEXT[data.public_exposure])} aria-hidden />
+            <span
+              title={`Internet exposure ${data.public_exposure.toLowerCase()}`}
+              className={cn(
+                "flex size-5 items-center justify-center rounded-md",
+                MARK_BG[data.public_exposure],
+              )}
+            >
+              <Exposure className={cn("size-3", LEVEL_TEXT[data.public_exposure])} aria-hidden />
               <span className="sr-only">, reachable from the internet</span>
             </span>
           )}
           {data.sensitive && (
-            <span title={`Data sensitivity ${data.data_sensitivity.toLowerCase()}`}>
-              <Sensitive
-                className={cn("size-3.5", LEVEL_TEXT[data.data_sensitivity])}
-                aria-hidden
-              />
+            <span
+              title={`Data sensitivity ${data.data_sensitivity.toLowerCase()}`}
+              className={cn(
+                "flex size-5 items-center justify-center rounded-md",
+                MARK_BG[data.data_sensitivity],
+              )}
+            >
+              <Sensitive className={cn("size-3", LEVEL_TEXT[data.data_sensitivity])} aria-hidden />
               <span className="sr-only">, holds sensitive data</span>
             </span>
           )}
@@ -835,7 +867,7 @@ function AssetNode({ id, data }: NodeProps<AssetFlowNode>) {
             <span
               title={`${data.findings.open} open finding${data.findings.open === 1 ? "" : "s"}`}
               className={cn(
-                "rounded border px-1 text-micro leading-4 font-medium tabular-nums",
+                "flex h-5 min-w-5 items-center justify-center rounded-md border px-1 text-caption font-semibold tabular-nums",
                 levelStyle(data.findings.worst ?? "UNKNOWN"),
               )}
             >

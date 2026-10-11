@@ -744,6 +744,7 @@ export const en = {
       `${n} ${n === 1 ? "route stays" : "routes stay"} open. Try further changes together in Simulate.`,
     planTry: "Try this plan",
     planTrackAll: "Track the findings on these changes",
+    planLeft: "routes left with the plan made",
     planNothingToTrack: "Every open finding on these changes is tracked already.",
     planTrying: "Trying this plan",
     // Progress, read from the route ledger (DECISIONS.md §249).
@@ -890,6 +891,7 @@ export const en = {
     panelHide: "Fold the panel away",
     panelShow: "Show the panel",
     planPanelTitle: "Fix plan",
+    planChanges: (n: number) => `${n} ${n === 1 ? "change" : "changes"}`,
     planPanelToggle: "Fix plan panel",
     planPanelFold: "Fold the fix plan away",
     fullScreenEnter: "Full screen",
@@ -970,6 +972,7 @@ export const en = {
     facetHopsAtMost: (n: number) => `At most ${n} hops`,
     facetClear: "Clear",
     facetsLabel: "Filters",
+    facetRemove: (label: string) => `Remove the filter: ${label}`,
     copyInvestigation: "Copy investigation link",
     sortHops: "Shortest first",
     sortSensitive: "Most sensitive target",

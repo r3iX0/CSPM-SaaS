@@ -324,7 +324,14 @@ describe("AttackPathsPage", () => {
     );
 
     const card = await screen.findByRole("region", { name: "1 change closes the only route" });
-    expect(within(card).getByText("jump-01 runs as mi-jump-01 (managed identity)")).toBeVisible();
+    // The sentence reads whole, with the assets in it set apart (§259).
+    const step = within(card).getByText(
+      (_, element) =>
+        element?.tagName === "P" &&
+        element.textContent === "jump-01 runs as mi-jump-01 (managed identity)",
+    );
+    expect(step).toBeVisible();
+    expect(within(step).getByText("mi-jump-01")).toHaveClass("font-semibold");
     expect(within(card).getByText("closes 1 route")).toBeVisible();
     expect(
       within(card).getByText("1 route from 1 exposed asset to 1 sensitive asset."),

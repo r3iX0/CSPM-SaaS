@@ -77,7 +77,7 @@ function byCodeUnit(a: string, b: string): number {
 
 /** The drawn size of a box. The canvas centres on these and labels are placed by them. */
 export const BOX_WIDTH = 220;
-export const BOX_HEIGHT = 44;
+export const BOX_HEIGHT = 52;
 
 /**
  * The zoom below which a box's name stops being readable (DECISIONS.md §248).

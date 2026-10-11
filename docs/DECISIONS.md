@@ -13430,6 +13430,40 @@ there is no page left to scroll past (the reason it does not elsewhere).
 **Not taken.** Widening the shell's 1240px column for this page alone: full screen is the wide
 look, and one page breaking the column would make the shell's width a per-page decision.
 
+## 260. The route map's panels are frosted islands, and asset names lead
+
+§259 made the drawing the page; this is how it is drawn. Mocked first in Figma, then built.
+
+**Panels are frosted glass** on the popover surface (85%, blurred and saturated behind), with
+16px corners and a deep, soft shadow. The top bar is two islands: narrowing on the left, the view
+on the right (copy the link, fold either panel, full screen). In full screen the left island also
+names the page, since the page's heading is under the frame. Each facet in use is a chip on the
+bar that takes it off, so what narrows the drawing stays in sight rather than behind Filters.
+
+**Asset names lead.** A box is its name first: 13px semibold, with its role a strip on its left
+edge (a way in, or what is worth taking) rather than its whole border, its type in an icon tile,
+and its marks in tinted tiles. Boxes are 52px tall (`BOX_HEIGHT`). In the fix plan, a step's
+sentence keeps its words muted and sets the two assets it names apart (`Named`), matched on the
+cut's own `source` and `target` names.
+
+**The fix plan opens on its answer:** the routes there are and the routes left, large, and a bar of
+one segment per change sized by what it closes. Its steps are a numbered timeline, the first one
+lit. "Try this plan" and tracking the findings stay at the foot while the steps scroll. Folded, the
+plan is a slim rail with its mark and its count of changes.
+
+**The routes panel** has line tabs with their counts as pills. Routes are rows, not cards, and a
+route's shape is a dot a stop and a line a hop, the earliest cut in the colour a cut is drawn in.
+
+**The drawing:** the route being read glows in the primary colour (`cg-glow`, a drop shadow on the
+line itself); a line's label is a rounded pill; a faint primary glow sits under the dot grid; and
+the zoom is a floating bar saying its level between minus and plus, whose fit frames the readable
+estate in the room the panels leave (§248, §259).
+
+**Not taken.** Soft, borderless severity pills: `SeverityBadge` is shared across every page, and
+changing it here alone would give one meaning two looks. The 10x changes mocked beside this
+(cutting from a line's own chip, an explore and a simulate mode, lenses, a hover card and a
+right-click menu) wait for their own decisions.
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,

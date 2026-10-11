@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ListChecksIcon, ScissorsIcon } from "lucide-react";
+import { ArrowRightIcon, ListChecksIcon, ScissorsIcon } from "lucide-react";
 
 import type { FixPlan } from "@/lib/types";
 import { toast } from "sonner";
@@ -54,99 +54,193 @@ export function FixPlanCard({
   const demo = useIsDemo();
 
   return (
-    <section
-      aria-labelledby="fix-plan-title"
-      className={cn(
-        "flex flex-col gap-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10",
-        className,
-      )}
-    >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-col gap-1">
-          <div className="flex items-center gap-1">
-            <h2 id="fix-plan-title" className="text-heading font-semibold">
-              {plan.cuts.length === 0
-                ? t.attackPaths.planNone
-                : t.attackPaths.planHeadline(plan.cuts.length, closed, total)}
-            </h2>
-            <InfoTip label={t.attackPaths.planHelpLabel}>{t.attackPaths.planHelpExplain}</InfoTip>
-          </div>
-          <p className="text-body text-muted-foreground">
-            {t.attackPaths.planContext(total, entryPoints, sensitiveTargets)}
-          </p>
-          {progress}
+    <section aria-labelledby="fix-plan-title" className={cn("flex flex-col", className)}>
+      {/* The answer, as a number and a bar: how many routes the plan leaves,
+          and how much of that each change does (§259). */}
+      <div className="mx-3 flex flex-col gap-3 rounded-xl bg-foreground/[0.035] p-4 ring-1 ring-border">
+        <div className="flex items-center gap-1">
+          <h2 id="fix-plan-title" className="text-title font-semibold tracking-tight">
+            {plan.cuts.length === 0
+              ? t.attackPaths.planNone
+              : t.attackPaths.planHeadline(plan.cuts.length, closed, total)}
+          </h2>
+          <InfoTip label={t.attackPaths.planHelpLabel}>{t.attackPaths.planHelpExplain}</InfoTip>
         </div>
         {plan.cuts.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {!demo && (
-              <Button
-                variant="outline"
-                aria-disabled={handOver.isPending || undefined}
-                onClick={() => {
-                  if (!handOver.isPending) handOver.mutate();
-                }}
+          <>
+            <div aria-hidden className="flex items-center gap-2.5">
+              <span className="text-stat font-semibold tracking-tight text-muted-foreground tabular-nums">
+                {total}
+              </span>
+              <ArrowRightIcon className="size-5 text-muted-foreground" />
+              <span
+                className={cn(
+                  "text-stat font-semibold tracking-tight tabular-nums",
+                  plan.remaining === 0 ? "text-ok" : "text-foreground",
+                )}
               >
-                <ListChecksIcon data-icon="inline-start" />
-                {t.attackPaths.planTrackAll}
-              </Button>
-            )}
-            <Button variant={trying ? "outline" : "default"} onClick={onTry} aria-pressed={trying}>
-              <ScissorsIcon data-icon="inline-start" />
-              {trying ? t.attackPaths.planTrying : t.attackPaths.planTry}
-            </Button>
-          </div>
+                {plan.remaining}
+              </span>
+              <span className="text-meta text-muted-foreground">{t.attackPaths.planLeft}</span>
+            </div>
+            <div aria-hidden className="flex gap-0.5">
+              {plan.cuts.map((cut, index) => (
+                <span
+                  key={`${cut.source.id}|${cut.relationship}|${cut.target.id}`}
+                  style={{ flexGrow: cut.closes.length, opacity: 1 - index * 0.14 }}
+                  className="h-2 min-w-1 rounded-full bg-primary"
+                />
+              ))}
+              {plan.remaining > 0 && (
+                <span
+                  style={{ flexGrow: plan.remaining }}
+                  className="h-2 min-w-1 rounded-full bg-foreground/12"
+                />
+              )}
+            </div>
+          </>
         )}
+        <p className="text-meta text-muted-foreground">
+          {t.attackPaths.planContext(total, entryPoints, sensitiveTargets)}
+        </p>
+        {progress}
       </div>
 
       {plan.cuts.length > 0 && (
-        <ol className="flex flex-col divide-y divide-border">
+        <ol className="flex flex-col px-4 pt-4">
           {plan.cuts.map((cut, index) => (
             <li
               key={`${cut.source.id}|${cut.relationship}|${cut.target.id}`}
               // Told in plan order when it is tried: each change lights a step
               // after the one before (§256). One request for the whole plan.
-              className={cn(
-                "flex flex-col gap-1 py-2 first:pt-0 last:pb-0",
-                trying && `cg-reveal cg-step-${Math.min(index, 7)}`,
-              )}
+              className={cn("flex gap-3", trying && `cg-reveal cg-step-${Math.min(index, 7)}`)}
             >
-              <div className="flex items-baseline gap-3">
+              <span className="flex w-5 shrink-0 flex-col items-center">
                 <span
                   aria-hidden
-                  className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-caption font-medium tabular-nums"
+                  className={cn(
+                    "flex size-5 items-center justify-center rounded-full text-caption font-semibold tabular-nums",
+                    index === 0
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-foreground/6 text-muted-foreground ring-1 ring-border",
+                  )}
                 >
                   {index + 1}
                 </span>
-                <p className="min-w-0 flex-1 text-body">{cut.detail}</p>
-                <p className="shrink-0 text-meta text-muted-foreground tabular-nums">
+                {index < lastIndex && <span aria-hidden className="my-1 w-px flex-1 bg-border" />}
+              </span>
+              <div
+                className={cn("flex min-w-0 flex-1 flex-col gap-1", index < lastIndex && "pb-4")}
+              >
+                <p className="text-body text-muted-foreground">
+                  <Named text={cut.detail} names={[cut.source.name, cut.target.name]} />
+                </p>
+                <p
+                  className={cn(
+                    "text-meta tabular-nums",
+                    index === 0 ? "font-medium text-ok" : "text-muted-foreground",
+                  )}
+                >
                   {index === 0
                     ? t.attackPaths.planCutCloses(cut.closes.length)
                     : index === lastIndex && plan.remaining === 0
                       ? t.attackPaths.planClosesLast(cut.closes.length)
                       : t.attackPaths.planClosesMore(cut.closes.length)}
                 </p>
+                <HowToFix
+                  link={{
+                    source: cut.source.id,
+                    relationship: cut.relationship,
+                    target: cut.target.id,
+                  }}
+                />
               </div>
-              <HowToFix
-                className="pl-8"
-                link={{
-                  source: cut.source.id,
-                  relationship: cut.relationship,
-                  target: cut.target.id,
-                }}
-              />
             </li>
           ))}
         </ol>
       )}
 
       {plan.remaining > 0 && (
-        <p className="text-meta text-muted-foreground">
+        <p className="px-4 pt-3 text-meta text-muted-foreground">
           {plan.cuts.length === 0
             ? t.attackPaths.planNoneDetail(plan.remaining)
             : t.attackPaths.planRemaining(plan.remaining)}
         </p>
       )}
+
+      {/* The plan's actions stay at the foot of the panel while its steps
+          scroll under them. */}
+      {plan.cuts.length > 0 && (
+        <div className="sticky bottom-0 mt-4 flex gap-2 border-t border-border bg-popover/95 p-3 backdrop-blur-md">
+          <Button
+            className="flex-1 shadow-lg shadow-primary/25"
+            variant={trying ? "outline" : "default"}
+            onClick={onTry}
+            aria-pressed={trying}
+          >
+            <ScissorsIcon data-icon="inline-start" />
+            {trying ? t.attackPaths.planTrying : t.attackPaths.planTry}
+          </Button>
+          {!demo && (
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label={t.attackPaths.planTrackAll}
+              title={t.attackPaths.planTrackAll}
+              aria-disabled={handOver.isPending || undefined}
+              onClick={() => {
+                if (!handOver.isPending) handOver.mutate();
+              }}
+            >
+              <ListChecksIcon />
+            </Button>
+          )}
+        </div>
+      )}
     </section>
+  );
+}
+
+/**
+ * A sentence with the assets in it set apart: the names are what a reader
+ * scans for, the words between them are how they connect (§259).
+ */
+function Named({ text, names }: { text: string; names: string[] }) {
+  const wanted = [...new Set(names.filter((name) => name.length > 0))].sort(
+    (a, b) => b.length - a.length,
+  );
+  const parts: { text: string; name: boolean }[] = [];
+  let rest = text;
+  while (rest.length > 0) {
+    let at = -1;
+    let found = "";
+    for (const name of wanted) {
+      const index = rest.indexOf(name);
+      if (index >= 0 && (at < 0 || index < at)) {
+        at = index;
+        found = name;
+      }
+    }
+    if (at < 0) {
+      parts.push({ text: rest, name: false });
+      break;
+    }
+    if (at > 0) parts.push({ text: rest.slice(0, at), name: false });
+    parts.push({ text: found, name: true });
+    rest = rest.slice(at + found.length);
+  }
+  return (
+    <>
+      {parts.map((part, index) =>
+        part.name ? (
+          <span key={index} className="font-semibold text-foreground">
+            {part.text}
+          </span>
+        ) : (
+          part.text
+        ),
+      )}
+    </>
   );
 }
 

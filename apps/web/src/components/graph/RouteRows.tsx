@@ -66,7 +66,7 @@ export function PatternRow({
   const closed = members.filter((member) => marks.closed.has(member.route)).length;
 
   return (
-    <div className="rounded-lg border border-border">
+    <div className="rounded-xl bg-foreground/[0.035] ring-1 ring-border">
       <button
         type="button"
         onClick={() => setOpen((was) => !was)}
@@ -75,7 +75,7 @@ export function PatternRow({
         onFocus={() => onPreview(pattern.exemplar)}
         onBlur={() => onPreview(null)}
         aria-expanded={open}
-        className="flex w-full items-start gap-2 px-2.5 py-2 text-left hover:bg-muted/60 focus-ring-inset"
+        className="flex w-full items-start gap-2 rounded-xl px-3 py-2.5 text-left hover:bg-foreground/5 focus-ring-inset"
       >
         <ChevronRightIcon
           className={cn(
@@ -85,7 +85,7 @@ export function PatternRow({
           aria-hidden
         />
         <span className="flex min-w-0 flex-1 flex-col gap-1">
-          <span className="text-xs text-foreground">{pattern.description}</span>
+          <span className="text-body text-foreground">{pattern.description}</span>
           <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-caption text-muted-foreground">
             {exemplar && <HopStrip route={exemplar} />}
             <span className="tabular-nums">
@@ -168,7 +168,9 @@ export function RouteRow({
       onMouseLeave={() => onPreview(null)}
       onFocus={() => onPreview(route.key)}
       onBlur={() => onPreview(null)}
-      className="rounded-lg border border-border px-3 py-2 text-left transition-colors hover:bg-muted/60 focus-ring"
+      // A row, not a card: the list is read down its names, and a box around
+      // each one was a border the eye crossed twice a row (§259).
+      className="rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-foreground/5 focus-ring"
     >
       <span className="flex items-baseline justify-between gap-3">
         {/* Always struck, in a transparent line, so closing is the line
@@ -177,18 +179,19 @@ export function RouteRow({
         <span
           style={closeTiming(marks, route.key)}
           className={cn(
-            "min-w-0 truncate text-xs font-medium text-foreground line-through decoration-transparent",
+            "min-w-0 truncate text-body font-semibold tracking-tight text-foreground line-through decoration-transparent",
             "transition-[color,text-decoration-color] duration-[400ms] ease-out",
             closed && "text-muted-foreground decoration-muted-foreground",
           )}
         >
-          {route.entry.name} <span className="text-muted-foreground">→</span> {route.target.name}
+          {route.entry.name} <span className="font-normal text-muted-foreground">→</span>{" "}
+          {route.target.name}
         </span>
-        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+        <span className="shrink-0 text-caption tabular-nums text-muted-foreground">
           {route.hops} {route.hops === 1 ? t.attackPaths.oneHop : t.attackPaths.hops}
         </span>
       </span>
-      <span className="mt-1 flex items-center gap-1.5 text-caption text-muted-foreground">
+      <span className="mt-1.5 flex items-center gap-1.5 text-caption text-muted-foreground">
         <SeverityBadge level={route.entry.public_exposure} size="sm" />
         <HopStrip route={route} />
         <SeverityBadge level={route.target.data_sensitivity} size="sm" />
@@ -201,13 +204,14 @@ export function RouteRow({
 }
 
 /**
- * The route's shape at a glance: a dash a hop, the earliest place to cut in
- * the colour a cut is drawn in. The count beside the row says the same in
- * words, so this is not read out.
+ * The route's shape at a glance: a dot a stop and a line a hop, the earliest
+ * place to cut in the colour a cut is drawn in. The count beside the row says
+ * the same in words, so this is not read out.
  */
 function HopStrip({ route }: { route: MappedRoute }) {
   return (
-    <span className="flex items-center gap-0.5" aria-hidden>
+    <span className="flex items-center" aria-hidden>
+      <span className="size-1.5 rounded-full bg-muted-foreground/60" />
       {route.steps.map((step) => {
         const cut =
           route.cheapest_break?.source_id === step.source_id &&
@@ -216,8 +220,11 @@ function HopStrip({ route }: { route: MappedRoute }) {
         return (
           <span
             key={`${step.source_id}|${step.relationship}|${step.target_id}`}
-            className={cn("h-1 w-2.5 rounded-full", cut ? "bg-ok" : "bg-muted-foreground/40")}
-          />
+            className="flex items-center"
+          >
+            <span className={cn("h-px w-2", cut ? "h-0.5 bg-ok" : "bg-muted-foreground/40")} />
+            <span className="size-1.5 rounded-full bg-muted-foreground/60" />
+          </span>
         );
       })}
     </span>
@@ -251,7 +258,7 @@ function Marks({
         </span>
       )}
       {marks.tracked.has(routeKey) && (
-        <span className="flex items-center gap-0.5 text-caption text-muted-foreground">
+        <span className="flex items-center gap-0.5 text-caption whitespace-nowrap text-muted-foreground">
           <RadarIcon className="size-3" aria-hidden />
           {t.attackPaths.trackedBadge}
           {risk && (

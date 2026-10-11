@@ -2,9 +2,12 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } 
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import {
+  CheckIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   ExpandIcon,
+  LinkIcon,
+  PanelLeftIcon,
   PanelRightCloseIcon,
   PanelRightOpenIcon,
   RouteIcon,
@@ -791,10 +794,37 @@ function RouteMapFrame({
           full && "fixed inset-0 z-50 overflow-y-auto rounded-none ring-0 lg:h-dvh lg:min-h-0",
         )}
       >
-        {/* Along the top: narrowing on the left, the view on the right. */}
+        {/* Along the top, two islands: narrowing on the left, the view on the
+            right (§259). In full screen the page's own heading is covered, so
+            the left island names the page. */}
         <div className="flex flex-wrap items-start gap-2 border-b border-border p-2 lg:pointer-events-none lg:absolute lg:inset-x-3 lg:top-3 lg:z-10 lg:border-0 lg:p-0">
-          <div className={cn(FLOATING, "min-w-0 flex-1 lg:flex-initial lg:p-1")}>{toolbar}</div>
-          <div className={cn(FLOATING, "ml-auto flex items-center gap-0.5 lg:p-1")}>
+          <div
+            className={cn(
+              FLOATING,
+              "flex min-w-0 flex-1 items-center gap-2 lg:flex-initial lg:p-1.5",
+            )}
+          >
+            {full && (
+              <>
+                <span className="flex items-center gap-2 pr-1 pl-1">
+                  <span className="flex size-7 items-center justify-center rounded-lg bg-primary-soft text-primary">
+                    <RouteIcon className="size-4" aria-hidden />
+                  </span>
+                  <span className="text-body font-semibold tracking-tight">
+                    {t.attackPaths.title}
+                  </span>
+                  <span className="rounded-full bg-foreground/8 px-2 text-caption text-muted-foreground tabular-nums">
+                    {map.routes.length}
+                  </span>
+                </span>
+                <span aria-hidden className="h-5 w-px bg-border" />
+              </>
+            )}
+            {toolbar}
+          </div>
+          <div className={cn(FLOATING, "ml-auto flex items-center gap-0.5 lg:p-1.5")}>
+            <CopyLink />
+            <span aria-hidden className="mx-1 hidden h-5 w-px bg-border lg:block" />
             <Button
               variant={planShown ? "secondary" : "ghost"}
               size="icon-sm"
@@ -803,7 +833,7 @@ function RouteMapFrame({
               aria-pressed={planShown}
               onClick={() => showPlan(!planShown)}
             >
-              <ScissorsIcon />
+              <PanelLeftIcon />
             </Button>
             <Button
               variant={panelOpen ? "secondary" : "ghost"}
@@ -815,6 +845,7 @@ function RouteMapFrame({
             >
               {panelOpen ? <PanelRightCloseIcon /> : <PanelRightOpenIcon />}
             </Button>
+            <span aria-hidden className="mx-1 hidden h-5 w-px bg-border lg:block" />
             <Button
               variant="ghost"
               size="icon-sm"
@@ -837,17 +868,17 @@ function RouteMapFrame({
                 : undefined
             }
           >
-            <div className="flex w-full items-center gap-2 rounded-lg border border-ok-border bg-ok-bg px-3 py-1.5 text-xs text-foreground lg:pointer-events-auto lg:w-auto lg:max-w-full lg:rounded-full lg:shadow-md">
+            <div className="flex w-full items-center gap-2 rounded-lg border border-ok-border bg-ok-bg px-3 py-1.5 text-xs text-foreground lg:pointer-events-auto lg:w-auto lg:max-w-full lg:rounded-full lg:py-1 lg:pr-1 lg:shadow-lg lg:shadow-ok/15 lg:ring-4 lg:ring-ok/5">
               <ScissorsIcon className="size-3.5 shrink-0 text-ok" aria-hidden />
               <p className="min-w-0 flex-1">{t.attackPaths.simulating(simulated.links.length)}</p>
-              <span className="shrink-0 font-medium tabular-nums" aria-hidden>
+              <span className="shrink-0 text-body font-semibold tabular-nums" aria-hidden>
                 {map.routes.length} → {left}
               </span>
               {(tab !== "simulate" || !panelOpen) && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6"
+                  className="h-7 rounded-full bg-foreground/8"
                   onClick={() => {
                     setPanelOpen(() => true);
                     onTab("simulate");
@@ -889,7 +920,7 @@ function RouteMapFrame({
         <div
           className={cn(
             FLOATING,
-            "border-t border-border px-3 py-2 lg:absolute lg:bottom-3 lg:left-3 lg:max-w-[calc(100%-9rem)] lg:border-0 lg:px-2.5 lg:py-1.5",
+            "border-t border-border px-3 py-2 lg:absolute lg:bottom-3 lg:left-3 lg:max-w-[calc(100%-14rem)] lg:rounded-xl lg:border-0 lg:px-3 lg:py-2",
           )}
         >
           <GraphLegend
@@ -924,11 +955,14 @@ function RouteMapFrame({
                 : undefined
             }
           >
-            <div className="hidden items-center gap-1 border-b border-border py-1 pr-1 pl-3 lg:flex">
-              <ScissorsIcon className="size-3.5 text-muted-foreground" aria-hidden />
-              <p className="flex-1 text-meta font-medium text-muted-foreground">
+            <div className="hidden items-center gap-2 py-2 pr-2 pl-4 lg:flex">
+              <p className="text-body font-semibold tracking-tight">
                 {t.attackPaths.planPanelTitle}
               </p>
+              <span className="rounded-full bg-foreground/8 px-2 text-caption text-muted-foreground tabular-nums">
+                {t.attackPaths.planChanges(map.plan.cuts.length)}
+              </span>
+              <span className="flex-1" />
               <Button
                 variant="ghost"
                 size="icon-sm"
@@ -942,18 +976,28 @@ function RouteMapFrame({
             <div className="min-h-0 overflow-y-auto">{fixPlan}</div>
           </div>
         ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            className="absolute left-3 z-10 max-w-[22rem] bg-popover/95 shadow-md backdrop-blur-md"
+          // Folded, the plan is a slim rail on the left edge: its mark and how
+          // many changes it holds, its headline said to whoever reads it (§259).
+          <button
+            type="button"
+            className={cn(
+              FLOATING,
+              "absolute left-3 flex flex-col items-center gap-1.5 px-2 py-2 hover:bg-muted focus-ring",
+            )}
             style={{ top: PANEL_TOP }}
             aria-expanded={false}
+            aria-label={planSummary}
+            title={planSummary}
             onClick={() => showPlan(true)}
           >
-            <ScissorsIcon data-icon="inline-start" />
-            <span className="truncate">{planSummary}</span>
-            <ChevronRightIcon data-icon="inline-end" />
-          </Button>
+            <span className="flex size-8 items-center justify-center rounded-lg bg-foreground/8">
+              <ScissorsIcon className="size-4" aria-hidden />
+            </span>
+            <span className="rounded-full bg-primary-soft px-1.5 text-caption font-semibold text-primary tabular-nums">
+              {map.plan.cuts.length}
+            </span>
+            <ChevronRightIcon className="size-3.5 text-muted-foreground" aria-hidden />
+          </button>
         )}
 
         {/* The routes and the simulation, on the right (§137, §141). */}
@@ -974,16 +1018,18 @@ function RouteMapFrame({
             onValueChange={(value) => onTab(value as PanelTab)}
             className="min-h-0 flex-1 gap-0"
           >
-            <div className="flex items-center gap-1 border-b border-border p-2">
-              <TabsList className="w-full">
-                <TabsTrigger value="routes">
+            <div className="flex items-center border-b border-border px-3 pt-1.5">
+              <TabsList variant="line" className="h-10 gap-3">
+                <TabsTrigger value="routes" className="flex-none px-1">
                   {t.attackPaths.tabRoutes}
-                  <span className="text-muted-foreground tabular-nums">{map.routes.length}</span>
+                  <span className="rounded-full bg-foreground/8 px-1.5 text-caption text-muted-foreground tabular-nums">
+                    {map.routes.length}
+                  </span>
                 </TabsTrigger>
-                <TabsTrigger value="simulate">
+                <TabsTrigger value="simulate" className="flex-none px-1">
                   {t.attackPaths.tabSimulate}
                   {simulated && (
-                    <span className="text-muted-foreground tabular-nums">
+                    <span className="rounded-full bg-ok-bg px-1.5 text-caption text-ok tabular-nums">
                       {simulated.links.length}
                     </span>
                   )}
@@ -1011,16 +1057,49 @@ function RouteMapFrame({
   );
 }
 
+/**
+ * The page's link, with what it is narrowed to, traced and planned, as an
+ * icon on the view's island; a check says it was copied.
+ */
+function CopyLink() {
+  const t = useT();
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+  return (
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      aria-label={copied ? t.connection.copied : t.attackPaths.copyInvestigation}
+      title={t.attackPaths.copyInvestigation}
+      onClick={() => {
+        void navigator.clipboard.writeText(window.location.href);
+        setCopied(true);
+        if (timer.current) clearTimeout(timer.current);
+        timer.current = setTimeout(() => setCopied(false), 2000);
+      }}
+    >
+      {copied ? <CheckIcon className="text-ok" /> : <LinkIcon />}
+    </Button>
+  );
+}
+
 /** Where the panels float over the canvas rather than stack under it. */
 const WIDE = "(min-width: 1024px)";
 
 /**
- * A panel floating over the drawing, on a wide screen: the popover surface,
- * nearly opaque so the lines under it do not read through, and blurred where
- * they show. Below that breakpoint it is a band of the frame.
+ * A panel floating over the drawing, on a wide screen: frosted glass on the
+ * popover surface -- opaque enough that the lines under it do not read
+ * through, blurred where they show -- with a deep, soft shadow (§259). Below
+ * that breakpoint it is a band of the frame.
  */
 const FLOATING =
-  "lg:pointer-events-auto lg:z-10 lg:rounded-xl lg:bg-popover/95 lg:shadow-lg lg:ring-1 lg:ring-foreground/10 lg:backdrop-blur-md";
+  "lg:pointer-events-auto lg:z-10 lg:rounded-2xl lg:bg-popover/85 lg:shadow-2xl lg:shadow-black/30 lg:ring-1 lg:ring-foreground/8 lg:backdrop-blur-xl lg:backdrop-saturate-150";
 
 // The panels' geometry in pixels, so what they cover can be told to the
 // canvas (`insets`): 12px from each edge, the side panels under the top bar

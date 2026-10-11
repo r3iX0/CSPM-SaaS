@@ -270,11 +270,6 @@
       "count": 2
     }
   },
-  "src/components/graph/ZoomButtons.tsx": {
-    "@typescript-eslint/no-misused-promises": {
-      "count": 3
-    }
-  },
   "src/components/graph/estateLayout.ts": {
     "@typescript-eslint/no-non-null-assertion": {
       "count": 27
