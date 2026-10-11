@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from app.core.enums import (
     AccessKind,
+    FindingStatus,
     Level,
     Provider,
     RelationshipType,
@@ -688,3 +689,47 @@ class RouteHistoryMeta(BaseModel):
     days: int
     #: When the ledger's first episode opened; ``None`` before any scan wrote one.
     recorded_since: datetime | None
+
+
+# -- How to make a cut (DECISIONS.md section 246) ------------------------------
+
+
+class CutEndOut(LinkEndOut):
+    """One end of a cut, with its row id where Cleave holds one to link to."""
+
+    asset_id: UUID | None
+
+
+class CutFindingOut(BaseModel):
+    """An open finding on one end of a cut, and whether a live task tracks it."""
+
+    id: UUID
+    rule_id: str
+    title: str
+    severity: Severity
+    status: FindingStatus
+    asset_name: str
+    asset_id: UUID | None
+    tracked: bool
+
+
+class CutFixOut(BaseModel):
+    """How to make one cut: the change said once, the provider's commands where
+    one command removes the link exactly, and the open findings on its two ends.
+
+    The findings are those on the two assets, never claimed to be what the
+    change resolves: only the next scan says that.
+    """
+
+    sentence: str
+    description: str
+    detail: str
+    relationship: RelationshipType
+    source: CutEndOut
+    target: CutEndOut
+    provider: Provider
+    cost: int
+    #: Routes this cut closes on its own, across the estate.
+    severs: int
+    commands: list[str]
+    findings: list[CutFindingOut]

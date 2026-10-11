@@ -28,6 +28,7 @@ from app.schemas.attack_path import (
     BlastAssetOut,
     ChokePointOut,
     ChokePointsMeta,
+    CutFixOut,
     EstateMeta,
     EstateOut,
     NeighborhoodMeta,
@@ -47,6 +48,7 @@ from app.schemas.attack_path import (
 )
 from app.schemas.common import ERROR_RESPONSES, Envelope, NoMeta, TotalMeta
 from app.services import graph as graph_service
+from app.services.cut_fix import cut_fix
 from app.services.graph import serialize_path
 from app.services.placement import load_placements
 from app.services.route_ledger import route_history
@@ -437,6 +439,28 @@ async def what_if(
         ),
         meta=NoMeta(),
     )
+
+
+@router.get("/fix")
+async def how_to_fix(
+    session: DbSession,
+    tenant: Tenant,
+    source: str = Query(min_length=1, max_length=2048),
+    relationship: RelationshipType = Query(),
+    target: str = Query(min_length=1, max_length=2048),
+) -> Envelope[CutFixOut, NoMeta]:
+    """How to make one cut: the change, its commands, and the findings on its ends.
+
+    Wherever the page shows a cut -- the fix plan, a hop being read, a change in
+    the simulator -- it used to stop at "what if" (DECISIONS.md section 246).
+    The commands are the provider's own, from its connector, and only where one
+    command removes the link exactly.
+    """
+    graph = await graph_service.load_graph(session, tenant.organization_id)
+    fix = await cut_fix(session, tenant.organization_id, graph, (source, relationship, target))
+    if fix is None:
+        raise NotFound("No link here that can be removed")
+    return Envelope(data=fix, meta=NoMeta())
 
 
 @router.post("/simulate", dependencies=[Costly])

@@ -94,6 +94,7 @@ GET    /iac-guardrail/allowlist  (open)    POST   /iac-guardrail/plans  (a job's
 GET    /attack-paths                       GET    /attack-paths/choke-points
 GET    /attack-paths/graph?limit=1..200
 GET    /attack-paths/history?days=1..90
+GET    /attack-paths/fix?source=&relationship=&target=
 GET    /attack-paths/blast-radius/{resource_id}
 GET    /attack-paths/access/{resource_id}
 GET    /attack-paths/neighborhood/{resource_id}?depth=1..3&expand=<fold id>
@@ -686,6 +687,15 @@ changes are made, and `closed_after`, the running count. `remaining` is how
 many routes stay open once every change is made; the plan stops at ten changes,
 or when no single further change closes a route. It is picked one change at a
 time and is not promised to be the fewest.
+
+`/attack-paths/fix` says how to make one cut (DECISIONS.md §246): `sentence`
+is the change in neutral words, `commands` the provider's own commands where
+one command removes the link exactly (empty otherwise; Azure role assignments
+and group memberships only, from the connector), `severs` what the cut closes
+alone, and `findings` the open findings on the link's two ends, worst first,
+with whether a live task tracks each. Those findings are the ones on the two
+assets, never a claim about what the change resolves. A link not in the estate,
+or one nobody can remove, is `404`.
 
 Each route on `/attack-paths/graph` also carries `risk` — the id, status,
 level and score of the risk that tracks it, or `null` where no risk does —

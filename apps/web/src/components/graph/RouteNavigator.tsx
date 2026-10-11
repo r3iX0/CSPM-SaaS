@@ -18,6 +18,7 @@ import type {
 } from "@/lib/types";
 import { useT } from "@/i18n";
 import { cn } from "@/lib/format";
+import { HowToFix } from "@/components/graph/HowToFix";
 import { FACTOR_ICONS, RISK_KIND_ICONS } from "@/lib/icons";
 import { ResourceTypeLabel } from "@/components/security/IconLabel";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
@@ -488,6 +489,15 @@ function HopLink({
                   {planned ? t.attackPaths.takeOutOfPlan : t.attackPaths.addToPlan}
                 </Button>
               </div>
+            )}
+            {removable && (
+              <HowToFix
+                link={{
+                  source: step.source_id,
+                  relationship: step.relationship,
+                  target: step.target_id,
+                }}
+              />
             )}
           </div>
         )}

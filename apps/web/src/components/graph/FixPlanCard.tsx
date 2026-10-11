@@ -4,6 +4,7 @@ import type { FixPlan } from "@/lib/types";
 import { useT } from "@/i18n";
 import { InfoTip } from "@/components/common/InfoTip";
 import { Button } from "@/components/ui/button";
+import { HowToFix } from "@/components/graph/HowToFix";
 
 /**
  * What to do first, before the drawing (DECISIONS.md §245).
@@ -69,22 +70,32 @@ export function FixPlanCard({
           {plan.cuts.map((cut, index) => (
             <li
               key={`${cut.source.id}|${cut.relationship}|${cut.target.id}`}
-              className="flex items-baseline gap-3 py-2 first:pt-0 last:pb-0"
+              className="flex flex-col gap-1 py-2 first:pt-0 last:pb-0"
             >
-              <span
-                aria-hidden
-                className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-caption font-medium tabular-nums"
-              >
-                {index + 1}
-              </span>
-              <p className="min-w-0 flex-1 text-body">{cut.detail}</p>
-              <p className="shrink-0 text-meta text-muted-foreground tabular-nums">
-                {index === 0
-                  ? t.attackPaths.planCutCloses(cut.closes.length)
-                  : index === lastIndex && plan.remaining === 0
-                    ? t.attackPaths.planClosesLast(cut.closes.length)
-                    : t.attackPaths.planClosesMore(cut.closes.length)}
-              </p>
+              <div className="flex items-baseline gap-3">
+                <span
+                  aria-hidden
+                  className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-caption font-medium tabular-nums"
+                >
+                  {index + 1}
+                </span>
+                <p className="min-w-0 flex-1 text-body">{cut.detail}</p>
+                <p className="shrink-0 text-meta text-muted-foreground tabular-nums">
+                  {index === 0
+                    ? t.attackPaths.planCutCloses(cut.closes.length)
+                    : index === lastIndex && plan.remaining === 0
+                      ? t.attackPaths.planClosesLast(cut.closes.length)
+                      : t.attackPaths.planClosesMore(cut.closes.length)}
+                </p>
+              </div>
+              <HowToFix
+                className="pl-8"
+                link={{
+                  source: cut.source.id,
+                  relationship: cut.relationship,
+                  target: cut.target.id,
+                }}
+              />
             </li>
           ))}
         </ol>

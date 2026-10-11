@@ -8641,6 +8641,121 @@
         }
       }
     },
+    "/api/v1/attack-paths/fix": {
+      "get": {
+        "tags": [
+          "attack-paths"
+        ],
+        "summary": "How To Fix",
+        "description": "How to make one cut: the change, its commands, and the findings on its ends.\n\nWherever the page shows a cut -- the fix plan, a hop being read, a change in\nthe simulator -- it used to stop at \"what if\" (DECISIONS.md section 246).\nThe commands are the provider's own, from its connector, and only where one\ncommand removes the link exactly.",
+        "operationId": "attack_paths_how_to_fix",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "source",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048,
+              "title": "Source"
+            }
+          },
+          {
+            "name": "relationship",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/RelationshipType"
+            }
+          },
+          {
+            "name": "target",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048,
+              "title": "Target"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_CutFixOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
     "/api/v1/attack-paths/simulate": {
       "post": {
         "tags": [
@@ -16098,6 +16213,164 @@
         ],
         "title": "CoverageGapOut"
       },
+      "CutEndOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "resource_type": {
+            "$ref": "#/components/schemas/ResourceType"
+          },
+          "asset_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "resource_type",
+          "asset_id"
+        ],
+        "title": "CutEndOut",
+        "description": "One end of a cut, with its row id where Cleave holds one to link to."
+      },
+      "CutFindingOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/Severity"
+          },
+          "status": {
+            "$ref": "#/components/schemas/FindingStatus"
+          },
+          "asset_name": {
+            "type": "string",
+            "title": "Asset Name"
+          },
+          "asset_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Id"
+          },
+          "tracked": {
+            "type": "boolean",
+            "title": "Tracked"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "rule_id",
+          "title",
+          "severity",
+          "status",
+          "asset_name",
+          "asset_id",
+          "tracked"
+        ],
+        "title": "CutFindingOut",
+        "description": "An open finding on one end of a cut, and whether a live task tracks it."
+      },
+      "CutFixOut": {
+        "properties": {
+          "sentence": {
+            "type": "string",
+            "title": "Sentence"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "relationship": {
+            "$ref": "#/components/schemas/RelationshipType"
+          },
+          "source": {
+            "$ref": "#/components/schemas/CutEndOut"
+          },
+          "target": {
+            "$ref": "#/components/schemas/CutEndOut"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/Provider"
+          },
+          "cost": {
+            "type": "integer",
+            "title": "Cost"
+          },
+          "severs": {
+            "type": "integer",
+            "title": "Severs"
+          },
+          "commands": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Commands"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/CutFindingOut"
+            },
+            "type": "array",
+            "title": "Findings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sentence",
+          "description",
+          "detail",
+          "relationship",
+          "source",
+          "target",
+          "provider",
+          "cost",
+          "severs",
+          "commands",
+          "findings"
+        ],
+        "title": "CutFixOut",
+        "description": "How to make one cut: the change said once, the provider's commands where\none command removes the link exactly, and the open findings on its two ends.\n\nThe findings are those on the two assets, never claimed to be what the\nchange resolves: only the next scan says that."
+      },
       "DashboardOut": {
         "properties": {
           "security_score": {
@@ -16720,6 +16993,26 @@
           "meta"
         ],
         "title": "Envelope[CoverageOut, NoMeta]"
+      },
+      "Envelope_CutFixOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CutFixOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[CutFixOut, NoMeta]"
       },
       "Envelope_DashboardOut_NoMeta_": {
         "properties": {

@@ -744,6 +744,15 @@ export const en = {
       `${n} ${n === 1 ? "route stays" : "routes stay"} open. Try further changes together in Simulate.`,
     planTry: "Try this plan",
     planTrying: "Trying this plan",
+    // How to make a cut (DECISIONS.md §246).
+    fixToggle: "How to fix",
+    fixCopy: "Copy the commands",
+    fixNoCommand: "No single command makes this change: the findings below say what to fix.",
+    fixFindingsTitle: "Open findings on these two assets",
+    fixNoFindings: "No open findings on these two assets.",
+    fixTrack: "Track",
+    fixTracked: "Tracked",
+    fixError: "Could not load how to make this change. Try again in a moment.",
     planHelpLabel: "How the plan is chosen",
     planHelpExplain:
       "Each change is the one that closes the most of the routes left, with the earlier changes made. A tie goes to the cheaper change: a role assignment before a network path. Every count is checked by finding the routes again, but the plan is not promised to be the shortest one.",

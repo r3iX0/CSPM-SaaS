@@ -3359,6 +3359,35 @@ class TestAssetNeighborhood:
         bad = await client.get("/api/v1/attack-paths/history?days=0", headers=auth_header(user))
         assert bad.status_code == 422
 
+    async def test_a_cut_says_how_to_make_it(self, client, cleanup_orgs) -> None:
+        """The change, and the findings on the two ends (DECISIONS.md section 246)."""
+        from urllib.parse import urlencode
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Graph Ltd"))
+        cleanup_orgs.append(org_id)
+        vm_row = await self._estate(org_id)
+
+        query = urlencode(
+            {"source": self.VM, "relationship": "has_identity", "target": self.IDENTITY}
+        )
+        response = await client.get(f"/api/v1/attack-paths/fix?{query}", headers=auth_header(user))
+
+        assert response.status_code == 200, response.text
+        body = response.json()["data"]
+        assert body["sentence"].startswith("Stop jump-01 running as mi-jump-01")
+        assert body["severs"] == 1
+        assert body["commands"] == []
+        [finding] = body["findings"]
+        assert finding["asset_id"] == str(vm_row)
+        assert finding["tracked"] is False
+
+        missing = urlencode(
+            {"source": self.VM, "relationship": "network_access", "target": self.IDENTITY}
+        )
+        gone = await client.get(f"/api/v1/attack-paths/fix?{missing}", headers=auth_header(user))
+        assert gone.status_code == 404
+
 
 class TestReports:
     """The report endpoints, over the real dependency chain.

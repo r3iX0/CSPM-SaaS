@@ -1875,3 +1875,43 @@ export interface PendingAcceptance {
   expires_at: string | null;
   created_at: string;
 }
+
+/** One end of a cut, with its row id where Cleave holds one (§246). */
+export interface CutEnd {
+  id: string;
+  name: string;
+  resource_type: string;
+  asset_id: string | null;
+}
+
+/** An open finding on one end of a cut, and whether a live task tracks it. */
+export interface CutFinding {
+  id: string;
+  rule_id: string;
+  title: string;
+  severity: Severity;
+  status: FindingStatus;
+  asset_name: string;
+  asset_id: string | null;
+  tracked: boolean;
+}
+
+/**
+ * How to make one cut (`GET /attack-paths/fix`, DECISIONS.md §246): the change
+ * said once, the provider's commands where one command removes the link
+ * exactly, and the open findings on its two ends -- never claimed to be what
+ * the change resolves.
+ */
+export interface CutFix {
+  sentence: string;
+  description: string;
+  detail: string;
+  relationship: string;
+  source: CutEnd;
+  target: CutEnd;
+  provider: string;
+  cost: number;
+  severs: number;
+  commands: string[];
+  findings: CutFinding[];
+}

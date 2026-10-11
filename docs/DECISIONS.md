@@ -13089,6 +13089,39 @@ all. The table is deterministic and every change in the plan carries its `cost`.
 ties for now. A plan found as a weighted minimum cut over these costs is a later decision: that
 cut ignores the hop limit (`MAX_DEPTH`), so it would need `simulate()` to confirm it.
 
+## 246. Every cut says how to make it
+
+A cut stopped at "what if". The fix plan (§245), a hop being read in the route navigator (§142)
+and a change in the simulator (§141) all named a link and what removing it would close, and none
+said how to remove it, so the loop from cut to work to a verified fix ended on the attack-path
+page.
+
+**"How to fix", wherever a cut is shown.** A disclosure on each change in the fix plan, on each
+removable hop in the navigator and on each change in the simulator opens three things, read from
+`GET /attack-paths/fix?source=&relationship=&target=` only when it is opened:
+
+- **The change in one sentence**, built from the link's facts (§121) in neutral words (§78):
+  "Remove the Contributor role from vm-jumpbox on Production", "Close the network path from a to
+  b", "Take the Global Administrator role away from Arben K". A "runs as" link offers the role
+  beyond it as the other way, because detaching a managed identity can break the workload.
+- **The provider's commands, where one command removes the link exactly.** A command is the
+  provider's own, so it comes from the connector (`CloudConnector.cut_commands`, default none),
+  never from the neutral half or the browser (§74). Azure writes `az role assignment delete` for
+  each role the principal holds at the scope, named by object id, role and the scope the
+  assignment was made at (a management group, for an inherited one), and `az ad group member
+  remove` for a membership. A managed identity, a network path, an application's credential and a
+  directory role have more than one right way to remove them, and a command that guessed would be
+  worse than none, so they have no command and say so. AWS names no command until its connector
+  has run against a live account.
+- **The open findings on the link's two ends**, worst first, each linking to its fix sheet
+  (`/remediation?fix=`, §202) and offering Track (§205), or saying it is tracked. They are said
+  to be the findings on those two assets, never "what this change resolves": whether removing a
+  role assignment also resolves a finding is the rule's question, and only the next scan answers
+  it.
+
+So the loop runs on: a cut, then a task, then a scan that verifies it (§18), then the route
+leaves the page and the ledger records it closed (§244).
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,

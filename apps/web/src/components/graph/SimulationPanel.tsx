@@ -11,6 +11,7 @@ import { InfoTip } from "@/components/common/InfoTip";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { HowToFix } from "@/components/graph/HowToFix";
 import type { Hop } from "./RouteMapCanvas";
 import { hopKey } from "./routeKeys";
 
@@ -188,6 +189,7 @@ export function SimulationPanel({
                     neededFor={cut?.needed_for}
                     alongside={plan.length > 1}
                   />
+                  {!gone && <HowToFix link={link} className="mt-1" />}
                 </li>
               );
             })}
