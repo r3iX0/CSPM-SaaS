@@ -12,7 +12,6 @@ import {
 import type {
   AttackPathStep,
   MappedRoute,
-  Risk,
   RouteMapEdge,
   RouteMapNode,
   RoutePattern,
@@ -52,8 +51,6 @@ export function RouteNavigator({
   position,
   onRoute,
   pattern,
-  risk,
-  trackingKnown,
   isPlanned,
   onPlan,
   planVerdict,
@@ -70,8 +67,6 @@ export function RouteNavigator({
   position: { index: number; count: number } | null;
   onRoute: (delta: -1 | 1) => void;
   pattern?: RoutePattern;
-  risk?: Risk;
-  trackingKnown: boolean;
   isPlanned: (step: AttackPathStep) => boolean;
   onPlan: (step: AttackPathStep) => void;
   /** What the simulated plan does to this route, once the server has said. */
@@ -255,18 +250,16 @@ export function RouteNavigator({
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <OpenInGraph entryId={route.entry.id} traceKey={route.key} />
-          {risk ? (
+          {route.risk ? (
             <Link
-              to={`/risks/${risk.id}`}
+              to={`/risks/${route.risk.id}`}
               className="flex items-center gap-1.5 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
             >
               <RadarIcon className="size-3.5" aria-hidden />
               {t.attackPaths.trackedAsRisk}
             </Link>
           ) : (
-            trackingKnown && (
-              <span className="text-xs text-muted-foreground">{t.attackPaths.notARisk}</span>
-            )
+            <span className="text-xs text-muted-foreground">{t.attackPaths.notARisk}</span>
           )}
         </div>
       </div>

@@ -93,6 +93,7 @@ GET    /iac-guardrail/allowlist  (open)    POST   /iac-guardrail/plans  (a job's
 
 GET    /attack-paths                       GET    /attack-paths/choke-points
 GET    /attack-paths/graph?limit=1..200
+GET    /attack-paths/history?days=1..90
 GET    /attack-paths/blast-radius/{resource_id}
 GET    /attack-paths/access/{resource_id}
 GET    /attack-paths/neighborhood/{resource_id}?depth=1..3&expand=<fold id>
@@ -676,6 +677,37 @@ leads with those same rows under the small endpoint, because it wants three
 rows and has no use for a route map, and one claim with two denominators is
 worse than a second request. The attack-paths page fills that endpoint's cache
 from this payload, so the two pages pay once between them.
+
+`/attack-paths/graph` also carries `plan`: the changes that close the routes,
+in the order to make them (DECISIONS.md §245). Each entry has the link's
+`description`, `detail`, `facts`, `relationship`, ends, its `cost` relative to
+the other kinds of change, the keys of the routes it `closes` given the earlier
+changes are made, and `closed_after`, the running count. `remaining` is how
+many routes stay open once every change is made; the plan stops at ten changes,
+or when no single further change closes a route. It is picked one change at a
+time and is not promised to be the fewest.
+
+Each route on `/attack-paths/graph` also carries `risk` — the id, status,
+level and score of the risk that tracks it, or `null` where no risk does —
+joined on the server by the route's ends (DECISIONS.md §244). The page used to
+fetch up to 500 route risks and match them itself, so marks past the 500th were
+lost.
+
+`/attack-paths/history` reads the route ledger that ANALYZE writes (§244): one
+episode per stretch of time a route was open. `routes` holds every open episode
+and every episode closed within `days`, each with its `status` (`NEW` when the
+scan that last saw it is the scan that opened it, `OPEN` when a later scan saw it
+again, `CLOSED`), `reopened` when an earlier episode of the same route had
+closed, `rerouted_at` and `rerouted_from` (the way it ran before) when a scan saw
+the same ends by another way round, and `close_reason` (`LINK_REMOVED`, or
+`ASSET_GONE`, so a deleted asset never reads as a fix). `trend` counts the routes
+open at the end of each day, from the episodes' own times rather than per scan,
+because a scan may read part of one connection. `latest` names the most recent
+scan that moved the ledger, what it read and what it opened, closed and
+rerouted: there is no organization-wide "last scan" to compare against.
+`meta.recorded_since` is when the first episode opened, and `null` until a scan
+has written one; nothing before the ledger shipped is reconstructed. A route
+that crosses two connections is seen whole by no scan and has no episode.
 
 `POST /attack-paths/simulate` answers for several links removed together, which
 no sum of `severs` can: two links that are each other's way round close nothing

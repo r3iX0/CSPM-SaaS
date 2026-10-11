@@ -720,9 +720,33 @@ export const en = {
       "It may have been deleted with the scan that raised it. The risks list shows everything Cleave currently ranks.",
   },
   attackPaths: {
-    routesLabel: "Routes to sensitive data",
-    entryPointsLabel: "Exposed assets",
-    sensitiveTargetsLabel: "Sensitive assets",
+    // The fix plan that leads the page (DECISIONS.md §245). Never "the fewest":
+    // the plan is picked one change at a time.
+    planHeadline: (n: number, closed: number, total: number) =>
+      `${n} ${n === 1 ? "change closes" : "changes close"} ${
+        closed < total
+          ? `${closed} of ${total} routes`
+          : total === 1
+            ? "the only route"
+            : `all ${total} routes`
+      }`,
+    planNone: "No single change closes a route",
+    planNoneDetail: (n: number) =>
+      `Each of the ${n} routes has another way round. Try changes together in Simulate.`,
+    planContext: (total: number, entries: number, targets: number) =>
+      `${total} ${total === 1 ? "route" : "routes"} from ${entries} exposed ${
+        entries === 1 ? "asset" : "assets"
+      } to ${targets} sensitive ${targets === 1 ? "asset" : "assets"}.`,
+    planCutCloses: (n: number) => `closes ${n} ${n === 1 ? "route" : "routes"}`,
+    planClosesMore: (n: number) => `then ${n} more`,
+    planClosesLast: (n: number) => (n === 1 ? "then the last one" : `then the last ${n}`),
+    planRemaining: (n: number) =>
+      `${n} ${n === 1 ? "route stays" : "routes stay"} open. Try further changes together in Simulate.`,
+    planTry: "Try this plan",
+    planTrying: "Trying this plan",
+    planHelpLabel: "How the plan is chosen",
+    planHelpExplain:
+      "Each change is the one that closes the most of the routes left, with the earlier changes made. A tie goes to the cheaper change: a role assignment before a network path. Every count is checked by finding the routes again, but the plan is not promised to be the shortest one.",
     title: "Attack paths",
     intro:
       "Routes from something exposed to something worth taking \u2014 and the one link that cuts each.",

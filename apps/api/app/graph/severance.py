@@ -78,6 +78,29 @@ def removable(relationship: RelationshipType) -> bool:
     return relationship.is_capability and relationship is not RelationshipType.CONTAINS
 
 
+#: What a change of each kind costs the customer, roughly, to make: lower is
+#: cheaper (DECISIONS.md section 245). Deterministic and shown to the customer,
+#: so a plan that prefers one change over another can say why. Removing a role
+#: assignment or a group membership touches one grant; taking a directory role
+#: or an application's owner away is a decision about a person or a team;
+#: detaching a managed identity or closing a network path can break the
+#: workload's traffic. Containment is absent: it cannot be removed at all.
+CUT_COST: dict[RelationshipType, int] = {
+    RelationshipType.GRANTS_ROLE: 1,
+    RelationshipType.CAN_GRANT_ROLES: 1,
+    RelationshipType.MEMBER_OF: 1,
+    RelationshipType.CAN_ACT_AS: 2,
+    RelationshipType.CAN_TAKE_OVER: 2,
+    RelationshipType.HAS_IDENTITY: 3,
+    RelationshipType.NETWORK_ACCESS: 3,
+}
+
+
+def cut_cost(relationship: RelationshipType) -> int:
+    """The cost of removing a link of this kind; a kind not listed costs most."""
+    return CUT_COST.get(relationship, max(CUT_COST.values()))
+
+
 def necessary_links[S: Hashable](
     successors: Successors[S], entry: S, max_depth: int
 ) -> dict[S, frozenset[EdgeKey]]:

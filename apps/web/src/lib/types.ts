@@ -930,6 +930,35 @@ export interface RouteMap {
   /** Routes belonging to no pattern. With the patterns, these are every route. */
   loose: string[];
   choke_points: ChokePoint[];
+  /** What to do first: the changes that close the routes, in order (§245). */
+  plan: FixPlan;
+}
+
+/** One change in the fix plan, and what it closes after the ones before it. */
+export interface FixPlanCut {
+  description: string;
+  detail: string;
+  facts: string[];
+  relationship: string;
+  source: { id: string; name: string; resource_type: string };
+  target: { id: string; name: string; resource_type: string };
+  /** What making it costs, relative to the others: lower is cheaper. */
+  cost: number;
+  /** Keys of the routes it closes, given the earlier changes are made. */
+  closes: string[];
+  /** Routes closed once it is made, counting the earlier changes. */
+  closed_after: number;
+}
+
+/**
+ * Changes that close the routes, picked one at a time and checked by finding
+ * the routes again after each, so every count is exact. Never "the fewest".
+ */
+export interface FixPlan {
+  cuts: FixPlanCut[];
+  total_routes: number;
+  /** Routes still open once every change is made. */
+  remaining: number;
 }
 
 export interface RouteMapNode {
@@ -978,9 +1007,22 @@ export interface RouteMapEdge {
 }
 
 /** A route, with the name it is known by elsewhere and the pattern it belongs to. */
+/**
+ * The risk that tracks a route, joined on the server by the route's ends
+ * (DECISIONS.md §244). Most routes have none: a risk is raised only where
+ * something on the route fails a check.
+ */
+export interface RouteRisk {
+  id: string;
+  status: string;
+  risk_level: Level;
+  risk_score: number;
+}
+
 export interface MappedRoute extends AttackPath {
   key: string;
   pattern: string | null;
+  risk: RouteRisk | null;
 }
 
 /**

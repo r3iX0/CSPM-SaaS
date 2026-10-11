@@ -336,6 +336,32 @@ class RiskKind(StrEnum):
     ESCALATION = "ESCALATION"
 
 
+class RouteEventKind(StrEnum):
+    """What happened to a route between two readings (DECISIONS.md §244).
+
+    The route ledger records each route's episodes; these are the moments in
+    one. A route seen again unchanged writes nothing, so the history is a record
+    of movement rather than a log of having looked.
+    """
+
+    # A scan saw it, and no open episode of it existed.
+    OPENED = "OPENED"
+    # A scan saw it again by another way round: the same ends, different links.
+    # The change somebody made moved the attacker rather than stopped them.
+    REROUTED = "REROUTED"
+    # A scan that could have seen it did not.
+    CLOSED = "CLOSED"
+
+
+class RouteCloseReason(StrEnum):
+    """Why a route closed. A deleted asset must never read as a fix."""
+
+    # Every asset on it is still there, and nothing connects its ends.
+    LINK_REMOVED = "LINK_REMOVED"
+    # An asset on it is no longer in the environment.
+    ASSET_GONE = "ASSET_GONE"
+
+
 class NotificationKind(StrEnum):
     """What a notification is *about*, and the whole of the vocabulary.
 

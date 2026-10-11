@@ -36,6 +36,7 @@ from app.models.finding import FindingEvidence
 from app.models.history import AssetChangeEvent, FindingEventRecord
 from app.models.resource import ResourceRelationship
 from app.models.risk import RiskFinding
+from app.models.route_ledger import RouteEvent
 from app.models.scan import Evidence, ScanEvaluationGap, ScanRuleResult
 from app.services.scan.errors import StepLeaseLost
 from app.services.scan.lease import StepFence
@@ -58,6 +59,7 @@ APPEND_ONLY: dict[type[Base], bool] = {
     FindingEvidence: False,
     ResourceRelationship: True,
     RiskFinding: True,
+    RouteEvent: False,
     ScanEvaluationGap: False,
     ScanRuleResult: False,
 }

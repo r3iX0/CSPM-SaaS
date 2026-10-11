@@ -4991,3 +4991,83 @@ class TestComplianceProvenance:
         for row in rows:
             assert row["status"] == by_id[row["control_id"]]["status"]
         assert {row["assessed_at"] for row in rows} == {detail["assessment"]["completed_at"]}
+
+
+class TestRouteLedger:
+    """Every route a scan's graph holds is an episode in the ledger (§244)."""
+
+    async def test_a_first_scan_opens_an_episode_per_route(self, replay, connected_account) -> None:
+        org_id, account_id = connected_account
+        scan_id = await run_scan(org_id, account_id)
+
+        episodes = await self._episodes(org_id)
+        assert episodes, "the recording has routes"
+        assert all(row.opened_scan_id == scan_id for row in episodes)
+        assert all(row.last_seen_scan_id == scan_id for row in episodes)
+        assert all(row.closed_at is None for row in episodes)
+        events = await fetch(
+            "SELECT kind FROM route_events WHERE organization_id = :o", {"o": org_id}
+        )
+        assert {row[0] for row in events} == {"OPENED"}
+        assert len(events) == len(episodes)
+
+    async def test_a_scan_seeing_the_same_routes_writes_no_event(
+        self, replay, connected_account
+    ) -> None:
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+        before = await fetch(
+            "SELECT count(*) FROM route_events WHERE organization_id = :o", {"o": org_id}
+        )
+        second = await run_scan(org_id, account_id)
+
+        after = await fetch(
+            "SELECT count(*) FROM route_events WHERE organization_id = :o", {"o": org_id}
+        )
+        assert after == before
+        assert all(row.last_seen_scan_id == second for row in await self._episodes(org_id))
+
+    async def test_a_severed_route_closes_as_a_removed_link(
+        self, replay, connected_account
+    ) -> None:
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+
+        severed = load_raw()
+        for vm in severed["data"]["virtual_machines"]:
+            vm.pop("identity", None)
+        replay["payload"] = severed
+        await run_scan(org_id, account_id)
+
+        closed = [row for row in await self._episodes(org_id) if row.closed_at is not None]
+        assert closed, "the machine's routes closed"
+        assert all(row.close_reason == "LINK_REMOVED" for row in closed)
+        assert all(row.entry_name == "vm-jumpbox" for row in closed)
+
+    async def test_a_closed_route_that_returns_opens_a_second_episode(
+        self, replay, connected_account
+    ) -> None:
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+        severed = load_raw()
+        for vm in severed["data"]["virtual_machines"]:
+            vm.pop("identity", None)
+        replay["payload"] = severed
+        await run_scan(org_id, account_id)
+        replay["payload"] = load_raw()
+        await run_scan(org_id, account_id)
+
+        by_key: dict[str, list] = {}
+        for row in await self._episodes(org_id):
+            by_key.setdefault(row.route_key, []).append(row)
+        returned = [rows for rows in by_key.values() if len(rows) == 2]
+        assert returned, "a route that came back has two episodes"
+        for rows in returned:
+            assert sum(1 for row in rows if row.closed_at is None) == 1
+
+    async def _episodes(self, org_id: uuid.UUID) -> list:
+        return await fetch(
+            "SELECT route_key, entry_name, opened_scan_id, last_seen_scan_id, closed_at, "
+            "close_reason FROM route_episodes WHERE organization_id = :o",
+            {"o": org_id},
+        )

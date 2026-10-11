@@ -29,11 +29,12 @@ import { MemoryRouter, useLocation } from "react-router-dom";
 
 import { AttackPathsPage } from "../AttackPaths";
 import { api } from "@/lib/api";
-import type { MappedRoute, Risk, RouteMap, RouteMapMeta, Simulation } from "@/lib/types";
+import type { MappedRoute, RouteMap, RouteMapMeta, RouteRisk, Simulation } from "@/lib/types";
 
 const ROUTE: MappedRoute = {
   key: "vm|storage",
   pattern: null,
+  risk: null,
   entry: {
     id: "vm",
     name: "jump-01",
@@ -117,7 +118,15 @@ const node = (id: string, name: string, column: number) => ({
 });
 
 function emptyMap(): RouteMap {
-  return { nodes: [], edges: [], routes: [], patterns: [], loose: [], choke_points: [] };
+  return {
+    nodes: [],
+    edges: [],
+    routes: [],
+    patterns: [],
+    loose: [],
+    choke_points: [],
+    plan: { cuts: [], total_routes: 0, remaining: 0 },
+  };
 }
 
 /** One route, and the link that severs it, as the graph endpoint sends them. */
@@ -199,18 +208,21 @@ function simulateWith(result: Simulation) {
     .mockImplementation(() => Promise.resolve({ data: result, meta: {} }));
 }
 
+/** The risk the server joins to a route by its ends (DECISIONS.md §244). */
+const TRACKED: RouteRisk = { id: "r-route", status: "OPEN", risk_level: "HIGH", risk_score: 70 };
+
 function mount(
   map: RouteMap,
   meta: Partial<RouteMapMeta> & { total: number },
-  risks: Partial<Risk>[] = [],
+  tracked: Record<string, RouteRisk> = {},
   at = "/attack-paths",
 ) {
-  vi.spyOn(api, "get").mockImplementation((url: string) =>
-    Promise.resolve(
-      url.includes("/risks")
-        ? { data: risks, meta: {} }
-        : { data: map, meta: { drawn: map.routes.length, ...meta } },
-    ),
+  const joined = {
+    ...map,
+    routes: map.routes.map((route) => ({ ...route, risk: tracked[route.key] ?? null })),
+  };
+  vi.spyOn(api, "get").mockImplementation(() =>
+    Promise.resolve({ data: joined, meta: { drawn: map.routes.length, ...meta } }),
   );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -236,18 +248,66 @@ describe("AttackPathsPage", () => {
     vi.restoreAllMocks();
   });
 
-  it("links a route to the risk that tracks it", async () => {
-    // Matched by its ends, which name a route on both pages (DECISIONS.md §103).
-    mount(oneRoute(), { total: 1, entry_points: 1, sensitive_targets: 1 }, [
+  it("leads with the changes that close the routes, and tries them as a plan", async () => {
+    const post = simulateWith(closingAll());
+    mount(
       {
-        id: "r-route",
-        kind: "ATTACK_PATH",
-        path: [
-          { ...ROUTE.steps[0], source_id: ROUTE.entry.id },
-          { ...ROUTE.steps[3], target_id: ROUTE.target.id },
-        ],
+        ...oneRoute(),
+        plan: {
+          cuts: [
+            {
+              ...CHOKE,
+              source: { id: "vm", name: "jump-01", resource_type: "virtual_machine" },
+              target: { id: "mi", name: "mi-jump-01", resource_type: "service_principal" },
+              relationship: "has_identity",
+              detail: "jump-01 runs as mi-jump-01 (managed identity)",
+              cost: 3,
+              closes: ["vm|storage"],
+              closed_after: 1,
+            },
+          ],
+          total_routes: 1,
+          remaining: 0,
+        },
       },
-    ]);
+      { total: 1, entry_points: 1, sensitive_targets: 1 },
+    );
+
+    const card = await screen.findByRole("region", { name: "1 change closes the only route" });
+    expect(within(card).getByText("jump-01 runs as mi-jump-01 (managed identity)")).toBeVisible();
+    expect(within(card).getByText("closes 1 route")).toBeVisible();
+    expect(
+      within(card).getByText("1 route from 1 exposed asset to 1 sensitive asset."),
+    ).toBeVisible();
+
+    await userEvent.click(within(card).getByRole("button", { name: "Try this plan" }));
+
+    expect(screen.getByTestId("where").textContent).toContain("cut=vm%7Chas_identity%7Cmi");
+    await waitFor(() => expect(post).toHaveBeenCalled());
+    expect(within(card).getByRole("button", { name: "Trying this plan" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("says when no single change closes a route", async () => {
+    mount(
+      { ...oneRoute(), plan: { cuts: [], total_routes: 1, remaining: 1 } },
+      { total: 1, entry_points: 1, sensitive_targets: 1 },
+    );
+
+    const card = await screen.findByRole("region", { name: "No single change closes a route" });
+    expect(within(card).getByText(/Each of the 1 routes has another way round/)).toBeVisible();
+    expect(within(card).queryByRole("button", { name: "Try this plan" })).toBeNull();
+  });
+
+  it("links a route to the risk that tracks it", async () => {
+    // Joined by its ends on the server, which name a route on both pages (§103, §244).
+    mount(
+      oneRoute(),
+      { total: 1, entry_points: 1, sensitive_targets: 1 },
+      { [ROUTE.key]: TRACKED },
+    );
 
     await userEvent.click(await within(await routesPanel()).findByText(/jump-01/));
 
@@ -536,16 +596,7 @@ describe("AttackPathsPage", () => {
         ],
       },
       { total: 3, entry_points: 3, sensitive_targets: 1 },
-      [
-        {
-          id: "r-route",
-          kind: "ATTACK_PATH",
-          path: [
-            { ...ROUTE.steps[0], source_id: ROUTE.entry.id },
-            { ...ROUTE.steps[3], target_id: ROUTE.target.id },
-          ],
-        },
-      ],
+      { [ROUTE.key]: TRACKED },
     );
     const rail = await screen.findByRole("complementary", { name: "The routes" });
     const row = (await within(rail).findByText(/3 virtual machines reach/)).closest("button")!;
@@ -577,7 +628,7 @@ describe("AttackPathsPage", () => {
     mount(
       oneRoute(),
       { total: 1, entry_points: 1, sensitive_targets: 1 },
-      [],
+      {},
       "/attack-paths?trace=vm%7Cstorage",
     );
 
@@ -641,7 +692,7 @@ describe("AttackPathsPage", () => {
     mount(
       map,
       { total: 1, entry_points: 1, sensitive_targets: 1 },
-      [],
+      {},
       "/attack-paths?trace=vm%7Cstorage&hop=1",
     );
 
@@ -666,7 +717,7 @@ describe("AttackPathsPage", () => {
     mount(
       { ...oneRoute(), routes: [ROUTE, second], loose: [ROUTE.key, second.key] },
       { total: 2, entry_points: 2, sensitive_targets: 1 },
-      [],
+      {},
       "/attack-paths?trace=vm%7Cstorage&hop=2",
     );
 
@@ -696,7 +747,7 @@ describe("AttackPathsPage", () => {
     mount(
       oneRoute(),
       { total: 1, entry_points: 1, sensitive_targets: 1 },
-      [],
+      {},
       "/attack-paths?trace=vm%7Cstorage",
     );
 
@@ -743,16 +794,7 @@ describe("AttackPathsPage", () => {
     mount(
       { ...oneRoute(), routes: [ROUTE, critical], loose: [ROUTE.key, critical.key] },
       { total: 2, entry_points: 2, sensitive_targets: 2 },
-      [
-        {
-          id: "r-route",
-          kind: "ATTACK_PATH",
-          path: [
-            { ...ROUTE.steps[0], source_id: ROUTE.entry.id },
-            { ...ROUTE.steps[3], target_id: ROUTE.target.id },
-          ],
-        },
-      ],
+      { [ROUTE.key]: TRACKED },
       "/attack-paths?sort=sensitive",
     );
     const panel = await screen.findByRole("complementary", { name: "The routes" });
@@ -778,7 +820,7 @@ describe("AttackPathsPage", () => {
     mount(
       oneRoute(),
       { total: 1, entry_points: 1, sensitive_targets: 1 },
-      [],
+      {},
       "/attack-paths?trace=vm%7Cstorage",
     );
 
@@ -793,7 +835,7 @@ describe("AttackPathsPage", () => {
     mount(
       oneRoute(),
       { total: 1, entry_points: 1, sensitive_targets: 1 },
-      [],
+      {},
       "/attack-paths?trace=gone%7Cstorage",
     );
 
@@ -807,7 +849,7 @@ describe("AttackPathsPage", () => {
     mount(
       oneRoute(),
       { total: 1, entry_points: 1, sensitive_targets: 1 },
-      [],
+      {},
       "/attack-paths?trace=vm%7Cstorage",
     );
     const panel = await screen.findByRole("complementary", {
@@ -829,7 +871,7 @@ describe("AttackPathsPage", () => {
     mount(
       oneRoute(),
       { total: 1, entry_points: 1, sensitive_targets: 1 },
-      [],
+      {},
       "/attack-paths?scope=sub-1",
     );
     const panel = await screen.findByRole("complementary", {
@@ -846,7 +888,7 @@ describe("AttackPathsPage", () => {
     mount(
       oneRoute(),
       { total: 1, entry_points: 1, sensitive_targets: 1 },
-      [],
+      {},
       "/attack-paths?scope=sub-1&group=elsewhere",
     );
     const panel = await screen.findByRole("complementary", {
@@ -919,7 +961,7 @@ describe("AttackPathsPage", () => {
     mount(
       oneRoute(),
       { total: 1, entry_points: 1, sensitive_targets: 1 },
-      [],
+      {},
       "/attack-paths?cut=vm%7Chas_identity%7Cmi&cut=mi%7Cgrants_role%7Csub",
     );
 
@@ -947,7 +989,7 @@ describe("AttackPathsPage", () => {
     mount(
       oneRoute(),
       { total: 1, entry_points: 1, sensitive_targets: 1 },
-      [],
+      {},
       "/attack-paths?cut=gone%7Cnetwork_access%7Cvm",
     );
 

@@ -13001,6 +13001,94 @@ What stays: a plan with work still to do (`REMEDIATION_PLAN.md`, `ATTACK_PATH_PL
 `TICKETING.md`, `FIX_AS_CODE.md`, `ROADMAP.md`, `MULTI_CLOUD.md`), and the dated reviews, which
 are snapshots by rule (`MARKDOWN_GUIDELINES.md` §2), not plans.
 
+## 244. A route ledger records which routes existed at each reading
+
+The attack-path page rebuilt every route live from the stored graph, which answers what is open
+now and nothing else. It could not say which routes were new, which had closed, or whether there
+were fewer than last week, because nothing kept them: a route was a pure function of the graph,
+and the graph is only ever the latest one. Tracked marks had the same root. The scan wrote risks
+for the routes with something misconfigured on them, and the browser fetched up to 500 of those
+risks and matched them to routes by their ends, so a tenant with more lost marks past the 500th.
+
+**ANALYZE writes a ledger of episodes.** `services/scan/ledger.py` runs inside correlation, from
+the graph the scan already builds, and commits through the scan's fenced writer (§65, §108). It
+records every route the graph holds, misconfigured or not, in `route_episodes`: one row per
+stretch of time a route was open, keyed by its ends as the page keys it (`route_key`, §103). A
+route with no open episode opens one; a route seen again carries its episode forward; an open
+episode the scan did not see closes. A route that closes and comes back opens a second row, so a
+reopening is visible rather than overwritten. `route_events` records the moments: OPENED,
+REROUTED and CLOSED, appended in bulk. A retried ANALYZE writes no event twice: what the first
+attempt opened is carried, what it closed is no longer open, and a shape is never compared with
+one the same scan wrote.
+
+**A scan closes only what it could have seen.** The rule is correlation's (§100): a scan of one
+subscription sees only its own routes and the directory's, so an episode with any asset in a
+scope the scan did not read stays open. An asset with no row left, or one marked absent, counts
+as inside, because it is gone and so is every route through it, and the CLOSED event says
+`ASSET_GONE` rather than `LINK_REMOVED`, so a deleted asset never reads as a fix. A deleted
+connection takes its routes' history with it (`connection_id` cascades) rather than leaving them
+open forever or closing them as if fixed. A route that crosses two connections is seen whole by no
+scan, so it has no episode, and the page shows no mark on it rather than a wrong one.
+
+**A reroute is said.** A route closes only when nothing connects its ends (§103), which is right
+for counting and silent when a change forces the route another way round. Each episode keeps its
+shape, the links it crosses keyed as `removal_key` keys them (§127), so an escalation line and the
+role line it comes from are one link. A route seen again with another shape records a REROUTED
+event with the way it used to run, and the episode is marked rerouted.
+
+**Read, not rebuilt.** `GET /attack-paths/history` answers from the ledger: every open episode
+and every one closed within `days`, each NEW (the scan that last saw it opened it), OPEN or
+CLOSED, whether it reopened, and how it was rerouted or closed; the routes open at the end of each
+day, counted from the episodes' times, because a scan may read part of one connection; and the
+latest scan that moved the ledger, by name, with what it moved. There is no organization-wide
+"last scan": connections scan on their own schedules, so "new" and "closed" are said per route
+and per scan. The live rebuild stays for what only it can answer: what is open now, and every
+what-if.
+
+**Tracked marks are joined on the server.** `GET /attack-paths/graph` carries each route's `risk`
+(id, status, level, score), joined by the route's ends in `graph_service.tracked_routes`. It does
+not wait for the ledger, which is empty until the first scan after release; a tracked mark that
+vanished until then would be a regression.
+
+**History starts at release.** Past scans did not keep their routes, and a reconstructed history
+would be a guess shown as fact, so nothing is backfilled and `meta.recorded_since` says when the
+record begins. Both tables are tenant tables under RLS: members read them, and only the worker
+writes them, under one organization's claim (migration 0063).
+
+## 245. The attack-path page leads with a fix plan
+
+The page opened on three counts, a canvas of every route and a list sorted by hops. The best cut
+existed, in the Simulate tab's choke points, but a reader had to go looking for it, and the
+people who open this page (a security engineer, the engineer handed the change, a manager) all
+ask "what do I do first" before they ask to read a graph. Defender for Cloud, Orca, XM Cyber and
+Wiz all lead with what to fix. Cleave computes a better answer than most, exact severance for
+every link (§122) and whole-plan simulation (§141), and did not put it first.
+
+**A card above the frame says what to change.** "5 changes close all 17 routes", then each change
+on one line with what it closes once the ones before it are made ("closes 5 routes", "then 5
+more", "then the last one"). It replaces the three-count strip, whose counts move into the card's
+sentence. "Try this plan" loads the changes into the simulator in plan order (`cut` in the URL),
+so the existing simulation is the proof.
+
+**Picked greedily, counted exactly.** `AssetGraph.fix_plan` takes the link that closes the most
+routes, then the link that closes the most of what is left with the plan so far made, read from
+the severance of the estate _without_ the earlier links, so a link whose way round an earlier
+change removed is found in its turn. After each change the routes are enumerated again, so every
+count on the card is exact. The plan is not guaranteed to be the fewest changes, and the card
+never says "the fewest". It stops at the simulator's limit (`MAX_SIMULATED_CUTS`, 10), or when
+no single further change closes anything: what is left then needs two changes made together, and
+the card says how many routes that leaves and sends the reader to the simulator, rather than
+guessing a pair. The plan is memoized on the graph, which is cached against the data's version,
+and sent in `GET /attack-paths/graph` as `plan`.
+
+**A tie goes to the cheaper change.** `CUT_COST` in `graph/severance.py` orders kinds of change
+by what they cost the customer to make: removing a role assignment or a group membership (1);
+taking away a directory role or an application's owner (2); detaching a managed identity or
+closing a network path, which can break a workload's traffic (3). Containment is not removable at
+all. The table is deterministic and every change in the plan carries its `cost`. It only breaks
+ties for now. A plan found as a weighted minimum cut over these costs is a later decision: that
+cut ignores the hop limit (`MAX_DEPTH`), so it would need `simulate()` to confirm it.
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,

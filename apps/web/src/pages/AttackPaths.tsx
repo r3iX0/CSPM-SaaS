@@ -9,7 +9,6 @@ import type {
   AttackPathStep,
   DeadEnd,
   MappedRoute,
-  Risk,
   RouteMap,
   RouteMapEdge,
   RouteMapMeta,
@@ -17,16 +16,14 @@ import type {
   Simulation,
 } from "@/lib/types";
 import { useT } from "@/i18n";
-import { StatStrip } from "@/components/common/StatStrip";
 import { LiveStatus } from "@/components/common/LiveStatus";
 import { InfoTip } from "@/components/common/InfoTip";
 import { SelectField } from "@/components/common/SelectField";
 import { ResourceTypeLabel } from "@/components/security/IconLabel";
 import { GraphLegend, MARKS } from "@/components/graph/GraphLegend";
-import { FACTOR_ICONS } from "@/lib/icons";
 import { PatternRow, RouteRow, type RouteMarks } from "@/components/graph/RouteRows";
 import { RouteNavigator } from "@/components/graph/RouteNavigator";
-import { hopKey, routeKeyOf } from "@/components/graph/routeKeys";
+import { hopKey } from "@/components/graph/routeKeys";
 import {
   listRoutes,
   placeName,
@@ -41,6 +38,7 @@ import { usePrefersReducedMotion } from "@/lib/motion";
 import { arrivedByMorph } from "@/lib/viewTransition";
 import type { Hop, SimulatedPlan } from "@/components/graph/RouteMapCanvas";
 import { SimulationPanel } from "@/components/graph/SimulationPanel";
+import { FixPlanCard } from "@/components/graph/FixPlanCard";
 import { CardsSkeleton, EmptyState, ErrorState, PageHeader } from "@/components/common/states";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -86,25 +84,6 @@ const RouteMapCanvas = lazy(() => import("@/components/graph/RouteMapCanvas"));
 export function AttackPathsPage() {
   const t = useT();
   const { data, isLoading, error, refetch } = useQuery(routeMapQuery);
-
-  // Which of these routes the risks queue is tracking. This page rebuilds
-  // routes live from the graph; the queue holds the ones with something
-  // misconfigured on them, with a status somebody can set. Matched by their
-  // ends, which is what names a route on both sides (DECISIONS.md §103).
-  const tracked = useQuery({
-    queryKey: ["risks", "tracked-routes"],
-    enabled: Boolean(data && data.map.routes.length > 0),
-    queryFn: () =>
-      api.get<Risk[]>("/api/v1/risks?kind=ATTACK_PATH&limit=500").then((r) => {
-        const byRoute = new Map<string, Risk>();
-        for (const risk of r.data) {
-          const first = risk.path[0];
-          const last = risk.path[risk.path.length - 1];
-          if (first && last) byRoute.set(routeKeyOf(first.source_id, last.target_id), risk);
-        }
-        return byRoute;
-      }),
-  });
 
   // The risks queue leads with the same links, under its own key and its own
   // small endpoint — it wants three rows and has no use for a route map. The
@@ -199,7 +178,11 @@ export function AttackPathsPage() {
       ),
     [map],
   );
-  const trackedKeys = useMemo(() => new Set(tracked.data?.keys() ?? []), [tracked.data]);
+  // Which routes a risk tracks, joined on the server by their ends (§244).
+  const trackedKeys = useMemo(
+    () => new Set(routes.filter((route) => route.risk).map((route) => route.key)),
+    [routes],
+  );
   const listing = useMemo(
     () =>
       map ? listRoutes(map, nodes, { picked, place, query, sort, tracked: trackedKeys }) : null,
@@ -331,6 +314,26 @@ export function AttackPathsPage() {
     [trackedKeys, settled, closeDelay],
   );
 
+  // The fix plan's changes as links the simulator takes, in plan order (§245).
+  const planned = useMemo(
+    () =>
+      (map?.plan.cuts ?? []).map((cut) => ({
+        source: cut.source.id,
+        relationship: cut.relationship,
+        target: cut.target.id,
+      })),
+    [map],
+  );
+  const tryingPlan =
+    planned.length > 0 &&
+    planned.length === plan.length &&
+    planned.every((link, index) => cutKey(link) === cutKey(plan[index] ?? link));
+  function tryPlan() {
+    setPlan(planned);
+    setTab("simulate");
+    frame.current?.scrollIntoView?.({ block: "start", behavior: reduced ? "auto" : "smooth" });
+  }
+
   const at = tracedRoute && listing ? listing.order.indexOf(tracedRoute.key) : -1;
   function stepRoute(delta: -1 | 1) {
     const next = listing?.order[at + delta];
@@ -356,24 +359,12 @@ export function AttackPathsPage() {
 
       {data && map && listing && routes.length > 0 && (
         <>
-          <StatStrip
-            stats={[
-              {
-                label: t.attackPaths.routesLabel,
-                value: data.meta.total,
-                alert: data.meta.total > 0,
-              },
-              {
-                label: t.attackPaths.entryPointsLabel,
-                value: data.meta.entry_points,
-                icon: FACTOR_ICONS.exposure,
-              },
-              {
-                label: t.attackPaths.sensitiveTargetsLabel,
-                value: data.meta.sensitive_targets,
-                icon: FACTOR_ICONS.dataSensitivity,
-              },
-            ]}
+          <FixPlanCard
+            plan={map.plan}
+            entryPoints={data.meta.entry_points}
+            sensitiveTargets={data.meta.sensitive_targets}
+            trying={tryingPlan}
+            onTry={tryPlan}
           />
 
           {traced && !tracedRoute && (
@@ -412,8 +403,6 @@ export function AttackPathsPage() {
                         ? map.patterns.find((each) => each.id === tracedRoute.pattern)
                         : undefined
                     }
-                    risk={tracked.data?.get(tracedRoute.key)}
-                    trackingKnown={tracked.isSuccess}
                     isPlanned={isPlanned}
                     onPlan={(step) => togglePlanned(asHop(step), false)}
                     planVerdict={

@@ -34,6 +34,8 @@ from app.schemas.attack_path import (
     NeighborhoodOut,
     ReachCountsMeta,
     RouteEndOut,
+    RouteHistoryMeta,
+    RouteHistoryOut,
     RouteMapMeta,
     RouteMapOut,
     RouteTargetEndOut,
@@ -47,6 +49,7 @@ from app.schemas.common import ERROR_RESPONSES, Envelope, NoMeta, TotalMeta
 from app.services import graph as graph_service
 from app.services.graph import serialize_path
 from app.services.placement import load_placements
+from app.services.route_ledger import route_history
 
 router = APIRouter(prefix="/attack-paths", tags=["attack-paths"], responses=ERROR_RESPONSES)
 
@@ -161,12 +164,21 @@ async def route_graph(
     # Where each node sits, so a hop names its subscription and group and the
     # page can narrow to one (section 138).
     placements = await load_placements(session, tenant.organization_id)
+    # Which routes a risk tracks, joined here rather than in the browser
+    # (DECISIONS.md section 244).
+    risks = await graph_service.tracked_routes(session, tenant.organization_id, drawn)
 
     # Off the loop: drawing the map reads what every link holds up, which is
     # the one analysis on this page that is not memoized until it is first asked.
     route_map = await graph_service.off_loop(
         lambda: graph_service.serialize_route_map(
-            graph, drawn, ids, findings, total_routes=len(paths), placements=placements
+            graph,
+            drawn,
+            ids,
+            findings,
+            total_routes=len(paths),
+            placements=placements,
+            risks=risks,
         )
     )
     return Envelope(
@@ -180,6 +192,24 @@ async def route_graph(
             drawn=len(drawn),
         ),
     )
+
+
+@router.get("/history")
+async def route_history_view(
+    session: DbSession,
+    tenant: Tenant,
+    days: int = Query(default=30, ge=1, le=90),
+) -> Envelope[RouteHistoryOut, RouteHistoryMeta]:
+    """Which routes are new, which closed and why, and how many were open each day.
+
+    Read from the route ledger that ANALYZE writes (DECISIONS.md section 244),
+    never rebuilt: past graphs are not kept, so only the ledger knows what a
+    route was before the latest reading. Empty until the first scan after the
+    ledger shipped, and said so through ``recorded_since``, rather than
+    reconstructed.
+    """
+    history, meta = await route_history(session, tenant.organization_id, days=days)
+    return Envelope(data=history, meta=meta)
 
 
 @router.get("/choke-points")

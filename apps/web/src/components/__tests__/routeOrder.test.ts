@@ -19,6 +19,7 @@ function route(
   return {
     key,
     pattern: null,
+    risk: null,
     entry: { id: entry, name: entry, resource_type: "virtual_machine", public_exposure: "HIGH" },
     target: {
       id: target,
@@ -102,6 +103,7 @@ const MAP: RouteMap = {
   ],
   loose: [C.key],
   choke_points: [],
+  plan: { cuts: [], total_routes: 0, remaining: 0 },
 };
 const NODES = new Map(MAP.nodes.map((each) => [each.id, each]));
 const ALL = { picked: null, place: null, query: "", sort: "hops" as const };

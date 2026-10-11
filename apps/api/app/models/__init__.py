@@ -16,6 +16,7 @@ from app.models.ownership import OwnershipRule
 from app.models.remediation import AuditLog, RemediationTask, RiskException
 from app.models.resource import ResourceRecord, ResourceRelationship
 from app.models.risk import Risk, RiskFinding
+from app.models.route_ledger import RouteEpisode, RouteEvent
 from app.models.rule import Rule
 from app.models.scan import (
     CloudSnapshot,
@@ -62,6 +63,8 @@ __all__ = [
     "RiskException",
     "RiskFinding",
     "RiskHistory",
+    "RouteEpisode",
+    "RouteEvent",
     "Rule",
     "Scan",
     "ScanEvaluationGap",

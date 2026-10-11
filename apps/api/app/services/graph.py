@@ -30,16 +30,27 @@ import anyio
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.enums import FindingStatus, RelationshipType, Severity
+from app.core.enums import FindingStatus, RelationshipType, RiskKind, Severity
 from app.domain.resource import CloudResource
-from app.graph import AssetGraph, ChokePoint, DeadEnd, Neighborhood, Path, Simulation
+from app.graph import (
+    AssetGraph,
+    ChokePoint,
+    DeadEnd,
+    FixPlan,
+    Neighborhood,
+    Path,
+    Simulation,
+)
 from app.graph.access import AccessGrant, AccessHolder
 from app.graph.estate import DIRECTORY_SCOPE, EstateMap
 from app.graph.model import ENTRY_EXPOSURE, RELATIONSHIP_VERBS, SENSITIVE_DATA
 from app.graph.patterns import PatternKind, route_patterns
+from app.graph.severance import cut_cost
 from app.models.finding import Finding
 from app.models.resource import ResourceRecord, ResourceRelationship
+from app.models.risk import Risk
 from app.schemas.attack_path import (
+    MAX_SIMULATED_CUTS,
     AccessByTypeOut,
     AccessGrantOut,
     AccessHolderOut,
@@ -56,6 +67,8 @@ from app.schemas.attack_path import (
     EstateLinkOut,
     EstateOut,
     FindingTallyOut,
+    FixPlanCutOut,
+    FixPlanOut,
     FoldBoxOut,
     FoldedGroupOut,
     GraphEdgeOut,
@@ -75,6 +88,7 @@ from app.schemas.attack_path import (
     RouteMapNodeOut,
     RouteMapOut,
     RoutePatternOut,
+    RouteRiskOut,
     ScopeBoxOut,
     SimulatedCutOut,
     SimulatedRouteOut,
@@ -315,6 +329,28 @@ def serialize_choke_point(choke: ChokePoint, total_routes: int) -> ChokePointOut
             for path in choke.severed
         ],
     )
+
+
+def serialize_fix_plan(plan: FixPlan) -> FixPlanOut:
+    """The fix plan, each change with what it closes and the running count."""
+    cuts = []
+    closed = 0
+    for cut in plan.cuts:
+        closed += len(cut.closes)
+        cuts.append(
+            FixPlanCutOut(
+                description=cut.step.describe(),
+                detail=cut.step.detail(),
+                facts=list(cut.step.facts),
+                relationship=cut.step.relationship,
+                source=_link_end(cut.step.source),
+                target=_link_end(cut.step.target),
+                cost=cut_cost(cut.step.relationship),
+                closes=[route_key(path) for path in cut.closes],
+                closed_after=closed,
+            )
+        )
+    return FixPlanOut(cuts=cuts, total_routes=plan.before, remaining=plan.remaining)
 
 
 def _link_end(resource: CloudResource) -> LinkEndOut:
@@ -623,6 +659,38 @@ async def open_findings(
     return found
 
 
+async def tracked_routes(
+    session: AsyncSession, organization_id: UUID, paths: Sequence[Path]
+) -> dict[str, RouteRiskOut]:
+    """The risk tracking each of these routes, by route key (DECISIONS.md section 244).
+
+    Joined here by the route's ends, which is what names a route on both sides
+    (section 103): a risk's ``scenario_key`` is ``entry->target`` and the page's
+    key is ``entry|target``. The browser used to fetch up to 500 route risks and
+    match them itself, so a tenant with more lost marks past the 500th.
+    """
+    by_scenario = {
+        f"{path.entry.provider_resource_id}->{path.target.provider_resource_id}": route_key(path)
+        for path in paths
+    }
+    if not by_scenario:
+        return {}
+    rows = await session.execute(
+        select(Risk.id, Risk.scenario_key, Risk.status, Risk.risk_level, Risk.risk_score).where(
+            Risk.organization_id == organization_id,
+            Risk.kind == RiskKind.ATTACK_PATH,
+            Risk.scenario_key.in_(list(by_scenario)),
+        )
+    )
+    return {
+        by_scenario[scenario_key]: RouteRiskOut(
+            id=risk_id, status=status, risk_level=level, risk_score=float(score)
+        )
+        for risk_id, scenario_key, status, level, score in rows.tuples().all()
+        if scenario_key in by_scenario
+    }
+
+
 def fold_id(parent: str, relationship: RelationshipType, layer: int) -> str:
     """A folded group's id, which is also how the page asks to open it.
 
@@ -909,6 +977,7 @@ def serialize_route_map(
     total_routes: int,
     placements: Placements | None = None,
     choke_limit: int = 5,
+    risks: dict[str, RouteRiskOut] | None = None,
 ) -> RouteMapOut:
     """Every route in the estate as one drawable graph, with what each link holds up.
 
@@ -1020,6 +1089,7 @@ def serialize_route_map(
                 **serialize_path(path).model_dump(),
                 key=route_key(path),
                 pattern=of_pattern.get(route_key(path)),
+                risk=(risks or {}).get(route_key(path)),
             )
             for path in paths
         ],
@@ -1034,4 +1104,6 @@ def serialize_route_map(
             serialize_choke_point(choke, total_routes)
             for choke in graph.choke_points(limit=choke_limit)
         ],
+        # What to do first, against every route the estate has (section 245).
+        plan=serialize_fix_plan(graph.fix_plan(limit=MAX_SIMULATED_CUTS)),
     )

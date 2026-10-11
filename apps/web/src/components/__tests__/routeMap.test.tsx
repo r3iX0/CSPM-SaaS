@@ -59,6 +59,7 @@ const MAP: RouteMap = {
   patterns: [],
   loose: [],
   choke_points: [],
+  plan: { cuts: [], total_routes: 0, remaining: 0 },
 };
 
 describe("the route map's layout", () => {

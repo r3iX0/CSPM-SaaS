@@ -3249,6 +3249,116 @@ class TestAssetNeighborhood:
         assert response.status_code == 200, response.text
         assert response.json()["data"]["boxes"] == []
 
+    async def test_a_tracked_route_carries_its_risk(self, client, cleanup_orgs) -> None:
+        """Joined on the server by the route's ends (DECISIONS.md section 244)."""
+        from app.core.db import service_session
+        from app.core.enums import Level, RiskKind, RiskStatus
+        from app.models.risk import Risk
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Graph Ltd"))
+        cleanup_orgs.append(org_id)
+        await self._estate(org_id)
+        async with service_session() as session:
+            risk = Risk(
+                organization_id=org_id,
+                kind=RiskKind.ATTACK_PATH,
+                scenario_key=f"{self.VM}->{self.STORAGE}",
+                title="jump-01 can reach payroll",
+                risk_score=81,
+                risk_level=Level.CRITICAL,
+                status=RiskStatus.OPEN,
+                severity="HIGH",
+                asset_criticality=Level.HIGH,
+                data_sensitivity=Level.HIGH,
+                internet_exposure=Level.HIGH,
+            )
+            session.add(risk)
+            await session.commit()
+            risk_id = risk.id
+
+        response = await client.get("/api/v1/attack-paths/graph", headers=auth_header(user))
+
+        assert response.status_code == 200, response.text
+        [route] = response.json()["data"]["routes"]
+        assert route["risk"] == {
+            "id": str(risk_id),
+            "status": "OPEN",
+            "risk_level": "CRITICAL",
+            "risk_score": 81.0,
+        }
+
+    async def test_the_route_history_starts_empty_and_reads_the_ledger(
+        self, client, cleanup_orgs
+    ) -> None:
+        from datetime import UTC, datetime, timedelta
+
+        from app.core.db import service_session
+        from app.core.enums import Level, RouteCloseReason, RouteEventKind
+        from app.models.route_ledger import RouteEpisode, RouteEvent
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Ledger Ltd"))
+        cleanup_orgs.append(org_id)
+
+        empty = await client.get("/api/v1/attack-paths/history", headers=auth_header(user))
+        assert empty.status_code == 200, empty.text
+        assert empty.json()["data"] == {"routes": [], "trend": [], "latest": None}
+        assert empty.json()["meta"] == {"days": 30, "recorded_since": None}
+
+        now = datetime.now(UTC)
+        async with service_session() as session:
+            for key, closed in (("a|b", None), ("c|d", now - timedelta(hours=1))):
+                episode = RouteEpisode(
+                    organization_id=org_id,
+                    route_key=key,
+                    entry_id=key[0],
+                    entry_name=key[0],
+                    target_id=key[2],
+                    target_name=key[2],
+                    target_sensitivity=Level.HIGH,
+                    hops=1,
+                    opened_at=now - timedelta(days=2),
+                    last_seen_at=now - timedelta(days=2),
+                    closed_at=closed,
+                    close_reason=RouteCloseReason.ASSET_GONE if closed else None,
+                )
+                session.add(episode)
+                await session.flush()
+                session.add(
+                    RouteEvent(
+                        organization_id=org_id,
+                        episode_id=episode.id,
+                        kind=RouteEventKind.CLOSED if closed else RouteEventKind.OPENED,
+                        observed_at=closed or now - timedelta(days=2),
+                        reason=RouteCloseReason.ASSET_GONE if closed else None,
+                    )
+                )
+            await session.commit()
+
+        response = await client.get(
+            "/api/v1/attack-paths/history?days=7", headers=auth_header(user)
+        )
+
+        assert response.status_code == 200, response.text
+        body = response.json()
+        by_key = {route["key"]: route for route in body["data"]["routes"]}
+        assert by_key["a|b"]["status"] == "OPEN"
+        assert by_key["c|d"]["status"] == "CLOSED"
+        assert by_key["c|d"]["close_reason"] == "ASSET_GONE"
+        assert body["data"]["latest"]["closed"] == 1
+        assert body["data"]["trend"][-1]["open"] == 1
+        assert body["meta"]["recorded_since"] is not None
+
+        other = uuid.uuid4()
+        stranger = uuid.UUID(await make_org(client, other, "Elsewhere Ltd"))
+        cleanup_orgs.append(stranger)
+        theirs = await client.get("/api/v1/attack-paths/history", headers=auth_header(other))
+        assert theirs.json()["data"]["routes"] == []
+
+        bad = await client.get("/api/v1/attack-paths/history?days=0", headers=auth_header(user))
+        assert bad.status_code == 422
+
 
 class TestReports:
     """The report endpoints, over the real dependency chain.

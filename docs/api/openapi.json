@@ -7903,6 +7903,103 @@
         }
       }
     },
+    "/api/v1/attack-paths/history": {
+      "get": {
+        "tags": [
+          "attack-paths"
+        ],
+        "summary": "Route History View",
+        "description": "Which routes are new, which closed and why, and how many were open each day.\n\nRead from the route ledger that ANALYZE writes (DECISIONS.md section 244),\nnever rebuilt: past graphs are not kept, so only the ledger knows what a\nroute was before the latest reading. Empty until the first scan after the\nledger shipped, and said so through ``recorded_since``, rather than\nreconstructed.",
+        "operationId": "attack_paths_route_history_view",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 90,
+              "minimum": 1,
+              "default": 30,
+              "title": "Days"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_RouteHistoryOut_RouteHistoryMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
     "/api/v1/attack-paths/choke-points": {
       "get": {
         "tags": [
@@ -17385,6 +17482,26 @@
         ],
         "title": "Envelope[RiskOut, NoMeta]"
       },
+      "Envelope_RouteHistoryOut_RouteHistoryMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/RouteHistoryOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/RouteHistoryMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[RouteHistoryOut, RouteHistoryMeta]"
+      },
       "Envelope_RouteMapOut_RouteMapMeta_": {
         "properties": {
           "data": {
@@ -19509,6 +19626,90 @@
         "title": "FindingTallyOut",
         "description": "Open findings on an asset or a box, and the worst of them."
       },
+      "FixPlanCutOut": {
+        "properties": {
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "facts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Facts"
+          },
+          "relationship": {
+            "$ref": "#/components/schemas/RelationshipType"
+          },
+          "source": {
+            "$ref": "#/components/schemas/LinkEndOut"
+          },
+          "target": {
+            "$ref": "#/components/schemas/LinkEndOut"
+          },
+          "cost": {
+            "type": "integer",
+            "title": "Cost"
+          },
+          "closes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Closes"
+          },
+          "closed_after": {
+            "type": "integer",
+            "title": "Closed After"
+          }
+        },
+        "type": "object",
+        "required": [
+          "description",
+          "detail",
+          "facts",
+          "relationship",
+          "source",
+          "target",
+          "cost",
+          "closes",
+          "closed_after"
+        ],
+        "title": "FixPlanCutOut",
+        "description": "One change in the fix plan, and what it closes after the ones before it."
+      },
+      "FixPlanOut": {
+        "properties": {
+          "cuts": {
+            "items": {
+              "$ref": "#/components/schemas/FixPlanCutOut"
+            },
+            "type": "array",
+            "title": "Cuts"
+          },
+          "total_routes": {
+            "type": "integer",
+            "title": "Total Routes"
+          },
+          "remaining": {
+            "type": "integer",
+            "title": "Remaining"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cuts",
+          "total_routes",
+          "remaining"
+        ],
+        "title": "FixPlanOut",
+        "description": "Changes that close the routes, in order (DECISIONS.md section 245).\n\nPicked greedily and confirmed by enumerating the routes again after each\nchange, so every count is exact; never said to be the fewest changes."
+      },
       "FixProgressOut": {
         "properties": {
           "days": {
@@ -21126,6 +21327,99 @@
         ],
         "title": "LastScanOut"
       },
+      "LedgerScanOut": {
+        "properties": {
+          "scan_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scan Id"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Observed At"
+          },
+          "scope_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope Name"
+          },
+          "opened": {
+            "type": "integer",
+            "title": "Opened"
+          },
+          "closed": {
+            "type": "integer",
+            "title": "Closed"
+          },
+          "rerouted": {
+            "type": "integer",
+            "title": "Rerouted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "scan_id",
+          "observed_at",
+          "scope_name",
+          "opened",
+          "closed",
+          "rerouted"
+        ],
+        "title": "LedgerScanOut",
+        "description": "The latest scan that moved the ledger, and what it moved.\n\nNamed rather than \"since the last scan\": connections scan on their own\nschedules, so an organization has no single last scan to compare against."
+      },
+      "LedgerStepOut": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "source_id": {
+            "type": "string",
+            "title": "Source Id"
+          },
+          "relationship": {
+            "$ref": "#/components/schemas/RelationshipType"
+          },
+          "target": {
+            "type": "string",
+            "title": "Target"
+          },
+          "target_id": {
+            "type": "string",
+            "title": "Target Id"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "source_id",
+          "relationship",
+          "target",
+          "target_id",
+          "description"
+        ],
+        "title": "LedgerStepOut",
+        "description": "One hop of a route as the ledger stored it, readable after its assets go."
+      },
       "LeftDemoOut": {
         "properties": {
           "left": {
@@ -21238,6 +21532,16 @@
               }
             ],
             "title": "Pattern"
+          },
+          "risk": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RouteRiskOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -24014,6 +24318,15 @@
         ],
         "title": "Role"
       },
+      "RouteCloseReason": {
+        "type": "string",
+        "enum": [
+          "LINK_REMOVED",
+          "ASSET_GONE"
+        ],
+        "title": "RouteCloseReason",
+        "description": "Why a route closed. A deleted asset must never read as a fix."
+      },
       "RouteEndOut": {
         "properties": {
           "id": {
@@ -24051,6 +24364,226 @@
         ],
         "title": "RouteEndsOut",
         "description": "The pair a route is keyed by on the attack-path page."
+      },
+      "RouteEpisodeOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "entry": {
+            "$ref": "#/components/schemas/RouteEndOut"
+          },
+          "target": {
+            "$ref": "#/components/schemas/RouteTargetEndOut"
+          },
+          "hops": {
+            "type": "integer",
+            "title": "Hops"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/LedgerStepOut"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "NEW",
+              "OPEN",
+              "CLOSED"
+            ],
+            "title": "Status"
+          },
+          "reopened": {
+            "type": "boolean",
+            "title": "Reopened"
+          },
+          "opened_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Opened At"
+          },
+          "opened_scan_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opened Scan Id"
+          },
+          "last_seen_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Seen At"
+          },
+          "last_seen_scan_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen Scan Id"
+          },
+          "rerouted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rerouted At"
+          },
+          "rerouted_from": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/LedgerStepOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rerouted From"
+          },
+          "closed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closed At"
+          },
+          "closed_scan_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closed Scan Id"
+          },
+          "close_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RouteCloseReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "key",
+          "entry",
+          "target",
+          "hops",
+          "steps",
+          "status",
+          "reopened",
+          "opened_at",
+          "opened_scan_id",
+          "last_seen_at",
+          "last_seen_scan_id",
+          "rerouted_at",
+          "rerouted_from",
+          "closed_at",
+          "closed_scan_id",
+          "close_reason"
+        ],
+        "title": "RouteEpisodeOut",
+        "description": "One stretch of time a route was open, and how it ended if it did."
+      },
+      "RouteHistoryMeta": {
+        "properties": {
+          "days": {
+            "type": "integer",
+            "title": "Days"
+          },
+          "recorded_since": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded Since"
+          }
+        },
+        "type": "object",
+        "required": [
+          "days",
+          "recorded_since"
+        ],
+        "title": "RouteHistoryMeta"
+      },
+      "RouteHistoryOut": {
+        "properties": {
+          "routes": {
+            "items": {
+              "$ref": "#/components/schemas/RouteEpisodeOut"
+            },
+            "type": "array",
+            "title": "Routes"
+          },
+          "trend": {
+            "items": {
+              "$ref": "#/components/schemas/RouteTrendPointOut"
+            },
+            "type": "array",
+            "title": "Trend"
+          },
+          "latest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LedgerScanOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "routes",
+          "trend",
+          "latest"
+        ],
+        "title": "RouteHistoryOut"
       },
       "RouteMapEdgeOut": {
         "properties": {
@@ -24296,6 +24829,9 @@
             },
             "type": "array",
             "title": "Choke Points"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/FixPlanOut"
           }
         },
         "type": "object",
@@ -24305,7 +24841,8 @@
           "routes",
           "patterns",
           "loose",
-          "choke_points"
+          "choke_points",
+          "plan"
         ],
         "title": "RouteMapOut"
       },
@@ -24363,6 +24900,34 @@
         "title": "RoutePatternOut",
         "description": "Routes that differ at one end only (DECISIONS.md section 123)."
       },
+      "RouteRiskOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RiskStatus"
+          },
+          "risk_level": {
+            "$ref": "#/components/schemas/Level"
+          },
+          "risk_score": {
+            "type": "number",
+            "title": "Risk Score"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "risk_level",
+          "risk_score"
+        ],
+        "title": "RouteRiskOut",
+        "description": "The risk that tracks a route, joined to it on the server by its ends.\n\nA route has a risk only where something on it is misconfigured\n(``correlation.py``); most routes have none, which is a real answer."
+      },
       "RouteTargetEndOut": {
         "properties": {
           "id": {
@@ -24384,6 +24949,26 @@
           "data_sensitivity"
         ],
         "title": "RouteTargetEndOut"
+      },
+      "RouteTrendPointOut": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "open": {
+            "type": "integer",
+            "title": "Open"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "open"
+        ],
+        "title": "RouteTrendPointOut",
+        "description": "Routes open at the end of one day, counted from the episodes' times."
       },
       "RuleOut": {
         "properties": {
