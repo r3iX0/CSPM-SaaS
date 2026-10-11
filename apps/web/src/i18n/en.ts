@@ -744,6 +744,27 @@ export const en = {
       `${n} ${n === 1 ? "route stays" : "routes stay"} open. Try further changes together in Simulate.`,
     planTry: "Try this plan",
     planTrying: "Trying this plan",
+    // Progress, read from the route ledger (DECISIONS.md §249).
+    historyNotYet: "Cleave keeps a history of routes from the next scan on.",
+    historyLatest: (
+      day: string,
+      scope: string | null,
+      opened: number,
+      closed: number,
+      rerouted: number,
+    ) =>
+      `Scan of ${day}${scope ? `, ${scope}` : ""}: ${opened} new, ${closed} closed${
+        rerouted > 0 ? `, ${rerouted} rerouted` : ""
+      }.`,
+    historyTrendLabel: (days: number) => `Routes open each day, over the last ${days} days`,
+    historyTrend: (days: number) => `last ${days} days`,
+    historyClosed: (n: number, days: number) => `${n} closed in ${days} days`,
+    historyClosedOn: (day: string) => `closed ${day}`,
+    historyAssetGone: "an asset on it is gone",
+    historyLinkRemoved: "a link on it was removed",
+    ledgerNew: "New",
+    ledgerReopened: "Back",
+    ledgerRerouted: "Rerouted",
     // How to make a cut (DECISIONS.md §246).
     fixToggle: "How to fix",
     fixCopy: "Copy the commands",
@@ -872,6 +893,7 @@ export const en = {
     searchLabel: "Search routes",
     searchPlaceholder: "Search by asset",
     sortLabel: "Sort routes",
+    sortWorst: "Worst first",
     sortHops: "Shortest first",
     sortSensitive: "Most sensitive target",
     sortExposed: "Most exposed entry",

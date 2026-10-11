@@ -13149,6 +13149,39 @@ reading starts at the left and the rest is a pan away rather than a blur. Cleari
 to the same frame. The frame is taller on large screens (42rem from `xl`, 48rem from `2xl`). A
 traced route was already framed whole with the rest faded; that is unchanged.
 
+## 249. The attack-path page says whether it is getting better
+
+Nothing on the page said whether there were more or fewer routes than before, or which routes
+were new. It reads the route ledger now (§244), through `GET /attack-paths/history`:
+
+- **What the latest scan moved, by name**, under the fix plan's sentence: "Scan of 9 Oct,
+  Production: 2 new, 6 closed, 1 rerouted." Never "since the last scan": connections scan on their
+  own schedules, so an organization has no single last scan, and the line names the one it
+  describes.
+- **A trend** of the routes open at the end of each day over the last 30 days, as a sparkline
+  (§149), counted from the episodes' own times.
+- **The routes closed in that window**, behind a disclosure, each struck through with the day it
+  closed and why: "a link on it was removed", or "an asset on it is gone", so a deleted asset
+  never reads as a fix.
+- **A mark on each live route** the ledger has news of: "New" when the scan that last saw it
+  opened it, "Back" when an earlier episode of it had closed, and "Rerouted" when a scan saw the
+  same ends by another way round, which wins because it says a change moved the attacker rather
+  than stopped them. A route no single scan sees whole has no episode, and so no mark rather than
+  a wrong one.
+
+Before the first scan after the ledger shipped, the line says history starts with the next scan;
+nothing earlier is reconstructed.
+
+## 250. Routes list worst first
+
+The default order was hops, so a two-hop route to a High key vault sat above a three-hop route to
+a Critical ledger, and the risk score of a tracked route, which ranks exactly that, was not on the
+list. "Worst first" is now the default (`DEFAULT_SORT`): a route a risk tracks by that risk's
+score, then the rest by what they reach, then by hops. An untracked route has no score, and the
+list does not invent one: it sorts after every tracked route. Each tracked row shows the risk's
+score beside "Tracked", with its level said to a screen reader. "Shortest first" and the other
+orders stay one choice away, and a sort in the URL still wins.
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,

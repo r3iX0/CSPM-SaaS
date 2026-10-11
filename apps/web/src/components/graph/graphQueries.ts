@@ -1,7 +1,14 @@
 import { queryOptions, type QueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
-import type { Asset, Neighborhood, RouteMap, RouteMapMeta } from "@/lib/types";
+import type {
+  Asset,
+  Neighborhood,
+  RouteHistory,
+  RouteHistoryMeta,
+  RouteMap,
+  RouteMapMeta,
+} from "@/lib/types";
 import { hopKey, routeKeyOf } from "./routeKeys";
 
 /**
@@ -108,3 +115,14 @@ export function preloadGraph(client: QueryClient, target: GraphTarget): void {
 function quietly(...loads: Promise<unknown>[]): void {
   for (const load of loads) load.catch(() => {});
 }
+
+/** Which routes are new, which closed, and the trend: the route ledger (§244). */
+export const routeHistoryQuery = queryOptions({
+  queryKey: ["attack-paths", "history"],
+  queryFn: () =>
+    api.get<RouteHistory>("/api/v1/attack-paths/history").then((r) => ({
+      history: r.data,
+      // The envelope's meta is untyped on the client; this endpoint's is this.
+      meta: r.meta as unknown as RouteHistoryMeta,
+    })),
+});

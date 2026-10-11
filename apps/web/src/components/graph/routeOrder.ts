@@ -8,9 +8,18 @@ import type { MappedRoute, RouteMap, RouteMapNode, RoutePattern } from "@/lib/ty
  * (DECISIONS.md §142).
  */
 
-export type RouteSort = "hops" | "sensitive" | "exposed" | "tracked";
+export type RouteSort = "worst" | "hops" | "sensitive" | "exposed" | "tracked";
 
-export const ROUTE_SORTS: readonly RouteSort[] = ["hops", "sensitive", "exposed", "tracked"];
+export const ROUTE_SORTS: readonly RouteSort[] = [
+  "worst",
+  "hops",
+  "sensitive",
+  "exposed",
+  "tracked",
+];
+
+/** The order the panel opens in (DECISIONS.md §250). */
+export const DEFAULT_SORT: RouteSort = "worst";
 
 /**
  * A subscription, or a group in one, as the estate map opens it. `group`
@@ -82,6 +91,15 @@ const rank = (level: string) => LEVEL_RANK[level] ?? 0;
 function comparing(sort: RouteSort, tracked?: ReadonlySet<string>) {
   return (a: MappedRoute, b: MappedRoute): number => {
     switch (sort) {
+      case "worst":
+        // A tracked route by its risk's score, then the rest by what they
+        // reach, then by hops (§250). Untracked routes have no score to rank
+        // by, and inventing one is the made-up number the engine avoids.
+        return (
+          (b.risk?.risk_score ?? -1) - (a.risk?.risk_score ?? -1) ||
+          rank(b.target.data_sensitivity) - rank(a.target.data_sensitivity) ||
+          a.hops - b.hops
+        );
       case "hops":
         return 0;
       case "sensitive":

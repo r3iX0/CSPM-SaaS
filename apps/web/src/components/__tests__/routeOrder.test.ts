@@ -140,4 +140,27 @@ describe("listRoutes", () => {
     // Hops keeps the server's order, which already ranks the shortest first.
     expect(listRoutes(plain, NODES, ALL).order).toEqual([A.key, B.key, C.key]);
   });
+
+  it("puts the worst tracked route first, then the rest by what they reach (§250)", () => {
+    const risk = (score: number) => ({
+      id: `r-${score}`,
+      status: "OPEN",
+      risk_level: "HIGH" as const,
+      risk_score: score,
+    });
+    const plain = {
+      ...MAP,
+      patterns: [],
+      routes: [
+        { ...A, pattern: null, risk: risk(40) },
+        { ...B, pattern: null },
+        { ...C, pattern: null, risk: risk(80) },
+      ],
+    };
+    expect(listRoutes(plain, NODES, { ...ALL, sort: "worst" }).order).toEqual([
+      C.key,
+      A.key,
+      B.key,
+    ]);
+  });
 });

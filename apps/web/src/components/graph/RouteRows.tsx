@@ -1,10 +1,11 @@
 import { useState, type CSSProperties } from "react";
 import { ChevronRightIcon, RadarIcon } from "lucide-react";
 
-import type { MappedRoute, RoutePattern } from "@/lib/types";
+import type { MappedRoute, RoutePattern, RouteRisk } from "@/lib/types";
+import type { LedgerMark } from "@/components/graph/routeLedger";
 import { useT } from "@/i18n";
 import { LEVEL_RANK } from "@/lib/changes";
-import { cn } from "@/lib/format";
+import { cn, label as levelLabel } from "@/lib/format";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
 
 /*
@@ -26,6 +27,8 @@ export interface RouteMarks {
    * motion.
    */
   closeDelay?: ReadonlyMap<string, number>;
+  /** New, back or rerouted since the scan before, from the route ledger (§249). */
+  ledger?: ReadonlyMap<string, LedgerMark>;
 }
 
 /** The strike and the "closed" mark arrive together, after the route's delay. */
@@ -190,7 +193,7 @@ export function RouteRow({
         <HopStrip route={route} />
         <SeverityBadge level={route.target.data_sensitivity} size="sm" />
         <span className="ml-auto flex items-center gap-1.5">
-          <Marks routeKey={route.key} marks={marks} />
+          <Marks routeKey={route.key} marks={marks} risk={route.risk} />
         </span>
       </span>
     </button>
@@ -221,7 +224,16 @@ function HopStrip({ route }: { route: MappedRoute }) {
   );
 }
 
-function Marks({ routeKey, marks }: { routeKey: string; marks: RouteMarks }) {
+function Marks({
+  routeKey,
+  marks,
+  risk,
+}: {
+  routeKey: string;
+  marks: RouteMarks;
+  /** The risk tracking the route, whose level and score the row shows (§250). */
+  risk?: RouteRisk | null;
+}) {
   const t = useT();
   return (
     <>
@@ -233,12 +245,29 @@ function Marks({ routeKey, marks }: { routeKey: string; marks: RouteMarks }) {
           {t.attackPaths.closedByPlan}
         </span>
       )}
+      {marks.ledger?.has(routeKey) && (
+        <span className="text-caption font-medium text-foreground">
+          {LEDGER_LABEL[marks.ledger.get(routeKey) ?? "new"](t)}
+        </span>
+      )}
       {marks.tracked.has(routeKey) && (
         <span className="flex items-center gap-0.5 text-caption text-muted-foreground">
           <RadarIcon className="size-3" aria-hidden />
           {t.attackPaths.trackedBadge}
+          {risk && (
+            <span className="tabular-nums">
+              · {Math.round(risk.risk_score)}
+              <span className="sr-only"> ({levelLabel(risk.risk_level)} risk)</span>
+            </span>
+          )}
         </span>
       )}
     </>
   );
 }
+
+const LEDGER_LABEL: Record<LedgerMark, (t: ReturnType<typeof useT>) => string> = {
+  new: (t) => t.attackPaths.ledgerNew,
+  reopened: (t) => t.attackPaths.ledgerReopened,
+  rerouted: (t) => t.attackPaths.ledgerRerouted,
+};

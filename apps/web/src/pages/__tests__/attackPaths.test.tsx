@@ -29,7 +29,14 @@ import { MemoryRouter, useLocation } from "react-router-dom";
 
 import { AttackPathsPage } from "../AttackPaths";
 import { api } from "@/lib/api";
-import type { MappedRoute, RouteMap, RouteMapMeta, RouteRisk, Simulation } from "@/lib/types";
+import type {
+  MappedRoute,
+  RouteHistory,
+  RouteMap,
+  RouteMapMeta,
+  RouteRisk,
+  Simulation,
+} from "@/lib/types";
 
 const ROUTE: MappedRoute = {
   key: "vm|storage",
@@ -208,6 +215,13 @@ function simulateWith(result: Simulation) {
     .mockImplementation(() => Promise.resolve({ data: result, meta: {} }));
 }
 
+/** The route ledger before any scan has written to it (§244). */
+const EMPTY_HISTORY = {
+  data: { routes: [], trend: [], latest: null },
+  meta: { days: 30, recorded_since: null },
+};
+const RECORDED = { days: 30, recorded_since: "2026-10-01T09:00:00Z" };
+
 /** The risk the server joins to a route by its ends (DECISIONS.md §244). */
 const TRACKED: RouteRisk = { id: "r-route", status: "OPEN", risk_level: "HIGH", risk_score: 70 };
 
@@ -216,13 +230,18 @@ function mount(
   meta: Partial<RouteMapMeta> & { total: number },
   tracked: Record<string, RouteRisk> = {},
   at = "/attack-paths",
+  history?: RouteHistory,
 ) {
   const joined = {
     ...map,
     routes: map.routes.map((route) => ({ ...route, risk: tracked[route.key] ?? null })),
   };
-  vi.spyOn(api, "get").mockImplementation(() =>
-    Promise.resolve({ data: joined, meta: { drawn: map.routes.length, ...meta } }),
+  vi.spyOn(api, "get").mockImplementation((url: string) =>
+    Promise.resolve(
+      url.includes("/history")
+        ? { data: history ?? EMPTY_HISTORY.data, meta: history ? RECORDED : EMPTY_HISTORY.meta }
+        : { data: joined, meta: { drawn: map.routes.length, ...meta } },
+    ),
   );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -288,6 +307,61 @@ describe("AttackPathsPage", () => {
       "aria-pressed",
       "true",
     );
+  });
+
+  it("says what the latest scan moved, and marks a route that came back", async () => {
+    const episode = {
+      id: "e-1",
+      key: ROUTE.key,
+      entry: { id: "vm", name: "jump-01" },
+      target: { id: "storage", name: "customerdata", data_sensitivity: "HIGH" as const },
+      hops: 4,
+      steps: [],
+      status: "NEW" as const,
+      reopened: true,
+      opened_at: "2026-10-09T09:00:00Z",
+      opened_scan_id: "s-2",
+      last_seen_at: "2026-10-09T09:00:00Z",
+      last_seen_scan_id: "s-2",
+      rerouted_at: null,
+      rerouted_from: null,
+      closed_at: null,
+      closed_scan_id: null,
+      close_reason: null,
+    };
+    const gone = {
+      ...episode,
+      id: "e-2",
+      key: "web|vault",
+      entry: { id: "web", name: "web-02" },
+      target: { id: "vault", name: "kv-prod", data_sensitivity: "HIGH" as const },
+      status: "CLOSED" as const,
+      reopened: false,
+      closed_at: "2026-10-09T09:00:00Z",
+      close_reason: "ASSET_GONE" as const,
+    };
+    mount(oneRoute(), { total: 1, entry_points: 1, sensitive_targets: 1 }, {}, "/attack-paths", {
+      routes: [episode, gone],
+      trend: [
+        { day: "2026-10-08", open: 2 },
+        { day: "2026-10-09", open: 1 },
+      ],
+      latest: {
+        scan_id: "s-2",
+        observed_at: "2026-10-09T09:00:00Z",
+        scope_name: "Production",
+        opened: 1,
+        closed: 1,
+        rerouted: 0,
+      },
+    });
+
+    expect(await screen.findByText(/Production: 1 new, 1 closed\./)).toBeVisible();
+    const panel = await routesPanel();
+    expect(await within(panel).findByText("Back")).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "1 closed in 30 days" }));
+    expect(screen.getByText(/an asset on it is gone/)).toBeVisible();
   });
 
   it("says when no single change closes a route", async () => {

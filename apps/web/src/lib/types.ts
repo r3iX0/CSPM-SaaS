@@ -1915,3 +1915,61 @@ export interface CutFix {
   commands: string[];
   findings: CutFinding[];
 }
+
+/** One hop of a route as the ledger stored it, readable after its assets go. */
+export interface LedgerStep {
+  source: string;
+  source_id: string;
+  relationship: string;
+  target: string;
+  target_id: string;
+  description: string;
+}
+
+/**
+ * One stretch of time a route was open (`GET /attack-paths/history`,
+ * DECISIONS.md §244). NEW when the scan that last saw it opened it.
+ */
+export interface RouteEpisode {
+  id: string;
+  key: string;
+  entry: { id: string; name: string };
+  target: { id: string; name: string; data_sensitivity: Level };
+  hops: number;
+  steps: LedgerStep[];
+  status: "NEW" | "OPEN" | "CLOSED";
+  /** An earlier episode of the same route closed: it came back. */
+  reopened: boolean;
+  opened_at: string;
+  opened_scan_id: string | null;
+  last_seen_at: string;
+  last_seen_scan_id: string | null;
+  rerouted_at: string | null;
+  rerouted_from: LedgerStep[] | null;
+  closed_at: string | null;
+  closed_scan_id: string | null;
+  close_reason: "LINK_REMOVED" | "ASSET_GONE" | null;
+}
+
+/** The latest scan that moved the ledger, and what it moved. */
+export interface LedgerScan {
+  scan_id: string | null;
+  observed_at: string;
+  scope_name: string | null;
+  opened: number;
+  closed: number;
+  rerouted: number;
+}
+
+export interface RouteHistory {
+  routes: RouteEpisode[];
+  /** Routes open at the end of each day, oldest first. */
+  trend: { day: string; open: number }[];
+  latest: LedgerScan | null;
+}
+
+export interface RouteHistoryMeta {
+  days: number;
+  /** When the first episode opened; null until a scan has written one. */
+  recorded_since: string | null;
+}

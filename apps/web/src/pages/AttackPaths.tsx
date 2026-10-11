@@ -27,13 +27,16 @@ import { hopKey } from "@/components/graph/routeKeys";
 import {
   listRoutes,
   placeName,
+  DEFAULT_SORT,
   ROUTE_SORTS,
   visits,
   type Place,
   type RouteListing,
   type RouteSort,
 } from "@/components/graph/routeOrder";
-import { routeMapQuery } from "@/components/graph/graphQueries";
+import { routeHistoryQuery, routeMapQuery } from "@/components/graph/graphQueries";
+import { RouteProgress } from "@/components/graph/RouteProgress";
+import { ledgerMarks } from "@/components/graph/routeLedger";
 import { usePrefersReducedMotion } from "@/lib/motion";
 import { arrivedByMorph } from "@/lib/viewTransition";
 import type { Hop, SimulatedPlan } from "@/components/graph/RouteMapCanvas";
@@ -85,6 +88,10 @@ export function AttackPathsPage() {
   const t = useT();
   const { data, isLoading, error, refetch } = useQuery(routeMapQuery);
 
+  // What is new, what closed and the trend, from the route ledger (§249).
+  const history = useQuery({ ...routeHistoryQuery, enabled: Boolean(data) });
+  const ledger = useMemo(() => ledgerMarks(history.data?.history), [history.data]);
+
   // The risks queue leads with the same links, under its own key and its own
   // small endpoint — it wants three rows and has no use for a route map. The
   // graph already carries them, so arriving here fills that cache rather than
@@ -116,7 +123,7 @@ export function AttackPathsPage() {
   const sortParam = params.get("sort");
   const sort: RouteSort = ROUTE_SORTS.includes(sortParam as RouteSort)
     ? (sortParam as RouteSort)
-    : "hops";
+    : DEFAULT_SORT;
   const query = params.get("q") ?? "";
   /** The links somebody is trying out together, in the order they were added. */
   const plan = useMemo(() => params.getAll("cut").flatMap(parseCut), [params]);
@@ -310,8 +317,9 @@ export function AttackPathsPage() {
       tracked: trackedKeys,
       closed: new Set(settled?.closed.map((route) => route.key) ?? []),
       closeDelay,
+      ledger,
     }),
-    [trackedKeys, settled, closeDelay],
+    [trackedKeys, settled, closeDelay, ledger],
   );
 
   // The fix plan's changes as links the simulator takes, in plan order (§245).
@@ -365,6 +373,11 @@ export function AttackPathsPage() {
             sensitiveTargets={data.meta.sensitive_targets}
             trying={tryingPlan}
             onTry={tryPlan}
+            progress={
+              history.data && (
+                <RouteProgress history={history.data.history} meta={history.data.meta} />
+              )
+            }
           />
 
           {traced && !tracedRoute && (
@@ -422,7 +435,7 @@ export function AttackPathsPage() {
                     query={query}
                     onQuery={(next) => change({ q: next || null })}
                     sort={sort}
-                    onSort={(next) => change({ sort: next === "hops" ? null : next })}
+                    onSort={(next) => change({ sort: next === DEFAULT_SORT ? null : next })}
                     picked={picked}
                     onClearPick={() => change({ through: null })}
                     place={place}
@@ -754,6 +767,7 @@ function RouteList({
   const t = useT();
   const byKey = useMemo(() => new Map(map.routes.map((route) => [route.key, route])), [map.routes]);
   const labels: Record<RouteSort, string> = {
+    worst: t.attackPaths.sortWorst,
     hops: t.attackPaths.sortHops,
     sensitive: t.attackPaths.sortSensitive,
     exposed: t.attackPaths.sortExposed,
@@ -824,7 +838,7 @@ function RouteList({
           onValueChange={(value) => onSort(value as RouteSort)}
           options={ROUTE_SORTS.map((value) => ({ value, label: labels[value] }))}
           ariaLabel={t.attackPaths.sortLabel}
-          idleValue="hops"
+          idleValue={DEFAULT_SORT}
           className="w-36"
         />
       </div>

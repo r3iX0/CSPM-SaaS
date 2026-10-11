@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { ScissorsIcon } from "lucide-react";
 
 import type { FixPlan } from "@/lib/types";
@@ -24,6 +25,7 @@ export function FixPlanCard({
   sensitiveTargets,
   onTry,
   trying,
+  progress,
 }: {
   plan: FixPlan;
   entryPoints: number;
@@ -32,6 +34,8 @@ export function FixPlanCard({
   onTry: () => void;
   /** Whether the simulator holds exactly this plan already. */
   trying: boolean;
+  /** Whether it is getting better, from the route ledger (§249). */
+  progress?: ReactNode;
 }) {
   const t = useT();
   const total = plan.total_routes;
@@ -56,6 +60,7 @@ export function FixPlanCard({
           <p className="text-body text-muted-foreground">
             {t.attackPaths.planContext(total, entryPoints, sensitiveTargets)}
           </p>
+          {progress}
         </div>
         {plan.cuts.length > 0 && (
           <Button variant={trying ? "outline" : "default"} onClick={onTry} aria-pressed={trying}>
