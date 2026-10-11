@@ -13356,18 +13356,45 @@ one deletion, and a block under `count` or `for_each` is deleted only where ever
 defines is in the cut, the rule §232 applies to an edit; otherwise it declines
 `count_or_for_each` rather than take away access nobody asked to remove.
 
-**Not yet: opening the pull request.** The pull-request sweep (§232) is keyed by rule and its rows
-by finding, and a cut has neither; carrying a cut needs its own kind of request, a migration and a
-GitHub write path, which cannot be proven against GitHub from a developer machine. Until then the
-command (§246) is the handoff, the block is named so the change can be made in code by hand, and
-merging stays a person's review either way.
+**Opening the pull request** is §258.
+
+## 258. A cut can be opened as a pull request
+
+§257 planned a role-assignment cut's deletion but stopped short of opening it: the pull-request
+machinery (§232) was keyed by a rule, and its rows by findings, and a cut has neither.
+
+**A second kind of request.** `fix_pull_requests` takes `kind` (migration 0065): `RULE` for every
+existing row, and `CUT` for a link, which names no rule and carries `cut_key` (the link as the page
+keys it, an escalation line as the assignment it comes from, §127) and `cut` (the link and its
+sentence, for the title and body). A check constraint holds each kind to its own subject, and at
+most one cut request is in flight or open per organization, link and repository, as a rule's is per
+rule. `fix_pull_request_assignments` holds the role assignments a cut request removes, each with
+its state address and, once read, whether its block was deleted, where, or why not. The rule
+listing (`GET /remediation/pull-requests`) shows rule requests only.
+
+**Asked from "How to fix".** `POST /attack-paths/pull-requests` with the link (`202`, `Location` at
+`GET /attack-paths/pull-requests`) matches the link's role assignments, by the ids each principal
+records (§257), to the organization's state indexes and queues one request per repository defining
+any of them; an assignment no index names is counted in `not_indexed`. Only a role assignment can
+be removed in code; any other link is refused, and so is a cut whose assignments no index names.
+It needs GitHub offered on the deployment (`FIX_PRS_ENABLED`, §231), like every pull request, and
+is audited (`fix_pull_request.requested`). `GET /attack-paths/fix` says whether one can be asked
+for (`pull_request_offered`) and lists the cut's requests with their state, and the panel offers
+"Open a pull request" only while none is in flight or open.
+
+**Opened by the same sweep.** The worker's sweep claims both kinds under one lease and one attempt
+count; a cut request is read whole from the database, the session closed, and only then is GitHub
+asked: the repository's Terraform is read, the deletions planned with `plan_removal` (§257), and
+the changed files committed on `cloudguard/cut-<id>` with a pull request to the default branch.
+The body says the cut, what was deleted where, and what was not and why. Nothing deletable is
+`DECLINED`, and a GitHub failure retries up to the sweep's limit.
+
+**A merge makes the cut, it does not prove it.** Merging marks the request `MERGED`; no finding is
+claimed, because a cut is not a finding. The assignment goes on the next apply, and only the next
+scan's ledger closing the link's routes (§244) shows the cut worked. Merging stays a person's
+review: Cleave never merges or applies.
 
 ## Open items carried forward
-
-**A cut as a pull request (§257).** The deletion is planned and tested (`plan_removal`); opening it
-as a pull request needs a cut kind of `fix_pull_requests` (no rule, no findings), the worker
-reading the repository and planning with `plan_removal`, and a decision on how a merge proves the
-cut. Behind `FIX_PRS_ENABLED`, like every pull request.
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,
 password reset and anonymous sign-in together, so it can be switched on only once all of those

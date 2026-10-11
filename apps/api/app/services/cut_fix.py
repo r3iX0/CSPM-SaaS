@@ -19,6 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.connectors.registry import get_connector_class
+from app.core.config import settings
 from app.core.enums import FindingStatus, RelationshipType, RemediationStatus, Severity
 from app.core.errors import NotConfigured
 from app.domain.resource import CloudResource
@@ -26,9 +27,17 @@ from app.graph import AssetGraph, PathStep
 from app.graph.access import role_entries
 from app.graph.severance import cut_cost, removable
 from app.models.finding import Finding
+from app.models.fix_pull_request import FixPullRequest, FixPullRequestAssignment
 from app.models.iac import IacIndex, IacIndexEntry
 from app.models.remediation import RemediationTask
-from app.schemas.attack_path import CutCodeOut, CutEndOut, CutFindingOut, CutFixOut
+from app.schemas.attack_path import (
+    CutCodeOut,
+    CutEndOut,
+    CutFindingOut,
+    CutFixOut,
+    CutPullRequestAssignmentOut,
+    CutPullRequestOut,
+)
 from app.services import graph as graph_service
 
 #: Open findings listed for one cut. Two assets rarely carry more; past this the
@@ -120,6 +129,7 @@ async def cut_fix(
         session, organization_id, [row for row in names if row is not None]
     )
     severed = graph.link_severance().get(graph.removal_key(source, relationship, target), ())
+    code = await _code_homes(session, organization_id, step)
 
     return CutFixOut(
         sentence=cut_sentence(step),
@@ -132,7 +142,11 @@ async def cut_fix(
         cost=cut_cost(relationship),
         severs=len(severed),
         commands=_commands(step),
-        code=await _code_homes(session, organization_id, step),
+        code=code,
+        pull_request_offered=bool(code) and settings.github_offered,
+        pull_requests=await cut_pull_requests(
+            session, organization_id, cut_key(source, relationship, target)
+        ),
         findings=[
             CutFindingOut(
                 id=finding.id,
@@ -223,4 +237,50 @@ async def _code_homes(
             address=address,
         )
         for assignment_id, repository, working_directory, address in rows.tuples().all()
+    ]
+
+
+def cut_key(source: str, relationship: RelationshipType, target: str) -> str:
+    """A link as the page names it (``hopKey``), an escalation line as its assignment."""
+    if relationship is RelationshipType.CAN_GRANT_ROLES:
+        relationship = RelationshipType.GRANTS_ROLE
+    return f"{source}|{relationship.value}|{target}"
+
+
+async def cut_pull_requests(
+    session: AsyncSession, organization_id: UUID, key: str
+) -> list[CutPullRequestOut]:
+    """A cut's pull requests so far, newest first, each with its assignments (section 258)."""
+    requests = list(
+        (
+            await session.execute(
+                select(FixPullRequest)
+                .where(
+                    FixPullRequest.organization_id == organization_id,
+                    FixPullRequest.kind == "CUT",
+                    FixPullRequest.cut_key == key,
+                )
+                .order_by(FixPullRequest.created_at.desc())
+                .limit(10)
+            )
+        ).scalars()
+    )
+    if not requests:
+        return []
+    assignments: dict[UUID, list[CutPullRequestAssignmentOut]] = {}
+    for row in (
+        await session.execute(
+            select(FixPullRequestAssignment).where(
+                FixPullRequestAssignment.pull_request_id.in_([r.id for r in requests])
+            )
+        )
+    ).scalars():
+        assignments.setdefault(row.pull_request_id, []).append(
+            CutPullRequestAssignmentOut.model_validate(row)
+        )
+    return [
+        CutPullRequestOut.model_validate(pr).model_copy(
+            update={"assignments": assignments.get(pr.id, [])}
+        )
+        for pr in requests
     ]

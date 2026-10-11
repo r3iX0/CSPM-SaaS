@@ -65,6 +65,9 @@ WORKER_OWNED = {
     # webhook, never a request. The sweep commits its claim before asking GitHub
     # and the outcome after, so no transaction is open while GitHub answers (232).
     "pull_requests.py": {"open_due", "_settle", "pull_request_closed"},
+    # A cut's pull request (258), opened by the same sweep: it writes its outcome
+    # in its own session after GitHub has answered, never inside a request.
+    "cut_pull_requests.py": {"_settle"},
 }
 
 

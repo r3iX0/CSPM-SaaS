@@ -3529,6 +3529,171 @@ class TestAssetNeighborhood:
             }
         ]
 
+    async def test_a_cut_is_opened_as_a_pull_request_deleting_its_block(
+        self, client, cleanup_orgs, monkeypatch
+    ) -> None:
+        """Asked, opened by the sweep against a stubbed GitHub, and merged (section 258)."""
+        import random
+        from typing import Any
+        from urllib.parse import urlencode
+
+        from sqlalchemy import select, update
+
+        from app.core.config import settings
+        from app.core.db import service_session
+        from app.integrations import github
+        from app.models.code_integration import CodeIntegration
+        from app.models.fix_pull_request import FixPullRequest, FixPullRequestAssignment
+        from app.models.iac import IacIndex, IacIndexEntry
+        from app.models.resource import ResourceRecord
+        from app.services import graph as graph_service
+        from app.services import pull_requests
+
+        for name, value in {
+            "github_app_id": "1",
+            "github_app_slug": "cleave",
+            "github_app_client_id": "Iv1.x",
+            "github_app_client_secret": "s",
+            "github_app_private_key": "k",
+            "github_app_webhook_secret": "w",
+            "fix_prs_enabled": True,
+        }.items():
+            monkeypatch.setattr(settings, name, value)
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Cut Ltd"))
+        cleanup_orgs.append(org_id)
+        await self._estate(org_id)
+        assignment = f"{self.STORAGE}/providers/Microsoft.Authorization/roleAssignments/ra-9"
+        installation = random.randint(10**9, 2 * 10**9)
+        repository_id = random.randint(10**6, 10**7)
+        async with service_session() as session:
+            await session.execute(
+                update(ResourceRecord)
+                .where(
+                    ResourceRecord.organization_id == org_id,
+                    ResourceRecord.provider_resource_id == self.IDENTITY,
+                )
+                .values(
+                    resource_metadata={
+                        "roles": [
+                            {
+                                "role": "Owner",
+                                "scope": self.STORAGE,
+                                "target": self.STORAGE,
+                                "assignment_id": assignment,
+                            }
+                        ]
+                    }
+                )
+            )
+            index = IacIndex(
+                organization_id=org_id,
+                repository_id=repository_id,
+                repository="contoso/infra",
+                working_directory="infra",
+                commit_sha="0" * 40,
+            )
+            session.add(index)
+            session.add(
+                CodeIntegration(
+                    organization_id=org_id,
+                    installation_id=installation,
+                    account_login="contoso",
+                    account_type="Organization",
+                    connected_by=user,
+                )
+            )
+            await session.flush()
+            session.add(
+                IacIndexEntry(
+                    organization_id=org_id,
+                    index_id=index.id,
+                    address="azurerm_role_assignment.payroll",
+                    type="azurerm_role_assignment",
+                    resource_id=assignment.lower(),
+                )
+            )
+            await session.commit()
+        graph_service.forget_cached_graphs()
+        link = {"source": self.IDENTITY, "relationship": "grants_role", "target": self.STORAGE}
+
+        asked = await client.post(
+            "/api/v1/attack-paths/pull-requests", json=link, headers=auth_header(user)
+        )
+        assert asked.status_code == 202, asked.text
+        assert "Location" in asked.headers
+        [queued] = asked.json()["data"]["pull_requests"]
+        assert queued["state"] == "QUEUED"
+        again = await client.post(
+            "/api/v1/attack-paths/pull-requests", json=link, headers=auth_header(user)
+        )
+        assert again.json()["data"]["pull_requests"][0]["id"] == queued["id"]
+
+        fix = await client.get(
+            f"/api/v1/attack-paths/fix?{urlencode(link)}", headers=auth_header(user)
+        )
+        body = fix.json()["data"]
+        assert body["pull_request_offered"] is True
+        assert [pr["id"] for pr in body["pull_requests"]] == [queued["id"]]
+
+        files = {
+            "infra/main.tf": (
+                'resource "azurerm_role_assignment" "payroll" {\n'
+                "  scope                = azurerm_storage_account.payroll.id\n"
+                '  role_definition_name = "Owner"\n'
+                "  principal_id         = var.mi\n"
+                "}\n"
+            )
+        }
+        opened: list[dict[str, Any]] = []
+
+        async def repository_installation(full_name: str) -> int:
+            return installation
+
+        async def repository(full_name: str, installation_id: int) -> github.Repository:
+            return github.Repository(repository_id, full_name, "main")
+
+        async def installation_token(installation_id: int) -> str:
+            return "t"
+
+        async def terraform_files(full_name: str, branch: str, token: str) -> Any:
+            return "head", files
+
+        async def open_pull_request(full_name: str, **kwargs: Any) -> github.OpenedPullRequest:
+            opened.append(kwargs)
+            return github.OpenedPullRequest(31, "https://github.com/contoso/infra/pull/31")
+
+        for name, stub in {
+            "repository_installation": repository_installation,
+            "repository": repository,
+            "installation_token": installation_token,
+            "terraform_files": terraform_files,
+            "open_pull_request": open_pull_request,
+        }.items():
+            monkeypatch.setattr(github, name, stub)
+
+        await pull_requests.open_due()
+
+        assert opened and opened[0]["files"]["infra/main.tf"] == ""
+        async with service_session() as session:
+            pr = await session.get(FixPullRequest, uuid.UUID(queued["id"]))
+            assert (pr.state, pr.pr_number) == ("OPEN", 31)
+            [row] = (
+                await session.execute(
+                    select(FixPullRequestAssignment).where(
+                        FixPullRequestAssignment.pull_request_id == pr.id
+                    )
+                )
+            ).scalars()
+            assert (row.outcome, row.path) == ("REMOVED", "infra/main.tf")
+
+        await pull_requests.pull_request_closed(repository_id, 31, merged=True)
+        listed = await client.get("/api/v1/attack-paths/pull-requests", headers=auth_header(user))
+        [merged] = listed.json()["data"]
+        assert merged["state"] == "MERGED"
+        assert merged["assignments"][0]["outcome"] == "REMOVED"
+
 
 class TestReports:
     """The report endpoints, over the real dependency chain.

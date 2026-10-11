@@ -40,7 +40,7 @@ from app.models.resource import ResourceRecord
 from app.remediation.iac.pull_request import Plan, Target, block_key, plan
 from app.remediation.iac.terraform import Declined, RuleChanges
 from app.rules.registry import get_rule
-from app.services import audit
+from app.services import audit, cut_pull_requests
 from app.services import verification as verification_service
 from app.services.iac import rule_edit
 
@@ -160,7 +160,9 @@ async def for_rule(
     session: AsyncSession, tenant: TenantContext, rule_id: str | None
 ) -> list[tuple[FixPullRequest, list[FixPullRequestFinding]]]:
     """The organization's pull requests, newest first, narrowed to a rule when given."""
-    query = select(FixPullRequest).where(FixPullRequest.organization_id == tenant.organization_id)
+    query = select(FixPullRequest).where(
+        FixPullRequest.organization_id == tenant.organization_id, FixPullRequest.kind == "RULE"
+    )
     if rule_id is not None:
         query = query.where(FixPullRequest.rule_id == rule_id)
     requests = list(
@@ -219,16 +221,22 @@ async def open_due() -> dict[str, int]:
                         "claimed_until = now() + make_interval(mins => :lease) "
                         "WHERE id IN (SELECT id FROM fix_pull_requests "
                         "WHERE state = 'QUEUED' OR (state = 'OPENING' AND claimed_until < now()) "
-                        "ORDER BY created_at LIMIT :batch FOR UPDATE SKIP LOCKED) RETURNING id"
+                        "ORDER BY created_at LIMIT :batch FOR UPDATE SKIP LOCKED) "
+                        "RETURNING id, kind"
                     ),
                     {"lease": int(LEASE.total_seconds() // 60), "batch": SWEEP_BATCH},
                 )
             )
-            .scalars()
+            .tuples()
             .all()
         )
         await session.commit()
-    for pull_request_id in claimed:
+    for pull_request_id, kind in claimed:
+        if kind == "CUT":
+            # A cut's request deletes role assignment blocks (§258): its own
+            # reading and plan, under this sweep's lease and attempts.
+            await cut_pull_requests.open_claimed(pull_request_id, max_attempts=MAX_ATTEMPTS)
+            continue
         job = await _read_job(pull_request_id)
         if job is None:
             continue
@@ -244,7 +252,7 @@ async def open_due() -> dict[str, int]:
 async def _read_job(pull_request_id: UUID) -> Job | None:
     async with service_session() as session:
         pr = await session.get(FixPullRequest, pull_request_id)
-        if pr is None or pr.state != "OPENING":
+        if pr is None or pr.state != "OPENING" or pr.rule_id is None:
             return None
         org = pr.organization_id
         covered = (
@@ -428,7 +436,9 @@ async def pull_request_closed(repository_id: int, number: int, *, merged: bool) 
         if pr is None:
             return
         pr.state = "MERGED" if merged else "CLOSED"
-        if merged:
+        # A cut's merge only marks it made: no finding is claimed, and the next
+        # scan's ledger shows whether its routes closed (§258).
+        if merged and pr.kind == "RULE":
             await _claim(session, pr)
         await session.commit()
 

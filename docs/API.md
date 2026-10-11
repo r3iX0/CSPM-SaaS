@@ -98,6 +98,8 @@ GET    /attack-paths/graph?limit=1..200
 GET    /attack-paths/history?days=1..90
 GET    /attack-paths/fix?source=&relationship=&target=
 GET    /attack-paths/inspect/{resource_id}
+POST   /attack-paths/pull-requests   { source, relationship, target }  (202)
+GET    /attack-paths/pull-requests?cut=
 GET    /attack-paths/blast-radius/{resource_id}
 GET    /attack-paths/access/{resource_id}
 GET    /attack-paths/neighborhood/{resource_id}?depth=1..3&expand=<fold id>
@@ -710,6 +712,18 @@ assets, never a claim about what the change resolves. A link not in the estate,
 or one nobody can remove, is `404`. For a role cut, `code` lists each assignment it
 removes that the organization's state index places in a repository (repository,
 working directory, address): removing it in code is deleting that block (§257).
+`pull_request_offered` says whether the deletion can be asked for as a pull
+request on this deployment, and `pull_requests` lists the cut's requests so far.
+
+`POST /attack-paths/pull-requests` asks for a role-assignment cut as pull
+requests, one per repository whose state index defines any of its assignments
+(DECISIONS.md §258): `202` with `Location` at `GET /attack-paths/pull-requests`,
+which lists the organization's cut requests (narrowed to one with `cut`, the link
+as `source|relationship|target`), each with its assignments' outcomes. A link that
+is not a role assignment, or one no index names, is `422`; a request already in
+flight or open is answered rather than repeated. The worker deletes the blocks and
+opens the pull request; merging is a person's, and marks the cut made, never
+proved.
 
 `/attack-paths/inspect/{id}` is what the asset card reads beyond the drawing
 (DECISIONS.md §254): `defined_in` lists where the customer's Terraform state

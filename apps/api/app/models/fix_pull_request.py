@@ -1,9 +1,10 @@
-"""Fix-as-Code pull requests (migration 0056, DECISIONS.md §232)."""
+"""Fix-as-Code pull requests (migrations 0056 and 0065, DECISIONS.md §232, §258)."""
 
 import uuid
 from datetime import datetime
 
 from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -11,11 +12,18 @@ from app.models.base import Base, TenantOwned, UUIDPrimaryKey
 
 
 class FixPullRequest(UUIDPrimaryKey, TenantOwned, Base):
-    """One rule's fix, asked for as a pull request on one repository."""
+    """One rule's fix, or one cut, asked for as a pull request on one repository."""
 
     __tablename__ = "fix_pull_requests"
 
-    rule_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    # RULE edits a rule's failing assets; CUT deletes the role assignments one
+    # link of the attack-path graph stands for (§258).
+    kind: Mapped[str] = mapped_column(String(8), nullable=False, default="RULE")
+    rule_id: Mapped[str | None] = mapped_column(String(128))
+    # A cut's link as the page names it (``source|relationship|target``), and the
+    # link with its sentence, for the pull request's title and body.
+    cut_key: Mapped[str | None] = mapped_column(Text)
+    cut: Mapped[dict | None] = mapped_column(JSONB)
     repository_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     repository: Mapped[str] = mapped_column(String(200), nullable=False)
     # QUEUED, OPENING, OPEN, MERGED, CLOSED, DECLINED or FAILED.
@@ -49,6 +57,24 @@ class FixPullRequestFinding(UUIDPrimaryKey, TenantOwned, Base):
     )
     address: Mapped[str] = mapped_column(Text, nullable=False)
     # PENDING, EDITED or DECLINED.
+    outcome: Mapped[str] = mapped_column(String(16), nullable=False, default="PENDING")
+    reason: Mapped[str | None] = mapped_column(String(64))
+    path: Mapped[str | None] = mapped_column(Text)
+    line: Mapped[int | None] = mapped_column(Integer)
+
+
+class FixPullRequestAssignment(UUIDPrimaryKey, TenantOwned, Base):
+    """A role assignment a cut's pull request removes, and whether its block was deleted."""
+
+    __tablename__ = "fix_pull_request_assignments"
+
+    pull_request_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("fix_pull_requests.id", ondelete="CASCADE"), nullable=False
+    )
+    assignment_id: Mapped[str] = mapped_column(Text, nullable=False)
+    address: Mapped[str] = mapped_column(Text, nullable=False)
+    working_directory: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    # PENDING, REMOVED or DECLINED.
     outcome: Mapped[str] = mapped_column(String(16), nullable=False, default="PENDING")
     reason: Mapped[str | None] = mapped_column(String(64))
     path: Mapped[str | None] = mapped_column(Text)

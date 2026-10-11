@@ -1914,6 +1914,10 @@ export interface CutFix {
   severs: number;
   commands: string[];
   findings: CutFinding[];
+  /** Whether this deployment can open the deletion as a pull request (§258). */
+  pull_request_offered: boolean;
+  /** The cut's pull requests so far, newest first. */
+  pull_requests: CutPullRequest[];
   /** Where the role assignments it removes are defined in code (§257). */
   code: { assignment_id: string; repository: string; working_directory: string; address: string }[];
 }
@@ -2011,4 +2015,26 @@ export interface BlastAsset {
   name: string;
   resource_type: string;
   data_sensitivity: Level;
+}
+
+/** A cut asked for as a pull request on one repository (§258). */
+export interface CutPullRequest {
+  id: string;
+  cut_key: string;
+  repository: string;
+  /** QUEUED, OPENING, OPEN, MERGED, CLOSED, DECLINED or FAILED. */
+  state: string;
+  pr_number: number | null;
+  pr_url: string | null;
+  decline_reason: string | null;
+  detail: string | null;
+  created_at: string;
+  assignments: {
+    assignment_id: string;
+    address: string;
+    outcome: string;
+    reason: string | null;
+    path: string | null;
+    line: number | null;
+  }[];
 }

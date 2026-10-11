@@ -2,7 +2,7 @@ from datetime import date, datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.enums import (
     AccessKind,
@@ -726,6 +726,44 @@ class CutCodeOut(BaseModel):
     address: str
 
 
+class CutPullRequestAssignmentOut(BaseModel):
+    """A role assignment a cut's pull request removes (DECISIONS.md section 258)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    assignment_id: str
+    address: str
+    #: PENDING until the worker has read the repository, then REMOVED or DECLINED.
+    outcome: str
+    reason: str | None = None
+    path: str | None = None
+    line: int | None = None
+
+
+class CutPullRequestOut(BaseModel):
+    """One cut, asked for as a pull request on one repository, from queued to merged."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    cut_key: str
+    repository: str
+    #: QUEUED, OPENING, OPEN, MERGED, CLOSED, DECLINED or FAILED.
+    state: str
+    pr_number: int | None = None
+    pr_url: str | None = None
+    decline_reason: str | None = None
+    detail: str | None = None
+    created_at: datetime
+    assignments: list[CutPullRequestAssignmentOut] = []
+
+
+class CutPullRequestsQueuedOut(BaseModel):
+    pull_requests: list[CutPullRequestOut]
+    #: Role assignments the cut removes that no uploaded state index names.
+    not_indexed: int
+
+
 class CutFixOut(BaseModel):
     """How to make one cut: the change said once, the provider's commands where
     one command removes the link exactly, and the open findings on its two ends.
@@ -748,6 +786,10 @@ class CutFixOut(BaseModel):
     findings: list[CutFindingOut]
     #: Where the assignments it removes are defined in code; empty where none is indexed.
     code: list[CutCodeOut] = []
+    #: Whether this deployment can open the deletion as a pull request (section 258).
+    pull_request_offered: bool = False
+    #: The cut's pull requests so far, newest first.
+    pull_requests: list[CutPullRequestOut] = []
 
 
 # -- The inspector (DECISIONS.md section 254) ----------------------------------

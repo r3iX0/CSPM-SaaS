@@ -42,6 +42,8 @@ function fix(overrides: Partial<CutFix> = {}): CutFix {
       },
     ],
     code: [],
+    pull_request_offered: false,
+    pull_requests: [],
     ...overrides,
   };
 }
@@ -108,5 +110,64 @@ describe("HowToFix", () => {
 
     expect(await screen.findByText(/No single command makes this change/)).toBeVisible();
     expect(screen.getByText("No open findings on these two assets.")).toBeVisible();
+  });
+
+  it("asks for the cut as a pull request where its block is in code (§258)", async () => {
+    const { post } = mount(
+      fix({
+        pull_request_offered: true,
+        code: [
+          {
+            assignment_id: "ra",
+            repository: "contoso/infra",
+            working_directory: "infra",
+            address: "azurerm_role_assignment.app",
+          },
+        ],
+      }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "How to fix" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Open a pull request" }));
+
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith("/api/v1/attack-paths/pull-requests", LINK),
+    );
+  });
+
+  it("shows a pull request in flight instead of offering another", async () => {
+    mount(
+      fix({
+        pull_request_offered: true,
+        code: [
+          {
+            assignment_id: "ra",
+            repository: "contoso/infra",
+            working_directory: "infra",
+            address: "azurerm_role_assignment.app",
+          },
+        ],
+        pull_requests: [
+          {
+            id: "pr-1",
+            cut_key: "mi|grants_role|rg",
+            repository: "contoso/infra",
+            state: "OPEN",
+            pr_number: 31,
+            pr_url: "https://github.com/contoso/infra/pull/31",
+            decline_reason: null,
+            detail: null,
+            created_at: "2026-10-11T09:00:00Z",
+            assignments: [],
+          },
+        ],
+      }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "How to fix" }));
+
+    expect(await screen.findByRole("link", { name: "#31" })).toHaveAttribute(
+      "href",
+      "https://github.com/contoso/infra/pull/31",
+    );
+    expect(screen.queryByRole("button", { name: "Open a pull request" })).toBeNull();
   });
 });

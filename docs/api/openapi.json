@@ -9141,6 +9141,201 @@
         }
       }
     },
+    "/api/v1/attack-paths/pull-requests": {
+      "post": {
+        "tags": [
+          "attack-paths"
+        ],
+        "summary": "Request Cut Pull Requests",
+        "description": "Ask for a role-assignment cut as pull requests, one per repository defining it.\n\nMatched through the organization's state indexes by the assignments' ids;\none no index names is counted in ``not_indexed``. Queued for the worker,\nwhich reads the repository, deletes the blocks it can stand behind and opens\nthe pull request (DECISIONS.md section 258). A request already in flight or\nopen is answered, not repeated. Merging stays a person's review.",
+        "operationId": "attack_paths_request_cut_pull_requests",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimulatedLink"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_CutPullRequestsQueuedOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "attack-paths"
+        ],
+        "summary": "List Cut Pull Requests",
+        "description": "The organization's cut pull requests, newest first, narrowed to one cut when given.",
+        "operationId": "attack_paths_list_cut_pull_requests",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cut",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 6200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cut"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_list_CutPullRequestOut__NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
     "/api/v1/attack-paths/simulate": {
       "post": {
         "tags": [
@@ -16871,6 +17066,19 @@
             "type": "array",
             "title": "Code",
             "default": []
+          },
+          "pull_request_offered": {
+            "type": "boolean",
+            "title": "Pull Request Offered",
+            "default": false
+          },
+          "pull_requests": {
+            "items": {
+              "$ref": "#/components/schemas/CutPullRequestOut"
+            },
+            "type": "array",
+            "title": "Pull Requests",
+            "default": []
           }
         },
         "type": "object",
@@ -16889,6 +17097,172 @@
         ],
         "title": "CutFixOut",
         "description": "How to make one cut: the change said once, the provider's commands where\none command removes the link exactly, and the open findings on its two ends.\n\nThe findings are those on the two assets, never claimed to be what the\nchange resolves: only the next scan says that."
+      },
+      "CutPullRequestAssignmentOut": {
+        "properties": {
+          "assignment_id": {
+            "type": "string",
+            "title": "Assignment Id"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "outcome": {
+            "type": "string",
+            "title": "Outcome"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "line": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line"
+          }
+        },
+        "type": "object",
+        "required": [
+          "assignment_id",
+          "address",
+          "outcome"
+        ],
+        "title": "CutPullRequestAssignmentOut",
+        "description": "A role assignment a cut's pull request removes (DECISIONS.md section 258)."
+      },
+      "CutPullRequestOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "cut_key": {
+            "type": "string",
+            "title": "Cut Key"
+          },
+          "repository": {
+            "type": "string",
+            "title": "Repository"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "pr_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pr Number"
+          },
+          "pr_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pr Url"
+          },
+          "decline_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decline Reason"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "assignments": {
+            "items": {
+              "$ref": "#/components/schemas/CutPullRequestAssignmentOut"
+            },
+            "type": "array",
+            "title": "Assignments",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "cut_key",
+          "repository",
+          "state",
+          "created_at"
+        ],
+        "title": "CutPullRequestOut",
+        "description": "One cut, asked for as a pull request on one repository, from queued to merged."
+      },
+      "CutPullRequestsQueuedOut": {
+        "properties": {
+          "pull_requests": {
+            "items": {
+              "$ref": "#/components/schemas/CutPullRequestOut"
+            },
+            "type": "array",
+            "title": "Pull Requests"
+          },
+          "not_indexed": {
+            "type": "integer",
+            "title": "Not Indexed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pull_requests",
+          "not_indexed"
+        ],
+        "title": "CutPullRequestsQueuedOut"
       },
       "DashboardOut": {
         "properties": {
@@ -17532,6 +17906,26 @@
           "meta"
         ],
         "title": "Envelope[CutFixOut, NoMeta]"
+      },
+      "Envelope_CutPullRequestsQueuedOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CutPullRequestsQueuedOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[CutPullRequestsQueuedOut, NoMeta]"
       },
       "Envelope_DashboardOut_NoMeta_": {
         "properties": {
@@ -19050,6 +19444,30 @@
           "meta"
         ],
         "title": "Envelope[list[ContextDeclarationOut], NoMeta]"
+      },
+      "Envelope_list_CutPullRequestOut__NoMeta_": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/CutPullRequestOut"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[list[CutPullRequestOut], NoMeta]"
       },
       "Envelope_list_DiscoveredSubscription__NoMeta_": {
         "properties": {

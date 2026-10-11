@@ -228,6 +228,8 @@ const FIX = {
   severs: 1,
   commands: [],
   code: [],
+  pull_request_offered: false,
+  pull_requests: [],
   findings: [
     {
       id: "finding-vm",

@@ -237,6 +237,14 @@ the plan creates or updates, and posts them with the job's OIDC token. Cleave ju
 the rules' Terraform hints and posts a check run on the pull request. A failure fails the check
 only where the change brings it. The App needs `checks: write` for the check run.
 
+### A cut as a pull request (built, DECISIONS.md §257, §258)
+
+Beside a rule's fix, the attack-path page can ask for a cut -- a role assignment that routes to
+sensitive data cross -- as a pull request. The same index, sweep, lease and GitHub App open it;
+the edit is deleting the `azurerm_role_assignment` blocks the assignment ids map to, all or
+nothing for a block under `count` or `for_each`. A merge marks the cut made; the next scan's route
+ledger shows whether its routes closed.
+
 ### Phase 3 -- GitLab (medium)
 
 - Project or group access token, stored the way other customer secrets are.

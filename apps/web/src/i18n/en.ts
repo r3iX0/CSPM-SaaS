@@ -801,6 +801,17 @@ export const en = {
     // How to make a cut (DECISIONS.md §246).
     fixToggle: "How to fix",
     fixInCode: "Defined in code: delete this block",
+    // The cut as a pull request (DECISIONS.md §258).
+    prOpen: "Open a pull request",
+    prQueued: "Pull request asked for",
+    prQueuedDetail: "Cleave opens it within a minute. Merging stays your review.",
+    prError: "Could not ask for the pull request",
+    prOpening: "opening",
+    prOpenState: "open",
+    prMerged: "merged: the next scan shows whether the routes closed",
+    prDeclined: "not opened",
+    prFailed: "failed",
+    prClosed: "closed",
     fixInCodeNote: "Removed at the next apply. A command alone would be undone by it.",
     fixCopy: "Copy the commands",
     fixNoCommand: "No single command makes this change: the findings below say what to fix.",

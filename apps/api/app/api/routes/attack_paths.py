@@ -10,8 +10,9 @@ severs it.
 
 from collections import Counter
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request, Response, status
 
+from app.api.links import accepted
 from app.core.deps import Costly, DbSession, Tenant
 from app.core.enums import RelationshipType
 from app.core.errors import NotFound
@@ -29,6 +30,9 @@ from app.schemas.attack_path import (
     ChokePointOut,
     ChokePointsMeta,
     CutFixOut,
+    CutPullRequestAssignmentOut,
+    CutPullRequestOut,
+    CutPullRequestsQueuedOut,
     EstateMeta,
     EstateOut,
     InspectOut,
@@ -41,13 +45,15 @@ from app.schemas.attack_path import (
     RouteMapMeta,
     RouteMapOut,
     RouteTargetEndOut,
+    SimulatedLink,
     SimulationMeta,
     SimulationOut,
     SimulationRequest,
     WhatIfClosedOut,
     WhatIfOut,
 )
-from app.schemas.common import ERROR_RESPONSES, Envelope, NoMeta, TotalMeta
+from app.schemas.common import ERROR_RESPONSES, Envelope, NoMeta, TotalMeta, error_responses
+from app.services import cut_pull_requests
 from app.services import graph as graph_service
 from app.services.cut_fix import cut_fix
 from app.services.graph import serialize_path
@@ -479,6 +485,62 @@ async def how_to_fix(
     if fix is None:
         raise NotFound("No link here that can be removed")
     return Envelope(data=fix, meta=NoMeta())
+
+
+@router.post(
+    "/pull-requests", status_code=status.HTTP_202_ACCEPTED, responses=error_responses(403, 404)
+)
+async def request_cut_pull_requests(
+    payload: SimulatedLink,
+    request: Request,
+    response: Response,
+    session: DbSession,
+    tenant: Tenant,
+) -> Envelope[CutPullRequestsQueuedOut, NoMeta]:
+    """Ask for a role-assignment cut as pull requests, one per repository defining it.
+
+    Matched through the organization's state indexes by the assignments' ids;
+    one no index names is counted in ``not_indexed``. Queued for the worker,
+    which reads the repository, deletes the blocks it can stand behind and opens
+    the pull request (DECISIONS.md section 258). A request already in flight or
+    open is answered, not repeated. Merging stays a person's review.
+    """
+    graph = await graph_service.load_graph(session, tenant.organization_id)
+    queued, not_indexed = await cut_pull_requests.request(
+        session, tenant, graph, (payload.source, payload.relationship, payload.target)
+    )
+    await session.commit()
+    accepted(request, response, "list_cut_pull_requests")
+    return Envelope(
+        data=CutPullRequestsQueuedOut(
+            pull_requests=[CutPullRequestOut.model_validate(row) for row in queued],
+            not_indexed=not_indexed,
+        ),
+        meta=NoMeta(),
+    )
+
+
+@router.get("/pull-requests")
+async def list_cut_pull_requests(
+    session: DbSession,
+    tenant: Tenant,
+    cut: str | None = Query(default=None, max_length=6200),
+) -> Envelope[list[CutPullRequestOut], NoMeta]:
+    """The organization's cut pull requests, newest first, narrowed to one cut when given."""
+    rows = await cut_pull_requests.for_cut(session, tenant, cut)
+    return Envelope(
+        data=[
+            CutPullRequestOut.model_validate(pr).model_copy(
+                update={
+                    "assignments": [
+                        CutPullRequestAssignmentOut.model_validate(row) for row in assignments
+                    ]
+                }
+            )
+            for pr, assignments in rows
+        ],
+        meta=NoMeta(),
+    )
 
 
 @router.post("/simulate", dependencies=[Costly])

@@ -1,8 +1,11 @@
 import { useId, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Link } from "react-router-dom";
-import { ChevronDownIcon, WrenchIcon } from "lucide-react";
+import { ChevronDownIcon, GitPullRequestIcon, WrenchIcon } from "lucide-react";
 
+import { api, ApiError } from "@/lib/api";
+import type { CutFix } from "@/lib/types";
 import { useT } from "@/i18n";
 import { cn } from "@/lib/format";
 import { useTrack } from "@/lib/remediation";
@@ -80,6 +83,7 @@ function CutFixBody({ link }: { link: CutLink }) {
             </p>
           ))}
           <p className="text-meta text-muted-foreground">{t.attackPaths.fixInCodeNote}</p>
+          <CutPullRequests link={link} fix={fix.data} />
         </div>
       )}
       <div className="flex flex-col gap-1.5">
@@ -130,4 +134,84 @@ function CutFixBody({ link }: { link: CutLink }) {
       </div>
     </div>
   );
+}
+
+const LIVE = new Set(["QUEUED", "OPENING", "OPEN"]);
+
+/**
+ * The cut as a pull request (§258): asked for here, opened by the worker,
+ * merged by a person. A merge marks the cut made; the next scan proves it.
+ */
+function CutPullRequests({ link, fix }: { link: CutLink; fix: CutFix }) {
+  const t = useT();
+  const client = useQueryClient();
+  const ask = useMutation({
+    mutationFn: () => api.post<unknown>("/api/v1/attack-paths/pull-requests", link),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: cutFixQuery(link).queryKey });
+      toast.success(t.attackPaths.prQueued, { description: t.attackPaths.prQueuedDetail });
+    },
+    onError: (err) =>
+      toast.error(t.attackPaths.prError, {
+        description: err instanceof ApiError ? err.message : undefined,
+      }),
+  });
+  const live = fix.pull_requests.some((pr) => LIVE.has(pr.state));
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      {fix.pull_requests.map((pr) => (
+        <p key={pr.id} className="flex flex-wrap items-center gap-x-2 text-meta">
+          <GitPullRequestIcon className="size-3.5 text-muted-foreground" aria-hidden />
+          <span>{pr.repository}</span>
+          <span className="text-muted-foreground">{prState(t, pr.state)}</span>
+          {pr.pr_url && (
+            <a
+              href={pr.pr_url}
+              target="_blank"
+              rel="noreferrer"
+              className="focus-ring underline-offset-4 hover:underline"
+            >
+              #{pr.pr_number}
+            </a>
+          )}
+          {pr.detail && pr.state !== "OPEN" && (
+            <span className="text-muted-foreground">· {pr.detail}</span>
+          )}
+        </p>
+      ))}
+      {fix.pull_request_offered && !live && (
+        <Button
+          variant="outline"
+          size="xs"
+          className="self-start"
+          aria-disabled={ask.isPending || undefined}
+          onClick={() => {
+            if (!ask.isPending) ask.mutate();
+          }}
+        >
+          <GitPullRequestIcon data-icon="inline-start" />
+          {t.attackPaths.prOpen}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function prState(t: ReturnType<typeof useT>, state: string): string {
+  switch (state) {
+    case "QUEUED":
+    case "OPENING":
+      return t.attackPaths.prOpening;
+    case "OPEN":
+      return t.attackPaths.prOpenState;
+    case "MERGED":
+      return t.attackPaths.prMerged;
+    case "DECLINED":
+      return t.attackPaths.prDeclined;
+    case "FAILED":
+      return t.attackPaths.prFailed;
+    default:
+      return t.attackPaths.prClosed;
+  }
 }
