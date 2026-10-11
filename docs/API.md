@@ -69,6 +69,8 @@ GET    /scans/worker-status
 
 GET    /assets                             GET    /assets/{id}
 GET    /assets/hierarchy                   GET    /assets/resolve?provider_resource_id=
+GET    /assets/{id}/context                PUT    /assets/{id}/context   { data_sensitivity, note }
+DELETE /assets/{id}/context
 GET    /changes
 GET    /findings                           GET    /findings/{id}
 GET    /risks                              GET    /risks/{id}
@@ -185,6 +187,15 @@ also applied as a _floor_: it can raise an asset's criticality above what the
 capture supported but never lower it, so the worst a mistaken declaration can
 do is over-rank something. `GET /assets/{id}` returns a `context` block giving
 each value's source and confidence alongside it.
+
+`/assets/{id}/context` declares one asset's data sensitivity (DECISIONS.md
+§251), from the attack-path page or the asset's own page: a route ends only
+where data is sensitive, and only the customer knows that a storage account
+holds the payroll export. Sensitivity only; criticality and environment stay per
+subscription. It is applied by the next evaluation as a floor, like a
+subscription's declaration, so it can give a route an end and never hide one.
+`UNKNOWN` is refused (`422`), and the source an asset's `context` block shows is
+the customer, not the subscription.
 
 `/compliance/{framework_id}/export` answers with a document rather than the
 envelope, for the same reason `/reports/{kind}` does: the caller is saving a

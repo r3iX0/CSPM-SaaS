@@ -6,7 +6,7 @@ from app.models.base import Base
 from app.models.cloud_account import CloudAccount
 from app.models.cloud_connection import CloudConnection
 from app.models.code_integration import CodeIntegration
-from app.models.context import ContextDeclarationRecord
+from app.models.context import AssetDeclarationRecord, ContextDeclarationRecord
 from app.models.finding import Finding
 from app.models.fix_pull_request import FixPullRequest, FixPullRequestFinding
 from app.models.history import AssetChangeEvent, FindingEventRecord
@@ -32,6 +32,7 @@ from app.models.webhook import WebhookDelivery, WebhookEndpoint
 
 __all__ = [
     "AssetChangeEvent",
+    "AssetDeclarationRecord",
     "AuditGrant",
     "AuditGrantEvent",
     "AuditLog",

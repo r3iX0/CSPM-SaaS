@@ -13182,6 +13182,32 @@ list does not invent one: it sorts after every tracked route. Each tracked row s
 score beside "Tracked", with its level said to a screen reader. "Shortest first" and the other
 orders stay one choice away, and a sort in the URL still wins.
 
+## 251. An asset can be declared to hold data that matters
+
+A route ends only where data is sensitive, and sensitivity is only what tags and names declare,
+so the most common reason a customer saw "no routes" or the wrong routes was that Cleave did not
+know which store held the payroll export. Risk context was declared per subscription (§207), and
+`ContextDeclarationRecord` deferred per-resource declarations until something asked for them. The
+attack-path page asks.
+
+**One asset, sensitivity only.** `asset_declarations` (migration 0064) holds one row per asset,
+cascading with it: a level and a note, who said it and when. Criticality and environment stay per
+subscription; sensitivity is what gives a route its end. `PUT /assets/{id}/context` declares and
+`DELETE` withdraws, audited (`asset_context.declared`, `.cleared`), refused for viewers and in the
+demo like every write, and `UNKNOWN` is refused because it is Cleave's answer, not the customer's.
+
+**A floor, applied by the next scan.** Capture applies it after the subscription's declaration,
+through the same `resolve_resource` (`services/scan/capture.py`), with the customer as the source
+of the claim rather than the subscription. Like every declaration it can raise a level and never
+lower one, so it can give a route an end and never hide one. That is why the page offers
+"Sensitive" and "Critical" and no "this does not": lowering a level is the one mistake that
+removes routes, and an acceptance (§104) is how a customer says a route does not matter. Nothing
+is rescored or rerouted on the call: a route is what a scan's graph holds.
+
+**Where it is asked.** On the attack-path page, a box picked that is not already sensitive shows
+the question under its routes; the asset's own page shows it beside its data sensitivity; and the
+"nothing has been classified as sensitive" empty state links to the assets.
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,

@@ -22,9 +22,11 @@ from app.core.enums import Provider, ScanStepKind
 from app.core.errors import SnapshotUnavailable
 from app.core.payloads import digest
 from app.core.vocabulary import words
+from app.domain.resource import CloudResource
 from app.models.cloud_account import CloudAccount
 from app.models.cloud_connection import CloudConnection
-from app.models.context import ContextDeclarationRecord
+from app.models.context import AssetDeclarationRecord, ContextDeclarationRecord
+from app.models.resource import ResourceRecord
 from app.models.scan import CloudSnapshot, EvidenceBlob, Scan, ScanStep
 
 
@@ -314,7 +316,49 @@ async def reconstruct(
             state.errors[_scoped_key(account, category, len(accounts))] = reason
         state.merged.collection_errors.update(account_state.collection_errors)
 
+    # What the customer has said about single assets (DECISIONS.md section
+    # 251), after the subscription's: a floor over both, and the subject of the
+    # claim, so the recorded source says the customer said it of this asset.
+    declared_assets = await _asset_declarations_for(session, org_id)
+    if declared_assets:
+        _apply_asset_declarations(state, declared_assets)
+
     return state
+
+
+def _apply_asset_declarations(
+    state: ReconstructedScan, declared: dict[str, ContextDeclaration]
+) -> None:
+    """Raise each declared asset, wherever the capture put it."""
+
+    def resolve(resources: list[CloudResource]) -> list[CloudResource]:
+        return [
+            resolve_resource(resource, declared.get(resource.provider_resource_id))
+            for resource in resources
+        ]
+
+    for _, account_state in state.account_state:
+        account_state.resources = resolve(account_state.resources)
+    if state.directory is not None:
+        state.directory[1].resources = resolve(state.directory[1].resources)
+    state.merged.resources = resolve(state.merged.resources)
+
+
+async def _asset_declarations_for(
+    session: AsyncSession, org_id: UUID
+) -> dict[str, ContextDeclaration]:
+    """Every asset declaration in the organization, by provider id. One statement."""
+    rows = (
+        await session.execute(
+            select(ResourceRecord.provider_resource_id, AssetDeclarationRecord.data_sensitivity)
+            .join(ResourceRecord, ResourceRecord.id == AssetDeclarationRecord.resource_id)
+            .where(AssetDeclarationRecord.organization_id == org_id)
+        )
+    ).all()
+    return {
+        provider_id: ContextDeclaration(data_sensitivity=level, inherited=False)
+        for provider_id, level in rows
+    }
 
 
 async def _declarations_for(

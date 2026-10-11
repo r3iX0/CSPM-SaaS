@@ -1973,3 +1973,12 @@ export interface RouteHistoryMeta {
   /** When the first episode opened; null until a scan has written one. */
   recorded_since: string | null;
 }
+
+/** What a customer has said about one asset's data (DECISIONS.md §251). */
+export interface AssetDeclaration {
+  resource_id: string;
+  data_sensitivity: Level;
+  note: string | null;
+  declared_by_user_id: string | null;
+  declared_at: string;
+}

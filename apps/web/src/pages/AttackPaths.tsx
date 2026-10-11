@@ -42,9 +42,10 @@ import { arrivedByMorph } from "@/lib/viewTransition";
 import type { Hop, SimulatedPlan } from "@/components/graph/RouteMapCanvas";
 import { SimulationPanel } from "@/components/graph/SimulationPanel";
 import { FixPlanCard } from "@/components/graph/FixPlanCard";
+import { DeclareSensitive } from "@/components/graph/DeclareSensitive";
 import { CardsSkeleton, EmptyState, ErrorState, PageHeader } from "@/components/common/states";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -817,6 +818,11 @@ function RouteList({
           </Button>
         </div>
       )}
+      {pickedNode?.asset_id && !pickedNode.sensitive && (
+        <div className="border-b border-border px-3 py-2">
+          <DeclareSensitive assetId={pickedNode.asset_id} name={pickedNode.name} />
+        </div>
+      )}
       <div className="flex shrink-0 items-center gap-2 border-b border-border p-2">
         <div className="relative min-w-0 flex-1">
           <SearchIcon
@@ -924,6 +930,11 @@ function NothingFound({ meta }: { meta: AttackPathMeta }) {
         icon={RouteIcon}
         title={t.attackPaths.emptyNoTargets}
         detail={t.attackPaths.emptyNoTargetsDetail}
+        action={
+          <Link to="/assets" className={buttonVariants({ variant: "outline", size: "sm" })}>
+            {t.attackPaths.emptyNoTargetsAction}
+          </Link>
+        }
       />
     );
   }

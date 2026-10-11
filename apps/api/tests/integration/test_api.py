@@ -3388,6 +3388,48 @@ class TestAssetNeighborhood:
         gone = await client.get(f"/api/v1/attack-paths/fix?{missing}", headers=auth_header(user))
         assert gone.status_code == 404
 
+    async def test_an_asset_can_be_declared_sensitive_and_withdrawn(
+        self, client, cleanup_orgs
+    ) -> None:
+        """Per-asset sensitivity, applied by the next scan (DECISIONS.md section 251)."""
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Context Ltd"))
+        cleanup_orgs.append(org_id)
+        vm_row = await self._estate(org_id)
+        url = f"/api/v1/assets/{vm_row}/context"
+
+        nothing = await client.get(url, headers=auth_header(user))
+        assert nothing.status_code == 200, nothing.text
+        assert nothing.json()["data"] is None
+
+        declared = await client.put(
+            url,
+            json={"data_sensitivity": "HIGH", "note": "holds the payroll export"},
+            headers=auth_header(user),
+        )
+        assert declared.status_code == 200, declared.text
+        assert declared.json()["data"]["data_sensitivity"] == "HIGH"
+        assert (await client.get(url, headers=auth_header(user))).json()["data"]["note"] == (
+            "holds the payroll export"
+        )
+
+        unknown = await client.put(
+            url, json={"data_sensitivity": "UNKNOWN"}, headers=auth_header(user)
+        )
+        assert unknown.status_code == 422
+
+        cleared = await client.delete(url, headers=auth_header(user))
+        assert cleared.status_code == 200
+        assert (await client.get(url, headers=auth_header(user))).json()["data"] is None
+
+        other = uuid.uuid4()
+        stranger = uuid.UUID(await make_org(client, other, "Elsewhere Ltd"))
+        cleanup_orgs.append(stranger)
+        theirs = await client.put(
+            url, json={"data_sensitivity": "HIGH"}, headers=auth_header(other)
+        )
+        assert theirs.status_code == 404
+
 
 class TestReports:
     """The report endpoints, over the real dependency chain.

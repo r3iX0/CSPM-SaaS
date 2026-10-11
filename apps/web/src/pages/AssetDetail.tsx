@@ -30,6 +30,7 @@ import { AssetNeighborhood } from "@/components/graph/AssetNeighborhood";
 import { assetQuery } from "@/components/graph/graphQueries";
 import { BlastRadius } from "@/components/graph/BlastRadius";
 import { AssetAccessPanel } from "@/components/graph/AssetAccess";
+import { DeclareSensitive } from "@/components/graph/DeclareSensitive";
 import { usePageTitle } from "@/lib/pageTitle";
 
 interface AssetFinding {
@@ -402,6 +403,8 @@ function Summary({
             />
           </dl>
           <DeclareLink fact={asset.context?.data_sensitivity} placement={asset.placement} />
+          {/* Said of this asset alone, from here or the attack-path page (§251). */}
+          <DeclareSensitive assetId={asset.id} name={asset.name} />
         </Cell>
         {/* Exposure has no provenance and needs none: it is read off the
             configuration in the capture -- a public IP is attached or it is

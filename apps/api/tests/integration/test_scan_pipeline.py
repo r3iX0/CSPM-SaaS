@@ -5071,3 +5071,37 @@ class TestRouteLedger:
             "close_reason FROM route_episodes WHERE organization_id = :o",
             {"o": org_id},
         )
+
+
+class TestAssetDeclaration:
+    """A customer's word about one asset's data is applied by the next scan (§251)."""
+
+    async def test_a_declared_asset_is_raised_and_attributed_to_the_customer(
+        self, replay, connected_account
+    ) -> None:
+        from app.models.context import AssetDeclarationRecord
+
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+        [(row_id, provider_id)] = await fetch(
+            "SELECT id, provider_resource_id FROM cloud_resources WHERE organization_id = :o "
+            "AND data_sensitivity <> 'CRITICAL' AND cloud_account_id IS NOT NULL "
+            "ORDER BY provider_resource_id LIMIT 1",
+            {"o": org_id},
+        )
+        async with service_session() as session:
+            session.add(
+                AssetDeclarationRecord(
+                    organization_id=org_id, resource_id=row_id, data_sensitivity=Level.CRITICAL
+                )
+            )
+            await session.commit()
+
+        await run_scan(org_id, account_id)
+
+        [(level, source)] = await fetch(
+            "SELECT data_sensitivity, data_sensitivity_source FROM cloud_resources WHERE id = :r",
+            {"r": row_id},
+        )
+        assert (level, source) == ("CRITICAL", "customer")
+        assert provider_id

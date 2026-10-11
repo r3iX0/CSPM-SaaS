@@ -48,3 +48,32 @@ class ContextDeclarationOut(BaseModel):
     note: str | None = None
     declared_by_user_id: UUID | None = None
     declared_at: datetime
+
+
+class AssetDeclarationIn(RequestModel):
+    """What a customer says about one asset's data (DECISIONS.md section 251).
+
+    A level, never UNKNOWN, for the reason a subscription's declaration refuses
+    it. Applied as a floor: it raises and never lowers, so declaring LOW on an
+    asset the capture already ranks HIGH changes nothing.
+    """
+
+    data_sensitivity: Level
+    note: str | None = Field(default=None, max_length=2000)
+
+    @field_validator("data_sensitivity")
+    @classmethod
+    def _known(cls, value: Level) -> Level:
+        if value is Level.UNKNOWN:
+            raise ValueError("UNKNOWN is not a declaration: leave the asset undeclared instead")
+        return value
+
+
+class AssetDeclarationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    resource_id: UUID
+    data_sensitivity: Level
+    note: str | None = None
+    declared_by_user_id: UUID | None = None
+    declared_at: datetime

@@ -765,6 +765,18 @@ export const en = {
     ledgerNew: "New",
     ledgerReopened: "Back",
     ledgerRerouted: "Rerouted",
+    // Saying an asset holds sensitive data (DECISIONS.md §251).
+    declareQuestion: "Does this hold data that matters?",
+    declareSensitive: "Sensitive",
+    declareCritical: "Critical",
+    declaredAs: (level: string) =>
+      `You said this holds ${level === "CRITICAL" ? "critical" : "sensitive"} data.`,
+    declareWithdraw: "Withdraw",
+    declaredToast: (name: string) => `Noted: ${name} holds data that matters`,
+    withdrawnToast: "Withdrawn",
+    declareNextScan: "Applied by the next scan. A declaration can raise a level, never lower one.",
+    declareError: "Could not save that",
+    emptyNoTargetsAction: "Say which assets hold data that matters",
     // How to make a cut (DECISIONS.md §246).
     fixToggle: "How to fix",
     fixCopy: "Copy the commands",
