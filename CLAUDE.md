@@ -228,8 +228,11 @@ so the shell's own `<main>` is the page's only one (§155).
   close if it is cut, with the cut simulated in place (§123), no label printed over another — a pair
   of lines between one pair of boxes speaks once (`pairSpeakers`)
   and
-  `placeLabels` leaves out what would collide, most important first (§143), in one frame with a side
-  panel that lists the routes and reads a traced one (§137) and, in its Simulate tab, answers for a
+  `placeLabels` leaves out what would collide, most important first (§143), in one frame the
+  height of the window, the canvas filling it and the query bar, fix plan, legend and a side panel
+  floating over it on a wide screen, each folding away, with a full-screen mode (§259); the side
+  panel lists the routes and
+  reads a traced one (§137) and, in its Simulate tab, answers for a
   plan of up to ten cuts made together — from
   `POST /attack-paths/simulate`, never summed from the lines' numbers, since two cuts can close what
   neither closes alone — with the plan in the URL (`cut`)

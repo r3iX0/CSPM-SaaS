@@ -15,7 +15,7 @@ import { useTrackAll } from "@/lib/remediation";
 import { useIsDemo } from "@/lib/useDemo";
 
 /**
- * What to do first, before the drawing (DECISIONS.md §245).
+ * What to do first, in a panel over the drawing (DECISIONS.md §245, §259).
  *
  * The page opened on three counts, a canvas and a list, and the best cut sat a
  * tab away. This leads with the answer: the changes that close the routes, in
@@ -33,6 +33,7 @@ export function FixPlanCard({
   onTry,
   trying,
   progress,
+  className,
 }: {
   plan: FixPlan;
   entryPoints: number;
@@ -43,6 +44,7 @@ export function FixPlanCard({
   trying: boolean;
   /** Whether it is getting better, from the route ledger (§249). */
   progress?: ReactNode;
+  className?: string;
 }) {
   const t = useT();
   const total = plan.total_routes;
@@ -54,7 +56,10 @@ export function FixPlanCard({
   return (
     <section
       aria-labelledby="fix-plan-title"
-      className="flex flex-col gap-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10"
+      className={cn(
+        "flex flex-col gap-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10",
+        className,
+      )}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-1">

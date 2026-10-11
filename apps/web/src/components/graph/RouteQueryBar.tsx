@@ -1,17 +1,20 @@
-import { SearchIcon, XIcon } from "lucide-react";
+import type { ReactNode } from "react";
+import { SearchIcon, SlidersHorizontalIcon, XIcon } from "lucide-react";
 
 import { useT } from "@/i18n";
 import { CopyButton } from "@/components/common/CopyButton";
 import { SelectField } from "@/components/common/SelectField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/format";
 import { FACET_PARAMS, hasFacets, type RouteFacets } from "./routeFacets";
 import { DEFAULT_SORT, ROUTE_SORTS, type RouteSort } from "./routeOrder";
 
 const ANY = "any";
 
 /**
- * Search, sort and facets, above the drawing (DECISIONS.md §253).
+ * Search, sort and facets, over the drawing (DECISIONS.md §253, §259).
  *
  * They sat in the panel, which then held three jobs: narrowing, reading a
  * route and simulating. Here they narrow the list and the drawing together --
@@ -26,6 +29,7 @@ export function RouteQueryBar({
   facets,
   onFacet,
   onClear,
+  className,
 }: {
   query: string;
   onQuery: (query: string) => void;
@@ -35,6 +39,7 @@ export function RouteQueryBar({
   /** Set one facet's URL parameter, or clear it with null. */
   onFacet: (param: string, value: string | null) => void;
   onClear: () => void;
+  className?: string;
 }) {
   const t = useT();
   const sorts: Record<RouteSort, string> = {
@@ -45,14 +50,106 @@ export function RouteQueryBar({
     tracked: t.attackPaths.sortTracked,
   };
   const set = (param: string) => (value: string) => onFacet(param, value === ANY ? null : value);
+  const active = activeFacets(facets);
+
+  const fields: { label: string; control: ReactNode }[] = [
+    {
+      label: t.attackPaths.facetReaches,
+      control: (
+        <SelectField
+          value={facets.reaches ?? ANY}
+          onValueChange={set(FACET_PARAMS.reaches)}
+          ariaLabel={t.attackPaths.facetReaches}
+          idleValue={ANY}
+          className="w-full"
+          options={[
+            { value: ANY, label: t.attackPaths.facetReachesAny },
+            { value: "HIGH", label: t.attackPaths.facetReachesHigh },
+            { value: "CRITICAL", label: t.attackPaths.facetReachesCritical },
+          ]}
+        />
+      ),
+    },
+    {
+      label: t.attackPaths.facetWayIn,
+      control: (
+        <SelectField
+          value={facets.wayIn ?? ANY}
+          onValueChange={set(FACET_PARAMS.wayIn)}
+          ariaLabel={t.attackPaths.facetWayIn}
+          idleValue={ANY}
+          className="w-full"
+          options={[
+            { value: ANY, label: t.attackPaths.facetWayInAny },
+            { value: "internet", label: t.attackPaths.facetWayInInternet },
+            { value: "identity", label: t.attackPaths.facetWayInIdentity },
+          ]}
+        />
+      ),
+    },
+    {
+      label: t.attackPaths.facetLink,
+      control: (
+        <SelectField
+          value={facets.link ?? ANY}
+          onValueChange={set(FACET_PARAMS.link)}
+          ariaLabel={t.attackPaths.facetLink}
+          idleValue={ANY}
+          className="w-full"
+          options={[
+            { value: ANY, label: t.attackPaths.facetLinkAny },
+            { value: "role", label: t.attackPaths.facetLinkRole },
+            { value: "network", label: t.attackPaths.facetLinkNetwork },
+            { value: "identity", label: t.attackPaths.facetLinkIdentity },
+          ]}
+        />
+      ),
+    },
+    {
+      label: t.attackPaths.facetTracked,
+      control: (
+        <SelectField
+          value={facets.tracked ?? ANY}
+          onValueChange={set(FACET_PARAMS.tracked)}
+          ariaLabel={t.attackPaths.facetTracked}
+          idleValue={ANY}
+          className="w-full"
+          options={[
+            { value: ANY, label: t.attackPaths.facetTrackedAny },
+            { value: "yes", label: t.attackPaths.facetTrackedYes },
+            { value: "no", label: t.attackPaths.facetTrackedNo },
+          ]}
+        />
+      ),
+    },
+    {
+      label: t.attackPaths.facetHops,
+      control: (
+        <SelectField
+          value={facets.maxHops === null ? ANY : String(facets.maxHops)}
+          onValueChange={set(FACET_PARAMS.maxHops)}
+          ariaLabel={t.attackPaths.facetHops}
+          idleValue={ANY}
+          className="w-full"
+          options={[
+            { value: ANY, label: t.attackPaths.facetHopsAny },
+            ...[2, 3, 4].map((n) => ({
+              value: String(n),
+              label: t.attackPaths.facetHopsAtMost(n),
+            })),
+          ]}
+        />
+      ),
+    },
+  ];
 
   return (
     <div
       role="search"
       aria-label={t.attackPaths.queryLabel}
-      className="flex flex-wrap items-center gap-2"
+      className={cn("flex flex-wrap items-center gap-1.5", className)}
     >
-      <div className="relative min-w-48 flex-1">
+      <div className="relative min-w-40 flex-1 sm:max-w-64">
         <SearchIcon
           className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
           aria-hidden
@@ -67,66 +164,35 @@ export function RouteQueryBar({
           className="h-8 pl-8 text-xs md:text-xs"
         />
       </div>
-      <SelectField
-        value={facets.reaches ?? ANY}
-        onValueChange={set(FACET_PARAMS.reaches)}
-        ariaLabel={t.attackPaths.facetReaches}
-        idleValue={ANY}
-        className="w-36"
-        options={[
-          { value: ANY, label: t.attackPaths.facetReachesAny },
-          { value: "HIGH", label: t.attackPaths.facetReachesHigh },
-          { value: "CRITICAL", label: t.attackPaths.facetReachesCritical },
-        ]}
-      />
-      <SelectField
-        value={facets.wayIn ?? ANY}
-        onValueChange={set(FACET_PARAMS.wayIn)}
-        ariaLabel={t.attackPaths.facetWayIn}
-        idleValue={ANY}
-        className="w-36"
-        options={[
-          { value: ANY, label: t.attackPaths.facetWayInAny },
-          { value: "internet", label: t.attackPaths.facetWayInInternet },
-          { value: "identity", label: t.attackPaths.facetWayInIdentity },
-        ]}
-      />
-      <SelectField
-        value={facets.link ?? ANY}
-        onValueChange={set(FACET_PARAMS.link)}
-        ariaLabel={t.attackPaths.facetLink}
-        idleValue={ANY}
-        className="w-36"
-        options={[
-          { value: ANY, label: t.attackPaths.facetLinkAny },
-          { value: "role", label: t.attackPaths.facetLinkRole },
-          { value: "network", label: t.attackPaths.facetLinkNetwork },
-          { value: "identity", label: t.attackPaths.facetLinkIdentity },
-        ]}
-      />
-      <SelectField
-        value={facets.tracked ?? ANY}
-        onValueChange={set(FACET_PARAMS.tracked)}
-        ariaLabel={t.attackPaths.facetTracked}
-        idleValue={ANY}
-        className="w-32"
-        options={[
-          { value: ANY, label: t.attackPaths.facetTrackedAny },
-          { value: "yes", label: t.attackPaths.facetTrackedYes },
-          { value: "no", label: t.attackPaths.facetTrackedNo },
-        ]}
-      />
-      <SelectField
-        value={facets.maxHops === null ? ANY : String(facets.maxHops)}
-        onValueChange={set(FACET_PARAMS.maxHops)}
-        ariaLabel={t.attackPaths.facetHops}
-        idleValue={ANY}
-        className="w-32"
-        options={[
-          { value: ANY, label: t.attackPaths.facetHopsAny },
-          ...[2, 3, 4].map((n) => ({ value: String(n), label: t.attackPaths.facetHopsAtMost(n) })),
-        ]}
-      />
+      {/* The five facets behind one control, so the drawing keeps the room
+          (§259); the count on it says how many narrow the routes now. */}
+      <Popover>
+        <PopoverTrigger
+          render={
+            <Button variant={active > 0 ? "secondary" : "outline"} size="sm">
+              <SlidersHorizontalIcon data-icon="inline-start" />
+              {t.attackPaths.facetsLabel}
+              {active > 0 && (
+                <span className="rounded-sm bg-primary px-1 text-caption text-primary-foreground tabular-nums">
+                  {active}
+                </span>
+              )}
+            </Button>
+          }
+        />
+        <PopoverContent align="start" className="w-64" aria-label={t.attackPaths.facetsLabel}>
+          <div className="flex flex-col gap-3">
+            {fields.map((field) => (
+              <div key={field.label} className="flex flex-col gap-1.5">
+                <span aria-hidden className="text-meta font-medium text-muted-foreground">
+                  {field.label}
+                </span>
+                {field.control}
+              </div>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
       <SelectField
         value={sort}
         onValueChange={(value) => onSort(value as RouteSort)}
@@ -148,4 +214,9 @@ export function RouteQueryBar({
       />
     </div>
   );
+}
+
+/** How many facets narrow the routes now. */
+function activeFacets(facets: RouteFacets): number {
+  return Object.values(facets).filter((value) => value !== null).length;
 }

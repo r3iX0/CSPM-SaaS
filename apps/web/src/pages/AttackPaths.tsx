@@ -2,10 +2,14 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } 
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ExpandIcon,
   PanelRightCloseIcon,
   PanelRightOpenIcon,
   RouteIcon,
   ScissorsIcon,
+  ShrinkIcon,
   XIcon,
 } from "lucide-react";
 
@@ -47,12 +51,12 @@ import {
   routeMapQuery,
 } from "@/components/graph/graphQueries";
 import { AssetCard } from "@/components/graph/AssetCard";
-import { singleKeyShortcut } from "@/lib/keyboard";
+import { dialogOpen, singleKeyShortcut } from "@/lib/keyboard";
 import { RouteProgress } from "@/components/graph/RouteProgress";
 import { ledgerMarks } from "@/components/graph/routeLedger";
 import { DURATION, useCountUp, usePrefersReducedMotion } from "@/lib/motion";
 import { arrivedByMorph } from "@/lib/viewTransition";
-import type { Hop, SimulatedPlan } from "@/components/graph/RouteMapCanvas";
+import type { CanvasInsets, Hop, SimulatedPlan } from "@/components/graph/RouteMapCanvas";
 import { SimulationPanel } from "@/components/graph/SimulationPanel";
 import { FixPlanCard } from "@/components/graph/FixPlanCard";
 import { RouteQueryBar } from "@/components/graph/RouteQueryBar";
@@ -436,34 +440,6 @@ export function AttackPathsPage() {
 
       {data && map && listing && routes.length > 0 && (
         <>
-          <FixPlanCard
-            plan={map.plan}
-            entryPoints={data.meta.entry_points}
-            sensitiveTargets={data.meta.sensitive_targets}
-            trying={tryingPlan}
-            onTry={tryPlan}
-            progress={
-              history.data && (
-                <RouteProgress history={history.data.history} meta={history.data.meta} />
-              )
-            }
-          />
-
-          <RouteQueryBar
-            query={query}
-            onQuery={(next) => change({ q: next || null })}
-            sort={sort}
-            onSort={(next) => change({ sort: next === DEFAULT_SORT ? null : next })}
-            facets={facets}
-            onFacet={(param, value) => change({ [param]: value })}
-            onClear={() =>
-              change({
-                q: null,
-                ...Object.fromEntries(Object.values(FACET_PARAMS).map((param) => [param, null])),
-              })
-            }
-          />
-
           {traced && !tracedRoute && (
             <Alert>
               <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
@@ -479,6 +455,48 @@ export function AttackPathsPage() {
             <RouteMapFrame
               map={map}
               meta={data.meta}
+              toolbar={
+                <RouteQueryBar
+                  query={query}
+                  onQuery={(next) => change({ q: next || null })}
+                  sort={sort}
+                  onSort={(next) => change({ sort: next === DEFAULT_SORT ? null : next })}
+                  facets={facets}
+                  onFacet={(param, value) => change({ [param]: value })}
+                  onClear={() =>
+                    change({
+                      q: null,
+                      ...Object.fromEntries(
+                        Object.values(FACET_PARAMS).map((param) => [param, null]),
+                      ),
+                    })
+                  }
+                />
+              }
+              fixPlan={
+                <FixPlanCard
+                  className="rounded-none bg-transparent ring-0"
+                  plan={map.plan}
+                  entryPoints={data.meta.entry_points}
+                  sensitiveTargets={data.meta.sensitive_targets}
+                  trying={tryingPlan}
+                  onTry={tryPlan}
+                  progress={
+                    history.data && (
+                      <RouteProgress history={history.data.history} meta={history.data.meta} />
+                    )
+                  }
+                />
+              }
+              planSummary={
+                map.plan.cuts.length === 0
+                  ? t.attackPaths.planNone
+                  : t.attackPaths.planHeadline(
+                      map.plan.cuts.length,
+                      map.plan.total_routes - map.plan.remaining,
+                      map.plan.total_routes,
+                    )
+              }
               traced={tracedRoute}
               hop={hop}
               preview={previewRoute}
@@ -667,16 +685,25 @@ function asRemoved(link: Hop, edges: RouteMapEdge[]): Hop {
 }
 
 /**
- * The drawing and the routes, as one frame.
+ * The drawing and everything that reads it, as one frame (DECISIONS.md §259).
  *
- * The rail used to be a column of cards beside a card holding the canvas, and
- * a traced route opened at the foot of that column, often below the fold. Now
- * it is the estate map's shape (DECISIONS.md §137): the canvas, and a panel on
- * its side that lists the routes and, once one is traced, reads it (§142).
+ * The fix plan sat above the drawing, the query bar under it, the legend
+ * beside its title and the routes in a column on its side: four bands to
+ * scroll past before the picture, which is the one thing on this page that
+ * says "one identity" at a look. Now the canvas is the frame and the rest
+ * float over it on a wide screen -- the query bar and the view's controls
+ * along the top, the fix plan on the left, the routes and the simulation on
+ * the right, the legend at the foot -- each folding away for a wider look, and
+ * every fit frames the drawing in the part they leave open. On a narrow screen
+ * they stack under the canvas, as before. Full screen takes the whole display,
+ * where the wheel zooms because there is no page left to scroll.
  */
 function RouteMapFrame({
   map,
   meta,
+  toolbar,
+  fixPlan,
+  planSummary,
   traced,
   hop,
   preview,
@@ -695,6 +722,12 @@ function RouteMapFrame({
 }: {
   map: RouteMap;
   meta: RouteMapMeta;
+  /** Search, filters and sort (`RouteQueryBar`). */
+  toolbar: ReactNode;
+  /** The fix plan (`FixPlanCard`). */
+  fixPlan: ReactNode;
+  /** The fix plan's headline, said on its tab while it is folded away. */
+  planSummary: string;
   traced: MappedRoute | null;
   hop: number;
   preview: MappedRoute | null;
@@ -714,138 +747,259 @@ function RouteMapFrame({
   const t = useT();
   // The routes left with the plan made, run down to as each answer lands (§256).
   const left = useCountUp(map.routes.length - (simulated?.closes.size ?? 0), DURATION.chart);
-  // The panel folds away for a wide look at the drawing, and widens while a
-  // hop is read, which carries the most text (§253).
-  const [folded, setFolded] = useState(false);
+  // Each panel folds away for a wider look at the drawing; the routes panel
+  // widens while a hop is read, which carries the most text (§253).
+  const [planOpen, setPlanOpen] = useStoredFlag("cloudguard:attack-paths:plan", true);
+  const [panelOpen, setPanelOpen] = useStoredFlag("cloudguard:attack-paths:panel", true);
+  // A route being read needs the width, so the fix plan yields to it until
+  // somebody asks for the plan back while reading that route.
+  const [planKeptFor, setPlanKeptFor] = useState<string | null>(null);
+  const planShown = planOpen && (!traced || planKeptFor === traced.key);
+  function showPlan(show: boolean) {
+    setPlanOpen(() => show);
+    if (show && traced) setPlanKeptFor(traced.key);
+  }
+  const { full, toggleFull } = useFullScreen();
+  // Panels float over the canvas only on a wide screen; below that they stack.
+  const wide = useMediaQuery(WIDE);
+
+  const insets = useMemo<CanvasInsets>(
+    () =>
+      wide
+        ? {
+            top: PANEL_TOP + (simulated ? SIMULATING_HEIGHT : 0),
+            left: planShown ? EDGE + PLAN_WIDTH : 0,
+            right: panelOpen ? EDGE + (traced ? READING_WIDTH : ROUTES_WIDTH) : 0,
+            bottom: FOOT_HEIGHT,
+          }
+        : { top: 0, left: 0, right: 0, bottom: 0 },
+    [wide, simulated, planShown, panelOpen, traced],
+  );
 
   return (
-    <section aria-labelledby="route-map-title" className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="route-map-title" className="text-body font-semibold">
-          {t.attackPaths.mapTitle}
-        </h2>
-        <GraphLegend
-          label={t.attackPaths.mapHelpLabel}
-          items={[
-            { mark: MARKS.exposure, label: t.attackPaths.legendEntry },
-            { mark: MARKS.sensitive, label: t.attackPaths.legendSensitive },
-            { mark: MARKS.findings, label: t.attackPaths.legendFindings },
-            { mark: MARKS.weight, label: t.attackPaths.legendWeight },
-            ...(simulated
-              ? [
-                  { mark: MARKS.cut, label: t.attackPaths.legendCut },
-                  { mark: MARKS.closed, label: t.attackPaths.legendClosed },
-                ]
-              : []),
-          ]}
-        >
-          <p>{t.attackPaths.mapHelpExplain}</p>
-        </GraphLegend>
-      </div>
+    <section aria-labelledby="route-map-title" className="flex flex-col gap-2">
+      <h2 id="route-map-title" className="sr-only">
+        {t.attackPaths.mapTitle}
+      </h2>
 
       {/* What a link from the dashboard grows into (DECISIONS.md §140). */}
       <div
         data-graph-frame=""
-        className="flex w-full flex-col overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10 lg:h-[36rem] xl:h-[42rem] 2xl:h-[48rem]"
+        className={cn(
+          "relative isolate flex w-full flex-col overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10",
+          "lg:block lg:h-[calc(100dvh-11rem)] lg:min-h-[34rem]",
+          full && "fixed inset-0 z-50 overflow-y-auto rounded-none ring-0 lg:h-dvh lg:min-h-0",
+        )}
       >
+        {/* Along the top: narrowing on the left, the view on the right. */}
+        <div className="flex flex-wrap items-start gap-2 border-b border-border p-2 lg:pointer-events-none lg:absolute lg:inset-x-3 lg:top-3 lg:z-10 lg:border-0 lg:p-0">
+          <div className={cn(FLOATING, "min-w-0 flex-1 lg:flex-initial lg:p-1")}>{toolbar}</div>
+          <div className={cn(FLOATING, "ml-auto flex items-center gap-0.5 lg:p-1")}>
+            <Button
+              variant={planShown ? "secondary" : "ghost"}
+              size="icon-sm"
+              className="hidden lg:inline-flex"
+              aria-label={t.attackPaths.planPanelToggle}
+              aria-pressed={planShown}
+              onClick={() => showPlan(!planShown)}
+            >
+              <ScissorsIcon />
+            </Button>
+            <Button
+              variant={panelOpen ? "secondary" : "ghost"}
+              size="icon-sm"
+              className="hidden lg:inline-flex"
+              aria-label={panelOpen ? t.attackPaths.panelHide : t.attackPaths.panelShow}
+              aria-expanded={panelOpen}
+              onClick={() => setPanelOpen((open) => !open)}
+            >
+              {panelOpen ? <PanelRightCloseIcon /> : <PanelRightOpenIcon />}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={full ? t.attackPaths.fullScreenLeave : t.attackPaths.fullScreenEnter}
+              aria-pressed={full}
+              aria-keyshortcuts="F"
+              onClick={toggleFull}
+            >
+              {full ? <ShrinkIcon /> : <ExpandIcon />}
+            </Button>
+          </div>
+        </div>
+
         {simulated && (
-          <div className="flex items-center gap-2 border-b border-ok-border bg-ok-bg px-3 py-1.5 text-xs text-foreground">
-            <ScissorsIcon className="size-3.5 shrink-0 text-ok" aria-hidden />
-            <p className="min-w-0 flex-1">{t.attackPaths.simulating(simulated.links.length)}</p>
-            <span className="shrink-0 tabular-nums" aria-hidden>
-              {map.routes.length} → {left}
-            </span>
-            {tab !== "simulate" && (
-              <Button variant="ghost" size="sm" onClick={() => onTab("simulate")}>
-                {t.attackPaths.simulationShow}
-              </Button>
-            )}
+          <div
+            className="flex justify-center px-2 pt-2 lg:pointer-events-none lg:absolute lg:z-10 lg:p-0"
+            style={
+              wide
+                ? { top: PANEL_TOP, left: insets.left + EDGE, right: insets.right + EDGE }
+                : undefined
+            }
+          >
+            <div className="flex w-full items-center gap-2 rounded-lg border border-ok-border bg-ok-bg px-3 py-1.5 text-xs text-foreground lg:pointer-events-auto lg:w-auto lg:max-w-full lg:rounded-full lg:shadow-md">
+              <ScissorsIcon className="size-3.5 shrink-0 text-ok" aria-hidden />
+              <p className="min-w-0 flex-1">{t.attackPaths.simulating(simulated.links.length)}</p>
+              <span className="shrink-0 font-medium tabular-nums" aria-hidden>
+                {map.routes.length} → {left}
+              </span>
+              {(tab !== "simulate" || !panelOpen) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6"
+                  onClick={() => {
+                    setPanelOpen(() => true);
+                    onTab("simulate");
+                  }}
+                >
+                  {t.attackPaths.simulationShow}
+                </Button>
+              )}
+            </div>
           </div>
         )}
-        <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-          <div className="h-[28rem] min-w-0 lg:h-auto lg:flex-1">
-            <Suspense fallback={<Skeleton className="size-full" />}>
-              <RouteMapCanvas
-                map={map}
-                traced={traced}
-                hop={traced ? hop : null}
-                preview={preview}
-                simulated={simulated}
-                picked={picked}
-                narrowed={narrowed}
-                reach={reach}
-                checking={checking}
-                onPickNode={onPickNode}
-                onPickLink={onPickLink}
-                onClearPick={onClearPick}
-              />
-            </Suspense>
-          </div>
 
-          {folded && (
-            <div className="hidden border-l border-border p-1 lg:flex">
+        <div
+          className={cn("h-[28rem] min-w-0 lg:absolute lg:inset-0 lg:h-auto", full && "h-[70dvh]")}
+        >
+          <Suspense fallback={<Skeleton className="size-full" />}>
+            <RouteMapCanvas
+              map={map}
+              traced={traced}
+              hop={traced ? hop : null}
+              preview={preview}
+              simulated={simulated}
+              picked={picked}
+              narrowed={narrowed}
+              reach={reach}
+              checking={checking}
+              onPickNode={onPickNode}
+              onPickLink={onPickLink}
+              onClearPick={onClearPick}
+              insets={insets}
+              frameKey={`${full}|${planShown}|${panelOpen}|${wide}`}
+              wheelZoom={full}
+              zoomPosition="bottom-right"
+            />
+          </Suspense>
+        </div>
+
+        {/* The legend, at the foot of the drawing it reads. */}
+        <div
+          className={cn(
+            FLOATING,
+            "border-t border-border px-3 py-2 lg:absolute lg:bottom-3 lg:left-3 lg:max-w-[calc(100%-9rem)] lg:border-0 lg:px-2.5 lg:py-1.5",
+          )}
+        >
+          <GraphLegend
+            label={t.attackPaths.mapHelpLabel}
+            items={[
+              { mark: MARKS.exposure, label: t.attackPaths.legendEntry },
+              { mark: MARKS.sensitive, label: t.attackPaths.legendSensitive },
+              { mark: MARKS.findings, label: t.attackPaths.legendFindings },
+              { mark: MARKS.weight, label: t.attackPaths.legendWeight },
+              ...(simulated
+                ? [
+                    { mark: MARKS.cut, label: t.attackPaths.legendCut },
+                    { mark: MARKS.closed, label: t.attackPaths.legendClosed },
+                  ]
+                : []),
+            ]}
+          >
+            <p>{t.attackPaths.mapHelpExplain}</p>
+          </GraphLegend>
+        </div>
+
+        {/* The fix plan, on the left: what to change first (§245). */}
+        {planShown || !wide ? (
+          <div
+            className={cn(
+              FLOATING,
+              "flex flex-col border-t border-border lg:absolute lg:left-3 lg:w-[22rem] lg:border-0",
+            )}
+            style={
+              wide
+                ? { top: PANEL_TOP, maxHeight: `calc(100% - ${PANEL_TOP + FOOT_HEIGHT}px)` }
+                : undefined
+            }
+          >
+            <div className="hidden items-center gap-1 border-b border-border py-1 pr-1 pl-3 lg:flex">
+              <ScissorsIcon className="size-3.5 text-muted-foreground" aria-hidden />
+              <p className="flex-1 text-meta font-medium text-muted-foreground">
+                {t.attackPaths.planPanelTitle}
+              </p>
               <Button
                 variant="ghost"
                 size="icon-sm"
-                aria-label={t.attackPaths.panelShow}
-                aria-expanded={false}
-                onClick={() => setFolded(false)}
+                aria-label={t.attackPaths.planPanelFold}
+                aria-expanded
+                onClick={() => showPlan(false)}
               >
-                <PanelRightOpenIcon />
+                <ChevronLeftIcon />
               </Button>
             </div>
-          )}
-          <aside
-            aria-label={t.attackPaths.panelLabel}
-            className={cn(
-              "flex max-h-[30rem] min-h-0 flex-col border-t border-border lg:max-h-none lg:border-t-0 lg:border-l",
-              "lg:transition-[width] lg:duration-200",
-              traced ? "lg:w-[24rem]" : "lg:w-[20rem]",
-              folded && "lg:hidden",
-            )}
+            <div className="min-h-0 overflow-y-auto">{fixPlan}</div>
+          </div>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            className="absolute left-3 z-10 max-w-[22rem] bg-popover/95 shadow-md backdrop-blur-md"
+            style={{ top: PANEL_TOP }}
+            aria-expanded={false}
+            onClick={() => showPlan(true)}
           >
-            <Tabs
-              value={tab}
-              onValueChange={(value) => onTab(value as PanelTab)}
-              className="min-h-0 flex-1 gap-0"
-            >
-              <div className="flex items-center gap-1 border-b border-border p-2">
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="hidden lg:inline-flex"
-                  aria-label={t.attackPaths.panelHide}
-                  aria-expanded
-                  onClick={() => setFolded(true)}
-                >
-                  <PanelRightCloseIcon />
-                </Button>
-                <TabsList className="w-full">
-                  <TabsTrigger value="routes">
-                    {t.attackPaths.tabRoutes}
-                    <span className="text-muted-foreground tabular-nums">{map.routes.length}</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="simulate">
-                    {t.attackPaths.tabSimulate}
-                    {simulated && (
-                      <span className="text-muted-foreground tabular-nums">
-                        {simulated.links.length}
-                      </span>
-                    )}
-                  </TabsTrigger>
-                </TabsList>
-              </div>
+            <ScissorsIcon data-icon="inline-start" />
+            <span className="truncate">{planSummary}</span>
+            <ChevronRightIcon data-icon="inline-end" />
+          </Button>
+        )}
 
-              <TabsContent value="routes" className="flex min-h-0 flex-col">
-                {routesPanel}
-              </TabsContent>
+        {/* The routes and the simulation, on the right (§137, §141). */}
+        <aside
+          aria-label={t.attackPaths.panelLabel}
+          className={cn(
+            FLOATING,
+            "flex max-h-[30rem] min-h-0 flex-col border-t border-border lg:absolute lg:right-3 lg:max-h-none lg:border-0",
+            "lg:transition-[width] lg:duration-200",
+            traced ? "lg:w-96" : "lg:w-80",
+            !panelOpen && "lg:hidden",
+            full && "max-h-none",
+          )}
+          style={wide ? { top: PANEL_TOP, bottom: ZOOM_CLEARANCE } : undefined}
+        >
+          <Tabs
+            value={tab}
+            onValueChange={(value) => onTab(value as PanelTab)}
+            className="min-h-0 flex-1 gap-0"
+          >
+            <div className="flex items-center gap-1 border-b border-border p-2">
+              <TabsList className="w-full">
+                <TabsTrigger value="routes">
+                  {t.attackPaths.tabRoutes}
+                  <span className="text-muted-foreground tabular-nums">{map.routes.length}</span>
+                </TabsTrigger>
+                <TabsTrigger value="simulate">
+                  {t.attackPaths.tabSimulate}
+                  {simulated && (
+                    <span className="text-muted-foreground tabular-nums">
+                      {simulated.links.length}
+                    </span>
+                  )}
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
-              <TabsContent value="simulate" className="flex min-h-0 flex-col">
-                {simulationPanel}
-              </TabsContent>
-            </Tabs>
-          </aside>
-        </div>
+            <TabsContent value="routes" className="flex min-h-0 flex-col">
+              {routesPanel}
+            </TabsContent>
+
+            <TabsContent value="simulate" className="flex min-h-0 flex-col">
+              {simulationPanel}
+            </TabsContent>
+          </Tabs>
+        </aside>
       </div>
 
       {meta.drawn < meta.total && (
@@ -855,6 +1009,139 @@ function RouteMapFrame({
       )}
     </section>
   );
+}
+
+/** Where the panels float over the canvas rather than stack under it. */
+const WIDE = "(min-width: 1024px)";
+
+/**
+ * A panel floating over the drawing, on a wide screen: the popover surface,
+ * nearly opaque so the lines under it do not read through, and blurred where
+ * they show. Below that breakpoint it is a band of the frame.
+ */
+const FLOATING =
+  "lg:pointer-events-auto lg:z-10 lg:rounded-xl lg:bg-popover/95 lg:shadow-lg lg:ring-1 lg:ring-foreground/10 lg:backdrop-blur-md";
+
+// The panels' geometry in pixels, so what they cover can be told to the
+// canvas (`insets`): 12px from each edge, the side panels under the top bar
+// and clear of the legend and the zoom buttons at the foot.
+const EDGE = 12;
+const PANEL_TOP = 60;
+const FOOT_HEIGHT = 56;
+/** The routes panel stops above the zoom buttons, which sit over the attribution. */
+const ZOOM_CLEARANCE = 88;
+const SIMULATING_HEIGHT = 44;
+const PLAN_WIDTH = 352;
+const ROUTES_WIDTH = 320;
+const READING_WIDTH = 384;
+
+/**
+ * A panel's fold, remembered in this browser: a per-viewer convenience, so
+ * storage that refuses or forgets only means it opens unfolded (§259).
+ */
+function useStoredFlag(
+  key: string,
+  initial: boolean,
+): [boolean, (next: (was: boolean) => boolean) => void] {
+  const [value, setValue] = useState(() => {
+    try {
+      const stored = localStorage.getItem(key);
+      return stored === null ? initial : stored === "1";
+    } catch {
+      return initial;
+    }
+  });
+  function set(next: (was: boolean) => boolean) {
+    setValue((was) => {
+      const now = next(was);
+      try {
+        localStorage.setItem(key, now ? "1" : "0");
+      } catch {
+        // Storage refused: the fold lasts until the page is left.
+      }
+      return now;
+    });
+  }
+  return [value, set];
+}
+
+/** Whether a media query matches, kept current. `matchMedia`-less means no. */
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(
+    // Guarded: jsdom has no `matchMedia`, and without one nothing is wide.
+    () => typeof window.matchMedia === "function" && window.matchMedia(query).matches,
+  );
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const list = window.matchMedia(query);
+    const onChange = () => setMatches(list.matches);
+    list.addEventListener("change", onChange);
+    return () => list.removeEventListener("change", onChange);
+  }, [query]);
+  return matches;
+}
+
+/**
+ * The frame filling the screen (§259). It is laid over the window by CSS
+ * first, so full screen works wherever the browser refuses the Fullscreen API
+ * (an iframe, a missing gesture); the API, where granted, then takes the
+ * browser's own chrome away too. The document element is what goes full
+ * screen, not the frame, so menus and tooltips -- portalled to the body --
+ * still show over it. Escape, the browser leaving full screen, or F again
+ * puts it back; F is a single-key shortcut, so it can be turned off (§155).
+ */
+function useFullScreen(): { full: boolean; toggleFull: () => void } {
+  const [full, setFull] = useState(false);
+
+  function toggleFull() {
+    if (full) {
+      setFull(false);
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {
+          // Already left: the browser's own Escape got there first.
+        });
+      }
+      return;
+    }
+    setFull(true);
+    document.documentElement.requestFullscreen?.().catch(() => {
+      // Refused: the frame still covers the window, which is most of the point.
+    });
+  }
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "f" && singleKeyShortcut(event)) {
+        event.preventDefault();
+        toggleFull();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  useEffect(() => {
+    if (!full) return;
+    // The page behind does not scroll under a frame that covers it.
+    const root = document.documentElement;
+    const overflow = root.style.overflow;
+    root.style.overflow = "hidden";
+    function onChange() {
+      if (!document.fullscreenElement) setFull(false);
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape" && !event.defaultPrevented && !dialogOpen()) setFull(false);
+    }
+    document.addEventListener("fullscreenchange", onChange);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      root.style.overflow = overflow;
+      document.removeEventListener("fullscreenchange", onChange);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [full]);
+
+  return { full, toggleFull };
 }
 
 /**

@@ -13394,6 +13394,42 @@ claimed, because a cut is not a finding. The assignment goes on the next apply, 
 scan's ledger closing the link's routes (§244) shows the cut worked. Merging stays a person's
 review: Cleave never merges or applies.
 
+## 259. The route map is the page, with everything that reads it floating over it
+
+The attack-path page stacked four bands before the drawing: the fix plan (§245), the query bar
+(§253), the legend and the frame of canvas and panel (§137). The drawing is the one thing on the
+page that says "forty routes through one identity" at a look, and it started below the fold.
+
+**One frame, the height of the window.** The frame fills what the shell leaves
+(`calc(100dvh - 11rem)`, at least 34rem) and the canvas fills the frame. On a wide screen (1024px
+and up) the rest floats over the canvas as panels on the popover surface: the query bar and the
+view's controls along the top, the fix plan on the left, the routes and the simulation on the
+right, the legend at the foot and the zoom buttons in the corner, clear of React Flow's
+attribution. The simulation banner floats over the open part of the drawing. Below 1024px the
+panels stack under the canvas in that order, as the page did.
+
+**The facets sit behind one "Filters" control** that counts how many narrow the routes; search,
+sort, "Clear" and the investigation link stay on the bar. Every facet is still in the URL (§253).
+
+**Each side panel folds away**, from the bar or the panel's own header, and the fold is remembered
+in this browser; a folded fix plan is a button saying its headline. While a route is traced the fix
+plan yields its width to the reading, until somebody opens it again for that route.
+
+**Fits frame the drawing in what the panels leave open.** The page tells the canvas how far in each
+panel reaches (`insets`), and every fit -- the readable estate (§248, now at most life size), a
+traced route, a framed box -- pads by it, as does centring a hop or a box brought into view. A
+change of frame size (full screen, a panel folded) frames the view again (`frameKey`).
+
+**Full screen.** A button on the bar, or F (a single-key shortcut, so it can be turned off, §155),
+lays the frame over the window with CSS first, so it works where the browser refuses the
+Fullscreen API, then asks for the API on the document element, not the frame, so menus and
+tooltips portalled to the body still show. Escape, the browser leaving full screen, or F again puts
+it back. The page behind does not scroll meanwhile, and in full screen the wheel zooms, because
+there is no page left to scroll past (the reason it does not elsewhere).
+
+**Not taken.** Widening the shell's 1240px column for this page alone: full screen is the wide
+look, and one page breaking the column would make the shell's width a per-page decision.
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,

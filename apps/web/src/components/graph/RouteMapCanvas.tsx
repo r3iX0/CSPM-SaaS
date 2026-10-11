@@ -20,6 +20,8 @@ import {
   type Edge,
   type Node,
   type NodeProps,
+  type FitViewOptions,
+  type PanelPosition,
 } from "@xyflow/react";
 // The structural stylesheet only. `style.css` is React Flow's own theme, and
 // the colours here come from the tokens in index.css like everything else.
@@ -99,6 +101,20 @@ function useActions(): CanvasActions {
   return actions;
 }
 
+/**
+ * How far in from each edge of the canvas the page's floating panels reach,
+ * in pixels (§259). A fit frames the drawing in what is left open, and a box
+ * brought into view is centred there, so nothing lands under a panel.
+ */
+export interface CanvasInsets {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+
+const NO_INSETS: CanvasInsets = { top: 0, right: 0, bottom: 0, left: 0 };
+
 export interface RouteMapCanvasProps {
   map: RouteMap;
   /** The route being read: its hops drawn strong, everything else faded. */
@@ -149,6 +165,20 @@ export interface RouteMapCanvasProps {
    * anywhere else it goes into the plan, or out of it.
    */
   onPickLink: (edge: RouteMapEdge) => void;
+  /** What the page's floating panels cover (§259); none by default. */
+  insets?: CanvasInsets;
+  /**
+   * Changes whenever the frame changes size -- full screen, a panel folded --
+   * and the view is framed again for the room it now has.
+   */
+  frameKey?: string;
+  /**
+   * Whether the wheel zooms. Only in full screen, where there is no page to
+   * scroll past the canvas and so no trap.
+   */
+  wheelZoom?: boolean;
+  /** Where the zoom buttons sit, clear of the page's panels. */
+  zoomPosition?: PanelPosition;
 }
 
 /**
@@ -192,6 +222,10 @@ function Canvas({
   onPickNode,
   onPickLink,
   onClearPick,
+  insets = NO_INSETS,
+  frameKey,
+  wheelZoom = false,
+  zoomPosition,
 }: RouteMapCanvasProps) {
   const reduced = usePrefersReducedMotion();
   const {
@@ -302,10 +336,20 @@ function Canvas({
     if (width === 0 || height === 0) return true;
     return points.every(
       (p) =>
-        p.x * zoom + dx >= 0 &&
-        (p.x + BOX_WIDTH) * zoom + dx <= width &&
-        p.y * zoom + dy >= 0 &&
-        (p.y + BOX_HEIGHT) * zoom + dy <= height,
+        p.x * zoom + dx >= insets.left &&
+        (p.x + BOX_WIDTH) * zoom + dx <= width - insets.right &&
+        p.y * zoom + dy >= insets.top &&
+        (p.y + BOX_HEIGHT) * zoom + dy <= height - insets.bottom,
+    );
+  }
+
+  // Centred in the part of the canvas the panels leave open, not under one.
+  function centreOn(x: number, y: number, duration: number) {
+    const zoom = flow.getZoom();
+    void flow.setCenter(
+      x + (insets.right - insets.left) / (2 * zoom),
+      y + (insets.bottom - insets.top) / (2 * zoom),
+      { zoom, duration },
     );
   }
 
@@ -315,11 +359,22 @@ function Canvas({
   const framed = useRef<string | null>(null);
   // The estate at a zoom its names can be read at, from the way in (§248).
   function frameReadable(duration: number) {
-    const width = frame.current?.clientWidth ?? 0;
+    const width = (frame.current?.clientWidth ?? 0) - insets.left - insets.right;
     void flow.fitView({
-      ...FIT,
+      padding: paddingFor(insets, FIT.padding, ROOM),
       nodes: readableFit(at, width, FIT.padding).map((id) => ({ id })),
       minZoom: READABLE_ZOOM,
+      // A narrow opening between the panels fits one column; at life size,
+      // not blown up to fill it.
+      maxZoom: 1,
+      duration,
+    });
+  }
+  function frameRoute(route: MappedRoute, duration: number) {
+    void flow.fitView({
+      nodes: [route.entry.id, ...route.steps.map((step) => step.target_id)].map((id) => ({ id })),
+      padding: paddingFor(insets, 0.3, ROOM * 2),
+      maxZoom: 1.1,
       duration,
     });
   }
@@ -332,19 +387,13 @@ function Canvas({
       return;
     }
     const duration = reduced ? 0 : DURATION.quick;
-    const ids = [traced.entry.id, ...traced.steps.map((step) => step.target_id)];
     if (framed.current !== traced.key) {
       // Two frames on: a bar arriving above the drawing can shrink the canvas,
       // and React Flow learns its new size from a resize observer.
       let frameId = requestAnimationFrame(() => {
         frameId = requestAnimationFrame(() => {
           framed.current = traced.key;
-          void flow.fitView({
-            nodes: ids.map((id) => ({ id })),
-            padding: 0.3,
-            maxZoom: 1.1,
-            duration,
-          });
+          frameRoute(traced, duration);
         });
       });
       return () => cancelAnimationFrame(frameId);
@@ -355,11 +404,29 @@ function Canvas({
     if (ends.length === 0 || inView(ends)) return;
     const x = ends.reduce((sum, p) => sum + p.x, 0) / ends.length + BOX_WIDTH / 2;
     const y = ends.reduce((sum, p) => sum + p.y, 0) / ends.length + BOX_HEIGHT / 2;
-    void flow.setCenter(x, y, { zoom: flow.getZoom(), duration });
+    centreOn(x, y, duration);
     return undefined;
     // The route and the hop are what move the view.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only the route and the hop move the view.
   }, [traced?.key, hop]);
+
+  // The frame changed size -- full screen, a panel folded or opened -- so the
+  // view is framed again for the room it now has, once React Flow has
+  // measured it (two frames, as above).
+  const lastFrameKey = useRef(frameKey);
+  useEffect(() => {
+    if (lastFrameKey.current === frameKey) return;
+    lastFrameKey.current = frameKey;
+    const duration = reduced ? 0 : DURATION.quick;
+    let frameId = requestAnimationFrame(() => {
+      frameId = requestAnimationFrame(() => {
+        if (traced) frameRoute(traced, duration);
+        else frameReadable(duration);
+      });
+    });
+    return () => cancelAnimationFrame(frameId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only a new frame size moves the view.
+  }, [frameKey]);
 
   // A double click or Enter on a box frames it with every route through it,
   // as Enter opens on the estate map (§133, §254); Escape puts it down.
@@ -372,7 +439,7 @@ function Canvas({
     if (picked !== id) onPickNode(id);
     void flow.fitView({
       nodes: [...ids].map((each) => ({ id: each })),
-      padding: 0.25,
+      padding: paddingFor(insets, 0.25, ROOM * 2),
       maxZoom: 1.1,
       duration: reduced ? 0 : DURATION.page,
     });
@@ -401,10 +468,7 @@ function Canvas({
     const to = at.get(next)!;
     // Brought into view rather than left for the reader to pan to: a mark that
     // moves off-screen is a mark nobody can see.
-    void flow.setCenter(to.x + BOX_WIDTH / 2, to.y + BOX_HEIGHT / 2, {
-      zoom: flow.getZoom(),
-      duration: reduced ? 0 : DURATION.quick,
-    });
+    centreOn(to.x + BOX_WIDTH / 2, to.y + BOX_HEIGHT / 2, reduced ? 0 : DURATION.quick);
   }
 
   return (
@@ -453,15 +517,38 @@ function Canvas({
           onPaneClick={() => onClearPick?.()}
           // The canvas sits in a scrolling page. A wheel that zoomed the graph
           // would trap somebody scrolling past it; zoom is on the buttons.
-          zoomOnScroll={false}
-          preventScrolling={false}
+          // Full screen has no page to scroll, so there the wheel zooms.
+          zoomOnScroll={wheelZoom}
+          preventScrolling={wheelZoom}
         >
           <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="var(--border)" />
-          <ZoomButtons />
+          <ZoomButtons position={zoomPosition} />
         </ReactFlow>
       </div>
     </Actions.Provider>
   );
+}
+
+/** Breathing room around a fit, in pixels, past what the panels cover. */
+const ROOM = 24;
+
+/**
+ * A fit's padding. With no panels over the canvas it is the relative padding
+ * every canvas uses; with panels, each side is what its panel covers plus a
+ * little room, so the drawing is framed in what is left open (§259).
+ */
+function paddingFor(
+  insets: CanvasInsets,
+  relative: number,
+  room: number,
+): FitViewOptions["padding"] {
+  if (insets.top + insets.right + insets.bottom + insets.left === 0) return relative;
+  return {
+    top: `${insets.top + room}px` as const,
+    right: `${insets.right + room}px` as const,
+    bottom: `${insets.bottom + room}px` as const,
+    left: `${insets.left + room}px` as const,
+  };
 }
 
 /**

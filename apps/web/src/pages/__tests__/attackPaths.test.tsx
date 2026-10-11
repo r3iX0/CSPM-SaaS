@@ -1172,6 +1172,44 @@ describe("AttackPathsPage", () => {
     expect(screen.queryByText("The changes that close the most")).toBeNull();
   });
 
+  it("fills the screen with the drawing, and gives it back on Escape", async () => {
+    mount(oneRoute(), { total: 1, entry_points: 1, sensitive_targets: 1 });
+
+    await userEvent.click(await screen.findByRole("button", { name: "Full screen" }));
+    expect(screen.getByRole("button", { name: "Leave full screen" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(document.querySelector("[data-graph-frame]")).toHaveClass("fixed");
+    expect(document.documentElement.style.overflow).toBe("hidden");
+
+    await userEvent.keyboard("{Escape}");
+    expect(screen.getByRole("button", { name: "Full screen" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    expect(document.querySelector("[data-graph-frame]")).not.toHaveClass("fixed");
+    expect(document.documentElement.style.overflow).toBe("");
+  });
+
+  it("keeps the facets behind one control that counts them", async () => {
+    mount(
+      oneRoute(),
+      { total: 1, entry_points: 1, sensitive_targets: 1 },
+      {},
+      "/attack-paths?reaches=CRITICAL&hops_max=3",
+    );
+
+    const filters = await screen.findByRole("button", { name: /^Filters/ });
+    expect(filters).toHaveTextContent("2");
+    expect(screen.queryByRole("combobox", { name: "What it reaches" })).toBeNull();
+
+    await userEvent.click(filters);
+    expect(await screen.findByRole("combobox", { name: "What it reaches" })).toHaveTextContent(
+      "Critical",
+    );
+  });
+
   it("says nothing about cutting when there is nothing to cut", async () => {
     mount(emptyMap(), { total: 0, entry_points: 3, sensitive_targets: 0 });
 
