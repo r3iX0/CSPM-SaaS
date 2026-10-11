@@ -13208,6 +13208,25 @@ is rescored or rerouted on the call: a route is what a scan's graph holds.
 the question under its routes; the asset's own page shows it beside its data sensitivity; and the
 "nothing has been classified as sensitive" empty state links to the assets.
 
+## 252. The fix plan can be handed over
+
+The fix plan (§245) said what to change and, opened, how (§246), and stopped at the page: tracking
+its work was a click per finding, and the PDF report listed routes with each one's own cut and not
+the plan.
+
+**"Track the findings on these changes".** One button on the plan card reads how to make each
+change (`GET /attack-paths/fix`, cached), collects the open findings on the changes' ends that no
+live task tracks, and queues them together through the same `POST /remediation` a single fix
+sends (`useTrackAll`, §205). It is named for what it does: it tracks the findings on those assets,
+never the changes themselves, which only a scan confirms were made. Hidden in the demo, like every
+write.
+
+**The plan is in the report.** When the attack-path section is chosen, the report leads it with
+the same plan the page leads with (`reports._fix_plan`, from `AssetGraph.fix_plan`), each change
+said in its sentence (§246) with what it closes and the running count, and how many routes need
+changes made together where single changes stop. The routes, each with its own cut, follow as
+before, so a document and the page never disagree about what to do first.
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,

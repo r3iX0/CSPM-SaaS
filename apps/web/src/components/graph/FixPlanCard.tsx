@@ -1,11 +1,17 @@
 import type { ReactNode } from "react";
-import { ScissorsIcon } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ListChecksIcon, ScissorsIcon } from "lucide-react";
 
 import type { FixPlan } from "@/lib/types";
+import { toast } from "sonner";
+
 import { useT } from "@/i18n";
 import { InfoTip } from "@/components/common/InfoTip";
 import { Button } from "@/components/ui/button";
 import { HowToFix } from "@/components/graph/HowToFix";
+import { cutFixQuery } from "@/components/graph/graphQueries";
+import { useTrackAll } from "@/lib/remediation";
+import { useIsDemo } from "@/lib/useDemo";
 
 /**
  * What to do first, before the drawing (DECISIONS.md §245).
@@ -41,6 +47,8 @@ export function FixPlanCard({
   const total = plan.total_routes;
   const closed = total - plan.remaining;
   const lastIndex = plan.cuts.length - 1;
+  const handOver = useHandOver(plan);
+  const demo = useIsDemo();
 
   return (
     <section
@@ -63,10 +71,24 @@ export function FixPlanCard({
           {progress}
         </div>
         {plan.cuts.length > 0 && (
-          <Button variant={trying ? "outline" : "default"} onClick={onTry} aria-pressed={trying}>
-            <ScissorsIcon data-icon="inline-start" />
-            {trying ? t.attackPaths.planTrying : t.attackPaths.planTry}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {!demo && (
+              <Button
+                variant="outline"
+                aria-disabled={handOver.isPending || undefined}
+                onClick={() => {
+                  if (!handOver.isPending) handOver.mutate();
+                }}
+              >
+                <ListChecksIcon data-icon="inline-start" />
+                {t.attackPaths.planTrackAll}
+              </Button>
+            )}
+            <Button variant={trying ? "outline" : "default"} onClick={onTry} aria-pressed={trying}>
+              <ScissorsIcon data-icon="inline-start" />
+              {trying ? t.attackPaths.planTrying : t.attackPaths.planTry}
+            </Button>
+          </div>
         )}
       </div>
 
@@ -115,4 +137,40 @@ export function FixPlanCard({
       )}
     </section>
   );
+}
+
+/**
+ * Track every open finding on the plan's changes in one step (§252): read how
+ * to make each change, collect the findings on its two ends nobody tracks yet,
+ * and queue them together. Said as "the findings on these changes", never as
+ * the changes themselves, which only a scan confirms were made.
+ */
+function useHandOver(plan: FixPlan) {
+  const t = useT();
+  const client = useQueryClient();
+  const trackAll = useTrackAll();
+  return useMutation({
+    mutationFn: async () => {
+      const fixes = await Promise.all(
+        plan.cuts.map((cut) =>
+          client.query(
+            cutFixQuery({
+              source: cut.source.id,
+              relationship: cut.relationship,
+              target: cut.target.id,
+            }),
+          ),
+        ),
+      );
+      const ids = [
+        ...new Set(fixes.flatMap((fix) => fix.findings.filter((f) => !f.tracked).map((f) => f.id))),
+      ];
+      if (ids.length === 0) {
+        toast.info(t.attackPaths.planNothingToTrack);
+        return;
+      }
+      await trackAll.mutateAsync(ids);
+      void client.invalidateQueries({ queryKey: ["attack-paths", "fix"] });
+    },
+  });
 }

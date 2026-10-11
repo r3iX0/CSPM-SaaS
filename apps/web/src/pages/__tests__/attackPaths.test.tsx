@@ -215,6 +215,32 @@ function simulateWith(result: Simulation) {
     .mockImplementation(() => Promise.resolve({ data: result, meta: {} }));
 }
 
+/** How to make the plan's change: one untracked finding on its ends (§246). */
+const FIX = {
+  sentence: "Stop jump-01 running as mi-jump-01.",
+  description: "jump-01 runs as mi-jump-01",
+  detail: "jump-01 runs as mi-jump-01 (managed identity)",
+  relationship: "has_identity",
+  source: { id: "vm", name: "jump-01", resource_type: "virtual_machine", asset_id: "row-vm" },
+  target: { id: "mi", name: "mi-jump-01", resource_type: "service_principal", asset_id: null },
+  provider: "AZURE",
+  cost: 3,
+  severs: 1,
+  commands: [],
+  findings: [
+    {
+      id: "finding-vm",
+      rule_id: "AZ-VM-001",
+      title: "RDP open to the internet",
+      severity: "CRITICAL",
+      status: "OPEN",
+      asset_name: "jump-01",
+      asset_id: "row-vm",
+      tracked: false,
+    },
+  ],
+};
+
 /** The route ledger before any scan has written to it (§244). */
 const EMPTY_HISTORY = {
   data: { routes: [], trend: [], latest: null },
@@ -240,7 +266,9 @@ function mount(
     Promise.resolve(
       url.includes("/history")
         ? { data: history ?? EMPTY_HISTORY.data, meta: history ? RECORDED : EMPTY_HISTORY.meta }
-        : { data: joined, meta: { drawn: map.routes.length, ...meta } },
+        : url.includes("/attack-paths/fix")
+          ? { data: FIX, meta: {} }
+          : { data: joined, meta: { drawn: map.routes.length, ...meta } },
     ),
   );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -306,6 +334,39 @@ describe("AttackPathsPage", () => {
     expect(within(card).getByRole("button", { name: "Trying this plan" })).toHaveAttribute(
       "aria-pressed",
       "true",
+    );
+  });
+
+  it("tracks the findings on the plan's changes in one step", async () => {
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: { id: "task-1" }, meta: {} });
+    mount(
+      {
+        ...oneRoute(),
+        plan: {
+          cuts: [
+            {
+              ...CHOKE,
+              source: { id: "vm", name: "jump-01", resource_type: "virtual_machine" },
+              target: { id: "mi", name: "mi-jump-01", resource_type: "service_principal" },
+              relationship: "has_identity",
+              cost: 3,
+              closes: ["vm|storage"],
+              closed_after: 1,
+            },
+          ],
+          total_routes: 1,
+          remaining: 0,
+        },
+      },
+      { total: 1, entry_points: 1, sensitive_targets: 1 },
+    );
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Track the findings on these changes" }),
+    );
+
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith("/api/v1/remediation", { finding_id: "finding-vm" }),
     );
   });
 

@@ -3,8 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { ChevronDownIcon, WrenchIcon } from "lucide-react";
 
-import { api } from "@/lib/api";
-import type { CutFix } from "@/lib/types";
 import { useT } from "@/i18n";
 import { cn } from "@/lib/format";
 import { useTrack } from "@/lib/remediation";
@@ -12,27 +10,7 @@ import { CodeBlock } from "@/components/common/CodeBlock";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-
-/** A link of the route graph, named the way a drawn edge names it. */
-export interface CutLink {
-  source: string;
-  relationship: string;
-  target: string;
-}
-
-/** How to make one cut, from `GET /attack-paths/fix` (DECISIONS.md §246). */
-function cutFixQuery(link: CutLink) {
-  const query = new URLSearchParams({
-    source: link.source,
-    relationship: link.relationship,
-    target: link.target,
-  });
-  return {
-    queryKey: ["attack-paths", "fix", link.source, link.relationship, link.target],
-    queryFn: () => api.get<CutFix>(`/api/v1/attack-paths/fix?${query}`).then((r) => r.data),
-    staleTime: 60_000,
-  };
-}
+import { cutFixQuery, type CutLink } from "@/components/graph/graphQueries";
 
 /**
  * "How to fix", behind a disclosure, wherever a cut is shown (§246).

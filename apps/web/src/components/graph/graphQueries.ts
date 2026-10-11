@@ -3,6 +3,7 @@ import { queryOptions, type QueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type {
   Asset,
+  CutFix,
   Neighborhood,
   RouteHistory,
   RouteHistoryMeta,
@@ -126,3 +127,24 @@ export const routeHistoryQuery = queryOptions({
       meta: r.meta as unknown as RouteHistoryMeta,
     })),
 });
+
+/** A link of the route graph, named the way a drawn edge names it. */
+export interface CutLink {
+  source: string;
+  relationship: string;
+  target: string;
+}
+
+/** How to make one cut, from `GET /attack-paths/fix` (DECISIONS.md §246). */
+export function cutFixQuery(link: CutLink) {
+  const query = new URLSearchParams({
+    source: link.source,
+    relationship: link.relationship,
+    target: link.target,
+  });
+  return queryOptions({
+    queryKey: ["attack-paths", "fix", link.source, link.relationship, link.target],
+    queryFn: () => api.get<CutFix>(`/api/v1/attack-paths/fix?${query}`).then((r) => r.data),
+    staleTime: 60_000,
+  });
+}

@@ -528,6 +528,31 @@ def test_attack_paths_name_the_route_and_the_link_to_cut():
     assert "Cut here" in html
 
 
+def test_the_attack_path_section_leads_with_the_fix_plan():
+    """The document says what to do first, as the page does (DECISIONS.md section 252)."""
+    html = render_html(
+        report(
+            fix_plan={
+                "cuts": [
+                    {
+                        "sentence": "Remove the Contributor role from mi-jump on Production.",
+                        "detail": "mi-jump can act over Production (Contributor)",
+                        "closes": 2,
+                        "closed_after": 2,
+                    }
+                ],
+                "total": 3,
+                "remaining": 1,
+            }
+        )
+    )
+
+    normalized = " ".join(html.split())
+    assert "1 change closes 2 of 3 routes" in normalized
+    assert "Remove the Contributor role from mi-jump on Production." in normalized
+    assert "1 route needs changes made together" in normalized
+
+
 def test_remediation_reports_claims_and_proof_separately():
     html = render_html(report())
 

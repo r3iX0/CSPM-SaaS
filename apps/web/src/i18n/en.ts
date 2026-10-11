@@ -743,6 +743,8 @@ export const en = {
     planRemaining: (n: number) =>
       `${n} ${n === 1 ? "route stays" : "routes stay"} open. Try further changes together in Simulate.`,
     planTry: "Try this plan",
+    planTrackAll: "Track the findings on these changes",
+    planNothingToTrack: "Every open finding on these changes is tracked already.",
     planTrying: "Trying this plan",
     // Progress, read from the route ledger (DECISIONS.md §249).
     historyNotYet: "Cleave keeps a history of routes from the next scan on.",
