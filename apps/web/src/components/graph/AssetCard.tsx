@@ -1,5 +1,6 @@
 import { useId, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { m } from "motion/react";
 import { Link } from "react-router-dom";
 import {
   ChevronDownIcon,
@@ -13,6 +14,7 @@ import {
 import type { MappedRoute, RouteMap, RouteMapEdge, RouteMapNode } from "@/lib/types";
 import { useT } from "@/i18n";
 import { cn, formatDay, label } from "@/lib/format";
+import { fadeUp, useCountUp } from "@/lib/motion";
 import { CopyButton } from "@/components/common/CopyButton";
 import { ResourceTypeLabel } from "@/components/security/IconLabel";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
@@ -60,7 +62,10 @@ export function AssetCard({
   share.search = new URLSearchParams({ through: node.id }).toString();
 
   return (
-    <section
+    <m.section
+      // Arrives with the box it is about, in `quick`, and only then (§256).
+      key={node.id}
+      {...fadeUp}
       aria-label={t.attackPaths.cardLabel(node.name)}
       className="flex flex-col gap-3 border-b border-border p-3"
     >
@@ -136,15 +141,16 @@ export function AssetCard({
 
       {node.asset_id && <CardFindings assetId={node.asset_id} />}
       <CardInspector node={node} />
-    </section>
+    </m.section>
   );
 }
 
 function Count({ name, value }: { name: string; value: number }) {
+  const shown = useCountUp(value);
   return (
     <div className="flex flex-col">
       <dt className="text-muted-foreground">{name}</dt>
-      <dd className="text-title font-medium tabular-nums">{value}</dd>
+      <dd className="text-title font-medium tabular-nums">{shown}</dd>
     </div>
   );
 }

@@ -269,6 +269,73 @@
 }
 
 /* Reduced motion means arriving, not crawling: the end state, immediately. */
+/*
+  The route map's motion (DECISIONS.md §256): only opacity and stroke move, the
+  layout never does. Pointing fades in `instant`; a traced route's lines reveal
+  from the way in, one step apart, once per trace (the class is added only when
+  the route changes, so a re-render does not replay it); the hop being read
+  pulses once when it is reached.
+*/
+.cg-route-map .react-flow__edge-path,
+.cg-route-map .react-flow__edge-text,
+.cg-route-map .react-flow__edge-textbg {
+  transition: opacity 120ms ease-out;
+}
+
+@keyframes cg-reveal {
+  from {
+    opacity: 0.12;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes cg-pulse {
+  0% {
+    opacity: 0.35;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.cg-reveal {
+  animation: cg-reveal 240ms ease-out both;
+}
+
+.cg-pulse {
+  animation: cg-pulse 240ms ease-out both;
+}
+
+.cg-step-1 {
+  animation-delay: 75ms;
+}
+.cg-step-2 {
+  animation-delay: 150ms;
+}
+.cg-step-3 {
+  animation-delay: 225ms;
+}
+.cg-step-4 {
+  animation-delay: 300ms;
+}
+.cg-step-5 {
+  animation-delay: 375ms;
+}
+.cg-step-6 {
+  animation-delay: 450ms;
+}
+.cg-step-7 {
+  animation-delay: 525ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [class*="cg-step-"] {
+    animation-delay: 0ms !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

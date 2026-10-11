@@ -13304,6 +13304,35 @@ them at full strength, everything else faded, as every selection fades the rest 
 over the pick that asked for it, gives way to a traced route or a simulated plan, and is put
 down with the pick.
 
+## 256. Motion on the route map says what changed and where
+
+The canvas moved in a few places: the camera framing a traced route, its lines marching, new
+boxes rising, and a settled plan striking its routes in turn (§146). Each new interaction above
+moves too, under the rules the product already keeps (§149, §167): something moves only when a
+value it shows changed or the reader caused it; timings come from `DURATION`; only opacity,
+transforms and strokes move, never the layout; lines animate in CSS (`index.css`), the panel's
+cards through `m.*`; and with reduced motion every state lands at once.
+
+- **Pointing** fades lines and labels in `instant` (120ms), through a transition on the map's
+  edges (`.cg-route-map`).
+- **Tracing a route** reveals its lines from the way in, one step apart (`cg-reveal`,
+  `cg-step-N`, at most eight steps), once per trace: the classes are added only when the route
+  changes, so a re-render never replays it. **Stepping to a hop** pulses that hop's line once
+  (`cg-pulse`).
+- **Framing a box** moves the camera in `page`; **the asset card** rises in `quick` (`fadeUp`)
+  and its counts count up.
+- **Simulating**: one cut prunes at once (§255); from two cuts on, the planned lines march while
+  the server checks, the one loop on the canvas, stopping when the answer lands; the banner's
+  count runs down to what is left ("17 → 0"). With reduced motion the global rule in `index.css`
+  stops every animation and zeroes the step delays.
+- **"Try this plan"** sends one simulation for the whole plan, not one per change: simulation is
+  costly (§161) and five requests a second would spend the allowance on a flourish. The plan is
+  told in order instead: its rows light one step apart on the card while the drawing shows the
+  answer.
+
+**Not taken.** A Rerouted route fading its old way out as the new one draws in needs the ledger's
+old way on the canvas, which only the history panel holds; the panel says it in words (§249).
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,

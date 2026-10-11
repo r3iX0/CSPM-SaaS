@@ -133,6 +133,11 @@ export interface RouteMapCanvasProps {
    */
   reach?: ReadonlySet<string> | null;
   /**
+   * The server is checking a plan of two or more cuts: its lines march until
+   * the answer lands, the one loop on the canvas (§256).
+   */
+  checking?: boolean;
+  /**
    * Called when a box is pressed: on the traced route the page reads the hop
    * arriving there, anywhere else the rail shows what runs through it.
    */
@@ -183,6 +188,7 @@ function Canvas({
   picked = null,
   narrowed = null,
   reach = null,
+  checking = false,
   onPickNode,
   onPickLink,
   onClearPick,
@@ -200,8 +206,9 @@ function Canvas({
         traced ? hop : null,
         simulated,
         reduced || (preview !== null && !traced),
+        checking,
       ),
-    [map, traced, preview, hop, simulated, reduced],
+    [map, traced, preview, hop, simulated, reduced, checking],
   );
   // A traced or previewed route, or a simulated cut, draws its own fading, and wins.
   const [previewed, setPreviewed] = useState<GraphSelection | null>(null);
@@ -418,7 +425,7 @@ function Canvas({
           texture, not coordinates. */}
       <div
         ref={frame}
-        className="size-full bg-[radial-gradient(color-mix(in_oklab,var(--foreground)_9%,transparent)_1px,transparent_1px)] bg-[length:18px_18px]"
+        className="cg-route-map size-full bg-[radial-gradient(color-mix(in_oklab,var(--foreground)_9%,transparent)_1px,transparent_1px)] bg-[length:18px_18px]"
         onKeyDown={onKeyDown}
       >
         <ReactFlow
@@ -475,6 +482,7 @@ function toFlow(
   hop: number | null,
   simulated: SimulatedPlan | null,
   reduced: boolean,
+  checking = false,
 ): {
   nodes: Node[];
   edges: Edge<LabelRank>[];
@@ -487,6 +495,14 @@ function toFlow(
     ? new Set(traced.steps.map((step) => hopKey(step.source_id, step.relationship, step.target_id)))
     : null;
   const reading = traced && hop !== null ? traced.steps[hop] : undefined;
+  // Where each hop of the traced route falls from the way in, for revealing
+  // its lines in order (§256).
+  const tracedOrder = new Map(
+    (traced?.steps ?? []).map((step, index) => [
+      hopKey(step.source_id, step.relationship, step.target_id),
+      index,
+    ]),
+  );
   const readingKey = reading
     ? hopKey(reading.source_id, reading.relationship, reading.target_id)
     : null;
@@ -626,7 +642,15 @@ function toFlow(
       // Marching dashes along the route being read, in the direction reach
       // runs. The one animation here that says something the static picture
       // cannot — and it is off for a reader who asked for less motion.
-      animated: !reduced && onTraced && !isCut,
+      animated: !reduced && ((onTraced && !isCut) || (isCut && checking)),
+      // Revealed in order from the way in when the route is traced, and the hop
+      // being read pulses when it is reached; both once, as classes are added
+      // only when the trace or the hop changes (§256).
+      className: now
+        ? "cg-pulse"
+        : onTraced
+          ? `cg-reveal cg-step-${Math.min(tracedOrder.get(key) ?? 0, 7)}`
+          : undefined,
       labelStyle: { fill: labelFill, fontSize: 11 },
       labelBgStyle: { fill: "var(--card)" },
       labelBgPadding: [4, 2] as [number, number],

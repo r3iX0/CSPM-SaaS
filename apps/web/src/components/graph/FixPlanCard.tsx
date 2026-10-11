@@ -6,6 +6,7 @@ import type { FixPlan } from "@/lib/types";
 import { toast } from "sonner";
 
 import { useT } from "@/i18n";
+import { cn } from "@/lib/format";
 import { InfoTip } from "@/components/common/InfoTip";
 import { Button } from "@/components/ui/button";
 import { HowToFix } from "@/components/graph/HowToFix";
@@ -97,7 +98,12 @@ export function FixPlanCard({
           {plan.cuts.map((cut, index) => (
             <li
               key={`${cut.source.id}|${cut.relationship}|${cut.target.id}`}
-              className="flex flex-col gap-1 py-2 first:pt-0 last:pb-0"
+              // Told in plan order when it is tried: each change lights a step
+              // after the one before (§256). One request for the whole plan.
+              className={cn(
+                "flex flex-col gap-1 py-2 first:pt-0 last:pb-0",
+                trying && `cg-reveal cg-step-${Math.min(index, 7)}`,
+              )}
             >
               <div className="flex items-baseline gap-3">
                 <span

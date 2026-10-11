@@ -105,7 +105,8 @@ describe("AssetCard", () => {
 
     expect(card).toHaveTextContent("Routes through it2");
     expect(card).toHaveTextContent("Ways in2");
-    expect(screen.getByText("mi-jump can act over kv (Owner)")).toBeVisible();
+    // The card rises in (§256); jsdom runs no animation, so presence is the check.
+    expect(screen.getByText("mi-jump can act over kv (Owner)")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Add to the plan" }));
     expect(onCut).toHaveBeenCalledWith(MAP.edges[0]);
@@ -115,7 +116,7 @@ describe("AssetCard", () => {
 
   it("reads where it is defined, and never calls an unread sign-in dormant", async () => {
     mount();
-    expect(await screen.findByText(/acme\/infra\/prod · azurerm_x.mi/)).toBeVisible();
-    expect(screen.getByText(/Sign-in activity was not read/)).toBeVisible();
+    expect(await screen.findByText(/acme\/infra\/prod · azurerm_x.mi/)).toBeInTheDocument();
+    expect(screen.getByText(/Sign-in activity was not read/)).toBeInTheDocument();
   });
 });

@@ -50,7 +50,7 @@ import { AssetCard } from "@/components/graph/AssetCard";
 import { singleKeyShortcut } from "@/lib/keyboard";
 import { RouteProgress } from "@/components/graph/RouteProgress";
 import { ledgerMarks } from "@/components/graph/routeLedger";
-import { usePrefersReducedMotion } from "@/lib/motion";
+import { DURATION, useCountUp, usePrefersReducedMotion } from "@/lib/motion";
 import { arrivedByMorph } from "@/lib/viewTransition";
 import type { Hop, SimulatedPlan } from "@/components/graph/RouteMapCanvas";
 import { SimulationPanel } from "@/components/graph/SimulationPanel";
@@ -546,6 +546,7 @@ export function AttackPathsPage() {
               picked={picked}
               narrowed={narrowed}
               reach={reach}
+              checking={plan.length > 1 && simulation.isFetching}
               onPickNode={(id) => {
                 // A box on the route being read reads the hop arriving there.
                 const stop = tracedRoute ? visits(tracedRoute).indexOf(id) : -1;
@@ -687,6 +688,7 @@ function RouteMapFrame({
   picked,
   narrowed,
   reach,
+  checking,
   onPickNode,
   onPickLink,
   onClearPick,
@@ -704,11 +706,14 @@ function RouteMapFrame({
   picked: string | null;
   narrowed: ReadonlySet<string> | null;
   reach: ReadonlySet<string> | null;
+  checking: boolean;
   onPickNode: (id: string) => void;
   onPickLink: (edge: Hop) => void;
   onClearPick: () => void;
 }) {
   const t = useT();
+  // The routes left with the plan made, run down to as each answer lands (§256).
+  const left = useCountUp(map.routes.length - (simulated?.closes.size ?? 0), DURATION.chart);
   // The panel folds away for a wide look at the drawing, and widens while a
   // hop is read, which carries the most text (§253).
   const [folded, setFolded] = useState(false);
@@ -747,6 +752,9 @@ function RouteMapFrame({
           <div className="flex items-center gap-2 border-b border-ok-border bg-ok-bg px-3 py-1.5 text-xs text-foreground">
             <ScissorsIcon className="size-3.5 shrink-0 text-ok" aria-hidden />
             <p className="min-w-0 flex-1">{t.attackPaths.simulating(simulated.links.length)}</p>
+            <span className="shrink-0 tabular-nums" aria-hidden>
+              {map.routes.length} → {left}
+            </span>
             {tab !== "simulate" && (
               <Button variant="ghost" size="sm" onClick={() => onTab("simulate")}>
                 {t.attackPaths.simulationShow}
@@ -766,6 +774,7 @@ function RouteMapFrame({
                 picked={picked}
                 narrowed={narrowed}
                 reach={reach}
+                checking={checking}
                 onPickNode={onPickNode}
                 onPickLink={onPickLink}
                 onClearPick={onClearPick}
