@@ -635,7 +635,7 @@ function RouteMapFrame({
       {/* What a link from the dashboard grows into (DECISIONS.md §140). */}
       <div
         data-graph-frame=""
-        className="flex w-full flex-col overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10 lg:h-[36rem]"
+        className="flex w-full flex-col overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10 lg:h-[36rem] xl:h-[42rem] 2xl:h-[48rem]"
       >
         {simulated && (
           <div className="flex items-center gap-2 border-b border-ok-border bg-ok-bg px-3 py-1.5 text-xs text-foreground">

@@ -19,6 +19,7 @@ import type {
 import { useT } from "@/i18n";
 import { cn } from "@/lib/format";
 import { HowToFix } from "@/components/graph/HowToFix";
+import { routeSentence } from "@/components/graph/routeSentence";
 import { FACTOR_ICONS, RISK_KIND_ICONS } from "@/lib/icons";
 import { ResourceTypeLabel } from "@/components/security/IconLabel";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
@@ -184,6 +185,7 @@ export function RouteNavigator({
           <h3 ref={heading} tabIndex={-1} className="text-sm font-medium outline-none">
             {route.entry.name} <span className="text-muted-foreground">→</span> {route.target.name}
           </h3>
+          <p className="mt-1 text-body leading-relaxed">{routeSentence(route)}</p>
           {pattern && (
             <p className="mt-0.5 text-xs text-muted-foreground">
               {t.attackPaths.onePattern(pattern.description)}

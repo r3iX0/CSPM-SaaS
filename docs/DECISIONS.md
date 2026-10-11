@@ -13122,6 +13122,33 @@ removable hop in the navigator and on each change in the simulator opens three t
 So the loop runs on: a cut, then a task, then a scan that verifies it (§18), then the route
 leaves the page and the ledger records it closed (§244).
 
+## 247. A route says itself in one sentence
+
+A hop reads "app-payments-api runs as app-payments-api (managed identity) (service principal)".
+It is accurate, and it is not a story a manager can repeat. The route navigator now opens on one
+sentence above the hops: "From the internet, app-payments-api runs as its own identity, which
+holds Key Vault Secrets User over kv-payments."
+
+**Built from the hops alone** (`routeSentence.ts`). Each hop becomes a verb phrase from its
+relationship and its first fact (§121), joined by "which", so each clause's subject is the hop
+before. A system-assigned identity named after its workload is "its own identity". Containment at
+the end of a route is where the target sits, not something anybody did, so a tail of it collapses
+into "and so reaches X inside Y". Nothing is said that the hops do not already say, in neutral
+words (§78).
+
+**In the navigator, not on every row.** The plan put it on the rows too; a second line on each row
+of a narrow panel repeats every name the row already shows, so the sentence is where one route is
+read, and the rows stay a list to scan. The hop-by-hop navigator stays below it, unchanged.
+
+## 248. The route map opens at a zoom its names can be read at
+
+Fitted to the whole estate, seventeen routes drew boxes too small to read at the default frame
+height. The map now frames itself on arrival at `READABLE_ZOOM` (0.7) or closer: the whole estate
+where it fits at that zoom, and otherwise the columns from the way in that do (`readableFit`), so
+reading starts at the left and the rest is a pan away rather than a blur. Clearing a trace returns
+to the same frame. The frame is taller on large screens (42rem from `xl`, 48rem from `2xl`). A
+traced route was already framed whole with the rest faded; that is unchanged.
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,

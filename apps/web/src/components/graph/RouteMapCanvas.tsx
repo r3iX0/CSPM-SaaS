@@ -31,7 +31,15 @@ import { FACTOR_ICONS, resourceTypeIcon } from "@/lib/icons";
 import { DURATION, usePrefersReducedMotion } from "@/lib/motion";
 import { ARROWS, FIT, FLOW_TOKENS, HIDDEN_HANDLE, kept, type GraphSelection } from "./flowChrome";
 import { ZoomButtons } from "./ZoomButtons";
-import { BOX_HEIGHT, BOX_WIDTH, layoutRouteMap, pairSpeakers, placeLabels } from "./routeMapLayout";
+import {
+  BOX_HEIGHT,
+  BOX_WIDTH,
+  layoutRouteMap,
+  pairSpeakers,
+  placeLabels,
+  READABLE_ZOOM,
+  readableFit,
+} from "./routeMapLayout";
 import { stepFrom } from "./neighborhoodLayout";
 import { hopKey } from "./routeKeys";
 
@@ -247,11 +255,21 @@ function Canvas({
   // the hop is out of view, keeping the zoom, so the route stays where the
   // reader left it rather than jumping -- as walking did on the estate map.
   const framed = useRef<string | null>(null);
+  // The estate at a zoom its names can be read at, from the way in (§248).
+  function frameReadable(duration: number) {
+    const width = frame.current?.clientWidth ?? 0;
+    void flow.fitView({
+      ...FIT,
+      nodes: readableFit(at, width, FIT.padding).map((id) => ({ id })),
+      minZoom: READABLE_ZOOM,
+      duration,
+    });
+  }
   useEffect(() => {
     if (!traced) {
       if (framed.current) {
         framed.current = null;
-        void flow.fitView({ ...FIT, duration: reduced ? 0 : DURATION.quick });
+        frameReadable(reduced ? 0 : DURATION.quick);
       }
       return;
     }
@@ -329,8 +347,10 @@ function Canvas({
           edges={edges}
           nodeTypes={NODE_TYPES}
           style={FLOW_TOKENS}
-          fitView
-          fitViewOptions={FIT}
+          onInit={() => {
+            // A link that arrives tracing a route is framed on that route.
+            if (!traced) frameReadable(0);
+          }}
           minZoom={0.2}
           maxZoom={1.5}
           nodesDraggable={false}
