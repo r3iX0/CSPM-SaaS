@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from app.core.enums import (
     AccessKind,
+    AssetChange,
     FindingStatus,
     Level,
     Provider,
@@ -733,3 +734,43 @@ class CutFixOut(BaseModel):
     severs: int
     commands: list[str]
     findings: list[CutFindingOut]
+
+
+# -- The inspector (DECISIONS.md section 254) ----------------------------------
+
+
+class CodeHomeOut(BaseModel):
+    """Where the customer's Terraform state says an asset is defined."""
+
+    repository: str
+    working_directory: str
+    address: str
+
+
+class InspectChangeOut(BaseModel):
+    change: AssetChange
+    previous_value: str | None
+    current_value: str | None
+    observed_at: datetime
+
+
+class SignInOut(BaseModel):
+    """An account's last sign-in as the capture recorded it.
+
+    ``read`` false: no reading covered the account, which the tenant's licence
+    may rule out -- never shown as "never signed in".
+    """
+
+    read: bool
+    last_sign_in: str | None
+    days_since: int | None
+
+
+class InspectOut(BaseModel):
+    asset_id: UUID | None
+    #: Empty when no indexed repository defines it.
+    defined_in: list[CodeHomeOut]
+    #: The latest changes, newest first.
+    changes: list[InspectChangeOut]
+    #: For an account; ``None`` for anything else.
+    sign_in: SignInOut | None

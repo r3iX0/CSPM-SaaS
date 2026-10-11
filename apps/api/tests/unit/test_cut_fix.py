@@ -10,7 +10,9 @@ from app.connectors.azure.cuts import cut_commands
 from app.core.enums import Provider, RelationshipType, ResourceType
 from app.domain.resource import CloudResource
 from app.graph import PathStep
+from app.schemas.attack_path import SignInOut
 from app.services.cut_fix import cut_sentence
+from app.services.inspect import sign_in
 
 SCOPE = "/subscriptions/s/resourceGroups/rg-data"
 
@@ -106,3 +108,20 @@ def test_the_command_comes_from_the_connector_and_aws_offers_none() -> None:
     holder = principal(principal_id="0000-p", roles=[role("Owner")])
     assert AzureConnector.cut_commands(holder, RelationshipType.GRANTS_ROLE, GROUP)
     assert AwsConnector.cut_commands(holder, RelationshipType.GRANTS_ROLE, GROUP) == []
+
+
+# ------------------------------------------------------------------ inspector
+def test_an_account_with_no_sign_in_reading_is_not_said_to_be_dormant() -> None:
+    """No reading is not "never signed in" (DECISIONS.md section 254)."""
+    unread = CloudResource(
+        provider_resource_id="/users/u-1", resource_type=ResourceType.USER, name="u"
+    )
+    read = CloudResource(
+        provider_resource_id="/users/u-2",
+        resource_type=ResourceType.USER,
+        name="u",
+        metadata={"sign_in_activity_read": True, "last_sign_in": None},
+    )
+    assert sign_in(unread) == SignInOut(read=False, last_sign_in=None, days_since=None)
+    assert sign_in(read) == SignInOut(read=True, last_sign_in=None, days_since=None)
+    assert sign_in(machine("vm")) is None

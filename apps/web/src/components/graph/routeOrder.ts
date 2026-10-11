@@ -1,5 +1,5 @@
 import { LEVEL_RANK } from "@/lib/changes";
-import type { MappedRoute, RouteMap, RouteMapNode, RoutePattern } from "@/lib/types";
+import type { MappedRoute, RouteMap, RouteMapEdge, RouteMapNode, RoutePattern } from "@/lib/types";
 import { matchesFacets, type RouteFacets } from "./routeFacets";
 
 /**
@@ -159,4 +159,14 @@ export function listRoutes(
       ...loose.map((route) => route.key),
     ],
   };
+}
+
+/** The link touching a box that closes the most routes, if any closes one (§254). */
+export function bestCutAt(edges: readonly RouteMapEdge[], id: string): RouteMapEdge | null {
+  let best: RouteMapEdge | null = null;
+  for (const edge of edges) {
+    if (edge.source !== id && edge.target !== id) continue;
+    if (edge.severs > (best?.severs ?? 0)) best = edge;
+  }
+  return best;
 }

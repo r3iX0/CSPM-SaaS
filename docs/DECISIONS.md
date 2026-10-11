@@ -13257,6 +13257,53 @@ does (§111), and turning the panel into a sheet below the `lg` breakpoint, wher
 under the drawing, are left for when an estate's map needs them; the route map already caps at 200
 routes and says so.
 
+## 254. A box you can ask, and an inspector that reads deeper
+
+A click on a box landed on a list of the routes through it: the box said nothing about itself, and
+an engineer handed a cut had to leave the page to check it.
+
+**The asset card.** A box picked opens a card at the top of the panel, with its routes below it
+(`AssetCard`): its name, type and place, linking to its page; how many routes run through it, how
+many ways in reach it and how many targets it leads to, counted from the routes on the page; the
+**best cut here**, the link touching it that closes the most, read from the `severs` already on
+every line (§122), with "Add to the plan"; its open findings, worst first, each linking to its fix
+sheet; and **Trace worst route** (the first through it in the list's order), **If compromised**
+(§255) and **Copy link** (`?through=`).
+
+**Gestures.** A click selects, as on every canvas (§134). A double click, or Enter on the box the
+arrow keys are on, frames the box with every route through it, as Enter opens on the estate map
+(§133); Escape puts the box down. On a picked box, `t` traces its worst route, `c` plans its best
+cut and `b` shows what a compromise reaches, through `singleKeyShortcut`, so they can be turned
+off (§155). Nothing floats over the box: actions live in the panel, which covers nothing being
+read, and hover tooltips do not exist on touch.
+
+**The inspector reads deeper**, from what Cleave already holds, through one read,
+`GET /attack-paths/inspect/{id}`:
+
+- **Defined in code**: where the customer's Terraform state index (§229) says the asset lives, as
+  repository, directory and address, or "Not in an indexed repository".
+- **Recent activity**: its latest change events, and for an account its last sign-in. Where no
+  reading covered the account it says sign-in activity was not read and the licence may not allow
+  it (§196), never "never signed in", which is a different, stronger claim. It is named recent
+  activity, not runtime context: Cleave reads configuration and runs no agent, so it has no
+  process, traffic or exploit telemetry, and nothing here pretends to.
+- **Who holds access**, behind a disclosure, is the access view the asset page already has
+  (`/attack-paths/access`, §125): each role's evaluated actions, with a data action under a
+  condition shown as not claimed.
+
+## 255. What-if answers at once where it can, and a box can show its blast radius
+
+**One cut is drawn at once.** Each line already names the routes it alone closes (`closes`,
+§122), so with one cut in the plan the drawing prunes immediately, before the server answers.
+From two cuts on it waits for `POST /attack-paths/simulate`: two cuts can close what neither
+closes alone (§141), and the browser never guesses.
+
+**"If compromised".** From the asset card, or `b`, the drawing shows what the picked box would
+reach if it were taken, from the existing blast-radius read: those boxes and the lines between
+them at full strength, everything else faded, as every selection fades the rest (§134). It wins
+over the pick that asked for it, gives way to a traced route or a simulated plan, and is put
+down with the pick.
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,

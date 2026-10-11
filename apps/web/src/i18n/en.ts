@@ -779,6 +779,25 @@ export const en = {
     declareNextScan: "Applied by the next scan. A declaration can raise a level, never lower one.",
     declareError: "Could not save that",
     emptyNoTargetsAction: "Say which assets hold data that matters",
+    // The asset card (DECISIONS.md §254, §255).
+    cardLabel: (name: string) => `About ${name}`,
+    cardClose: "Put the box down",
+    cardRoutes: "Routes through it",
+    cardWaysIn: "Ways in",
+    cardReaches: "Targets",
+    cardBestCut: "Best cut here",
+    cardTraceWorst: "Trace worst route",
+    cardCompromised: "If compromised",
+    cardCopy: "Copy link",
+    cardFindings: "Open findings",
+    cardCode: "Defined in code",
+    cardCodeNone: "Not in an indexed repository.",
+    cardActivity: "Recent activity",
+    cardSignIn: (day: string) => `Last signed in ${day}.`,
+    cardSignInNever: "Has never signed in.",
+    cardSignInUnread: "Sign-in activity was not read; the tenant's licence may not allow it.",
+    cardNoChanges: "No changes recorded.",
+    cardAccess: "Who holds access",
     // How to make a cut (DECISIONS.md §246).
     fixToggle: "How to fix",
     fixCopy: "Copy the commands",
@@ -861,7 +880,6 @@ export const en = {
     patternsTitle: "The same route, repeated",
     patternsHelpExplain:
       "Grouped only where the routes are identical apart from one end, so each group is a claim you can check by opening it.",
-    routesThrough: (n: number) => `On ${n} ${n === 1 ? "route" : "routes"}`,
     simulating: (n: number) =>
       `Simulating ${n} ${n === 1 ? "change" : "changes"} together — nothing in your cloud has changed.`,
     simulationShow: "Show the plan",

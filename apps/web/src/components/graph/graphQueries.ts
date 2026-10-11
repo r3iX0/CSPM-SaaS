@@ -3,7 +3,10 @@ import { queryOptions, type QueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type {
   Asset,
+  AssetInspection,
+  BlastAsset,
   CutFix,
+  Finding,
   Neighborhood,
   RouteHistory,
   RouteHistoryMeta,
@@ -148,3 +151,37 @@ export function cutFixQuery(link: CutLink) {
     staleTime: 60_000,
   });
 }
+
+/** Where an asset is defined in code and what happened to it lately (§254). */
+export const inspectQuery = (providerResourceId: string) =>
+  queryOptions({
+    queryKey: ["attack-paths", "inspect", providerResourceId],
+    queryFn: () =>
+      api
+        .get<AssetInspection>(
+          `/api/v1/attack-paths/inspect/${encodeURIComponent(providerResourceId)}`,
+        )
+        .then((r) => r.data),
+  });
+
+/** What a compromise of one asset would reach (§255). */
+export const blastRadiusQuery = (providerResourceId: string) =>
+  queryOptions({
+    queryKey: ["blast-radius", providerResourceId],
+    queryFn: () =>
+      api
+        .get<BlastAsset[]>(
+          `/api/v1/attack-paths/blast-radius/${encodeURIComponent(providerResourceId)}`,
+        )
+        .then((r) => r.data),
+  });
+
+/** One asset's open findings, worst first, for the asset card (§254). */
+export const assetFindingsQuery = (assetId: string) =>
+  queryOptions({
+    queryKey: ["findings", "asset-card", assetId],
+    queryFn: () =>
+      api
+        .get<Finding[]>(`/api/v1/findings?resource_id=${assetId}&status=OPEN&limit=5`)
+        .then((r) => r.data),
+  });

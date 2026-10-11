@@ -82,6 +82,8 @@ interface CanvasActions {
   active: string;
   setActive: (id: string) => void;
   pick: (id: string) => void;
+  /** Frames a box and every route through it, and picks it (§254). */
+  frameAround: (id: string) => void;
   /** Previewed under the pointer or the keyboard: faded around, not picked. */
   preview: (id: string | null) => void;
   picked: string | null;
@@ -125,6 +127,11 @@ export interface RouteMapCanvasProps {
    * nothing narrows them (§253). The rest fade; nothing is removed.
    */
   narrowed?: ReadonlySet<string> | null;
+  /**
+   * What a compromise of the picked box would reach (§255): those boxes, and
+   * the lines between them, at full strength; everything else faded.
+   */
+  reach?: ReadonlySet<string> | null;
   /**
    * Called when a box is pressed: on the traced route the page reads the hop
    * arriving there, anywhere else the rail shows what runs through it.
@@ -175,6 +182,7 @@ function Canvas({
   simulated = null,
   picked = null,
   narrowed = null,
+  reach = null,
   onPickNode,
   onPickLink,
   onClearPick,
@@ -218,9 +226,27 @@ function Canvas({
     }
     return { boxes, edges: lines };
   }, [map, narrowed]);
+  // A compromise's reach wins over the pick that asked for it (§255).
+  const reachAround = useMemo(
+    () =>
+      reach
+        ? {
+            boxes: new Set(reach),
+            edges: new Set(
+              drawn
+                .filter((edge) => reach.has(edge.source) && reach.has(edge.target))
+                .map((edge) => edge.id),
+            ),
+          }
+        : null,
+    [reach, drawn],
+  );
   const around = useMemo(
-    () => kept(drawn, on) ?? (traced || preview || simulated ? null : narrowedAround),
-    [drawn, on, traced, preview, simulated, narrowedAround],
+    () =>
+      (traced || preview || simulated ? null : reachAround) ??
+      kept(drawn, on) ??
+      (traced || preview || simulated ? null : narrowedAround),
+    [drawn, on, traced, preview, simulated, narrowedAround, reachAround],
   );
   const edges = useMemo(() => {
     const faded = around
@@ -328,7 +354,34 @@ function Canvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only the route and the hop move the view.
   }, [traced?.key, hop]);
 
+  // A double click or Enter on a box frames it with every route through it,
+  // as Enter opens on the estate map (§133, §254); Escape puts it down.
+  function frameAround(id: string) {
+    const ids = new Set([id]);
+    for (const route of map.routes) {
+      const stops = [route.entry.id, ...route.steps.map((step) => step.target_id)];
+      if (stops.includes(id)) for (const stop of stops) ids.add(stop);
+    }
+    if (picked !== id) onPickNode(id);
+    void flow.fitView({
+      nodes: [...ids].map((each) => ({ id: each })),
+      padding: 0.25,
+      maxZoom: 1.1,
+      duration: reduced ? 0 : DURATION.page,
+    });
+  }
+
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Enter" && at.has(marked)) {
+      event.preventDefault();
+      frameAround(marked);
+      return;
+    }
+    if (event.key === "Escape" && picked) {
+      event.preventDefault();
+      onClearPick?.();
+      return;
+    }
     const direction = ARROWS[event.key];
     if (!direction || event.altKey || event.ctrlKey || event.metaKey) return;
     event.preventDefault();
@@ -353,6 +406,7 @@ function Canvas({
         active: marked,
         setActive,
         pick: onPickNode,
+        frameAround,
         preview: (id) => setPreviewed(id ? { kind: "box", id } : null),
         picked,
         lit: around?.boxes ?? null,
@@ -615,6 +669,7 @@ function AssetNode({ id, data }: NodeProps<AssetFlowNode>) {
         onPointerEnter={() => actions.preview(id)}
         onPointerLeave={() => actions.preview(null)}
         onClick={() => actions.pick(id)}
+        onDoubleClick={() => actions.frameAround(id)}
         style={{
           animationDelay: `${Math.min(data.arrival, 6) * 60}ms`,
           transitionDelay: data.closed ? `${data.closeDelay}ms` : undefined,

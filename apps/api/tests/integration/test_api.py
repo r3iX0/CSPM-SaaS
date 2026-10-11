@@ -3430,6 +3430,32 @@ class TestAssetNeighborhood:
         )
         assert theirs.status_code == 404
 
+    async def test_the_inspector_reads_an_assets_code_and_changes(
+        self, client, cleanup_orgs
+    ) -> None:
+        """Where it is defined, and what happened to it (DECISIONS.md section 254)."""
+        from urllib.parse import quote
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Inspect Ltd"))
+        cleanup_orgs.append(org_id)
+        vm_row = await self._estate(org_id)
+
+        response = await client.get(
+            f"/api/v1/attack-paths/inspect/{quote(self.VM, safe='')}", headers=auth_header(user)
+        )
+
+        assert response.status_code == 200, response.text
+        body = response.json()["data"]
+        assert body["asset_id"] == str(vm_row)
+        assert body["defined_in"] == []
+        assert body["sign_in"] is None
+
+        missing = await client.get(
+            f"/api/v1/attack-paths/inspect/{quote('/nowhere', safe='')}", headers=auth_header(user)
+        )
+        assert missing.status_code == 404
+
 
 class TestReports:
     """The report endpoints, over the real dependency chain.

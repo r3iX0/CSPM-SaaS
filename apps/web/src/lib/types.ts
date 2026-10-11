@@ -1982,3 +1982,31 @@ export interface AssetDeclaration {
   declared_by_user_id: string | null;
   declared_at: string;
 }
+
+/**
+ * What the inspector reads about one asset beyond the drawing
+ * (`GET /attack-paths/inspect/{id}`, DECISIONS.md §254).
+ */
+export interface AssetInspection {
+  asset_id: string | null;
+  /** Where the customer's Terraform state defines it; empty when none does. */
+  defined_in: { repository: string; working_directory: string; address: string }[];
+  /** The latest changes, newest first. */
+  changes: {
+    change: string;
+    previous_value: string | null;
+    current_value: string | null;
+    observed_at: string;
+  }[];
+  /** An account's last sign-in; `read` false is no reading, never "never signed in". */
+  sign_in: { read: boolean; last_sign_in: string | null; days_since: number | null } | null;
+}
+
+/** One asset a compromise of another would reach (`/attack-paths/blast-radius`). */
+export interface BlastAsset {
+  id: string;
+  asset_id: string | null;
+  name: string;
+  resource_type: string;
+  data_sensitivity: Level;
+}

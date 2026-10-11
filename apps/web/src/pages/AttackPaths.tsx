@@ -6,7 +6,6 @@ import {
   PanelRightOpenIcon,
   RouteIcon,
   ScissorsIcon,
-  UndoIcon,
   XIcon,
 } from "lucide-react";
 
@@ -34,6 +33,7 @@ import { hopKey } from "@/components/graph/routeKeys";
 import {
   listRoutes,
   placeName,
+  bestCutAt,
   DEFAULT_SORT,
   ROUTE_SORTS,
   visits,
@@ -41,7 +41,13 @@ import {
   type RouteListing,
   type RouteSort,
 } from "@/components/graph/routeOrder";
-import { routeHistoryQuery, routeMapQuery } from "@/components/graph/graphQueries";
+import {
+  blastRadiusQuery,
+  routeHistoryQuery,
+  routeMapQuery,
+} from "@/components/graph/graphQueries";
+import { AssetCard } from "@/components/graph/AssetCard";
+import { singleKeyShortcut } from "@/lib/keyboard";
 import { RouteProgress } from "@/components/graph/RouteProgress";
 import { ledgerMarks } from "@/components/graph/routeLedger";
 import { usePrefersReducedMotion } from "@/lib/motion";
@@ -266,13 +272,18 @@ export function AttackPathsPage() {
       api.post<Simulation>("/api/v1/attack-paths/simulate", { cuts: plan }).then((r) => r.data),
   });
   const result = plan.length > 0 ? simulation.data : undefined;
-  const simulatedBase = useMemo(
-    () =>
-      plan.length > 0
-        ? { links: plan, closes: new Set(result?.closed.map((route) => route.key)) }
-        : null,
-    [plan, result],
-  );
+  // One cut closes exactly what its line names (`closes`, §122), so a plan of
+  // one is drawn at once; from two cuts on, the drawing waits for the server,
+  // because two cuts can close what neither closes alone (§141, §255).
+  const simulatedBase = useMemo(() => {
+    if (plan.length === 0) return null;
+    const only = plan.length === 1 && plan[0] ? edges.get(cutKey(plan[0])) : undefined;
+    const closes =
+      only && (!result || simulation.isFetching)
+        ? only.closes
+        : (result?.closed.map((route) => route.key) ?? []);
+    return { links: plan, closes: new Set(closes) };
+  }, [plan, result, edges, simulation.isFetching]);
   // What the list and the navigator say about the plan waits for the answer to
   // this plan, never the last one left up while it is checked.
   const settled =
@@ -354,6 +365,44 @@ export function AttackPathsPage() {
     setTab("simulate");
     frame.current?.scrollIntoView?.({ block: "start", behavior: reduced ? "auto" : "smooth" });
   }
+
+  // "If compromised" (§255): what the picked box would reach if taken, drawn
+  // as the only thing at full strength. Put down with the pick.
+  const [compromisedOf, setCompromisedOf] = useState<string | null>(null);
+  const compromised = picked !== null && compromisedOf === picked;
+  function setCompromised(next: (was: boolean) => boolean) {
+    setCompromisedOf(next(compromised) ? picked : null);
+  }
+  const blast = useQuery({
+    ...blastRadiusQuery(picked ?? ""),
+    enabled: compromised,
+  });
+  const reach = useMemo(
+    () =>
+      compromised && picked && blast.data
+        ? new Set([picked, ...blast.data.map((asset) => asset.id)])
+        : null,
+    [compromised, picked, blast.data],
+  );
+
+  // One-key shortcuts on a picked box (§254), through `singleKeyShortcut` so
+  // they can be turned off (§155): t traces its worst route, c plans its best
+  // cut, b shows what a compromise reaches.
+  useEffect(() => {
+    if (!picked || !listing || !map) return;
+    function onKey(event: KeyboardEvent) {
+      if (!singleKeyShortcut(event)) return;
+      if (event.key === "t" && listing?.order[0]) trace(listing.order[0]);
+      else if (event.key === "c" && map) {
+        const best = bestCutAt(map.edges, picked ?? "");
+        if (best) togglePlanned(best);
+      } else if (event.key === "b") setCompromisedOf((was) => (was === picked ? null : picked));
+      else return;
+      event.preventDefault();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
 
   // What the search and facets keep, faded around on the drawing; null when
   // nothing narrows, so the drawing is as it was (§253).
@@ -472,6 +521,9 @@ export function AttackPathsPage() {
                     onClearPick={() => change({ through: null })}
                     place={place}
                     onClearPlace={() => change({ scope: null, group: null })}
+                    compromised={compromised}
+                    onCut={(edge) => togglePlanned(edge)}
+                    onCompromise={() => setCompromised((was) => !was)}
                   />
                 )
               }
@@ -493,6 +545,7 @@ export function AttackPathsPage() {
               }
               picked={picked}
               narrowed={narrowed}
+              reach={reach}
               onPickNode={(id) => {
                 // A box on the route being read reads the hop arriving there.
                 const stop = tracedRoute ? visits(tracedRoute).indexOf(id) : -1;
@@ -633,6 +686,7 @@ function RouteMapFrame({
   simulationPanel,
   picked,
   narrowed,
+  reach,
   onPickNode,
   onPickLink,
   onClearPick,
@@ -649,6 +703,7 @@ function RouteMapFrame({
   simulationPanel: ReactNode;
   picked: string | null;
   narrowed: ReadonlySet<string> | null;
+  reach: ReadonlySet<string> | null;
   onPickNode: (id: string) => void;
   onPickLink: (edge: Hop) => void;
   onClearPick: () => void;
@@ -710,6 +765,7 @@ function RouteMapFrame({
                 simulated={simulated}
                 picked={picked}
                 narrowed={narrowed}
+                reach={reach}
                 onPickNode={onPickNode}
                 onPickLink={onPickLink}
                 onClearPick={onClearPick}
@@ -812,6 +868,9 @@ function RouteList({
   onClearPick,
   place,
   onClearPlace,
+  compromised,
+  onCut,
+  onCompromise,
 }: {
   map: RouteMap;
   nodes: ReadonlyMap<string, RouteMapNode>;
@@ -824,6 +883,10 @@ function RouteList({
   onClearPick: () => void;
   place: Place | null;
   onClearPlace: () => void;
+  /** Whether the drawing shows what the picked box would reach if taken (§255). */
+  compromised: boolean;
+  onCut: (edge: RouteMapEdge) => void;
+  onCompromise: () => void;
 }) {
   const t = useT();
   const byKey = useMemo(() => new Map(map.routes.map((route) => [route.key, route])), [map.routes]);
@@ -860,16 +923,16 @@ function RouteList({
         </div>
       )}
       {pickedNode && (
-        <div className="flex items-center gap-2 border-b border-border p-2 pl-3">
-          <p className="min-w-0 flex-1 text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">{pickedNode.name}</span>{" "}
-            {t.attackPaths.routesThrough(pickedNode.routes)}
-          </p>
-          <Button variant="ghost" size="sm" onClick={onClearPick}>
-            <UndoIcon data-icon="inline-start" />
-            {t.attackPaths.clearTrace}
-          </Button>
-        </div>
+        <AssetCard
+          node={pickedNode}
+          map={map}
+          through={listing.order.flatMap((key) => byKey.get(key) ?? [])}
+          compromised={compromised}
+          onTrace={onTrace}
+          onCut={onCut}
+          onCompromise={onCompromise}
+          onClose={onClearPick}
+        />
       )}
       {pickedNode?.asset_id && !pickedNode.sensitive && (
         <div className="border-b border-border px-3 py-2">

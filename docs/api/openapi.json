@@ -8576,6 +8576,100 @@
         }
       }
     },
+    "/api/v1/attack-paths/inspect/{resource_id}": {
+      "get": {
+        "tags": [
+          "attack-paths"
+        ],
+        "summary": "Inspect Asset",
+        "description": "Where an asset is defined in code, and what has happened to it lately.\n\nFor the inspector beside the drawing (DECISIONS.md section 254). Who holds\naccess to it, and what it holds, stay with ``/access``.",
+        "operationId": "attack_paths_inspect_asset",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "resource_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Resource Id"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_InspectOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
     "/api/v1/attack-paths/neighborhood/{resource_id}": {
       "get": {
         "tags": [
@@ -15935,6 +16029,30 @@
         ],
         "title": "CloudConnectionOut"
       },
+      "CodeHomeOut": {
+        "properties": {
+          "repository": {
+            "type": "string",
+            "title": "Repository"
+          },
+          "working_directory": {
+            "type": "string",
+            "title": "Working Directory"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address"
+          }
+        },
+        "type": "object",
+        "required": [
+          "repository",
+          "working_directory",
+          "address"
+        ],
+        "title": "CodeHomeOut",
+        "description": "Where the customer's Terraform state says an asset is defined."
+      },
       "CollectionStateOut": {
         "properties": {
           "field": {
@@ -17677,6 +17795,26 @@
           "meta"
         ],
         "title": "Envelope[IacDiffOut, NoMeta]"
+      },
+      "Envelope_InspectOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/InspectOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[InspectOut, NoMeta]"
       },
       "Envelope_InvitationCreatedOut_NoMeta_": {
         "properties": {
@@ -21754,6 +21892,96 @@
         ],
         "title": "IacLocationOut",
         "description": "Where the customer's own Terraform state says the asset is defined (DECISIONS.md \u00a7229)."
+      },
+      "InspectChangeOut": {
+        "properties": {
+          "change": {
+            "$ref": "#/components/schemas/AssetChange"
+          },
+          "previous_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Value"
+          },
+          "current_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Value"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Observed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "change",
+          "previous_value",
+          "current_value",
+          "observed_at"
+        ],
+        "title": "InspectChangeOut"
+      },
+      "InspectOut": {
+        "properties": {
+          "asset_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Id"
+          },
+          "defined_in": {
+            "items": {
+              "$ref": "#/components/schemas/CodeHomeOut"
+            },
+            "type": "array",
+            "title": "Defined In"
+          },
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/InspectChangeOut"
+            },
+            "type": "array",
+            "title": "Changes"
+          },
+          "sign_in": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SignInOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "asset_id",
+          "defined_in",
+          "changes",
+          "sign_in"
+        ],
+        "title": "InspectOut"
       },
       "InvitationCreate": {
         "properties": {
@@ -26726,6 +26954,44 @@
           "late"
         ],
         "title": "SeverityProgressOut"
+      },
+      "SignInOut": {
+        "properties": {
+          "read": {
+            "type": "boolean",
+            "title": "Read"
+          },
+          "last_sign_in": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Sign In"
+          },
+          "days_since": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Days Since"
+          }
+        },
+        "type": "object",
+        "required": [
+          "read",
+          "last_sign_in",
+          "days_since"
+        ],
+        "title": "SignInOut",
+        "description": "An account's last sign-in as the capture recorded it.\n\n``read`` false: no reading covered the account, which the tenant's licence\nmay rule out -- never shown as \"never signed in\"."
       },
       "SimulatedCutOut": {
         "properties": {

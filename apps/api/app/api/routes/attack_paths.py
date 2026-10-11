@@ -31,6 +31,7 @@ from app.schemas.attack_path import (
     CutFixOut,
     EstateMeta,
     EstateOut,
+    InspectOut,
     NeighborhoodMeta,
     NeighborhoodOut,
     ReachCountsMeta,
@@ -50,6 +51,7 @@ from app.schemas.common import ERROR_RESPONSES, Envelope, NoMeta, TotalMeta
 from app.services import graph as graph_service
 from app.services.cut_fix import cut_fix
 from app.services.graph import serialize_path
+from app.services.inspect import inspect
 from app.services.placement import load_placements
 from app.services.route_ledger import route_history
 
@@ -311,6 +313,22 @@ async def access(
             members_limit=ACCESS_MEMBERS_LIMIT,
         ),
     )
+
+
+@router.get("/inspect/{resource_id:path}")
+async def inspect_asset(
+    resource_id: str, session: DbSession, tenant: Tenant
+) -> Envelope[InspectOut, NoMeta]:
+    """Where an asset is defined in code, and what has happened to it lately.
+
+    For the inspector beside the drawing (DECISIONS.md section 254). Who holds
+    access to it, and what it holds, stay with ``/access``.
+    """
+    graph = await graph_service.load_graph(session, tenant.organization_id)
+    node = graph.resolve(resource_id)
+    if node not in graph.nodes:
+        raise NotFound("No such asset in this organization")
+    return Envelope(data=await inspect(session, tenant, graph.nodes[node]), meta=NoMeta())
 
 
 @router.get("/neighborhood/{resource_id:path}")
