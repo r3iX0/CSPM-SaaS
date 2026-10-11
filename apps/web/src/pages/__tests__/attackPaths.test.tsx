@@ -905,7 +905,9 @@ describe("AttackPathsPage", () => {
   it("finds routes by any asset on them, and says when nothing is so named", async () => {
     mount(oneRoute(), { total: 1, entry_points: 1, sensitive_targets: 1 });
     const panel = await screen.findByRole("complementary", { name: "The routes" });
-    const search = await within(panel).findByRole("searchbox", { name: "Search routes" });
+    // In the query bar above the drawing, which narrows the list and the drawing (§253).
+    const bar = await screen.findByRole("search", { name: "Narrow the routes" });
+    const search = within(bar).getByRole("searchbox", { name: "Search routes" });
 
     // An asset in the middle of the route, not only its ends.
     await userEvent.type(search, "sub-1");
@@ -917,6 +919,28 @@ describe("AttackPathsPage", () => {
     expect(
       within(panel).getByText("No route passes anything named \u201cnowhere\u201d."),
     ).toBeInTheDocument();
+  });
+
+  it("narrows by a facet kept in the URL, and clears it", async () => {
+    const critical: MappedRoute = {
+      ...ROUTE,
+      key: "web|vault",
+      entry: { ...ROUTE.entry, id: "web", name: "web-02" },
+      target: { ...ROUTE.target, id: "vault", name: "kv-prod", data_sensitivity: "CRITICAL" },
+    };
+    mount(
+      { ...oneRoute(), routes: [ROUTE, critical], loose: [ROUTE.key, critical.key] },
+      { total: 2, entry_points: 2, sensitive_targets: 2 },
+      {},
+      "/attack-paths?reaches=CRITICAL",
+    );
+    const panel = await routesPanel();
+    expect(await within(panel).findByText(/kv-prod/)).toBeInTheDocument();
+    expect(within(panel).queryByText(/customerdata/)).toBeNull();
+
+    await userEvent.click(screen.getByRole("button", { name: "Clear" }));
+    expect(await within(panel).findByText(/customerdata/)).toBeInTheDocument();
+    expect(screen.getByTestId("where").textContent).not.toContain("reaches=");
   });
 
   it("sorts by what a route reaches, and marks the ones a risk tracks", async () => {

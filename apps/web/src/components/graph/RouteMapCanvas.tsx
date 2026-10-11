@@ -121,6 +121,11 @@ export interface RouteMapCanvasProps {
   /** The box picked, whose routes the rail is showing. */
   picked?: string | null;
   /**
+   * The routes the query bar's search and facets keep, by key, or null when
+   * nothing narrows them (§253). The rest fade; nothing is removed.
+   */
+  narrowed?: ReadonlySet<string> | null;
+  /**
    * Called when a box is pressed: on the traced route the page reads the hop
    * arriving there, anywhere else the rail shows what runs through it.
    */
@@ -169,6 +174,7 @@ function Canvas({
   preview = null,
   simulated = null,
   picked = null,
+  narrowed = null,
   onPickNode,
   onPickLink,
   onClearPick,
@@ -196,7 +202,26 @@ function Canvas({
     [picked, at],
   );
   const on = traced || preview || simulated ? null : (pickedOn ?? previewed);
-  const around = useMemo(() => kept(drawn, on), [drawn, on]);
+  // What the query bar keeps, faded around like a selection, under it in
+  // precedence: a pick or a pointer still reads one box (§253).
+  const narrowedAround = useMemo(() => {
+    if (!narrowed) return null;
+    const boxes = new Set<string>();
+    const lines = new Set<string>();
+    for (const route of map.routes) {
+      if (!narrowed.has(route.key)) continue;
+      boxes.add(route.entry.id);
+      for (const step of route.steps) {
+        boxes.add(step.target_id);
+        lines.add(hopKey(step.source_id, step.relationship, step.target_id));
+      }
+    }
+    return { boxes, edges: lines };
+  }, [map, narrowed]);
+  const around = useMemo(
+    () => kept(drawn, on) ?? (traced || preview || simulated ? null : narrowedAround),
+    [drawn, on, traced, preview, simulated, narrowedAround],
+  );
   const edges = useMemo(() => {
     const faded = around
       ? drawn.map((edge) =>

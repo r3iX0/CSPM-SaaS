@@ -1,7 +1,14 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
-import { RouteIcon, ScissorsIcon, SearchIcon, UndoIcon, XIcon } from "lucide-react";
+import {
+  PanelRightCloseIcon,
+  PanelRightOpenIcon,
+  RouteIcon,
+  ScissorsIcon,
+  UndoIcon,
+  XIcon,
+} from "lucide-react";
 
 import { api } from "@/lib/api";
 import type {
@@ -16,9 +23,9 @@ import type {
   Simulation,
 } from "@/lib/types";
 import { useT } from "@/i18n";
+import { cn } from "@/lib/format";
 import { LiveStatus } from "@/components/common/LiveStatus";
 import { InfoTip } from "@/components/common/InfoTip";
-import { SelectField } from "@/components/common/SelectField";
 import { ResourceTypeLabel } from "@/components/security/IconLabel";
 import { GraphLegend, MARKS } from "@/components/graph/GraphLegend";
 import { PatternRow, RouteRow, type RouteMarks } from "@/components/graph/RouteRows";
@@ -42,12 +49,13 @@ import { arrivedByMorph } from "@/lib/viewTransition";
 import type { Hop, SimulatedPlan } from "@/components/graph/RouteMapCanvas";
 import { SimulationPanel } from "@/components/graph/SimulationPanel";
 import { FixPlanCard } from "@/components/graph/FixPlanCard";
+import { RouteQueryBar } from "@/components/graph/RouteQueryBar";
+import { FACET_PARAMS, hasFacets, readFacets } from "@/components/graph/routeFacets";
 import { DeclareSensitive } from "@/components/graph/DeclareSensitive";
 import { CardsSkeleton, EmptyState, ErrorState, PageHeader } from "@/components/common/states";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -126,6 +134,8 @@ export function AttackPathsPage() {
     ? (sortParam as RouteSort)
     : DEFAULT_SORT;
   const query = params.get("q") ?? "";
+  /** The query bar's facets, in the URL (§253). */
+  const facets = useMemo(() => readFacets(params), [params]);
   /** The links somebody is trying out together, in the order they were added. */
   const plan = useMemo(() => params.getAll("cut").flatMap(parseCut), [params]);
   const [tab, setTab] = useState<PanelTab>(() => (plan.length > 0 ? "simulate" : "routes"));
@@ -193,8 +203,10 @@ export function AttackPathsPage() {
   );
   const listing = useMemo(
     () =>
-      map ? listRoutes(map, nodes, { picked, place, query, sort, tracked: trackedKeys }) : null,
-    [map, nodes, picked, place, query, sort, trackedKeys],
+      map
+        ? listRoutes(map, nodes, { picked, place, query, sort, tracked: trackedKeys, facets })
+        : null,
+    [map, nodes, picked, place, query, sort, trackedKeys, facets],
   );
   const tracedRoute = useMemo(
     () => routes.find((route) => route.key === traced) ?? null,
@@ -343,6 +355,13 @@ export function AttackPathsPage() {
     frame.current?.scrollIntoView?.({ block: "start", behavior: reduced ? "auto" : "smooth" });
   }
 
+  // What the search and facets keep, faded around on the drawing; null when
+  // nothing narrows, so the drawing is as it was (§253).
+  const narrowed = useMemo(
+    () => (listing && (hasFacets(facets) || query.trim() !== "") ? new Set(listing.order) : null),
+    [listing, facets, query],
+  );
+
   const at = tracedRoute && listing ? listing.order.indexOf(tracedRoute.key) : -1;
   function stepRoute(delta: -1 | 1) {
     const next = listing?.order[at + delta];
@@ -378,6 +397,21 @@ export function AttackPathsPage() {
               history.data && (
                 <RouteProgress history={history.data.history} meta={history.data.meta} />
               )
+            }
+          />
+
+          <RouteQueryBar
+            query={query}
+            onQuery={(next) => change({ q: next || null })}
+            sort={sort}
+            onSort={(next) => change({ sort: next === DEFAULT_SORT ? null : next })}
+            facets={facets}
+            onFacet={(param, value) => change({ [param]: value })}
+            onClear={() =>
+              change({
+                q: null,
+                ...Object.fromEntries(Object.values(FACET_PARAMS).map((param) => [param, null])),
+              })
             }
           />
 
@@ -434,9 +468,6 @@ export function AttackPathsPage() {
                     onTrace={trace}
                     onPreview={setPreviewKey}
                     query={query}
-                    onQuery={(next) => change({ q: next || null })}
-                    sort={sort}
-                    onSort={(next) => change({ sort: next === DEFAULT_SORT ? null : next })}
                     picked={picked}
                     onClearPick={() => change({ through: null })}
                     place={place}
@@ -461,6 +492,7 @@ export function AttackPathsPage() {
                 />
               }
               picked={picked}
+              narrowed={narrowed}
               onPickNode={(id) => {
                 // A box on the route being read reads the hop arriving there.
                 const stop = tracedRoute ? visits(tracedRoute).indexOf(id) : -1;
@@ -600,6 +632,7 @@ function RouteMapFrame({
   routesPanel,
   simulationPanel,
   picked,
+  narrowed,
   onPickNode,
   onPickLink,
   onClearPick,
@@ -615,11 +648,15 @@ function RouteMapFrame({
   routesPanel: ReactNode;
   simulationPanel: ReactNode;
   picked: string | null;
+  narrowed: ReadonlySet<string> | null;
   onPickNode: (id: string) => void;
   onPickLink: (edge: Hop) => void;
   onClearPick: () => void;
 }) {
   const t = useT();
+  // The panel folds away for a wide look at the drawing, and widens while a
+  // hop is read, which carries the most text (§253).
+  const [folded, setFolded] = useState(false);
 
   return (
     <section aria-labelledby="route-map-title" className="flex flex-col gap-3">
@@ -672,6 +709,7 @@ function RouteMapFrame({
                 preview={preview}
                 simulated={simulated}
                 picked={picked}
+                narrowed={narrowed}
                 onPickNode={onPickNode}
                 onPickLink={onPickLink}
                 onClearPick={onClearPick}
@@ -679,16 +717,44 @@ function RouteMapFrame({
             </Suspense>
           </div>
 
+          {folded && (
+            <div className="hidden border-l border-border p-1 lg:flex">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={t.attackPaths.panelShow}
+                aria-expanded={false}
+                onClick={() => setFolded(false)}
+              >
+                <PanelRightOpenIcon />
+              </Button>
+            </div>
+          )}
           <aside
             aria-label={t.attackPaths.panelLabel}
-            className="flex max-h-[30rem] min-h-0 flex-col border-t border-border lg:max-h-none lg:w-[20rem] lg:border-t-0 lg:border-l"
+            className={cn(
+              "flex max-h-[30rem] min-h-0 flex-col border-t border-border lg:max-h-none lg:border-t-0 lg:border-l",
+              "lg:transition-[width] lg:duration-200",
+              traced ? "lg:w-[24rem]" : "lg:w-[20rem]",
+              folded && "lg:hidden",
+            )}
           >
             <Tabs
               value={tab}
               onValueChange={(value) => onTab(value as PanelTab)}
               className="min-h-0 flex-1 gap-0"
             >
-              <div className="border-b border-border p-2">
+              <div className="flex items-center gap-1 border-b border-border p-2">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="hidden lg:inline-flex"
+                  aria-label={t.attackPaths.panelHide}
+                  aria-expanded
+                  onClick={() => setFolded(true)}
+                >
+                  <PanelRightCloseIcon />
+                </Button>
                 <TabsList className="w-full">
                   <TabsTrigger value="routes">
                     {t.attackPaths.tabRoutes}
@@ -742,9 +808,6 @@ function RouteList({
   onTrace,
   onPreview,
   query,
-  onQuery,
-  sort,
-  onSort,
   picked,
   onClearPick,
   place,
@@ -757,9 +820,6 @@ function RouteList({
   onTrace: (key: string) => void;
   onPreview: (key: string | null) => void;
   query: string;
-  onQuery: (query: string) => void;
-  sort: RouteSort;
-  onSort: (sort: RouteSort) => void;
   picked: string | null;
   onClearPick: () => void;
   place: Place | null;
@@ -767,13 +827,6 @@ function RouteList({
 }) {
   const t = useT();
   const byKey = useMemo(() => new Map(map.routes.map((route) => [route.key, route])), [map.routes]);
-  const labels: Record<RouteSort, string> = {
-    worst: t.attackPaths.sortWorst,
-    hops: t.attackPaths.sortHops,
-    sensitive: t.attackPaths.sortSensitive,
-    exposed: t.attackPaths.sortExposed,
-    tracked: t.attackPaths.sortTracked,
-  };
   const pickedNode = picked ? nodes.get(picked) : undefined;
   // Named by any node in the subscription; the id alone when none drawn is.
   const placeNode = place ? map.nodes.find((node) => node.scope_id === place.scope) : undefined;
@@ -823,31 +876,6 @@ function RouteList({
           <DeclareSensitive assetId={pickedNode.asset_id} name={pickedNode.name} />
         </div>
       )}
-      <div className="flex shrink-0 items-center gap-2 border-b border-border p-2">
-        <div className="relative min-w-0 flex-1">
-          <SearchIcon
-            className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
-            type="search"
-            value={query}
-            onChange={(event) => onQuery(event.target.value)}
-            placeholder={t.attackPaths.searchPlaceholder}
-            aria-label={t.attackPaths.searchLabel}
-            data-page-search
-            className="h-8 pl-8 text-xs md:text-xs"
-          />
-        </div>
-        <SelectField
-          value={sort}
-          onValueChange={(value) => onSort(value as RouteSort)}
-          options={ROUTE_SORTS.map((value) => ({ value, label: labels[value] }))}
-          ariaLabel={t.attackPaths.sortLabel}
-          idleValue={DEFAULT_SORT}
-          className="w-36"
-        />
-      </div>
       <LiveStatus
         quietFirst
         message={

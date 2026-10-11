@@ -1,5 +1,6 @@
 import { LEVEL_RANK } from "@/lib/changes";
 import type { MappedRoute, RouteMap, RouteMapNode, RoutePattern } from "@/lib/types";
+import { matchesFacets, type RouteFacets } from "./routeFacets";
 
 /**
  * The routes in the order the attack-path panel lists them, narrowed the way
@@ -69,6 +70,8 @@ export interface RouteNarrowing {
   sort: RouteSort;
   /** The routes the risks queue tracks, by key, for sorting them first. */
   tracked?: ReadonlySet<string>;
+  /** The facets the query bar sets (§253). */
+  facets?: RouteFacets;
 }
 
 export interface RouteListing {
@@ -118,14 +121,15 @@ function comparing(sort: RouteSort, tracked?: ReadonlySet<string>) {
 export function listRoutes(
   map: RouteMap,
   nodes: ReadonlyMap<string, RouteMapNode>,
-  { picked, place, query, sort, tracked }: RouteNarrowing,
+  { picked, place, query, sort, tracked, facets }: RouteNarrowing,
 ): RouteListing {
   const words = query.trim().toLowerCase();
   const kept = map.routes.filter(
     (route) =>
       (!picked || visits(route).includes(picked)) &&
       (!place || visits(route).some((id) => inPlace(nodes.get(id), place))) &&
-      (!words || names(route).some((name) => name.toLowerCase().includes(words))),
+      (!words || names(route).some((name) => name.toLowerCase().includes(words))) &&
+      (!facets || matchesFacets(route, facets)),
   );
   const compare = comparing(sort, tracked);
   const byKey = new Map(kept.map((route) => [route.key, route]));

@@ -13227,6 +13227,36 @@ said in its sentence (§246) with what it closes and the running count, and how 
 changes made together where single changes stop. The routes, each with its own cut, follow as
 before, so a document and the page never disagree about what to do first.
 
+## 253. A query bar narrows the routes and the drawing together
+
+The search and the sort sat in the panel, which then did three jobs: narrowing, reading a route and
+simulating. An engineer checking a cut wants to narrow by more than a name, and to hand the
+narrowed view to somebody else.
+
+**A bar above the frame** (`RouteQueryBar`) holds the search, the sort and five facets: what the
+route reaches (High or worse, Critical), its way in (the internet, or an identity signing in), a
+kind of link it crosses (a role, a network path, an identity), tracked or not, and at most N hops.
+Each is in the URL (`reaches`, `way`, `link`, `tracked`, `hops_max`) beside `q` and `sort`, read
+by `readFacets`, which ignores what it does not recognise rather than refusing the page. "Copy
+investigation link" copies the page's URL with everything in it, and "Clear" puts every facet and
+the search back. The subscription and box narrowings stay in the panel, where they are reached
+from the drawing.
+
+**The drawing fades, it does not lose routes.** `listRoutes` applies the facets, so the list and
+the navigator's count agree (§142), and the routes the search and facets keep are passed to the
+canvas as `narrowed`: everything off them fades as everything off a selection does (`kept`,
+§134), under a pick or a pointer, which still read one box. A route read out of its place would be
+a route read wrong.
+
+**The panel folds and widens.** On a wide screen it folds away to a button for a look at the whole
+drawing, and widens from 20rem to 24rem while a route is read, which carries the most text. It
+stays docked (§137): a slide-over would cover the boxes being inspected.
+
+**Not yet.** Folding each resource group into one box past a node threshold, as the estate map
+does (§111), and turning the panel into a sheet below the `lg` breakpoint, where it now stacks
+under the drawing, are left for when an estate's map needs them; the route map already caps at 200
+routes and says so.
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,
