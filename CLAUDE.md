@@ -239,8 +239,9 @@ so the shell's own `<main>` is the page's only one (§155).
   neither closes alone — with the plan in the URL (`cut`)
   (§141); a traced route is read in the panel by
   `RouteNavigator` — its stops always shown with where each place is entered (a link to the estate
-  map), its links walked with up and down, the one being read saying what cutting it closes (the
-  earliest cut and the link closing the most both marked) with "Add to the plan" beside it, and the
+  map), its links walked with up and down as one highlight sliding along rows that keep their height,
+  the one being read said in a dock at the panel's foot -- what cutting it closes (the earliest cut
+  and the link closing the most both marked) with "Add to the plan" beside it (§261) -- and the
   routes before and after it in the list's order a left or right away; there is no step bar over the
   drawing, and a press on the traced route's own line or box reads that hop rather than planning it
   (§142). The list is ordered and narrowed by `listRoutes`

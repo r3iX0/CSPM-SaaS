@@ -608,8 +608,13 @@ describe("AttackPathsPage", () => {
     const panel = screen.getByRole("complementary", { name: "The routes" });
 
     expect(within(panel).getByText("The changes that close the most")).toBeInTheDocument();
+    // Read whole, with its two assets set apart (§260).
     expect(
-      within(panel).getByText("mi-jump-01 can act over sub-1 (Contributor)"),
+      within(panel).getByText(
+        (_, element) =>
+          element?.tagName === "P" &&
+          element.textContent === "mi-jump-01 can act over sub-1 (Contributor)",
+      ),
     ).toBeInTheDocument();
     expect(within(panel).getByText("4")).toBeInTheDocument();
     expect(within(panel).getByText(/of 4$/)).toBeInTheDocument();
@@ -803,9 +808,25 @@ describe("AttackPathsPage", () => {
       "aria-current",
       "step",
     );
+    // Every hop's row keeps its short line; the hop being read says the rest
+    // in the dock under the list, so walking moves a highlight, not the list.
     expect(within(hops).getByRole("button", { name: /^Hop 2 of 4/ })).toHaveTextContent(
-      "mi-jump-01 can act over sub-1 (Contributor)",
+      "mi-jump-01 can act over sub-1",
     );
+    expect(within(navigator).getByText("Hop 2 of 4")).toBeInTheDocument();
+    expect(
+      within(navigator).getByText(
+        (_, element) =>
+          element?.tagName === "P" &&
+          element.textContent === "mi-jump-01 can act over sub-1 (Contributor)",
+      ),
+    ).toBeInTheDocument();
+
+    // The dock steps along the route too.
+    await userEvent.click(within(navigator).getByRole("button", { name: "Next hop" }));
+    expect(screen.getByTestId("where")).toHaveTextContent("hop=2");
+    await userEvent.click(within(navigator).getByRole("button", { name: "Previous hop" }));
+    expect(screen.getByTestId("where")).toHaveTextContent("hop=1");
 
     await userEvent.click(within(hops).getByRole("button", { name: /^Hop 4 of 4/ }));
     expect(screen.getByTestId("where")).toHaveTextContent("hop=3");

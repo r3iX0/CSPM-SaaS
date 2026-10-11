@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { HowToFix } from "@/components/graph/HowToFix";
+import { Named } from "@/components/graph/Named";
 import type { Hop } from "./RouteMapCanvas";
 import { hopKey } from "./routeKeys";
 
@@ -44,6 +45,10 @@ const chokeHop = (choke: ChokePoint): Hop => ({
  * line says; "3 close only with it" is what the plan says. A change the rest
  * of the plan already covers is an afternoon's work for nothing, and is marked
  * so it can be left out.
+ *
+ * **Read as cards, said in words (§260).** The outcome is a card with its
+ * count large; each change in the plan is numbered, its assets set apart in
+ * its sentence and what it does said as two pills; the rest are compact rows.
  *
  * **What to add next is ranked with the plan made.** With nothing planned the
  * tab starts from the estate's choke points -- the links holding several
@@ -90,17 +95,24 @@ export function SimulationPanel({
   if (plan.length === 0) {
     return (
       <div className="flex flex-col gap-4 overflow-y-auto p-3">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-1">
-            <h3 className="text-sm font-medium">Try a change before you make it</h3>
-            <InfoTip label="How a plan is checked">
-              Add everything you would change together: the plan is checked as a whole, because two
-              changes can close routes neither closes alone. Nothing in your cloud changes.
-            </InfoTip>
+        <div className="flex items-start gap-3 rounded-xl bg-foreground/[0.035] p-4 ring-1 ring-border">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-ok-bg text-ok">
+            <ScissorsIcon className="size-4" aria-hidden />
+          </span>
+          <div className="flex min-w-0 flex-col gap-1">
+            <div className="flex items-center gap-1">
+              <h3 className="text-body font-semibold tracking-tight">
+                Try a change before you make it
+              </h3>
+              <InfoTip label="How a plan is checked">
+                Add everything you would change together: the plan is checked as a whole, because
+                two changes can close routes neither closes alone. Nothing in your cloud changes.
+              </InfoTip>
+            </div>
+            <p className="text-meta leading-relaxed text-muted-foreground">
+              Press a line on the drawing, or start from a change below.
+            </p>
           </div>
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            Press a line on the drawing, or start from a change below.
-          </p>
         </div>
         <Suggestions
           title="The changes that close the most"
@@ -130,7 +142,7 @@ export function SimulationPanel({
       <div
         aria-busy={checking}
         className={cn(
-          "flex flex-col gap-4 overflow-y-auto p-3 transition-opacity",
+          "flex flex-col gap-5 overflow-y-auto p-3 transition-opacity",
           checking && result && "opacity-60",
         )}
       >
@@ -146,59 +158,72 @@ export function SimulationPanel({
         )}
 
         <section aria-labelledby="plan-title" className="flex flex-col gap-2">
-          <div className="flex items-center justify-between gap-2">
-            <h3 id="plan-title" className="text-xs font-medium">
+          <div className="flex items-center gap-2">
+            <h3 id="plan-title" className="text-meta font-semibold">
               The plan{" "}
-              <span className="font-normal tabular-nums text-muted-foreground">
+              <span className="ml-1 rounded-full bg-foreground/8 px-1.5 font-normal tabular-nums text-muted-foreground">
                 {plan.length} of {maxCuts}
               </span>
             </h3>
+            <span className="flex-1" />
+            {result && result.cuts.length > 0 && (
+              <CopyButton variant="ghost" label="Copy the plan" text={planText(result)} />
+            )}
             <Button variant="ghost" size="sm" onClick={onClear}>
               Clear
             </Button>
           </div>
           <ol className="flex flex-col gap-2">
-            {plan.map((link) => {
+            {plan.map((link, index) => {
               const key = keyOf(link);
               const cut = weighed.get(key);
               const gone = missing.has(key);
-              const detail = cut?.detail ?? edges.get(key)?.detail ?? key;
+              const edge = edges.get(key);
+              const detail = cut?.detail ?? edge?.detail ?? key;
+              const names = edge ? [nodeName(map, edge.source), nodeName(map, edge.target)] : [];
               return (
                 <li
                   key={key}
                   className={cn(
-                    "rounded-lg border px-3 py-2",
-                    gone ? "border-dashed border-border" : "border-ok-border",
+                    "flex gap-3 rounded-xl p-3 ring-1 ring-border",
+                    !gone && "bg-foreground/[0.035]",
                   )}
                 >
-                  <div className="flex items-start gap-2">
-                    <ScissorsIcon className="mt-0.5 size-3.5 shrink-0 text-ok" aria-hidden />
-                    <p className="min-w-0 flex-1 font-mono text-xs break-words">{detail}</p>
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      aria-label={`Take out of the plan: ${detail}`}
-                      onClick={() => onRemove(link)}
-                    >
-                      <XIcon />
-                    </Button>
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "flex size-5 shrink-0 items-center justify-center rounded-full text-caption font-semibold tabular-nums",
+                      gone ? "bg-foreground/8 text-muted-foreground" : "bg-ok text-background",
+                    )}
+                  >
+                    {index + 1}
+                  </span>
+                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                    <div className="flex items-start gap-2">
+                      <p className="min-w-0 flex-1 text-body break-words text-muted-foreground">
+                        <Named text={detail} names={names} />
+                      </p>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        aria-label={`Take out of the plan: ${detail}`}
+                        onClick={() => onRemove(link)}
+                      >
+                        <XIcon />
+                      </Button>
+                    </div>
+                    <CutWeight
+                      gone={gone}
+                      alone={cut?.alone}
+                      neededFor={cut?.needed_for}
+                      alongside={plan.length > 1}
+                    />
+                    {!gone && <HowToFix link={link} />}
                   </div>
-                  <CutWeight
-                    gone={gone}
-                    alone={cut?.alone}
-                    neededFor={cut?.needed_for}
-                    alongside={plan.length > 1}
-                  />
-                  {!gone && <HowToFix link={link} className="mt-1" />}
                 </li>
               );
             })}
           </ol>
-          {result && result.cuts.length > 0 && (
-            <div className="self-start">
-              <CopyButton variant="outline" label="Copy the plan" text={planText(result)} />
-            </div>
-          )}
         </section>
 
         {result && result.after > 0 && (
@@ -227,13 +252,15 @@ export function SimulationPanel({
         {closed.length > 0 && (
           <RouteList title="Closed" count={closed.length}>
             {closed.slice(0, SHOWN).map((route) => (
-              <li key={route.key} className="flex items-center gap-1.5 px-1 text-xs">
+              <li key={route.key} className="flex items-center gap-2 px-2 py-1 text-meta">
                 <SeverityBadge level={route.data_sensitivity} size="sm" />
                 <span className="min-w-0 flex-1 truncate text-muted-foreground">
                   {route.entry} → {route.target}
                 </span>
                 {together.has(route.key) && (
-                  <span className="shrink-0 text-caption text-ok">only together</span>
+                  <span className="shrink-0 rounded-full bg-ok-bg px-1.5 text-caption text-ok">
+                    only together
+                  </span>
                 )}
               </li>
             ))}
@@ -242,6 +269,11 @@ export function SimulationPanel({
       </div>
     </div>
   );
+}
+
+/** A drawn box's name, for setting it apart in a sentence. */
+function nodeName(map: RouteMap, id: string): string {
+  return map.nodes.find((node) => node.id === id)?.name ?? "";
 }
 
 /**
@@ -266,42 +298,47 @@ function Outcome({
   // arrive in place when the panel opens (DECISIONS.md §167, §182).
   const shown = Math.round(useCountUp(closed ?? 0));
   return (
-    <div className="flex shrink-0 flex-col gap-2 border-b border-border p-3">
-      <div className="flex items-baseline justify-between gap-2">
-        <p className="text-xs text-muted-foreground" aria-live="polite">
-          {closed === null || before === null ? (
-            "Checking the plan…"
-          ) : (
-            <>
-              <span className="text-lg font-semibold tabular-nums text-foreground">{shown}</span> of{" "}
-              {before} {before === 1 ? "route closes" : "routes close"}
-            </>
-          )}
+    <div className="shrink-0 border-b border-border p-3">
+      <div className="flex flex-col gap-2.5 rounded-xl bg-foreground/[0.035] p-4 ring-1 ring-border">
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="text-meta text-muted-foreground" aria-live="polite">
+            {closed === null || before === null ? (
+              "Checking the plan…"
+            ) : (
+              <>
+                <span className="mr-1 text-stat font-semibold tracking-tight tabular-nums text-ok">
+                  {shown}
+                </span>{" "}
+                of {before} {before === 1 ? "route closes" : "routes close"}
+              </>
+            )}
+          </p>
+          {checking && <Spinner className="size-3.5 text-muted-foreground" />}
+        </div>
+        <div aria-hidden className="h-2 overflow-hidden rounded-full bg-foreground/10">
+          <div
+            className="h-full origin-left rounded-full bg-ok transition-transform duration-300 motion-reduce:transition-none"
+            style={{ transform: `scaleX(${share})` }}
+          />
+        </div>
+        {after !== undefined && (
+          <p className="text-meta text-muted-foreground">
+            {after === 0
+              ? "No route is left from anything exposed to anything sensitive."
+              : `${after} still ${after === 1 ? "runs" : "run"}. Checked over every route, not only those drawn.`}
+          </p>
+        )}
+        {together > 0 && (
+          <p className="rounded-lg bg-ok-bg px-2.5 py-1.5 text-meta text-foreground">
+            {together === 1 ? "One route closes" : `${together} routes close`} only because these
+            changes are made together — no one of them closes {together === 1 ? "it" : "them"}{" "}
+            alone.
+          </p>
+        )}
+        <p className="text-caption text-muted-foreground">
+          A simulation. Nothing in your cloud has changed.
         </p>
-        {checking && <Spinner className="size-3.5 text-muted-foreground" />}
       </div>
-      <div aria-hidden className="h-1.5 overflow-hidden rounded-full bg-muted">
-        <div
-          className="h-full origin-left rounded-full bg-ok transition-transform duration-300 motion-reduce:transition-none"
-          style={{ transform: `scaleX(${share})` }}
-        />
-      </div>
-      {after !== undefined && (
-        <p className="text-xs text-muted-foreground">
-          {after === 0
-            ? "No route is left from anything exposed to anything sensitive."
-            : `${after} still ${after === 1 ? "runs" : "run"}. Checked over every route, not only those drawn.`}
-        </p>
-      )}
-      {together > 0 && (
-        <p className="rounded-md border border-ok-border bg-ok-bg px-2.5 py-1.5 text-xs text-foreground">
-          {together === 1 ? "One route closes" : `${together} routes close`} only because these
-          changes are made together — no one of them closes {together === 1 ? "it" : "them"} alone.
-        </p>
-      )}
-      <p className="text-caption text-muted-foreground">
-        A simulation. Nothing in your cloud has changed.
-      </p>
     </div>
   );
 }
@@ -320,33 +357,42 @@ function CutWeight({
 }) {
   if (gone) {
     return (
-      <p className="mt-1 text-xs text-muted-foreground">
+      <p className="text-meta text-muted-foreground">
         Not in the latest reading — it may already have been removed. Left out of the check.
       </p>
     );
   }
   if (alone === undefined || neededFor === undefined) {
-    return <p className="mt-1 text-xs text-muted-foreground">Checking…</p>;
+    return <p className="text-meta text-muted-foreground">Checking…</p>;
   }
+  const covered = alongside && neededFor === 0;
   return (
-    <div className="mt-1 flex flex-col gap-0.5 text-xs text-muted-foreground">
-      <p>
-        Closes <span className="tabular-nums text-foreground">{alone}</span> alone
+    <div className="flex flex-col gap-1">
+      <p className="flex flex-wrap items-center gap-1.5 text-caption">
+        <span className="rounded-full bg-foreground/8 px-2 text-muted-foreground">
+          Closes <span className="tabular-nums text-foreground">{alone}</span> alone
+        </span>
         {alongside && (
-          <>
-            {" · "}
-            <span className="tabular-nums text-foreground">{neededFor}</span>{" "}
-            {neededFor === 1 ? "closes" : "close"} only with it
-          </>
+          <span
+            className={cn(
+              "rounded-full px-2",
+              covered ? "bg-high-bg text-high" : "bg-ok-bg text-ok",
+            )}
+          >
+            <span className="tabular-nums">{neededFor}</span> {neededFor === 1 ? "closes" : "close"}{" "}
+            only with it
+          </span>
         )}
       </p>
-      {alongside && neededFor === 0 && (
-        <p className="text-medium">
+      {covered && (
+        <p className="text-meta text-muted-foreground">
           The rest of the plan already closes everything this would. You can leave it out.
         </p>
       )}
       {!alongside && alone === 0 && (
-        <p>Every route through it has another way round. Add that way to the plan too.</p>
+        <p className="text-meta text-muted-foreground">
+          Every route through it has another way round. Add that way to the plan too.
+        </p>
       )}
     </div>
   );
@@ -369,48 +415,56 @@ function Suggestions({
   if (chokes.length === 0) return null;
   return (
     <section className="flex flex-col gap-2">
-      <div>
-        <h3 className="text-xs font-medium">{title}</h3>
-        {help && <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{help}</p>}
+      <div className="flex items-center gap-1">
+        <h3 className="text-meta font-semibold">{title}</h3>
+        {help && (
+          <InfoTip label={`About: ${title}`} align="end" className="ml-auto">
+            {help}
+          </InfoTip>
+        )}
       </div>
       <ul className="flex flex-col gap-2">
         {chokes.map((choke) => (
           <li
             key={keyOf(chokeHop(choke))}
-            className="flex items-start gap-2 rounded-lg border border-border px-3 py-2"
+            className="flex items-start gap-3 rounded-xl p-3 ring-1 ring-border transition-colors hover:bg-foreground/[0.035]"
           >
-            <div className="min-w-0 flex-1">
-              <p className="font-mono text-xs break-words">{choke.detail}</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Closes <span className="tabular-nums text-foreground">{choke.severs}</span> of{" "}
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <p className="text-body break-words text-muted-foreground">
+                <Named text={choke.detail} names={[choke.source.name, choke.target.name]} />
+              </p>
+              <p className="text-caption text-muted-foreground">
+                Closes <span className="font-semibold tabular-nums text-ok">{choke.severs}</span> of{" "}
                 {choke.total_routes}
               </p>
               {/* Where it sits on more than it closes, said: a customer told four
                   close who then sees two remain stops believing the next number. */}
               {choke.on_routes > choke.severs && (
-                <p className="mt-0.5 text-xs text-muted-foreground">
+                <p className="text-caption text-muted-foreground">
                   {t.attackPaths.chokeSitsOn.replace("{on}", String(choke.on_routes))}
                 </p>
               )}
               {/* Named, not just counted: the count is a claim, these its working. */}
-              <ul className="mt-1.5 flex flex-col gap-0.5">
-                {choke.closes.slice(0, 3).map((route) => (
-                  <li
-                    key={`${route.entry}->${route.target}`}
-                    className="flex items-center gap-1.5 text-xs text-muted-foreground"
-                  >
-                    <SeverityBadge level={route.data_sensitivity} size="sm" />
-                    <span className="min-w-0 truncate">
-                      {route.entry} → {route.target}
-                    </span>
-                  </li>
-                ))}
-                {choke.closes.length > 3 && (
-                  <li className="text-xs text-muted-foreground">
-                    and {choke.closes.length - 3} more
-                  </li>
-                )}
-              </ul>
+              {choke.closes.length > 0 && (
+                <ul className="flex flex-col gap-0.5">
+                  {choke.closes.slice(0, 3).map((route) => (
+                    <li
+                      key={`${route.entry}->${route.target}`}
+                      className="flex items-center gap-1.5 text-caption text-muted-foreground"
+                    >
+                      <SeverityBadge level={route.data_sensitivity} size="sm" />
+                      <span className="min-w-0 truncate">
+                        {route.entry} → {route.target}
+                      </span>
+                    </li>
+                  ))}
+                  {choke.closes.length > 3 && (
+                    <li className="text-caption text-muted-foreground">
+                      and {choke.closes.length - 3} more
+                    </li>
+                  )}
+                </ul>
+              )}
             </div>
             <Button
               variant="outline"
@@ -438,13 +492,16 @@ function RouteList({
   children: ReactNode;
 }) {
   return (
-    <section className="flex flex-col gap-1.5">
-      <h3 className="text-xs font-medium">
-        {title} <span className="font-normal tabular-nums text-muted-foreground">{count}</span>
+    <section className="flex flex-col gap-1">
+      <h3 className="text-meta font-semibold">
+        {title}{" "}
+        <span className="ml-1 rounded-full bg-foreground/8 px-1.5 font-normal tabular-nums text-muted-foreground">
+          {count}
+        </span>
       </h3>
-      <ul className="flex flex-col gap-1">{children}</ul>
+      <ul className="flex flex-col">{children}</ul>
       {count > SHOWN && (
-        <p className="px-1 text-xs text-muted-foreground">and {count - SHOWN} more</p>
+        <p className="px-2 text-caption text-muted-foreground">and {count - SHOWN} more</p>
       )}
     </section>
   );
@@ -476,7 +533,7 @@ function OpenRoute({
       <button
         type="button"
         onClick={onTrace}
-        className="flex w-full items-center gap-1.5 rounded-md px-1 py-0.5 text-left text-xs hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring"
+        className="flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left text-meta hover:bg-foreground/5 focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring"
       >
         <SeverityBadge level={route.target.data_sensitivity} size="sm" />
         <span className="min-w-0 flex-1 truncate">

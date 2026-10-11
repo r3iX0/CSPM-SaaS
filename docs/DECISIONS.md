@@ -13464,6 +13464,33 @@ changing it here alone would give one meaning two looks. The 10x changes mocked 
 (cutting from a line's own chip, an explore and a simulate mode, lenses, a hover card and a
 right-click menu) wait for their own decisions.
 
+## 261. Walking a route moves one highlight; the simulate tab reads as cards
+
+Stepping along a traced route reflowed the panel at every hop: the read link opened where it sat,
+with its facts, what cutting it closes, the cut and how to make it, so the list jumped under the
+reader's eye and the stops carried every detail at once. The simulate tab was a column of bordered
+boxes in a monospaced font, its numbers in prose.
+
+**The navigator (§142) keeps its shape.** Its summary is the route's two ends, one sentence clamped
+to two lines, and pills: what it reaches, its hops, what the plan does to it, the risk tracking it,
+and "Explore in graph". Every stop is one line (its name first, its type, and only the marks that
+matter there) with where the route enters a place under it. Every link is one line whichever is
+read: a highlight slides to the read one (`layoutId`), the earliest cut is marked with scissors and
+the link closing the most with a dot. What the read link says is in a dock at the panel's foot:
+"Hop n of m" with its own arrows, the link's sentence with its assets set apart (`Named`, now its
+own module), the earliest-cut and closes-the-most pills with the link's facts, what cutting it
+closes, and the cut and how to make it. The dock cross-fades as the hop changes and gives way
+before the list does, which always shows a few rows.
+
+**The simulate tab (§141)** opens on the outcome as a card, its count large, the bar under it.
+Each change in the plan is numbered, its sentence keeps its words muted with the assets set
+apart, and what it does is two pills (alone, and only with it, in the colour that says whether the
+rest of the plan already covers it). Copying the plan and clearing it sit on the plan's heading.
+Suggestions are cards with their help behind a question mark, and the routes still open and closed
+are compact rows.
+
+The keyboard is unchanged: up and down walk the links, left and right the routes, Escape returns.
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,
